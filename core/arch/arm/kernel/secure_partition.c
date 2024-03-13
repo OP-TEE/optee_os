@@ -169,23 +169,29 @@ bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 	return !sp_mem_is_shared(mem);
 }
 
+static bool endpoint_id_is_valid(uint32_t id)
+{
+	/*
+	 * These IDs are assigned at the SPMC init so already have valid values
+	 * by the time this function gets first called
+	 */
+	return id != spmd_id && id != spmc_id && id != optee_endpoint_id &&
+	       id >= FFA_SWD_ID_MIN && id <= FFA_SWD_ID_MAX;
+}
+
 static TEE_Result new_session_id(uint16_t *endpoint_id)
 {
-	struct sp_session *session = NULL;
-
-	*endpoint_id = SPMC_ENDPOINT_ID;
+	uint32_t id = 0;
 
 	/* Find the first available endpoint id */
-	do {
-		if (*endpoint_id == UINT16_MAX)
-			return TEE_ERROR_BAD_FORMAT;
+	for (id = FFA_SWD_ID_MIN; id <= FFA_SWD_ID_MAX; id++) {
+		if (endpoint_id_is_valid(id) && !sp_get_session(id)) {
+			*endpoint_id = id;
+			return TEE_SUCCESS;
+		}
+	}
 
-		(*endpoint_id)++;
-
-		session = sp_get_session(*endpoint_id);
-	} while (session);
-
-	return TEE_SUCCESS;
+	return TEE_ERROR_BAD_FORMAT;
 }
 
 static TEE_Result sp_create_ctx(const TEE_UUID *bin_uuid, struct sp_session *s)
@@ -1088,8 +1094,10 @@ static TEE_Result read_manifest_endpoint_id(struct sp_session *s)
 	if (!sp_dt_get_u32(s->fdt, 0, "id", &endpoint_id)) {
 		TEE_Result res = TEE_ERROR_GENERIC;
 
-		if (endpoint_id <= SPMC_ENDPOINT_ID)
+		if (!endpoint_id_is_valid(endpoint_id)) {
+			EMSG("Invalid endpoint ID 0x%"PRIx32, endpoint_id);
 			return TEE_ERROR_BAD_FORMAT;
+		}
 
 		res = swap_sp_endpoints(endpoint_id, s->endpoint_id);
 		if (res)

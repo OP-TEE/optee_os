@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2020-2023, Linaro Limited.
- * Copyright (c) 2019-2021, Arm Limited. All rights reserved.
+ * Copyright (c) 2019-2024, Arm Limited. All rights reserved.
  */
 
 #include <assert.h>
@@ -53,8 +53,10 @@ static uint16_t notif_vm_id;
 static bool spmc_notif_is_ready;
 
 /* Initialized in spmc_init() below */
-static uint16_t my_endpoint_id __nex_bss;
+uint16_t optee_endpoint_id __nex_bss;
+uint16_t spmc_id __nex_bss;
 #ifdef CFG_CORE_SEL1_SPMC
+uint16_t spmd_id __nex_bss;
 static const uint32_t my_part_props = FFA_PART_PROP_DIRECT_REQ_RECV |
 				      FFA_PART_PROP_DIRECT_REQ_SEND |
 #ifdef CFG_NS_VIRTUALIZATION
@@ -303,9 +305,9 @@ static int map_buf(paddr_t pa, unsigned int sz, void **va_ret)
 	return 0;
 }
 
-static void handle_spm_id_get(struct thread_smc_args *args)
+void spmc_handle_spm_id_get(struct thread_smc_args *args)
 {
-	spmc_set_args(args, FFA_SUCCESS_32, FFA_PARAM_MBZ, my_endpoint_id,
+	spmc_set_args(args, FFA_SUCCESS_32, FFA_PARAM_MBZ, spmc_id,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
@@ -525,7 +527,7 @@ static int handle_partition_info_get_all(size_t *elem_count,
 	if (!count_only) {
 		/* Add OP-TEE SP */
 		if (spmc_fill_partition_entry(rxtx->ffa_vers, rxtx->tx,
-					      rxtx->size, 0, my_endpoint_id,
+					      rxtx->size, 0, optee_endpoint_id,
 					      CFG_TEE_CORE_NB_CORE,
 					      my_part_props, my_uuid_words))
 			return FFA_NO_MEMORY;
@@ -580,7 +582,7 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 		if (!count_only) {
 			res = spmc_fill_partition_entry(rxtx->ffa_vers,
 							rxtx->tx, rxtx->size, 0,
-							my_endpoint_id,
+							optee_endpoint_id,
 							CFG_TEE_CORE_NB_CORE,
 							my_part_props,
 							my_uuid_words);
@@ -638,7 +640,7 @@ static void spmc_handle_run(struct thread_smc_args *args)
 	uint16_t thread_id = FFA_TARGET_INFO_GET_VCPU_ID(args->a1);
 	uint32_t rc = FFA_OK;
 
-	if (endpoint != my_endpoint_id) {
+	if (endpoint != optee_endpoint_id) {
 		/*
 		 * The endpoint should be an SP, try to resume the SP from
 		 * preempted into busy state.
@@ -833,7 +835,7 @@ static void handle_direct_request(struct thread_smc_args *args,
 	uint32_t direct_resp_fid = 0;
 
 	if (IS_ENABLED(CFG_SECURE_PARTITION) &&
-	    FFA_DST(args->a1) != my_endpoint_id) {
+	    FFA_DST(args->a1) != optee_endpoint_id) {
 		spmc_sp_start_thread(args);
 		return;
 	}
@@ -945,7 +947,7 @@ static int get_acc_perms(vaddr_t mem_acc_base, unsigned int mem_access_size,
 	for (n = 0; n < mem_access_count; n++) {
 		mem_acc = (void *)(mem_acc_base + mem_access_size * n);
 		descr = &mem_acc->access_perm;
-		if (READ_ONCE(descr->endpoint_id) == my_endpoint_id) {
+		if (READ_ONCE(descr->endpoint_id) == optee_endpoint_id) {
 			*acc_perms = READ_ONCE(descr->perm);
 			*region_offs = READ_ONCE(mem_acc[n].region_offs);
 			return 0;
@@ -1075,7 +1077,7 @@ static bool is_sp_share(struct ffa_mem_transaction_x *mem_trans,
 	 * OP-TEE. We do read it later on again, but there are some additional
 	 * checks there to make sure that the data is correct.
 	 */
-	return READ_ONCE(perm->endpoint_id) != my_endpoint_id;
+	return READ_ONCE(perm->endpoint_id) != optee_endpoint_id;
 }
 
 static int add_mem_share(struct ffa_mem_transaction_x *mem_trans,
@@ -1645,7 +1647,7 @@ void notif_send_async(uint32_t value)
 
 	assert(value == NOTIF_VALUE_DO_BOTTOM_HALF && spmc_notif_is_ready &&
 	       do_bottom_half_value >= 0);
-	res = ffa_set_notification(notif_vm_id, my_endpoint_id, flags,
+	res = ffa_set_notification(notif_vm_id, optee_endpoint_id, flags,
 				   BIT64(do_bottom_half_value));
 	if (res) {
 		EMSG("notification set failed with error %d", res);
@@ -1665,7 +1667,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		handle_features(args);
 		break;
 	case FFA_SPM_ID_GET:
-		handle_spm_id_get(args);
+		spmc_handle_spm_id_get(args);
 		break;
 #ifdef ARM64
 	case FFA_RXTX_MAP_64:
@@ -2068,11 +2070,66 @@ void thread_spmc_register_secondary_ep(vaddr_t ep)
 		EMSG("FFA_SECONDARY_EP_REGISTER_64 ret %#lx", ret);
 }
 
+static uint16_t ffa_id_get(void)
+{
+	/*
+	 * Ask the SPM component running at a higher EL to return our FF-A ID.
+	 * This can either be the SPMC ID (if the SPMC is enabled in OP-TEE) or
+	 * the partition ID (if not).
+	 */
+	struct thread_smc_args args = {
+		.a0 = FFA_ID_GET,
+	};
+
+	thread_smccc(&args);
+	if (!is_ffa_success(args.a0)) {
+		if (args.a0 == FFA_ERROR)
+			EMSG("Get id failed with error %ld", args.a2);
+		else
+			EMSG("Get id failed");
+		panic();
+	}
+
+	return args.a2;
+}
+
+static uint16_t ffa_spm_id_get(void)
+{
+	/*
+	 * Ask the SPM component running at a higher EL to return its ID.
+	 * If OP-TEE implements the S-EL1 SPMC, this will get the SPMD ID.
+	 * If not, the ID of the SPMC will be returned.
+	 */
+	struct thread_smc_args args = {
+		.a0 = FFA_SPM_ID_GET,
+	};
+
+	thread_smccc(&args);
+	if (!is_ffa_success(args.a0)) {
+		if (args.a0 == FFA_ERROR)
+			EMSG("Get spm id failed with error %ld", args.a2);
+		else
+			EMSG("Get spm id failed");
+		panic();
+	}
+
+	return args.a2;
+}
+
 #if defined(CFG_CORE_SEL1_SPMC)
 static TEE_Result spmc_init(void)
 {
-	my_endpoint_id = SPMC_ENDPOINT_ID;
-	DMSG("My endpoint ID %#x", my_endpoint_id);
+	spmd_id = ffa_spm_id_get();
+	DMSG("SPMD ID %#"PRIx16, spmd_id);
+
+	spmc_id = ffa_id_get();
+	DMSG("SPMC ID %#"PRIx16, spmc_id);
+
+	optee_endpoint_id = FFA_SWD_ID_MIN;
+	while (optee_endpoint_id == spmd_id || optee_endpoint_id == spmc_id)
+		optee_endpoint_id++;
+
+	DMSG("OP-TEE endpoint ID %#"PRIx16, optee_endpoint_id);
 
 	/*
 	 * If SPMD think we are version 1.0 it will report version 1.0 to
@@ -2110,24 +2167,6 @@ static void spmc_rxtx_map(struct ffa_rxtx *rxtx)
 			EMSG("rxtx map failed");
 		panic();
 	}
-}
-
-static uint16_t get_my_id(void)
-{
-	struct thread_smc_args args = {
-		.a0 = FFA_ID_GET,
-	};
-
-	thread_smccc(&args);
-	if (!is_ffa_success(args.a0)) {
-		if (args.a0 == FFA_ERROR)
-			EMSG("Get id failed with error %ld", args.a2);
-		else
-			EMSG("Get id failed");
-		panic();
-	}
-
-	return args.a2;
 }
 
 static uint32_t get_ffa_version(uint32_t my_version)
@@ -2190,7 +2229,7 @@ static void *spmc_retrieve_req(uint64_t cookie,
 	acc_descr_array->region_offs = 0;
 	acc_descr_array->reserved = 0;
 	perm_descr = &acc_descr_array->access_perm;
-	perm_descr->endpoint_id = my_endpoint_id;
+	perm_descr->endpoint_id = optee_endpoint_id;
 	perm_descr->perm = FFA_MEM_ACC_RW;
 	perm_descr->flags = 0;
 
@@ -2228,7 +2267,7 @@ void thread_spmc_relinquish(uint64_t cookie)
 	relinquish_desc->handle = cookie;
 	relinquish_desc->flags = 0;
 	relinquish_desc->endpoint_count = 1;
-	relinquish_desc->endpoint_id_array[0] = my_endpoint_id;
+	relinquish_desc->endpoint_id_array[0] = optee_endpoint_id;
 	thread_smccc(&args);
 	if (!is_ffa_success(args.a0))
 		EMSG("Failed to relinquish cookie %#"PRIx64, cookie);
@@ -2329,8 +2368,12 @@ static TEE_Result spmc_init(void)
 	my_rxtx.ffa_vers = my_vers;
 
 	spmc_rxtx_map(&my_rxtx);
-	my_endpoint_id = get_my_id();
-	DMSG("My endpoint ID %#x", my_endpoint_id);
+
+	spmc_id = ffa_spm_id_get();
+	DMSG("SPMC ID %#"PRIx16, spmc_id);
+
+	optee_endpoint_id = ffa_id_get();
+	DMSG("OP-TEE endpoint ID %#"PRIx16, optee_endpoint_id);
 
 	if (!ffa_features(FFA_NOTIFICATION_SET)) {
 		spmc_notif_is_ready = true;
