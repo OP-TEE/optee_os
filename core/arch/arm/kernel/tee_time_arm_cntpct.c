@@ -30,6 +30,7 @@ static const struct time_source arm_cntpct_time_source = {
 	.protection_level = 1000,
 	.get_sys_time = arm_cntpct_get_sys_time,
 };
+DECLARE_KEEP_PAGER(arm_cntpct_time_source);
 
 REGISTER_TIME_SOURCE(arm_cntpct_time_source)
 
