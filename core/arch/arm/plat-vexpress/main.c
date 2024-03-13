@@ -258,7 +258,8 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 }
 #endif /*PLATFORM_FLAVOR_qemu_virt*/
 
-#if defined(IT_SEC_PHY_TIMER) && !defined(CFG_CORE_SEL2_SPMC)
+#if defined(CFG_CALLOUT) && defined(IT_SEC_PHY_TIMER) && \
+	!defined(CFG_CORE_SEL2_SPMC)
 static TEE_Result init_callout_service(void)
 {
 	timer_init_callout_service(interrupt_get_main_chip(), IT_SEC_PHY_TIMER);
