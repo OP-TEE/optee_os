@@ -983,12 +983,6 @@ static void handle_features(struct thread_smc_args *args)
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void handle_spm_id_get(struct thread_smc_args *args)
-{
-	spmc_set_args(args, FFA_SUCCESS_32, FFA_PARAM_MBZ, SPMC_ENDPOINT_ID,
-		      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
-}
-
 static void handle_mem_perm_get(struct thread_smc_args *args,
 				struct sp_session *sp_s)
 {
@@ -1219,7 +1213,7 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			sp_enter(args, caller_sp);
 			break;
 		case FFA_SPM_ID_GET:
-			handle_spm_id_get(args);
+			spmc_handle_spm_id_get(args);
 			sp_enter(args, caller_sp);
 			break;
 		case FFA_PARTITION_INFO_GET:

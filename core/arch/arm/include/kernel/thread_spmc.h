@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2021, Arm Limited.
+ * Copyright (c) 2021-2024, Arm Limited.
  * Copyright (c) 2023, Linaro Limited
  */
 #ifndef __KERNEL_THREAD_SPMC_H
@@ -11,8 +11,28 @@
 #include <kernel/panic.h>
 #include <kernel/thread.h>
 
-/* FF-A endpoint base ID when OP-TEE is used as a S-EL1 endpoint */
-#define SPMC_ENDPOINT_ID        0x8001
+/* The FF-A ID of Secure World components should be between these limits */
+#define FFA_SWD_ID_MIN	0x8000
+#define FFA_SWD_ID_MAX	UINT16_MAX
+
+/*
+ * OP-TEE FF-A partition ID. This is valid both when
+ * - the SPMC is implemented by OP-TEE and the core OP-TEE functionality runs
+ *   in a logical SP that resides at the same exception level as the SPMC, or,
+ * - the SPMC is at a higher EL and OP-TEE is running as a standalone S-EL1 SP.
+ */
+extern uint16_t optee_endpoint_id;
+
+/*
+ * FF-A ID of the SPMC. This is valid both when the SPMC is implemented in
+ * OP-TEE or at a higher EL.
+ */
+extern uint16_t spmc_id;
+
+#if defined(CFG_CORE_SEL1_SPMC)
+/* FF-A ID of the SPMD. This is only valid when OP-TEE is the S-EL1 SPMC. */
+extern uint16_t spmd_id;
+#endif
 
 #define SPMC_CORE_SEL1_MAX_SHM_COUNT	64
 
@@ -25,6 +45,7 @@ struct ffa_rxtx {
 	bool tx_is_mine;
 };
 
+void spmc_handle_spm_id_get(struct thread_smc_args *args);
 void spmc_handle_rxtx_map(struct thread_smc_args *args, struct ffa_rxtx *buf);
 void spmc_handle_rxtx_unmap(struct thread_smc_args *args, struct ffa_rxtx *buf);
 void spmc_handle_rx_release(struct thread_smc_args *args, struct ffa_rxtx *buf);
