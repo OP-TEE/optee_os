@@ -2,7 +2,9 @@ srcs-y += rpc_io_i2c.c
 srcs-y += idle.c
 
 srcs-$(CFG_SECURE_TIME_SOURCE_CNTPCT) += tee_time_arm_cntpct.c
+ifeq ($(CFG_CALLOUT),y)
 srcs-$(CFG_ARM64_core) += generic_timer.c
+endif
 srcs-$(CFG_ARM64_core) += timer_a64.c
 
 srcs-$(CFG_ARM32_core) += spin_lock_a32.S

@@ -1022,6 +1022,9 @@ CFG_CORE_ASYNC_NOTIF ?= n
 $(call force,_CFG_CORE_ASYNC_NOTIF_DEFAULT_IMPL,$(CFG_CORE_ASYNC_NOTIF))
 endif
 
+# Enable callout service
+CFG_CALLOUT ?= $(CFG_CORE_ASYNC_NOTIF)
+
 $(eval $(call cfg-enable-all-depends,CFG_MEMPOOL_REPORT_LAST_OFFSET, \
 	 CFG_WITH_STATS))
 
