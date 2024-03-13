@@ -86,7 +86,7 @@ void callout_add(struct callout *co, bool (*callback)(struct callout *co),
 
 	state = cpu_spin_lock_xsave(&callout_lock);
 
-	assert(is_nexus(co) && !callout_is_active(co));
+	assert(is_nexus(co) && !callout_is_active(co) && is_unpaged(callback));
 	*co = (struct callout){ .callback = callback, };
 
 	if (desc) {
