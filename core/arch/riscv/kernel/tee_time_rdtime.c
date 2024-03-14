@@ -5,7 +5,6 @@
 
 #include <kernel/clint.h>
 #include <kernel/tee_time.h>
-#include <kernel/time_source.h>
 #include <riscv.h>
 #include <utee_defines.h>
 
@@ -35,7 +34,7 @@ __noprof uint64_t read_time(void)
 	return time;
 }
 
-static TEE_Result riscv_get_sys_time(TEE_Time *time)
+TEE_Result tee_time_get_sys_time(TEE_Time *time)
 {
 	uint64_t tm = read_time();
 	uint64_t rate = read_cntfrq();
@@ -46,10 +45,7 @@ static TEE_Result riscv_get_sys_time(TEE_Time *time)
 	return TEE_SUCCESS;
 }
 
-static const struct time_source riscv_time_source_rdtime = {
-	.name = "risc-v rdtime",
-	.protection_level = 1000,
-	.get_sys_time = riscv_get_sys_time,
-};
-
-REGISTER_TIME_SOURCE(riscv_time_source_rdtime)
+uint32_t tee_time_get_sys_time_protection_level(void)
+{
+	return 1000;
+}

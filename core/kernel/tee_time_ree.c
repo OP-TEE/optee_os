@@ -4,14 +4,13 @@
  */
 
 #include <kernel/tee_time.h>
-#include <kernel/time_source.h>
 #include <kernel/mutex.h>
 
 static TEE_Time prev;
 
 static struct mutex time_mu = MUTEX_INITIALIZER;
 
-static TEE_Result get_monotonic_ree_time(TEE_Time *time)
+TEE_Result tee_time_get_sys_time(TEE_Time *time)
 {
 	TEE_Result res;
 
@@ -31,10 +30,7 @@ static TEE_Result get_monotonic_ree_time(TEE_Time *time)
 	return res;
 }
 
-static const struct time_source ree_time_source = {
-	.name = "ree",
-	.protection_level = 100,
-	.get_sys_time = get_monotonic_ree_time,
-};
-
-REGISTER_TIME_SOURCE(ree_time_source)
+uint32_t tee_time_get_sys_time_protection_level(void)
+{
+	return 100;
+}

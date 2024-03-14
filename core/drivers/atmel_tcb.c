@@ -8,7 +8,7 @@
 #include <drivers/clk_dt.h>
 #include <io.h>
 #include <kernel/boot.h>
-#include <kernel/time_source.h>
+#include <kernel/tee_time.h>
 #include <libfdt.h>
 #include <matrix.h>
 #include <platform_config.h>
@@ -76,7 +76,7 @@ static TEE_Result atmel_tcb_enable_clocks(const void *fdt, int node)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result atmel_tcb_get_sys_time(TEE_Time *time)
+TEE_Result tee_time_get_sys_time(TEE_Time *time)
 {
 	uint64_t cv0 = 0;
 	uint64_t cv1 = 0;
@@ -97,13 +97,10 @@ static TEE_Result atmel_tcb_get_sys_time(TEE_Time *time)
 	return TEE_SUCCESS;
 }
 
-static const struct time_source atmel_tcb_time_source = {
-	.name = "atmel_tcb",
-	.protection_level = 1000,
-	.get_sys_time = atmel_tcb_get_sys_time,
-};
-
-REGISTER_TIME_SOURCE(atmel_tcb_time_source)
+uint32_t tee_time_get_sys_time_protection_level(void)
+{
+	return 1000;
+}
 
 static void atmel_tcb_configure(void)
 {
