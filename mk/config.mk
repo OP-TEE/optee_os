@@ -1025,6 +1025,11 @@ endif
 # Enable callout service
 CFG_CALLOUT ?= $(CFG_CORE_ASYNC_NOTIF)
 
+# Enable notification based test watchdog
+CFG_NOTIF_TEST_WD ?= $(CFG_ENABLE_EMBEDDED_TESTS)
+$(eval $(call cfg-depends-all,CFG_NOTIF_TEST_WD,CFG_CALLOUT \
+	 CFG_CORE_ASYNC_NOTIF))
+
 $(eval $(call cfg-enable-all-depends,CFG_MEMPOOL_REPORT_LAST_OFFSET, \
 	 CFG_WITH_STATS))
 
