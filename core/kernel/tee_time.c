@@ -5,33 +5,11 @@
  */
 
 #include <compiler.h>
-#include <initcall.h>
 #include <kernel/tee_time.h>
 #include <kernel/thread.h>
-#include <kernel/time_source.h>
 #include <mm/core_mmu.h>
 #include <optee_rpc_cmd.h>
 #include <stdlib.h>
-
-struct time_source _time_source __nex_bss;
-
-static TEE_Result register_time_source(void)
-{
-	time_source_init();
-
-	return TEE_SUCCESS;
-}
-nex_early_init(register_time_source);
-
-TEE_Result tee_time_get_sys_time(TEE_Time *time)
-{
-	return _time_source.get_sys_time(time);
-}
-
-uint32_t tee_time_get_sys_time_protection_level(void)
-{
-	return _time_source.protection_level;
-}
 
 void tee_time_wait(uint32_t milliseconds_delay)
 {
