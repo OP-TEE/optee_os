@@ -440,8 +440,13 @@ void spmc_handle_rxtx_unmap(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 	if (!rxtx->size)
 		goto out;
 
-	/* We don't unmap the SP memory as the SP might still use it */
-	if (is_nw_buf(rxtx)) {
+	/*
+	 * We don't unmap the SP memory as the SP might still use it.
+	 * We avoid to make changes to nexus mappings at this stage since
+	 * there currently isn't a way to replicate those changes to all
+	 * partitions.
+	 */
+	if (is_nw_buf(rxtx) && !IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		unmap_buf(rxtx->rx, rxtx->size);
 		unmap_buf(rxtx->tx, rxtx->size);
 	}
