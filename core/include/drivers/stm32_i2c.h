@@ -11,6 +11,7 @@
 #include <drivers/pinctrl.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
+#include <kernel/mutex_pm_aware.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -114,6 +115,7 @@ struct i2c_cfg {
  * @sec_cfg: I2C registers configuration storage
  * @pinctrl: Pin control configuration for the I2C bus in active state
  * @pinctrl_sleep: Pin control configuration for the I2C bus in standby state
+ * @mu: Protection on concurrent access to the I2C bus considering PM context
  */
 struct i2c_handle_s {
 	struct io_pa_va base;
@@ -127,6 +129,7 @@ struct i2c_handle_s {
 	struct i2c_cfg sec_cfg;
 	struct pinctrl_state *pinctrl;
 	struct pinctrl_state *pinctrl_sleep;
+	struct mutex_pm_aware mu;
 };
 
 /*
