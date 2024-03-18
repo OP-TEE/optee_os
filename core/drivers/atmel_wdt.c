@@ -4,19 +4,17 @@
  */
 
 #include <assert.h>
-#include <drivers/clk.h>
-#include <drivers/clk_dt.h>
 #include <drivers/wdt.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <kernel/interrupt.h>
+#include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <matrix.h>
 #include <mm/core_mmu.h>
-#include <platform_config.h>
-#include <tee_api_types.h>
+#include <tee_api_defines.h>
 
 #define WDT_CR			0x0
 #define WDT_CR_KEY		SHIFT_U32(0xA5, 24)
