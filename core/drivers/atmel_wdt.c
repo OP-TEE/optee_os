@@ -110,7 +110,6 @@ struct atmel_wdt {
 	enum wdt_type type;
 	uint32_t dis_mask;
 	vaddr_t base;
-	unsigned long rate;
 	uint32_t mr;
 	bool enabled;
 };
