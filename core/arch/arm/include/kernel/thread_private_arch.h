@@ -49,11 +49,7 @@
 #define STACK_THREAD_SIZE	(8192 + CFG_STACK_THREAD_EXTRA)
 #endif
 
-#if TRACE_LEVEL > 0
 #define STACK_ABT_SIZE		3072
-#else
-#define STACK_ABT_SIZE		1024
-#endif
 #endif /*ARM64*/
 
 #ifdef CFG_CORE_DEBUG_CHECK_STACKS
