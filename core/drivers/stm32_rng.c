@@ -594,9 +594,8 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 	if (fdt_getprop(fdt, node, "clock-error-detect", NULL))
 		stm32_rng->clock_error = true;
 
-	/* Release device if not used at runtime or for pm transitions */
-	stm32_rng->release_post_boot = IS_ENABLED(CFG_WITH_SOFTWARE_PRNG) &&
-				       !IS_ENABLED(CFG_PM);
+	/* Release device if not used after initialization */
+	stm32_rng->release_post_boot = IS_ENABLED(CFG_WITH_SOFTWARE_PRNG);
 
 	stm32_rng->rng_config = stm32_rng->ddata->cr;
 	if (stm32_rng->rng_config & ~RNG_CR_ENTROPY_SRC_MASK)
