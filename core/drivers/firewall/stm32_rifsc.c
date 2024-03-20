@@ -543,9 +543,8 @@ static TEE_Result stm32_rifsc_probe(const void *fdt, int node,
 	if (res)
 		panic("Couldn't lock RIFSC configuration");
 
-	if (IS_ENABLED(CFG_PM))
-		register_pm_core_service_cb(stm32_rifsc_sem_pm, NULL,
-					    "stm32-rifsc-semaphores");
+	register_pm_core_service_cb(stm32_rifsc_sem_pm, NULL,
+				    "stm32-rifsc-semaphores");
 
 	return TEE_SUCCESS;
 }
