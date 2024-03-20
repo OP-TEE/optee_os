@@ -295,12 +295,12 @@ jobs:
           export CFG_TEE_CORE_LOG_LEVEL=0
           export CFG_ATTESTATION_PTA=y
           export CFG_ATTESTATION_PTA_KEY_SIZE=1024
-          WD=$(pwd)
+          OPTEE_OS_TO_TEST=$(pwd)
           cd ..
           TOP=$(pwd)/optee_repo_qemu_v8
           /root/get_optee.sh qemu_v8 ${TOP}
           mv ${TOP}/optee_os ${TOP}/optee_os_old
-          ln -s ${WD} ${TOP}/optee_os
+          ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
           make -j$(nproc) check
@@ -333,12 +333,12 @@ jobs:
           export LC_ALL=C
           export CFG_TEE_CORE_LOG_LEVEL=0
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
-          WD=$(pwd)
+          OPTEE_OS_TO_TEST=$(pwd)
           cd ..
           TOP=$(pwd)/optee_repo_qemu_v8
           /root/get_optee.sh qemu_v8 ${TOP}
           mv ${TOP}/optee_os ${TOP}/optee_os_old
-          ln -s ${WD} ${TOP}/optee_os
+          ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
           make -j$(nproc) check XEN_BOOT=y
@@ -366,12 +366,12 @@ jobs:
           export LC_ALL=C
           export CFG_TEE_CORE_LOG_LEVEL=0
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
-          WD=$(pwd)
+          OPTEE_OS_TO_TEST=$(pwd)
           cd ..
           TOP=$(pwd)/optee_repo_qemu_v8
           /root/get_optee.sh qemu_v8 ${TOP}
           mv ${TOP}/optee_os ${TOP}/optee_os_old
-          ln -s ${WD} ${TOP}/optee_os
+          ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
           make -j$(nproc) check SPMC_AT_EL=2
@@ -403,7 +403,7 @@ jobs:
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
           export CFG_USER_TA_TARGETS=ta_arm64
-          WD=$(pwd)
+          OPTEE_OS_TO_TEST=$(pwd)
           cd ..
           TOP=$(pwd)/optee_repo_qemu_v8
           # TF-A v2.6 fails to build with the above toolchain so override it
@@ -413,7 +413,7 @@ jobs:
           # https://github.com/OP-TEE/optee_os/issues/5759#issuecomment-1380590951
           cd ${TOP}/qemu && git fetch github && git checkout 13356edb87
           mv ${TOP}/optee_os ${TOP}/optee_os_old
-          ln -s ${WD} ${TOP}/optee_os
+          ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
           # xtest 1031 is excluded because 1031.4 (C++ exception from shared library) fails with this cross-compiler
