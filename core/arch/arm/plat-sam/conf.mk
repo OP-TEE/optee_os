@@ -15,6 +15,7 @@ endif
 CFG_EMBED_DTB_SOURCE_FILE ?= $(flavor_dts_file-$(PLATFORM_FLAVOR))
 
 include core/arch/arm/cpu/cortex-a5.mk
+$(call force,CFG_SAMA5D2,y)
 
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_ATMEL_UART,y)
@@ -28,7 +29,6 @@ $(call force,CFG_DRIVERS_CLK,y)
 $(call force,CFG_DRIVERS_CLK_DT,y)
 $(call force,CFG_DRIVERS_CLK_FIXED,y)
 $(call force,CFG_DRIVERS_SAM_CLK,y)
-$(call force,CFG_DRIVERS_SAMA5D2_CLK,y)
 $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_CORE_HAS_GENERIC_TIMER,n)
