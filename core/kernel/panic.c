@@ -65,7 +65,7 @@ void __do_panic(const char *file __maybe_unused,
 		const char *func __maybe_unused,
 		const char *msg __maybe_unused)
 {
-	/* disable prehemption */
+	/* disable preemption */
 	(void)thread_mask_exceptions(THREAD_EXCP_ALL);
 
 	/* trace: Panic ['panic-string-message' ]at FILE:LINE [<FUNCTION>]" */
