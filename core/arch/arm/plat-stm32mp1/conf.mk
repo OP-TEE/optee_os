@@ -299,7 +299,7 @@ endif # CFG_SCMI_PTA
 
 CFG_SCMI_SCPFW ?= n
 ifeq ($(CFG_SCMI_SCPFW),y)
-$(call force,CFG_SCMI_SCPFW_PRODUCT,optee-stm32mp1)
+$(call force,CFG_SCMI_SCPFW_PRODUCT,stm32mp1)
 endif
 
 CFG_SCMI_MSG_DRIVERS ?= n

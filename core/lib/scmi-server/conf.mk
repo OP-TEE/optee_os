@@ -18,7 +18,7 @@
 # CFG_SCPFW_SENSOR_EXT_ATTRIBS
 # CFG_SCPFW_SENSOR_SIGNED_VALUE
 
-include core/lib/scmi-server/conf-$(CFG_SCMI_SCPFW_PRODUCT).mk
+include core/lib/scmi-server/conf-optee-$(CFG_SCMI_SCPFW_PRODUCT).mk
 
 # SCP-fmw log level: 0 trace/verbose, 1 info, 2 warning, 3 error, 4 critical
 ifeq ($(CFG_TEE_CORE_LOG_LEVEL),0)
