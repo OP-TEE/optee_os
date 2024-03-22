@@ -79,7 +79,7 @@ $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
 CFG_AUTO_MAX_PA_BITS ?= y
 ifeq ($(CFG_SCMI_SCPFW),y)
-$(call force,CFG_SCMI_SCPFW_PRODUCT,optee-fvp)
+$(call force,CFG_SCMI_SCPFW_PRODUCT,fvp)
 endif
 ifeq ($(CFG_CORE_SEL1_SPMC),y)
 CFG_CORE_ASYNC_NOTIF_GIC_INTID ?= 9
@@ -152,7 +152,7 @@ endif
 $(call force,CFG_DT,y)
 CFG_DTB_MAX_SIZE ?= 0x100000
 ifeq ($(CFG_SCMI_SCPFW),y)
-$(call force,CFG_SCMI_SCPFW_PRODUCT,optee-fvp)
+$(call force,CFG_SCMI_SCPFW_PRODUCT,fvp)
 endif
 
 CFG_CORE_ASYNC_NOTIF ?= y
