@@ -8,13 +8,13 @@
 # embedded modules.
 
 scpfw-path = $(CFG_SCP_FIRMWARE)
-scpfw-product = $(CFG_SCMI_SCPFW_PRODUCT)
+scpfw-product = optee/$(CFG_SCMI_SCPFW_PRODUCT)
 scpfw-out-path := $(out-dir)/$(libdir)
 
 # This script was validated against SCP-firmware 2.11.0 development branch,
 # from commit f1d894921d76 ("product/optee-fvp: Add new OPTEE FVP product").
 scpfw-integ-version-maj = 2
-scpfw-integ-version-min = 11
+scpfw-integ-version-min = 14
 scpfw-integ-version-pat = 0
 scpfw-integ-version = $(scpfw-integ-version-maj).$(scpfw-integ-version-min).$(scpfw-integ-version-pat)
 
@@ -132,7 +132,7 @@ srcs-$(CFG_SCPFW_NOTIFICATION) += $(scpfw-path)/framework/src/fwk_notification.c
 # directive BUILD_HAS_MOD_<NAME> must be set for each embedded module.
 #
 # Standard modules source tree: <scp-path>/module/<name>/src/mod_<name>.c
-# Optee modules source tree:    <scp-path>/module/optee/<short-name>/src/mod_<name>.c
+# Optee modules source tree:    <scp-path>/product/common/module/<short-name>/src/mod_<name>.c
 # Product modules source tree:  <scp-path>/product/<product-name>/module/<name>/src/mod_<name>.c
 #
 # scpfw-embed-generic-module is to be used for standard modules.
@@ -174,7 +174,7 @@ $(eval $(call scpfw-embed-mod,$1,$1,module,$(shell echo $1 | tr a-z A-Z)))
 endef
 
 define scpfw-embed-optee-module
-$(eval $(call scpfw-embed-mod,optee_$1,$1,module/optee,OPTEE_$(shell echo $1 | tr a-z A-Z)))
+$(eval $(call scpfw-embed-mod,optee_$1,$1,product/optee/common/module,OPTEE_$(shell echo $1 | tr a-z A-Z)))
 endef
 
 define scpfw-embed-product-module
@@ -217,7 +217,7 @@ srcs-$(CFG_SCPFW_MOD_SCMI_SENSOR) += $(scpfw-path)/module/scmi_sensor/src/mod_sc
 srcs-$(CFG_SCPFW_MOD_SENSOR) += $(scpfw-path)/module/sensor/src/sensor_extended.c
 
 # Architecture arch/none/optee requires optee mbx header file
-incdirs_ext-y += $(scpfw-path)/module/optee/mbx/include
+incdirs_ext-y += $(scpfw-path)/product/optee/common/module/mbx/include
 # Some modules require header files from module that are not embedded
 ifneq (,$(filter y, $(CFG_SCPFW_MOD_DVFS) $(CFG_SCPFW_MOD_MOCK_PSU) $(CFG_SCPFW_MOD_SCMI_PERF)))
 incdirs_ext-y += $(scpfw-path)/module/timer/include
