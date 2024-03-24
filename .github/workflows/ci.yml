@@ -263,6 +263,7 @@ jobs:
           _make PLATFORM=corstone1000
           _make PLATFORM=nuvoton
           _make PLATFORM=d06
+          _make PLATFORM=d06 CFG_HISILICON_ACC_V3=y
 
           export ARCH=riscv
           unset CROSS_COMPILE32
