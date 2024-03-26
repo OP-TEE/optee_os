@@ -175,8 +175,32 @@ SUSPEND_FUNC(at91_backup_mode)
 	ldr	r0, .shdwc
 	mov	tmp1, #0xA5000000
 	add	tmp1, tmp1, #0x1
+#ifdef CFG_SAMA7G5
+	/* LPM Pad Enable: The LPM pad is set high */
+	orr	tmp1, tmp1, #0x200000
+#endif
 	str	tmp1, [r0, #0]
 SUSPEND_END_FUNC(at91_backup_mode)
+
+/*
+ * Set LPM
+ * @ena: 0 - disable LPM
+ *	 1 - enable LPM
+ *
+ * Side effects: overwrites tmp1, tmp3
+ */
+.macro at91_set_lpm ena
+#ifdef CFG_SAMA7G5
+	mov	tmp1, #\ena
+	cmp	tmp1, #1
+	movne	tmp3, #0x400000 /* LPM Pad Disable: The LPM pad is set low */
+	moveq	tmp3, #0x200000 /* LPM Pad Enable: The LPM pad is set high */
+	add	tmp3, #0xA5000000
+	ldr	tmp1, .shdwc
+	cmp	tmp1, #0
+	strne	tmp3, [tmp1]
+#endif
+.endm
 
 .macro at91_pm_ulp0_mode
 	ldr	pmc, .pmc_base
@@ -207,7 +231,7 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	ldr	tmp1, [pmc, #AT91_PMC_SR]
 	str	tmp1, .saved_osc_status
 	tst	tmp1, #AT91_PMC_MOSCRCS
-	bne	1f
+	bne	7f
 
 	/* Turn off RC oscillator */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
@@ -221,12 +245,15 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	tst	tmp1, #AT91_PMC_MOSCRCS
 	bne	2b
 
+	/* Enable LPM. */
+7:	at91_set_lpm 1
+
 	/* Wait for interrupt */
 1:	at91_cpu_idle
 
 	/* Check if ULP0 fast variant has been requested. */
 	cmp	tmp2, #AT91_PM_ULP0_FAST
-	bne	5f
+	bne	8f
 
 	/* Set lowest prescaler for fast resume. */
 	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
@@ -236,6 +263,8 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	mov	tmp3, #0
 	wait_mckrdy tmp3
 	b	6f
+
+8:	at91_set_lpm 0
 
 5:	/* Restore RC oscillator state */
 	ldr	tmp1, .saved_osc_status
@@ -314,6 +343,9 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	mov	tmp3, #0
 	wait_mckrdy tmp3
 
+	/* Enable LPM */
+	at91_set_lpm 1
+
 	/* Enter the ULP1 mode by set WAITMODE bit in CKGR_MOR */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
 	orr	tmp1, tmp1, #AT91_PMC_WAITMODE
@@ -325,7 +357,11 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	nop
 	nop
 
+	mov	tmp3, #0
 	wait_mckrdy tmp3
+
+	/* Disable LPM. */
+	at91_set_lpm 0
 
 	/* Enable the crystal oscillator */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
@@ -341,6 +377,7 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	bic	tmp1, tmp1, #AT91_PMC_CSS
 	str	tmp1, [pmc, #AT91_PMC_MCKR]
 
+	mov	tmp3, #0
 	wait_mckrdy tmp3
 
 	/* Switch main clock source to crystal oscillator */
