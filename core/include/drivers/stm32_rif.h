@@ -86,16 +86,16 @@ static inline bool stm32_rif_scid_ok(uint32_t cidcfgr, uint32_t scid_m,
  *					  semaphore ownership
  *
  * @cidcfgr: Value of the cidcfgr register
- * @cid_bf_to_check: Bitfield of CIDs to check
+ * @cid_to_check: CID to check
  *
- * Returns true if all requested CIDs can request the semaphore ownership,
+ * Returns true if the requested CID can request the semaphore ownership,
  * false otherwise.
  */
 static inline bool stm32_rif_semaphore_enabled_and_ok(uint32_t cidcfgr,
-						      uint32_t cid_bf_to_check)
+						      uint32_t cid_to_check)
 {
 	return (cidcfgr & _CIDCFGR_CFEN) && (cidcfgr & _CIDCFGR_SEMEN) &&
-	       (cidcfgr & _CIDCFGR_SEMWL(cid_bf_to_check));
+	       (cidcfgr & _CIDCFGR_SEMWL(cid_to_check));
 }
 
 /**
@@ -172,7 +172,7 @@ static inline bool stm32_rif_scid_ok(uint32_t cidcfgr, uint32_t scid_m,
 }
 
 static inline bool stm32_rif_semaphore_enabled_and_ok(uint32_t cidcfgr,
-						      uint32_t cid_bf_to_check)
+						      uint32_t cid_to_check)
 {
 	return true;
 }
