@@ -25,11 +25,23 @@ tmp3	.req	r6
 
 /*
  * Wait until master clock is ready (after switching master clock source)
+ * @r_mckid:	register holding master clock identifier
+ *
+ * Side effects: overwrites tmp1
  */
-.macro wait_mckrdy
+.macro wait_mckrdy r_mckid
+#ifdef CFG_SAMA7G5
+	cmp	\r_mckid, #0
+	beq	1f
+2:	ldr	tmp1, [pmc, #AT91_PMC_SR]
+	tst	tmp1, #AT91_PMC_MCKXRDY
+	beq	2b
+	b	3f
+#endif
 1:	ldr	tmp1, [pmc, #AT91_PMC_SR]
 	tst	tmp1, #AT91_PMC_MCKRDY
 	beq	1b
+3:
 .endm
 
 /*
@@ -151,7 +163,8 @@ SUSPEND_FUNC(at91_backup_mode)
 	bic	tmp1, tmp1, #AT91_PMC_CSS
 	str	tmp1, [pmc, #AT91_PMC_MCKR]
 
-	wait_mckrdy
+	mov	tmp3, #0
+	wait_mckrdy tmp3
 
 	/*BUMEN*/
 	ldr	r0, .sfrbu
@@ -178,7 +191,9 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	bic	tmp1, tmp1, #AT91_PMC_PRES
 	orr	tmp1, tmp1, #AT91_PMC_PRES_64
 	str	tmp1, [pmc, #AT91_PMC_MCKR]
-	wait_mckrdy
+
+	mov	tmp3, #0
+	wait_mckrdy tmp3
 	b	1f
 
 0:
@@ -217,7 +232,9 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
 	bic	tmp1, tmp1, #AT91_PMC_PRES
 	str	tmp1, [pmc, #AT91_PMC_MCKR]
-	wait_mckrdy
+
+	mov	tmp3, #0
+	wait_mckrdy tmp3
 	b	6f
 
 5:	/* Restore RC oscillator state */
@@ -294,7 +311,8 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	orr	tmp1, tmp1, #AT91_PMC_CSS_MAIN
 	str	tmp1, [pmc, #AT91_PMC_MCKR]
 
-	wait_mckrdy
+	mov	tmp3, #0
+	wait_mckrdy tmp3
 
 	/* Enter the ULP1 mode by set WAITMODE bit in CKGR_MOR */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
@@ -307,7 +325,7 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	nop
 	nop
 
-	wait_mckrdy
+	wait_mckrdy tmp3
 
 	/* Enable the crystal oscillator */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
@@ -323,7 +341,7 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	bic	tmp1, tmp1, #AT91_PMC_CSS
 	str	tmp1, [pmc, #AT91_PMC_MCKR]
 
-	wait_mckrdy
+	wait_mckrdy tmp3
 
 	/* Switch main clock source to crystal oscillator */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
@@ -340,7 +358,7 @@ SUSPEND_END_FUNC(at91_backup_mode)
 	orr	tmp1, tmp1, #AT91_PMC_CSS_MAIN
 	str	tmp1, [pmc, #AT91_PMC_MCKR]
 
-	wait_mckrdy
+	wait_mckrdy tmp3
 
 	/* Restore RC oscillator state */
 	ldr	tmp1, .saved_osc_status
@@ -517,10 +535,12 @@ SUSPEND_FUNC(at91_ulp_mode)
 save_mck:
 	str	tmp1, [pmc, #AT91_PMC_MCKR]
 
-	wait_mckrdy
+	mov	tmp3, #0
+	wait_mckrdy tmp3
 
 	at91_plla_disable
 
+	ldr	tmp3, .pm_mode
 	cmp	tmp3, #AT91_PM_ULP1
 	beq	ulp1_mode
 
@@ -542,7 +562,8 @@ ulp_exit:
 	ldr	tmp2, .saved_mckr
 	str	tmp2, [pmc, #AT91_PMC_MCKR]
 
-	wait_mckrdy
+	mov	tmp3, #0
+	wait_mckrdy tmp3
 
 	mov	pc, lr
 SUSPEND_END_FUNC(at91_ulp_mode)
