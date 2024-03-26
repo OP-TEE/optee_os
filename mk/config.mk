@@ -86,6 +86,14 @@ CFG_TEE_TA_LOG_LEVEL ?= 1
 # CFG_TEE_TA_LOG_LEVEL. Otherwise, they are not output at all
 CFG_TEE_CORE_TA_TRACE ?= y
 
+# If y, TEE core console is not locked when emitting trace messages.
+# Using a locked console makes any trace message to mask interrupt during a
+# relatively long period of time possibly affecting the latency of TEE and
+# REE interrupts handling. The drawback of not locking the console is that
+# cocurrent trace messages will printed simultenaously making it hard to
+# read messages.
+CFG_TEE_CONSOLE_UNLOCKED ?= n
+
 # If y, enable the memory leak detection feature in the bget memory allocator.
 # When this feature is enabled, calling mdbg_check(1) will print a list of all
 # the currently allocated buffers and the location of the allocation (file and
