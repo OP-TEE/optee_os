@@ -239,5 +239,19 @@
 				status = "disabled";
 			};
 		};
+
+		fmc: memory-controller@48200000 {
+			#address-cells = <2>;
+			#size-cells = <1>;
+			compatible = "st,stm32mp25-fmc2-ebi";
+			reg = <0x48200000 0x400>;
+			status = "disabled";
+
+			ranges = <0 0 0x60000000 0x04000000>, /* EBI CS 1 */
+				 <1 0 0x64000000 0x04000000>, /* EBI CS 2 */
+				 <2 0 0x68000000 0x04000000>, /* EBI CS 3 */
+				 <3 0 0x6c000000 0x04000000>, /* EBI CS 4 */
+				 <4 0 0x80000000 0x10000000>; /* NAND */
+		};
 	};
 };
