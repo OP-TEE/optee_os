@@ -6,7 +6,11 @@ CFG_MMAP_REGIONS ?= 24
 
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
+ifeq ($(PLATFORM_FLAVOR),net)
+$(call force,CFG_TEE_CORE_NB_CORE,16)
+else
 $(call force,CFG_TEE_CORE_NB_CORE,2)
+endif
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_PL011,y)
 $(call force,CFG_GIC,y)
@@ -23,16 +27,30 @@ CFG_CORE_DYN_SHM   ?= y
 CFG_WITH_STATS     ?= y
 CFG_ARM64_core     ?= y
 
+# Default Versal NET memory allocation
+ifeq ($(PLATFORM_FLAVOR),net)
+CFG_TZDRAM_START   ?= 0x22200000
+CFG_TZDRAM_SIZE    ?= 0x2700000
+CFG_SHMEM_START    ?= 0x24900000
+CFG_SHMEM_SIZE     ?= 0x1800000
+
+# Default Versal memory allocation
+else
 CFG_TZDRAM_START   ?= 0x60000000
 CFG_TZDRAM_SIZE    ?= 0x10000000
 CFG_SHMEM_START    ?= 0x70000000
 CFG_SHMEM_SIZE     ?= 0x10000000
+endif
 
 ifeq ($(CFG_ARM64_core),y)
 $(call force,CFG_CORE_ARM64_PA_BITS,43)
 else
 $(call force,CFG_ARM32_core,y)
 endif
+
+CFG_RPMB_FS ?= n
+CFG_RPMB_TESTKEY ?= y
+CFG_RPMB_WRITE_KEY ?=y
 
 # GPIO
 CFG_VERSAL_GPIO ?= y
@@ -44,10 +62,18 @@ CFG_VERSAL_TRACE_PLM ?= n
 $(call force, CFG_VERSAL_MBOX,y)
 
 # MBOX configuration
-CFG_VERSAL_MBOX_IPI_ID ?= 3
+CFG_VERSAL_MBOX_IPI_ID ?= 1
 
+# PM driver
+CFG_VERSAL_PM ?= y
+
+# TRNG driver
 $(call force, CFG_VERSAL_RNG_DRV,y)
 $(call force, CFG_WITH_SOFTWARE_PRNG,n)
+
+ifeq ($(PLATFORM_FLAVOR),net)
+$(call force,CFG_VERSAL_RNG_PLM,y)
+endif
 
 # TRNG configuration
 CFG_VERSAL_TRNG_SEED_LIFE ?= 3
@@ -62,18 +88,25 @@ ifeq ($(CFG_VERSAL_CRYPTO_DRIVER),y)
 # Disable Fault Mitigation: triggers false positives due to
 # the driver's software fallback operations - need further work
 CFG_FAULT_MITIGATION ?= n
+
+ifeq ($(PLATFORM_FLAVOR),net)
+CFG_VERSAL_PKI_DRIVER ?= y
+
+ifeq ($(CFG_VERSAL_PKI_DRIVER),y)
+CFG_VERSAL_PKI_COUNTER_MEASURES ?= n
+CFG_VERSAL_PKI_PWCT ?= y
+endif
+endif
 endif
 
 # SHA3-384 crypto engine
 CFG_VERSAL_SHA3_384 ?= y
 
-# PM driver
-CFG_VERSAL_PM ?= y
-
 # Physical Unclonable Function
 CFG_VERSAL_PUF ?= y
 
 # Enable Hardware Unique Key driver
+CFG_VERSAL_DUMMY_DNA ?= n
 CFG_VERSAL_HUK ?= y
 # AES-GCM supported key sources for HUK:
 #     6  : eFUSE USR 0
@@ -84,5 +117,7 @@ CFG_VERSAL_HUK_KEY ?= 12
 ifneq ($(CFG_VERSAL_HUK_KEY),$(filter 6 7 11 12,$(firstword $(CFG_VERSAL_HUK_KEY))))
 $(error Invalid value: CFG_VERSAL_HUK_KEY=$(CFG_VERSAL_HUK_KEY))
 endif
+
+CFG_VERSAL_FPGA_LOADER_PTA ?= y
 
 CFG_CORE_HEAP_SIZE ?= 262144
