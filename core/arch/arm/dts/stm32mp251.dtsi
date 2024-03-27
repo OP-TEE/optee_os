@@ -261,6 +261,13 @@
 			};
 		};
 
+		hsem: hwspinlock@46240000 {
+			compatible = "st,stm32mp25-hsem";
+			reg = <0x46240000 0x400>;
+			interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		fmc: memory-controller@48200000 {
 			#address-cells = <2>;
 			#size-cells = <1>;
