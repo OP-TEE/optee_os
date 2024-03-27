@@ -457,7 +457,17 @@ void raw_free(void *ptr, struct malloc_ctx *ctx, bool wipe)
 	raw_malloc_validate_pools(ctx);
 
 	if (ptr)
-		brel(maybe_untag_buf(ptr), &ctx->poolset, wipe);
+		brel(maybe_untag_buf(ptr), &ctx->poolset, wipe,
+		     false /*!wipe-only*/);
+}
+
+void raw_wipe(void *ptr, struct malloc_ctx *ctx)
+{
+	raw_malloc_validate_pools(ctx);
+
+	if (ptr)
+		brel(maybe_untag_buf(ptr), &ctx->poolset, true /*wipe*/,
+		     true /*wipe-only*/);
 }
 
 void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
@@ -517,7 +527,8 @@ void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 			memcpy_unchecked(p, old_ptr, s);
 		}
 
-		brel(old_ptr, &ctx->poolset, false /*!wipe*/);
+		brel(old_ptr, &ctx->poolset, false /*!wipe*/,
+		     false /*!wipe_only*/);
 	}
 out:
 	return raw_malloc_return_hook(p, hdr_size, pl_size, ctx);
@@ -610,11 +621,26 @@ static void gen_mdbg_free(struct malloc_ctx *ctx, void *ptr, bool wipe)
 	}
 }
 
+static void gen_mdbg_wipe(struct malloc_ctx *ctx, void *ptr)
+{
+	struct mdbg_hdr *hdr = ptr;
+
+	if (hdr) {
+		hdr--;
+		assert_header(hdr);
+		raw_wipe(hdr, ctx);
+	}
+}
+
 static void free_helper(void *ptr, bool wipe)
 {
-	uint32_t exceptions = malloc_lock(&malloc_ctx);
+	uint32_t exceptions = 0;
 
-	gen_mdbg_free(&malloc_ctx, ptr, wipe);
+	if (wipe)
+		gen_mdbg_wipe(&malloc_ctx, ptr);
+
+	exceptions = malloc_lock(&malloc_ctx);
+	gen_mdbg_free(&malloc_ctx, ptr, false /*!wipe*/);
 	malloc_unlock(&malloc_ctx, exceptions);
 }
 
@@ -795,9 +821,13 @@ void *malloc(size_t size)
 
 static void free_helper(void *ptr, bool wipe)
 {
-	uint32_t exceptions = malloc_lock(&malloc_ctx);
+	uint32_t exceptions = 0;
 
-	raw_free(ptr, &malloc_ctx, wipe);
+	if (wipe)
+		raw_wipe(ptr, &malloc_ctx);
+
+	exceptions = malloc_lock(&malloc_ctx);
+	raw_free(ptr, &malloc_ctx, false /*!wipe*/);
 	malloc_unlock(&malloc_ctx, exceptions);
 }
 

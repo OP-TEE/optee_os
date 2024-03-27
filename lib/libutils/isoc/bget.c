@@ -910,16 +910,17 @@ void *bgetr(buf, align, hdr_size, size, poolset)
     if (size > osize)
          V memset_unchecked((char *) nbuf + osize, 0, size - osize);
 #endif
-    brel(buf, poolset, false /* !wipe */);
+    brel(buf, poolset, false /* !wipe */, false/*!wipe-only*/);
     return nbuf;
 }
 
 /*  BREL  --  Release a buffer.  */
 
-void brel(buf, poolset, wipe)
+void brel(buf, poolset, wipe, wipe_only)
   void *buf;
   struct bpoolset *poolset;
   int wipe;
+  int wipe_only;
 {
     struct bfhead *b, *bn;
     char *wipe_start;
@@ -941,20 +942,35 @@ void brel(buf, poolset, wipe)
 	bdh = BDH(((char *) buf) - sizeof(struct bdhead));
 	assert(b->bh.prevfree == 0);
 #ifdef BufStats
-	poolset->totalloc -= bdh->tsize;
-	assert(poolset->totalloc >= 0);
-	poolset->numdrel++;	       /* Number of direct releases */
+	if (!wipe_only) {
+		poolset->totalloc -= bdh->tsize;
+		assert(poolset->totalloc >= 0);
+		poolset->numdrel++;	       /* Number of direct releases */
+	}
 #endif /* BufStats */
 	if (wipe) {
 		V memset_unchecked((char *) buf, 0x55,
 				   (MemSize) (bdh->tsize -
 					      sizeof(struct bdhead)));
+
+		if (wipe_only) {
+			return;
+		}
 	}
 	assert(poolset->relfcn != NULL);
 	poolset->relfcn((char *)buf - sizeof(struct bdhead) - bdh->offs);      /* Release it directly. */
 	return;
     }
 #endif /* BECtl */
+
+    if (wipe && wipe_only) {
+        if (b->bh.bsize < 0) {
+		V memset_unchecked(((char *) b) + sizeof(struct bhead), 0x55,
+				   (MemSize) (-b->bh.bsize - sizeof(struct bhead)));
+	}
+
+	return;
+    }
 
     /* Buffer size must be negative, indicating that the buffer is
        allocated. */
@@ -1659,7 +1675,8 @@ int bget_main_test(void *(*malloc_func)(size_t), void (*free_func)(void *))
 		fb = *((char **) bc);
 		if (fb != NULL) {
 		    *((char **) bc) = *((char **) fb);
-		    brel((void *) fb, &mypoolset, true/*wipe*/);
+		    brel((void *) fb, &mypoolset, true/*wipe*/,
+			 false/*!wipe-only*/);
 		}
 	    }
 	    continue;
@@ -1686,7 +1703,8 @@ int bget_main_test(void *(*malloc_func)(size_t), void (*free_func)(void *))
 		fb = *((char **) bc);
 		if (fb != NULL) {
 		    *((char **) bc) = *((char **) fb);
-		    brel((void *) fb, &mypoolset, true/*wipe*/);
+		    brel((void *) fb, &mypoolset, true/*wipe*/,
+			 false/*!wipe-only*/);
 		}
 	    }
 	}
@@ -1745,7 +1763,8 @@ int bget_main_test(void *(*malloc_func)(size_t), void (*free_func)(void *))
 	char *buf = bchain;
 
 	bchain = *((char **) buf);
-	brel((void *) buf, &mypoolset, true/*wipe*/);
+	brel((void *) buf, &mypoolset, true/*wipe*/,
+	     false/*!wipe-only*/);
     }
     stats("\nAfter release", &mypoolset);
 #ifndef BECtl

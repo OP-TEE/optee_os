@@ -36,7 +36,7 @@ void   *bget	    _((bufsize align, bufsize hdr_size, bufsize size, struct bpools
 void   *bgetz	    _((bufsize align, bufsize hdr_size, bufsize size, struct bpoolset *poolset));
 void   *bgetr	    _((void *buffer, bufsize align, bufsize hdr_size, bufsize newsize,
 		       struct bpoolset *poolset));
-void	brel	    _((void *buf, struct bpoolset *poolset, int wipe));
+void	brel	    _((void *buf, struct bpoolset *poolset, int wipe, int wipe_only));
 void	bectl	    _((int (*compact)(bufsize sizereq, int sequence),
 		       void *(*acquire)(bufsize size),
 		       void (*release)(void *buf), bufsize pool_incr,
