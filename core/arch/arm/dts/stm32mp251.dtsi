@@ -112,6 +112,12 @@
 			status = "disabled";
 		};
 
+		ipcc1: mailbox@40490000 {
+			compatible = "st,stm32mp25-ipcc";
+			reg = <0x40490000 0x400>;
+			status = "disabled";
+		};
+
 		rifsc: rifsc@42080000 {
 			compatible = "st,stm32mp25-rifsc";
 			reg = <0x42080000 0x1000>;
@@ -265,6 +271,12 @@
 			compatible = "st,stm32mp25-hsem";
 			reg = <0x46240000 0x400>;
 			interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		ipcc2: mailbox@46250000 {
+			compatible = "st,stm32mp25-ipcc";
+			reg = <0x46250000 0x400>;
 			status = "disabled";
 		};
 
