@@ -515,7 +515,95 @@ SUSPEND_END_FUNC(at91_backup_mode)
 #endif
 .endm
 
+#ifdef CFG_SAMA7G5
+/*
+ * at91_mckx_ps_enable:	save MCK1..4 settings and switch it to main clock
+ *
+ * Side effects: overwrites tmp1, tmp2, tmp3
+ */
+.macro at91_mckx_ps_enable
+	ldr	pmc, .pmc_base
+
+	/* There are 4 MCKs we need to handle: MCK1..4 */
+	mov	tmp1, #1
+e_loop:
+	/* Write MCK ID to retrieve the settings */
+	str	tmp1, [pmc, #AT91_PMC_MCR_V2]
+	ldr	tmp2, [pmc, #AT91_PMC_MCR_V2]
+
+	cmp	tmp1, #1
+	streq	tmp2, .saved_mck1
+	cmp	tmp1, #2
+	streq	tmp2, .saved_mck2
+	cmp	tmp1, #3
+	streq	tmp2, .saved_mck3
+	cmp	tmp1, #4
+	streq	tmp2, .saved_mck4
+
+	/* Use CSS=MD_SLOW_CLK and DIV=64. */
+	bic	tmp2, tmp2, #AT91_PMC_MCR_V2_CSS_MASK
+	bic	tmp2, tmp2, #AT91_PMC_MCR_V2_DIV_MASK
+	orr	tmp2, tmp2, #AT91_PMC_MCR_V2_CSS_MD_SLCK
+	orr	tmp2, tmp2, #AT91_PMC_MCR_V2_DIV64
+	orr	tmp2, tmp2, #AT91_PMC_MCR_V2_CMD
+	str	tmp2, [pmc, #AT91_PMC_MCR_V2]
+
+	mov	tmp2, tmp1
+	wait_mckrdy tmp1
+	mov	tmp1, tmp2
+
+	add	tmp1, tmp1, #1
+	cmp	tmp1, #5
+	bne	e_loop
+.endm
+
+/*
+ * at91_mckx_ps_restore: restore MCK1..4 settings
+ *
+ * Side effects: overwrites tmp1, tmp2, tmp3
+ */
+.macro at91_mckx_ps_restore
+	ldr	pmc, .pmc_base
+
+	/* There are 4 MCKs we need to handle: MCK1..4 */
+	mov	tmp1, #1
+	ldr	tmp2, .saved_mck1
+r_loop:
+	cmp	tmp1, #2
+	ldreq	tmp2, .saved_mck2
+	cmp	tmp1, #3
+	ldreq	tmp2, .saved_mck3
+	cmp	tmp1, #4
+	ldreq	tmp2, .saved_mck4
+
+	/* Write MCK ID to retrieve the settings */
+	str	tmp1, [pmc, #AT91_PMC_MCR_V2]
+	ldr	tmp3, [pmc, #AT91_PMC_MCR_V2]
+
+	/* We need to restore CSS and DIV. */
+	bic	tmp3, tmp3, #AT91_PMC_MCR_V2_CSS_MASK
+	bic	tmp3, tmp3, #AT91_PMC_MCR_V2_DIV_MASK
+	orr	tmp3, tmp3, tmp2
+	bic	tmp3, tmp3, #AT91_PMC_MCR_V2_ID_MASK
+	orr	tmp3, tmp3, tmp1
+	orr	tmp3, tmp3, #AT91_PMC_MCR_V2_CMD
+	str	tmp3, [pmc, #AT91_PMC_MCR_V2]
+
+	mov	tmp2, tmp1
+	wait_mckrdy tmp1
+	mov	tmp1, tmp2
+
+	add	tmp1, tmp1, #1
+	cmp	tmp1, #5
+	bne	r_loop
+.endm
+#endif
+
 SUSPEND_FUNC(at91_ulp_mode)
+#ifdef CFG_SAMA7G5
+	at91_mckx_ps_enable
+#endif
+
 	ldr	pmc, .pmc_base
 	ldr	tmp3, .pm_mode
 
@@ -564,6 +652,10 @@ ulp_exit:
 
 	mov	tmp3, #0
 	wait_mckrdy tmp3
+
+#ifdef CFG_SAMA7G5
+	at91_mckx_ps_restore
+#endif
 
 	mov	pc, lr
 SUSPEND_END_FUNC(at91_ulp_mode)
@@ -638,6 +730,16 @@ SUSPEND_END_FUNC(at91_sramc_self_refresh)
 	.word 0
 .saved_osc_status:
 	.word 0
+#ifdef CFG_SAMA7G5
+.saved_mck1:
+	.word 0
+.saved_mck2:
+	.word 0
+.saved_mck3:
+	.word 0
+.saved_mck4:
+	.word 0
+#endif
 
 .global at91_pm_suspend_in_sram_sz
 at91_pm_suspend_in_sram_sz:
