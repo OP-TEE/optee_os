@@ -5,7 +5,6 @@
 
 #include <drivers/stm32_rif.h>
 #include <drivers/stm32mp_dt_bindings.h>
-#include <dt-bindings/firewall/stm32mp25-rif.h>
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
@@ -76,18 +75,27 @@
 #define _OFFSET_PERX_CIDCFGR		U(0x8)
 
 #define RIFSC_RISC_CFEN_MASK		BIT(0)
+#define RIFSC_RISC_CFEN_SHIFT		U(0)
 #define RIFSC_RISC_SEM_EN_MASK		BIT(1)
+#define RIFSC_RISC_SEM_EN_SHIFT		U(1)
 #define RIFSC_RISC_SCID_MASK		GENMASK_32(6, 4)
+#define RIFSC_RISC_SCID_SHIFT		U(4)
 #define RIFSC_RISC_SEC_MASK		BIT(8)
+#define RIFSC_RISC_SEC_SHIFT		U(8)
 #define RIFSC_RISC_PRIV_MASK		BIT(9)
+#define RIFSC_RISC_PRIV_SHIFT		U(9)
 #define RIFSC_RISC_LOCK_MASK		BIT(10)
+#define RIFSC_RISC_LOCK_SHIFT		U(10)
 #define RIFSC_RISC_SEML_MASK		GENMASK_32(23, 16)
+#define RIFSC_RISC_SEML_SHIFT		U(16)
 #define RIFSC_RISC_PER_ID_MASK		GENMASK_32(31, 24)
+#define RIFSC_RISC_PER_ID_SHIFT		U(24)
 
 #define RIFSC_RISC_PERx_CID_MASK	(RIFSC_RISC_CFEN_MASK | \
 					 RIFSC_RISC_SEM_EN_MASK | \
 					 RIFSC_RISC_SCID_MASK | \
 					 RIFSC_RISC_SEML_MASK)
+#define RIFSC_RISC_PERx_CID_SHIFT	U(0)
 
 #define RIFSC_RIMC_MODE_MASK		BIT(2)
 #define RIFSC_RIMC_MCID_MASK		GENMASK_32(6, 4)
