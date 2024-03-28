@@ -327,12 +327,28 @@ SUSPEND_FUNC(at91_pm_suspend_in_sram)
 	mov	tmp1, #0
 	mcr	p15, 0, tmp1, c7, c10, 4
 
+	write_tlbiall
+	isb
+
+	/*
+	 * ldrne below are here to preload their address in the TLB as access
+	 * to RAM may be limited while in self-refresh.
+	 */
 	ldr	tmp1, [r0, #PM_DATA_PMC]
 	str	tmp1, .pmc_base
+	cmp	tmp1, #0
+	ldrne	tmp2, [tmp1, #0]
+
 	ldr	tmp1, [r0, #PM_DATA_RAMC0]
 	str	tmp1, .sramc_base
+	cmp	tmp1, #0
+	ldrne	tmp2, [tmp1, #0]
+
 	ldr	tmp1, [r0, #PM_DATA_RAMC_PHY]
 	str	tmp1, .sramc_phy_base
+	cmp	tmp1, #0
+	ldrne	tmp2, [tmp1, #0]
+
 	ldr	tmp1, [r0, #PM_DATA_MODE]
 	str	tmp1, .pm_mode
 	/* Both ldrne below are here to preload their address in the TLB */
