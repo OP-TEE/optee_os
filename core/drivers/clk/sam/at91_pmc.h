@@ -99,7 +99,11 @@
 
 #define AT91_PMC_CPU_CKR			0x28
 
+#ifdef CFG_SAMA7G5
+#define	AT91_PMC_MCKR				0x28
+#else
 #define	AT91_PMC_MCKR				0x30
+#endif
 #define	  AT91_PMC_CSS				(3 << 0)
 #define     AT91_PMC_CSS_SLOW			(0 << 0)
 #define     AT91_PMC_CSS_MAIN			BIT(0)
