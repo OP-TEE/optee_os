@@ -91,6 +91,33 @@
 		interrupt-parent = <&intc>;
 		ranges = <0x0 0x0 0x0 0x80000000>;
 
+		hpdma1: dma-controller@40400000 {
+			compatible = "st,stm32-dma3";
+			reg = <0x40400000 0x1000>;
+			#dma-cells = <4>;
+			status = "disabled";
+		};
+
+		hpdma2: dma-controller@40410000 {
+			compatible = "st,stm32-dma3";
+			reg = <0x40410000 0x1000>;
+			#dma-cells = <4>;
+			status = "disabled";
+		};
+
+		hpdma3: dma-controller@40420000 {
+			compatible = "st,stm32-dma3";
+			reg = <0x40420000 0x1000>;
+			#dma-cells = <4>;
+			status = "disabled";
+		};
+
+		ipcc1: mailbox@40490000 {
+			compatible = "st,stm32mp25-ipcc";
+			reg = <0x40490000 0x400>;
+			status = "disabled";
+		};
+
 		rifsc: rifsc@42080000 {
 			compatible = "st,stm32mp25-rifsc";
 			reg = <0x42080000 0x1000>;
@@ -238,6 +265,33 @@
 				st,bank-ioport = <11>;
 				status = "disabled";
 			};
+		};
+
+		hsem: hwspinlock@46240000 {
+			compatible = "st,stm32mp25-hsem";
+			reg = <0x46240000 0x400>;
+			interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		ipcc2: mailbox@46250000 {
+			compatible = "st,stm32mp25-ipcc";
+			reg = <0x46250000 0x400>;
+			status = "disabled";
+		};
+
+		fmc: memory-controller@48200000 {
+			#address-cells = <2>;
+			#size-cells = <1>;
+			compatible = "st,stm32mp25-fmc2-ebi";
+			reg = <0x48200000 0x400>;
+			status = "disabled";
+
+			ranges = <0 0 0x60000000 0x04000000>, /* EBI CS 1 */
+				 <1 0 0x64000000 0x04000000>, /* EBI CS 2 */
+				 <2 0 0x68000000 0x04000000>, /* EBI CS 3 */
+				 <3 0 0x6c000000 0x04000000>, /* EBI CS 4 */
+				 <4 0 0x80000000 0x10000000>; /* NAND */
 		};
 	};
 };
