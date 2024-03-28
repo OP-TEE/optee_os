@@ -170,14 +170,14 @@ static void qm_mb_read(struct hisi_qm *qm, struct qm_mailbox *mb)
 static enum hisi_drv_status qm_wait_mb_ready(struct hisi_qm *qm)
 {
 	struct qm_mailbox mb = { };
-	uint32_t timeout = 0;
+	uint32_t i = 0;
 
-	timeout = timeout_init_us(QM_MB_WAIT_PERIOD * QM_MB_WAIT_READY_CNT);
-	while (!timeout_elapsed(timeout)) {
+	while (i++ < QM_MB_WAIT_READY_CNT) {
 		/* 128 bits should be read from hardware at one time*/
 		qm_mb_read(qm, &mb);
 		if (!(mb.w0 & QM_MB_BUSY_BIT))
 			return HISI_QM_DRVCRYPT_NO_ERR;
+		udelay(QM_MB_WAIT_PERIOD);
 	}
 
 	EMSG("QM mailbox is busy to start!");
@@ -188,22 +188,27 @@ static enum hisi_drv_status qm_wait_mb_ready(struct hisi_qm *qm)
 static enum hisi_drv_status qm_wait_mb_finish(struct hisi_qm *qm,
 					      struct qm_mailbox *mb)
 {
-	uint32_t timeout = 0;
+	uint32_t i = 0;
 
-	timeout = timeout_init_us(QM_MB_WAIT_PERIOD * QM_MB_WAIT_MAX_CNT);
-	while (!timeout_elapsed(timeout)) {
+	while (++i) {
 		qm_mb_read(qm, mb);
-		if (!(mb->w0 & QM_MB_BUSY_BIT)) {
-			if (mb->w0 & QM_MB_STATUS_MASK) {
-				EMSG("QM mailbox operation failed!");
-				return HISI_QM_DRVCRYPT_EIO;
-			} else {
-				return HISI_QM_DRVCRYPT_NO_ERR;
-			}
+		if (!(mb->w0 & QM_MB_BUSY_BIT))
+			break;
+
+		if (i > QM_MB_WAIT_MAX_CNT) {
+			EMSG("QM mailbox operation timeout!");
+			return HISI_QM_DRVCRYPT_ETMOUT;
 		}
+
+		udelay(QM_MB_WAIT_PERIOD);
 	}
 
-	return HISI_QM_DRVCRYPT_ETMOUT;
+	if (mb->w0 & QM_MB_STATUS_MASK) {
+		EMSG("QM mailbox operation failed!");
+		return HISI_QM_DRVCRYPT_EIO;
+	}
+
+	return HISI_QM_DRVCRYPT_NO_ERR;
 }
 
 static void qm_mb_init(struct qm_mailbox *mb, uint8_t cmd, uint64_t base,
@@ -870,29 +875,28 @@ static void qm_dfx_dump(struct hisi_qm *qm)
 enum hisi_drv_status hisi_qp_recv_sync(struct hisi_qp *qp, void *msg)
 {
 	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
-	uint32_t timeout = 0;
+	uint32_t cnt = 0;
 
 	if (!qp || !qp->qm || !msg) {
 		EMSG("Invalid qp recv sync parameters");
 		return HISI_QM_DRVCRYPT_EINVAL;
 	}
 
-	timeout = timeout_init_us(QM_SINGLE_WAIT_TIME *
-				  HISI_QM_RECV_SYNC_TIMEOUT);
-	while (!timeout_elapsed(timeout)) {
+	while (true) {
 		ret = hisi_qp_recv(qp, msg);
-		if (ret) {
-			if (ret != HISI_QM_DRVCRYPT_RECV_DONE) {
-				EMSG("QM recv task error");
+		if (ret == 0) {
+			udelay(QM_SINGLE_WAIT_TIME);
+			if (++cnt > HISI_QM_RECV_SYNC_TIMEOUT) {
+				EMSG("qm recv task timeout!");
 				qm_dfx_dump(qp->qm);
-				return ret;
-			} else {
-				return HISI_QM_DRVCRYPT_NO_ERR;
+				return HISI_QM_DRVCRYPT_ETMOUT;
 			}
+		} else if (ret < 0) {
+			EMSG("qm recv task error!");
+			qm_dfx_dump(qp->qm);
+			return ret;
+		} else {
+			return HISI_QM_DRVCRYPT_NO_ERR;
 		}
 	}
-
-	EMSG("QM recv task timeout");
-	qm_dfx_dump(qp->qm);
-	return HISI_QM_DRVCRYPT_ETMOUT;
 }
