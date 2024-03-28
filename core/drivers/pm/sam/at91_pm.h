@@ -26,6 +26,7 @@ struct at91_pm_data {
 	vaddr_t sfrbu;
 	vaddr_t pmc;
 	vaddr_t ramc;
+	vaddr_t ramc_phy;
 	unsigned int mode;
 	const void *fdt;
 };

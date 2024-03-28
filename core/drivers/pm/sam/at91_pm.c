@@ -373,15 +373,42 @@ TEE_Result atmel_pm_suspend(uintptr_t entry, struct sm_nsec_ctx *nsec)
 
 static TEE_Result at91_pm_dt_dram_init(const void *fdt)
 {
+	const struct {
+		const char *compatible;
+		vaddr_t *address;
+	} dram_map[] = {
+#ifdef CFG_SAMA5D2
+		{
+			.compatible = "atmel,sama5d3-ddramc",
+			.address = &soc_pm.ramc,
+		},
+#endif
+#ifdef CFG_SAMA7G5
+		{
+			.compatible = "microchip,sama7g5-uddrc",
+			.address = &soc_pm.ramc,
+		},
+		{
+			.compatible = "microchip,sama7g5-ddr3phy",
+			.address = &soc_pm.ramc_phy,
+		},
+#endif
+	};
+	uint32_t i = 0;
 	int node = -1;
 	size_t size = 0;
 
-	node = fdt_node_offset_by_compatible(fdt, -1, "atmel,sama5d3-ddramc");
-	if (node < 0)
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	for (i = 0; i < ARRAY_SIZE(dram_map); i++) {
+		node = fdt_node_offset_by_compatible(fdt, -1,
+						     dram_map[i].compatible);
 
-	if (dt_map_dev(fdt, node, &soc_pm.ramc, &size, DT_MAP_AUTO) < 0)
-		return TEE_ERROR_GENERIC;
+		if (node < 0)
+			return TEE_ERROR_ITEM_NOT_FOUND;
+
+		if (dt_map_dev(fdt, node,
+			       dram_map[i].address, &size, DT_MAP_AUTO) < 0)
+			return TEE_ERROR_GENERIC;
+	}
 
 	return TEE_SUCCESS;
 }
