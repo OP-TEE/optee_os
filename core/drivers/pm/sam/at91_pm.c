@@ -352,6 +352,7 @@ static TEE_Result at91_pm_dt_dram_init(const void *fdt)
 
 static TEE_Result at91_pm_backup_init(const void *fdt)
 {
+	enum dt_map_dev_directive mapping = DT_MAP_AUTO;
 	int node = -1;
 	size_t size = 0;
 
@@ -359,11 +360,16 @@ static TEE_Result at91_pm_backup_init(const void *fdt)
 	if (node < 0)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	if (dt_map_dev(fdt, node, &soc_pm.sfrbu, &size, DT_MAP_AUTO) < 0)
+	if (IS_ENABLED(CFG_SAMA7G5))
+		mapping = DT_MAP_SECURE;
+
+	if (dt_map_dev(fdt, node, &soc_pm.sfrbu, &size, mapping) < 0)
 		return TEE_ERROR_GENERIC;
 
 	if (fdt_get_status(fdt, node) == DT_STATUS_OK_SEC)
-		matrix_configure_periph_secure(AT91C_ID_SFRBU);
+		/* for SAMA7G5 SFRBU is always secured, no need to configre */
+		if (!IS_ENABLED(CFG_SAMA7G5))
+			matrix_configure_periph_secure(AT91C_ID_SFRBU);
 
 	return TEE_SUCCESS;
 }
