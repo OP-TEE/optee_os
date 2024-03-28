@@ -112,6 +112,8 @@ SUSPEND_FUNC(at91_pm_suspend_in_sram)
 	str	tmp1, .pmc_base
 	ldr	tmp1, [r0, #PM_DATA_RAMC0]
 	str	tmp1, .sramc_base
+	ldr	tmp1, [r0, #PM_DATA_RAMC_PHY]
+	str	tmp1, .sramc_phy_base
 	ldr	tmp1, [r0, #PM_DATA_MODE]
 	str	tmp1, .pm_mode
 	/* Both ldrne below are here to preload their address in the TLB */
@@ -750,6 +752,8 @@ SUSPEND_END_FUNC(at91_sramc_self_refresh)
 .pmc_base:
 	.word 0
 .sramc_base:
+	.word 0
+.sramc_phy_base:
 	.word 0
 .shdwc:
 	.word 0
