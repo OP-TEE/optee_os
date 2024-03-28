@@ -10,7 +10,11 @@
 #include <arm32_macros.S>
 #include <asm.S>
 #include <at91_pmc.h>
+#ifdef CFG_SAMA7G5
+#include <drivers/sam/sama7-ddr.h>
+#else
 #include <drivers/sam/at91_ddr.h>
+#endif
 #include <generated/pm-defines.h>
 
 #include "at91_pm.h"
@@ -80,6 +84,221 @@ tmp3	.req	r6
 
 .arm
 
+#ifdef CFG_SAMA7G5
+/*
+ * Enable self-refresh
+ *
+ * Side effects: overwrites tmp1, tmp2, tmp3
+ */
+.macro at91_sramc_self_refresh_ena
+	dsb
+
+	ldr	tmp2, .sramc_base
+
+	/* Disable all AXI ports. */
+	ldr	tmp1, [tmp2, #UDDRC_PCTRL_0]
+	bic	tmp1, tmp1, #0x1
+	str	tmp1, [tmp2, #UDDRC_PCTRL_0]
+
+	ldr	tmp1, [tmp2, #UDDRC_PCTRL_1]
+	bic	tmp1, tmp1, #0x1
+	str	tmp1, [tmp2, #UDDRC_PCTRL_1]
+
+	ldr	tmp1, [tmp2, #UDDRC_PCTRL_2]
+	bic	tmp1, tmp1, #0x1
+	str	tmp1, [tmp2, #UDDRC_PCTRL_2]
+
+	ldr	tmp1, [tmp2, #UDDRC_PCTRL_3]
+	bic	tmp1, tmp1, #0x1
+	str	tmp1, [tmp2, #UDDRC_PCTRL_3]
+
+	ldr	tmp1, [tmp2, #UDDRC_PCTRL_4]
+	bic	tmp1, tmp1, #0x1
+	str	tmp1, [tmp2, #UDDRC_PCTRL_4]
+
+sr_ena_1:
+	/* Wait for all ports to disable. */
+	ldr	tmp1, [tmp2, #UDDRC_PSTAT]
+	ldr	tmp3, =UDDRC_PSTAT_ALL_PORTS
+	tst	tmp1, tmp3
+	bne	sr_ena_1
+
+	/* Switch to self-refresh. */
+	ldr	tmp1, [tmp2, #UDDRC_PWRCTL]
+	orr	tmp1, tmp1, #UDDRC_PWRCTL_SELFREF_SW
+	str	tmp1, [tmp2, #UDDRC_PWRCTL]
+
+sr_ena_2:
+	/* Wait for self-refresh enter. */
+	ldr	tmp1, [tmp2, #UDDRC_STAT]
+	bic	tmp1, tmp1, #~UDDRC_STAT_SELFREF_TYPE_MSK
+	cmp	tmp1, #UDDRC_STAT_SELFREF_TYPE_SW
+	bne	sr_ena_2
+
+	ldr	tmp2, .sramc_phy_base
+
+	/* Disable DX DLLs for non-backup modes. */
+	ldr	tmp1, .pm_mode
+	cmp	tmp1, #AT91_PM_BACKUP
+	beq	sr_ena_3
+
+	/* Do not soft reset the AC DLL. */
+	ldr	tmp1, [tmp2, #DDR3PHY_ACDLLCR]
+	bic	tmp1, tmp1, #DDR3PHY_ACDLLCR_DLLSRST
+	str	tmp1, [tmp2, #DDR3PHY_ACDLLCR]
+
+	/* Disable DX DLLs. */
+	ldr	tmp1, [tmp2, #DDR3PHY_DX0DLLCR]
+	orr	tmp1, tmp1, #DDR3PHY_DXDLLCR_DLLDIS
+	str	tmp1, [tmp2, #DDR3PHY_DX0DLLCR]
+
+	ldr	tmp1, [tmp2, #DDR3PHY_DX1DLLCR]
+	orr	tmp1, tmp1, #DDR3PHY_DXDLLCR_DLLDIS
+	str	tmp1, [tmp2, #DDR3PHY_DX1DLLCR]
+
+sr_ena_3:
+	/* Power down DDR PHY data receivers. */
+	ldr	tmp1, [tmp2, #DDR3PHY_DXCCR]
+	orr	tmp1, tmp1, #DDR3PHY_DXCCR_DXPDR
+	str	tmp1, [tmp2, #DDR3PHY_DXCCR]
+
+	/* Power down ADDR/CMD IO. */
+	ldr	tmp1, [tmp2, #DDR3PHY_ACIOCR]
+	orr	tmp1, tmp1, #DDR3PHY_ACIORC_ACPDD
+	orr	tmp1, tmp1, #DDR3PHY_ACIOCR_CKPDD_CK0
+	orr	tmp1, tmp1, #DDR3PHY_ACIOCR_CSPDD_CS0
+	str	tmp1, [tmp2, #DDR3PHY_ACIOCR]
+
+	/* Power down ODT. */
+	ldr	tmp1, [tmp2, #DDR3PHY_DSGCR]
+	orr	tmp1, tmp1, #DDR3PHY_DSGCR_ODTPDD_ODT0
+	str	tmp1, [tmp2, #DDR3PHY_DSGCR]
+.endm
+
+/*
+ * Disable self-refresh
+ *
+ * Side effects: overwrites tmp1, tmp2
+ */
+.macro at91_sramc_self_refresh_dis
+	ldr	tmp2, .sramc_phy_base
+
+	/* Power up DDR PHY data receivers. */
+	ldr	tmp1, [tmp2, #DDR3PHY_DXCCR]
+	bic	tmp1, tmp1, #DDR3PHY_DXCCR_DXPDR
+	str	tmp1, [tmp2, #DDR3PHY_DXCCR]
+
+	/* Power up the output of CK and CS pins. */
+	ldr	tmp1, [tmp2, #DDR3PHY_ACIOCR]
+	bic	tmp1, tmp1, #DDR3PHY_ACIORC_ACPDD
+	bic	tmp1, tmp1, #DDR3PHY_ACIOCR_CKPDD_CK0
+	bic	tmp1, tmp1, #DDR3PHY_ACIOCR_CSPDD_CS0
+	str	tmp1, [tmp2, #DDR3PHY_ACIOCR]
+
+	/* Power up ODT. */
+	ldr	tmp1, [tmp2, #DDR3PHY_DSGCR]
+	bic	tmp1, tmp1, #DDR3PHY_DSGCR_ODTPDD_ODT0
+	str	tmp1, [tmp2, #DDR3PHY_DSGCR]
+
+	/* Enable DX DLLs. */
+	ldr	tmp1, [tmp2, #DDR3PHY_DX0DLLCR]
+	bic	tmp1, tmp1, #DDR3PHY_DXDLLCR_DLLDIS
+	str	tmp1, [tmp2, #DDR3PHY_DX0DLLCR]
+
+	ldr	tmp1, [tmp2, #DDR3PHY_DX1DLLCR]
+	bic	tmp1, tmp1, #DDR3PHY_DXDLLCR_DLLDIS
+	str	tmp1, [tmp2, #DDR3PHY_DX1DLLCR]
+
+	ldr	tmp2, .sramc_base
+
+	/* Enable quasi-dynamic programming. */
+	mov	tmp1, #0
+	str	tmp1, [tmp2, #UDDRC_SWCTRL]
+
+	/* De-assert SDRAM initialization. */
+	ldr	tmp1, [tmp2, #UDDRC_DFIMISC]
+	bic	tmp1, tmp1, #UDDRC_DFIMISC_DFI_INIT_COMPLETE_EN
+	str	tmp1, [tmp2, #UDDRC_DFIMISC]
+
+	/* Quasi-dynamic programming done. */
+	mov	tmp1, #UDDRC_SWCTRL_SW_DONE
+	str	tmp1, [tmp2, #UDDRC_SWCTRL]
+
+sr_dis_1:
+	ldr	tmp1, [tmp2, #UDDRC_SWSTAT]
+	tst	tmp1, #UDDRC_SWSTAT_SW_DONE_ACK
+	beq	sr_dis_1
+
+	ldr	tmp2, .sramc_phy_base
+
+	/* DLL soft-reset + DLL lock wait + ITM reset */
+	mov	tmp1, #(DDR3PHY_PIR_INIT | DDR3PHY_PIR_DLLSRST | \
+			DDR3PHY_PIR_DLLLOCK | DDR3PHY_PIR_ITMSRST)
+	str	tmp1, [tmp2, #DDR3PHY_PIR]
+
+sr_dis_4:
+	/* Wait for it. */
+	ldr	tmp1, [tmp2, #DDR3PHY_PGSR]
+	tst	tmp1, #DDR3PHY_PGSR_IDONE
+	beq	sr_dis_4
+
+	ldr	tmp2, .sramc_base
+
+	/* Enable quasi-dynamic programming. */
+	mov	tmp1, #0
+	str	tmp1, [tmp2, #UDDRC_SWCTRL]
+
+	/* Assert PHY init complete enable signal. */
+	ldr	tmp1, [tmp2, #UDDRC_DFIMISC]
+	orr	tmp1, tmp1, #UDDRC_DFIMISC_DFI_INIT_COMPLETE_EN
+	str	tmp1, [tmp2, #UDDRC_DFIMISC]
+
+	/* Programming is done. Set sw_done. */
+	mov	tmp1, #UDDRC_SWCTRL_SW_DONE
+	str	tmp1, [tmp2, #UDDRC_SWCTRL]
+
+sr_dis_5:
+	/* Wait for it. */
+	ldr	tmp1, [tmp2, #UDDRC_SWSTAT]
+	tst	tmp1, #UDDRC_SWSTAT_SW_DONE_ACK
+	beq	sr_dis_5
+
+	/* Trigger self-refresh exit. */
+	ldr	tmp1, [tmp2, #UDDRC_PWRCTL]
+	bic	tmp1, tmp1, #UDDRC_PWRCTL_SELFREF_SW
+	str	tmp1, [tmp2, #UDDRC_PWRCTL]
+
+sr_dis_6:
+	/* Wait for self-refresh exit done. */
+	ldr	tmp1, [tmp2, #UDDRC_STAT]
+	bic	tmp1, tmp1, #~UDDRC_STAT_OPMODE_MSK
+	cmp	tmp1, #UDDRC_STAT_OPMODE_NORMAL
+	bne	sr_dis_6
+
+	/* Enable all AXI ports. */
+	ldr	tmp1, [tmp2, #UDDRC_PCTRL_0]
+	orr	tmp1, tmp1, #0x1
+	str	tmp1, [tmp2, #UDDRC_PCTRL_0]
+
+	ldr	tmp1, [tmp2, #UDDRC_PCTRL_1]
+	orr	tmp1, tmp1, #0x1
+	str	tmp1, [tmp2, #UDDRC_PCTRL_1]
+
+	ldr	tmp1, [tmp2, #UDDRC_PCTRL_2]
+	orr	tmp1, tmp1, #0x1
+	str	tmp1, [tmp2, #UDDRC_PCTRL_2]
+
+	ldr	tmp1, [tmp2, #UDDRC_PCTRL_3]
+	orr	tmp1, tmp1, #0x1
+	str	tmp1, [tmp2, #UDDRC_PCTRL_3]
+
+	ldr	tmp1, [tmp2, #UDDRC_PCTRL_4]
+	orr	tmp1, tmp1, #0x1
+	str	tmp1, [tmp2, #UDDRC_PCTRL_4]
+
+	dsb
+.endm
+#endif
 
 #define SUSPEND_FUNC(__name) \
 __name:
@@ -127,8 +346,13 @@ SUSPEND_FUNC(at91_pm_suspend_in_sram)
 	ldrne	tmp2, [tmp1, #0x10]
 
 	/* Active the self-refresh mode */
+#ifdef CFG_SAMA5D2
 	mov	r0, #SRAMC_SELF_FRESH_ACTIVE
 	bl	at91_sramc_self_refresh
+#endif
+#ifdef CFG_SAMA7G5
+	at91_sramc_self_refresh_ena
+#endif
 
 	ldr	r0, .pm_mode
 	cmp	r0, #AT91_PM_STANDBY
@@ -151,8 +375,13 @@ backup_mode:
 
 exit_suspend:
 	/* Exit the self-refresh mode */
+#ifdef CFG_SAMA5D2
 	mov	r0, #SRAMC_SELF_FRESH_EXIT
 	bl	at91_sramc_self_refresh
+#endif
+#ifdef CFG_SAMA7G5
+	at91_sramc_self_refresh_dis
+#endif
 
 	/* Restore registers, and return */
 	ldmfd	sp!, {r4 - r12, pc}
@@ -699,6 +928,7 @@ ulp_exit:
 	mov	pc, lr
 SUSPEND_END_FUNC(at91_ulp_mode)
 
+#ifdef CFG_SAMA5D2
 /*
  * void at91_sramc_self_refresh(unsigned int is_active)
  *
@@ -748,6 +978,7 @@ ddrc_exit_sf:
 exit_sramc_sf:
 	mov	pc, lr
 SUSPEND_END_FUNC(at91_sramc_self_refresh)
+#endif
 
 .pmc_base:
 	.word 0
