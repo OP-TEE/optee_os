@@ -37,10 +37,12 @@
 /*
  * @type_offset	offset of Memory Device Register
  * @type_mask	mask of Memory Device Type in Memory Device Register
+ * @compatible	the compatible string in the device tree
  */
 struct ddrc_reg_config {
 	uint32_t type_offset;
 	uint32_t type_mask;
+	const char *compatible;
 };
 
 /*
@@ -181,21 +183,27 @@ static TEE_Result atmel_shdwc_probe(const void *fdt, int node,
 	if (dt_map_dev(fdt, node, &shdwc_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
-	if (!compat->ddrc.type_mask)
-		return TEE_SUCCESS;
-
 	ddr_node = fdt_node_offset_by_compatible(fdt, -1,
-						 "atmel,sama5d3-ddramc");
+						 compat->ddrc.compatible);
 	if (ddr_node < 0)
 		return TEE_ERROR_GENERIC;
 
 	if (dt_map_dev(fdt, ddr_node, &mpddrc_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
-	ddr = io_read32(mpddrc_base + compat->ddrc.type_offset);
-	ddr &= compat->ddrc.type_mask;
-	if (ddr != AT91_DDRSDRC_MD_LPDDR2 && ddr != AT91_DDRSDRC_MD_LPDDR3)
+	if (!compat->ddrc.type_mask) {
+		ddr = io_read32(mpddrc_base + compat->ddrc.type_offset);
+		ddr &= compat->ddrc.type_mask;
+		if (ddr != AT91_DDRSDRC_MD_LPDDR2 &&
+		    ddr != AT91_DDRSDRC_MD_LPDDR3)
+			mpddrc_base = 0;
+	} else {
+		/*
+		 * Set the base to 0 as the code of DRAM controller for power
+		 * down is not implemented yet.
+		 */
 		mpddrc_base = 0;
+	}
 
 	at91_shdwc_dt_configure(fdt, node);
 
@@ -207,11 +215,15 @@ static const struct shdwc_compat sama5d2_compat = {
 	.ddrc = {
 		.type_offset = AT91_DDRSDRC_MDR,
 		.type_mask = AT91_DDRSDRC_MD,
+		.compatible = "atmel,sama5d3-ddramc",
 	}
 };
 
 static const struct shdwc_compat sama7g5_compat = {
 	.shdwc_always_secure = true,
+	.ddrc = {
+		.compatible = "microchip,sama7g5-uddrc",
+	}
 };
 
 static const struct dt_device_match atmel_shdwc_match_table[] = {
