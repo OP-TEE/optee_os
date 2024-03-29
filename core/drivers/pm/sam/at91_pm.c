@@ -12,6 +12,7 @@
 #include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/pm.h>
+#include <kernel/tlb_helpers.h>
 #include <libfdt.h>
 #include <matrix.h>
 #include <mm/core_memprot.h>
@@ -298,6 +299,7 @@ static TEE_Result at91_enter_backup(void)
 TEE_Result atmel_pm_suspend(uintptr_t entry, struct sm_nsec_ctx *nsec)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t sctlr = 0;
 
 	DMSG("Entering suspend mode %d", soc_pm.mode);
 
@@ -311,11 +313,32 @@ TEE_Result atmel_pm_suspend(uintptr_t entry, struct sm_nsec_ctx *nsec)
 
 	sm_save_unbanked_regs(&nsec->ub_regs);
 
+	/*
+	 * In order to run code for low-power out of SRAM without abort,
+	 * configure regions with write permission with not forced to
+	 * XN (Execute-never) attribute.
+	 */
+	if (IS_ENABLED(CFG_HWSUPP_MEM_PERM_WXN)) {
+		sctlr = read_sctlr();
+		if (sctlr & SCTLR_WXN) {
+			write_sctlr(sctlr & ~SCTLR_WXN);
+			tlbi_all();
+		}
+	}
+
 	if (soc_pm.mode == AT91_PM_BACKUP) {
 		res = at91_enter_backup();
 	} else {
 		at91_suspend_sram_fn(&soc_pm);
 		res = TEE_SUCCESS;
+	}
+
+	/* Restore the XN attribute */
+	if (IS_ENABLED(CFG_HWSUPP_MEM_PERM_WXN)) {
+		if (sctlr & SCTLR_WXN) {
+			write_sctlr(sctlr);
+			tlbi_all();
+		}
 	}
 
 	if (soc_pm.mode == AT91_PM_ULP1)
