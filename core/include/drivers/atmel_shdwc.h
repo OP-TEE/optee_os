@@ -27,6 +27,7 @@
 #define AT91_SHDW_WKUPDBC(x)	(SHIFT_U32((x), AT91_SHDW_WKUPDBC_SHIFT) & \
 				 AT91_SHDW_WKUPDBC_MASK)
 #define AT91_SHDW_RTCWKEN	BIT32(17)
+#define AT91_SHDW_RTTWKEN	BIT32(16)
 
 /* Shut Down Status Register */
 #define AT91_SHDW_SR		0x08

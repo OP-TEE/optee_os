@@ -154,6 +154,9 @@ static void at91_shdwc_dt_configure(const void *fdt, int np)
 	if (fdt_getprop(fdt, np, "atmel,wakeup-rtc-timer", &len))
 		mode |= AT91_SHDW_RTCWKEN;
 
+	if (fdt_getprop(fdt, np, "atmel,wakeup-rtt-timer", &len))
+		mode |= AT91_SHDW_RTTWKEN;
+
 	io_write32(shdwc_base + AT91_SHDW_MR, mode);
 
 	input = at91_shdwc_get_wakeup_input(fdt, np);
