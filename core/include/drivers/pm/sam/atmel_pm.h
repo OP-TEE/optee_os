@@ -25,7 +25,7 @@ void atmel_pm_cpu_idle(void);
 
 TEE_Result atmel_pm_suspend(uintptr_t entry, struct sm_nsec_ctx *nsec);
 
-TEE_Result sama5d2_pm_init(const void *fdt, vaddr_t shdwc);
+TEE_Result sam_pm_init(const void *fdt, vaddr_t shdwc);
 
 enum sm_handler_ret at91_pm_set_suspend_mode(struct thread_smc_args *args);
 
@@ -46,8 +46,8 @@ static inline TEE_Result atmel_pm_suspend(uintptr_t entry __unused,
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
-static inline TEE_Result sama5d2_pm_init(const void *fdt __unused,
-					 vaddr_t shdwc __unused)
+static inline TEE_Result sam_pm_init(const void *fdt __unused,
+				     vaddr_t shdwc __unused)
 {
 	return TEE_SUCCESS;
 }

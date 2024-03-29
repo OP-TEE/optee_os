@@ -444,7 +444,7 @@ static TEE_Result at91_securam_init(const void *fdt)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sama5d2_pm_init_all(const void *fdt, vaddr_t shdwc)
+static TEE_Result sam_pm_init_all(const void *fdt, vaddr_t shdwc)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
@@ -475,10 +475,10 @@ static TEE_Result sama5d2_pm_init_all(const void *fdt, vaddr_t shdwc)
 	return TEE_SUCCESS;
 }
 
-TEE_Result sama5d2_pm_init(const void *fdt, vaddr_t shdwc)
+TEE_Result sam_pm_init(const void *fdt, vaddr_t shdwc)
 {
-	if (sama5d2_pm_init_all(fdt, shdwc))
-		panic("Failed to setup PM for sama5d2");
+	if (sam_pm_init_all(fdt, shdwc))
+		panic("Failed to setup PM for this MPU");
 
 	return TEE_SUCCESS;
 }
