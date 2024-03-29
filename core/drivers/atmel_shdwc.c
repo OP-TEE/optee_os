@@ -210,7 +210,7 @@ static TEE_Result atmel_shdwc_probe(const void *fdt, int node,
 
 	at91_shdwc_dt_configure(fdt, node);
 
-	return sama5d2_pm_init(fdt, shdwc_base);
+	return sam_pm_init(fdt, shdwc_base);
 }
 
 static const struct shdwc_compat sama5d2_compat = {
