@@ -80,7 +80,11 @@ CFG_VERSAL_TRNG_SEED_LIFE ?= 3
 CFG_VERSAL_TRNG_DF_MUL ?= 2
 
 # eFuse and BBRAM driver
+ifeq ($(PLATFORM_FLAVOR),net)
+$(call force, CFG_VERSAL_NET_NVM,y)
+else
 $(call force, CFG_VERSAL_NVM,y)
+endif
 
 # Crypto driver
 CFG_VERSAL_CRYPTO_DRIVER ?= y
