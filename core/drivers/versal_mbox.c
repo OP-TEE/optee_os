@@ -432,6 +432,8 @@ TEE_Result versal_mbox_free(struct versal_mbox_mem *mem)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	free(mem->buf);
+	mem->buf = NULL;
+
 	return TEE_SUCCESS;
 }
 
@@ -455,9 +457,12 @@ TEE_Result versal_mbox_notify(struct versal_ipi *ipi,
 		   IPI_BIT_MASK(ipi->rmt));
 
 	/* Wait for remote to acknowledge the interrupt */
-	do {
-		status = io_read32(ipi->regs + IPI_OBR_OFFSET);
-	} while (status & IPI_BIT_MASK(ipi->rmt));
+	if (IO_READ32_POLL_TIMEOUT(ipi->regs + IPI_OBR_OFFSET, status,
+				   status & IPI_BIT_MASK(ipi->rmt), 0,
+				   CFG_VERSAL_MBOX_TIMEOUT)) {
+		ret = TEE_ERROR_GENERIC;
+		goto out;
+	}
 
 	ret = versal_mbox_read_rsp(ipi, cmd, rsp, &status);
 	if (ret)
