@@ -27,14 +27,12 @@ CFG_CORE_DYN_SHM   ?= y
 CFG_WITH_STATS     ?= y
 CFG_ARM64_core     ?= y
 
-# Default Versal NET memory allocation
+# Default memory allocation
 ifeq ($(PLATFORM_FLAVOR),net)
 CFG_TZDRAM_START   ?= 0x22200000
 CFG_TZDRAM_SIZE    ?= 0x2700000
 CFG_SHMEM_START    ?= 0x24900000
 CFG_SHMEM_SIZE     ?= 0x1800000
-
-# Default Versal memory allocation
 else
 CFG_TZDRAM_START   ?= 0x60000000
 CFG_TZDRAM_SIZE    ?= 0x10000000
@@ -48,9 +46,11 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
+ifeq ($(PLATFORM_FLAVOR),net)
 CFG_RPMB_FS ?= n
 CFG_RPMB_TESTKEY ?= y
 CFG_RPMB_WRITE_KEY ?=y
+endif
 
 # GPIO
 CFG_VERSAL_GPIO ?= y
@@ -62,7 +62,11 @@ CFG_VERSAL_TRACE_PLM ?= n
 $(call force, CFG_VERSAL_MBOX,y)
 
 # MBOX configuration
+ifeq ($(PLATFORM_FLAVOR),net)
 CFG_VERSAL_MBOX_IPI_ID ?= 1
+else
+CFG_VERSAL_MBOX_IPI_ID ?= 3
+endif
 
 # PM driver
 CFG_VERSAL_PM ?= y
@@ -100,7 +104,7 @@ ifeq ($(CFG_VERSAL_PKI_DRIVER),y)
 CFG_VERSAL_PKI_COUNTER_MEASURES ?= n
 CFG_VERSAL_PKI_PWCT ?= y
 endif
-endif
+endif # PLATFORM_FLAVOR is net
 endif
 
 # SHA3-384 crypto engine
@@ -122,6 +126,8 @@ ifneq ($(CFG_VERSAL_HUK_KEY),$(filter 6 7 11 12,$(firstword $(CFG_VERSAL_HUK_KEY
 $(error Invalid value: CFG_VERSAL_HUK_KEY=$(CFG_VERSAL_HUK_KEY))
 endif
 
+ifeq ($(PLATFORM_FLAVOR),net)
 CFG_VERSAL_FPGA_LOADER_PTA ?= y
+endif
 
 CFG_CORE_HEAP_SIZE ?= 262144
