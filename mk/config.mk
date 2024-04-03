@@ -1127,6 +1127,15 @@ CFG_TA_OPTEE_CORE_API_COMPAT_1_1 ?= n
 # Note that this violates GP requirements of HMAC size range.
 CFG_HMAC_64_1024_RANGE ?= n
 
+# CFG_RSA_PUB_EXPONENT_3, when enabled, allows RSA public exponents in the
+# range 3 <= e < 2^256. This is needed to pass AOSP KeyMint VTS tests:
+#    Link to tests: https://android.googlesource.com/platform/hardware/interfaces/+/refs/heads/main/security/keymint/aidl/vts/functional/KeyMintTest.cpp
+#    Module: VtsAidlKeyMintTargetTest
+#    Testcases: - PerInstance/EncryptionOperationsTest.RsaNoPaddingSuccess
+# When CFG_RSA_PUB_EXPONENT_3 is disabled, RSA public exponents must conform
+# to NIST SP800-56B recommendation and be in the range 65537 <= e < 2^256.
+CFG_RSA_PUB_EXPONENT_3 ?= n
+
 # Enable a hardware pbkdf2 function
 # By default use standard pbkdf2 implementation
 CFG_CRYPTO_HW_PBKDF2 ?= n
