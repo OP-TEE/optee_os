@@ -84,13 +84,13 @@ static TEE_Result do_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 	ret = versal_mbox_alloc(rsa_data->message.length,
 				rsa_data->message.data, &msg);
 	if (ret)
-		goto out1;
+		goto error;
 	ret = versal_mbox_alloc(rsa_data->cipher.length, NULL, &cipher);
 	if (ret)
-		goto out2;
+		goto error;
 	ret = versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
 	if (ret)
-		goto out3;
+		goto error;
 
 	cmd = cmd_buf.buf;
 	cmd->key_len = rsa_data->key.n_size;
@@ -117,12 +117,10 @@ static TEE_Result do_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 		memcpy(rsa_data->cipher.data, cipher.buf, rsa_data->key.n_size);
 	}
 
+error:
 	versal_mbox_free(&cmd_buf);
-out3:
 	versal_mbox_free(&cipher);
-out2:
 	versal_mbox_free(&msg);
-out1:
 	versal_mbox_free(&key);
 
 	return ret;
@@ -186,13 +184,13 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 	ret = versal_mbox_alloc(rsa_data->cipher.length, rsa_data->cipher.data,
 				&cipher);
 	if (ret)
-		goto out1;
+		goto error;
 	ret = versal_mbox_alloc(rsa_data->message.length, NULL, &msg);
 	if (ret)
-		goto out2;
+		goto error;
 	ret = versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
 	if (ret)
-		goto out3;
+		goto error;
 
 	cmd = cmd_buf.buf;
 	cmd->key_len = rsa_data->key.n_size;
@@ -215,12 +213,10 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 		memcpy(rsa_data->message.data, msg.buf, rsa_data->key.n_size);
 	}
 
+error:
 	versal_mbox_free(&cmd_buf);
-out3:
 	versal_mbox_free(&msg);
-out2:
 	versal_mbox_free(&cipher);
-out1:
 	versal_mbox_free(&key);
 
 	return ret;

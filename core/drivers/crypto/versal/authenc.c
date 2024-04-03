@@ -362,10 +362,10 @@ static TEE_Result do_init(struct drvcrypt_authenc_init *dinit)
 	/* Send the initialization structure */
 	ret = versal_mbox_alloc(sizeof(*init), NULL, &init_buf);
 	if (ret)
-		goto out1;
+		goto error;
 	ret = versal_mbox_alloc(dinit->nonce.length, dinit->nonce.data, &nonce);
 	if (ret)
-		goto out2;
+		goto error;
 
 	init = init_buf.buf;
 	init->iv_addr = virt_to_phys(nonce.buf);
@@ -407,9 +407,7 @@ static TEE_Result do_init(struct drvcrypt_authenc_init *dinit)
 	return TEE_SUCCESS;
 error:
 	versal_mbox_free(&nonce);
-out2:
 	versal_mbox_free(&init_buf);
-out1:
 	versal_mbox_free(&key);
 
 	return ret;
@@ -496,10 +494,10 @@ update_payload(struct drvcrypt_authenc_update_payload *dupdate, bool is_last)
 		return ret;
 	ret = versal_mbox_alloc(dupdate->dst.length, NULL, &q);
 	if (ret)
-		goto out1;
+		goto error;
 	ret = versal_mbox_alloc(sizeof(*input), NULL, &input_cmd);
 	if (ret)
-		goto out2;
+		goto error;
 
 	input = input_cmd.buf;
 	input->input_addr = virt_to_phys(p.buf);
@@ -545,9 +543,7 @@ update_payload(struct drvcrypt_authenc_update_payload *dupdate, bool is_last)
 	}
 error:
 	versal_mbox_free(&input_cmd);
-out2:
 	versal_mbox_free(&q);
-out1:
 	versal_mbox_free(&p);
 
 	return ret;
