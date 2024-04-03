@@ -2087,10 +2087,12 @@ static TEE_Result check_pub_rsa_key(struct bignum *e)
 
 	/*
 	 * NIST SP800-56B requires public RSA key to be an odd integer in
-	 * the range 65537 <= e < 2^256.
+	 * the range 65537 <= e < 2^256. AOSP requires implementations to
+	 * support public exponents >= 3, which can be allowed by enabling
+	 * CFG_RSA_PUB_EXPONENT_3.
 	 */
 
-	if (n > sizeof(bin_key) || n < 3)
+	if (n > sizeof(bin_key) || n < 1)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	crypto_bignum_bn2bin(e, bin_key);
@@ -2098,19 +2100,23 @@ static TEE_Result check_pub_rsa_key(struct bignum *e)
 	if (!(bin_key[n - 1] & 1)) /* key must be odd */
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (n == 3) {
+	if (n <= 3) {
+		uint32_t min_key = 65537;
 		uint32_t key = 0;
+		size_t m = 0;
 
-		for (n = 0; n < 3; n++) {
+		if (IS_ENABLED(CFG_RSA_PUB_EXPONENT_3))
+			min_key = 3;
+
+		for (m = 0; m < n; m++) {
 			key <<= 8;
-			key |= bin_key[n];
+			key |= bin_key[m];
 		}
 
-		if (key < 65537)
+		if (key < min_key)
 			return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	/* key is larger than 65537 */
 	return TEE_SUCCESS;
 }
 
