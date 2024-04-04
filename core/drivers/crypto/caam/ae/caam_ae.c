@@ -26,6 +26,7 @@
  * Constants definition of the AES algorithm
  */
 static const struct cipheralg aes_alg[] = {
+#if defined(CFG_NXP_CAAM_AE_CCM_DRV)
 	[TEE_CHAIN_MODE_CCM] = {
 		.type = OP_ALGO(AES) | ALGO_AAI(AES_CCM),
 		.size_block = TEE_AES_BLOCK_SIZE,
@@ -35,6 +36,8 @@ static const struct cipheralg aes_alg[] = {
 		.initialize = caam_ae_initialize_ccm,
 		.final = caam_ae_final_ccm,
 	},
+#endif
+#if defined(CFG_NXP_CAAM_AE_GCM_DRV)
 	[TEE_CHAIN_MODE_GCM] = {
 		.type = OP_ALGO(AES) | ALGO_AAI(AES_GCM),
 		.size_block = TEE_AES_BLOCK_SIZE,
@@ -44,6 +47,7 @@ static const struct cipheralg aes_alg[] = {
 		.initialize = caam_ae_initialize_gcm,
 		.final = caam_ae_final_gcm,
 	},
+#endif
 };
 
 /*
@@ -90,8 +94,8 @@ static TEE_Result caam_ae_allocate(void **ctx, uint32_t algo)
 
 	alg = get_cipheralgo(algo);
 	if (!alg) {
-		AE_TRACE("Algorithm not supported");
-		return TEE_ERROR_NOT_SUPPORTED;
+		AE_TRACE("Algorithm not implemented");
+		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 
 	caam_ctx = caam_calloc(sizeof(*caam_ctx));
