@@ -29,7 +29,7 @@ CFG_DBG_CAAM_BUF ?= 0x0
 caam-drivers = RNG BLOB
 
 # CAAM default drivers connected to the HW crypto API
-caam-crypto-drivers = CIPHER HASH HMAC CMAC AE
+caam-crypto-drivers = CIPHER HASH HMAC CMAC AE_CCM
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),ls1012ardb ls1043ardb ls1046ardb))
 $(call force, CFG_CAAM_BIG_ENDIAN,y)
@@ -40,7 +40,7 @@ $(call force, CFG_CAAM_SGT_ALIGN,4)
 $(call force, CFG_CAAM_64BIT,y)
 $(call force, CFG_NXP_CAAM_SGT_V1,y)
 $(call force, CFG_CAAM_ITR,n)
-caam-crypto-drivers += RSA DSA ECC DH MATH
+caam-crypto-drivers += RSA DSA ECC DH MATH AE_GCM
 else ifneq (,$(filter $(PLATFORM_FLAVOR),ls1088ardb ls2088ardb ls1028ardb))
 $(call force, CFG_CAAM_LITTLE_ENDIAN,y)
 $(call force, CFG_JR_BLOCK_SIZE,0x10000)
@@ -50,7 +50,7 @@ $(call force, CFG_NXP_CAAM_SGT_V2,y)
 $(call force, CFG_CAAM_SGT_ALIGN,4)
 $(call force, CFG_CAAM_64BIT,y)
 $(call force, CFG_CAAM_ITR,n)
-caam-crypto-drivers += RSA DSA ECC DH MATH
+caam-crypto-drivers += RSA DSA ECC DH MATH AE_GCM
 else ifneq (,$(filter $(PLATFORM_FLAVOR),lx2160aqds lx2160ardb))
 $(call force, CFG_CAAM_LITTLE_ENDIAN,y)
 $(call force, CFG_JR_BLOCK_SIZE,0x10000)
@@ -61,14 +61,14 @@ $(call force, CFG_NXP_CAAM_SGT_V2,y)
 $(call force, CFG_CAAM_SGT_ALIGN,4)
 $(call force, CFG_CAAM_64BIT,y)
 $(call force, CFG_CAAM_ITR,n)
-caam-crypto-drivers += RSA DSA ECC DH MATH
+caam-crypto-drivers += RSA DSA ECC DH MATH AE_GCM
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8qm-flavorlist) $(mx8qx-flavorlist)))
 $(call force, CFG_CAAM_SIZE_ALIGN,4)
 $(call force, CFG_JR_BLOCK_SIZE,0x10000)
 $(call force, CFG_JR_INDEX,3)
 $(call force, CFG_JR_INT,486)
 $(call force, CFG_NXP_CAAM_SGT_V1,y)
-caam-crypto-drivers += RSA DSA ECC DH MATH
+caam-crypto-drivers += RSA DSA ECC DH MATH AE_GCM
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8dxl-flavorlist)))
 $(call force, CFG_CAAM_SIZE_ALIGN,4)
 $(call force, CFG_JR_BLOCK_SIZE,0x10000)
@@ -76,7 +76,7 @@ $(call force, CFG_JR_INDEX,3)
 $(call force, CFG_JR_INT,356)
 $(call force, CFG_NXP_CAAM_SGT_V1,y)
 $(call force, CFG_CAAM_JR_DISABLE_NODE,n)
-caam-crypto-drivers += RSA DSA ECC DH MATH
+caam-crypto-drivers += RSA DSA ECC DH MATH AE_GCM
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mm-flavorlist) $(mx8mn-flavorlist) \
 	$(mx8mp-flavorlist) $(mx8mq-flavorlist)))
 $(call force, CFG_JR_BLOCK_SIZE,0x1000)
@@ -90,19 +90,21 @@ $(call force, CFG_JR_HAB_INDEX,0)
 # this issue, controlled by CFG_NXP_CAAM_C2_CTX_REG_WA flag.
 $(call force, CFG_NXP_CAAM_C2_CTX_REG_WA,y)
 caam-drivers += MP DEK
-caam-crypto-drivers += RSA DSA ECC DH MATH
+caam-crypto-drivers += RSA DSA ECC DH MATH AE_GCM
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8ulp-flavorlist)))
 $(call force, CFG_JR_BLOCK_SIZE,0x1000)
 $(call force, CFG_JR_INDEX,2)
 $(call force, CFG_JR_INT,114)
 $(call force, CFG_NXP_CAAM_SGT_V1,y)
 $(call force, CFG_CAAM_ITR,n)
+caam-crypto-drivers += AE_GCM
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx7ulp-flavorlist)))
 $(call force, CFG_JR_BLOCK_SIZE,0x1000)
 $(call force, CFG_JR_INDEX,0)
 $(call force, CFG_JR_INT,137)
 $(call force, CFG_NXP_CAAM_SGT_V1,y)
 $(call force, CFG_CAAM_ITR,n)
+caam-crypto-drivers += AE_GCM
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist) $(mx7d-flavorlist) \
 	$(mx7s-flavorlist)))
 $(call force, CFG_JR_BLOCK_SIZE,0x1000)
@@ -110,10 +112,10 @@ $(call force, CFG_JR_INDEX,0)
 $(call force, CFG_JR_INT,137)
 $(call force, CFG_NXP_CAAM_SGT_V1,y)
 caam-drivers += MP
-caam-crypto-drivers += RSA DSA ECC DH MATH
+caam-crypto-drivers += RSA DSA ECC DH MATH AE_GCM
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6q-flavorlist) $(mx6qp-flavorlist) \
 	$(mx6sx-flavorlist) $(mx6d-flavorlist) $(mx6dl-flavorlist) \
-        $(mx6s-flavorlist) $(mx8ulp-flavorlist)))
+	$(mx6s-flavorlist) $(mx8ulp-flavorlist)))
 $(call force, CFG_JR_BLOCK_SIZE,0x1000)
 $(call force, CFG_JR_INDEX,0)
 $(call force, CFG_JR_INT,137)
@@ -189,8 +191,8 @@ $(call force, CFG_CRYPTO_DRV_CIPHER,y,Mandated by CFG_NXP_CAAM_CIPHER_DRV)
 endif
 
 # Enable AE crypto driver
-ifeq ($(CFG_NXP_CAAM_AE_DRV), y)
-$(call force, CFG_CRYPTO_DRV_AUTHENC,y,Mandated by CFG_NXP_CAAM_AE_DRV)
+ifeq ($(call cfg-one-enabled,CFG_NXP_CAAM_AE_CCM_DRV CFG_NXP_CAAM_AE_GCM_DRV),y)
+$(call force, CFG_CRYPTO_DRV_AUTHENC,y,Mandated by CFG_NXP_CAAM_AE_CCM/GCM_DRV)
 endif
 
 # Enable HASH crypto driver
