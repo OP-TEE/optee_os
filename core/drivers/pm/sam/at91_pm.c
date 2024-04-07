@@ -108,8 +108,8 @@ void atmel_pm_cpu_idle(void)
 	io_write32(soc_pm.ramc + AT91_DDRSDRC_LPR, saved_lpr0);
 }
 
-static void at91_sama5d2_config_shdwc_ws(vaddr_t shdwc, uint32_t *mode,
-					 uint32_t *polarity)
+static void at91_sam_config_shdwc_ws(vaddr_t shdwc, uint32_t *mode,
+				     uint32_t *polarity)
 {
 	uint32_t val = 0;
 
@@ -119,11 +119,11 @@ static void at91_sama5d2_config_shdwc_ws(vaddr_t shdwc, uint32_t *mode,
 	*polarity |= (val >> AT91_SHDW_WKUPT_SHIFT) & AT91_SHDW_WKUPT_MASK;
 }
 
-static int at91_sama5d2_config_pmc_ws(vaddr_t pmc, uint32_t mode,
-				      uint32_t polarity)
+static int at91_sam_config_pmc_ws(vaddr_t pmc, uint32_t mode, uint32_t polarity)
 {
 	io_write32(pmc + AT91_PMC_FSMR, mode);
-	io_write32(pmc + AT91_PMC_FSPR, polarity);
+	if (IS_ENABLED(CFG_SAMA5D2))
+		io_write32(pmc + AT91_PMC_FSPR, polarity);
 
 	return 0;
 }
@@ -139,6 +139,8 @@ static const struct wakeup_source_info ws_info[] = {
 	{ .pmc_fsmr_bit = AT91_PMC_RTCAL,	.shdwc_mr_bit = BIT(17) },
 	{ .pmc_fsmr_bit = AT91_PMC_USBAL },
 	{ .pmc_fsmr_bit = AT91_PMC_SDMMC_CD },
+	{ .pmc_fsmr_bit = AT91_PMC_RTTAL },
+	{ .pmc_fsmr_bit = AT91_PMC_RXLP_MCE },
 };
 
 struct wakeup_src {
@@ -146,7 +148,8 @@ struct wakeup_src {
 	const struct wakeup_source_info *info;
 };
 
-static const struct wakeup_src sama5d2_ws_ids[] = {
+static const struct wakeup_src sam_ws_ids[] = {
+#ifdef CFG_SAMA5D2
 	{ .compatible = "atmel,sama5d2-gem",		.info = &ws_info[0] },
 	{ .compatible = "atmel,at91rm9200-rtc",		.info = &ws_info[1] },
 	{ .compatible = "atmel,sama5d3-udc",		.info = &ws_info[2] },
@@ -155,6 +158,16 @@ static const struct wakeup_src sama5d2_ws_ids[] = {
 	{ .compatible = "atmel,at91sam9g45-ehci",	.info = &ws_info[2] },
 	{ .compatible = "usb-ehci",			.info = &ws_info[2] },
 	{ .compatible = "atmel,sama5d2-sdhci",		.info = &ws_info[3] }
+#endif
+#ifdef CFG_SAMA7G5
+	{ .compatible = "microchip,sama7g5-rtc",	.info = &ws_info[1] },
+	{ .compatible = "microchip,sama7g5-ohci",	.info = &ws_info[2] },
+	{ .compatible = "usb-ohci",			.info = &ws_info[2] },
+	{ .compatible = "atmel,at91sam9g45-ehci",	.info = &ws_info[2] },
+	{ .compatible = "usb-ehci",			.info = &ws_info[2] },
+	{ .compatible = "microchip,sama7g5-sdhci",	.info = &ws_info[3] },
+	{ .compatible = "microchip,sama7g5-rtt",	.info = &ws_info[4] },
+#endif
 };
 
 static bool dev_is_wakeup_source(const void *fdt, int node)
@@ -177,13 +190,13 @@ static int at91_pm_config_ws_ulp1(bool set)
 		return TEE_SUCCESS;
 	}
 
-	at91_sama5d2_config_shdwc_ws(soc_pm.shdwc, &mode, &polarity);
+	at91_sam_config_shdwc_ws(soc_pm.shdwc, &mode, &polarity);
 
 	val = io_read32(soc_pm.shdwc + AT91_SHDW_MR);
 
 	/* Loop through defined wakeup sources. */
-	for (src = 0; src < ARRAY_SIZE(sama5d2_ws_ids); src++) {
-		wsrc = &sama5d2_ws_ids[src];
+	for (src = 0; src < ARRAY_SIZE(sam_ws_ids); src++) {
+		wsrc = &sam_ws_ids[src];
 		wsi = wsrc->info;
 
 		node = fdt_node_offset_by_compatible(soc_pm.fdt, -1,
@@ -210,7 +223,7 @@ next_node:
 		return TEE_ERROR_BAD_STATE;
 	}
 
-	at91_sama5d2_config_pmc_ws(soc_pm.pmc, mode, polarity);
+	at91_sam_config_pmc_ws(soc_pm.pmc, mode, polarity);
 
 	return TEE_SUCCESS;
 }
