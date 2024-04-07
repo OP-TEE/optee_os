@@ -1,5 +1,6 @@
 srcs-y += spinlock.S
 srcs-y += cache_helpers_rv.S
+srcs-y += csr_detect.S
 srcs-y += idle.c
 srcs-$(CFG_RISCV_TIME_SOURCE_RDTIME) += tee_time_rdtime.c
 srcs-$(CFG_RISCV_SBI) += sbi.c

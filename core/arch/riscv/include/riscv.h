@@ -8,6 +8,7 @@
 
 #include <compiler.h>
 #include <encoding.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/cdefs.h>
 #include <util.h>
@@ -394,6 +395,8 @@ static inline __noprof uint32_t read_cntfrq(void)
 {
 	return CFG_RISCV_MTIME_RATE;
 }
+
+__noprof bool riscv_detect_csr_seed(void);
 
 #endif /*__ASSEMBLER__*/
 
