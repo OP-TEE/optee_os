@@ -2,19 +2,7 @@
  *  DTLS cookie callbacks implementation
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 /*
  * These session callbacks use a simple chained list
@@ -33,25 +21,30 @@
 #include "mbedtls/platform_util.h"
 #include "mbedtls/constant_time.h"
 
-#include "mbedtls/legacy_or_psa.h"
-
 #include <string.h>
 
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
-#define PSA_TO_MBEDTLS_ERR(status) PSA_TO_MBEDTLS_ERR_LIST(status,   \
-                                                           psa_to_ssl_errors,             \
-                                                           psa_generic_status_to_mbedtls)
+#include "mbedtls/psa_util.h"
+/* Define a local translating function to save code size by not using too many
+ * arguments in each translating place. */
+static int local_err_translation(psa_status_t status)
+{
+    return psa_status_to_mbedtls(status, psa_to_ssl_errors,
+                                 ARRAY_LENGTH(psa_to_ssl_errors),
+                                 psa_generic_status_to_mbedtls);
+}
+#define PSA_TO_MBEDTLS_ERR(status) local_err_translation(status)
 #endif
 
 /*
  * If DTLS is in use, then at least one of SHA-256 or SHA-384 is
  * available. Try SHA-256 first as 384 wastes resources
  */
-#if defined(MBEDTLS_HAS_ALG_SHA_256_VIA_LOWLEVEL_OR_PSA)
+#if defined(MBEDTLS_MD_CAN_SHA256)
 #define COOKIE_MD           MBEDTLS_MD_SHA256
 #define COOKIE_MD_OUTLEN    32
 #define COOKIE_HMAC_LEN     28
-#elif defined(MBEDTLS_HAS_ALG_SHA_384_VIA_LOWLEVEL_OR_PSA)
+#elif defined(MBEDTLS_MD_CAN_SHA384)
 #define COOKIE_MD           MBEDTLS_MD_SHA384
 #define COOKIE_MD_OUTLEN    48
 #define COOKIE_HMAC_LEN     28
@@ -116,7 +109,7 @@ int mbedtls_ssl_cookie_setup(mbedtls_ssl_cookie_ctx *ctx,
     (void) f_rng;
     (void) p_rng;
 
-    alg = mbedtls_hash_info_psa_from_md(COOKIE_MD);
+    alg = mbedtls_md_psa_alg_from_type(COOKIE_MD);
     if (alg == 0) {
         return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
     }
@@ -366,10 +359,7 @@ int mbedtls_ssl_cookie_check(void *p_ctx,
     cur_time = ctx->serial;
 #endif
 
-    cookie_time = ((unsigned long) cookie[0] << 24) |
-                  ((unsigned long) cookie[1] << 16) |
-                  ((unsigned long) cookie[2] <<  8) |
-                  ((unsigned long) cookie[3]);
+    cookie_time = (unsigned long) MBEDTLS_GET_UINT32_BE(cookie, 0);
 
     if (ctx->timeout != 0 && cur_time - cookie_time > ctx->timeout) {
         ret = -1;

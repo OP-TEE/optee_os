@@ -2,19 +2,7 @@
  *  Error message information
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 #include "common.h"
@@ -160,6 +148,10 @@
 
 #if defined(MBEDTLS_SHA256_C)
 #include "mbedtls/sha256.h"
+#endif
+
+#if defined(MBEDTLS_SHA3_C)
+#include "mbedtls/sha3.h"
 #endif
 
 #if defined(MBEDTLS_SHA512_C)
@@ -429,8 +421,12 @@ const char *mbedtls_high_level_strerr(int error_code)
             return( "SSL - * Received NewSessionTicket Post Handshake Message. This error code is experimental and may be changed or removed without notice" );
         case -(MBEDTLS_ERR_SSL_CANNOT_READ_EARLY_DATA):
             return( "SSL - Not possible to read early data" );
+        case -(MBEDTLS_ERR_SSL_RECEIVED_EARLY_DATA):
+            return( "SSL - * Early data has been received as part of an on-going handshake. This error code can be returned only on server side if and only if early data has been enabled by means of the mbedtls_ssl_conf_early_data() API. This error code can then be returned by mbedtls_ssl_handshake(), mbedtls_ssl_handshake_step(), mbedtls_ssl_read() or mbedtls_ssl_write() if early data has been received as part of the handshake sequence they triggered. To read the early data, call mbedtls_ssl_read_early_data()" );
         case -(MBEDTLS_ERR_SSL_CANNOT_WRITE_EARLY_DATA):
             return( "SSL - Not possible to write early data" );
+        case -(MBEDTLS_ERR_SSL_CACHE_ENTRY_NOT_FOUND):
+            return( "SSL - Cache entry not found" );
         case -(MBEDTLS_ERR_SSL_ALLOC_FAILED):
             return( "SSL - Memory allocation failed" );
         case -(MBEDTLS_ERR_SSL_HW_ACCEL_FAILED):
@@ -765,6 +761,11 @@ const char *mbedtls_low_level_strerr(int error_code)
         case -(MBEDTLS_ERR_SHA256_BAD_INPUT_DATA):
             return( "SHA256 - SHA-256 input data was malformed" );
 #endif /* MBEDTLS_SHA256_C */
+
+#if defined(MBEDTLS_SHA3_C)
+        case -(MBEDTLS_ERR_SHA3_BAD_INPUT_DATA):
+            return( "SHA3 - SHA-3 input data was malformed" );
+#endif /* MBEDTLS_SHA3_C */
 
 #if defined(MBEDTLS_SHA512_C)
         case -(MBEDTLS_ERR_SHA512_BAD_INPUT_DATA):

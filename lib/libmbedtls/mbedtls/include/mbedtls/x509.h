@@ -5,19 +5,7 @@
  */
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 #ifndef MBEDTLS_X509_H
 #define MBEDTLS_X509_H
@@ -243,6 +231,17 @@ typedef mbedtls_asn1_named_data mbedtls_x509_name;
  */
 typedef mbedtls_asn1_sequence mbedtls_x509_sequence;
 
+/*
+ * Container for the fields of the Authority Key Identifier object
+ */
+typedef struct mbedtls_x509_authority {
+    mbedtls_x509_buf keyIdentifier;
+    mbedtls_x509_sequence authorityCertIssuer;
+    mbedtls_x509_buf authorityCertSerialNumber;
+    mbedtls_x509_buf raw;
+}
+mbedtls_x509_authority;
+
 /** Container for date and time (precision in seconds). */
 typedef struct mbedtls_x509_time {
     int year, mon, day;         /**< Date. */
@@ -293,14 +292,22 @@ mbedtls_x509_san_other_name;
 typedef struct mbedtls_x509_subject_alternative_name {
     int type;                              /**< The SAN type, value of MBEDTLS_X509_SAN_XXX. */
     union {
-        mbedtls_x509_san_other_name other_name; /**< The otherName supported type. */
-        mbedtls_x509_buf   unstructured_name; /**< The buffer for the unconstructed types. Only rfc822Name, dnsName and uniformResourceIdentifier are currently supported */
+        mbedtls_x509_san_other_name other_name;
+        mbedtls_x509_name directory_name;
+        mbedtls_x509_buf unstructured_name; /**< The buffer for the unstructured types. rfc822Name, dnsName and uniformResourceIdentifier are currently supported. */
     }
     san; /**< A union of the supported SAN types */
 }
 mbedtls_x509_subject_alternative_name;
 
+typedef struct mbedtls_x509_san_list {
+    mbedtls_x509_subject_alternative_name node;
+    struct mbedtls_x509_san_list *next;
+}
+mbedtls_x509_san_list;
+
 /** \} name Structures for parsing X.509 certificates, CRLs and CSRs */
+/** \} addtogroup x509_module */
 
 /**
  * \brief          Store the certificate DN in printable form into buf;
@@ -314,6 +321,23 @@ mbedtls_x509_subject_alternative_name;
  *                 terminated nul byte), or a negative error code.
  */
 int mbedtls_x509_dn_gets(char *buf, size_t size, const mbedtls_x509_name *dn);
+
+/**
+ * \brief            Convert the certificate DN string \p name into
+ *                   a linked list of mbedtls_x509_name (equivalent to
+ *                   mbedtls_asn1_named_data).
+ *
+ * \note             This function allocates a linked list, and places the head
+ *                   pointer in \p head. This list must later be freed by a
+ *                   call to mbedtls_asn1_free_named_data_list().
+ *
+ * \param[out] head  Address in which to store the pointer to the head of the
+ *                   allocated list of mbedtls_x509_name
+ * \param[in] name   The string representation of a DN to convert
+ *
+ * \return           0 on success, or a negative error code.
+ */
+int mbedtls_x509_string_to_names(mbedtls_asn1_named_data **head, const char *name);
 
 /**
  * \brief          Return the next relative DN in an X509 name.
@@ -349,6 +373,31 @@ static inline mbedtls_x509_name *mbedtls_x509_dn_get_next(
 int mbedtls_x509_serial_gets(char *buf, size_t size, const mbedtls_x509_buf *serial);
 
 /**
+ * \brief          Compare pair of mbedtls_x509_time.
+ *
+ * \param t1       mbedtls_x509_time to compare
+ * \param t2       mbedtls_x509_time to compare
+ *
+ * \return         < 0 if t1 is before t2
+ *                   0 if t1 equals t2
+ *                 > 0 if t1 is after t2
+ */
+int mbedtls_x509_time_cmp(const mbedtls_x509_time *t1, const mbedtls_x509_time *t2);
+
+#if defined(MBEDTLS_HAVE_TIME_DATE)
+/**
+ * \brief          Fill mbedtls_x509_time with provided mbedtls_time_t.
+ *
+ * \param tt       mbedtls_time_t to convert
+ * \param now      mbedtls_x509_time to fill with converted mbedtls_time_t
+ *
+ * \return         \c 0 on success
+ * \return         A non-zero return value on failure.
+ */
+int mbedtls_x509_time_gmtime(mbedtls_time_t tt, mbedtls_x509_time *now);
+#endif /* MBEDTLS_HAVE_TIME_DATE */
+
+/**
  * \brief          Check a given mbedtls_x509_time against the system time
  *                 and tell if it's in the past.
  *
@@ -378,21 +427,25 @@ int mbedtls_x509_time_is_future(const mbedtls_x509_time *from);
 
 /**
  * \brief          This function parses an item in the SubjectAlternativeNames
- *                 extension.
+ *                 extension. Please note that this function might allocate
+ *                 additional memory for a subject alternative name, thus
+ *                 mbedtls_x509_free_subject_alt_name has to be called
+ *                 to dispose of this additional memory afterwards.
  *
  * \param san_buf  The buffer holding the raw data item of the subject
  *                 alternative name.
  * \param san      The target structure to populate with the parsed presentation
- *                 of the subject alternative name encoded in \p san_raw.
+ *                 of the subject alternative name encoded in \p san_buf.
  *
  * \note           Supported GeneralName types, as defined in RFC 5280:
- *                 "rfc822Name", "dnsName", "uniformResourceIdentifier" and "hardware_module_name"
+ *                 "rfc822Name", "dnsName", "directoryName",
+ *                 "uniformResourceIdentifier" and "hardware_module_name"
  *                 of type "otherName", as defined in RFC 4108.
  *
  * \note           This function should be called on a single raw data of
  *                 subject alternative name. For example, after successful
  *                 certificate parsing, one must iterate on every item in the
- *                 \p crt->subject_alt_names sequence, and pass it to
+ *                 \c crt->subject_alt_names sequence, and pass it to
  *                 this function.
  *
  * \warning        The target structure contains pointers to the raw data of the
@@ -406,68 +459,29 @@ int mbedtls_x509_time_is_future(const mbedtls_x509_time *from);
  */
 int mbedtls_x509_parse_subject_alt_name(const mbedtls_x509_buf *san_buf,
                                         mbedtls_x509_subject_alternative_name *san);
-
-/** \} addtogroup x509_module */
-
-/*
- * Internal module functions. You probably do not want to use these unless you
- * know you do.
+/**
+ * \brief          Unallocate all data related to subject alternative name
+ *
+ * \param san      SAN structure - extra memory owned by this structure will be freed
  */
-int mbedtls_x509_get_name(unsigned char **p, const unsigned char *end,
-                          mbedtls_x509_name *cur);
-int mbedtls_x509_get_alg_null(unsigned char **p, const unsigned char *end,
-                              mbedtls_x509_buf *alg);
-int mbedtls_x509_get_alg(unsigned char **p, const unsigned char *end,
-                         mbedtls_x509_buf *alg, mbedtls_x509_buf *params);
-#if defined(MBEDTLS_X509_RSASSA_PSS_SUPPORT)
-int mbedtls_x509_get_rsassa_pss_params(const mbedtls_x509_buf *params,
-                                       mbedtls_md_type_t *md_alg, mbedtls_md_type_t *mgf_md,
-                                       int *salt_len);
-#endif
-int mbedtls_x509_get_sig(unsigned char **p, const unsigned char *end, mbedtls_x509_buf *sig);
-int mbedtls_x509_get_sig_alg(const mbedtls_x509_buf *sig_oid, const mbedtls_x509_buf *sig_params,
-                             mbedtls_md_type_t *md_alg, mbedtls_pk_type_t *pk_alg,
-                             void **sig_opts);
-int mbedtls_x509_get_time(unsigned char **p, const unsigned char *end,
-                          mbedtls_x509_time *t);
-int mbedtls_x509_get_serial(unsigned char **p, const unsigned char *end,
-                            mbedtls_x509_buf *serial);
-int mbedtls_x509_get_ext(unsigned char **p, const unsigned char *end,
-                         mbedtls_x509_buf *ext, int tag);
-#if !defined(MBEDTLS_X509_REMOVE_INFO)
-int mbedtls_x509_sig_alg_gets(char *buf, size_t size, const mbedtls_x509_buf *sig_oid,
-                              mbedtls_pk_type_t pk_alg, mbedtls_md_type_t md_alg,
-                              const void *sig_opts);
-#endif
-int mbedtls_x509_key_size_helper(char *buf, size_t buf_size, const char *name);
-int mbedtls_x509_string_to_names(mbedtls_asn1_named_data **head, const char *name);
-int mbedtls_x509_set_extension(mbedtls_asn1_named_data **head, const char *oid, size_t oid_len,
-                               int critical, const unsigned char *val,
-                               size_t val_len);
-int mbedtls_x509_write_extensions(unsigned char **p, unsigned char *start,
-                                  mbedtls_asn1_named_data *first);
-int mbedtls_x509_write_names(unsigned char **p, unsigned char *start,
-                             mbedtls_asn1_named_data *first);
-int mbedtls_x509_write_sig(unsigned char **p, unsigned char *start,
-                           const char *oid, size_t oid_len,
-                           unsigned char *sig, size_t size);
-int mbedtls_x509_get_ns_cert_type(unsigned char **p,
-                                  const unsigned char *end,
-                                  unsigned char *ns_cert_type);
-int mbedtls_x509_get_key_usage(unsigned char **p,
-                               const unsigned char *end,
-                               unsigned int *key_usage);
-int mbedtls_x509_get_subject_alt_name(unsigned char **p,
-                                      const unsigned char *end,
-                                      mbedtls_x509_sequence *subject_alt_name);
-int mbedtls_x509_info_subject_alt_name(char **buf, size_t *size,
-                                       const mbedtls_x509_sequence
-                                       *subject_alt_name,
-                                       const char *prefix);
-int mbedtls_x509_info_cert_type(char **buf, size_t *size,
-                                unsigned char ns_cert_type);
-int mbedtls_x509_info_key_usage(char **buf, size_t *size,
-                                unsigned int key_usage);
+void mbedtls_x509_free_subject_alt_name(mbedtls_x509_subject_alternative_name *san);
+
+/**
+ * \brief          This function parses a CN string as an IP address.
+ *
+ * \param cn       The CN string to parse. CN string MUST be null-terminated.
+ * \param dst      The target buffer to populate with the binary IP address.
+ *                 The buffer MUST be 16 bytes to save IPv6, and should be
+ *                 4-byte aligned if the result will be used as struct in_addr.
+ *                 e.g. uint32_t dst[4]
+ *
+ * \note           \p cn is parsed as an IPv6 address if string contains ':',
+ *                 else \p cn is parsed as an IPv4 address.
+ *
+ * \return         Length of binary IP address; num bytes written to target.
+ * \return         \c 0 on failure to parse CN string as an IP address.
+ */
+size_t mbedtls_x509_crt_parse_cn_inet_pton(const char *cn, void *dst);
 
 #define MBEDTLS_X509_SAFE_SNPRINTF                          \
     do {                                                    \
@@ -482,4 +496,4 @@ int mbedtls_x509_info_key_usage(char **buf, size_t *size,
 }
 #endif
 
-#endif /* x509.h */
+#endif /* MBEDTLS_X509_H */

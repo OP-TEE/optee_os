@@ -9,19 +9,7 @@
  */
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 #ifndef MBEDTLS_HMAC_DRBG_H
 #define MBEDTLS_HMAC_DRBG_H
@@ -183,8 +171,8 @@ void mbedtls_hmac_drbg_init(mbedtls_hmac_drbg_context *ctx);
  * \param len           The length of the personalization string.
  *                      This must be at most #MBEDTLS_HMAC_DRBG_MAX_INPUT
  *                      and also at most
- *                      #MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT - \p entropy_len * 3 / 2
- *                      where \p entropy_len is the entropy length
+ *                      #MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT - \c entropy_len * 3 / 2
+ *                      where \c entropy_len is the entropy length
  *                      described above.
  *
  * \return              \c 0 if successful.
@@ -313,8 +301,8 @@ int mbedtls_hmac_drbg_update(mbedtls_hmac_drbg_context *ctx,
  * \param len           The length of the additional data.
  *                      This must be at most #MBEDTLS_HMAC_DRBG_MAX_INPUT
  *                      and also at most
- *                      #MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT - \p entropy_len
- *                      where \p entropy_len is the entropy length
+ *                      #MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT - \c entropy_len
+ *                      where \c entropy_len is the entropy length
  *                      (see mbedtls_hmac_drbg_set_entropy_len()).
  *
  * \return              \c 0 if successful.

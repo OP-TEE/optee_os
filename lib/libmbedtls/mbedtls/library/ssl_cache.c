@@ -2,19 +2,7 @@
  *  SSL session cache implementation
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 /*
  * These session callbacks use a simple chained list
@@ -29,6 +17,7 @@
 
 #include "mbedtls/ssl_cache.h"
 #include "ssl_misc.h"
+#include "mbedtls/error.h"
 
 #include <string.h>
 
@@ -50,7 +39,7 @@ static int ssl_cache_find_entry(mbedtls_ssl_cache_context *cache,
                                 size_t session_id_len,
                                 mbedtls_ssl_cache_entry **dst)
 {
-    int ret = 1;
+    int ret = MBEDTLS_ERR_SSL_CACHE_ENTRY_NOT_FOUND;
 #if defined(MBEDTLS_HAVE_TIME)
     mbedtls_time_t t = mbedtls_time(NULL);
 #endif
@@ -87,7 +76,7 @@ int mbedtls_ssl_cache_get(void *data,
                           size_t session_id_len,
                           mbedtls_ssl_session *session)
 {
-    int ret = 1;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     mbedtls_ssl_cache_context *cache = (mbedtls_ssl_cache_context *) data;
     mbedtls_ssl_cache_entry *entry;
 
@@ -130,8 +119,7 @@ static void ssl_cache_entry_zeroize(mbedtls_ssl_cache_entry *entry)
 
     /* zeroize and free session structure */
     if (entry->session != NULL) {
-        mbedtls_platform_zeroize(entry->session, entry->session_len);
-        mbedtls_free(entry->session);
+        mbedtls_zeroize_and_free(entry->session, entry->session_len);
     }
 
     /* zeroize the whole entry structure */
@@ -197,7 +185,7 @@ static int ssl_cache_pick_writing_slot(mbedtls_ssl_cache_context *cache,
         /* Create new entry */
         cur = mbedtls_calloc(1, sizeof(mbedtls_ssl_cache_entry));
         if (cur == NULL) {
-            return 1;
+            return MBEDTLS_ERR_SSL_ALLOC_FAILED;
         }
 
         /* Append to the end of the linked list. */
@@ -218,12 +206,13 @@ static int ssl_cache_pick_writing_slot(mbedtls_ssl_cache_context *cache,
     if (old == NULL) {
         /* This should only happen on an ill-configured cache
          * with max_entries == 0. */
-        return 1;
+        return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     }
 #else /* MBEDTLS_HAVE_TIME */
     /* Reuse first entry in chain, but move to last place. */
     if (cache->chain == NULL) {
-        return 1;
+        /* This should never happen */
+        return MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     }
 
     old = cache->chain;
@@ -259,11 +248,11 @@ int mbedtls_ssl_cache_set(void *data,
                           size_t session_id_len,
                           const mbedtls_ssl_session *session)
 {
-    int ret = 1;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     mbedtls_ssl_cache_context *cache = (mbedtls_ssl_cache_context *) data;
     mbedtls_ssl_cache_entry *cur;
 
-    size_t session_serialized_len;
+    size_t session_serialized_len = 0;
     unsigned char *session_serialized = NULL;
 
 #if defined(MBEDTLS_THREADING_C)
@@ -283,7 +272,6 @@ int mbedtls_ssl_cache_set(void *data,
      * and allocate a sufficiently large buffer. */
     ret = mbedtls_ssl_session_save(session, NULL, 0, &session_serialized_len);
     if (ret != MBEDTLS_ERR_SSL_BUFFER_TOO_SMALL) {
-        ret = 1;
         goto exit;
     }
 
@@ -303,7 +291,7 @@ int mbedtls_ssl_cache_set(void *data,
     }
 
     if (session_id_len > sizeof(cur->session_id)) {
-        ret = 1;
+        ret = MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
         goto exit;
     }
     cur->session_id_len = session_id_len;
@@ -323,8 +311,7 @@ exit:
 #endif
 
     if (session_serialized != NULL) {
-        mbedtls_platform_zeroize(session_serialized, session_serialized_len);
-        mbedtls_free(session_serialized);
+        mbedtls_zeroize_and_free(session_serialized, session_serialized_len);
         session_serialized = NULL;
     }
 
@@ -335,7 +322,7 @@ int mbedtls_ssl_cache_remove(void *data,
                              unsigned char const *session_id,
                              size_t session_id_len)
 {
-    int ret = 1;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     mbedtls_ssl_cache_context *cache = (mbedtls_ssl_cache_context *) data;
     mbedtls_ssl_cache_entry *entry;
     mbedtls_ssl_cache_entry *prev;
