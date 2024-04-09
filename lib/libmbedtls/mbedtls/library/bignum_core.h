@@ -62,19 +62,7 @@
 
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 #ifndef MBEDTLS_BIGNUM_CORE_H
@@ -85,6 +73,8 @@
 #if defined(MBEDTLS_BIGNUM_C)
 #include "mbedtls/bignum.h"
 #endif
+
+#include "constant_time_internal.h"
 
 #define ciL    (sizeof(mbedtls_mpi_uint))     /** chars in limb  */
 #define biL    (ciL << 3)                     /** bits  in limb  */
@@ -102,9 +92,12 @@
 
 /** Count leading zero bits in a given integer.
  *
+ * \warning     The result is undefined if \p a == 0
+ *
  * \param a     Integer to count leading zero bits.
  *
- * \return      The number of leading zero bits in \p a.
+ * \return      The number of leading zero bits in \p a, if \p a != 0.
+ *              If \p a == 0, the result is undefined.
  */
 size_t mbedtls_mpi_core_clz(mbedtls_mpi_uint a);
 
@@ -139,11 +132,29 @@ void mbedtls_mpi_core_bigendian_to_host(mbedtls_mpi_uint *A,
  * \param A_limbs  The number of limbs of \p A.
  *                 This must be at least 1.
  *
- * \return         1 if \p min is less than or equal to \p A, otherwise 0.
+ * \return         MBEDTLS_CT_TRUE if \p min is less than or equal to \p A, otherwise MBEDTLS_CT_FALSE.
  */
-unsigned mbedtls_mpi_core_uint_le_mpi(mbedtls_mpi_uint min,
-                                      const mbedtls_mpi_uint *A,
-                                      size_t A_limbs);
+mbedtls_ct_condition_t mbedtls_mpi_core_uint_le_mpi(mbedtls_mpi_uint min,
+                                                    const mbedtls_mpi_uint *A,
+                                                    size_t A_limbs);
+
+/**
+ * \brief          Check if one unsigned MPI is less than another in constant
+ *                 time.
+ *
+ * \param A        The left-hand MPI. This must point to an array of limbs
+ *                 with the same allocated length as \p B.
+ * \param B        The right-hand MPI. This must point to an array of limbs
+ *                 with the same allocated length as \p A.
+ * \param limbs    The number of limbs in \p A and \p B.
+ *                 This must not be 0.
+ *
+ * \return         MBEDTLS_CT_TRUE  if \p A is less than \p B.
+ *                 MBEDTLS_CT_FALSE if \p A is greater than or equal to \p B.
+ */
+mbedtls_ct_condition_t mbedtls_mpi_core_lt_ct(const mbedtls_mpi_uint *A,
+                                              const mbedtls_mpi_uint *B,
+                                              size_t limbs);
 
 /**
  * \brief   Perform a safe conditional copy of an MPI which doesn't reveal
@@ -155,21 +166,17 @@ unsigned mbedtls_mpi_core_uint_le_mpi(mbedtls_mpi_uint min,
  * \param[in]  A        The address of the source MPI. This must be initialized.
  * \param      limbs    The number of limbs of \p A.
  * \param      assign   The condition deciding whether to perform the
- *                      assignment or not. Must be either 0 or 1:
- *                      * \c 1: Perform the assignment `X = A`.
- *                      * \c 0: Keep the original value of \p X.
+ *                      assignment or not. Callers will need to use
+ *                      the constant time interface (e.g. `mbedtls_ct_bool()`)
+ *                      to construct this argument.
  *
  * \note           This function avoids leaking any information about whether
  *                 the assignment was done or not.
- *
- * \warning        If \p assign is neither 0 nor 1, the result of this function
- *                 is indeterminate, and the resulting value in \p X might be
- *                 neither its original value nor the value in \p A.
  */
 void mbedtls_mpi_core_cond_assign(mbedtls_mpi_uint *X,
                                   const mbedtls_mpi_uint *A,
                                   size_t limbs,
-                                  unsigned char assign);
+                                  mbedtls_ct_condition_t assign);
 
 /**
  * \brief   Perform a safe conditional swap of two MPIs which doesn't reveal
@@ -181,21 +188,15 @@ void mbedtls_mpi_core_cond_assign(mbedtls_mpi_uint *X,
  *                          This must be initialized.
  * \param         limbs     The number of limbs of \p X and \p Y.
  * \param         swap      The condition deciding whether to perform
- *                          the swap or not. Must be either 0 or 1:
- *                          * \c 1: Swap the values of \p X and \p Y.
- *                          * \c 0: Keep the original values of \p X and \p Y.
+ *                          the swap or not.
  *
  * \note           This function avoids leaking any information about whether
  *                 the swap was done or not.
- *
- * \warning        If \p swap is neither 0 nor 1, the result of this function
- *                 is indeterminate, and both \p X and \p Y might end up with
- *                 values different to either of the original ones.
  */
 void mbedtls_mpi_core_cond_swap(mbedtls_mpi_uint *X,
                                 mbedtls_mpi_uint *Y,
                                 size_t limbs,
-                                unsigned char swap);
+                                mbedtls_ct_condition_t swap);
 
 /** Import X from unsigned binary data, little-endian.
  *
@@ -278,7 +279,7 @@ int mbedtls_mpi_core_write_be(const mbedtls_mpi_uint *A,
                               unsigned char *output,
                               size_t output_length);
 
-/** \brief              Shift an MPI right in place by a number of bits.
+/** \brief              Shift an MPI in-place right by a number of bits.
  *
  *                      Shifting by more bits than there are bit positions
  *                      in \p X is valid and results in setting \p X to 0.
@@ -291,6 +292,21 @@ int mbedtls_mpi_core_write_be(const mbedtls_mpi_uint *A,
  * \param count         The number of bits to shift by.
  */
 void mbedtls_mpi_core_shift_r(mbedtls_mpi_uint *X, size_t limbs,
+                              size_t count);
+
+/**
+ * \brief               Shift an MPI in-place left by a number of bits.
+ *
+ *                      Shifting by more bits than there are bit positions
+ *                      in \p X will produce an unspecified result.
+ *
+ *                      This function's execution time depends on the value
+ *                      of \p count (and of course \p limbs).
+ * \param[in,out] X     The number to shift.
+ * \param limbs         The number of limbs of \p X. This must be at least 1.
+ * \param count         The number of bits to shift by.
+ */
+void mbedtls_mpi_core_shift_l(mbedtls_mpi_uint *X, size_t limbs,
                               size_t count);
 
 /**
@@ -397,6 +413,26 @@ mbedtls_mpi_uint mbedtls_mpi_core_sub(mbedtls_mpi_uint *X,
 mbedtls_mpi_uint mbedtls_mpi_core_mla(mbedtls_mpi_uint *X, size_t X_limbs,
                                       const mbedtls_mpi_uint *A, size_t A_limbs,
                                       mbedtls_mpi_uint b);
+
+/**
+ * \brief Perform a known-size multiplication
+ *
+ * \p X may not be aliased to any of the inputs for this function.
+ * \p A may be aliased to \p B.
+ *
+ * \param[out] X     The pointer to the (little-endian) array to receive
+ *                   the product of \p A_limbs and \p B_limbs.
+ *                   This must be of length \p A_limbs + \p B_limbs.
+ * \param[in] A      The pointer to the (little-endian) array
+ *                   representing the first factor.
+ * \param A_limbs    The number of limbs in \p A.
+ * \param[in] B      The pointer to the (little-endian) array
+ *                   representing the second factor.
+ * \param B_limbs    The number of limbs in \p B.
+ */
+void mbedtls_mpi_core_mul(mbedtls_mpi_uint *X,
+                          const mbedtls_mpi_uint *A, size_t A_limbs,
+                          const mbedtls_mpi_uint *B, size_t B_limbs);
 
 /**
  * \brief Calculate initialisation value for fast Montgomery modular
@@ -549,8 +585,6 @@ int mbedtls_mpi_core_random(mbedtls_mpi_uint *X,
                             int (*f_rng)(void *, unsigned char *, size_t),
                             void *p_rng);
 
-/* BEGIN MERGE SLOT 1 */
-
 /**
  * \brief          Returns the number of limbs of working memory required for
  *                 a call to `mbedtls_mpi_core_exp_mod()`.
@@ -604,14 +638,6 @@ void mbedtls_mpi_core_exp_mod(mbedtls_mpi_uint *X,
                               const mbedtls_mpi_uint *RR,
                               mbedtls_mpi_uint *T);
 
-/* END MERGE SLOT 1 */
-
-/* BEGIN MERGE SLOT 2 */
-
-/* END MERGE SLOT 2 */
-
-/* BEGIN MERGE SLOT 3 */
-
 /**
  * \brief Subtract unsigned integer from known-size large unsigned integers.
  *        Return the borrow.
@@ -636,11 +662,11 @@ mbedtls_mpi_uint mbedtls_mpi_core_sub_int(mbedtls_mpi_uint *X,
  * \param[in] A   The MPI to test.
  * \param limbs   Number of limbs in \p A.
  *
- * \return        0 if `A == 0`
- *                non-0 (may be any value) if `A != 0`.
+ * \return        MBEDTLS_CT_FALSE if `A == 0`
+ *                MBEDTLS_CT_TRUE  if `A != 0`.
  */
-mbedtls_mpi_uint mbedtls_mpi_core_check_zero_ct(const mbedtls_mpi_uint *A,
-                                                size_t limbs);
+mbedtls_ct_condition_t mbedtls_mpi_core_check_zero_ct(const mbedtls_mpi_uint *A,
+                                                      size_t limbs);
 
 /**
  * \brief          Returns the number of limbs of working memory required for
@@ -733,35 +759,5 @@ void mbedtls_mpi_core_from_mont_rep(mbedtls_mpi_uint *X,
                                     size_t AN_limbs,
                                     mbedtls_mpi_uint mm,
                                     mbedtls_mpi_uint *T);
-
-/* END MERGE SLOT 3 */
-
-/* BEGIN MERGE SLOT 4 */
-
-/* END MERGE SLOT 4 */
-
-/* BEGIN MERGE SLOT 5 */
-
-/* END MERGE SLOT 5 */
-
-/* BEGIN MERGE SLOT 6 */
-
-/* END MERGE SLOT 6 */
-
-/* BEGIN MERGE SLOT 7 */
-
-/* END MERGE SLOT 7 */
-
-/* BEGIN MERGE SLOT 8 */
-
-/* END MERGE SLOT 8 */
-
-/* BEGIN MERGE SLOT 9 */
-
-/* END MERGE SLOT 9 */
-
-/* BEGIN MERGE SLOT 10 */
-
-/* END MERGE SLOT 10 */
 
 #endif /* MBEDTLS_BIGNUM_CORE_H */

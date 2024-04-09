@@ -2,19 +2,7 @@
  *  RIPE MD-160 implementation
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 /*
@@ -356,12 +344,12 @@ int mbedtls_ripemd160_finish(mbedtls_ripemd160_context *ctx,
 
     ret = mbedtls_ripemd160_update(ctx, ripemd160_padding, padn);
     if (ret != 0) {
-        return ret;
+        goto exit;
     }
 
     ret = mbedtls_ripemd160_update(ctx, msglen, 8);
     if (ret != 0) {
-        return ret;
+        goto exit;
     }
 
     MBEDTLS_PUT_UINT32_LE(ctx->state[0], output,  0);
@@ -370,7 +358,11 @@ int mbedtls_ripemd160_finish(mbedtls_ripemd160_context *ctx,
     MBEDTLS_PUT_UINT32_LE(ctx->state[3], output, 12);
     MBEDTLS_PUT_UINT32_LE(ctx->state[4], output, 16);
 
-    return 0;
+    ret = 0;
+
+exit:
+    mbedtls_ripemd160_free(ctx);
+    return ret;
 }
 
 #endif /* ! MBEDTLS_RIPEMD160_ALT */
