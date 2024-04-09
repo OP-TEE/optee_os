@@ -372,6 +372,12 @@ TEE_Result regulator_dt_register(const void *fdt, int node, int provider_node,
 		.priv = desc->priv,
 	};
 
+	if (regulator->ops->init) {
+		res = regulator->ops->init(regulator);
+		if (res)
+			goto err_free;
+	}
+
 	res = parse_dt(fdt, node, regulator);
 	if (res)
 		goto err_free;
