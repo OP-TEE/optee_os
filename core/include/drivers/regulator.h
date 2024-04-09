@@ -128,6 +128,7 @@ struct regulator {
  * @set_voltage: Set voltage level in microvolt (uV)
  * @get_voltage: Get current voltage in microvolt (uV)
  * @supported_voltages: Get supported levels description
+ * @init: Optional, initialization before device tree parsing
  * @supplied_init: Optional, finalize initialization once supply is ready
  */
 struct regulator_ops {
@@ -138,6 +139,7 @@ struct regulator_ops {
 	TEE_Result (*supported_voltages)(struct regulator *r,
 					 struct regulator_voltages_desc **desc,
 					 const int **levels);
+	TEE_Result (*init)(struct regulator *r);
 	TEE_Result (*supplied_init)(struct regulator *r, const void *fdt,
 				    int node);
 };
