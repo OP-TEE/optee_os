@@ -7,7 +7,10 @@ $(call force,CFG_CORE_DYN_SHM,n)
 CFG_DT ?= y
 
 # Crypto flags
-$(call force,CFG_WITH_SOFTWARE_PRNG,y)
+$(call force,CFG_WITH_SOFTWARE_PRNG,n)
+$(call force,CFG_HWRNG_PTA,y)
+$(call force,CFG_HWRNG_QUALITY,1024)
+$(call force,CFG_RISCV_ZKR_RNG,y)
 
 # Protection flags
 $(call force,CFG_CORE_ASLR,n)
