@@ -3,7 +3,9 @@
  * Copyright 2024 HiSilicon Limited.
  * Kunpeng hardware accelerator HPRE module init.
  */
-#include "hpre_main.h"
+
+#include <hpre_main.h>
+#include <initcall.h>
 
 /* base config */
 #define HPRE_COMMON_CNT_CLR_CE		0x301000
