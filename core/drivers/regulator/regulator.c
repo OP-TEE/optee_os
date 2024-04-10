@@ -230,12 +230,16 @@ TEE_Result regulator_supported_voltages(struct regulator *regulator,
 		return res;
 	}
 
-	assert(((*desc)->type == VOLTAGE_TYPE_FULL_LIST &&
-		(*levels)[0] >= regulator->min_uv && (*desc)->num_levels &&
-		(*levels)[(*desc)->num_levels - 1] <= regulator->max_uv) ||
-	       ((*desc)->type == VOLTAGE_TYPE_INCREMENT &&
-		(*levels)[0] >= regulator->min_uv &&
-		(*levels)[1] <= regulator->max_uv));
+	if ((*desc)->type == VOLTAGE_TYPE_FULL_LIST) {
+		assert((*desc)->num_levels);
+		assert((*levels)[0] >= regulator->min_uv);
+		assert((*levels)[(*desc)->num_levels - 1] <= regulator->max_uv);
+	} else if ((*desc)->type == VOLTAGE_TYPE_INCREMENT) {
+		assert((*levels)[0] >= regulator->min_uv);
+		assert((*levels)[1] <= regulator->max_uv);
+	} else {
+		assert(0);
+	}
 
 	return TEE_SUCCESS;
 }
