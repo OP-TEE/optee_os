@@ -280,7 +280,7 @@ static TEE_Result stm32mp1_pwr_regu_probe(const void *fdt, int node,
 }
 
 static const struct dt_device_match stm32mp1_pwr_regu_match_table[] = {
-	{ .compatible = "st,stm32mp1,pwr-reg" },
+	{ .compatible = "st,stm32mp1-pwr-reg" },
 	{ }
 };
 
