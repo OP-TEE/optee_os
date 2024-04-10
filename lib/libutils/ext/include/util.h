@@ -135,7 +135,8 @@
  * GENMASK_64(39, 21) gives us the 64bit vector 0x000000ffffe00000.
  */
 #define GENMASK_32(h, l) \
-	(((~UINT32_C(0)) << (l)) & (~UINT32_C(0) >> (32 - 1 - (h))))
+	((UINT32_C(0xffffffff) << (l)) & \
+	 (UINT32_C(0xffffffff) >> (32 - 1 - (h))))
 
 #define GENMASK_64(h, l) \
 	(((~UINT64_C(0)) << (l)) & (~UINT64_C(0) >> (64 - 1 - (h))))
