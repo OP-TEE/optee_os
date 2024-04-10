@@ -94,8 +94,6 @@ static TEE_Result cryp_update(union ip_ctx *ip_ctx, bool last_block,
 
 static void cryp_copy_state(union ip_ctx *dst_ip_ctx, union ip_ctx *src_ip_ctx)
 {
-	assert(IS_ENABLED(CFG_STM32_CRYP));
-
 	memcpy(&dst_ip_ctx->cryp, &src_ip_ctx->cryp, sizeof(dst_ip_ctx->cryp));
 }
 
@@ -167,8 +165,6 @@ static void saes_final(union ip_ctx *ip_ctx)
 {
 	struct crypto_cipher_ctx *ctx = ip_ctx->saes.fallback_ctx;
 
-	assert(IS_ENABLED(CFG_STM32_SAES));
-
 	if (ip_ctx->saes.use_fallback) {
 		assert(IS_ENABLED(CFG_STM32_SAES_SW_FALLBACK));
 		ctx->ops->final(ctx);
@@ -179,8 +175,6 @@ static void saes_copy_state(union ip_ctx *dst_ip_ctx, union ip_ctx *src_ip_ctx)
 {
 	struct saes_ctx *src_ctx = &src_ip_ctx->saes;
 	struct crypto_cipher_ctx *fb_ctx = src_ctx->fallback_ctx;
-
-	assert(IS_ENABLED(CFG_STM32_SAES));
 
 	memcpy(&dst_ip_ctx->saes.ctx, &src_ctx->ctx, sizeof(src_ctx->ctx));
 
