@@ -245,8 +245,8 @@ static bool at91_pm_verify_clocks(void)
 		return false;
 	}
 
-	/* PCK0..PCK3 must be disabled, or configured to use clk32k */
-	for (i = 0; i < 4; i++) {
+	/* PCK0..PCKx must be disabled, or configured to use clk32k */
+	for (i = 0; i < AT91_PMC_PCK_COUNT; i++) {
 		uint32_t css = 0;
 
 		if ((scsr & (AT91_PMC_PCK0 << i)) == 0)

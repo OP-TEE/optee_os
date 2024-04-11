@@ -32,6 +32,11 @@
 #define	  AT91_PMC_PCK4				BIT(12)
 #define	  AT91_PMC_HCK0				BIT(16)
 #define	  AT91_PMC_HCK1				BIT(17)
+#ifdef CFG_SAMA7G5
+#define	AT91_PMC_PCK_COUNT			8
+#else
+#define	AT91_PMC_PCK_COUNT			4
+#endif
 
 #define AT91_PMC_PLL_CTRL0			0x0C
 #define	  AT91_PMC_PLL_CTRL0_ENPLL		BIT(28)
