@@ -20,7 +20,17 @@
 #include <stddef.h>
 
 #if defined(__ARM_NEON)
+/*
+ * Undefine and restore __section and __data from compiler.h to prevent
+ * collision with arm_neon.h
+ */
+#pragma push_macro("__section")
+#pragma push_macro("__data")
+#undef __section
+#undef __data
 #include <arm_neon.h>
+#pragma pop_macro("__data")
+#pragma pop_macro("__section")
 #define MBEDTLS_HAVE_NEON_INTRINSICS
 #elif defined(MBEDTLS_PLATFORM_IS_WINDOWS_ON_ARM64)
 #include <arm64_neon.h>
