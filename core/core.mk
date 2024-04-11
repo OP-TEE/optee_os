@@ -11,6 +11,17 @@ include mk/config.mk
 # $(ARCH).mk also sets the compiler for the core module
 include core/arch/$(ARCH)/$(ARCH).mk
 
+ifeq ($(CFG_OS_REV_REPORTS_GIT_SHA1),y)
+ifeq ($(arch-bits-core),64)
+git-sha1-len := 16
+else
+git-sha1-len := 8
+endif
+TEE_IMPL_GIT_SHA1 := 0x$(shell git rev-parse --short=$(git-sha1-len) HEAD 2>/dev/null || echo 0 | cut -c -$(git-sha1-len))
+else
+TEE_IMPL_GIT_SHA1 := 0x0
+endif
+
 PLATFORM_$(PLATFORM) := y
 PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 
