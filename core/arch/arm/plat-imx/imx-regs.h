@@ -43,7 +43,7 @@
 #include <registers/imx8q.h>
 #elif defined(CFG_MX8ULP)
 #include <registers/imx8ulp.h>
-#elif defined(CFG_MX93)
+#elif defined(CFG_MX93) || defined(CFG_MX91)
 #include <registers/imx93.h>
 #elif defined(CFG_MX95)
 #include <registers/imx95.h>
