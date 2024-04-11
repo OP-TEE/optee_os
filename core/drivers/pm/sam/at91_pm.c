@@ -417,8 +417,13 @@ static TEE_Result at91_pm_sram_init(const void *fdt)
 
 	at91_suspend_sram_pbase = virt_to_phys((void *)at91_suspend_sram_base);
 
-	/* Map the secure ram suspend code to be executable */
-	at91_suspend_sram_fn = core_mmu_add_mapping(MEM_AREA_TEE_RAM,
+	/*
+	 * Map the secure ram suspend code with the memory area type
+	 * "MEM_AREA_TEE_COHERENT" to make it non-cacheable.
+	 * Mapping with memory area type "MEM_AREA_TEE_RAM" would enable
+	 * cacheable attribute and might cause abort in some cases.
+	 */
+	at91_suspend_sram_fn = core_mmu_add_mapping(MEM_AREA_TEE_COHERENT,
 						    at91_suspend_sram_pbase,
 						    suspend_sz);
 	if (!at91_suspend_sram_fn) {
