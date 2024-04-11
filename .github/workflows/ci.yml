@@ -19,7 +19,6 @@ jobs:
         run: |
           # checkpatch task
           set -e
-          git config --global --add safe.directory /__w/optee_os/optee_os
           pushd . >/dev/null
           mkdir -p /tmp/linux/scripts
           cd /tmp/linux/scripts
@@ -68,6 +67,8 @@ jobs:
             builds-cache-
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
       - shell: bash
         run: |
           # build task
@@ -287,6 +288,8 @@ jobs:
             qemuv7_check-cache-
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
       - shell: bash
         run: |
           # make check task
@@ -320,6 +323,8 @@ jobs:
             qemuv8_check-cache-
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
       - shell: bash
         run: |
           # make check task
@@ -360,6 +365,8 @@ jobs:
             qemuv8_xen_check-cache-
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
       - shell: bash
         run: |
           # make check task
@@ -393,6 +400,8 @@ jobs:
             qemuv8_hafnium_check-cache-
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
       - shell: bash
         run: |
           # make check task
@@ -426,6 +435,8 @@ jobs:
             qemuv8_check_bti_mte_pac-cache-
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
       - shell: bash
         run: |
           # make check task

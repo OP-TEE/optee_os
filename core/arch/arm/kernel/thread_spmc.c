@@ -748,7 +748,8 @@ static void handle_blocking_call(struct thread_smc_args *args,
 	case OPTEE_FFA_GET_OS_VERSION:
 		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
 			      CFG_OPTEE_REVISION_MAJOR,
-			      CFG_OPTEE_REVISION_MINOR, TEE_IMPL_GIT_SHA1);
+			      CFG_OPTEE_REVISION_MINOR,
+			      TEE_IMPL_GIT_SHA1 >> 32);
 		break;
 	case OPTEE_FFA_EXCHANGE_CAPABILITIES:
 		sec_caps = OPTEE_FFA_SEC_CAP_ARG_OFFSET;
