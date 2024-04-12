@@ -295,9 +295,6 @@ _CFG_CORE_LTC_HWSUPP_PMULL := $(CFG_HWSUPP_PMULL)
 # Assign aggregated variables
 ltc-one-enabled = $(call cfg-one-enabled,$(foreach v,$(1),_CFG_CORE_LTC_$(v)))
 _CFG_CORE_LTC_ACIPHER := $(call ltc-one-enabled, RSA DSA DH ECC)
-_CFG_CORE_LTC_AUTHENC := $(and $(filter y,$(_CFG_CORE_LTC_AES_DESC)), \
-			       $(filter y,$(call ltc-one-enabled, CCM GCM)))
-_CFG_CORE_LTC_CIPHER := $(call ltc-one-enabled, AES_DESC DES)
 _CFG_CORE_LTC_HASH := $(call ltc-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 \
 					      SHA512 SHA3_224 SHA3_256 \
 					      SHA3_384 SHA3_512)
@@ -307,7 +304,6 @@ _CFG_CORE_LTC_HMAC := $(call ltc-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 \
 					      SHA3_384 SHA3_512)
 endif
 
-_CFG_CORE_LTC_MAC := $(call ltc-one-enabled, HMAC CMAC CBC_MAC)
 _CFG_CORE_LTC_CBC := $(call ltc-one-enabled, CBC CBC_MAC)
 _CFG_CORE_LTC_ASN1 := $(call ltc-one-enabled, RSA DSA ECC)
 _CFG_CORE_LTC_EC25519 := $(call ltc-one-enabled, ED25519 X25519)
