@@ -380,7 +380,7 @@ TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
 
 	ltc_res = rsa_decrypt_key_ex(src, src_len, buf, &blen,
 				     ((label_len == 0) ? 0 : label), label_len,
-				     ltc_hashindex, ltc_rsa_algo, &ltc_stat,
+				     ltc_hashindex, -1, ltc_rsa_algo, &ltc_stat,
 				     &ltc_key);
 	switch (ltc_res) {
 	case CRYPT_PK_INVALID_PADDING:
@@ -466,7 +466,7 @@ TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
 	ltc_res = rsa_encrypt_key_ex(src, src_len, dst,
 				     (unsigned long *)(dst_len), label,
 				     label_len, NULL, find_prng("prng_crypto"),
-				     ltc_hashindex, ltc_rsa_algo, &ltc_key);
+				     ltc_hashindex, -1, ltc_rsa_algo, &ltc_key);
 	switch (ltc_res) {
 	case CRYPT_PK_INVALID_PADDING:
 	case CRYPT_INVALID_PACKET:

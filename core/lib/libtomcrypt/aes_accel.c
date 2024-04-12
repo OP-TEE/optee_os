@@ -49,6 +49,10 @@
 #include <crypto/crypto_accel.h>
 #include <tomcrypt_private.h>
 
+#define EXPANDED_AES_KEY_WORD_COUNT	60
+#define EXPANDED_AES_KEY_LEN		(EXPANDED_AES_KEY_WORD_COUNT * \
+					 sizeof(uint32_t))
+
 int rijndael_setup(const unsigned char *key, int keylen, int num_rounds,
 	      symmetric_key *skey)
 {
@@ -60,9 +64,12 @@ int rijndael_setup(const unsigned char *key, int keylen, int num_rounds,
 	if (keylen != 16 && keylen != 24 && keylen != 32)
 		return CRYPT_INVALID_KEYSIZE;
 
+	skey->rijndael.eK = LTC_ALIGN_BUF(skey->rijndael.K, 16);
+	skey->rijndael.dK = skey->rijndael.eK + EXPANDED_AES_KEY_WORD_COUNT;
+
 	if (crypto_accel_aes_expand_keys(key, keylen, skey->rijndael.eK,
 					 skey->rijndael.dK,
-					 sizeof(skey->rijndael.eK),
+					 EXPANDED_AES_KEY_LEN,
 					 &round_count))
 		return CRYPT_INVALID_ARG;
 
