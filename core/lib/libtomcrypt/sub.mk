@@ -7,214 +7,15 @@ cppflags-lib-y += -DLTC_NO_TABLES -DLTC_HASH_HELPERS
 cppflags-lib-y += -DLTC_NO_MISC
 cppflags-lib-y += -DLTC_HMAC
 cppflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -DLTC_SMALL_CODE
-
 cppflags-lib-y += -DLTC_NO_CIPHERS
-
-ifeq ($(_CFG_CORE_LTC_AES_DESC),y)
-	cppflags-lib-y += -DLTC_RIJNDAEL
-endif
-ifeq ($(_CFG_CORE_LTC_DES),y)
-	cppflags-lib-y += -DLTC_DES
-endif
-
 cppflags-lib-y += -DLTC_NO_MODES
-
-ifeq ($(_CFG_CORE_LTC_ECB),y)
-	cppflags-lib-y += -DLTC_ECB_MODE
-endif
-ifeq ($(_CFG_CORE_LTC_CBC),y)
-	cppflags-lib-y += -DLTC_CBC_MODE
-endif
-ifeq ($(_CFG_CORE_LTC_CTR),y)
-	cppflags-lib-y += -DLTC_CTR_MODE
-endif
-ifeq ($(_CFG_CORE_LTC_XTS),y)
-	cppflags-lib-y += -DLTC_XTS_MODE
-endif
-
 cppflags-lib-y += -DLTC_NO_HASHES
-
-ifeq ($(_CFG_CORE_LTC_MD5_DESC),y)
-	cppflags-lib-y += -DLTC_MD5
-endif
-ifeq ($(_CFG_CORE_LTC_SHA1_DESC),y)
-	cppflags-lib-y += -DLTC_SHA1
-endif
-ifeq ($(_CFG_CORE_LTC_SHA224_DESC),y)
-	cppflags-lib-y += -DLTC_SHA224
-endif
-ifeq ($(_CFG_CORE_LTC_SHA256_DESC),y)
-	cppflags-lib-y += -DLTC_SHA256
-endif
-ifeq ($(_CFG_CORE_LTC_SHA384_DESC),y)
-	cppflags-lib-y += -DLTC_SHA384
-endif
-ifeq ($(_CFG_CORE_LTC_SHA512_DESC),y)
-	cppflags-lib-y += -DLTC_SHA512
-endif
-ifeq ($(_CFG_CORE_LTC_SHA512_256),y)
-	cppflags-lib-y += -DLTC_SHA512_256
-endif
-cppflags-lib-$(_CFG_CORE_LTC_SHA3_DESC) += -DLTC_SHA3
-
-
 cppflags-lib-y += -DLTC_NO_MACS
-
-ifeq ($(_CFG_CORE_LTC_HMAC),y)
-	cppflags-lib-y += -DLTC_HMAC
-endif
-ifeq ($(_CFG_CORE_LTC_CMAC),y)
-	cppflags-lib-y += -DLTC_OMAC
-endif
-ifeq ($(_CFG_CORE_LTC_CCM),y)
-	cppflags-lib-y += -DLTC_CCM_MODE
-endif
-ifeq ($(_CFG_CORE_LTC_GCM),y)
-	cppflags-lib-y += -DLTC_GCM_MODE
-endif
-
 cppflags-lib-y += -DLTC_NO_PK
-
-ifeq ($(_CFG_CORE_LTC_RSA),y)
-   cppflags-lib-y += -DLTC_MRSA
-endif
-ifeq ($(_CFG_CORE_LTC_DSA),y)
-   cppflags-lib-y += -DLTC_MDSA
-endif
-ifeq ($(_CFG_CORE_LTC_DH),y)
-   cppflags-lib-y += -DLTC_MDH
-endif
-ifeq ($(_CFG_CORE_LTC_ECC),y)
-   cppflags-lib-y += -DLTC_MECC
-
-   # use Shamir's trick for point mul (speeds up signature verification)
-   cppflags-lib-y += -DLTC_ECC_SHAMIR
-
-   cppflags-lib-y += -DLTC_ECC192
-   cppflags-lib-y += -DLTC_ECC224
-   cppflags-lib-y += -DLTC_ECC256
-   cppflags-lib-y += -DLTC_ECC384
-   cppflags-lib-y += -DLTC_ECC521
-   cppflags-lib-y += -DLTC_CURVE25519
-
-   # ECC 521 bits is the max supported key size
-   cppflags-lib-y += -DLTC_MAX_ECC=521
-endif
-ifneq (,$(filter y,$(_CFG_CORE_LTC_SM2_DSA) $(_CFG_CORE_LTC_SM2_PKE)))
-   cppflags-lib-y += -DLTC_ECC_SM2
-endif
-
-cppflags-lib-$(_CFG_CORE_LTC_X25519) += -DLTC_CURVE25519
-cppflags-lib-$(_CFG_CORE_LTC_ED25519) += -DLTC_CURVE25519
-
 cppflags-lib-y += -DLTC_NO_PRNGS -DLTC_FORTUNA
-
 cflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -Os
 
-srcs-$(_CFG_CORE_LTC_HASH) += hash.c
-srcs-$(_CFG_CORE_LTC_HMAC) += hmac.c
-srcs-$(_CFG_CORE_LTC_CMAC) += cmac.c
-srcs-$(_CFG_CORE_LTC_ECB) += ecb.c
-srcs-$(_CFG_CORE_LTC_CBC) += cbc.c
-srcs-$(_CFG_CORE_LTC_CTR) += ctr.c
-srcs-$(_CFG_CORE_LTC_XTS) += xts.c
-srcs-$(_CFG_CORE_LTC_CCM) += ccm.c
-srcs-$(_CFG_CORE_LTC_GCM) += gcm.c
-srcs-$(_CFG_CORE_LTC_DSA) += dsa.c
-srcs-$(_CFG_CORE_LTC_ECC) += ecc.c
-srcs-$(_CFG_CORE_LTC_RSA) += rsa.c
-srcs-$(_CFG_CORE_LTC_DH) += dh.c
-srcs-$(_CFG_CORE_LTC_AES) += aes.c
-srcs-$(_CFG_CORE_LTC_AES_ACCEL) += aes_accel.c
-srcs-$(_CFG_CORE_LTC_SHA1_ACCEL) += sha1_accel.c
-ifeq ($(_CFG_CORE_LTC_SHA256_DESC),y)
-srcs-$(_CFG_CORE_LTC_SHA256_ACCEL) += sha256_accel.c
-endif
-ifeq ($(_CFG_CORE_LTC_SHA512_DESC),y)
-srcs-$(_CFG_CORE_LTC_SHA512_ACCEL) += sha512_accel.c
-endif
-ifeq ($(_CFG_CORE_LTC_SHA3_DESC),y)
-srcs-y += shake.c
-srcs-$(_CFG_CORE_LTC_SHA3_ACCEL) += sha3_accel.c
-endif
-srcs-$(_CFG_CORE_LTC_SM2_DSA) += sm2-dsa.c
-srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
-srcs-$(_CFG_CORE_LTC_SM2_KEP) += sm2-kep.c
-srcs-$(_CFG_CORE_LTC_X25519) += x25519.c
-cflags-x25519.c-y += -Wno-declaration-after-statement
-srcs-$(_CFG_CORE_LTC_ED25519) += ed25519.c
-ifeq ($(_CFG_CORE_LTC_ACIPHER),y)
-srcs-y += mpi_desc.c
-cflags-mpi_desc.c-y += -Wno-declaration-after-statement
-cppflags-mpi_desc.c-y += -DMBEDTLS_ALLOW_PRIVATE_ACCESS
-endif
-
 srcs-y += tomcrypt.c
-
-ifneq ($(_CFG_CORE_LTC_AES_ACCEL),y)
-srcs-$(_CFG_CORE_LTC_AES_DESC) += src/ciphers/aes/aes.c
-endif
-srcs-$(_CFG_CORE_LTC_DES) += src/ciphers/des.c
-
-srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_init.c
-srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_add_nonce.c
-srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_add_aad.c
-srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_process.c
-srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_done.c
-srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_reset.c
-
-srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_add_aad.c
-srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_add_iv.c
-srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_done.c
-srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_gf_mult.c
-srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_init.c
-srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_memory.c
-ifeq ($(_CFG_CORE_LTC_CE),y)
-srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_mult_h_arm_ce.c
-else
-srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_mult_h.c
-endif
-srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_process.c
-srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_reset.c
-
-srcs-$(_CFG_CORE_LTC_MD5_DESC) += src/hashes/md5.c
-ifneq ($(_CFG_CORE_LTC_SHA1_ACCEL),y)
-srcs-$(_CFG_CORE_LTC_SHA1_DESC) += src/hashes/sha1.c
-endif
-ifneq ($(_CFG_CORE_LTC_SHA3_ACCEL),y)
-srcs-$(_CFG_CORE_LTC_SHA3_DESC) += src/hashes/sha3.c
-endif
-srcs-$(_CFG_CORE_LTC_SHA3_DESC) += src/hashes/sha3_test.c
-srcs-$(_CFG_CORE_LTC_SHA224_DESC) += src/hashes/sha2/sha224.c
-ifneq ($(_CFG_CORE_LTC_SHA256_ACCEL),y)
-srcs-$(_CFG_CORE_LTC_SHA256_DESC) += src/hashes/sha2/sha256.c
-endif
-srcs-$(_CFG_CORE_LTC_SHA384_DESC) += src/hashes/sha2/sha384.c
-ifneq ($(_CFG_CORE_LTC_SHA512_ACCEL),y)
-srcs-$(_CFG_CORE_LTC_SHA512_DESC) += src/hashes/sha2/sha512.c
-endif
-srcs-$(_CFG_CORE_LTC_SHA512_256) += src/hashes/sha2/sha512_256.c
-srcs-y += src/hashes/helper/hash_memory.c
-srcs-y += src/hashes/helper/hash_memory_multi.c
-
-srcs-$(_CFG_CORE_LTC_HMAC) += src/mac/hmac/hmac_done.c
-srcs-$(_CFG_CORE_LTC_HMAC) += src/mac/hmac/hmac_init.c
-srcs-$(_CFG_CORE_LTC_HMAC) += src/mac/hmac/hmac_memory.c
-srcs-$(_CFG_CORE_LTC_HMAC) += src/mac/hmac/hmac_memory_multi.c
-srcs-$(_CFG_CORE_LTC_HMAC) += src/mac/hmac/hmac_process.c
-srcs-$(_CFG_CORE_LTC_CMAC) += src/mac/omac/omac_done.c
-srcs-$(_CFG_CORE_LTC_CMAC) += src/mac/omac/omac_init.c
-srcs-$(_CFG_CORE_LTC_CMAC) += src/mac/omac/omac_memory.c
-srcs-$(_CFG_CORE_LTC_CMAC) += src/mac/omac/omac_memory_multi.c
-srcs-$(_CFG_CORE_LTC_CMAC) += src/mac/omac/omac_process.c
-
-srcs-$(_CFG_CORE_LTC_ACIPHER) += src/math/multi.c
-srcs-$(_CFG_CORE_LTC_ACIPHER) += src/math/rand_prime.c
-srcs-$(_CFG_CORE_LTC_ACIPHER) += src/math/rand_bn.c
-ifeq ($(_CFG_CORE_LTC_ECC),y)
-srcs-$(_CFG_CORE_LTC_ACIPHER) += src/math/fp/ltc_ecc_fp_mulmod.c
-endif
-
 srcs-y += src/misc/burn_stack.c
 srcs-y += src/misc/error_to_string.c
 srcs-y += src/misc/mem_neq.c
@@ -250,6 +51,114 @@ srcs-y += src/misc/pkcs5/pkcs_5_2.c
 srcs-y += src/misc/ssh/ssh_decode_sequence_multi.c
 srcs-y += src/misc/ssh/ssh_encode_sequence_multi.c
 
+cppflags-lib-$(_CFG_CORE_LTC_AES_DESC) += -DLTC_RIJNDAEL
+srcs-$(_CFG_CORE_LTC_AES) += aes.c
+ifeq ($(_CFG_CORE_LTC_AES_ACCEL),y)
+srcs-$(_CFG_CORE_LTC_AES_DESC) += aes_accel.c
+else
+srcs-$(_CFG_CORE_LTC_AES_DESC) += src/ciphers/aes/aes.c
+endif
+
+cppflags-lib-$(_CFG_CORE_LTC_DES) += -DLTC_DES
+srcs-$(_CFG_CORE_LTC_DES) += src/ciphers/des.c
+
+cppflags-lib-$(_CFG_CORE_LTC_CCM) += -DLTC_CCM_MODE
+srcs-$(_CFG_CORE_LTC_CCM) += ccm.c
+srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_init.c
+srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_add_nonce.c
+srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_add_aad.c
+srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_process.c
+srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_done.c
+srcs-$(_CFG_CORE_LTC_CCM) += src/encauth/ccm/ccm_reset.c
+
+cppflags-lib-$(_CFG_CORE_LTC_GCM) += -DLTC_GCM_MODE
+srcs-$(_CFG_CORE_LTC_GCM) += gcm.c
+srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_add_aad.c
+srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_add_iv.c
+srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_done.c
+srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_gf_mult.c
+srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_init.c
+srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_memory.c
+ifeq ($(_CFG_CORE_LTC_CE),y)
+srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_mult_h_arm_ce.c
+else
+srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_mult_h.c
+endif
+srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_process.c
+srcs-$(_CFG_CORE_LTC_GCM) += src/encauth/gcm/gcm_reset.c
+
+srcs-$(_CFG_CORE_LTC_HASH) += hash.c
+srcs-$(_CFG_CORE_LTC_HASH) += src/hashes/helper/hash_memory.c
+srcs-$(_CFG_CORE_LTC_HASH) += src/hashes/helper/hash_memory_multi.c
+
+cppflags-lib-$(_CFG_CORE_LTC_MD5_DESC) += -DLTC_MD5
+srcs-$(_CFG_CORE_LTC_MD5_DESC) += src/hashes/md5.c
+
+cppflags-lib-$(_CFG_CORE_LTC_SHA1_DESC) += -DLTC_SHA1
+ifeq ($(_CFG_CORE_LTC_SHA1_ACCEL),y)
+srcs-$(_CFG_CORE_LTC_SHA1_DESC) += sha1_accel.c
+else
+srcs-$(_CFG_CORE_LTC_SHA1_DESC) += src/hashes/sha1.c
+endif
+
+cppflags-lib-$(_CFG_CORE_LTC_SHA3_DESC) += -DLTC_SHA3
+ifeq ($(_CFG_CORE_LTC_SHA3_ACCEL),y)
+srcs-$(_CFG_CORE_LTC_SHA3_DESC) += sha3_accel.c
+else
+srcs-$(_CFG_CORE_LTC_SHA3_DESC) += src/hashes/sha3.c
+endif
+srcs-$(_CFG_CORE_LTC_SHA3_DESC) += src/hashes/sha3_test.c
+srcs-$(_CFG_CORE_LTC_SHA3_DESC) += shake.c
+
+cppflags-lib-$(_CFG_CORE_LTC_SHA224_DESC) += -DLTC_SHA224
+srcs-$(_CFG_CORE_LTC_SHA224_DESC) += src/hashes/sha2/sha224.c
+
+cppflags-lib-$(_CFG_CORE_LTC_SHA256_DESC) += -DLTC_SHA256
+ifeq ($(_CFG_CORE_LTC_SHA256_ACCEL),y)
+srcs-$(_CFG_CORE_LTC_SHA256_DESC) += sha256_accel.c
+else
+srcs-$(_CFG_CORE_LTC_SHA256_DESC) += src/hashes/sha2/sha256.c
+endif
+
+cppflags-lib-$(_CFG_CORE_LTC_SHA384_DESC) += -DLTC_SHA384
+srcs-$(_CFG_CORE_LTC_SHA384_DESC) += src/hashes/sha2/sha384.c
+
+cppflags-lib-$(_CFG_CORE_LTC_SHA512_DESC) += -DLTC_SHA512
+ifeq ($(_CFG_CORE_LTC_SHA512_ACCEL),y)
+srcs-$(_CFG_CORE_LTC_SHA512_DESC) += sha512_accel.c
+else
+srcs-$(_CFG_CORE_LTC_SHA512_DESC) += src/hashes/sha2/sha512.c
+endif
+
+cppflags-lib-$(_CFG_CORE_LTC_SHA512_256) += -DLTC_SHA512_256
+srcs-$(_CFG_CORE_LTC_SHA512_256) += src/hashes/sha2/sha512_256.c
+
+cppflags-lib-$(_CFG_CORE_LTC_HMAC) += -DLTC_HMAC
+srcs-$(_CFG_CORE_LTC_HMAC) += hmac.c
+srcs-$(_CFG_CORE_LTC_HMAC) += src/mac/hmac/hmac_done.c
+srcs-$(_CFG_CORE_LTC_HMAC) += src/mac/hmac/hmac_init.c
+srcs-$(_CFG_CORE_LTC_HMAC) += src/mac/hmac/hmac_memory.c
+srcs-$(_CFG_CORE_LTC_HMAC) += src/mac/hmac/hmac_memory_multi.c
+srcs-$(_CFG_CORE_LTC_HMAC) += src/mac/hmac/hmac_process.c
+
+cppflags-lib-$(_CFG_CORE_LTC_CMAC) += -DLTC_OMAC
+srcs-$(_CFG_CORE_LTC_CMAC) += cmac.c
+srcs-$(_CFG_CORE_LTC_CMAC) += src/mac/omac/omac_done.c
+srcs-$(_CFG_CORE_LTC_CMAC) += src/mac/omac/omac_init.c
+srcs-$(_CFG_CORE_LTC_CMAC) += src/mac/omac/omac_memory.c
+srcs-$(_CFG_CORE_LTC_CMAC) += src/mac/omac/omac_memory_multi.c
+srcs-$(_CFG_CORE_LTC_CMAC) += src/mac/omac/omac_process.c
+
+srcs-$(_CFG_CORE_LTC_ACIPHER) += src/math/multi.c
+srcs-$(_CFG_CORE_LTC_ACIPHER) += src/math/rand_prime.c
+srcs-$(_CFG_CORE_LTC_ACIPHER) += src/math/rand_bn.c
+ifeq ($(_CFG_CORE_LTC_ECC),y)
+srcs-$(_CFG_CORE_LTC_ACIPHER) += src/math/fp/ltc_ecc_fp_mulmod.c
+endif
+
+
+cppflags-lib-$(_CFG_CORE_LTC_CBC) += -DLTC_CBC_MODE
+srcs-$(_CFG_CORE_LTC_CBC) += cbc.c
 srcs-$(_CFG_CORE_LTC_CBC) += src/modes/cbc/cbc_decrypt.c
 srcs-$(_CFG_CORE_LTC_CBC) += src/modes/cbc/cbc_done.c
 srcs-$(_CFG_CORE_LTC_CBC) += src/modes/cbc/cbc_encrypt.c
@@ -257,6 +166,8 @@ srcs-$(_CFG_CORE_LTC_CBC) += src/modes/cbc/cbc_getiv.c
 srcs-$(_CFG_CORE_LTC_CBC) += src/modes/cbc/cbc_setiv.c
 srcs-$(_CFG_CORE_LTC_CBC) += src/modes/cbc/cbc_start.c
 
+cppflags-lib-$(_CFG_CORE_LTC_CTR) += -DLTC_CTR_MODE
+srcs-$(_CFG_CORE_LTC_CTR) += ctr.c
 srcs-$(_CFG_CORE_LTC_CTR) += src/modes/ctr/ctr_decrypt.c
 srcs-$(_CFG_CORE_LTC_CTR) += src/modes/ctr/ctr_done.c
 srcs-$(_CFG_CORE_LTC_CTR) += src/modes/ctr/ctr_encrypt.c
@@ -264,16 +175,24 @@ srcs-$(_CFG_CORE_LTC_CTR) += src/modes/ctr/ctr_getiv.c
 srcs-$(_CFG_CORE_LTC_CTR) += src/modes/ctr/ctr_setiv.c
 srcs-$(_CFG_CORE_LTC_CTR) += src/modes/ctr/ctr_start.c
 
+cppflags-lib-$(_CFG_CORE_LTC_ECB) += -DLTC_ECB_MODE
+srcs-$(_CFG_CORE_LTC_ECB) += ecb.c
 srcs-$(_CFG_CORE_LTC_ECB) += src/modes/ecb/ecb_decrypt.c
 srcs-$(_CFG_CORE_LTC_ECB) += src/modes/ecb/ecb_done.c
 srcs-$(_CFG_CORE_LTC_ECB) += src/modes/ecb/ecb_encrypt.c
 srcs-$(_CFG_CORE_LTC_ECB) += src/modes/ecb/ecb_start.c
 
+cppflags-lib-$(_CFG_CORE_LTC_XTS) += -DLTC_XTS_MODE
+srcs-$(_CFG_CORE_LTC_XTS) += xts.c
 srcs-$(_CFG_CORE_LTC_XTS) += src/modes/xts/xts_decrypt.c
 srcs-$(_CFG_CORE_LTC_XTS) += src/modes/xts/xts_done.c
 srcs-$(_CFG_CORE_LTC_XTS) += src/modes/xts/xts_encrypt.c
 srcs-$(_CFG_CORE_LTC_XTS) += src/modes/xts/xts_init.c
 srcs-$(_CFG_CORE_LTC_XTS) += src/modes/xts/xts_mult_x.c
+
+srcs-$(_CFG_CORE_LTC_ACIPHER) += mpi_desc.c
+cflags-mpi_desc.c-y += -Wno-declaration-after-statement
+cppflags-mpi_desc.c-y += -DMBEDTLS_ALLOW_PRIVATE_ACCESS
 
 ifeq ($(_CFG_CORE_LTC_ASN1),y)
 srcs-y += src/pk/asn1/der/bit/der_decode_bit_string.c
@@ -337,6 +256,8 @@ srcs-y += src/pk/asn1/oid/pk_oid_cmp.c
 srcs-y += src/pk/asn1/oid/pk_oid_str.c
 endif
 
+cppflags-lib-$(_CFG_CORE_LTC_DSA) += -DLTC_MDSA
+srcs-$(_CFG_CORE_LTC_DSA) += dsa.c
 srcs-$(_CFG_CORE_LTC_DSA) += src/pk/dsa/dsa_decrypt_key.c
 srcs-$(_CFG_CORE_LTC_DSA) += src/pk/dsa/dsa_encrypt_key.c
 srcs-$(_CFG_CORE_LTC_DSA) += src/pk/dsa/dsa_export.c
@@ -350,6 +271,8 @@ srcs-$(_CFG_CORE_LTC_DSA) += src/pk/dsa/dsa_sign_hash.c
 srcs-$(_CFG_CORE_LTC_DSA) += src/pk/dsa/dsa_verify_hash.c
 srcs-$(_CFG_CORE_LTC_DSA) += src/pk/dsa/dsa_verify_key.c
 
+cppflags-lib-$(_CFG_CORE_LTC_RSA) += -DLTC_MRSA
+srcs-$(_CFG_CORE_LTC_RSA) += rsa.c
 srcs-$(_CFG_CORE_LTC_RSA) += src/pk/pkcs1/pkcs_1_i2osp.c
 srcs-$(_CFG_CORE_LTC_RSA) += src/pk/pkcs1/pkcs_1_mgf1.c
 srcs-$(_CFG_CORE_LTC_RSA) += src/pk/pkcs1/pkcs_1_oaep_decode.c
@@ -369,6 +292,8 @@ srcs-$(_CFG_CORE_LTC_RSA) += src/pk/rsa/rsa_make_key.c
 srcs-$(_CFG_CORE_LTC_RSA) += src/pk/rsa/rsa_sign_hash.c
 srcs-$(_CFG_CORE_LTC_RSA) += src/pk/rsa/rsa_verify_hash.c
 
+cppflags-lib-$(_CFG_CORE_LTC_DH) += -DLTC_MDH
+srcs-$(_CFG_CORE_LTC_DH) += dh.c
 srcs-$(_CFG_CORE_LTC_DH) += src/pk/dh/dh.c
 srcs-$(_CFG_CORE_LTC_DH) += src/pk/dh/dh_check_pubkey.c
 srcs-$(_CFG_CORE_LTC_DH) += src/pk/dh/dh_export.c
@@ -381,6 +306,18 @@ srcs-$(_CFG_CORE_LTC_DH) += src/pk/dh/dh_set.c
 srcs-$(_CFG_CORE_LTC_DH) += src/pk/dh/dh_set_pg_dhparam.c
 srcs-$(_CFG_CORE_LTC_DH) += src/pk/dh/dh_shared_secret.c
 
+cppflags-lib-$(_CFG_CORE_LTC_ECC) += -DLTC_MECC
+# use Shamir's trick for point mul (speeds up signature verification)
+cppflags-lib-$(_CFG_CORE_LTC_ECC) += -DLTC_ECC_SHAMIR
+cppflags-lib-$(_CFG_CORE_LTC_ECC) += -DLTC_ECC192
+cppflags-lib-$(_CFG_CORE_LTC_ECC) += -DLTC_ECC224
+cppflags-lib-$(_CFG_CORE_LTC_ECC) += -DLTC_ECC256
+cppflags-lib-$(_CFG_CORE_LTC_ECC) += -DLTC_ECC384
+cppflags-lib-$(_CFG_CORE_LTC_ECC) += -DLTC_ECC521
+cppflags-lib-$(_CFG_CORE_LTC_ECC) += -DLTC_CURVE25519
+# ECC 521 bits is the max supported key size
+cppflags-lib-$(_CFG_CORE_LTC_ECC) += -DLTC_MAX_ECC=521
+srcs-$(_CFG_CORE_LTC_ECC) += ecc.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ecc.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ecc_find_curve.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ecc_free.c
@@ -402,9 +339,19 @@ srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_points.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_projective_add_point.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_projective_dbl_point.c
 
+ifneq (,$(filter y,$(_CFG_CORE_LTC_SM2_DSA) $(_CFG_CORE_LTC_SM2_PKE)))
+   cppflags-lib-y += -DLTC_ECC_SM2
+endif
+srcs-$(_CFG_CORE_LTC_SM2_DSA) += sm2-dsa.c
+srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
+srcs-$(_CFG_CORE_LTC_SM2_KEP) += sm2-kep.c
+
+cppflags-lib-$(_CFG_CORE_LTC_EC25519) += -DLTC_CURVE25519
 srcs-$(_CFG_CORE_LTC_EC25519) += src/pk/ec25519/ec25519_crypto_ctx.c
 srcs-$(_CFG_CORE_LTC_EC25519) += src/pk/ec25519/ec25519_export.c
 srcs-$(_CFG_CORE_LTC_EC25519) += src/pk/ec25519/tweetnacl.c
+
+srcs-$(_CFG_CORE_LTC_ED25519) += ed25519.c
 srcs-$(_CFG_CORE_LTC_ED25519) += src/pk/ed25519/ed25519_export.c
 srcs-$(_CFG_CORE_LTC_ED25519) += src/pk/ed25519/ed25519_import.c
 srcs-$(_CFG_CORE_LTC_ED25519) += src/pk/ed25519/ed25519_import_pkcs8.c
@@ -413,6 +360,8 @@ srcs-$(_CFG_CORE_LTC_ED25519) += src/pk/ed25519/ed25519_make_key.c
 srcs-$(_CFG_CORE_LTC_ED25519) += src/pk/ed25519/ed25519_sign.c
 srcs-$(_CFG_CORE_LTC_ED25519) += src/pk/ed25519/ed25519_verify.c
 
+srcs-$(_CFG_CORE_LTC_X25519) += x25519.c
+cflags-x25519.c-y += -Wno-declaration-after-statement
 srcs-$(_CFG_CORE_LTC_X25519) += src/pk/x25519/x25519_export.c
 srcs-$(_CFG_CORE_LTC_X25519) += src/pk/x25519/x25519_import.c
 srcs-$(_CFG_CORE_LTC_X25519) += src/pk/x25519/x25519_make_key.c
