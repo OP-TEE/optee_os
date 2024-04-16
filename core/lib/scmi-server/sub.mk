@@ -30,6 +30,11 @@ scpfw-cmake-flags-y = -DSCP_FIRMWARE_SOURCE_DIR:PATH=$(scpfw-product)/fw \
 		      -DSCP_OPTEE_DIR:PATH=$(CURDIR) \
 		      -DCFG_CROSS_COMPILE=$(lastword $(CROSS_COMPILE_core))
 
+# CMake does not need to check the cross compilation toolchain since we do not
+# compile any source file with CMake, we only generate some SCP-firmware
+# files.
+scpfw-cmake-flags-y += -DCMAKE_C_COMPILER_WORKS=1
+
 ifeq ($(cmd-echo-silent),true)
 scpfw-cmake-redirect = >/dev/null
 endif
