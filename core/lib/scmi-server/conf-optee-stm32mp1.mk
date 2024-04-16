@@ -4,7 +4,11 @@ $(call force,CFG_SCPFW_MOD_OPTEE_CLOCK,y)
 $(call force,CFG_SCPFW_MOD_OPTEE_CONSOLE,y)
 $(call force,CFG_SCPFW_MOD_OPTEE_MBX,y)
 $(call force,CFG_SCPFW_MOD_OPTEE_RESET,y)
+ifeq ($(CFG_STM32MP1_SCMI_SHM_SYSRAM),y)
 $(call force,CFG_SCPFW_MOD_OPTEE_SMT,y)
+else
+$(call force,CFG_SCPFW_MOD_MSG_SMT,y)
+endif
 $(call force,CFG_SCPFW_MOD_SCMI,y)
 $(call force,CFG_SCPFW_MOD_SCMI_CLOCK,y)
 $(call force,CFG_SCPFW_MOD_SCMI_RESET_DOMAIN,y)
