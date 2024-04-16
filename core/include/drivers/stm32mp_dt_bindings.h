@@ -19,8 +19,11 @@
 #endif
 
 #ifdef CFG_STM32MP25
+#include <dt-bindings/clock/st,stm32mp25-rcc.h>
+#include <dt-bindings/clock/stm32mp25-clksrc.h>
 #include <dt-bindings/firewall/stm32mp25-rif.h>
 #include <dt-bindings/firewall/stm32mp25-rifsc.h>
+#include <dt-bindings/reset/st,stm32mp25-rcc.h>
 #endif
 
 #endif /* __DRIVERS_STM32MP_DT_BINDINGS_H */
