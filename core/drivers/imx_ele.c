@@ -43,7 +43,7 @@
 #if defined(CFG_MX8ULP)
 #define ELE_MU_DID 0x7
 #define CACHELINE_SIZE 64
-#elif defined(CFG_MX93)
+#elif defined(CFG_MX93) || defined(CFG_MX91)
 #define ELE_MU_DID 0x3
 #define CACHELINE_SIZE 64
 #else
@@ -493,7 +493,7 @@ err:
 	panic("Fail to get the device UID");
 }
 
-#if defined(CFG_MX93)
+#if defined(CFG_MX93) || defined(CFG_MX91)
 TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -556,4 +556,4 @@ out:
 
 	return TEE_SUCCESS;
 }
-#endif /* CFG_MX93 */
+#endif /* CFG_MX93 || CFG_MX91 */
