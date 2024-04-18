@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2017-2019 NXP
+ * Copyright 2017-2019, 2024 NXP
  *
  * Brief   Random Number Generator Registers.
  */
@@ -118,4 +118,13 @@
 #define RNG_STA_PR0			BIT32(4)
 #define RNG_STA_PR1			BIT32(5)
 
+/*
+ * RNG Oscillator 2 Control Register
+ */
+#define RNG_OSC2_CTL 0x06EC
+
+/*
+ * TRNG_ENT_CTL(1-0) = 01 : dual oscillator mode
+ */
+#define RNG_OSC2_CTL_TRNG_ENT_CTL 0x1
 #endif /* __RNG_REGS_H__ */

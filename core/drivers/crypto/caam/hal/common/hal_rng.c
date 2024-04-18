@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2018-2021, 2024 NXP
  *
  * Brief   CAAM Random Number Generator Hardware Abstration Layer.
  *         Implementation of primitives to access HW.
@@ -91,6 +91,38 @@ enum caam_status caam_hal_rng_kick(vaddr_t baseaddr, uint32_t inc_delay)
 	 */
 	io_setbits32(baseaddr + TRNG_MCTL, TRNG_MCTL_PRGM | TRNG_MCTL_ACC);
 
+#if defined(CFG_MX8ULP)
+	/*
+	 * For i.MX8ULP.
+	 * TRNG silicon characterization is done to determine correct
+	 * rng configuration under different temperature and voltage
+	 * settings.
+	 * Configuring dual oscillator mode as it is more robust and faster.
+	 * Recommended values for dual oscillator are
+	 * ENT_DLY(25000), FRQMIN(5000), FRQMAX(10000).
+	 */
+#define MX8ULP_ENT_DELAY 25000
+#define MX8ULP_RNG_FRQ_MIN 5000
+#define MX8ULP_RNG_FRQ_MAX 10000
+
+	io_caam_write32(baseaddr + TRNG_SDCTL,
+			TRNG_SDCTL_ENT_DLY(MX8ULP_ENT_DELAY) |
+				TRNG_SDCTL_SAMP_SIZE(512));
+
+	io_caam_write32(baseaddr + TRNG_FRQMIN, MX8ULP_RNG_FRQ_MIN);
+
+	io_caam_write32(baseaddr + TRNG_FRQMAX, MX8ULP_RNG_FRQ_MAX);
+
+	val = io_caam_read32(baseaddr + RNG_OSC2_CTL);
+	/*
+	 * OSC2_CTL: Oscillator 2 Control Register
+	 * TRNG_ENT_CTL(1-0) = 00 : OSC1 default
+	 *                     01 : dual oscillator mode
+	 * setting the dual oscillator mode in OSC2_CTL
+	 */
+	val |= RNG_OSC2_CTL_TRNG_ENT_CTL;
+	io_caam_write32(baseaddr + RNG_OSC2_CTL, val);
+#else
 	/*
 	 * Configure the RNG Entropy Delay
 	 * Performance-wise, it does not make sense to
@@ -119,6 +151,7 @@ enum caam_status caam_hal_rng_kick(vaddr_t baseaddr, uint32_t inc_delay)
 
 	/* max. freq. count, equal to 16 times the entropy sample length */
 	io_caam_write32(baseaddr + TRNG_FRQMAX, ent_delay << 4);
+#endif
 
 	io_caam_write32(baseaddr + TRNG_RTSCMISC,
 			TRNG_RTSCMISC_RTY_CNT(2) | TRNG_RTSCMISC_LRUN_MAX(32));
