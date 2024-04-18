@@ -1476,9 +1476,9 @@ void ta_elf_print_mappings(void *pctx, print_func_t print_func,
 	get_next_in_order(elf_queue, &elf, &seg, &elf_idx);
 	while (true) {
 		vaddr_t va = -1;
+		paddr_t pa = -1;
 		size_t sz = 0;
 		uint32_t flags = DUMP_MAP_SECURE;
-		size_t offs = 0;
 
 		if (seg) {
 			va = rounddown(seg->vaddr + elf->load_addr);
@@ -1491,6 +1491,7 @@ void ta_elf_print_mappings(void *pctx, print_func_t print_func,
 
 			/* If there's a match, it should be the same map */
 			if (maps[map_idx].va == va) {
+				pa = maps[map_idx].pa;
 				/*
 				 * In shared libraries the first page is
 				 * mapped separately with the rest of that
@@ -1529,7 +1530,6 @@ void ta_elf_print_mappings(void *pctx, print_func_t print_func,
 		if (!seg)
 			break;
 
-		offs = rounddown(seg->offset);
 		if (seg->flags & PF_R)
 			flags |= DUMP_MAP_READ;
 		if (seg->flags & PF_W)
@@ -1537,7 +1537,7 @@ void ta_elf_print_mappings(void *pctx, print_func_t print_func,
 		if (seg->flags & PF_X)
 			flags |= DUMP_MAP_EXEC;
 
-		print_seg(pctx, print_func, idx, elf_idx, va, offs, sz, flags);
+		print_seg(pctx, print_func, idx, elf_idx, va, pa, sz, flags);
 		idx++;
 
 		if (!get_next_in_order(elf_queue, &elf, &seg, &elf_idx))
