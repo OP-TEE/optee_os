@@ -731,6 +731,42 @@ static TEE_Result stm32_risal_setup(struct rifsc_platdata *pdata)
 }
 #endif /* CFG_STM32MP25 */
 
+bool stm32_rifsc_cid_is_enabled(unsigned int  rifc_id)
+{
+	struct io_pa_va rifsc_addr = { .pa = RIFSC_BASE };
+	vaddr_t rifsc_base = io_pa_or_va(&rifsc_addr, 1);
+	uint32_t cidcfgr = 0;
+
+	assert(rifc_id < RIMU_ID_OFFSET);
+
+	cidcfgr = io_read32(rifsc_base + _RIFSC_RISC_PER0_CIDCFGR +
+			    _OFFSET_PERX_CIDCFGR * rifc_id);
+
+	return (cidcfgr & _CIDCFGR_CFEN) == _CIDCFGR_CFEN;
+}
+
+void stm32_rifsc_cid_enable(unsigned int  rifc_id)
+{
+	struct io_pa_va rifsc_addr = { .pa = RIFSC_BASE };
+	vaddr_t rifsc_base = io_pa_or_va(&rifsc_addr, 1);
+
+	assert(rifc_id < RIMU_ID_OFFSET);
+
+	io_setbits32_stm32shregs(rifsc_base + _RIFSC_RISC_PER0_CIDCFGR +
+				 _OFFSET_PERX_CIDCFGR * rifc_id, _CIDCFGR_CFEN);
+}
+
+void stm32_rifsc_cid_disable(unsigned int  rifc_id)
+{
+	struct io_pa_va rifsc_addr = { .pa = RIFSC_BASE };
+	vaddr_t rifsc_base = io_pa_or_va(&rifsc_addr, 1);
+
+	assert(rifc_id < RIMU_ID_OFFSET);
+
+	io_clrbits32_stm32shregs(rifsc_base + _RIFSC_RISC_PER0_CIDCFGR +
+				 _OFFSET_PERX_CIDCFGR * rifc_id, _CIDCFGR_CFEN);
+}
+
 static TEE_Result stm32_rifsc_check_access(struct firewall_query *firewall)
 {
 	uintptr_t rifsc_base = rifsc_pdata.base;

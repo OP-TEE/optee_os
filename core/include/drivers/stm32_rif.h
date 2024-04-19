@@ -130,6 +130,30 @@ void stm32_rif_parse_cfg(uint32_t rif_conf,
 			 struct rif_conf_data *conf_data,
 			 unsigned int nb_channel);
 
+/*
+ * Verify if CID filtering is enabled
+ *
+ * @risup_id:	ID of the RISUP to verify
+ *
+ * Returns True if CID filtering is enabled in case of success.
+ * Returns False if CID filtering is disabled
+ */
+bool stm32_rifsc_cid_is_enabled(unsigned int risup_id);
+
+/*
+ * Enable  CID filtering
+ *
+ * @risup_id:	ID of the RISUP to enable
+ */
+void stm32_rifsc_cid_enable(unsigned int risup_id);
+
+/*
+ * Disable CID filtering
+ *
+ * @risup_id:	ID of the RISUP to disable
+ */
+void stm32_rifsc_cid_disable(unsigned int risup_id);
+
 /**
  * stm32_rif_semaphore_is_available() - Checks if the _SEMCR_MUTEX bit is set
  *
@@ -198,6 +222,19 @@ static inline void
 stm32_rif_parse_cfg(uint32_t rif_conf __unused,
 		    struct rif_conf_data *conf_data __unused,
 		    unsigned int nb_channel __unused)
+{
+}
+
+static inline bool stm32_rifsc_cid_is_enabled(unsigned int risup_id __unused)
+{
+	return false;
+}
+
+static inline void stm32_rifsc_cid_enable(unsigned int risup_id __unused)
+{
+}
+
+static inline void stm32_rifsc_cid_disable(unsigned int risup_id __unused)
 {
 }
 
