@@ -1145,7 +1145,7 @@ static TEE_Result tee_buffer_update(
 
 	if (slen >= (buffer_size + buffer_left)) {
 		/* Buffer is empty, feed as much as possible from src */
-		if (op->info.algorithm == TEE_ALG_AES_CTS)
+		if (op->buffer_two_blocks)
 			l = ROUNDUP(slen - buffer_size, op->block_size);
 		else
 			l = ROUNDUP(slen - buffer_size + 1, op->block_size);
@@ -1212,10 +1212,14 @@ TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, const void *srcData,
 		req_dlen = srcLen;
 	}
 	if (operation->buffer_two_blocks) {
-		if (req_dlen > operation->block_size * 2)
-			req_dlen -= operation->block_size * 2;
-		else
+		if (operation->buffer_offs + srcLen >
+		    operation->block_size * 2) {
+			req_dlen = operation->buffer_offs + srcLen -
+				   operation->block_size * 2;
+			req_dlen = ROUNDUP(req_dlen, operation->block_size);
+		} else {
 			req_dlen = 0;
+		}
 	}
 	/*
 	 * Check that required destLen is big enough before starting to feed
