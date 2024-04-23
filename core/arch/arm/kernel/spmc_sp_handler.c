@@ -507,7 +507,7 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 		/* copy the mem_transaction_descr */
 		d_ds->sender_id = receiver->smem->sender_id;
 		d_ds->mem_reg_attr = receiver->smem->mem_reg_attr;
-		d_ds->flags = receiver->smem->flags;
+		d_ds->flags = FFA_MEMORY_TRANSACTION_TYPE_SHARE;
 		d_ds->tag = receiver->smem->tag;
 		d_ds->mem_access_count = 1;
 	} else {
@@ -520,7 +520,7 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 
 		d_ds->sender_id = receiver->smem->sender_id;
 		d_ds->mem_reg_attr = receiver->smem->mem_reg_attr;
-		d_ds->flags = receiver->smem->flags;
+		d_ds->flags = FFA_MEMORY_TRANSACTION_TYPE_SHARE;
 		d_ds->tag = receiver->smem->tag;
 		d_ds->mem_access_size = sizeof(*mem_acc);
 		d_ds->mem_access_count = 1;

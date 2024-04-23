@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 2020, Linaro Limited
- * Copyright (c) 2018-2023, Arm Limited. All rights reserved.
+ * Copyright (c) 2018-2024, Arm Limited. All rights reserved.
  */
 
 #ifndef __FFA_H
@@ -222,6 +222,12 @@
 #define FFA_CONSOLE_LOG_CHAR_COUNT_MASK	GENMASK_32(7, 0)
 #define FFA_CONSOLE_LOG_32_MAX_MSG_LEN	U(24)
 #define FFA_CONSOLE_LOG_64_MAX_MSG_LEN	U(48)
+
+/* Memory transaction type in FFA_MEM_RETRIEVE_RESP flags */
+#define FFA_MEMORY_TRANSACTION_TYPE_MASK	GENMASK_32(4, 3)
+#define FFA_MEMORY_TRANSACTION_TYPE_SHARE	SHIFT_U32(1, 3)
+#define FFA_MEMORY_TRANSACTION_TYPE_LEND	SHIFT_U32(2, 3)
+#define FFA_MEMORY_TRANSACTION_TYPE_DONATE	SHIFT_U32(3, 3)
 
 #ifndef __ASSEMBLER__
 /* Constituent memory region descriptor */
