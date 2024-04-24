@@ -507,7 +507,6 @@ FUNC ce_aes_xts_encrypt , :
 	b		.LxtsencNx
 
 .LxtsencloopNx:
-	ldr		q7, .Lxts_mul_x
 	next_tweak	v4, v4, v7, v8
 .LxtsencNx:
 #if INTERLEAVE >= 2
@@ -544,6 +543,7 @@ FUNC ce_aes_xts_encrypt , :
 	eor		v2.16b, v2.16b, v6.16b
 	st1		{v0.16b-v3.16b}, [x0], #64
 	mov		v4.16b, v7.16b
+	ldr		q7, .Lxts_mul_x
 	cbz		w4, .Lxtsencout
 	b		.LxtsencloopNx
 #endif
@@ -588,7 +588,6 @@ FUNC ce_aes_xts_decrypt , :
 	b		.LxtsdecNx
 
 .LxtsdecloopNx:
-	ldr		q7, .Lxts_mul_x
 	next_tweak	v4, v4, v7, v8
 .LxtsdecNx:
 #if INTERLEAVE >= 2
@@ -625,6 +624,7 @@ FUNC ce_aes_xts_decrypt , :
 	eor		v2.16b, v2.16b, v6.16b
 	st1		{v0.16b-v3.16b}, [x0], #64
 	mov		v4.16b, v7.16b
+	ldr		q7, .Lxts_mul_x
 	cbz		w4, .Lxtsdecout
 	b		.LxtsdecloopNx
 #endif
