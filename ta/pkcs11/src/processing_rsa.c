@@ -569,6 +569,8 @@ enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
 			break;
 		}
 
+		rc = PKCS11_CKR_GENERAL_ERROR;
+
 		if (pkcs2tee_load_attr(&attrs[count], TEE_ATTR_RSA_PRIME1, obj,
 				       PKCS11_CKA_PRIME_1))
 			count++;
