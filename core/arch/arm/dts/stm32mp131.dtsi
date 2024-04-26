@@ -317,7 +317,6 @@
 			#size-cells = <1>;
 			compatible = "st,stm32mp135-pinctrl";
 			ranges = <0 0x50002000 0x8400>;
-			pins-are-numbered;
 
 			gpioa: gpio@50002000 {
 				gpio-controller;
