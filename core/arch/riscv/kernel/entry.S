@@ -220,7 +220,7 @@ UNWIND(	.cantunwind)
 	mv	sp, a0
 	jal	thread_get_core_local
 	mv	s3, a0
-	STR	x0, THREAD_CORE_LOCAL_FLAGS(s3)
+	sw	zero, THREAD_CORE_LOCAL_FLAGS(s3)
 
 	mv	a0, s1		/* s1 contains saved device tree address */
 	mv	a1, x0		/* unused */
@@ -231,7 +231,7 @@ UNWIND(	.cantunwind)
 	 * restored.
 	 */
 	li	a0, THREAD_CLF_TMP
-	STR	a0, THREAD_CORE_LOCAL_FLAGS(s3)
+	sw	a0, THREAD_CORE_LOCAL_FLAGS(s3)
 	mv	sp, s2
 
 	cpu_is_ready
