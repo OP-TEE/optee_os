@@ -88,19 +88,35 @@ core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
 
-# Default values for "-mcmodel", "-march", and "-abi" compiler flags.
-# Platform-specific overrides are in core/arch/riscv/plat-*/conf.mk.
+# Default values for "-mcmodel" compiler flag
 riscv-platform-mcmodel ?= medany
-rv64-platform-isa ?= rv64imafd
-rv64-platform-abi ?= lp64d
-rv32-platform-isa ?= rv32imafd
-rv32-platform-abi ?= ilp32d
+
+ifeq ($(CFG_RV64_core),y)
+ISA_BASE = rv64ima
+ABI_BASE = lp64
+else
+ISA_BASE = rv32ima
+ABI_BASE = ilp32
+endif
+ifeq ($(CFG_RISCV_FPU),y)
+ISA_D = fd
+ABI_D = d
+endif
+ifeq ($(CFG_RISCV_ISA_C),y)
+ISA_C = c
+endif
+ifeq ($(CFG_RISCV_ISA_ZBB),y)
+ISA_ZBB = _zbb
+endif
+
+riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei
+riscv-abi = $(ABI_BASE)$(ABI_D)
 
 rv64-platform-cflags += -mcmodel=$(riscv-platform-mcmodel)
-rv64-platform-cflags += -march=$(rv64-platform-isa) -mabi=$(rv64-platform-abi)
+rv64-platform-cflags += -march=$(riscv-isa) -mabi=$(riscv-abi)
 rv64-platform-cflags += -Wno-missing-include-dirs
 rv32-platform-cflags += -mcmodel=$(riscv-platform-mcmodel)
-rv32-platform-cflags += -march=$(rv32-platform-isa) -mabi=$(rv32-platform-abi)
+rv32-platform-cflags += -march=$(riscv-isa) -mabi=$(riscv-abi)
 
 rv64-platform-cppflags += -DRV64=1 -D__LP64__=1
 rv32-platform-cppflags += -DRV32=1 -D__ILP32__=1
