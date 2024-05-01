@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright 2022-2023 NXP
+ * Copyright 2024 Andes Technology Corporation
  */
 
 #include <asm.S>
@@ -28,111 +29,6 @@
 	beqz	\reg, \label
 .endm
 
-.macro save_regs, mode
-.if \mode == TRAP_MODE_USER
-	/* Save user sp, a0, a1 into temporary spaces of thread_core_local */
-	store_xregs tp, THREAD_CORE_LOCAL_X0, REG_SP
-	store_xregs tp, THREAD_CORE_LOCAL_X1, REG_A0, REG_A1
-	/* Load and set kernel sp from thread context */
-	get_thread_ctx a0, a1
-	load_xregs a0, THREAD_CTX_KERN_SP, REG_SP
-	/* Now sp is kernel sp, create stack frame to save user context */
-	addi	sp, sp, -THREAD_TRAP_REGS_SIZE
-
-	/* Save user sp */
-	load_xregs tp, THREAD_CORE_LOCAL_X0, REG_A0
-	store_xregs sp, THREAD_TRAP_REG_SP, REG_A0
-
-	/* Restore user a0, a1 which can be saved later */
-	load_xregs tp, THREAD_CORE_LOCAL_X1, REG_A0, REG_A1
-
-	/* Save user gp */
-	store_xregs sp, THREAD_TRAP_REG_GP, REG_GP
-
-	/*
-	 * Set the scratch register to 0 such in case of a recursive
-	 * exception thread_trap_vect() knows that it is emitted from kernel.
-	 */
-	csrrw	gp, CSR_XSCRATCH, zero
-	/* Save user tp we previously swapped into CSR_XSCRATCH */
-	store_xregs sp, THREAD_TRAP_REG_TP, REG_GP
-.option push
-.option norelax
-	la	gp, __global_pointer$
-.option pop
-.else
-	/* sp is kernel sp */
-	addi	sp, sp, -THREAD_TRAP_REGS_SIZE
-	store_xregs sp, THREAD_TRAP_REG_GP, REG_GP
-	store_xregs sp, THREAD_TRAP_REG_SP, REG_SP
-.endif
-	store_xregs sp, THREAD_TRAP_REG_T3, REG_T3, REG_T6
-	store_xregs sp, THREAD_TRAP_REG_T0, REG_T0, REG_T2
-	store_xregs sp, THREAD_TRAP_REG_A0, REG_A0, REG_A7
-	store_xregs sp, THREAD_TRAP_REG_RA, REG_RA
-#if defined(CFG_UNWIND)
-	/* To unwind stack we need s0, which is frame pointer. */
-	store_xregs sp, THREAD_TRAP_REG_S0, REG_S0
-#endif
-
-	csrr	t0, CSR_XIE
-	store_xregs sp, THREAD_TRAP_REG_IE, REG_T0
-
-	/* Mask all interrupts */
-	csrw	CSR_XIE, x0
-
-	csrr	t0, CSR_XSTATUS
-	store_xregs sp, THREAD_TRAP_REG_STATUS, REG_T0
-
-	csrr	a0, CSR_XCAUSE
-	csrr	a1, CSR_XEPC
-
-	store_xregs sp, THREAD_TRAP_REG_EPC, REG_A1
-
-	mv	a2, sp
-
-	/* a0 = cause
-	 * a1 = epc
-	 * a2 = sp
-	 * a3 = user
-	 * thread_trap_handler(cause, epc, sp, user)
-	 */
-.endm
-
-.macro restore_regs, mode
-	load_xregs sp, THREAD_TRAP_REG_EPC, REG_T0
-	csrw	CSR_XEPC, t0
-
-	load_xregs sp, THREAD_TRAP_REG_IE, REG_T0
-	csrw	CSR_XIE, t0
-
-	load_xregs sp, THREAD_TRAP_REG_STATUS, REG_T0
-	csrw	CSR_XSTATUS, t0
-
-	load_xregs sp, THREAD_TRAP_REG_RA, REG_RA
-	load_xregs sp, THREAD_TRAP_REG_A0, REG_A0, REG_A7
-	load_xregs sp, THREAD_TRAP_REG_T0, REG_T0, REG_T2
-	load_xregs sp, THREAD_TRAP_REG_T3, REG_T3, REG_T6
-#if defined(CFG_UNWIND)
-	/* To unwind stack we need s0, which is frame pointer. */
-	load_xregs sp, THREAD_TRAP_REG_S0, REG_S0
-#endif
-
-.if \mode == TRAP_MODE_USER
-	/* Set scratch as thread_core_local */
-	csrw	CSR_XSCRATCH, tp
-
-	load_xregs sp, THREAD_TRAP_REG_TP, REG_TP
-	load_xregs sp, THREAD_TRAP_REG_GP, REG_GP
-	load_xregs sp, THREAD_TRAP_REG_SP, REG_SP
-
-.else
-	load_xregs sp, THREAD_TRAP_REG_GP, REG_GP
-	load_xregs sp, THREAD_TRAP_REG_SP, REG_SP
-	addi	sp, sp, THREAD_TRAP_REGS_SIZE
-.endif
-.endm
-
 /* size_t __get_core_pos(void); */
 FUNC __get_core_pos , : , .identity_map
 	lw	a0, THREAD_CORE_LOCAL_HART_ID(tp)
@@ -152,18 +48,475 @@ thread_trap_vect_end:
 END_FUNC thread_trap_vect
 
 LOCAL_FUNC trap_from_kernel, :
-	save_regs TRAP_MODE_KERNEL
-	li	a3, 0
-	jal	thread_trap_handler
-	restore_regs TRAP_MODE_KERNEL
+	/* Save sp, a0, a1 into temporary spaces of thread_core_local */
+	store_xregs tp, THREAD_CORE_LOCAL_X0, REG_SP
+	store_xregs tp, THREAD_CORE_LOCAL_X1, REG_A0, REG_A1
+
+	csrr	a0, CSR_XCAUSE
+	/* MSB of cause differentiates between interrupts and exceptions */
+	bge	a0, zero, exception_from_kernel
+
+interrupt_from_kernel:
+	/* Get thread context as sp */
+	get_thread_ctx sp, a0
+
+	/* Load and save kernel sp */
+	load_xregs tp, THREAD_CORE_LOCAL_X0, REG_A0
+	store_xregs sp, THREAD_CTX_REG_SP, REG_A0
+
+	/* Restore user a0, a1 which can be saved later */
+	load_xregs tp, THREAD_CORE_LOCAL_X1, REG_A0, REG_A1
+
+	/* Save all other GPRs */
+	store_xregs sp, THREAD_CTX_REG_RA, REG_RA
+	store_xregs sp, THREAD_CTX_REG_GP, REG_GP
+	store_xregs sp, THREAD_CTX_REG_T0, REG_T0, REG_T2
+	store_xregs sp, THREAD_CTX_REG_S0, REG_S0, REG_S1
+	store_xregs sp, THREAD_CTX_REG_A0, REG_A0, REG_A7
+	store_xregs sp, THREAD_CTX_REG_S2, REG_S2, REG_S11
+	store_xregs sp, THREAD_CTX_REG_T3, REG_T3, REG_T6
+	/* Save XIE */
+	csrr	t0, CSR_XIE
+	store_xregs sp, THREAD_CTX_REG_IE, REG_T0
+	/* Mask all interrupts */
+	csrw	CSR_XIE, x0
+	/* Save XSTATUS */
+	csrr	t0, CSR_XSTATUS
+	store_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
+	/* Save XEPC */
+	csrr	t0, CSR_XEPC
+	store_xregs sp, THREAD_CTX_REG_EPC, REG_T0
+
+	/*
+	 * a0 = cause
+	 * a1 = sp
+	 * Call thread_interrupt_handler(cause, regs)
+	 */
+	csrr	a0, CSR_XCAUSE
+	mv	a1, sp
+	/* Load tmp_stack_va_end as current sp. */
+	load_xregs tp, THREAD_CORE_LOCAL_TMP_STACK_VA_END, REG_SP
+	call	thread_interrupt_handler
+
+	/* Get thread context as sp */
+	get_thread_ctx sp, t0
+	/* Restore XEPC */
+	load_xregs sp, THREAD_CTX_REG_EPC, REG_T0
+	csrw	CSR_XEPC, t0
+	/* Restore XIE */
+	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
+	/* Restore XSTATUS */
+	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
+	csrw	CSR_XSTATUS, t0
+	/* Set scratch as thread_core_local */
+	csrw	CSR_XSCRATCH, tp
+	/* Restore all GPRs */
+	load_xregs sp, THREAD_CTX_REG_RA, REG_RA
+	load_xregs sp, THREAD_CTX_REG_GP, REG_GP
+	load_xregs sp, THREAD_CTX_REG_T0, REG_T0, REG_T2
+	load_xregs sp, THREAD_CTX_REG_S0, REG_S0, REG_S1
+	load_xregs sp, THREAD_CTX_REG_A0, REG_A0, REG_A7
+	load_xregs sp, THREAD_CTX_REG_S2, REG_S2, REG_S11
+	load_xregs sp, THREAD_CTX_REG_T3, REG_T3, REG_T6
+	load_xregs sp, THREAD_CTX_REG_SP, REG_SP
+	XRET
+
+exception_from_kernel:
+	/*
+	 * Update core local flags.
+	 * flags = (flags << THREAD_CLF_SAVED_SHIFT) | THREAD_CLF_ABORT;
+	 */
+	lw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
+	slli	a0, a0, THREAD_CLF_SAVED_SHIFT
+	ori	a0, a0, THREAD_CLF_ABORT
+	li	a1, (THREAD_CLF_ABORT << THREAD_CLF_SAVED_SHIFT)
+	and	a1, a0, a1
+	bnez	a1, sel_tmp_sp
+
+	/* Select abort stack */
+	load_xregs tp, THREAD_CORE_LOCAL_ABT_STACK_VA_END, REG_A1
+	j	set_sp
+
+sel_tmp_sp:
+	/* We have an abort while using the abort stack, select tmp stack */
+	load_xregs tp, THREAD_CORE_LOCAL_TMP_STACK_VA_END, REG_A1
+	ori	a0, a0, THREAD_CLF_TMP	/* flags |= THREAD_CLF_TMP; */
+
+set_sp:
+	mv	sp, a1
+	sw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
+
+	/*
+	 * Save state on stack
+	 */
+	addi	sp, sp, -THREAD_ABT_REGS_SIZE
+
+	/* Save kernel sp */
+	load_xregs tp, THREAD_CORE_LOCAL_X0, REG_A0
+	store_xregs sp, THREAD_ABT_REG_SP, REG_A0
+
+	/* Restore kernel a0, a1 which can be saved later */
+	load_xregs tp, THREAD_CORE_LOCAL_X1, REG_A0, REG_A1
+
+	/* Save all other GPRs */
+	store_xregs sp, THREAD_ABT_REG_RA, REG_RA
+	store_xregs sp, THREAD_ABT_REG_GP, REG_GP
+	store_xregs sp, THREAD_ABT_REG_TP, REG_TP
+	store_xregs sp, THREAD_ABT_REG_T0, REG_T0, REG_T2
+	store_xregs sp, THREAD_ABT_REG_S0, REG_S0, REG_S1
+	store_xregs sp, THREAD_ABT_REG_A0, REG_A0, REG_A7
+	store_xregs sp, THREAD_ABT_REG_S2, REG_S2, REG_S11
+	store_xregs sp, THREAD_ABT_REG_T3, REG_T3, REG_T6
+	/* Save XIE */
+	csrr	t0, CSR_XIE
+	store_xregs sp, THREAD_ABT_REG_IE, REG_T0
+	/* Mask all interrupts */
+	csrw	CSR_XIE, x0
+	/* Save XSTATUS */
+	csrr	t0, CSR_XSTATUS
+	store_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
+	/* Save XEPC */
+	csrr	t0, CSR_XEPC
+	store_xregs sp, THREAD_ABT_REG_EPC, REG_T0
+	/* Save XTVAL */
+	csrr	t0, CSR_XTVAL
+	store_xregs sp, THREAD_ABT_REG_TVAL, REG_T0
+	/* Save XCAUSE */
+	csrr	a0, CSR_XCAUSE
+	store_xregs sp, THREAD_ABT_REG_CAUSE, REG_A0
+
+	/*
+	 * a0 = cause
+	 * a1 = sp (struct thread_abort_regs *regs)
+	 * Call abort_handler(cause, regs)
+	 */
+	mv	a1, sp
+	call	abort_handler
+
+	/*
+	 * Restore state from stack
+	 */
+
+	/* Restore XEPC */
+	load_xregs sp, THREAD_ABT_REG_EPC, REG_T0
+	csrw	CSR_XEPC, t0
+	/* Restore XIE */
+	load_xregs sp, THREAD_ABT_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
+	/* Restore XSTATUS */
+	load_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
+	csrw	CSR_XSTATUS, t0
+	/* Set scratch as thread_core_local */
+	csrw	CSR_XSCRATCH, tp
+
+	/* Update core local flags */
+	lw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
+	srli	a0, a0, THREAD_CLF_SAVED_SHIFT
+	sw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
+
+	/* Restore all GPRs */
+	load_xregs sp, THREAD_ABT_REG_RA, REG_RA
+	load_xregs sp, THREAD_ABT_REG_GP, REG_GP
+	load_xregs sp, THREAD_ABT_REG_TP, REG_TP
+	load_xregs sp, THREAD_ABT_REG_T0, REG_T0, REG_T2
+	load_xregs sp, THREAD_ABT_REG_S0, REG_S0, REG_S1
+	load_xregs sp, THREAD_ABT_REG_A0, REG_A0, REG_A7
+	load_xregs sp, THREAD_ABT_REG_S2, REG_S2, REG_S11
+	load_xregs sp, THREAD_ABT_REG_T3, REG_T3, REG_T6
+	load_xregs sp, THREAD_ABT_REG_SP, REG_SP
 	XRET
 END_FUNC trap_from_kernel
 
 LOCAL_FUNC trap_from_user, :
-	save_regs TRAP_MODE_USER
-	li	a3, 1
-	jal	thread_trap_handler
-	restore_regs TRAP_MODE_USER
+	/* Save user sp, a0, a1 into temporary spaces of thread_core_local */
+	store_xregs tp, THREAD_CORE_LOCAL_X0, REG_SP
+	store_xregs tp, THREAD_CORE_LOCAL_X1, REG_A0, REG_A1
+
+	csrr	a0, CSR_XCAUSE
+	/* MSB of cause differentiates between interrupts and exceptions */
+	bge	a0, zero, exception_from_user
+
+interrupt_from_user:
+	/* Get thread context as sp */
+	get_thread_ctx sp, a0
+
+	/* Save user sp */
+	load_xregs tp, THREAD_CORE_LOCAL_X0, REG_A0
+	store_xregs sp, THREAD_CTX_REG_SP, REG_A0
+
+	/* Restore user a0, a1 which can be saved later */
+	load_xregs tp, THREAD_CORE_LOCAL_X1, REG_A0, REG_A1
+
+	/* Save user gp */
+	store_xregs sp, THREAD_CTX_REG_GP, REG_GP
+
+	/*
+	 * Set the scratch register to 0 such in case of a recursive
+	 * exception thread_trap_vect() knows that it is emitted from kernel.
+	 */
+	csrrw	gp, CSR_XSCRATCH, zero
+	/* Save user tp we previously swapped into CSR_XSCRATCH */
+	store_xregs sp, THREAD_CTX_REG_TP, REG_GP
+	/* Set kernel gp */
+.option push
+.option norelax
+	la	gp, __global_pointer$
+.option pop
+	/* Save all other GPRs */
+	store_xregs sp, THREAD_CTX_REG_RA, REG_RA
+	store_xregs sp, THREAD_CTX_REG_T0, REG_T0, REG_T2
+	store_xregs sp, THREAD_CTX_REG_S0, REG_S0, REG_S1
+	store_xregs sp, THREAD_CTX_REG_A0, REG_A0, REG_A7
+	store_xregs sp, THREAD_CTX_REG_S2, REG_S2, REG_S11
+	store_xregs sp, THREAD_CTX_REG_T3, REG_T3, REG_T6
+	/* Save XIE */
+	csrr	t0, CSR_XIE
+	store_xregs sp, THREAD_CTX_REG_IE, REG_T0
+	/* Mask all interrupts */
+	csrw	CSR_XIE, x0
+	/* Save XSTATUS */
+	csrr	t0, CSR_XSTATUS
+	store_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
+	/* Save XEPC */
+	csrr	t0, CSR_XEPC
+	store_xregs sp, THREAD_CTX_REG_EPC, REG_T0
+
+	/*
+	 * a0 = cause
+	 * a1 = sp
+	 * Call thread_interrupt_handler(cause, regs)
+	 */
+	csrr	a0, CSR_XCAUSE
+	mv	a1, sp
+	/* Load tmp_stack_va_end as current sp. */
+	load_xregs tp, THREAD_CORE_LOCAL_TMP_STACK_VA_END, REG_SP
+	call	thread_interrupt_handler
+
+	/* Get thread context as sp */
+	get_thread_ctx sp, t0
+	/* Restore XEPC */
+	load_xregs sp, THREAD_CTX_REG_EPC, REG_T0
+	csrw	CSR_XEPC, t0
+	/* Restore XIE */
+	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
+	/* Restore XSTATUS */
+	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
+	csrw	CSR_XSTATUS, t0
+	/* Set scratch as thread_core_local */
+	csrw	CSR_XSCRATCH, tp
+	/* Restore all GPRs */
+	load_xregs sp, THREAD_CTX_REG_RA, REG_RA
+	load_xregs sp, THREAD_CTX_REG_GP, REG_GP
+	load_xregs sp, THREAD_CTX_REG_TP, REG_TP
+	load_xregs sp, THREAD_CTX_REG_T0, REG_T0, REG_T2
+	load_xregs sp, THREAD_CTX_REG_S0, REG_S0, REG_S1
+	load_xregs sp, THREAD_CTX_REG_A0, REG_A0, REG_A7
+	load_xregs sp, THREAD_CTX_REG_S2, REG_S2, REG_S11
+	load_xregs sp, THREAD_CTX_REG_T3, REG_T3, REG_T6
+	load_xregs sp, THREAD_CTX_REG_SP, REG_SP
+	XRET
+
+exception_from_user:
+	/* a0 is CSR_XCAUSE */
+	li	a1, CAUSE_USER_ECALL
+	bne	a0, a1, abort_from_user
+ecall_from_user:
+	/* Load and set kernel sp from thread context */
+	get_thread_ctx a0, a1
+	load_xregs a0, THREAD_CTX_KERN_SP, REG_SP
+
+	/* Now sp is kernel sp, create stack for struct thread_scall_regs */
+	addi	sp, sp, -THREAD_SCALL_REGS_SIZE
+	/* Save user sp */
+	load_xregs tp, THREAD_CORE_LOCAL_X0, REG_A0
+	store_xregs sp, THREAD_SCALL_REG_SP, REG_A0
+
+	/* Restore user a0, a1 which can be saved later */
+	load_xregs tp, THREAD_CORE_LOCAL_X1, REG_A0, REG_A1
+
+	/* Save user gp */
+	store_xregs sp, THREAD_SCALL_REG_GP, REG_GP
+	/*
+	 * Set the scratch register to 0 such in case of a recursive
+	 * exception thread_trap_vect() knows that it is emitted from kernel.
+	 */
+	csrrw	gp, CSR_XSCRATCH, zero
+	/* Save user tp we previously swapped into CSR_XSCRATCH */
+	store_xregs sp, THREAD_SCALL_REG_TP, REG_GP
+	/* Set kernel gp */
+.option push
+.option norelax
+	la	gp, __global_pointer$
+.option pop
+
+	/* Save other caller-saved registers */
+	store_xregs sp, THREAD_SCALL_REG_RA, REG_RA
+	store_xregs sp, THREAD_SCALL_REG_T0, REG_T0, REG_T2
+	store_xregs sp, THREAD_SCALL_REG_A0, REG_A0, REG_A7
+	store_xregs sp, THREAD_SCALL_REG_T3, REG_T3, REG_T6
+	/* Save XIE */
+	csrr	a0, CSR_XIE
+	store_xregs sp, THREAD_SCALL_REG_IE, REG_A0
+	/* Mask all interrupts */
+	csrw	CSR_XIE, zero
+	/* Save XSTATUS */
+	csrr	a0, CSR_XSTATUS
+	store_xregs sp, THREAD_SCALL_REG_STATUS, REG_A0
+	/* Save XEPC */
+	csrr	a0, CSR_XEPC
+	store_xregs sp, THREAD_SCALL_REG_EPC, REG_A0
+
+	/*
+	 * a0 = struct thread_scall_regs *regs
+	 * Call thread_scall_handler(regs)
+	 */
+	mv	a0, sp
+	call	thread_scall_handler
+
+	/*
+	 * Save kernel sp we'll had at the beginning of this function.
+	 * This is when this TA has called another TA because
+	 * __thread_enter_user_mode() also saves the stack pointer in this
+	 * field.
+	 */
+	get_thread_ctx a0, a1
+	addi	t0, sp, THREAD_SCALL_REGS_SIZE
+	store_xregs a0, THREAD_CTX_KERN_SP, REG_T0
+
+	/*
+	 * We are returning to U-Mode, on return, the program counter
+	 * is set to xsepc (pc=xepc), we add 4 (size of an instruction)
+	 * to continue to next instruction.
+	 */
+	load_xregs sp, THREAD_SCALL_REG_EPC, REG_T0
+	addi	t0, t0, 4
+	csrw	CSR_XEPC, t0
+
+	/* Restore XIE */
+	load_xregs sp, THREAD_SCALL_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
+	/* Restore XSTATUS */
+	load_xregs sp, THREAD_SCALL_REG_STATUS, REG_T0
+	csrw	CSR_XSTATUS, t0
+	/* Set scratch as thread_core_local */
+	csrw	CSR_XSCRATCH, tp
+	/* Restore caller-saved registers */
+	load_xregs sp, THREAD_SCALL_REG_RA, REG_RA
+	load_xregs sp, THREAD_SCALL_REG_GP, REG_GP
+	load_xregs sp, THREAD_SCALL_REG_TP, REG_TP
+	load_xregs sp, THREAD_SCALL_REG_T0, REG_T0, REG_T2
+	load_xregs sp, THREAD_SCALL_REG_A0, REG_A0, REG_A7
+	load_xregs sp, THREAD_SCALL_REG_T3, REG_T3, REG_T6
+	load_xregs sp, THREAD_SCALL_REG_SP, REG_SP
+	XRET
+
+abort_from_user:
+	/*
+	 * Update core local flags
+	 */
+	lw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
+	slli	a0, a0, THREAD_CLF_SAVED_SHIFT
+	ori	a0, a0, THREAD_CLF_ABORT
+	sw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
+
+	/*
+	 * Save state on stack
+	 */
+
+	/* Load abt_stack_va_end and set it as sp */
+	load_xregs tp, THREAD_CORE_LOCAL_ABT_STACK_VA_END, REG_SP
+
+	/* Now sp is abort sp, create stack for struct thread_abort_regs */
+	addi	sp, sp, -THREAD_ABT_REGS_SIZE
+
+	/* Save user sp */
+	load_xregs tp, THREAD_CORE_LOCAL_X0, REG_A0
+	store_xregs sp, THREAD_ABT_REG_SP, REG_A0
+
+	/* Restore user a0, a1 which can be saved later */
+	load_xregs tp, THREAD_CORE_LOCAL_X1, REG_A0, REG_A1
+
+	/* Save user gp */
+	store_xregs sp, THREAD_ABT_REG_GP, REG_GP
+
+	/*
+	 * Set the scratch register to 0 such in case of a recursive
+	 * exception thread_trap_vect() knows that it is emitted from kernel.
+	 */
+	csrrw	gp, CSR_XSCRATCH, zero
+	/* Save user tp we previously swapped into CSR_XSCRATCH */
+	store_xregs sp, THREAD_ABT_REG_TP, REG_GP
+	/* Set kernel gp */
+.option push
+.option norelax
+	la	gp, __global_pointer$
+.option pop
+	/* Save all other GPRs */
+	store_xregs sp, THREAD_ABT_REG_RA, REG_RA
+	store_xregs sp, THREAD_ABT_REG_T0, REG_T0, REG_T2
+	store_xregs sp, THREAD_ABT_REG_S0, REG_S0, REG_S1
+	store_xregs sp, THREAD_ABT_REG_A0, REG_A0, REG_A7
+	store_xregs sp, THREAD_ABT_REG_S2, REG_S2, REG_S11
+	store_xregs sp, THREAD_ABT_REG_T3, REG_T3, REG_T6
+	/* Save XIE */
+	csrr	t0, CSR_XIE
+	store_xregs sp, THREAD_ABT_REG_IE, REG_T0
+	/* Mask all interrupts */
+	csrw	CSR_XIE, x0
+	/* Save XSTATUS */
+	csrr	t0, CSR_XSTATUS
+	store_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
+	/* Save XEPC */
+	csrr	t0, CSR_XEPC
+	store_xregs sp, THREAD_ABT_REG_EPC, REG_T0
+	/* Save XTVAL */
+	csrr	t0, CSR_XTVAL
+	store_xregs sp, THREAD_ABT_REG_TVAL, REG_T0
+	/* Save XCAUSE */
+	csrr	a0, CSR_XCAUSE
+	store_xregs sp, THREAD_ABT_REG_CAUSE, REG_A0
+
+	/*
+	 * a0 = cause
+	 * a1 = sp (struct thread_abort_regs *regs)
+	 * Call abort_handler(cause, regs)
+	 */
+	mv	a1, sp
+	call	abort_handler
+
+	/*
+	 * Restore state from stack
+	 */
+
+	/* Restore XEPC */
+	load_xregs sp, THREAD_ABT_REG_EPC, REG_T0
+	csrw	CSR_XEPC, t0
+	/* Restore XIE */
+	load_xregs sp, THREAD_ABT_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
+	/* Restore XSTATUS */
+	load_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
+	csrw	CSR_XSTATUS, t0
+	/* Set scratch as thread_core_local */
+	csrw	CSR_XSCRATCH, tp
+
+	/* Update core local flags */
+	lw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
+	srli	a0, a0, THREAD_CLF_SAVED_SHIFT
+	sw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
+
+	/* Restore all GPRs */
+	load_xregs sp, THREAD_ABT_REG_RA, REG_RA
+	load_xregs sp, THREAD_ABT_REG_GP, REG_GP
+	load_xregs sp, THREAD_ABT_REG_TP, REG_TP
+	load_xregs sp, THREAD_ABT_REG_T0, REG_T0, REG_T2
+	load_xregs sp, THREAD_ABT_REG_S0, REG_S0, REG_S1
+	load_xregs sp, THREAD_ABT_REG_A0, REG_A0, REG_A7
+	load_xregs sp, THREAD_ABT_REG_S2, REG_S2, REG_S11
+	load_xregs sp, THREAD_ABT_REG_T3, REG_T3, REG_T6
+	load_xregs sp, THREAD_ABT_REG_SP, REG_SP
 	XRET
 END_FUNC trap_from_user
 

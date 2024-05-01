@@ -83,14 +83,14 @@ struct thread_abort_regs {
 	unsigned long t4;
 	unsigned long t5;
 	unsigned long t6;
-	unsigned long status;
-	unsigned long cause;
 	unsigned long epc;
+	unsigned long status;
+	unsigned long ie;
+	unsigned long cause;
 	unsigned long tval;
-	unsigned long satp;
-};
+} __aligned(16);
 
-struct thread_trap_regs {
+struct thread_scall_regs {
 	unsigned long ra;
 	unsigned long sp;
 	unsigned long gp;
@@ -98,8 +98,6 @@ struct thread_trap_regs {
 	unsigned long t0;
 	unsigned long t1;
 	unsigned long t2;
-	unsigned long s0;
-	unsigned long s1;
 	unsigned long a0;
 	unsigned long a1;
 	unsigned long a2;
@@ -108,16 +106,6 @@ struct thread_trap_regs {
 	unsigned long a5;
 	unsigned long a6;
 	unsigned long a7;
-	unsigned long s2;
-	unsigned long s3;
-	unsigned long s4;
-	unsigned long s5;
-	unsigned long s6;
-	unsigned long s7;
-	unsigned long s8;
-	unsigned long s9;
-	unsigned long s10;
-	unsigned long s11;
 	unsigned long t3;
 	unsigned long t4;
 	unsigned long t5;
@@ -125,22 +113,6 @@ struct thread_trap_regs {
 	unsigned long epc;
 	unsigned long status;
 	unsigned long ie;
-} __aligned(16);
-
-struct thread_scall_regs {
-	unsigned long a0;
-	unsigned long a1;
-	unsigned long a2;
-	unsigned long a3;
-	unsigned long a4;
-	unsigned long a5;
-	unsigned long a6;
-	unsigned long a7;
-	unsigned long t0;
-	unsigned long t1;
-	unsigned long ra;
-	unsigned long sp;
-	unsigned long status;
 } __aligned(16);
 
 struct thread_ctx_regs {

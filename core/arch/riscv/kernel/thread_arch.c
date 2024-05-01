@@ -103,15 +103,15 @@ static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 	regs->sp = thread_get_saved_thread_sp();
 }
 
-static void thread_unhandled_trap(struct thread_trap_regs *regs __unused,
-				  unsigned long cause __unused)
+static void thread_unhandled_trap(unsigned long cause __unused,
+				  struct thread_ctx_regs *regs __unused)
 {
 	DMSG("Unhandled trap xepc:0x%016lx xcause:0x%016lx xtval:0x%016lx",
 	     read_csr(CSR_XEPC), read_csr(CSR_XCAUSE), read_csr(CSR_XTVAL));
 	panic();
 }
 
-void  thread_scall_handler(struct thread_scall_regs *regs)
+void thread_scall_handler(struct thread_scall_regs *regs)
 {
 	struct ts_session *sess = NULL;
 	uint32_t state = 0;
@@ -137,169 +137,26 @@ void  thread_scall_handler(struct thread_scall_regs *regs)
 	}
 }
 
-static void copy_scall_to_trap(struct thread_scall_regs *scall_regs,
-			       struct thread_trap_regs *trap_regs)
-{
-	trap_regs->a0 = scall_regs->a0;
-	trap_regs->a1 = scall_regs->a1;
-	trap_regs->a2 = scall_regs->a2;
-	trap_regs->a3 = scall_regs->a3;
-	trap_regs->a4 = scall_regs->a4;
-	trap_regs->a5 = scall_regs->a5;
-	trap_regs->a6 = scall_regs->a6;
-	trap_regs->a7 = scall_regs->a7;
-	trap_regs->t0 = scall_regs->t0;
-	trap_regs->t1 = scall_regs->t1;
-}
-
-static void copy_trap_to_scall(struct thread_trap_regs *trap_regs,
-			       struct thread_scall_regs *scall_regs)
-{
-	*scall_regs = (struct thread_scall_regs) {
-		.status = trap_regs->status,
-		.ra = trap_regs->ra,
-		.a0 = trap_regs->a0,
-		.a1 = trap_regs->a1,
-		.a2 = trap_regs->a2,
-		.a3 = trap_regs->a3,
-		.a4 = trap_regs->a4,
-		.a5 = trap_regs->a5,
-		.a6 = trap_regs->a6,
-		.a7 = trap_regs->a7,
-		.t0 = trap_regs->t0,
-		.t1 = trap_regs->t1,
-	};
-}
-
-static void thread_user_ecall_handler(struct thread_trap_regs *trap_regs)
-{
-	struct thread_scall_regs scall_regs;
-	struct thread_core_local *l = thread_get_core_local();
-	int ct = l->curr_thread;
-
-	copy_trap_to_scall(trap_regs, &scall_regs);
-	thread_scall_handler(&scall_regs);
-	copy_scall_to_trap(&scall_regs, trap_regs);
-	/*
-	 * Save kernel sp we'll had at the beginning of this function.
-	 * This is when this TA has called another TA because
-	 * __thread_enter_user_mode() also saves the stack pointer in this
-	 * field.
-	 */
-	threads[ct].kern_sp = (unsigned long)(trap_regs + 1);
-	/*
-	 * We are returning to U-Mode, on return, the program counter
-	 * is set to xsepc (pc=xepc), we add 4 (size of an instruction)
-	 * to continue to next instruction.
-	 */
-	trap_regs->epc += 4;
-}
-
-static void copy_trap_to_abort(struct thread_trap_regs *trap_regs,
-			       struct thread_abort_regs *abort_regs)
-{
-	*abort_regs = (struct thread_abort_regs) {
-		.status = trap_regs->status,
-		.ra = trap_regs->ra,
-		.sp = trap_regs->sp,
-		.gp = trap_regs->gp,
-		.tp = trap_regs->tp,
-		.t0 = trap_regs->t0,
-		.t1 = trap_regs->t1,
-		.t2 = trap_regs->t2,
-		.s0 = trap_regs->s0,
-		.s1 = trap_regs->s1,
-		.a0 = trap_regs->a0,
-		.a1 = trap_regs->a1,
-		.a2 = trap_regs->a2,
-		.a3 = trap_regs->a3,
-		.a4 = trap_regs->a4,
-		.a5 = trap_regs->a5,
-		.a6 = trap_regs->a6,
-		.a7 = trap_regs->a7,
-		.s2 = trap_regs->s2,
-		.s3 = trap_regs->s3,
-		.s4 = trap_regs->s4,
-		.s5 = trap_regs->s5,
-		.s6 = trap_regs->s6,
-		.s7 = trap_regs->s7,
-		.s8 = trap_regs->s8,
-		.s9 = trap_regs->s9,
-		.s10 = trap_regs->s10,
-		.s11 = trap_regs->s11,
-		.t3 = trap_regs->t3,
-		.t4 = trap_regs->t4,
-		.t5 = trap_regs->t5,
-		.t6 = trap_regs->t6,
-	};
-}
-
-static void thread_abort_handler(struct thread_trap_regs *trap_regs,
-				 unsigned long cause)
-{
-	struct thread_abort_regs abort_regs = { };
-
-	assert(cause == read_csr(CSR_XCAUSE));
-	copy_trap_to_abort(trap_regs, &abort_regs);
-	abort_regs.cause = read_csr(CSR_XCAUSE);
-	abort_regs.epc = read_csr(CSR_XEPC);
-	abort_regs.tval = read_csr(CSR_XTVAL);
-	abort_regs.satp = read_csr(CSR_SATP);
-	abort_handler(cause, &abort_regs);
-}
-
-static void thread_exception_handler(unsigned long cause,
-				     struct thread_trap_regs *regs)
-{
-	switch (cause) {
-	case CAUSE_USER_ECALL:
-		thread_user_ecall_handler(regs);
-		break;
-	default:
-		thread_abort_handler(regs, cause);
-		break;
-	}
-}
-
 static void thread_irq_handler(void)
 {
 	interrupt_main_handler();
 }
 
-static void thread_interrupt_handler(unsigned long cause,
-				     struct thread_trap_regs *regs)
+void thread_interrupt_handler(unsigned long cause, struct thread_ctx_regs *regs)
 {
 	switch (cause & LONG_MAX) {
 	case IRQ_XTIMER:
 		clear_csr(CSR_XIE, CSR_XIE_TIE);
 		break;
 	case IRQ_XSOFT:
-		thread_unhandled_trap(regs, cause);
+		thread_unhandled_trap(cause, regs);
 		break;
 	case IRQ_XEXT:
 		thread_irq_handler();
 		break;
 	default:
-		thread_unhandled_trap(regs, cause);
+		thread_unhandled_trap(cause, regs);
 	}
-}
-
-void thread_trap_handler(long cause, unsigned long epc __unused,
-			 struct thread_trap_regs *regs,
-			 bool user __maybe_unused)
-{
-	/*
-	 * The Interrupt bit (XLEN-1) in the cause register is set
-	 * if the trap was caused by an interrupt.
-	 */
-	if (cause < 0)
-		thread_interrupt_handler(cause, regs);
-	/*
-	 * Otherwise, cause is never written by the implementation,
-	 * though it may be explicitly written by software.
-	 */
-	else
-		thread_exception_handler(cause, regs);
 }
 
 unsigned long xstatus_for_xret(uint8_t pie, uint8_t pp)
@@ -611,7 +468,6 @@ void thread_init_tvec(void)
 {
 	unsigned long tvec = (unsigned long)get_trap_vect();
 
-	static_assert(sizeof(struct thread_trap_regs) % 16 == 0);
 	write_csr(CSR_XTVEC, tvec);
 	assert(read_csr(CSR_XTVEC) == tvec);
 }
