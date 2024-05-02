@@ -112,6 +112,7 @@ static void assert_type_is_valid(enum dt_driver_type type)
 	case DT_DRIVER_INTERRUPT:
 	case DT_DRIVER_REGULATOR:
 	case DT_DRIVER_NVMEM:
+	case DT_DRIVER_FIREWALL:
 		return;
 	default:
 		assert(0);
@@ -197,6 +198,9 @@ int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
 		break;
 	case DT_DRIVER_GPIO:
 		cells_name = "#gpio-cells";
+		break;
+	case DT_DRIVER_FIREWALL:
+		cells_name = "#access-controller-cells";
 		break;
 	case DT_DRIVER_I2C:
 	case DT_DRIVER_REGULATOR:

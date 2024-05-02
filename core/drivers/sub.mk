@@ -90,6 +90,7 @@ srcs-$(CFG_FFA_CONSOLE) += ffa_console.c
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt
 subdirs-$(CFG_DRIVERS_CLK) += clk
+subdirs-$(CFG_DRIVERS_FIREWALL) += firewall
 subdirs-$(CFG_DRIVERS_GPIO) += gpio
 subdirs-$(CFG_DRIVERS_I2C) += i2c
 subdirs-$(CFG_DRIVERS_NVMEM) += nvmem
