@@ -411,3 +411,8 @@ CFG_STM32_DEBUG_ACCESS ?= $(CFG_TEE_CORE_DEBUG)
 ifeq ($(call cfg-all-enabled,CFG_STM32MP15 CFG_STM32MP13),y)
 $(error CFG_STM32MP13_CLK and CFG_STM32MP15_CLK are exclusive)
 endif
+
+CFG_DRIVERS_FIREWALL ?= y
+ifeq ($(CFG_STM32_ETZPC),y)
+$(call force,CFG_DRIVERS_FIREWALL,y)
+endif
