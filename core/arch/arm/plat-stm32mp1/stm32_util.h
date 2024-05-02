@@ -202,6 +202,8 @@ enum stm32mp_shres {
 	STM32MP1_SHRES_COUNT
 };
 
+bool stm32mp_allow_probe_shared_device(const void *fdt, int node);
+
 #ifdef CFG_STM32MP1_SHARED_RESOURCES
 /* Register resource @id as a secure peripheral */
 void stm32mp_register_secure_periph(enum stm32mp_shres id);

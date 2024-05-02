@@ -109,6 +109,9 @@
 #define UART7_BASE			0x40018000
 #define UART8_BASE			0x40019000
 
+#define ROM_BASE			0
+#define ROM_SIZE			0x20000
+
 /* Console configuration */
 #define STM32MP1_DEBUG_USART_BASE	UART4_BASE
 #define GIC_SPI_UART4			84
