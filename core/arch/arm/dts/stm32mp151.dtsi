@@ -6,6 +6,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <dt-bindings/reset/stm32mp1-resets.h>
+#include <dt-bindings/firewall/stm32mp15-etzpc.h>
 
 / {
 	#address-cells = <1>;
