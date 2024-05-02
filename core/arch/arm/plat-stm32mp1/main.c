@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2017-2022, STMicroelectronics
+ * Copyright (c) 2017-2024, STMicroelectronics
  * Copyright (c) 2016-2018, Linaro Limited
  */
 
@@ -14,7 +14,6 @@
 #include <drivers/stm32_iwdg.h>
 #include <drivers/stm32_tamp.h>
 #include <drivers/stm32_uart.h>
-#include <drivers/stm32mp1_etzpc.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #include <io.h>
 #include <kernel/boot.h>

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2023, STMicroelectronics
+ * Copyright (c) 2017-2024, STMicroelectronics
  */
 
 #include <config.h>
 #include <drivers/pinctrl.h>
 #include <drivers/stm32_etzpc.h>
 #include <drivers/stm32_gpio.h>
-#include <drivers/stm32mp1_etzpc.h>
 #include <drivers/stm32mp1_rcc.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #include <initcall.h>
