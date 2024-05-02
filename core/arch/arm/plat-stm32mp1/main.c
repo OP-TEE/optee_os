@@ -22,6 +22,7 @@
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <sm/psci.h>
@@ -492,3 +493,33 @@ early_init_late(init_debug);
 
 /* Some generic resources need to be unpaged */
 DECLARE_KEEP_PAGER(pinctrl_apply_state);
+
+bool stm32mp_allow_probe_shared_device(const void *fdt, int node)
+{
+	static int uart_console_node = -1;
+	const char *compat = NULL;
+	static bool once;
+
+	if (IS_ENABLED(CFG_STM32_ALLOW_UNSAFE_PROBE))
+		return true;
+
+	if (!once) {
+		get_console_node_from_dt((void *)fdt, &uart_console_node,
+					 NULL, NULL);
+		once = true;
+	}
+
+	compat = fdt_stringlist_get(fdt, node, "compatible", 0, NULL);
+
+	/*
+	 * Allow OP-TEE console and MP15 I2C and RNG to be shared
+	 * with non-secure world.
+	 */
+	if (node == uart_console_node ||
+	    !strcmp(compat, "st,stm32mp15-i2c-non-secure") ||
+	    (!strcmp(compat, "st,stm32-rng") &&
+	     IS_ENABLED(CFG_WITH_SOFTWARE_PRNG)))
+		return true;
+
+	return false;
+}
