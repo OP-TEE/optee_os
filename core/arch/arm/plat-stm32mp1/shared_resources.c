@@ -593,70 +593,6 @@ static bool mckprot_resource(enum stm32mp_shres id)
 	}
 }
 
-#ifdef CFG_STM32_ETZPC
-static enum etzpc_decprot_attributes shres2decprot_attr(enum stm32mp_shres id)
-{
-	if (!stm32mp_periph_is_secure(id))
-		return ETZPC_DECPROT_NS_RW;
-
-	if (mckprot_resource(id))
-		return ETZPC_DECPROT_MCU_ISOLATION;
-
-	return ETZPC_DECPROT_S_RW;
-}
-
-/* Configure ETZPC cell and lock it when resource is secure */
-static void config_lock_decprot(uint32_t decprot_id,
-				enum etzpc_decprot_attributes decprot_attr)
-{
-	etzpc_configure_decprot(decprot_id, decprot_attr);
-
-	if (decprot_attr == ETZPC_DECPROT_S_RW)
-		etzpc_lock_decprot(decprot_id);
-}
-
-static void set_etzpc_secure_configuration(void)
-{
-	/* Some peripherals shall be secure */
-	config_lock_decprot(STM32MP1_ETZPC_STGENC_ID, ETZPC_DECPROT_S_RW);
-	config_lock_decprot(STM32MP1_ETZPC_BKPSRAM_ID, ETZPC_DECPROT_S_RW);
-	config_lock_decprot(STM32MP1_ETZPC_DDRCTRL_ID, ETZPC_DECPROT_NS_R_S_W);
-	config_lock_decprot(STM32MP1_ETZPC_DDRPHYC_ID, ETZPC_DECPROT_NS_R_S_W);
-
-	/* Configure ETZPC with peripheral registering */
-	config_lock_decprot(STM32MP1_ETZPC_IWDG1_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_IWDG1));
-	config_lock_decprot(STM32MP1_ETZPC_USART1_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_USART1));
-	config_lock_decprot(STM32MP1_ETZPC_SPI6_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_SPI6));
-	config_lock_decprot(STM32MP1_ETZPC_I2C4_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_I2C4));
-	config_lock_decprot(STM32MP1_ETZPC_RNG1_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_RNG1));
-	config_lock_decprot(STM32MP1_ETZPC_HASH1_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_HASH1));
-	config_lock_decprot(STM32MP1_ETZPC_CRYP1_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_CRYP1));
-	config_lock_decprot(STM32MP1_ETZPC_I2C6_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_I2C6));
-
-	config_lock_decprot(STM32MP1_ETZPC_SRAM1_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_SRAM1));
-	config_lock_decprot(STM32MP1_ETZPC_SRAM2_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_SRAM2));
-	config_lock_decprot(STM32MP1_ETZPC_SRAM3_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_SRAM3));
-	config_lock_decprot(STM32MP1_ETZPC_SRAM4_ID,
-			    shres2decprot_attr(STM32MP1_SHRES_SRAM4));
-}
-#else
-static void set_etzpc_secure_configuration(void)
-{
-	/* Nothing to do */
-}
-#endif
-
 static void rcc_secure_configuration(void)
 {
 	bool secure = stm32_rcc_is_secure();
@@ -740,7 +676,6 @@ static TEE_Result stm32mp1_init_final_shres(void)
 		     shres2str_id(id), id, shres2str_state(*state));
 	}
 
-	set_etzpc_secure_configuration();
 	if (IS_ENABLED(CFG_STM32_GPIO)) {
 		set_gpio_secure_configuration();
 		register_pm_driver_cb(gpioz_pm, NULL,
