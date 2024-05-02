@@ -6,6 +6,7 @@
 
 #include <dt-bindings/clock/stm32mp13-clks.h>
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
+#include <dt-bindings/firewall/stm32mp13-etzpc.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/regulator/st,stm32mp13-regulator.h>
 #include <dt-bindings/reset/stm32mp13-resets.h>
