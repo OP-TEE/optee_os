@@ -158,10 +158,13 @@ void callout_service_cb(void)
 		 * schedule_next_timeout() saves the core it was last
 		 * called on. If there's a mismatch here it means that
 		 * another core has been scheduled for the next callout, so
-		 * there's no work to be done for this core.
+		 * there's no work to be done for this core and we can
+		 * disable the timeout on this CPU.
 		 */
 		cpu_spin_lock(&callout_sched_lock);
 		do_callout = (get_core_pos() == callout_sched_core);
+		if (!do_callout)
+			desc->disable_timeout(desc);
 		cpu_spin_unlock(&callout_sched_lock);
 		if (!do_callout)
 			return;
