@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2022, STMicroelectronics
+ * Copyright (c) 2022-2024, STMicroelectronics
  */
 #ifndef __DRIVERS_STM32MP_DT_BINDINGS_H
 #define __DRIVERS_STM32MP_DT_BINDINGS_H
@@ -10,12 +10,14 @@
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
 #include <dt-bindings/regulator/st,stm32mp13-regulator.h>
 #include <dt-bindings/reset/stm32mp13-resets.h>
+#include <dt-bindings/soc/stm32mp13-etzpc.h>
 #endif
 
 #ifdef CFG_STM32MP15
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <dt-bindings/regulator/st,stm32mp15-regulator.h>
 #include <dt-bindings/reset/stm32mp1-resets.h>
+#include <dt-bindings/soc/stm32mp15-etzpc.h>
 #endif
 
 #ifdef CFG_STM32MP25
