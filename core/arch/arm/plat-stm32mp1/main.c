@@ -10,6 +10,7 @@
 #include <drivers/gic.h>
 #include <drivers/pinctrl.h>
 #include <drivers/stm32_etzpc.h>
+#include <drivers/firewall_device.h>
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32_iwdg.h>
 #include <drivers/stm32_tamp.h>
@@ -22,6 +23,8 @@
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
+#include <libfdt.h>
+#include <malloc.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <sm/psci.h>
@@ -302,10 +305,29 @@ service_init_late(init_stm32mp15_secure_srams);
 
 static TEE_Result init_stm32mp1_drivers(void)
 {
-	struct etzpc_device *etzpc_dev = stm32_get_etzpc_device();
+	struct dt_driver_provider *prov = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t firewall_query_args[2] = { ETZPC_TZMA1_ID, SYSRAM_SEC_SIZE };
+	struct firewall_query firewall = {
+		.args = firewall_query_args,
+		.arg_count = ARRAY_SIZE(firewall_query_args),
+	};
+	int node = 0;
 
-	etzpc_do_configure_tzma(etzpc_dev, 1,
-				SYSRAM_SEC_SIZE >> SMALL_PAGE_SHIFT);
+	node = fdt_node_offset_by_compatible(get_embedded_dt(), -1,
+					     "st,stm32-etzpc");
+	if (node < 0)
+		panic("Could not get ETZPC node");
+
+	prov = dt_driver_get_provider_by_node(node, DT_DRIVER_FIREWALL);
+	assert(prov);
+
+	firewall.firewall_ctrl = dt_driver_provider_priv_data(prov);
+
+	/* Secure SYSRAM */
+	res = firewall_set_configuration(&firewall);
+	if (res)
+		panic("Unable to secure SYSRAM");
 
 	if (SYSRAM_SIZE > SYSRAM_SEC_SIZE) {
 		size_t nsec_size = SYSRAM_SIZE - SYSRAM_SEC_SIZE;
@@ -322,7 +344,7 @@ static TEE_Result init_stm32mp1_drivers(void)
 	return TEE_SUCCESS;
 }
 
-driver_init_late(init_stm32mp1_drivers);
+service_init_late(init_stm32mp1_drivers);
 
 static TEE_Result init_late_stm32mp1_drivers(void)
 {

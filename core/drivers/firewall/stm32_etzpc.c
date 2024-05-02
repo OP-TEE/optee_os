@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <drivers/clk_dt.h>
 #include <drivers/stm32_etzpc.h>
+#include <drivers/firewall.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #include <initcall.h>
 #include <io.h>
@@ -22,8 +23,10 @@
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <kernel/spinlock.h>
+#include <kernel/tee_misc.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <stm32_util.h>
 #include <util.h>
 
@@ -109,12 +112,12 @@ struct etzpc_device {
 	unsigned int lock;
 };
 
-static struct etzpc_device *etzpc_device;
-
-struct etzpc_device *stm32_get_etzpc_device(void)
-{
-	return etzpc_device;
-}
+static const char *const etzpc_decprot_strings[] __maybe_unused = {
+	"ETZPC_DECPROT_S_RW",
+	"ETZPC_DECPROT_NS_R_S_W",
+	"ETZPC_DECPROT_MCU_ISOLATION",
+	"ETZPC_DECPROT_NS_RW",
+};
 
 static uint32_t etzpc_lock(struct etzpc_device *dev)
 {
@@ -167,7 +170,8 @@ static void etzpc_do_configure_decprot(struct etzpc_device *etzpc_dev,
 
 	assert(valid_decprot_id(etzpc_dev, decprot_id));
 
-	FMSG("ID : %"PRIu32", CONF %d", decprot_id, attr);
+	DMSG("ID : %"PRIu32", CONF %s", decprot_id,
+	     etzpc_decprot_strings[attr]);
 
 	exceptions = etzpc_lock(etzpc_dev);
 
@@ -223,8 +227,8 @@ static bool decprot_is_locked(struct etzpc_device *etzpc_dev,
 	return io_read32(base + offset + ETZPC_DECPROT_LOCK0) & mask;
 }
 
-void etzpc_do_configure_tzma(struct etzpc_device *etzpc_dev,
-			     uint32_t tzma_id, uint16_t tzma_value)
+static void etzpc_do_configure_tzma(struct etzpc_device *etzpc_dev,
+				    uint32_t tzma_id, uint16_t tzma_value)
 {
 	size_t offset = sizeof(uint32_t) * tzma_id;
 	vaddr_t base = etzpc_dev->pdata.base.va;
@@ -325,6 +329,195 @@ static TEE_Result etzpc_pm(enum pm_op op, unsigned int pm_hint __unused,
 	return TEE_SUCCESS;
 }
 DECLARE_KEEP_PAGER(etzpc_pm);
+
+static TEE_Result stm32_etzpc_check_access(struct firewall_query *firewall)
+{
+	struct etzpc_device *etzpc_dev = firewall->firewall_ctrl->priv;
+	enum etzpc_decprot_attributes attr_req = ETZPC_DECPROT_MAX;
+	enum etzpc_decprot_attributes attr = ETZPC_DECPROT_MAX;
+	uint32_t id = 0;
+
+	if (!firewall || firewall->arg_count != 2)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * Peripheral configuration, we assume the configuration is as
+	 * follows:
+	 * firewall->args[0]: Firewall ID
+	 * firewall->args[1]: DECPROT macro to extract etzpc_decprot_attributes
+	 *		      from
+	 */
+	id = firewall->args[0];
+	attr_req = etzpc_binding2decprot((firewall->args[1] >>
+					  ETZPC_MODE_SHIFT) & ETZPC_MODE_MASK);
+
+	if (id < etzpc_dev->ddata->num_per_sec) {
+		attr = etzpc_do_get_decprot(etzpc_dev, id);
+		DMSG("Check access %"PRIu32" - attr %s - requested %s", id,
+		     etzpc_decprot_strings[attr],
+		     etzpc_decprot_strings[attr_req]);
+
+		/*
+		 * Access authorized if the attributes requested match the
+		 * current configuration, or if the requester is secure and
+		 * the device is not MCU isolated, or if the requester is
+		 * non-secure and the device is not MCU isolated and not secure
+		 */
+		if (attr == attr_req ||
+		    ((attr_req == ETZPC_DECPROT_S_RW ||
+		      attr_req == ETZPC_DECPROT_NS_R_S_W) && attr !=
+		     ETZPC_DECPROT_MCU_ISOLATION) ||
+		    ((attr_req == ETZPC_DECPROT_NS_RW ||
+		      attr_req == ETZPC_DECPROT_NS_R_S_W) && attr !=
+		     ETZPC_DECPROT_MCU_ISOLATION && attr !=
+		     ETZPC_DECPROT_S_RW))
+			return TEE_SUCCESS;
+		else
+			return TEE_ERROR_ACCESS_DENIED;
+	} else {
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+}
+
+static TEE_Result stm32_etzpc_acquire_access(struct firewall_query *firewall)
+{
+	struct etzpc_device *etzpc_dev = firewall->firewall_ctrl->priv;
+	enum etzpc_decprot_attributes attr = ETZPC_DECPROT_MCU_ISOLATION;
+	uint32_t id = 0;
+
+	if (!firewall || firewall->arg_count != 2)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	id = firewall->args[0];
+
+	if (id < etzpc_dev->ddata->num_per_sec) {
+		attr = etzpc_do_get_decprot(etzpc_dev, id);
+		if (attr == ETZPC_DECPROT_MCU_ISOLATION)
+			return TEE_ERROR_ACCESS_DENIED;
+	} else {
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result
+stm32_etzpc_acquire_memory_access(struct firewall_query *firewall,
+				  paddr_t paddr, size_t size,
+				  bool read __unused, bool write __unused)
+{
+	struct etzpc_device *etzpc_dev = firewall->firewall_ctrl->priv;
+	paddr_t tzma_base = 0;
+	size_t prot_size = 0;
+	uint32_t id = 0;
+
+	if (!firewall || firewall->arg_count != 2)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	id = firewall->args[0];
+	switch (id) {
+	case ETZPC_TZMA0_ID:
+		tzma_base = ROM_BASE;
+		prot_size = etzpc_do_get_tzma(etzpc_dev, 0) * SMALL_PAGE_SIZE;
+		break;
+	case ETZPC_TZMA1_ID:
+		tzma_base = SYSRAM_BASE;
+		prot_size = etzpc_do_get_tzma(etzpc_dev, 1) * SMALL_PAGE_SIZE;
+		break;
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	DMSG("Acquiring access for TZMA%u, secured from %#"PRIxPA" to %#"PRIxPA,
+	     id == ETZPC_TZMA0_ID ? 0 : 1, tzma_base, tzma_base + prot_size);
+
+	if (core_is_buffer_inside(paddr, size, tzma_base, prot_size))
+		return TEE_SUCCESS;
+
+	return TEE_ERROR_ACCESS_DENIED;
+}
+
+static TEE_Result stm32_etzpc_configure(struct firewall_query *firewall)
+{
+	struct etzpc_device *etzpc_dev = firewall->firewall_ctrl->priv;
+	enum etzpc_decprot_attributes attr = ETZPC_DECPROT_MAX;
+	unsigned int total_sz = 0;
+	uint32_t id = 0;
+
+	if (firewall->arg_count != 2)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	id = firewall->args[0];
+
+	FMSG("Setting firewall configuration for peripheral ID: %"PRIu32, id);
+
+	if (id < etzpc_dev->ddata->num_per_sec) {
+		uint32_t mode = 0;
+
+		/*
+		 * Peripheral configuration, we assume the configuration is as
+		 * follows:
+		 * firewall->args[0]: Firewall ID
+		 * firewall->args[1]: Firewall configuration to apply
+		 */
+
+		mode = (firewall->args[1] >> ETZPC_MODE_SHIFT) &
+		       ETZPC_MODE_MASK;
+		attr = etzpc_binding2decprot(mode);
+
+		if (decprot_is_locked(etzpc_dev, id)) {
+			EMSG("Peripheral configuration locked");
+			return TEE_ERROR_ACCESS_DENIED;
+		}
+
+		etzpc_do_configure_decprot(etzpc_dev, id, attr);
+		if (firewall->args[1] & ETZPC_LOCK_MASK)
+			etzpc_do_lock_decprot(etzpc_dev, id);
+
+		return TEE_SUCCESS;
+	} else if (id == ETZPC_TZMA0_ID || id == ETZPC_TZMA1_ID) {
+		unsigned int tzma_id = 0;
+
+		/*
+		 * TZMA configuration, we assume the configuration is as
+		 * follows:
+		 * firewall->args[0]: One of ETZPC_TZMA0_ID/ETZPC_TZMA1_ID
+		 * firewall->args[1]: Memory size to secure
+		 */
+		switch (firewall->args[0]) {
+		case ETZPC_TZMA0_ID:
+			if (firewall->args[1] > ROM_SIZE)
+				return TEE_ERROR_BAD_PARAMETERS;
+
+			tzma_id = 0;
+			break;
+		case ETZPC_TZMA1_ID:
+			if (firewall->args[1] > SYSRAM_SIZE)
+				return TEE_ERROR_BAD_PARAMETERS;
+
+			tzma_id = 1;
+			break;
+		default:
+			return TEE_ERROR_BAD_PARAMETERS;
+		}
+
+		assert(IS_ALIGNED(firewall->args[1], SMALL_PAGE_SIZE));
+
+		if (tzma_is_locked(etzpc_dev, tzma_id)) {
+			EMSG("TZMA configuration locked");
+			return TEE_ERROR_ACCESS_DENIED;
+		}
+
+		total_sz = ROUNDUP_DIV(firewall->args[1], SMALL_PAGE_SIZE);
+		etzpc_do_configure_tzma(etzpc_dev, tzma_id, total_sz);
+	} else {
+		EMSG("Unknown firewall ID: %"PRIu32, id);
+
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	return TEE_SUCCESS;
+}
 
 static struct etzpc_device *stm32_etzpc_alloc(void)
 {
@@ -445,12 +638,19 @@ static TEE_Result init_etzpc_from_dt(struct etzpc_device *etzpc_dev,
 	return TEE_SUCCESS;
 }
 
+static const struct firewall_controller_ops firewall_ops = {
+	.set_conf = stm32_etzpc_configure,
+	.check_access = stm32_etzpc_check_access,
+	.acquire_access = stm32_etzpc_acquire_access,
+	.acquire_memory_access = stm32_etzpc_acquire_memory_access,
+};
+
 static TEE_Result stm32_etzpc_probe(const void *fdt, int node,
 				    const void *compat_data __unused)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct etzpc_device *etzpc_dev = stm32_etzpc_alloc();
-	int subnode = 0;
+	struct firewall_controller *controller = NULL;
 
 	if (!etzpc_dev) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
@@ -464,16 +664,24 @@ static TEE_Result stm32_etzpc_probe(const void *fdt, int node,
 		return res;
 	}
 
-	etzpc_device = etzpc_dev;
-
-	fdt_for_each_subnode(subnode, fdt, node) {
-		res = dt_driver_maybe_add_probe_node(fdt, subnode);
-		if (res) {
-			EMSG("Failed to add node %s to probe list: %#"PRIx32,
-			     fdt_get_name(fdt, subnode, NULL), res);
-			panic();
-		}
+	controller = calloc(1, sizeof(*controller));
+	if (!controller) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
 	}
+
+	controller->base = &etzpc_dev->pdata.base;
+	controller->name = etzpc_dev->pdata.name;
+	controller->priv = etzpc_dev;
+	controller->ops = &firewall_ops;
+
+	res = firewall_dt_controller_register(fdt, node, controller);
+	if (res)
+		goto err;
+
+	res = firewall_dt_probe_bus(fdt, node, controller);
+	if (res)
+		goto err;
 
 	register_pm_core_service_cb(etzpc_pm, etzpc_dev, "stm32-etzpc");
 
