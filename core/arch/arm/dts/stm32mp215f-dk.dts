@@ -10,11 +10,21 @@
 #include "stm32mp21xf.dtsi"
 #include "stm32mp215f-dk-ca35tdcid-rcc.dtsi"
 #include "stm32mp215f-dk-ca35tdcid-rif.dtsi"
+#include "stm32mp21-pinctrl.dtsi"
 #include "stm32mp21-st-scmi-cfg.dtsi"
+#include "stm32mp21xxan-pinctrl.dtsi"
 
 / {
 	model = "STMicroelectronics STM32MP215F-DK Discovery Board";
 	compatible = "st,stm32mp215f-dk", "st,stm32mp215";
+
+	aliases {
+		serial0 = &usart2;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 
 	memory@80000000 {
 		device_type = "memory";
@@ -45,3 +55,10 @@
 	timeout-sec = <32>;
 	status = "okay";
 };
+
+&usart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usart2_pins_a>;
+	status = "okay";
+};
+
