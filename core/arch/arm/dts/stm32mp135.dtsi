@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
- * Copyright (C) STMicroelectronics 2021-2022 - All Rights Reserved
+ * Copyright (C) STMicroelectronics 2021-2024 - All Rights Reserved
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
 
@@ -17,6 +17,7 @@
 				clocks = <&rcc LTDC_PX>;
 				clock-names = "lcd";
 				resets = <&rcc LTDC_R>;
+				access-controllers = <&etzpc STM32MP1_ETZPC_LTDC_ID>;
 				status = "disabled";
 			};
 		};
