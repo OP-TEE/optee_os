@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
- * Copyright (C) STMicroelectronics 2021-2023 - All Rights Reserved
+ * Copyright (C) STMicroelectronics 2021-2024 - All Rights Reserved
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
 
@@ -396,11 +396,12 @@
 		};
 
 		etzpc: etzpc@5c007000 {
-			compatible = "st,stm32-etzpc", "firewall-bus";
+			compatible = "st,stm32-etzpc", "simple-bus";
 			reg = <0x5C007000 0x400>;
 			clocks = <&rcc TZPC>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#access-controller-cells = <1>;
 
 			adc_2: adc@48004000 {
 				reg = <0x48004000 0x400>;
@@ -412,6 +413,7 @@
 				#interrupt-cells = <1>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				access-controllers = <&etzpc STM32MP1_ETZPC_ADC2_ID>;
 				status = "disabled";
 
 				adc2: adc@0 {
@@ -452,6 +454,7 @@
 				interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc USART1_K>;
 				resets = <&rcc USART1_R>;
+				access-controllers = <&etzpc STM32MP1_ETZPC_USART1_ID>;
 				status = "disabled";
 			};
 
@@ -461,6 +464,7 @@
 				interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc USART2_K>;
 				resets = <&rcc USART2_R>;
+				access-controllers = <&etzpc STM32MP1_ETZPC_USART2_ID>;
 				status = "disabled";
 			};
 
@@ -473,6 +477,7 @@
 				#size-cells = <0>;
 				st,syscfg-fmp = <&syscfg 0x4 0x4>;
 				i2c-analog-filter;
+				access-controllers = <&etzpc STM32MP1_ETZPC_I2C3_ID>;
 				status = "disabled";
 			};
 
@@ -485,6 +490,7 @@
 				#size-cells = <0>;
 				st,syscfg-fmp = <&syscfg 0x4 0x8>;
 				i2c-analog-filter;
+				access-controllers = <&etzpc STM32MP1_ETZPC_I2C4_ID>;
 				status = "disabled";
 			};
 
@@ -497,6 +503,7 @@
 				#size-cells = <0>;
 				st,syscfg-fmp = <&syscfg 0x4 0x10>;
 				i2c-analog-filter;
+				access-controllers = <&etzpc STM32MP1_ETZPC_I2C5_ID>;
 				status = "disabled";
 			};
 
@@ -508,6 +515,8 @@
 				interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc TIM12_K>;
 				clock-names = "int";
+				access-controllers = <&etzpc STM32MP1_ETZPC_TIM12_ID>;
+				status = "disabled";
 
 				counter {
 					compatible = "st,stm32-timer-counter";
@@ -522,6 +531,7 @@
 				reg = <0x4c008000 0x400>;
 				clocks = <&rcc TIM13_K>;
 				clock-names = "int";
+				access-controllers = <&etzpc STM32MP1_ETZPC_TIM13_ID>;
 				status = "disabled";
 			};
 
@@ -532,6 +542,7 @@
 				reg = <0x4c009000 0x400>;
 				clocks = <&rcc TIM14_K>;
 				clock-names = "int";
+				access-controllers = <&etzpc STM32MP1_ETZPC_TIM14_ID>;
 				status = "disabled";
 			};
 
@@ -543,6 +554,7 @@
 				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc TIM15_K>;
 				clock-names = "int";
+				access-controllers = <&etzpc STM32MP1_ETZPC_TIM15_ID>;
 				status = "disabled";
 
 				counter {
@@ -558,8 +570,8 @@
 				reg = <0x4c00b000 0x400>;
 				clocks = <&rcc TIM16_K>;
 				clock-names = "int";
+				access-controllers = <&etzpc STM32MP1_ETZPC_TIM16_ID>;
 				status = "disabled";
-
 			};
 
 			timers17: timer@4c00c000 {
@@ -569,6 +581,7 @@
 				reg = <0x4c00c000 0x400>;
 				clocks = <&rcc TIM17_K>;
 				clock-names = "int";
+				access-controllers = <&etzpc STM32MP1_ETZPC_TIM17_ID>;
 				status = "disabled";
 			};
 
@@ -580,6 +593,7 @@
 				interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc LPTIM2_K>;
 				clock-names = "mux";
+				access-controllers = <&etzpc STM32MP1_ETZPC_LPTIM2_ID>;
 				status = "disabled";
 			};
 
@@ -591,6 +605,7 @@
 				interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc LPTIM3_K>;
 				clock-names = "mux";
+				access-controllers = <&etzpc STM32MP1_ETZPC_LPTIM3_ID>;
 				status = "disabled";
 
 				counter {
@@ -606,6 +621,7 @@
 				regulator-min-microvolt = <1650000>;
 				regulator-max-microvolt = <2500000>;
 				clocks = <&rcc VREF>;
+				access-controllers = <&etzpc STM32MP1_ETZPC_VREFBUF_ID>;
 				status = "disabled";
 			};
 
@@ -615,6 +631,7 @@
 				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc HASH1>;
 				resets = <&rcc HASH1_R>;
+				access-controllers = <&etzpc STM32MP1_ETZPC_HASH_ID>;
 				status = "disabled";
 			};
 
@@ -623,6 +640,7 @@
 				reg = <0x54004000 0x400>;
 				clocks = <&rcc RNG1_K>;
 				resets = <&rcc RNG1_R>;
+				access-controllers = <&etzpc STM32MP1_ETZPC_RNG_ID>;
 				status = "disabled";
 			};
 
@@ -632,12 +650,14 @@
 				interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc IWDG1>, <&rcc CK_LSI>;
 				clock-names = "pclk", "lsi";
+				access-controllers = <&etzpc STM32MP1_ETZPC_IWDG1_ID>;
 				status = "disabled";
 			};
 
 			stgen: stgen@5c008000 {
 				compatible = "st,stm32-stgen";
 				reg = <0x5C008000 0x1000>;
+				access-controllers = <&etzpc STM32MP1_ETZPC_STGENC_ID>;
 			};
 		};
 	};
