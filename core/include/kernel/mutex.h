@@ -77,7 +77,7 @@ void mutex_lock_recursive(struct recursive_mutex *m);
 #endif
 
 struct condvar {
-	unsigned spin_lock;
+	unsigned int spin_lock;
 	struct mutex *m;
 };
 #define CONDVAR_INITIALIZER { .m = NULL }
