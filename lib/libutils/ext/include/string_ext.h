@@ -52,4 +52,66 @@ char *nex_strdup(const char *s);
  */
 void memzero_explicit(void *s, size_t count);
 
+/*
+ * ins_array_elem() - insert an element in an array
+ * @base:        start of the array
+ * @elem_count:  the number of elements in the array
+ * @elem_size:   the size of each element in the array
+ * @pos:         element position counted in units of @elem_size
+ * @elem:        pointer the the element to inser or NULL
+ *
+ * Makes room in the array at @pos by moving the element after this
+ * position one position further back.
+ *
+ * If @elem is non-NULL it's copied into the array at the indicated
+ * position.
+ *
+ * Returns a pointer to the inserted element.
+ */
+void *ins_array_elem(void *base, size_t elem_count, size_t elem_size,
+		     size_t pos, const void *elem);
+
+/*
+ * ins_array_elem_zero_init() - insert a zero-initialized element in an array
+ * @base:        start of the array
+ * @elem_count:  the number of elements in the array
+ * @elem_size:   the size of each element in the array
+ * @pos:         element position counted in units of @elem_size
+ *
+ * Makes room in the array at @pos by moving the element after this
+ * position one position further back. The free position is
+ * zero-initialized.
+ *
+ * Returns a pointer to the free position.
+ */
+void *ins_array_elem_zero_init(void *base, size_t elem_count, size_t elem_size,
+			       size_t pos);
+
+/*
+ * rem_array_elem() - remove an element from an array
+ * @base:        start of the array
+ * @elem_count:  the number of elements in the array
+ * @elem_size:   the size of each element in the array
+ * @pos:         element position counted in units of @elem_size
+ *
+ * Removes the element at @pos by advancing the element after this position
+ * to fill the space.
+ */
+void rem_array_elem(void *base, size_t elem_count, size_t elem_size,
+		    size_t pos);
+
+/*
+ * rem_array_elem_zero_pad() - remove an element from an array
+ * @base:        start of the array
+ * @elem_count:  the number of elements in the array
+ * @elem_size:   the size of each element in the array
+ * @pos:         element position counted in units of @elem_size
+ *
+ * Removes the element at @pos by advancing the element after this position
+ * to fill the space. The now unused element at the end of the array is
+ * zero-initialized.
+ */
+void rem_array_elem_zero_pad(void *base, size_t elem_count, size_t elem_size,
+			     size_t pos);
+
 #endif /* __STRING_EXT_H */

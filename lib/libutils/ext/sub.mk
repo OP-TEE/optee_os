@@ -10,6 +10,7 @@ srcs-y += consttime_memcmp.c
 srcs-y += memzero_explicit.c
 srcs-y += fault_mitigation.c
 srcs-y += qsort_helpers.c
+srcs-y += array.c
 
 ifneq (,$(filter ta_%,$(sm)))
 srcs-y += pthread_stubs.c
