@@ -70,6 +70,8 @@ struct nonnull_arg_data {
  */
 void __ubsan_handle_type_mismatch(struct type_mismatch_data *data,
 				  unsigned long ptr);
+void __ubsan_handle_type_mismatch_v1(struct type_mismatch_data *data,
+				     unsigned long ptr);
 void __ubsan_handle_add_overflow(struct overflow_data *data,
 				  unsigned long lhs, unsigned long rhs);
 void __ubsan_handle_sub_overflow(struct overflow_data *data,
@@ -80,6 +82,8 @@ void __ubsan_handle_negate_overflow(struct overflow_data *data,
 				    unsigned long old_val);
 void __ubsan_handle_divrem_overflow(struct overflow_data *data,
 				    unsigned long lhs, unsigned long rhs);
+void __ubsan_handle_pointer_overflow(struct overflow_data *data,
+				     unsigned long lhs, unsigned long rhs);
 void __ubsan_handle_shift_out_of_bounds(struct shift_out_of_bounds_data *data,
 					unsigned long lhs, unsigned long rhs);
 void __ubsan_handle_out_of_bounds(struct out_of_bounds_data *data,
@@ -113,6 +117,14 @@ static volatile bool ubsan_panic = true;
 
 void __ubsan_handle_type_mismatch(struct type_mismatch_data *data,
 				  unsigned long ptr __unused)
+{
+	print_loc(__func__, &data->loc);
+	if (ubsan_panic)
+		panic();
+}
+
+void __ubsan_handle_type_mismatch_v1(struct type_mismatch_data *data,
+				     unsigned long ptr __unused)
 {
 	print_loc(__func__, &data->loc);
 	if (ubsan_panic)
@@ -157,6 +169,15 @@ void __ubsan_handle_negate_overflow(struct overflow_data *data,
 void __ubsan_handle_divrem_overflow(struct overflow_data *data,
 				    unsigned long lhs __unused,
 				    unsigned long rhs __unused)
+{
+	print_loc(__func__, &data->loc);
+	if (ubsan_panic)
+		panic();
+}
+
+void __ubsan_handle_pointer_overflow(struct overflow_data *data,
+				     unsigned long lhs __unused,
+				     unsigned long rhs __unused)
 {
 	print_loc(__func__, &data->loc);
 	if (ubsan_panic)
