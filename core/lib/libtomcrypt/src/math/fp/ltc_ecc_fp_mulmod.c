@@ -1430,8 +1430,8 @@ int ltc_ecc_fp_save_state(unsigned char **out, unsigned long *outlen)
     */
    cache_entry = XCALLOC(FP_ENTRIES*(2*(1U<<FP_LUT)+4)+3, sizeof(ltc_asn1_list));
    if (cache_entry == NULL) {
-      err = CRYPT_MEM;
-      goto save_err;
+      LTC_MUTEX_UNLOCK(&ltc_ecc_fp_lock);
+      return CRYPT_MEM;
    }
    j = 1;   /* handle the zero'th element later */
 

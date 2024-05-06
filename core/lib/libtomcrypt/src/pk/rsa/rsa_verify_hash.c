@@ -146,7 +146,7 @@ int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  sigle
       LTC_SET_ASN1(siginfo,    0, LTC_ASN1_SEQUENCE,          digestinfo,                    2);
       LTC_SET_ASN1(siginfo,    1, LTC_ASN1_OCTET_STRING,      tmpbuf,                        siglen);
 
-      if ((err = der_decode_sequence_strict(out, outlen, siginfo, 2)) != CRYPT_OK) {
+      if (der_decode_sequence_strict(out, outlen, siginfo, 2) != CRYPT_OK) {
          /* fallback to Legacy:missing NULL */
          LTC_SET_ASN1(siginfo, 0, LTC_ASN1_SEQUENCE,          digestinfo,                    1);
          if ((err = der_decode_sequence_strict(out, outlen, siginfo, 2)) != CRYPT_OK) {

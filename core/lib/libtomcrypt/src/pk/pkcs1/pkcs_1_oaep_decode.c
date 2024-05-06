@@ -16,7 +16,8 @@
    @param lparam           The session or system data (can be NULL)
    @param lparamlen        The length of the lparam
    @param modulus_bitlen   The bit length of the RSA modulus
-   @param hash_idx         The index of the hash desired
+   @param mgf_hash         The hash algorithm used for the MGF
+   @param lparam_hash      The hash algorithm used when hashing the lparam (can be -1)
    @param out              [out] Destination of decoding
    @param outlen           [in/out] The max size and resulting size of the decoding
    @param res              [out] Result of decoding, 1==valid, 0==invalid
@@ -24,13 +25,14 @@
 */
 int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
                        const unsigned char *lparam, unsigned long lparamlen,
-                             unsigned long modulus_bitlen, int hash_idx,
+                             unsigned long modulus_bitlen,
+                             int mgf_hash, int lparam_hash,
                              unsigned char *out,    unsigned long *outlen,
                              int           *res)
 {
    unsigned char *DB, *seed, *mask;
    unsigned long hLen, x, y, modulus_len;
-   int           err, ret;
+   int           err, ret, lparam_hash_used;
 
    LTC_ARGCHK(msg    != NULL);
    LTC_ARGCHK(out    != NULL);
@@ -41,10 +43,18 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
    *res = 0;
 
    /* test valid hash */
-   if ((err = hash_is_valid(hash_idx)) != CRYPT_OK) {
+   if ((err = hash_is_valid(mgf_hash)) != CRYPT_OK) {
       return err;
    }
-   hLen        = hash_descriptor[hash_idx]->hashsize;
+   if (lparam_hash != -1) {
+      if ((err = hash_is_valid(lparam_hash)) != CRYPT_OK) {
+         return err;
+      }
+      lparam_hash_used = lparam_hash;
+   } else {
+      lparam_hash_used = mgf_hash;
+   }
+   hLen        = hash_descriptor[lparam_hash_used]->hashsize;
    modulus_len = (modulus_bitlen >> 3) + (modulus_bitlen & 7 ? 1 : 0);
 
    /* test hash/message size */
@@ -94,7 +104,7 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
    x += modulus_len - hLen - 1;
 
    /* compute MGF1 of maskedDB (hLen) */
-   if ((err = pkcs_1_mgf1(hash_idx, DB, modulus_len - hLen - 1, mask, hLen)) != CRYPT_OK) {
+   if ((err = pkcs_1_mgf1(mgf_hash, DB, modulus_len - hLen - 1, mask, hLen)) != CRYPT_OK) {
       goto LBL_ERR;
    }
 
@@ -104,7 +114,7 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
    }
 
    /* compute MGF1 of seed (k - hlen - 1) */
-   if ((err = pkcs_1_mgf1(hash_idx, seed, hLen, mask, modulus_len - hLen - 1)) != CRYPT_OK) {
+   if ((err = pkcs_1_mgf1(mgf_hash, seed, hLen, mask, modulus_len - hLen - 1)) != CRYPT_OK) {
       goto LBL_ERR;
    }
 
@@ -118,12 +128,12 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
    /* compute lhash and store it in seed [reuse temps!] */
    x = modulus_len;
    if (lparam != NULL) {
-      if ((err = hash_memory(hash_idx, lparam, lparamlen, seed, &x)) != CRYPT_OK) {
+      if ((err = hash_memory(lparam_hash_used, lparam, lparamlen, seed, &x)) != CRYPT_OK) {
          goto LBL_ERR;
       }
    } else {
       /* can't pass hash_memory a NULL so use DB with zero length */
-      if ((err = hash_memory(hash_idx, DB, 0, seed, &x)) != CRYPT_OK) {
+      if ((err = hash_memory(lparam_hash_used, DB, 0, seed, &x)) != CRYPT_OK) {
          goto LBL_ERR;
       }
    }

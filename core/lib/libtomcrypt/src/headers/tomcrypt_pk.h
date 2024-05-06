@@ -57,10 +57,10 @@ void rsa_free(rsa_key *key);
 
 /* These use PKCS #1 v2.0 padding */
 #define rsa_encrypt_key(in, inlen, out, outlen, lparam, lparamlen, prng, prng_idx, hash_idx, key) \
-  rsa_encrypt_key_ex(in, inlen, out, outlen, lparam, lparamlen, prng, prng_idx, hash_idx, LTC_PKCS_1_OAEP, key)
+  rsa_encrypt_key_ex(in, inlen, out, outlen, lparam, lparamlen, prng, prng_idx, hash_idx, -1, LTC_PKCS_1_OAEP, key)
 
 #define rsa_decrypt_key(in, inlen, out, outlen, lparam, lparamlen, hash_idx, stat, key) \
-  rsa_decrypt_key_ex(in, inlen, out, outlen, lparam, lparamlen, hash_idx, LTC_PKCS_1_OAEP, stat, key)
+  rsa_decrypt_key_ex(in, inlen, out, outlen, lparam, lparamlen, hash_idx, -1, LTC_PKCS_1_OAEP, stat, key)
 
 #define rsa_sign_hash(in, inlen, out, outlen, prng, prng_idx, hash_idx, saltlen, key) \
   rsa_sign_hash_ex(in, inlen, out, outlen, LTC_PKCS_1_PSS, prng, prng_idx, hash_idx, saltlen, key)
@@ -76,13 +76,15 @@ int rsa_encrypt_key_ex(const unsigned char *in,       unsigned long  inlen,
                              unsigned char *out,      unsigned long *outlen,
                        const unsigned char *lparam,   unsigned long  lparamlen,
                              prng_state    *prng,     int            prng_idx,
-                             int            hash_idx, int            padding,
+                             int            mgf_hash, int            lparam_hash,
+                             int            padding,
                        const rsa_key       *key);
 
 int rsa_decrypt_key_ex(const unsigned char *in,             unsigned long  inlen,
                              unsigned char *out,            unsigned long *outlen,
                        const unsigned char *lparam,         unsigned long  lparamlen,
-                             int            hash_idx,       int            padding,
+                             int            mgf_hash,       int            lparam_hash,
+                             int            padding,
                              int           *stat,     const rsa_key       *key);
 
 int rsa_sign_hash_ex(const unsigned char *in,       unsigned long  inlen,
@@ -548,43 +550,43 @@ typedef struct ltc_asn1_list_ {
    struct ltc_asn1_list_ *prev, *next, *child, *parent;
 } ltc_asn1_list;
 
-#define LTC_SET_ASN1(list, index, Type, Data, Size)  \
-   do {                                              \
-      int LTC_MACRO_temp            = (index);       \
-      ltc_asn1_list *LTC_MACRO_list = (list);        \
-      LTC_MACRO_list[LTC_MACRO_temp].type = (Type);  \
-      LTC_MACRO_list[LTC_MACRO_temp].data = (void*)(Data);  \
-      LTC_MACRO_list[LTC_MACRO_temp].size = (Size);  \
-      LTC_MACRO_list[LTC_MACRO_temp].used = 0;       \
-      LTC_MACRO_list[LTC_MACRO_temp].optional = 0;   \
-      LTC_MACRO_list[LTC_MACRO_temp].klass = 0;      \
-      LTC_MACRO_list[LTC_MACRO_temp].pc = 0;         \
-      LTC_MACRO_list[LTC_MACRO_temp].tag = 0;        \
+#define LTC_SET_ASN1(list, index, Type, Data, Size)               \
+   do {                                                           \
+      int LTC_TMPVAR(SA)            = (index);                    \
+      ltc_asn1_list *LTC_TMPVAR(SA_list) = (list);                \
+      LTC_TMPVAR(SA_list)[LTC_TMPVAR(SA)].type = (Type);          \
+      LTC_TMPVAR(SA_list)[LTC_TMPVAR(SA)].data = (void*)(Data);   \
+      LTC_TMPVAR(SA_list)[LTC_TMPVAR(SA)].size = (Size);          \
+      LTC_TMPVAR(SA_list)[LTC_TMPVAR(SA)].used = 0;               \
+      LTC_TMPVAR(SA_list)[LTC_TMPVAR(SA)].optional = 0;           \
+      LTC_TMPVAR(SA_list)[LTC_TMPVAR(SA)].klass = 0;              \
+      LTC_TMPVAR(SA_list)[LTC_TMPVAR(SA)].pc = 0;                 \
+      LTC_TMPVAR(SA_list)[LTC_TMPVAR(SA)].tag = 0;                \
    } while (0)
 
-#define LTC_SET_ASN1_IDENTIFIER(list, index, Class, Pc, Tag)      \
-   do {                                                           \
-      int LTC_MACRO_temp            = (index);                    \
-      ltc_asn1_list *LTC_MACRO_list = (list);                     \
-      LTC_MACRO_list[LTC_MACRO_temp].type = LTC_ASN1_CUSTOM_TYPE; \
-      LTC_MACRO_list[LTC_MACRO_temp].klass = (Class);             \
-      LTC_MACRO_list[LTC_MACRO_temp].pc = (Pc);                   \
-      LTC_MACRO_list[LTC_MACRO_temp].tag = (Tag);                 \
+#define LTC_SET_ASN1_IDENTIFIER(list, index, Class, Pc, Tag)               \
+   do {                                                                    \
+      int LTC_TMPVAR(SAI)       = (index);                                 \
+      ltc_asn1_list *LTC_TMPVAR(SAI_list) = (list);                        \
+      LTC_TMPVAR(SAI_list)[LTC_TMPVAR(SAI)].type = LTC_ASN1_CUSTOM_TYPE;   \
+      LTC_TMPVAR(SAI_list)[LTC_TMPVAR(SAI)].klass = (Class);               \
+      LTC_TMPVAR(SAI_list)[LTC_TMPVAR(SAI)].pc = (Pc);                     \
+      LTC_TMPVAR(SAI_list)[LTC_TMPVAR(SAI)].tag = (Tag);                   \
    } while (0)
 
-#define LTC_SET_ASN1_CUSTOM_CONSTRUCTED(list, index, Class, Tag, Data)    \
-   do {                                                           \
-      int LTC_MACRO_temp##__LINE__ = (index);                     \
-      LTC_SET_ASN1(list, LTC_MACRO_temp##__LINE__, LTC_ASN1_CUSTOM_TYPE, Data, 1);   \
-      LTC_SET_ASN1_IDENTIFIER(list, LTC_MACRO_temp##__LINE__, Class, LTC_ASN1_PC_CONSTRUCTED, Tag);       \
+#define LTC_SET_ASN1_CUSTOM_CONSTRUCTED(list, index, Class, Tag, Data)                       \
+   do {                                                                                      \
+      int LTC_TMPVAR(SACC) = (index);                                                        \
+      LTC_SET_ASN1(list, LTC_TMPVAR(SACC), LTC_ASN1_CUSTOM_TYPE, Data, 1);                   \
+      LTC_SET_ASN1_IDENTIFIER(list, LTC_TMPVAR(SACC), Class, LTC_ASN1_PC_CONSTRUCTED, Tag);  \
    } while (0)
 
-#define LTC_SET_ASN1_CUSTOM_PRIMITIVE(list, index, Class, Tag, Type, Data, Size)    \
-   do {                                                           \
-      int LTC_MACRO_temp##__LINE__ = (index);                     \
-      LTC_SET_ASN1(list, LTC_MACRO_temp##__LINE__, LTC_ASN1_CUSTOM_TYPE, Data, Size);   \
-      LTC_SET_ASN1_IDENTIFIER(list, LTC_MACRO_temp##__LINE__, Class, LTC_ASN1_PC_PRIMITIVE, Tag);       \
-      list[LTC_MACRO_temp##__LINE__].used = (int)(Type);       \
+#define LTC_SET_ASN1_CUSTOM_PRIMITIVE(list, index, Class, Tag, Type, Data, Size)          \
+   do {                                                                                   \
+      int LTC_TMPVAR(SACP) = (index);                                                     \
+      LTC_SET_ASN1(list, LTC_TMPVAR(SACP), LTC_ASN1_CUSTOM_TYPE, Data, Size);             \
+      LTC_SET_ASN1_IDENTIFIER(list, LTC_TMPVAR(SACP), Class, LTC_ASN1_PC_PRIMITIVE, Tag); \
+      list[LTC_TMPVAR(SACP)].used = (int)(Type);                                          \
    } while (0)
 
 extern const char*          der_asn1_class_to_string_map[];

@@ -35,7 +35,9 @@ struct saferp_key {
 
 #ifdef LTC_RIJNDAEL
 struct rijndael_key {
-   ulong32 eK[60], dK[60];
+   unsigned char K[(60 + 60 + 4) * sizeof(ulong32)];
+   ulong32 *eK;
+   ulong32 *dK;
    int Nr;
 };
 #endif
@@ -127,24 +129,24 @@ struct khazad_key {
 
 #ifdef LTC_ANUBIS
 struct anubis_key {
-   int keyBits;
-   int R;
    ulong32 roundKeyEnc[18 + 1][4];
    ulong32 roundKeyDec[18 + 1][4];
+   int keyBits;
+   int R;
 };
 #endif
 
 #ifdef LTC_MULTI2
 struct multi2_key {
-    int N;
     ulong32 uk[8];
+    int N;
 };
 #endif
 
 #ifdef LTC_CAMELLIA
 struct camellia_key {
-    int R;
     ulong64 kw[4], k[24], kl[6];
+    int R;
 };
 #endif
 
@@ -245,60 +247,60 @@ typedef union Symmetric_key {
 #ifdef LTC_ECB_MODE
 /** A block cipher ECB structure */
 typedef struct {
+   /** The scheduled key */
+   symmetric_key       key;
    /** The index of the cipher chosen */
    int                 cipher,
    /** The block size of the given cipher */
                        blocklen;
-   /** The scheduled key */
-   symmetric_key       key;
 } symmetric_ECB;
 #endif
 
 #ifdef LTC_CFB_MODE
 /** A block cipher CFB structure */
 typedef struct {
-   /** The index of the cipher chosen */
-   int                 cipher,
-   /** The block size of the given cipher */
-                       blocklen,
-   /** The padding offset */
-                       padlen;
    /** The current IV */
    unsigned char       IV[MAXBLOCKSIZE],
    /** The pad used to encrypt/decrypt */
                        pad[MAXBLOCKSIZE];
    /** The scheduled key */
    symmetric_key       key;
-} symmetric_CFB;
-#endif
-
-#ifdef LTC_OFB_MODE
-/** A block cipher OFB structure */
-typedef struct {
    /** The index of the cipher chosen */
    int                 cipher,
    /** The block size of the given cipher */
                        blocklen,
    /** The padding offset */
                        padlen;
+} symmetric_CFB;
+#endif
+
+#ifdef LTC_OFB_MODE
+/** A block cipher OFB structure */
+typedef struct {
    /** The current IV */
    unsigned char       IV[MAXBLOCKSIZE];
    /** The scheduled key */
    symmetric_key       key;
+   /** The index of the cipher chosen */
+   int                 cipher,
+   /** The block size of the given cipher */
+                       blocklen,
+   /** The padding offset */
+                       padlen;
 } symmetric_OFB;
 #endif
 
 #ifdef LTC_CBC_MODE
 /** A block cipher CBC structure */
 typedef struct {
-   /** The index of the cipher chosen */
-   int                 cipher,
-   /** The block size of the given cipher */
-                       blocklen;
    /** The current IV */
    unsigned char       IV[MAXBLOCKSIZE];
    /** The scheduled key */
    symmetric_key       key;
+   /** The index of the cipher chosen */
+   int                 cipher,
+   /** The block size of the given cipher */
+                       blocklen;
 } symmetric_CBC;
 #endif
 
@@ -306,6 +308,13 @@ typedef struct {
 #ifdef LTC_CTR_MODE
 /** A block cipher CTR structure */
 typedef struct {
+   /** The counter */
+   unsigned char       ctr[MAXBLOCKSIZE];
+   /** The pad used to encrypt/decrypt */
+   unsigned char       pad[MAXBLOCKSIZE];
+   /** The scheduled key */
+   symmetric_key       key;
+
    /** The index of the cipher chosen */
    int                 cipher,
    /** The block size of the given cipher */
@@ -316,13 +325,6 @@ typedef struct {
                        mode,
    /** counter width */
                        ctrlen;
-
-   /** The counter */
-   unsigned char       ctr[MAXBLOCKSIZE];
-   /** The pad used to encrypt/decrypt */
-   unsigned char       pad[MAXBLOCKSIZE] LTC_ALIGN(16);
-   /** The scheduled key */
-   symmetric_key       key;
 } symmetric_CTR;
 #endif
 
@@ -330,9 +332,6 @@ typedef struct {
 #ifdef LTC_LRW_MODE
 /** A LRW structure */
 typedef struct {
-    /** The index of the cipher chosen (must be a 128-bit block cipher) */
-    int               cipher;
-
     /** The current IV */
     unsigned char     IV[16],
 
@@ -349,25 +348,28 @@ typedef struct {
     /** The pre-computed multiplication table */
     unsigned char     PC[16][256][16];
 #endif
+
+    /** The index of the cipher chosen (must be a 128-bit block cipher) */
+    int               cipher;
 } symmetric_LRW;
 #endif
 
 #ifdef LTC_F8_MODE
 /** A block cipher F8 structure */
 typedef struct {
+   /** The current IV */
+   unsigned char       IV[MAXBLOCKSIZE],
+                       MIV[MAXBLOCKSIZE];
+   /** The scheduled key */
+   symmetric_key       key;
    /** The index of the cipher chosen */
    int                 cipher,
    /** The block size of the given cipher */
                        blocklen,
    /** The padding offset */
                        padlen;
-   /** The current IV */
-   unsigned char       IV[MAXBLOCKSIZE],
-                       MIV[MAXBLOCKSIZE];
    /** Current block count */
    ulong32             blockcnt;
-   /** The scheduled key */
-   symmetric_key       key;
 } symmetric_F8;
 #endif
 
@@ -688,18 +690,20 @@ extern const struct ltc_cipher_descriptor safer_k64_desc, safer_k128_desc, safer
 #endif
 
 #ifdef LTC_RIJNDAEL
-
-/* make aes an alias */
-#define aes_setup           rijndael_setup
-#define aes_ecb_encrypt     rijndael_ecb_encrypt
-#define aes_ecb_decrypt     rijndael_ecb_decrypt
-#define aes_test            rijndael_test
-#define aes_done            rijndael_done
-#define aes_keysize         rijndael_keysize
-
-#define aes_enc_setup           rijndael_enc_setup
-#define aes_enc_ecb_encrypt     rijndael_enc_ecb_encrypt
-#define aes_enc_keysize         rijndael_enc_keysize
+/* declare aes properly now */
+int aes_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey);
+int aes_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey);
+int aes_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey);
+int aes_test(void);
+void aes_done(symmetric_key *skey);
+int aes_keysize(int *keysize);
+int aes_enc_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey);
+int aes_enc_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey);
+int aes_enc_test(void);
+void aes_enc_done(symmetric_key *skey);
+int aes_enc_keysize(int *keysize);
+extern const struct ltc_cipher_descriptor aes_desc;
+extern const struct ltc_cipher_descriptor aes_enc_desc;
 
 int rijndael_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey);
 int rijndael_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey);
@@ -711,8 +715,19 @@ int rijndael_enc_setup(const unsigned char *key, int keylen, int num_rounds, sym
 int rijndael_enc_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey);
 void rijndael_enc_done(symmetric_key *skey);
 int rijndael_enc_keysize(int *keysize);
-extern const struct ltc_cipher_descriptor rijndael_desc, aes_desc;
-extern const struct ltc_cipher_descriptor rijndael_enc_desc, aes_enc_desc;
+extern const struct ltc_cipher_descriptor rijndael_desc;
+extern const struct ltc_cipher_descriptor rijndael_enc_desc;
+#endif
+
+#if defined(LTC_AES_NI) && defined(LTC_AMD64_SSE4_1)
+int aesni_is_supported(void);
+int aesni_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey);
+int aesni_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey);
+int aesni_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey);
+int aesni_test(void);
+void aesni_done(symmetric_key *skey);
+int aesni_keysize(int *keysize);
+extern const struct ltc_cipher_descriptor aesni_desc;
 #endif
 
 #ifdef LTC_XTEA

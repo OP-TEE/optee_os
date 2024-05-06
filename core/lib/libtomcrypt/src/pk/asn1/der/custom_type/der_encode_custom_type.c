@@ -36,7 +36,7 @@ int der_encode_custom_type(const ltc_asn1_list *root,
 
    /* get size of output that will be required */
    y = 0; z = 0;
-   if ((err = der_length_custom_type(root, &y, &z)) != CRYPT_OK) return CRYPT_INVALID_ARG;
+   if (der_length_custom_type(root, &y, &z) != CRYPT_OK) return CRYPT_INVALID_ARG;
 
    /* too big ? */
    if (*outlen < y) {
@@ -46,7 +46,7 @@ int der_encode_custom_type(const ltc_asn1_list *root,
    }
 
    /* get length of the identifier, so we know the offset where to start writing */
-   if ((err = der_length_asn1_identifier(root, &id_len)) != CRYPT_OK) return CRYPT_INVALID_ARG;
+   if (der_length_asn1_identifier(root, &id_len) != CRYPT_OK) return CRYPT_INVALID_ARG;
    x = id_len;
 
 

@@ -28,7 +28,7 @@ extern "C" {
 
 #ifndef TAB_SIZE
 /* descriptor table size */
-#define TAB_SIZE      34
+#define TAB_SIZE      48
 #endif
 
 /* error codes [will be expanded in future releases] */

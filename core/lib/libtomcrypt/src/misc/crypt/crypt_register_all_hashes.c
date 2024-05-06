@@ -17,6 +17,7 @@ int register_all_hashes(void)
 {
 #ifdef LTC_TIGER
    REGISTER_HASH(&tiger_desc);
+   REGISTER_HASH(&tiger2_desc);
 #endif
 #ifdef LTC_MD2
    REGISTER_HASH(&md2_desc);

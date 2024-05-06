@@ -82,12 +82,27 @@ static unsigned long s_rng_ansic(unsigned char *buf, unsigned long len,
 
 /* Try the Microsoft CSP */
 #if defined(_WIN32) || defined(_WIN32_WCE)
+#if defined(LTC_WIN32_BCRYPT)
+
+#include <windows.h>
+#include <bcrypt.h>
+#pragma comment(lib, "bcrypt.lib")
+
+static unsigned long s_rng_win32(unsigned char *buf, unsigned long len,
+                               void (*callback)(void))
+{
+   LTC_UNUSED_PARAM(callback);
+
+   return BCRYPT_SUCCESS(BCryptGenRandom(NULL, (PUCHAR)buf, (ULONG)len, BCRYPT_USE_SYSTEM_PREFERRED_RNG)) ? len : 0;
+}
+
+#else
+
 #ifndef _WIN32_WINNT
-  #define _WIN32_WINNT 0x0400
+  #define _WIN32_WINNT 0x0501
 #endif
-#ifdef _WIN32_WCE
-   #define UNDER_CE
-   #define ARM
+#ifndef WINVER
+  #define WINVER 0x0501
 #endif
 
 #define WIN32_LEAN_AND_MEAN
@@ -97,23 +112,23 @@ static unsigned long s_rng_ansic(unsigned char *buf, unsigned long len,
 static unsigned long s_rng_win32(unsigned char *buf, unsigned long len,
                                void (*callback)(void))
 {
-   HCRYPTPROV hProv = 0;
    LTC_UNUSED_PARAM(callback);
-   if (!CryptAcquireContext(&hProv, NULL, MS_DEF_PROV, PROV_RSA_FULL,
-                            (CRYPT_VERIFYCONTEXT | CRYPT_MACHINE_KEYSET)) &&
-       !CryptAcquireContext (&hProv, NULL, MS_DEF_PROV, PROV_RSA_FULL,
-                            CRYPT_VERIFYCONTEXT | CRYPT_MACHINE_KEYSET | CRYPT_NEWKEYSET))
-      return 0;
 
-   if (CryptGenRandom(hProv, len, buf) == TRUE) {
-      CryptReleaseContext(hProv, 0);
-      return len;
-   } else {
-      CryptReleaseContext(hProv, 0);
-      return 0;
+   static HCRYPTPROV hProv = 0;
+   if (hProv == 0) {
+      HCRYPTPROV h = 0;
+      if (!CryptAcquireContextW(&h, NULL, MS_DEF_PROV_W, PROV_RSA_FULL,
+                                (CRYPT_VERIFYCONTEXT | CRYPT_MACHINE_KEYSET)) &&
+          !CryptAcquireContextW(&h, NULL, MS_DEF_PROV_W, PROV_RSA_FULL,
+                                CRYPT_VERIFYCONTEXT | CRYPT_MACHINE_KEYSET | CRYPT_NEWKEYSET)) {
+         return 0;
+      }
+      hProv = h;
    }
-}
 
+   return CryptGenRandom(hProv, (DWORD)len, (BYTE *)buf) == TRUE ? len : 0;
+}
+#endif /* Old WIN32 versions */
 #endif /* WIN32 */
 
 /**

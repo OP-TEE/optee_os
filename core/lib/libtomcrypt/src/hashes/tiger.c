@@ -28,6 +28,24 @@ const struct ltc_hash_descriptor tiger_desc =
     NULL
 };
 
+const struct ltc_hash_descriptor tiger2_desc =
+{
+    "tiger2",
+    33,
+    24,
+    64,
+
+    /* OID ... does not exist */
+   { 0 },
+   0,
+
+    &tiger2_init,
+    &tiger_process,
+    &tiger_done,
+    &tiger2_test,
+    NULL
+};
+
 #define t1 (table)
 #define t2 (table+256)
 #define t3 (table+256*2)
@@ -601,7 +619,7 @@ static int ss_tiger_compress(hash_state *md, const unsigned char *buf)
 static int  s_tiger_compress(hash_state *md, const unsigned char *buf)
 #endif
 {
-    ulong64 a, b, c, x[8];
+    ulong64 a, b, c, x[8], t;
     unsigned long i;
 
     /* load words */
@@ -617,6 +635,11 @@ static int  s_tiger_compress(hash_state *md, const unsigned char *buf)
     s_pass(&c,&a,&b,x,7);
     s_key_schedule(x);
     s_pass(&b,&c,&a,x,9);
+    for (i = 3; i < md->tiger.passes; ++i) {
+       s_key_schedule(x);
+       s_pass(&a,&b,&c,x,9);
+       t = a; a = c; c = b; b = t;
+   }
 
     /* store state */
     md->tiger.state[0] = a ^ md->tiger.state[0];
@@ -649,6 +672,57 @@ int tiger_init(hash_state *md)
     md->tiger.state[2] = CONST64(0xF096A5B4C3B2E187);
     md->tiger.curlen = 0;
     md->tiger.length = 0;
+    md->tiger.passes = 3;
+    md->tiger.pad = 0x01u;
+    return CRYPT_OK;
+}
+
+/**
+   Initialize the hash state (extended version)
+   @param md       The hash state you wish to initialize
+   @param passes   The number of passes that should be executed
+                   when the compress function is called.
+   @return CRYPT_OK if successful
+*/
+int tiger_init_ex(hash_state *md, unsigned long passes)
+{
+    int err;
+    if ((err = tiger_init(md) != CRYPT_OK)) {
+        return err;
+    }
+    md->tiger.passes = passes;
+    return CRYPT_OK;
+}
+
+/**
+   Initialize the hash state (extended version)
+   @param md       The hash state you wish to initialize
+   @return CRYPT_OK if successful
+*/
+int tiger2_init(hash_state *md)
+{
+    int err;
+    if ((err = tiger_init(md) != CRYPT_OK)) {
+       return err;
+    }
+    md->tiger.pad = 0x80u;
+    return CRYPT_OK;
+}
+
+/**
+   Initialize the hash state (extended version)
+   @param md       The hash state you wish to initialize
+   @param passes   The number of passes that should be executed
+                   when the compress function is called.
+   @return CRYPT_OK if successful
+*/
+int tiger2_init_ex(hash_state *md, unsigned long passes)
+{
+    int err;
+    if ((err = tiger2_init(md) != CRYPT_OK)) {
+        return err;
+    }
+    md->tiger.passes = passes;
     return CRYPT_OK;
 }
 
@@ -679,8 +753,8 @@ int tiger_done(hash_state * md, unsigned char *out)
     /* increase the length of the message */
     md->tiger.length += md->tiger.curlen * 8;
 
-    /* append the '1' bit */
-    md->tiger.buf[md->tiger.curlen++] = (unsigned char)0x01;
+    /* append the padding bit */
+    md->tiger.buf[md->tiger.curlen++] = md->tiger.pad;
 
     /* if the length is currently above 56 bytes we append zeros
      * then compress.  Then we can fall back to padding zeros and length
@@ -717,56 +791,100 @@ int tiger_done(hash_state * md, unsigned char *out)
   Self-test the hash
   @return CRYPT_OK if successful, CRYPT_NOP if self-tests have been disabled
 */
-int  tiger_test(void)
+int s_tiger_test(unsigned int idx)
 {
  #ifndef LTC_TEST
     return CRYPT_NOP;
  #else
   static const struct {
       const char *msg;
-      unsigned char hash[24];
+      unsigned char hash[2][24];
   } tests[] = {
     { "",
-     { 0x32, 0x93, 0xac, 0x63, 0x0c, 0x13, 0xf0, 0x24,
-       0x5f, 0x92, 0xbb, 0xb1, 0x76, 0x6e, 0x16, 0x16,
-       0x7a, 0x4e, 0x58, 0x49, 0x2d, 0xde, 0x73, 0xf3 }
+      {
+        { 0x32, 0x93, 0xac, 0x63, 0x0c, 0x13, 0xf0, 0x24,
+          0x5f, 0x92, 0xbb, 0xb1, 0x76, 0x6e, 0x16, 0x16,
+          0x7a, 0x4e, 0x58, 0x49, 0x2d, 0xde, 0x73, 0xf3 },
+        { 0x44, 0x41, 0xbe, 0x75, 0xf6, 0x01, 0x87, 0x73,
+          0xc2, 0x06, 0xc2, 0x27, 0x45, 0x37, 0x4b, 0x92,
+          0x4a, 0xa8, 0x31, 0x3f, 0xef, 0x91, 0x9f, 0x41 },
+      },
     },
     { "abc",
-     { 0x2a, 0xab, 0x14, 0x84, 0xe8, 0xc1, 0x58, 0xf2,
-       0xbf, 0xb8, 0xc5, 0xff, 0x41, 0xb5, 0x7a, 0x52,
-       0x51, 0x29, 0x13, 0x1c, 0x95, 0x7b, 0x5f, 0x93 }
+      {
+        { 0x2a, 0xab, 0x14, 0x84, 0xe8, 0xc1, 0x58, 0xf2,
+          0xbf, 0xb8, 0xc5, 0xff, 0x41, 0xb5, 0x7a, 0x52,
+          0x51, 0x29, 0x13, 0x1c, 0x95, 0x7b, 0x5f, 0x93 },
+        { 0xf6, 0x8d, 0x7b, 0xc5, 0xaf, 0x4b, 0x43, 0xa0,
+          0x6e, 0x04, 0x8d, 0x78, 0x29, 0x56, 0x0d, 0x4a,
+          0x94, 0x15, 0x65, 0x8b, 0xb0, 0xb1, 0xf3, 0xbf },
+      },
     },
     { "Tiger",
-     { 0xdd, 0x00, 0x23, 0x07, 0x99, 0xf5, 0x00, 0x9f,
-       0xec, 0x6d, 0xeb, 0xc8, 0x38, 0xbb, 0x6a, 0x27,
-       0xdf, 0x2b, 0x9d, 0x6f, 0x11, 0x0c, 0x79, 0x37 }
+      {
+        { 0xdd, 0x00, 0x23, 0x07, 0x99, 0xf5, 0x00, 0x9f,
+          0xec, 0x6d, 0xeb, 0xc8, 0x38, 0xbb, 0x6a, 0x27,
+          0xdf, 0x2b, 0x9d, 0x6f, 0x11, 0x0c, 0x79, 0x37 },
+        { 0xfe, 0x40, 0x79, 0x8b, 0x8e, 0xb9, 0x37, 0xfd,
+          0x97, 0x76, 0x08, 0x93, 0x05, 0x48, 0xd6, 0xa8,
+          0x94, 0xc2, 0x0b, 0x04, 0xcb, 0xef, 0x7a, 0x42 },
+      },
     },
     { "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
-     { 0xf7, 0x1c, 0x85, 0x83, 0x90, 0x2a, 0xfb, 0x87,
-       0x9e, 0xdf, 0xe6, 0x10, 0xf8, 0x2c, 0x0d, 0x47,
-       0x86, 0xa3, 0xa5, 0x34, 0x50, 0x44, 0x86, 0xb5 }
+      {
+        { 0xf7, 0x1c, 0x85, 0x83, 0x90, 0x2a, 0xfb, 0x87,
+          0x9e, 0xdf, 0xe6, 0x10, 0xf8, 0x2c, 0x0d, 0x47,
+          0x86, 0xa3, 0xa5, 0x34, 0x50, 0x44, 0x86, 0xb5 },
+        { 0x15, 0x9b, 0x38, 0x0a, 0xb7, 0x92, 0x94, 0xe0,
+          0xda, 0x19, 0xf1, 0x62, 0x82, 0xce, 0x6d, 0xce,
+          0x0f, 0x84, 0xd3, 0x4f, 0x72, 0x9d, 0xbe, 0xa3 },
+      },
     },
     { "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
-     { 0xc5, 0x40, 0x34, 0xe5, 0xb4, 0x3e, 0xb8, 0x00,
-       0x58, 0x48, 0xa7, 0xe0, 0xae, 0x6a, 0xac, 0x76,
-       0xe4, 0xff, 0x59, 0x0a, 0xe7, 0x15, 0xfd, 0x25 }
+      {
+        { 0xc5, 0x40, 0x34, 0xe5, 0xb4, 0x3e, 0xb8, 0x00,
+          0x58, 0x48, 0xa7, 0xe0, 0xae, 0x6a, 0xac, 0x76,
+          0xe4, 0xff, 0x59, 0x0a, 0xe7, 0x15, 0xfd, 0x25 },
+        { 0x01, 0xef, 0x91, 0x0b, 0x9b, 0xb2, 0xcb, 0x4c,
+          0x6c, 0x47, 0x49, 0x5c, 0x86, 0xb3, 0x64, 0x1a,
+          0xff, 0x14, 0xfb, 0xf7, 0x79, 0x40, 0x9c, 0x0e },
+      },
     },
   };
+  int (*init[2])(hash_state *hash) = { tiger_init, tiger2_init };
 
   int i;
   unsigned char tmp[24];
   hash_state md;
 
   for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {
-      tiger_init(&md);
+      init[idx](&md);
       tiger_process(&md, (unsigned char *)tests[i].msg, (unsigned long)XSTRLEN(tests[i].msg));
       tiger_done(&md, tmp);
-      if (compare_testvector(tmp, sizeof(tmp), tests[i].hash, sizeof(tests[i].hash), "TIGER", i)) {
+      if (compare_testvector(tmp, sizeof(tmp), tests[i].hash[idx], sizeof(tests[i].hash[idx]), !idx ? "TIGER": "TIGER2", i)) {
           return CRYPT_FAIL_TESTVECTOR;
       }
   }
   return CRYPT_OK;
   #endif
+}
+
+/**
+  Self-test the hash
+  @return CRYPT_OK if successful, CRYPT_NOP if self-tests have been disabled
+*/
+int tiger_test(void)
+{
+   return s_tiger_test(0);
+}
+
+/**
+  Self-test the hash
+  @return CRYPT_OK if successful, CRYPT_NOP if self-tests have been disabled
+*/
+int tiger2_test(void)
+{
+   return s_tiger_test(1);
 }
 
 #endif

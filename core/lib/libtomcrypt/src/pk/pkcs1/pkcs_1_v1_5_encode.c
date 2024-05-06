@@ -35,6 +35,10 @@ int pkcs_1_v1_5_encode(const unsigned char *msg,
   unsigned char *ps;
   int result;
 
+  LTC_ARGCHK((msglen == 0) || (msg != NULL));
+  LTC_ARGCHK(out    != NULL);
+  LTC_ARGCHK(outlen != NULL);
+
   /* valid block_type? */
   if ((block_type != LTC_PKCS_1_EMSA) &&
       (block_type != LTC_PKCS_1_EME)) {
@@ -88,7 +92,9 @@ int pkcs_1_v1_5_encode(const unsigned char *msg,
   out[0]          = 0x00;
   out[1]          = (unsigned char)block_type;  /* block_type 1 or 2 */
   out[2 + ps_len] = 0x00;
-  XMEMCPY(&out[2 + ps_len + 1], msg, msglen);
+  if (msglen != 0) {
+    XMEMCPY(&out[2 + ps_len + 1], msg, msglen);
+  }
   *outlen = modulus_len;
 
   result  = CRYPT_OK;

@@ -315,14 +315,20 @@ const char *crypt_build_settings =
 #if defined(LTC_FORTUNA)
     "   Fortuna (" NAME_VALUE(LTC_FORTUNA_POOLS) ", "
 #if defined(LTC_FORTUNA_RESEED_RATELIMIT_TIMED)
-    "LTC_FORTUNA_RESEED_RATELIMIT_TIMED, "
+    "LTC_FORTUNA_RESEED_RATELIMIT_TIMED"
 #else
     "LTC_FORTUNA_RESEED_RATELIMIT_STATIC, " NAME_VALUE(LTC_FORTUNA_WD)
+#endif
+#if defined(LTC_FORTUNA_USE_ENCRYPT_ONLY)
+    ", LTC_FORTUNA_USE_ENCRYPT_ONLY"
 #endif
     ")\n"
 #endif
 #if defined(LTC_SOBER128)
     "   SOBER128\n"
+#endif
+#if defined(LTC_WIN32_BCRYPT)
+    "   WIN32_BCRYPT\n"
 #endif
 
     "\nPK Crypto:\n"
@@ -415,6 +421,9 @@ const char *crypt_build_settings =
 #endif
 #if defined(LTC_ADLER32)
     " ADLER32 "
+#endif
+#if defined(LTC_AES_NI) && defined(LTC_AMD64_SSE4_1)
+    " AES-NI "
 #endif
 #if defined(LTC_BASE64)
     " BASE64 "

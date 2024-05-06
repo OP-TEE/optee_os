@@ -358,10 +358,10 @@ typedef struct {
    unsigned char     aSum_current[MAXBLOCKSIZE],    /* AAD related helper variable */
                      aOffset_current[MAXBLOCKSIZE], /* AAD related helper variable */
                      adata_buffer[MAXBLOCKSIZE];    /* AAD buffer */
-   int               adata_buffer_bytes;            /* bytes in AAD buffer */
-   unsigned long     ablock_index;                  /* index # for current adata (AAD) block */
 
    symmetric_key     key;                     /* scheduled key for cipher */
+   int               adata_buffer_bytes;            /* bytes in AAD buffer */
+   unsigned long     ablock_index;                  /* index # for current adata (AAD) block */
    unsigned long     block_index;             /* index # for current data block */
    int               cipher,                  /* cipher idx */
                      tag_len,                 /* length of tag */
@@ -407,7 +407,12 @@ int ocb3_test(void);
 #define CCM_DECRYPT LTC_DECRYPT
 
 typedef struct {
+   unsigned char       PAD[16],              /* flags | Nonce N | l(m) */
+                       ctr[16],
+                       CTRPAD[16];
+
    symmetric_key       K;
+
    int                 cipher,               /* which cipher */
                        taglen,               /* length of the tag (encoded in M value) */
                        x;                    /* index in PAD */
@@ -419,10 +424,7 @@ typedef struct {
                        current_aadlen,       /* length of the currently provided add */
                        noncelen;             /* length of the nonce */
 
-   unsigned char       PAD[16],              /* flags | Nonce N | l(m) */
-                       ctr[16],
-                       CTRPAD[16],
-                       CTRlen;
+   unsigned char       CTRlen;
 } ccm_state;
 
 int ccm_init(ccm_state *ccm, int cipher,
@@ -478,12 +480,17 @@ extern const unsigned char gcm_shift_table[];
 #define LTC_GCM_MODE_TEXT  2
 
 typedef struct {
-   symmetric_key       K;
    unsigned char       H[16],        /* multiplier */
                        X[16],        /* accumulator */
                        Y[16],        /* counter */
                        Y_0[16],      /* initial counter */
                        buf[16];      /* buffer for stuff */
+
+#ifdef LTC_GCM_TABLES
+   unsigned char       PC[16][256][16];  /* 16 tables of 8x128 */
+#endif
+
+   symmetric_key       K;
 
    int                 cipher,       /* which cipher */
                        ivmode,       /* Which mode is the IV in? */
@@ -492,14 +499,6 @@ typedef struct {
 
    ulong64             totlen,       /* 64-bit counter used for IV and AAD */
                        pttotlen;     /* 64-bit counter for the PT */
-
-#ifdef LTC_GCM_TABLES
-   unsigned char       PC[16][256][16]  /* 16 tables of 8x128 */
-#ifdef LTC_GCM_TABLES_SSE2
-LTC_ALIGN(16)
-#endif
-;
-#endif
 } gcm_state;
 
 void gcm_mult_h(const gcm_state *gcm, unsigned char *I);

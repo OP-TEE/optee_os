@@ -135,7 +135,7 @@ int ssh_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
                   STORE32H(size, out);
                   out += 4;
                }
-               if ((err = mp_to_unsigned_bin(vdata, out)) != CRYPT_OK) {
+               if (mp_to_unsigned_bin(vdata, out) != CRYPT_OK) {
                   err = CRYPT_ERROR;
                   goto error;
                }

@@ -72,14 +72,14 @@ int dsa_import(const unsigned char *in, unsigned long inlen, dsa_key *key)
        }
    }
    /* get key type */
-   if ((err = der_decode_sequence_multi(in, inlen,
-                          LTC_ASN1_SHORT_INTEGER, 1UL, &zero,
-                          LTC_ASN1_INTEGER,      1UL, key->p,
-                          LTC_ASN1_INTEGER,      1UL, key->q,
-                          LTC_ASN1_INTEGER,      1UL, key->g,
-                          LTC_ASN1_INTEGER,      1UL, key->y,
-                          LTC_ASN1_INTEGER,      1UL, key->x,
-                          LTC_ASN1_EOL,          0UL, NULL)) == CRYPT_OK) {
+   if (der_decode_sequence_multi(in, inlen,
+                                 LTC_ASN1_SHORT_INTEGER, 1UL, &zero,
+                                 LTC_ASN1_INTEGER,       1UL, key->p,
+                                 LTC_ASN1_INTEGER,       1UL, key->q,
+                                 LTC_ASN1_INTEGER,       1UL, key->g,
+                                 LTC_ASN1_INTEGER,       1UL, key->y,
+                                 LTC_ASN1_INTEGER,       1UL, key->x,
+                                 LTC_ASN1_EOL,           0UL, NULL) == CRYPT_OK) {
 
        key->type = PK_PRIVATE;
    } else { /* public */
