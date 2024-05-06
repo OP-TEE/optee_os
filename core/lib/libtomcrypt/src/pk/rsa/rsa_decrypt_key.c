@@ -17,7 +17,8 @@
    @param outlen      [in/out] The max size and resulting size of the plaintext (octets)
    @param lparam      The system "lparam" value
    @param lparamlen   The length of the lparam value (octets)
-   @param hash_idx    The index of the hash desired
+   @param mgf_hash    The hash algorithm used for the MGF
+   @param lparam_hash The hash algorithm used when hashing the lparam (can be -1)
    @param padding     Type of padding (LTC_PKCS_1_OAEP or LTC_PKCS_1_V1_5)
    @param stat        [out] Result of the decryption, 1==valid, 0==invalid
    @param key         The corresponding private RSA key
@@ -26,13 +27,15 @@
 int rsa_decrypt_key_ex(const unsigned char *in,             unsigned long  inlen,
                              unsigned char *out,            unsigned long *outlen,
                        const unsigned char *lparam,         unsigned long  lparamlen,
-                             int            hash_idx,       int            padding,
+                             int            mgf_hash,       int            lparam_hash,
+                             int            padding,
                              int           *stat,     const rsa_key       *key)
 {
   unsigned long modulus_bitlen, modulus_bytelen, x;
   int           err;
   unsigned char *tmp;
 
+  LTC_ARGCHK(in     != NULL);
   LTC_ARGCHK(out    != NULL);
   LTC_ARGCHK(outlen != NULL);
   LTC_ARGCHK(key    != NULL);
@@ -42,7 +45,6 @@ int rsa_decrypt_key_ex(const unsigned char *in,             unsigned long  inlen
   *stat = 0;
 
   /* valid padding? */
-
   if ((padding != LTC_PKCS_1_V1_5) &&
       (padding != LTC_PKCS_1_OAEP)) {
     return CRYPT_PK_INVALID_PADDING;
@@ -50,7 +52,7 @@ int rsa_decrypt_key_ex(const unsigned char *in,             unsigned long  inlen
 
   if (padding == LTC_PKCS_1_OAEP) {
     /* valid hash ? */
-    if ((err = hash_is_valid(hash_idx)) != CRYPT_OK) {
+    if ((err = hash_is_valid(mgf_hash)) != CRYPT_OK) {
        return err;
     }
   }
@@ -79,8 +81,8 @@ int rsa_decrypt_key_ex(const unsigned char *in,             unsigned long  inlen
 
   if (padding == LTC_PKCS_1_OAEP) {
     /* now OAEP decode the packet */
-    err = pkcs_1_oaep_decode(tmp, x, lparam, lparamlen, modulus_bitlen, hash_idx,
-                             out, outlen, stat);
+    err = pkcs_1_oaep_decode(tmp, x, lparam, lparamlen, modulus_bitlen, mgf_hash,
+                             lparam_hash, out, outlen, stat);
   } else {
     /* now PKCS #1 v1.5 depad the packet */
     err = pkcs_1_v1_5_decode(tmp, x, LTC_PKCS_1_EME, modulus_bitlen, out, outlen, stat);

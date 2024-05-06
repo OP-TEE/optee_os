@@ -215,14 +215,14 @@ int ccm_test(void)
             XMEMCPY(tag3, tests[x].tag, tests[x].taglen);
             tag3[0] ^= 0xff; /* set the tag to the wrong value */
             taglen = tests[x].taglen;
-            if ((err = ccm_memory(idx,
-                                  tests[x].key, 16,
-                                  NULL,
-                                  tests[x].nonce, tests[x].noncelen,
-                                  tests[x].header, tests[x].headerlen,
-                                  buf2, tests[x].ptlen,
-                                  buf,
-                                  tag3, &taglen, 1   )) != CRYPT_ERROR) {
+            if (ccm_memory(idx,
+                           tests[x].key, 16,
+                           NULL,
+                           tests[x].nonce, tests[x].noncelen,
+                           tests[x].header, tests[x].headerlen,
+                           buf2, tests[x].ptlen,
+                           buf,
+                           tag3, &taglen, 1   ) != CRYPT_ERROR) {
                return CRYPT_FAIL_TESTVECTOR;
             }
             if (compare_testvector(buf2, tests[x].ptlen, zero, tests[x].ptlen, "CCM decrypt wrong tag", x)) {

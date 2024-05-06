@@ -49,12 +49,14 @@ int pkcs_1_v1_5_decode(const unsigned char *msg,
 int pkcs_1_oaep_encode(const unsigned char *msg,    unsigned long msglen,
                        const unsigned char *lparam, unsigned long lparamlen,
                              unsigned long modulus_bitlen, prng_state *prng,
-                             int           prng_idx,         int  hash_idx,
+                             int           prng_idx,
+                             int           mgf_hash, int lparam_hash,
                              unsigned char *out,    unsigned long *outlen);
 
 int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
                        const unsigned char *lparam, unsigned long lparamlen,
-                             unsigned long modulus_bitlen, int hash_idx,
+                             unsigned long modulus_bitlen,
+                             int           mgf_hash, int          lparam_hash,
                              unsigned char *out,    unsigned long *outlen,
                              int           *res);
 

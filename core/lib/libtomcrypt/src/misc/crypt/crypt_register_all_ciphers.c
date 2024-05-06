@@ -16,6 +16,7 @@
 int register_all_ciphers(void)
 {
 #ifdef LTC_RIJNDAEL
+   /* `aesni_desc` is explicitely not registered, since it's handled from within the `aes_desc` */
 #ifdef ENCRYPT_ONLY
    /* alternative would be
     * register_cipher(&rijndael_enc_desc);

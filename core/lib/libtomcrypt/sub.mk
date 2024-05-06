@@ -57,6 +57,7 @@ ifeq ($(_CFG_CORE_LTC_AES_ACCEL),y)
 srcs-$(_CFG_CORE_LTC_AES_DESC) += aes_accel.c
 else
 srcs-$(_CFG_CORE_LTC_AES_DESC) += src/ciphers/aes/aes.c
+srcs-$(_CFG_CORE_LTC_AES_DESC) += src/ciphers/aes/aes_desc.c
 endif
 
 cppflags-lib-$(_CFG_CORE_LTC_DES) += -DLTC_DES

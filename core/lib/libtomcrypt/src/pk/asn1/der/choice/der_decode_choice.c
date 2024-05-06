@@ -65,7 +65,7 @@ int der_decode_choice(const unsigned char *in,   unsigned long *inlen,
 
            case LTC_ASN1_SHORT_INTEGER:
                if (der_decode_short_integer(in, *inlen, data) == CRYPT_OK) {
-                  if (der_length_short_integer(size, &z) == CRYPT_OK) {
+                  if (der_length_short_integer(*(unsigned long*)data, &z) == CRYPT_OK) {
                       list[x].used = 1;
                       *inlen       = z;
                       return CRYPT_OK;

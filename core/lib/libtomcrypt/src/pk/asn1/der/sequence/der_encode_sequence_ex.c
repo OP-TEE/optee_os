@@ -33,7 +33,7 @@ int der_encode_sequence_ex(const ltc_asn1_list *list, unsigned long inlen,
 
    /* get size of output that will be required */
    y = 0; z = 0;
-   if ((err = der_length_sequence_ex(list, inlen, &y, &z)) != CRYPT_OK) return CRYPT_INVALID_ARG;
+   if (der_length_sequence_ex(list, inlen, &y, &z) != CRYPT_OK) return CRYPT_INVALID_ARG;
 
    /* too big ? */
    if (*outlen < y) {
