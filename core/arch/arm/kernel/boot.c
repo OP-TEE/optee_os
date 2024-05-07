@@ -1508,7 +1508,7 @@ unsigned long __weak get_aslr_seed(void)
 		goto err;
 	}
 
-	return fdt64_to_cpu(*seed);
+	return fdt64_to_cpu(fdt64_ld(seed));
 
 err:
 	/* Try platform implementation */
