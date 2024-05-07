@@ -836,6 +836,7 @@ static void handle_direct_request(struct thread_smc_args *args,
 	uint32_t direct_resp_fid = 0;
 
 	if (IS_ENABLED(CFG_SECURE_PARTITION) &&
+	    FFA_DST(args->a1) != spmc_id &&
 	    FFA_DST(args->a1) != optee_endpoint_id) {
 		spmc_sp_start_thread(args);
 		return;
