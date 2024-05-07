@@ -24,16 +24,39 @@
 	 */
 #define TA_FLAG_CONCURRENT		BIT32(8)
 	/*
-	 * Device enumeration is done in two stages by the normal world, first
-	 * before the tee-supplicant has started and then once more when the
-	 * tee-supplicant is started. The flags below control if the TA should
-	 * be reported in the first or second or case.
+	 * Device enumeration is initiated at multiple stages by the normal
+	 * world:
+	 * 1. First when the kernel driver has initialized
+	 * 2. When RPMB is available via inkernel RPMB routing
+	 * 3. When the tee-supplicant is started
+	 *
+	 * The flags below control at which stage a TA will be enumerated:
+	 * TA_FLAG_DEVICE_ENUM - at stage 1
+	 * TA_FLAG_DEVICE_ENUM_SEC_STORAGE -
+	 *      when secure storage is available, at stage 2 or 3 depending
+	 *      on whether TEE_STORAGE_PRIVATE is using RPMB FS
+	 *      (CFG_REE_FS=n CFG_RPMB_FS=y) or REE FS (CFG_REE_FS=y). The
+	 *      former utilizes in kernel RPMB routing, and the latter
+	 *      depends on tee-supplicant to access secure storage.
+	 *      TA_FLAG_DEVICE_ENUM_SUPP - at stage 3
+	 *
+	 * TA_FLAG_DEVICE_ENUM_SEC_STORAGE enumerates at stage 2 or 3
+	 * depending on whether TEE_STORAGE_PRIVATE is using RPMB FS
+	 * (CFG_REE_FS=n CFG_RPMB_FS=y) or REE FS (CFG_REE_FS=y). The
+	 * former utilizes in kernel RPMB routing, and the latter depends
+	 * on tee-supplicant to access secure storage.
+	 *
+	 * The TA is enumerated at stage 2 if
+	 * TA_FLAG_DEVICE_ENUM_SEC_STORAGE is set and TEE_STORAGE_PRIVATE
+	 * is using RPMB FS, or if it's using REE FS it will be
+	 * enumerated at stage 3.
 	 */
 #define TA_FLAG_DEVICE_ENUM		BIT32(9)  /* without tee-supplicant */
 #define TA_FLAG_DEVICE_ENUM_SUPP	BIT32(10) /* with tee-supplicant */
 	/* See also "gpd.ta.doesNotCloseHandleOnCorruptObject" */
 #define TA_FLAG_DONT_CLOSE_HANDLE_ON_CORRUPT_OBJECT \
 					BIT32(11)
+#define TA_FLAG_DEVICE_ENUM_SEC_STORAGE	BIT32(12) /* with secure storage */
 
 #define TA_FLAGS_MASK			GENMASK_32(11, 0)
 
