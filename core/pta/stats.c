@@ -8,6 +8,7 @@
 #include <kernel/pseudo_ta.h>
 #include <kernel/tee_time.h>
 #include <malloc.h>
+#include <mm/phys_mem.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 #include <pta_stats.h>
@@ -69,9 +70,9 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 			break;
 
 		case ALLOC_ID_TA_RAM:
-			tee_mm_get_pool_stats(&tee_mm_sec_ddr, stats,
-					      !!p[0].value.b);
-			strlcpy(stats->desc, "Secure DDR", sizeof(stats->desc));
+			phys_mem_stats(stats, p[0].value.b);
+			strlcpy(stats->desc, "Physical TA memory",
+				sizeof(stats->desc));
 			break;
 
 #ifdef CFG_NS_VIRTUALIZATION

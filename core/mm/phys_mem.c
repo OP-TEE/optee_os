@@ -41,6 +41,8 @@ void nex_phys_mem_init(paddr_t core_base, paddr_size_t core_size,
 {
 	uint32_t flags = TEE_MM_POOL_NEX_MALLOC;
 
+	assert(!nex_core_pool && !nex_ta_pool);
+
 	nex_core_pool = init_pool(core_base, core_size, flags);
 	nex_ta_pool = init_pool(ta_base, ta_size, flags);
 }
@@ -176,6 +178,8 @@ void phys_mem_init(paddr_t core_base, paddr_size_t core_size,
 		   paddr_t ta_base, paddr_size_t ta_size)
 {
 	uint32_t flags = TEE_MM_POOL_NO_FLAGS;
+
+	assert(!core_pool && !ta_pool);
 
 	core_pool = init_pool(core_base, core_size, flags);
 	ta_pool = init_pool(ta_base, ta_size, flags);

@@ -274,9 +274,6 @@ struct core_mmu_phys_mem {
 #define phys_mem_map_end \
 	SCATTERED_ARRAY_END(phys_mem_map, struct core_mmu_phys_mem)
 
-/* Physical Secure DDR pool */
-extern tee_mm_pool_t tee_mm_sec_ddr;
-
 /* Virtual memory pool for core mappings */
 extern tee_mm_pool_t core_virt_mem_pool;
 
