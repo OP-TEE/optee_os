@@ -57,7 +57,6 @@
 #ifndef __ASSEMBLER__
 /*
  * Memory area type:
- * MEM_AREA_END:      Reserved, marks the end of a table of mapping areas.
  * MEM_AREA_TEE_RAM:  core RAM (read/write/executable, secure, reserved to TEE)
  * MEM_AREA_TEE_RAM_RX:  core private read-only/executable memory (secure)
  * MEM_AREA_TEE_RAM_RO:  core private read-only/non-executable memory (secure)
@@ -88,8 +87,7 @@
  * MEM_AREA_MAXTYPE:  lower invalid 'type' value
  */
 enum teecore_memtypes {
-	MEM_AREA_END = 0,
-	MEM_AREA_TEE_RAM,
+	MEM_AREA_TEE_RAM = 1,
 	MEM_AREA_TEE_RAM_RX,
 	MEM_AREA_TEE_RAM_RO,
 	MEM_AREA_TEE_RAM_RW,
@@ -124,7 +122,6 @@ enum teecore_memtypes {
 static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 {
 	static const char * const names[] = {
-		[MEM_AREA_END] = "END",
 		[MEM_AREA_TEE_RAM] = "TEE_RAM_RWX",
 		[MEM_AREA_TEE_RAM_RX] = "TEE_RAM_RX",
 		[MEM_AREA_TEE_RAM_RO] = "TEE_RAM_RO",
@@ -625,7 +622,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 #endif
 
 /* Initialize MMU partition */
-void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm);
+void core_init_mmu_prtn(struct mmu_partition *prtn, struct memory_map *mem_map);
 
 unsigned int asid_alloc(void);
 void asid_free(unsigned int asid);
@@ -649,7 +646,7 @@ void core_mmu_init_virtualization(void);
 /* init some allocation pools */
 void core_mmu_init_ta_ram(void);
 
-void core_init_mmu(struct tee_mmap_region *mm);
+void core_init_mmu(struct memory_map *mem_map);
 
 void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 			     unsigned int level, vaddr_t va_base, void *table);
@@ -659,11 +656,6 @@ void core_mmu_map_region(struct mmu_partition *prtn,
 			 struct tee_mmap_region *mm);
 
 bool arch_va2pa_helper(void *va, paddr_t *pa);
-
-static inline bool core_mmap_is_end_of_table(const struct tee_mmap_region *mm)
-{
-	return mm->type == MEM_AREA_END;
-}
 
 static inline bool core_mmu_check_end_pa(paddr_t pa, size_t len)
 {

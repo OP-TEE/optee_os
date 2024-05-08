@@ -693,23 +693,23 @@ bool core_mmu_user_mapping_is_active(void)
 	return ret;
 }
 
-void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
+void core_init_mmu_prtn(struct mmu_partition *prtn, struct memory_map *mem_map)
 {
 	void *ttb1 = (void *)core_mmu_get_main_ttb_va(prtn);
-	size_t n;
+	size_t n = 0;
 
 	/* reset L1 table */
 	memset(ttb1, 0, L1_TBL_SIZE);
 
-	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
-		if (!core_mmu_is_dynamic_vaspace(mm + n))
-			core_mmu_map_region(prtn, mm + n);
+	for (n = 0; n < mem_map->count; n++)
+		if (!core_mmu_is_dynamic_vaspace(mem_map->map + n))
+			core_mmu_map_region(prtn, mem_map->map + n);
 }
 
-void core_init_mmu(struct tee_mmap_region *mm)
+void core_init_mmu(struct memory_map *mem_map)
 {
 	/* Initialize default pagetables */
-	core_init_mmu_prtn(&default_partition, mm);
+	core_init_mmu_prtn(&default_partition, mem_map);
 }
 
 void core_init_mmu_regs(struct core_mmu_config *cfg)
