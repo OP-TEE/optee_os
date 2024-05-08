@@ -23,6 +23,7 @@
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <mm/pgt_cache.h>
+#include <mm/phys_mem.h>
 #include <mm/tee_pager.h>
 #include <mm/vm.h>
 #include <platform_config.h>
@@ -36,9 +37,6 @@
 #endif
 
 #define SHM_VASPACE_SIZE	(1024 * 1024 * 32)
-
-/* Physical Secure DDR pool */
-tee_mm_pool_t tee_mm_sec_ddr;
 
 /* Virtual memory pool for core mappings */
 tee_mm_pool_t core_virt_mem_pool;
@@ -2620,19 +2618,5 @@ void core_mmu_init_ta_ram(void)
 	ps = virt_to_phys((void *)s);
 	size = e - s;
 
-	if (!ps || (ps & CORE_MMU_USER_CODE_MASK) ||
-	    !size || (size & CORE_MMU_USER_CODE_MASK))
-		panic("invalid TA RAM");
-
-	/* extra check: we could rely on core_mmu_get_mem_by_type() */
-	if (!tee_pbuf_is_sec(ps, size))
-		panic("TA RAM is not secure");
-
-	if (!tee_mm_is_empty(&tee_mm_sec_ddr))
-		panic("TA RAM pool is not empty");
-
-	/* remove previous config and init TA ddr memory pool */
-	tee_mm_final(&tee_mm_sec_ddr);
-	tee_mm_init(&tee_mm_sec_ddr, ps, size, CORE_MMU_USER_CODE_SHIFT,
-		    TEE_MM_POOL_NO_FLAGS);
+	phys_mem_init(0, 0, ps, size);
 }

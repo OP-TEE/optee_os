@@ -19,12 +19,13 @@
 #include <mm/core_mmu.h>
 #include <mm/fobj.h>
 #include <mm/mobj.h>
+#include <mm/phys_mem.h>
 #include <mm/vm.h>
 #include <optee_ffa.h>
 #include <stdio.h>
 #include <string.h>
-#include <tee_api_types.h>
 #include <tee/uuid.h>
+#include <tee_api_types.h>
 #include <trace.h>
 #include <types_ext.h>
 #include <utee_defines.h>
@@ -534,7 +535,7 @@ static TEE_Result load_binary_sp(struct ts_session *s,
 	bin_page_count = bin_size_rounded / SMALL_PAGE_SIZE;
 
 	/* Allocate memory */
-	mm = tee_mm_alloc(&tee_mm_sec_ddr, bin_size_rounded);
+	mm = phys_mem_ta_alloc(bin_size_rounded);
 	if (!mm) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;
@@ -926,7 +927,7 @@ static TEE_Result handle_fdt_load_relative_mem_regions(struct sp_ctx *ctx,
 			struct mobj *m = NULL;
 			unsigned int idx = 0;
 
-			mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+			mm = phys_mem_ta_alloc(size);
 			if (!mm)
 				return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -1259,7 +1260,7 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 
 		if (alloc_needed) {
 			/* Base address is missing, we have to allocate */
-			mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+			mm = phys_mem_ta_alloc(size);
 			if (!mm)
 				return TEE_ERROR_OUT_OF_MEMORY;
 

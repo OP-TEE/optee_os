@@ -33,6 +33,7 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/fobj.h>
+#include <mm/phys_mem.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 #include <sm/psci.h>
@@ -407,38 +408,12 @@ void boot_clear_memtag(void)
 #ifdef CFG_WITH_PAGER
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
-static void carve_out_asan_mem(tee_mm_pool_t *pool)
+static void carve_out_asan_mem(void)
 {
-	const size_t s = pool->hi - pool->lo;
-	tee_mm_entry_t *mm;
-	paddr_t apa = ASAN_MAP_PA;
-	size_t asz = ASAN_MAP_SZ;
-
-	if (core_is_buffer_outside(apa, asz, pool->lo, s))
-		return;
-
-	/* Reserve the shadow area */
-	if (!core_is_buffer_inside(apa, asz, pool->lo, s)) {
-		if (apa < pool->lo) {
-			/*
-			 * ASAN buffer is overlapping with the beginning of
-			 * the pool.
-			 */
-			asz -= pool->lo - apa;
-			apa = pool->lo;
-		} else {
-			/*
-			 * ASAN buffer is overlapping with the end of the
-			 * pool.
-			 */
-			asz = pool->hi - apa;
-		}
-	}
-	mm = tee_mm_alloc2(pool, apa, asz);
-	assert(mm);
+	nex_phys_mem_partial_carve_out(ASAN_MAP_PA, ASAN_MAP_SZ);
 }
 #else
-static void carve_out_asan_mem(tee_mm_pool_t *pool __unused)
+static void carve_out_asan_mem(void)
 {
 }
 #endif
@@ -565,14 +540,14 @@ static void init_runtime(unsigned long pageable_part)
 	asan_memcpy_unchecked(hashes, tmp_hashes, hash_size);
 
 	/*
-	 * Need tee_mm_sec_ddr initialized to be able to allocate secure
-	 * DDR below.
+	 * Need physical memory pool initialized to be able to allocate
+	 * secure DDR below.
 	 */
 	core_mmu_init_ta_ram();
 
-	carve_out_asan_mem(&tee_mm_sec_ddr);
+	carve_out_asan_mem();
 
-	mm = tee_mm_alloc(&tee_mm_sec_ddr, pageable_size);
+	mm = nex_phys_mem_ta_alloc(pageable_size);
 	assert(mm);
 	paged_store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM,
 				   pageable_size);

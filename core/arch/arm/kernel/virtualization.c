@@ -18,6 +18,7 @@
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/phys_mem.h>
 #include <mm/tee_mm.h>
 #include <platform_config.h>
 #include <sm/optee_smc.h>
@@ -33,9 +34,6 @@ static struct prtn_list_head prtn_list __nex_data =
 	LIST_HEAD_INITIALIZER(prtn_list);
 static struct prtn_list_head prtn_destroy_list __nex_data =
 	LIST_HEAD_INITIALIZER(prtn_destroy_list);
-
-/* Free pages used for guest partitions */
-tee_mm_pool_t virt_mapper_pool __nex_bss;
 
 /* Memory used by OP-TEE core */
 struct memory_map *kmem_map __nex_bss;
@@ -105,9 +103,8 @@ static void set_current_prtn(struct guest_partition *prtn)
 
 static size_t get_ta_ram_size(void)
 {
-	size_t ta_size = 0;
+	size_t ta_size = nex_phys_mem_get_ta_size();
 
-	core_mmu_get_ta_range(NULL, &ta_size);
 	return ROUNDDOWN(ta_size / CFG_VIRT_GUEST_COUNT - VCORE_UNPG_RW_SZ -
 			 core_mmu_get_total_pages_size(), SMALL_PAGE_SIZE);
 }
@@ -176,34 +173,11 @@ void virt_init_memory(struct memory_map *mem_map, paddr_t secmem0_base,
 		      paddr_size_t secmem0_size, paddr_t secmem1_base,
 		      paddr_size_t secmem1_size)
 {
-	paddr_size_t size = secmem0_size;
-	paddr_t base = secmem0_base;
 	size_t n = 0;
 
-	if (secmem1_size) {
-		assert(secmem0_base + secmem0_size <= secmem1_base);
-		size = secmem1_base + secmem1_size - base;
-	}
-
 	/* Init page pool that covers all secure RAM */
-	if (!tee_mm_init(&virt_mapper_pool, base, size,
-			 SMALL_PAGE_SHIFT, TEE_MM_POOL_NEX_MALLOC))
-		panic("Can't create pool with free pages");
-	DMSG("Created virtual mapper pool from %"PRIxPA" to %"PRIxPA,
-	     base, base + size);
-
-	if (secmem1_size) {
-		/* Carve out an eventual gap between secmem0 and secmem1 */
-		base = secmem0_base + secmem0_size;
-		size = secmem1_base - base;
-		if (size) {
-			DMSG("Carving out gap between secmem0 and secmem1 (0x%"PRIxPA":0x%"PRIxPASZ")",
-			     base, size);
-			if (!tee_mm_alloc2(&virt_mapper_pool, base, size))
-				panic("Can't carve out secmem gap");
-		}
-	}
-
+	nex_phys_mem_init(secmem0_base, secmem0_size, secmem1_base,
+			  secmem1_size);
 
 	/* Carve out areas that are used by OP-TEE core */
 	for (n = 0; n < mem_map->count; n++) {
@@ -216,8 +190,7 @@ void virt_init_memory(struct memory_map *mem_map, paddr_t secmem0_base,
 		case MEM_AREA_NEX_RAM_RW:
 			DMSG("Carving out area of type %d (0x%08lx-0x%08lx)",
 			     map->type, map->pa, map->pa + map->size);
-			if (!tee_mm_alloc2(&virt_mapper_pool, map->pa,
-					   map->size))
+			if (!nex_phys_mem_alloc2(map->pa, map->size))
 				panic("Can't carve out used area");
 			break;
 		default:
@@ -234,7 +207,7 @@ static TEE_Result configure_guest_prtn_mem(struct guest_partition *prtn)
 	TEE_Result res = TEE_SUCCESS;
 	paddr_t original_data_pa = 0;
 
-	prtn->tee_ram = tee_mm_alloc(&virt_mapper_pool, VCORE_UNPG_RW_SZ);
+	prtn->tee_ram = nex_phys_mem_core_alloc(VCORE_UNPG_RW_SZ);
 	if (!prtn->tee_ram) {
 		EMSG("Can't allocate memory for TEE runtime context");
 		res = TEE_ERROR_OUT_OF_MEMORY;
@@ -242,7 +215,7 @@ static TEE_Result configure_guest_prtn_mem(struct guest_partition *prtn)
 	}
 	DMSG("TEE RAM: %08" PRIxPA, tee_mm_get_smem(prtn->tee_ram));
 
-	prtn->ta_ram = tee_mm_alloc(&virt_mapper_pool, get_ta_ram_size());
+	prtn->ta_ram = nex_phys_mem_ta_alloc(get_ta_ram_size());
 	if (!prtn->ta_ram) {
 		EMSG("Can't allocate memory for TA data");
 		res = TEE_ERROR_OUT_OF_MEMORY;
@@ -250,8 +223,7 @@ static TEE_Result configure_guest_prtn_mem(struct guest_partition *prtn)
 	}
 	DMSG("TA RAM: %08" PRIxPA, tee_mm_get_smem(prtn->ta_ram));
 
-	prtn->tables = tee_mm_alloc(&virt_mapper_pool,
-				   core_mmu_get_total_pages_size());
+	prtn->tables = nex_phys_mem_core_alloc(core_mmu_get_total_pages_size());
 	if (!prtn->tables) {
 		EMSG("Can't allocate memory for page tables");
 		res = TEE_ERROR_OUT_OF_MEMORY;

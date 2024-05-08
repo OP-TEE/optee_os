@@ -44,16 +44,17 @@
 #include <kernel/user_access.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
+#include <mm/phys_mem.h>
 #include <mm/tee_mm.h>
 #include <optee_rpc_cmd.h>
 #include <signed_hdr.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tee_api_defines_extensions.h>
-#include <tee_api_types.h>
 #include <tee/tee_pobj.h>
 #include <tee/tee_ta_enc_manager.h>
 #include <tee/uuid.h>
+#include <tee_api_defines_extensions.h>
+#include <tee_api_types.h>
 #include <utee_defines.h>
 
 struct ree_fs_ta_handle {
@@ -719,7 +720,7 @@ static TEE_Result buf_ta_open(const TEE_UUID *uuid,
 	if (res)
 		goto err;
 
-	handle->mm = tee_mm_alloc(&tee_mm_sec_ddr, handle->ta_size);
+	handle->mm = phys_mem_ta_alloc(handle->ta_size);
 	if (!handle->mm) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;

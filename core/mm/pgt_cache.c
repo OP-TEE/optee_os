@@ -11,6 +11,7 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/pgt_cache.h>
+#include <mm/phys_mem.h>
 #include <mm/tee_pager.h>
 #include <stdlib.h>
 #include <trace.h>
@@ -106,7 +107,7 @@ static struct pgt_parent *alloc_pgt_parent(void)
 	parent = calloc(1, sz);
 	if (!parent)
 		return NULL;
-	parent->mm = tee_mm_alloc(&tee_mm_sec_ddr, PGT_PARENT_SIZE);
+	parent->mm = phys_mem_ta_alloc(PGT_PARENT_SIZE);
 	if (!parent->mm) {
 		free(parent);
 		return NULL;
