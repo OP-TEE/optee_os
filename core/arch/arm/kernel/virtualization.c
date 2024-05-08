@@ -22,6 +22,7 @@
 #include <platform_config.h>
 #include <sm/optee_smc.h>
 #include <string.h>
+#include <string_ext.h>
 #include <util.h>
 
 LIST_HEAD(prtn_list_head, guest_partition);
@@ -37,7 +38,7 @@ static struct prtn_list_head prtn_destroy_list __nex_data =
 tee_mm_pool_t virt_mapper_pool __nex_bss;
 
 /* Memory used by OP-TEE core */
-struct tee_mmap_region *kmemory_map __nex_bss;
+struct memory_map *kmem_map __nex_bss;
 
 struct guest_spec_data {
 	size_t size;
@@ -51,7 +52,7 @@ static struct guest_spec_data *gsd_array __nex_bss;
 struct guest_partition {
 	LIST_ENTRY(guest_partition) link;
 	struct mmu_partition *mmu_prtn;
-	struct tee_mmap_region *memory_map;
+	struct memory_map mem_map;
 	struct mutex mutex;
 	void *tables_va;
 	tee_mm_entry_t *tee_ram;
@@ -111,12 +112,12 @@ static size_t get_ta_ram_size(void)
 			 core_mmu_get_total_pages_size(), SMALL_PAGE_SIZE);
 }
 
-static struct tee_mmap_region *prepare_memory_map(paddr_t tee_data,
-						  paddr_t ta_ram)
+static TEE_Result prepare_memory_map(struct memory_map *mem_map,
+				     paddr_t tee_data, paddr_t ta_ram)
 {
-	int i, entries;
+	struct tee_mmap_region *map = NULL;
 	vaddr_t max_va = 0;
-	struct tee_mmap_region *map;
+	size_t n = 0;
 	/*
 	 * This function assumes that at time of operation,
 	 * kmemory_map (aka static_memory_map from core_mmu.c)
@@ -126,58 +127,58 @@ static struct tee_mmap_region *prepare_memory_map(paddr_t tee_data,
 	 * called when hypervisor creates a guest.
 	 */
 
-	/* Count number of entries in nexus memory map */
-	for (map = kmemory_map, entries = 1; map->type != MEM_AREA_END;
-	     map++, entries++)
-		;
-
 	/* Allocate entries for virtual guest map */
-	map = nex_calloc(entries + 1, sizeof(struct tee_mmap_region));
-	if (!map)
-		return NULL;
+	mem_map->map = nex_calloc(kmem_map->count + 1, sizeof(*mem_map->map));
+	if (!mem_map->map)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	mem_map->count = kmem_map->count;
+	mem_map->alloc_count = kmem_map->count + 1;
 
-	memcpy(map, kmemory_map, sizeof(*map) * entries);
+	memcpy(mem_map->map, kmem_map->map,
+	       sizeof(*mem_map->map) * mem_map->count);
 
 	/* Map TEE .data and .bss sections */
-	for (i = 0; i < entries; i++) {
-		if (map[i].va == (vaddr_t)(VCORE_UNPG_RW_PA)) {
-			map[i].type = MEM_AREA_TEE_RAM_RW;
-			map[i].attr = core_mmu_type_to_attr(map[i].type);
-			map[i].pa = tee_data;
+	for (n = 0; n < mem_map->count; n++) {
+		map = mem_map->map + n;
+		if (map->va == (vaddr_t)(VCORE_UNPG_RW_PA)) {
+			map->type = MEM_AREA_TEE_RAM_RW;
+			map->attr = core_mmu_type_to_attr(map->type);
+			map->pa = tee_data;
 		}
-		if (map[i].va + map[i].size > max_va)
-			max_va = map[i].va + map[i].size;
+		if (map->va + map->size > max_va)
+			max_va = map->va + map->size;
 	}
 
 	/* Map TA_RAM */
-	assert(map[entries - 1].type == MEM_AREA_END);
-	map[entries] = map[entries - 1];
-	map[entries - 1].region_size = SMALL_PAGE_SIZE;
-	map[entries - 1].va = ROUNDUP(max_va, map[entries - 1].region_size);
-	map[entries - 1].va +=
-		(ta_ram - map[entries - 1].va) & CORE_MMU_PGDIR_MASK;
-	map[entries - 1].pa = ta_ram;
-	map[entries - 1].size = get_ta_ram_size();
-	map[entries - 1].type = MEM_AREA_TA_RAM;
-	map[entries - 1].attr = core_mmu_type_to_attr(map[entries - 1].type);
+	mem_map->count++;
+	map = ins_array_elem(mem_map->map, mem_map->count,
+			     sizeof(*mem_map->map), n, NULL);
+	map->region_size = SMALL_PAGE_SIZE;
+	map->va = ROUNDUP(max_va, map->region_size);
+	map->va += (ta_ram - map->va) & CORE_MMU_PGDIR_MASK;
+	map->pa = ta_ram;
+	map->size = get_ta_ram_size();
+	map->type = MEM_AREA_TA_RAM;
+	map->attr = core_mmu_type_to_attr(map->type);
 
 	DMSG("New map (%08lx):",  (vaddr_t)(VCORE_UNPG_RW_PA));
 
-	for (i = 0; i < entries; i++)
+	for (n = 0; n < mem_map->count; n++)
 		DMSG("T: %-16s rsz: %08x, pa: %08lx, va: %08lx, sz: %08lx attr: %x",
-		     teecore_memtype_name(map[i].type),
-		     map[i].region_size, map[i].pa, map[i].va,
-		     map[i].size, map[i].attr);
-	return map;
+		     teecore_memtype_name(mem_map->map[n].type),
+		     mem_map->map[n].region_size, mem_map->map[n].pa,
+		     mem_map->map[n].va, mem_map->map[n].size,
+		     mem_map->map[n].attr);
+	return TEE_SUCCESS;
 }
 
-void virt_init_memory(struct tee_mmap_region *memory_map, paddr_t secmem0_base,
+void virt_init_memory(struct memory_map *mem_map, paddr_t secmem0_base,
 		      paddr_size_t secmem0_size, paddr_t secmem1_base,
 		      paddr_size_t secmem1_size)
 {
-	struct tee_mmap_region *map = NULL;
 	paddr_size_t size = secmem0_size;
 	paddr_t base = secmem0_base;
+	size_t n = 0;
 
 	if (secmem1_size) {
 		assert(secmem0_base + secmem0_size <= secmem1_base);
@@ -205,7 +206,9 @@ void virt_init_memory(struct tee_mmap_region *memory_map, paddr_t secmem0_base,
 
 
 	/* Carve out areas that are used by OP-TEE core */
-	for (map = memory_map; map->type != MEM_AREA_END; map++) {
+	for (n = 0; n < mem_map->count; n++) {
+		struct tee_mmap_region *map = mem_map->map + n;
+
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM_RX:
 		case MEM_AREA_TEE_RAM_RO:
@@ -222,7 +225,7 @@ void virt_init_memory(struct tee_mmap_region *memory_map, paddr_t secmem0_base,
 		}
 	}
 
-	kmemory_map = memory_map;
+	kmem_map = mem_map;
 }
 
 
@@ -266,14 +269,12 @@ static TEE_Result configure_guest_prtn_mem(struct guest_partition *prtn)
 		goto err;
 	}
 
-	prtn->memory_map = prepare_memory_map(tee_mm_get_smem(prtn->tee_ram),
-					     tee_mm_get_smem(prtn->ta_ram));
-	if (!prtn->memory_map) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
+	res = prepare_memory_map(&prtn->mem_map, tee_mm_get_smem(prtn->tee_ram),
+				 tee_mm_get_smem(prtn->ta_ram));
+	if (res)
 		goto err;
-	}
 
-	core_init_mmu_prtn(prtn->mmu_prtn, prtn->memory_map);
+	core_init_mmu_prtn(prtn->mmu_prtn, &prtn->mem_map);
 
 	original_data_pa = virt_to_phys(__data_start);
 	/* Switch to guest's mappings */
@@ -298,7 +299,7 @@ err:
 	if (prtn->tables)
 		tee_mm_free(prtn->tables);
 	nex_free(prtn->mmu_prtn);
-	nex_free(prtn->memory_map);
+	nex_free(prtn->mem_map.map);
 
 	return res;
 }
@@ -497,8 +498,8 @@ void virt_put_guest(struct guest_partition *prtn)
 		prtn->tables = NULL;
 		core_free_mmu_prtn(prtn->mmu_prtn);
 		prtn->mmu_prtn = NULL;
-		nex_free(prtn->memory_map);
-		prtn->memory_map = NULL;
+		nex_free(prtn->mem_map.map);
+		prtn->mem_map.map = NULL;
 		if (do_free)
 			nex_free(prtn);
 	}
@@ -584,7 +585,7 @@ void virt_on_stdcall(void)
 	}
 }
 
-struct tee_mmap_region *virt_get_memory_map(void)
+struct memory_map *virt_get_memory_map(void)
 {
 	struct guest_partition *prtn;
 
@@ -593,7 +594,7 @@ struct tee_mmap_region *virt_get_memory_map(void)
 	if (!prtn)
 		return NULL;
 
-	return prtn->memory_map;
+	return &prtn->mem_map;
 }
 
 void virt_get_ta_ram(vaddr_t *start, vaddr_t *end)

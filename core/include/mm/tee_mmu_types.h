@@ -90,6 +90,12 @@ struct tee_mmap_region {
 	uint32_t attr; /* TEE_MATTR_* above */
 };
 
+struct memory_map {
+	size_t count;
+	size_t alloc_count;
+	struct tee_mmap_region *map;
+};
+
 struct vm_region {
 	struct mobj *mobj;
 	size_t offset;

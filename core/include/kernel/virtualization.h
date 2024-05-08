@@ -75,20 +75,20 @@ void virt_on_stdcall(void);
 
 /**
  * virt_init_memory() - initialize memory for virtualization subsystem
- * @memory_map: current OP-TEE memory map
+ * @mem_map: current OP-TEE memory map
  * @secmem0_base: base of first secure memory range
  * @secmem0_size: size of first secure memory range
  * @secmem1_base: base of an eventual second secure memory range, 0 if unused
  * @secmem1_size: size of an eventual second secure memory range, 0 if unused
  */
-void virt_init_memory(struct tee_mmap_region *memory_map, paddr_t secmem0_base,
+void virt_init_memory(struct memory_map *mem_map, paddr_t secmem0_base,
 		      paddr_size_t secmem0_size, paddr_t secmem1_base,
 		      paddr_size_t secmem1_size);
 
 /**
  * virt_get_memory_map() - get current memory map
  */
-struct tee_mmap_region *virt_get_memory_map(void);
+struct memory_map *virt_get_memory_map(void);
 
 /**
  * virt_get_ta_ram() - get TA RAM mapping for current VM
@@ -200,10 +200,10 @@ static inline TEE_Result virt_set_guest(uint16_t guest_id __unused)
 
 static inline void virt_unset_guest(void) { }
 static inline void virt_on_stdcall(void) { }
-static inline struct tee_mmap_region *virt_get_memory_map(void) { return NULL; }
+static inline struct memory_map *virt_get_memory_map(void) { return NULL; }
 static inline void
 virt_get_ta_ram(vaddr_t *start __unused, vaddr_t *end __unused) { }
-static inline void virt_init_memory(struct tee_mmap_region *memory_map __unused,
+static inline void virt_init_memory(struct memory_map *mem_map __unused,
 				    paddr_t secmem0_base __unused,
 				    paddr_size_t secmem0_size __unused,
 				    paddr_t secmem1_base __unused,
