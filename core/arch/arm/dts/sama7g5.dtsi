@@ -441,6 +441,9 @@
 			dma-names = "tx", "rx";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 78>, <&pmc PMC_TYPE_GCK 78>;
 			clock-names = "pclk", "gclk";
+			assigned-clocks = <&pmc PMC_TYPE_GCK 78>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_SYSPLL>;
+			assigned-clock-rates = <133000000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
