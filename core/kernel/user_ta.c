@@ -246,7 +246,7 @@ static TEE_Result user_ta_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 static void user_ta_enter_close_session(struct ts_session *s)
 {
 	/* Only if the TA was fully initialized by ldelf */
-	if (!to_user_ta_ctx(s->ctx)->uctx.is_initializing)
+	if (!to_user_ta_ctx(s->ctx)->ta_ctx.is_initializing)
 		user_ta_enter(s, UTEE_ENTRY_FUNC_CLOSE_SESSION, 0);
 }
 
@@ -479,7 +479,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	res = vm_info_init(&utc->uctx, &utc->ta_ctx.ts_ctx);
 	if (res)
 		goto out;
-	utc->uctx.is_initializing = true;
+	utc->ta_ctx.is_initializing = true;
 
 #ifdef CFG_TA_PAUTH
 	crypto_rng_read(&utc->uctx.keys, sizeof(utc->uctx.keys));
@@ -511,7 +511,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	mutex_lock(&tee_ta_mutex);
 
 	if (!res) {
-		utc->uctx.is_initializing = false;
+		utc->ta_ctx.is_initializing = false;
 	} else {
 		s->ts_sess.ctx = NULL;
 		TAILQ_REMOVE(&tee_ctxes, &utc->ta_ctx, link);
