@@ -343,7 +343,7 @@ TEE_Result stmm_init_session(const TEE_UUID *uuid, struct tee_ta_session *sess)
 	if (!spc)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	spc->is_initializing = true;
+	spc->ta_ctx.is_initializing = true;
 
 	mutex_lock(&tee_ta_mutex);
 	sess->ts_sess.ctx = &spc->ta_ctx.ts_ctx;
@@ -362,7 +362,7 @@ TEE_Result stmm_init_session(const TEE_UUID *uuid, struct tee_ta_session *sess)
 	}
 
 	mutex_lock(&tee_ta_mutex);
-	spc->is_initializing = false;
+	spc->ta_ctx.is_initializing = false;
 	TAILQ_INSERT_TAIL(&tee_ctxes, &spc->ta_ctx, link);
 	mutex_unlock(&tee_ta_mutex);
 
@@ -381,7 +381,7 @@ static TEE_Result stmm_enter_open_session(struct ts_session *s)
 	if (ta_sess->param->types != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (spc->is_initializing) {
+	if (spc->ta_ctx.is_initializing) {
 		/* StMM is initialized in stmm_init_session() */
 		ta_sess->err_origin = TEE_ORIGIN_TEE;
 		return TEE_ERROR_BAD_STATE;

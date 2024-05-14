@@ -527,8 +527,7 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_session *s,
 		if (!ctx)
 			return TEE_ERROR_ITEM_NOT_FOUND;
 
-		if (!is_user_ta_ctx(&ctx->ts_ctx) ||
-		    !to_user_ta_ctx(&ctx->ts_ctx)->uctx.is_initializing)
+		if (!ctx->is_initializing)
 			break;
 		/*
 		 * Context is still initializing, wait here until it's
@@ -540,22 +539,22 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_session *s,
 	}
 
 	/*
-	 * If TA isn't single instance it should be loaded as new
-	 * instance instead of doing anything with this instance.
-	 * So tell the caller that we didn't find the TA it the
-	 * caller will load a new instance.
+	 * If the trusted service is not a single instance service (e.g. is
+	 * a multi-instance TA) it should be loaded as a new instance instead
+	 * of doing anything with this instance. So tell the caller that we
+	 * didn't find the TA it the caller will load a new instance.
 	 */
 	if ((ctx->flags & TA_FLAG_SINGLE_INSTANCE) == 0)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	/*
-	 * The TA is single instance, if it isn't multi session we
+	 * The trusted service is single instance, if it isn't multi session we
 	 * can't create another session unless its reference is zero
 	 */
 	if (!(ctx->flags & TA_FLAG_MULTI_SESSION) && ctx->ref_count)
 		return TEE_ERROR_BUSY;
 
-	DMSG("Re-open TA %pUl", (void *)&ctx->ts_ctx.uuid);
+	DMSG("Re-open trusted service %pUl", (void *)&ctx->ts_ctx.uuid);
 
 	ctx->ref_count++;
 	s->ts_sess.ctx = &ctx->ts_ctx;
@@ -803,11 +802,10 @@ static TEE_Result dump_ta_memstats(struct tee_ta_session *s,
 	if (!ts_ctx)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	if (is_user_ta_ctx(ts_ctx) &&
-	    to_user_ta_ctx(ts_ctx)->uctx.is_initializing)
-		return TEE_ERROR_BAD_STATE;
-
 	ctx = ts_to_ta_ctx(ts_ctx);
+
+	if (ctx->is_initializing)
+		return TEE_ERROR_BAD_STATE;
 
 	if (tee_ta_try_set_busy(ctx)) {
 		if (!ctx->panicked) {

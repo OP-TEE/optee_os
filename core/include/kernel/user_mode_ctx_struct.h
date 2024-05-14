@@ -26,7 +26,6 @@
  * @ldelf_stack_ptr:	Stack pointer used for dumping address mappings and
  *			stack trace
  * @is_32bit:		True if 32-bit TS, false if 64-bit TS
- * @is_initializing:	True if TS is not fully loaded
  * @stack_ptr:		Stack pointer
  * @bbuf:		Bounce buffer for user buffers
  * @bbuf_size:		Size of bounce buffer
@@ -52,7 +51,6 @@ struct user_mode_ctx {
 	uaddr_t dl_entry_func;
 	uaddr_t ldelf_stack_ptr;
 	bool is_32bit;
-	bool is_initializing;
 	vaddr_t stack_ptr;
 	uint8_t *bbuf;
 	size_t bbuf_size;

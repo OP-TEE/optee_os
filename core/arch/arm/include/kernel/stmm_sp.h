@@ -137,7 +137,6 @@ struct stmm_ctx {
 	struct thread_ctx_regs regs;
 	vaddr_t ns_comm_buf_addr;
 	unsigned int ns_comm_buf_size;
-	bool is_initializing;
 };
 
 extern const struct ts_ops stmm_sp_ops;
