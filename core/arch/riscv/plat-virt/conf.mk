@@ -2,7 +2,8 @@ $(call force,CFG_RV64_core,y)
 
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_TEE_CORE_DEBUG,n)
-$(call force,CFG_CORE_DYN_SHM,n)
+$(call force,CFG_CORE_RESERVED_SHM,n)
+$(call force,CFG_CORE_DYN_SHM,y)
 
 CFG_DT ?= y
 
@@ -41,7 +42,4 @@ supported-ta-targets = ta_rv64
 # Memory layout flags
 CFG_TDDRAM_START ?= 0x8e000000
 CFG_TDDRAM_SIZE  ?= 0x00f00000
-$(call force,CFG_CORE_RESERVED_SHM,y)
-CFG_SHMEM_START  ?= 0x88f00000
-CFG_SHMEM_SIZE   ?= 0x00200000
 CFG_TEE_RAM_VA_SIZE ?= 0x00200000
