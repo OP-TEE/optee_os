@@ -34,6 +34,7 @@
 #define SE051C_ID 0xA8FA
 #define SE051W_ID 0xA739
 #define SE050F_ID 0xA92A
+#define SE052F2_ID 0xB501
 
 TEE_Result se050_core_early_init(struct se050_scp_key *keys);
 
