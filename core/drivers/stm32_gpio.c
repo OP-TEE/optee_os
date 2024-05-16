@@ -1741,6 +1741,21 @@ static const struct dt_device_match stm32_pinctrl_match_table[] = {
 			.secure_extended = true,
 		},
 	},
+	{
+		.compatible = "st,stm32mp215-pinctrl",
+		.compat_data = &(struct bank_compat){
+			.secure_control = true,
+			.secure_extended = true,
+		},
+	},
+	{
+		.compatible = "st,stm32mp215-z-pinctrl",
+		.compat_data = &(struct bank_compat){
+			.gpioz = true,
+			.secure_control = true,
+			.secure_extended = true,
+		},
+	},
 	{ }
 };
 
