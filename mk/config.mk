@@ -1189,3 +1189,8 @@ endif
 # system (also called the target) to communicate with and use the I/O of the
 # host computer.
 CFG_SEMIHOSTING ?= n
+
+# CFG_FFA_CONSOLE, when enabled, embeds a FFA console driver. OP-TEE console
+# writes trace messages via FFA interface to the SPM (Secure Partition Manager)
+# like hafnium.
+CFG_FFA_CONSOLE ?= n

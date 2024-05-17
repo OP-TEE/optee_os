@@ -85,6 +85,7 @@ srcs-$(CFG_RISCV_ZKR_RNG) += riscv_zkr_rng.c
 srcs-$(CFG_HISILICON_CRYPTO_DRIVER) += hisi_trng.c
 srcs-$(CFG_WIDEVINE_HUK) += widevine_huk.c
 srcs-$(CFG_SEMIHOSTING_CONSOLE) += semihosting_console.c
+srcs-$(CFG_FFA_CONSOLE) += ffa_console.c
 
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt

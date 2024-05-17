@@ -7,6 +7,7 @@
 #include <console.h>
 #include <drivers/cbmem_console.h>
 #include <drivers/semihosting_console.h>
+#include <drivers/ffa_console.h>
 #include <drivers/serial.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
@@ -27,6 +28,8 @@ void console_init(void)
 {
 	if (IS_ENABLED(CFG_SEMIHOSTING_CONSOLE))
 		semihosting_console_init(CFG_SEMIHOSTING_CONSOLE_FILE);
+	else if (IS_ENABLED(CFG_FFA_CONSOLE))
+		ffa_console_init();
 	else
 		plat_console_init();
 }
