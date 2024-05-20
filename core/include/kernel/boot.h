@@ -7,6 +7,7 @@
 #define __KERNEL_BOOT_H
 
 #include <initcall.h>
+#include <kernel/dt.h>
 #include <types_ext.h>
 
 /*
@@ -100,5 +101,10 @@ void *get_manifest_dt(void);
  * This function has a __weak default implementation.
  */
 unsigned long get_aslr_seed(void);
+
+/* Identify non-secure memory regions for dynamic shared memory */
+void discover_nsec_memory(void);
+/* Add reserved memory for static shared memory in the device-tree */
+int mark_static_shm_as_reserved(struct dt_descriptor *dt);
 
 #endif /* __KERNEL_BOOT_H */
