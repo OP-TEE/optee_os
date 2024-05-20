@@ -5,6 +5,7 @@ srcs-y += assert.c
 srcs-y += console.c
 srcs-$(CFG_DT) += dt.c
 srcs-$(CFG_DT) += dt_driver.c
+srcs-y += boot.c
 srcs-y += pm.c
 srcs-y += handle.c
 srcs-y += interrupt.c
