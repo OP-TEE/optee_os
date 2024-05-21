@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/rstctrl.h>
 #include <drivers/wdt.h>
 #include <io.h>
 #include <keep.h>
@@ -85,6 +86,8 @@
  * @itr_chip - Interrupt chip device
  * @itr_num - Interrupt number for the IWDG instance
  * @itr_handler - Interrupt handler
+ * @reset - Reset controller device used to control the ability of the watchdog
+ *          to reset the system
  * @flags - Property flags for the IWDG instance
  * @timeout - Watchdog elaspure timeout
  * @hw_version - Watchdog HW version
@@ -98,6 +101,7 @@ struct stm32_iwdg_device {
 	struct itr_chip *itr_chip;
 	size_t itr_num;
 	struct itr_handler *itr_handler;
+	struct rstctrl *reset;
 	uint32_t flags;
 	unsigned long timeout;
 	unsigned int hw_version;
@@ -158,6 +162,16 @@ static TEE_Result iwdg_wait_sync(struct stm32_iwdg_device *iwdg)
 	return TEE_SUCCESS;
 }
 
+static void stm32_iwdg_it_ack(struct stm32_iwdg_device *iwdg)
+{
+	vaddr_t iwdg_base = get_base(iwdg);
+
+	if (iwdg->hw_version >= IWDG_ICR_MIN_VER)
+		io_setbits32(iwdg_base + IWDG_ICR_OFFSET, IWDG_ICR_EWIC);
+	else
+		io_setbits32(iwdg_base + IWDG_EWCR_OFFSET, IWDG_EWCR_EWIC);
+}
+
 static enum itr_return stm32_iwdg_it_handler(struct itr_handler *h)
 {
 	unsigned int __maybe_unused cpu = get_core_pos();
@@ -178,10 +192,7 @@ static enum itr_return stm32_iwdg_it_handler(struct itr_handler *h)
 	io_write32(iwdg_base + IWDG_KR_OFFSET, IWDG_KR_WPROT_KEY);
 
 	/* Disable early interrupt */
-	if (iwdg->hw_version >= IWDG_ICR_MIN_VER)
-		io_setbits32(iwdg_base + IWDG_ICR_OFFSET, IWDG_ICR_EWIC);
-	else
-		io_setbits32(iwdg_base + IWDG_EWCR_OFFSET, IWDG_EWCR_EWIC);
+	stm32_iwdg_it_ack(iwdg);
 
 	panic("Watchdog");
 
@@ -279,9 +290,27 @@ static void iwdg_wdt_start(struct wdt_chip *chip)
 	struct stm32_iwdg_device *iwdg = wdt_chip_to_iwdg(chip);
 
 	iwdg_start(iwdg);
+	if (iwdg->reset && iwdg->itr_handler)
+		stm32_iwdg_it_ack(iwdg);
 
 	if (configure_timeout(iwdg))
 		panic();
+
+	if (iwdg->reset)
+		if (rstctrl_assert(iwdg->reset))
+			panic();
+}
+
+static void iwdg_wdt_stop(struct wdt_chip *chip)
+{
+	struct stm32_iwdg_device *iwdg = wdt_chip_to_iwdg(chip);
+
+	if (iwdg->reset) {
+		if (rstctrl_deassert(iwdg->reset))
+			panic();
+		if (iwdg->itr_handler)
+			interrupt_disable(iwdg->itr_chip, iwdg->itr_num);
+	}
 }
 
 static void iwdg_wdt_refresh(struct wdt_chip *chip)
@@ -344,6 +373,7 @@ static TEE_Result iwdg_wdt_get_timeleft(struct wdt_chip *chip, bool *is_started,
 static const struct wdt_ops stm32_iwdg_ops = {
 	.init = iwdg_wdt_init,
 	.start = iwdg_wdt_start,
+	.stop = iwdg_wdt_stop,
 	.ping = iwdg_wdt_refresh,
 	.set_timeout = iwdg_wdt_set_timeout,
 	.get_timeleft = iwdg_wdt_get_timeleft,
@@ -382,6 +412,10 @@ static TEE_Result stm32_iwdg_parse_fdt(struct stm32_iwdg_device *iwdg,
 		if (res)
 			return res;
 	}
+
+	res = rstctrl_dt_get_by_index(fdt, node, 0, &iwdg->reset);
+	if (res && res != TEE_ERROR_ITEM_NOT_FOUND)
+		goto err_itr;
 
 	/* Get IOMEM address */
 	iwdg->base.pa = dt_info.reg;
