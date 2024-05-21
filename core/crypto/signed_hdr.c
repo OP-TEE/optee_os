@@ -29,7 +29,7 @@ struct shdr *shdr_alloc_and_copy(size_t offs, const void *img, size_t img_size)
 		return NULL;
 
 	shdr_size = SHDR_GET_SIZE((const struct shdr *)(img_va + offs));
-	if (ADD_OVERFLOW(offs, shdr_size, &end) || end > img_size)
+	if (!shdr_size || ADD_OVERFLOW(offs, shdr_size, &end) || end > img_size)
 		return NULL;
 
 	if (ADD_OVERFLOW(img_va, shdr_size, &tmp))
