@@ -6,8 +6,6 @@
 
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
-#include <hpre_dh.h>
-#include <hpre_main.h>
 #include <initcall.h>
 #include <malloc.h>
 #include <rng_support.h>
@@ -15,6 +13,9 @@
 #include <string.h>
 #include <string_ext.h>
 #include <trace.h>
+
+#include "hpre_dh.h"
+#include "hpre_main.h"
 
 static TEE_Result hpre_dh_alloc_keypair(struct dh_keypair *key,
 					size_t size_bits)

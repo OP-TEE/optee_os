@@ -7,10 +7,11 @@
 #include <initcall.h>
 #include <io.h>
 #include <malloc.h>
-#include <sec_main.h>
 #include <sys/queue.h>
 #include <trace.h>
 #include <util.h>
+
+#include "sec_main.h"
 
 #define AM_CFG_SINGLE_PORT_MAX_TRANS	0x300014
 #define SEC_CORE_INT_MASK		0x301000

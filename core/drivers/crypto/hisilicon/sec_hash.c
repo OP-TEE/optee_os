@@ -6,8 +6,9 @@
 
 #include <drvcrypt_hash.h>
 #include <initcall.h>
-#include <sec_hash.h>
-#include <sec_main.h>
+
+#include "sec_hash.h"
+#include "sec_main.h"
 
 static enum hisi_drv_status sec_digest_set_hmac_key(struct hashctx *ctx,
 						    struct hisi_sec_sqe *sqe)

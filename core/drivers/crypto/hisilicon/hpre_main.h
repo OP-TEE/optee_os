@@ -5,7 +5,7 @@
 #ifndef _HPRE_MAIN_H
 #define _HPRE_MAIN_H
 
-#include <hisi_qm.h>
+#include "hisi_qm.h"
 
 #define HPRE_BAR_BASE		0x150000000
 #define HPRE_BAR_SIZE		0x400000

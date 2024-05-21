@@ -3,7 +3,7 @@
 #ifndef __SEC_MAIN_H
 #define __SEC_MAIN_H
 
-#include <hisi_qm.h>
+#include "hisi_qm.h"
 
 #ifdef CFG_HISILICON_ACC_V3
 #define SEC_BAR			0x160000000

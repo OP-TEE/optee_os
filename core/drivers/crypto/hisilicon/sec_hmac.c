@@ -6,8 +6,9 @@
 
 #include <drvcrypt_mac.h>
 #include <initcall.h>
-#include <sec_hash.h>
-#include <sec_main.h>
+
+#include "sec_hash.h"
+#include "sec_main.h"
 
 static struct crypto_hmac *to_hmac_ctx(struct crypto_mac_ctx *ctx)
 {

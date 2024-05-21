@@ -4,8 +4,9 @@
  * Kunpeng hardware accelerator HPRE module init.
  */
 
-#include <hpre_main.h>
 #include <initcall.h>
+
+#include "hpre_main.h"
 
 /* base config */
 #define HPRE_COMMON_CNT_CLR_CE		0x301000
