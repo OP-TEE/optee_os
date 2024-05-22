@@ -931,7 +931,7 @@ static struct pgt **alloc_merged_pgt_array(struct vm_paged_region *a,
 	    a->pgt_array[a_pgt_count - 1] != a_next->pgt_array[0])
 		return NULL;
 
-	pgt_array = calloc(sizeof(struct pgt *), pgt_count);
+	pgt_array = calloc(pgt_count, sizeof(struct pgt *));
 	if (!pgt_array)
 		return NULL;
 
