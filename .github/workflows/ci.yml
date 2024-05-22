@@ -179,6 +179,7 @@ jobs:
               _make PLATFORM=rzg CFG_ARM64_core=y
               _make PLATFORM=rpi3
               _make PLATFORM=rpi3 CFG_ARM64_core=y
+              _make PLATFORM=rpi5
               _make PLATFORM=zynq7k-zc702
               _make PLATFORM=marvell-cnf20ka
               _make PLATFORM=synquacer
@@ -363,6 +364,7 @@ jobs:
           export CFG_WERROR=y
           export CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
           export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
+
 
           function _make() { make -j$(nproc) -s O=out $*; }
 
