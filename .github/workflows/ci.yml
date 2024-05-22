@@ -231,6 +231,7 @@ jobs:
           _make PLATFORM=rzg CFG_ARM64_core=y
           _make PLATFORM=rpi3
           _make PLATFORM=rpi3 CFG_ARM64_core=y
+          _make PLATFORM=rpi5
           _make PLATFORM=hikey-hikey960
           _make PLATFORM=hikey-hikey960 COMPILER=clang
           _make PLATFORM=hikey-hikey960 CFG_ARM64_core=y
