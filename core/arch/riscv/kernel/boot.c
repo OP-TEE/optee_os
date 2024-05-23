@@ -47,6 +47,11 @@ static void update_external_dt(void)
 	if (!dt || !dt->blob)
 		return;
 
+#ifdef CFG_CORE_RESERVED_SHM
+	if (mark_static_shm_as_reserved(dt))
+		panic("Failed to config non-secure memory");
+#endif
+
 	if (mark_tddram_as_reserved(dt))
 		panic("Failed to config secure memory");
 }
