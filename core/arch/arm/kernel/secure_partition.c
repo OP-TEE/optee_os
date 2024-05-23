@@ -37,6 +37,7 @@
 #define SP_MANIFEST_ATTR_WRITE		BIT(1)
 #define SP_MANIFEST_ATTR_EXEC		BIT(2)
 #define SP_MANIFEST_ATTR_NSEC		BIT(3)
+#define SP_MANIFEST_ATTR_GP		BIT(4)
 
 #define SP_MANIFEST_ATTR_RO		(SP_MANIFEST_ATTR_READ)
 #define SP_MANIFEST_ATTR_RW		(SP_MANIFEST_ATTR_READ | \
@@ -891,6 +892,15 @@ static TEE_Result handle_fdt_load_relative_mem_regions(struct sp_ctx *ctx,
 			return TEE_ERROR_BAD_FORMAT;
 		}
 
+		if (IS_ENABLED(CFG_TA_BTI) &&
+		    attributes & SP_MANIFEST_ATTR_GP) {
+			if (!(attributes & SP_MANIFEST_ATTR_RX)) {
+				EMSG("Guard only executable region");
+				return TEE_ERROR_BAD_FORMAT;
+			}
+			perm |= TEE_MATTR_GUARDED;
+		}
+
 		res = sp_dt_get_u32(fdt, subnode, "load-flags", &flags);
 		if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND) {
 			EMSG("Optional field with invalid value: flags");
@@ -1218,6 +1228,15 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 		default:
 			EMSG("Invalid memory access permissions");
 			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		if (IS_ENABLED(CFG_TA_BTI) &&
+		    attributes & SP_MANIFEST_ATTR_GP) {
+			if (!(attributes & SP_MANIFEST_ATTR_RX)) {
+				EMSG("Guard only executable region");
+				return TEE_ERROR_BAD_FORMAT;
+			}
+			perm |= TEE_MATTR_GUARDED;
 		}
 
 		/*
