@@ -337,6 +337,11 @@ enum sec_auth_dir {
 	AUTH_MAC_VERIFY,
 };
 
+enum sec_bd_seq {
+	DATA_DST_ADDR_DISABLE,
+	DATA_DST_ADDR_ENABLE,
+};
+
 /*
  * Create task queue pair for SEC.
  *
