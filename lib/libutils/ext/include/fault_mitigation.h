@@ -154,6 +154,21 @@ typedef int (*ftmn_memcmp_t)(const void *p1, const void *p2, size_t nb);
 
 #define __FTMN_FUNC_BYTE(f, o, l)	((o) < (l) ? (uint8_t)(f)[(o)] : 0)
 
+#ifdef __ILP32__
+#define __FTMN_GET_FUNC_U32(f, o, l) \
+	(SHIFT_U32(__FTMN_FUNC_BYTE((f), (o), (l)), 0) | \
+	 SHIFT_U32(__FTMN_FUNC_BYTE((f), (o) + 1, (l)), 8) | \
+	 SHIFT_U32(__FTMN_FUNC_BYTE((f), (o) + 2, (l)), 16) | \
+	 SHIFT_U32(__FTMN_FUNC_BYTE((f), (o) + 3, (l)), 24))
+
+#define __FTMN_FUNC_HASH64(f, o, l) \
+	(__FTMN_GET_FUNC_U32((f), (o), (l)) ^ \
+	 __FTMN_GET_FUNC_U32((f), (o) + 4, (l)))
+
+#define __FTMN_FUNC_HASH32(f, o, l) \
+	(__FTMN_FUNC_HASH64((f), (o), (l)) ^ \
+	 __FTMN_FUNC_HASH64((f), (o) + __FTMN_MAX_FUNC_NAME_LEN / 16, (l)))
+#else
 #define __FTMN_GET_FUNC_U64(f, o, l) \
 	(SHIFT_U64(__FTMN_FUNC_BYTE((f), (o), (l)), 0) | \
 	 SHIFT_U64(__FTMN_FUNC_BYTE((f), (o) + 1, (l)), 8) | \
@@ -167,6 +182,7 @@ typedef int (*ftmn_memcmp_t)(const void *p1, const void *p2, size_t nb);
 #define __FTMN_FUNC_HASH32(f, o, l) \
 	(__FTMN_GET_FUNC_U64((f), (o), (l)) ^ \
 	 __FTMN_GET_FUNC_U64((f), (o) + 8, (l)))
+#endif
 
 #define __FTMN_FUNC_HASH16(f, o, l) \
 	(__FTMN_FUNC_HASH32((f), (o), (l)) ^ \
@@ -184,13 +200,7 @@ typedef int (*ftmn_memcmp_t)(const void *p1, const void *p2, size_t nb);
 	(__FTMN_FUNC_HASH4(f, 0, l) ^ \
 	 __FTMN_FUNC_HASH4(f, __FTMN_MAX_FUNC_NAME_LEN / 2, l))
 
-#ifdef __ILP32__
-#define __FTMN_FUNC_HASH(f, l) \
-	(unsigned long)(__FTMN_FUNC_HASH2((f), (l)) ^ \
-		        (__FTMN_FUNC_HASH2((f), (l)) >> 32))
-#else
 #define __FTMN_FUNC_HASH(f, l)	(unsigned long)__FTMN_FUNC_HASH2((f), (l))
-#endif
 
 #define __ftmn_step_count_1(c0) ((c0) * FTMN_INCR0)
 #define __ftmn_step_count_2(c0, c1) \
