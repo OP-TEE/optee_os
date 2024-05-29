@@ -31,9 +31,12 @@ def format_time(ns):
     if ns < 1000000:
         us = ns / 1000
         return f"{us:7.3f} us"
-    else:
+    elif ns < 1000000000:
         ms = ns / 1000000
         return f"{ms:7.3f} ms"
+    else:
+        s = ns / 1000000000
+        return f"{s:7.3f} s "
 
 
 def display(depth, val):
