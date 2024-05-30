@@ -384,6 +384,41 @@ jobs:
 
           make -j$(nproc) check XEN_BOOT=y
 
+  QEMUv8_Xen_ffa_check:
+    name: make check (QEMUv8, Xen FF-A)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemu_check
+    steps:
+      - name: Remove /__t/*
+        run: rm -rf /__t/*
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_xen_ffa_check-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_xen_ffa_check-cache-
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          OPTEE_OS_TO_TEST=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee.sh qemu_v8 ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1
+
   QEMUv8_Hafnium_check:
     name: make check (QEMUv8, Hafnium)
     runs-on: ubuntu-latest
