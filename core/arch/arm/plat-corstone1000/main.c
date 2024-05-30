@@ -15,7 +15,6 @@
 static struct pl011_data console_data __nex_bss;
 
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
-register_ddr(MM_COMM_BUF_BASE, MM_COMM_BUF_SIZE);
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
