@@ -170,6 +170,7 @@ static int aes_cbc_decrypt_nblocks(const unsigned char *ct, unsigned char *pt,
 	return CRYPT_OK;
 }
 
+#ifdef LTC_CTR_MODE
 static int aes_ctr_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 				   unsigned long blocks, unsigned char *IV,
 				   int mode, symmetric_key *skey)
@@ -189,6 +190,7 @@ static int aes_ctr_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 
 	return CRYPT_OK;
 }
+#endif
 
 static int aes_xts_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 				   unsigned long blocks, unsigned char *tweak,
@@ -245,7 +247,9 @@ const struct ltc_cipher_descriptor aes_desc = {
 	.accel_ecb_decrypt = aes_ecb_decrypt_nblocks,
 	.accel_cbc_encrypt = aes_cbc_encrypt_nblocks,
 	.accel_cbc_decrypt = aes_cbc_decrypt_nblocks,
+#ifdef LTC_CTR_MODE
 	.accel_ctr_encrypt = aes_ctr_encrypt_nblocks,
+#endif
 	.accel_xts_encrypt = aes_xts_encrypt_nblocks,
 	.accel_xts_decrypt = aes_xts_decrypt_nblocks,
 };
