@@ -317,6 +317,7 @@
 #define PROT_RSA_FMT(format)	SHIFT_U32((PROT_RSA_FMT_##format) & 0x1, 12)
 #define PROT_RSA_FMT_NO		0
 #define PROT_RSA_FMT_PKCS_V1_5	1
+#define PROT_RSA_FMT_MASK	SHIFT_U32(0x1, 12)
 
 #define PROT_RSA_DEC_KEYFORM(format)	SHIFT_U32(((format) - 1) & 0x3, 0)
 
