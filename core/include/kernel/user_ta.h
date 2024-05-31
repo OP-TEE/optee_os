@@ -28,7 +28,6 @@ SLIST_HEAD(load_seg_head, load_seg);
  * @cryp_states:	List of cryp states created by this TA
  * @objects:		List of storage objects opened by this TA
  * @storage_enums:	List of storage enumerators opened by this TA
- * @ta_time_offs:	Time reference used by the TA
  * @uctx:		Generic user mode context
  * @ctx:		Generic TA context
  */
@@ -37,7 +36,6 @@ struct user_ta_ctx {
 	struct tee_cryp_state_head cryp_states;
 	struct tee_obj_head objects;
 	struct tee_storage_enum_head storage_enums;
-	void *ta_time_offs;
 	struct user_mode_ctx uctx;
 	struct tee_ta_ctx ta_ctx;
 };
