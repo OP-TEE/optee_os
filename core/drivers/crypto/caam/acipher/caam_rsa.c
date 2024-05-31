@@ -1400,7 +1400,7 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 	caam_dmaobj_cache_push(&msg);
 
 	/* Allocate the returned computed size when PKCS V1.5 */
-	if (operation == RSA_DECRYPT(PKCS_V1_5)) {
+	if ((operation & PROT_RSA_FMT_MASK) == PROT_RSA_FMT(PKCS_V1_5)) {
 		retstatus = caam_alloc_align_buf(&size_msg, 4);
 		if (retstatus != CAAM_NO_ERROR)
 			goto exit_decrypt;
@@ -1546,7 +1546,7 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 
 	caam_desc_add_word(desc, operation);
 
-	if (operation == RSA_DECRYPT(PKCS_V1_5)) {
+	if ((operation & PROT_RSA_FMT_MASK) == PROT_RSA_FMT(PKCS_V1_5)) {
 		/* Get the PKCS1 v1.5 Message length generated */
 		caam_desc_add_word(desc,
 				   ST_NOIMM_OFF(CLASS_DECO, REG_MATH0, 4, 4));
@@ -1578,11 +1578,12 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 		goto exit_decrypt;
 	}
 
-	if (operation == RSA_DECRYPT(NO) &&
+	if ((operation & PROT_RSA_FMT_MASK) == PROT_RSA_FMT(NO) &&
 	    rsa_data->rsa_id == DRVCRYPT_RSA_NOPAD) {
 		rsa_data->message.length = caam_dmaobj_copy_ltrim_to_orig(&msg);
 	} else {
-		if (operation == RSA_DECRYPT(PKCS_V1_5)) {
+		if ((operation & PROT_RSA_FMT_MASK) ==
+		    PROT_RSA_FMT(PKCS_V1_5)) {
 			/* PKCS 1 v1.5 */
 			cache_operation(TEE_CACHEINVALIDATE, size_msg.data,
 					size_msg.length);
