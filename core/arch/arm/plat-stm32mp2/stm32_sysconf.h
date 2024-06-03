@@ -101,4 +101,10 @@ void stm32mp_syscfg_write(uint32_t id, uint32_t value, uint32_t bitmsk);
  */
 uint32_t stm32mp_syscfg_read(uint32_t id);
 
+/*
+ * Set safe reset state
+ * @status: True to enable safe reset, false to disable safe reset
+ */
+void stm32mp25_syscfg_set_safe_reset(bool status);
+
 #endif /*__STM32_SYSCONF_H__*/
