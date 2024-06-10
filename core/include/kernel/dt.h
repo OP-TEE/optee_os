@@ -237,7 +237,10 @@ int fdt_get_reg_props_by_index(const void *fdt, int node, int index,
 int fdt_get_reg_props_by_name(const void *fdt, int node, const char *name,
 			      paddr_t *base, size_t *size);
 
-/* Returns embedded DTB if present, then external DTB if found, then NULL */
+/*
+ * Returns embedded DTB if present, then external DTB if found,
+ * then manifest DTB if found, then NULL.
+ */
 void *get_dt(void);
 
 /*
@@ -247,7 +250,8 @@ void *get_dt(void);
  *
  * 1. Returns embedded DTB if available,
  * 2. Secure external DTB if available,
- * 3. If neither then NULL
+ * 3. Manifest DTB if available,
+ * 4. If neither then NULL
  */
 void *get_secure_dt(void);
 
