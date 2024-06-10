@@ -18,6 +18,10 @@
 
 static struct dt_descriptor external_dt __nex_bss;
 
+#if defined(CFG_CORE_FFA)
+static void *manifest_dt __nex_bss;
+#endif
+
 const struct dt_driver *dt_find_compatible_driver(const void *fdt, int offs)
 {
 	const struct dt_device_match *dm;
@@ -742,3 +746,69 @@ int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 	}
 	return 0;
 }
+
+#if defined(CFG_CORE_FFA)
+void init_manifest_dt(void *fdt)
+{
+	manifest_dt = fdt;
+}
+
+void reinit_manifest_dt(void)
+{
+	paddr_t pa = (unsigned long)manifest_dt;
+	void *fdt = NULL;
+	int ret = 0;
+
+	if (!pa) {
+		EMSG("No manifest DT found");
+		return;
+	}
+
+	fdt = core_mmu_add_mapping(MEM_AREA_MANIFEST_DT, pa, CFG_DTB_MAX_SIZE);
+	if (!fdt)
+		panic("Failed to map manifest DT");
+
+	manifest_dt = fdt;
+
+	ret = fdt_check_full(fdt, CFG_DTB_MAX_SIZE);
+	if (ret < 0) {
+		EMSG("Invalid manifest Device Tree at %#lx: error %d", pa, ret);
+		panic();
+	}
+
+	IMSG("manifest DT found");
+}
+
+void *get_manifest_dt(void)
+{
+	return manifest_dt;
+}
+
+static TEE_Result release_manifest_dt(void)
+{
+	if (!manifest_dt)
+		return TEE_SUCCESS;
+
+	if (core_mmu_remove_mapping(MEM_AREA_MANIFEST_DT, manifest_dt,
+				    CFG_DTB_MAX_SIZE))
+		panic("Failed to remove temporary manifest DT mapping");
+	manifest_dt = NULL;
+
+	return TEE_SUCCESS;
+}
+
+boot_final(release_manifest_dt);
+#else
+void init_manifest_dt(void *fdt __unused)
+{
+}
+
+void reinit_manifest_dt(void)
+{
+}
+
+void *get_manifest_dt(void)
+{
+	return NULL;
+}
+#endif /*CFG_CORE_FFA*/

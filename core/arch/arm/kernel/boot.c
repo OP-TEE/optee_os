@@ -79,7 +79,6 @@ uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 DECLARE_KEEP_PAGER(sem_cpu_sync);
 #endif
 
-static void *manifest_dt __nex_bss;
 static unsigned long boot_arg_fdt __nex_bss;
 static unsigned long boot_arg_nsec_entry __nex_bss;
 static unsigned long boot_arg_pageable_part __nex_bss;
@@ -906,63 +905,6 @@ static void update_external_dt(void)
 }
 #endif /*!CFG_DT*/
 
-#if defined(CFG_CORE_FFA)
-void *get_manifest_dt(void)
-{
-	return manifest_dt;
-}
-
-static void reinit_manifest_dt(void)
-{
-	paddr_t pa = (unsigned long)manifest_dt;
-	void *fdt = NULL;
-	int ret = 0;
-
-	if (!pa) {
-		EMSG("No manifest DT found");
-		return;
-	}
-
-	fdt = core_mmu_add_mapping(MEM_AREA_MANIFEST_DT, pa, CFG_DTB_MAX_SIZE);
-	if (!fdt)
-		panic("Failed to map manifest DT");
-
-	manifest_dt = fdt;
-
-	ret = fdt_check_full(fdt, CFG_DTB_MAX_SIZE);
-	if (ret < 0) {
-		EMSG("Invalid manifest Device Tree at %#lx: error %d", pa, ret);
-		panic();
-	}
-
-	IMSG("manifest DT found");
-}
-
-static TEE_Result release_manifest_dt(void)
-{
-	if (!manifest_dt)
-		return TEE_SUCCESS;
-
-	if (core_mmu_remove_mapping(MEM_AREA_MANIFEST_DT, manifest_dt,
-				    CFG_DTB_MAX_SIZE))
-		panic("Failed to remove temporary manifest DT mapping");
-	manifest_dt = NULL;
-
-	return TEE_SUCCESS;
-}
-
-boot_final(release_manifest_dt);
-#else
-void *get_manifest_dt(void)
-{
-	return NULL;
-}
-
-static void reinit_manifest_dt(void)
-{
-}
-#endif /*CFG_CORE_FFA*/
-
 #ifdef CFG_NS_VIRTUALIZATION
 static TEE_Result virt_init_heap(void)
 {
@@ -1468,15 +1410,16 @@ void __weak boot_save_args(unsigned long a0, unsigned long a1,
 	if (IS_ENABLED(CFG_CORE_FFA)) {
 		if (IS_ENABLED(CFG_CORE_SEL2_SPMC) ||
 		    IS_ENABLED(CFG_CORE_EL3_SPMC))
-			manifest_dt = get_fdt_from_boot_info((void *)a0);
+			init_manifest_dt(get_fdt_from_boot_info((void *)a0));
 		else
-			manifest_dt = (void *)a0;
+			init_manifest_dt((void *)a0);
 		if (IS_ENABLED(CFG_CORE_SEL2_SPMC) &&
 		    IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE)) {
 			paddr_t base = 0;
 			size_t size = 0;
 
-			get_sec_mem_from_manifest(manifest_dt, &base, &size);
+			get_sec_mem_from_manifest(get_manifest_dt(),
+						  &base, &size);
 			core_mmu_set_secure_memory(base, size);
 		}
 	} else {
