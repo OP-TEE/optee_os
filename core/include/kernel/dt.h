@@ -302,6 +302,24 @@ int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
 int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 			paddr_t pa, size_t size);
 
+/*
+ * init_manifest_dt() - Initialize the manifest DTB to given address.
+ * @fdt:	Physical address where the manifest DTB located.
+ *
+ * Initialize the manifest DTB to physical address
+ */
+void init_manifest_dt(void *fdt);
+
+/*
+ * reinit_manifest_dt() - Reinitialize the manifest DTB
+ *
+ * Add MMU mapping of the manifest DTB and initialize device tree overlay
+ */
+void reinit_manifest_dt(void);
+
+/* Returns TOS_FW_CONFIG DTB or SP manifest DTB if present, otherwise NULL */
+void *get_manifest_dt(void);
+
 #else /* !CFG_DT */
 
 static inline const struct dt_driver *dt_find_compatible_driver(
@@ -451,6 +469,19 @@ static inline int add_res_mem_dt_node(struct dt_descriptor *dt __unused,
 				      size_t size __unused)
 {
 	return -1;
+}
+
+static inline void init_manifest_dt(void *fdt __unused)
+{
+}
+
+static inline void reinit_manifest_dt(void)
+{
+}
+
+static inline void *get_manifest_dt(void)
+{
+	return NULL;
 }
 
 #endif /* !CFG_DT */

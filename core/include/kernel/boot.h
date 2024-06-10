@@ -92,9 +92,6 @@ int boot_core_release(size_t core_idx, paddr_t entry);
 struct ns_entry_context *boot_core_hpen(void);
 #endif
 
-/* Returns TOS_FW_CONFIG DTB or SP manifest DTB if present, otherwise NULL */
-void *get_manifest_dt(void);
-
 /*
  * get_aslr_seed() - return a random seed for core ASLR
  *
