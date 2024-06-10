@@ -453,6 +453,9 @@ void *get_dt(void)
 	if (!fdt)
 		fdt = get_external_dt();
 
+	if (!fdt)
+		fdt = get_manifest_dt();
+
 	return fdt;
 }
 
@@ -462,6 +465,9 @@ void *get_secure_dt(void)
 
 	if (!fdt && IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
 		fdt = get_external_dt();
+
+	if (!fdt)
+		fdt = get_manifest_dt();
 
 	return fdt;
 }
