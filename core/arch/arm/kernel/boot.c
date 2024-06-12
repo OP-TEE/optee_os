@@ -446,7 +446,7 @@ static void print_pager_pool_size(void)
 		stats.npages_all * SMALL_PAGE_SIZE / 1024);
 }
 
-static void init_vcore(tee_mm_pool_t *mm_vcore)
+static void init_virt_pool(tee_mm_pool_t *virt_pool)
 {
 	const vaddr_t begin = VCORE_START_VA;
 	size_t size = TEE_RAM_VA_SIZE;
@@ -457,9 +457,9 @@ static void init_vcore(tee_mm_pool_t *mm_vcore)
 		size = ASAN_MAP_PA - begin;
 #endif
 
-	if (!tee_mm_init(mm_vcore, begin, size, SMALL_PAGE_SHIFT,
+	if (!tee_mm_init(virt_pool, begin, size, SMALL_PAGE_SHIFT,
 			 TEE_MM_POOL_NO_FLAGS))
-		panic("tee_mm_vcore init failed");
+		panic("core_virt_mem_pool init failed");
 }
 
 /*
@@ -614,7 +614,7 @@ static void init_runtime(unsigned long pageable_part)
 	 * Initialize the virtual memory pool used for main_mmu_l2_ttb which
 	 * is supplied to tee_pager_init() below.
 	 */
-	init_vcore(&tee_mm_vcore);
+	init_virt_pool(&core_virt_mem_pool);
 
 	/*
 	 * Assign alias area for pager end of the small page block the rest
@@ -622,9 +622,9 @@ static void init_runtime(unsigned long pageable_part)
 	 * we're guaranteed to not need more than the physical amount of
 	 * TZSRAM.
 	 */
-	mm = tee_mm_alloc2(&tee_mm_vcore,
-			   (vaddr_t)tee_mm_vcore.lo +
-			   tee_mm_vcore.size - TZSRAM_SIZE,
+	mm = tee_mm_alloc2(&core_virt_mem_pool,
+			   (vaddr_t)core_virt_mem_pool.lo +
+			   core_virt_mem_pool.size - TZSRAM_SIZE,
 			   TZSRAM_SIZE);
 	assert(mm);
 	tee_pager_set_alias_area(mm);
@@ -633,7 +633,7 @@ static void init_runtime(unsigned long pageable_part)
 	 * Claim virtual memory which isn't paged.
 	 * Linear memory (flat map core memory) ends there.
 	 */
-	mm = tee_mm_alloc2(&tee_mm_vcore, VCORE_UNPG_RX_PA,
+	mm = tee_mm_alloc2(&core_virt_mem_pool, VCORE_UNPG_RX_PA,
 			   (vaddr_t)(__pageable_start - VCORE_UNPG_RX_PA));
 	assert(mm);
 
@@ -641,7 +641,7 @@ static void init_runtime(unsigned long pageable_part)
 	 * Allocate virtual memory for the pageable area and let the pager
 	 * take charge of all the pages already assigned to that memory.
 	 */
-	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pageable_start,
+	mm = tee_mm_alloc2(&core_virt_mem_pool, (vaddr_t)__pageable_start,
 			   pageable_size);
 	assert(mm);
 	fobj = ro_paged_alloc(mm, hashes, paged_store);
@@ -664,9 +664,10 @@ static void init_runtime(unsigned long pageable_part)
 	 * This setup may happen when a the secure bootloader runs in TZRAM
 	 * and its memory can be reused by OP-TEE once boot stages complete.
 	 */
-	tee_pager_add_pages(tee_mm_vcore.lo,
-			(VCORE_UNPG_RX_PA - tee_mm_vcore.lo) / SMALL_PAGE_SIZE,
-			true);
+	tee_pager_add_pages(core_virt_mem_pool.lo,
+			    (VCORE_UNPG_RX_PA - core_virt_mem_pool.lo) /
+				SMALL_PAGE_SIZE,
+			    true);
 
 	print_pager_pool_size();
 }

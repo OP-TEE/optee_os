@@ -2004,7 +2004,7 @@ void *tee_pager_alloc(size_t size)
 	if (!size)
 		return NULL;
 
-	mm = tee_mm_alloc(&tee_mm_vcore, ROUNDUP(size, SMALL_PAGE_SIZE));
+	mm = tee_mm_alloc(&core_virt_mem_pool, ROUNDUP(size, SMALL_PAGE_SIZE));
 	if (!mm)
 		return NULL;
 
@@ -2031,7 +2031,8 @@ vaddr_t tee_pager_init_iv_region(struct fobj *fobj)
 
 	assert(!pager_iv_region);
 
-	mm = tee_mm_alloc(&tee_mm_vcore, fobj->num_pages * SMALL_PAGE_SIZE);
+	mm = tee_mm_alloc(&core_virt_mem_pool,
+			  fobj->num_pages * SMALL_PAGE_SIZE);
 	if (!mm)
 		panic();
 

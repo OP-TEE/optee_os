@@ -38,8 +38,8 @@
 /* Physical Secure DDR pool */
 tee_mm_pool_t tee_mm_sec_ddr;
 
-/* Virtual eSRAM pool */
-tee_mm_pool_t tee_mm_vcore;
+/* Virtual memory pool for core mappings */
+tee_mm_pool_t core_virt_mem_pool;
 
 /* Shared memory pool */
 tee_mm_pool_t tee_mm_shm;
