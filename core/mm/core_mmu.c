@@ -41,8 +41,8 @@ tee_mm_pool_t tee_mm_sec_ddr;
 /* Virtual memory pool for core mappings */
 tee_mm_pool_t core_virt_mem_pool;
 
-/* Shared memory pool */
-tee_mm_pool_t tee_mm_shm;
+/* Virtual memory pool for shared memory mappings */
+tee_mm_pool_t core_virt_shm_pool;
 
 #ifdef CFG_CORE_PHYS_RELOCATABLE
 unsigned long core_mmu_tee_load_pa __nex_bss;
