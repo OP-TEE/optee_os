@@ -290,7 +290,7 @@ static int map_buf(paddr_t pa, unsigned int sz, void **va_ret)
 	if (!core_pbuf_is(CORE_MEM_NON_SEC, pa, sz))
 		return FFA_INVALID_PARAMETERS;
 
-	mm = tee_mm_alloc(&tee_mm_shm, sz);
+	mm = tee_mm_alloc(&core_virt_shm_pool, sz);
 	if (!mm)
 		return FFA_NO_MEMORY;
 
@@ -313,7 +313,7 @@ void spmc_handle_spm_id_get(struct thread_smc_args *args)
 
 static void unmap_buf(void *va, size_t sz)
 {
-	tee_mm_entry_t *mm = tee_mm_find(&tee_mm_shm, (vaddr_t)va);
+	tee_mm_entry_t *mm = tee_mm_find(&core_virt_shm_pool, (vaddr_t)va);
 
 	assert(mm);
 	core_mmu_unmap_pages(tee_mm_get_smem(mm), sz / SMALL_PAGE_SIZE);
@@ -1171,7 +1171,7 @@ static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
 	if (len < flen || len - offs < flen)
 		return FFA_INVALID_PARAMETERS;
 
-	mm = tee_mm_alloc(&tee_mm_shm, len);
+	mm = tee_mm_alloc(&core_virt_shm_pool, len);
 	if (!mm)
 		return FFA_NO_MEMORY;
 

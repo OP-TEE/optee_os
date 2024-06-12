@@ -202,7 +202,7 @@ static TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
 	 */
 	if (!r->mm) {
 		sz = ROUNDUP(mobj->size + r->page_offset, SMALL_PAGE_SIZE);
-		r->mm = tee_mm_alloc(&tee_mm_shm, sz);
+		r->mm = tee_mm_alloc(&core_virt_shm_pool, sz);
 		if (!r->mm) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
@@ -460,7 +460,7 @@ static TEE_Result mobj_mapped_shm_init(void)
 	if (!pool_start || !pool_end)
 		panic("Can't find region for shmem pool");
 
-	if (!tee_mm_init(&tee_mm_shm, pool_start, pool_end - pool_start,
+	if (!tee_mm_init(&core_virt_shm_pool, pool_start, pool_end - pool_start,
 			 SMALL_PAGE_SHIFT, TEE_MM_POOL_NO_FLAGS))
 		panic("Could not create shmem pool");
 
