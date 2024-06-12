@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <compiler.h>
 #include <kernel/user_ta.h>
+#include <mm/tee_mm.h>
 #include <mm/tee_mmu_types.h>
 #include <types_ext.h>
 #include <util.h>
@@ -275,6 +276,15 @@ struct core_mmu_phys_mem {
 
 #define phys_mem_map_end \
 	SCATTERED_ARRAY_END(phys_mem_map, struct core_mmu_phys_mem)
+
+/* Physical Secure DDR pool */
+extern tee_mm_pool_t tee_mm_sec_ddr;
+
+/* Virtual eSRAM pool */
+extern tee_mm_pool_t tee_mm_vcore;
+
+/* Shared memory pool */
+extern tee_mm_pool_t tee_mm_shm;
 
 #ifdef CFG_CORE_RESERVED_SHM
 /* Default NSec shared memory allocated from NSec world */

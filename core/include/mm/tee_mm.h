@@ -38,15 +38,6 @@ struct _tee_mm_pool_t {
 };
 typedef struct _tee_mm_pool_t tee_mm_pool_t;
 
-/* Physical Secure DDR pool */
-extern tee_mm_pool_t tee_mm_sec_ddr;
-
-/* Virtual eSRAM pool */
-extern tee_mm_pool_t tee_mm_vcore;
-
-/* Shared memory pool */
-extern tee_mm_pool_t tee_mm_shm;
-
 /*
  * Returns a pointer to the mm covering the supplied address,
  * if no mm is found NULL is returned.
