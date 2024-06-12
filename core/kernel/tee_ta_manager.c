@@ -617,22 +617,33 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 
 	/* Look for already loaded TA */
 	res = tee_ta_init_session_with_context(s, uuid);
-	mutex_unlock(&tee_ta_mutex);
-	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
+	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND) {
+		mutex_unlock(&tee_ta_mutex);
 		goto out;
+	}
 
 	/* Look for secure partition */
 	res = stmm_init_session(uuid, s);
-	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
+	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND) {
+		mutex_unlock(&tee_ta_mutex);
+		if (res == TEE_SUCCESS)
+			res = stmm_complete_session(s);
+
 		goto out;
+	}
 
 	/* Look for pseudo TA */
 	res = tee_ta_init_pseudo_ta_session(uuid, s);
-	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
+	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND) {
+		mutex_unlock(&tee_ta_mutex);
 		goto out;
+	}
 
 	/* Look for user TA */
 	res = tee_ta_init_user_ta_session(uuid, s);
+	mutex_unlock(&tee_ta_mutex);
+	if (res == TEE_SUCCESS)
+		res = tee_ta_complete_user_ta_session(s);
 
 out:
 	if (!res) {

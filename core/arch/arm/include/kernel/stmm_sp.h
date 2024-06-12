@@ -153,14 +153,33 @@ static inline struct stmm_ctx *to_stmm_ctx(struct ts_ctx *ctx)
 }
 
 #ifdef CFG_WITH_STMM_SP
+/*
+ * Setup session context for the StMM application
+ * @uuid: TA UUID
+ * @sess: Session for which to setup the StMM context
+ *
+ * This function must be called with tee_ta_mutex locked.
+ */
 TEE_Result stmm_init_session(const TEE_UUID *uuid,
 			     struct tee_ta_session *s);
+
+/*
+ * Finalize session context initialization the StMM application
+ * @sess: Session for which to finalize StMM context
+ */
+TEE_Result stmm_complete_session(struct tee_ta_session *s);
 #else
 static inline TEE_Result
 stmm_init_session(const TEE_UUID *uuid __unused,
 		  struct tee_ta_session *s __unused)
 {
 	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+static inline TEE_Result
+stmm_complete_session(struct tee_ta_session *s __unused)
+{
+	return TEE_ERROR_GENERIC;
 }
 #endif
 
