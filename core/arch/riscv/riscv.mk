@@ -122,7 +122,7 @@ rv64-platform-cppflags += -DRV64=1 -D__LP64__=1
 rv32-platform-cppflags += -DRV32=1 -D__ILP32__=1
 
 platform-cflags-generic ?= -ffunction-sections -fdata-sections -pipe
-platform-aflags-generic ?= -pipe
+platform-aflags-generic ?= -pipe -march=$(riscv-isa) -mabi=$(riscv-abi)
 
 rv64-platform-cflags-generic := -mstrict-align $(call cc-option,)
 
