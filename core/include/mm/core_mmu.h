@@ -280,8 +280,8 @@ struct core_mmu_phys_mem {
 /* Physical Secure DDR pool */
 extern tee_mm_pool_t tee_mm_sec_ddr;
 
-/* Virtual eSRAM pool */
-extern tee_mm_pool_t tee_mm_vcore;
+/* Virtual memory pool for core mappings */
+extern tee_mm_pool_t core_virt_mem_pool;
 
 /* Shared memory pool */
 extern tee_mm_pool_t tee_mm_shm;

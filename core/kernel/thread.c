@@ -426,7 +426,7 @@ static void init_thread_stacks(void)
 		struct fobj *fobj = NULL;
 
 		/* Find vmem for thread stack and its protection gap */
-		mm = tee_mm_alloc(&tee_mm_vcore,
+		mm = tee_mm_alloc(&core_virt_mem_pool,
 				  SMALL_PAGE_SIZE + STACK_THREAD_SIZE);
 		assert(mm);
 
