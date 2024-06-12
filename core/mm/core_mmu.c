@@ -35,6 +35,15 @@
 
 #define SHM_VASPACE_SIZE	(1024 * 1024 * 32)
 
+/* Physical Secure DDR pool */
+tee_mm_pool_t tee_mm_sec_ddr;
+
+/* Virtual eSRAM pool */
+tee_mm_pool_t tee_mm_vcore;
+
+/* Shared memory pool */
+tee_mm_pool_t tee_mm_shm;
+
 #ifdef CFG_CORE_PHYS_RELOCATABLE
 unsigned long core_mmu_tee_load_pa __nex_bss;
 #else
