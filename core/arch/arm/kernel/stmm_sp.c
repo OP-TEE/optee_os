@@ -9,6 +9,7 @@
 #include <keep.h>
 #include <kernel/abort.h>
 #include <kernel/stmm_sp.h>
+#include <kernel/tee_ta_manager.h>
 #include <kernel/thread_private.h>
 #include <kernel/user_mode_ctx.h>
 #include <mempool.h>
@@ -334,7 +335,9 @@ static TEE_Result load_stmm(struct stmm_ctx *spc)
 TEE_Result stmm_init_session(const TEE_UUID *uuid, struct tee_ta_session *sess)
 {
 	struct stmm_ctx *spc = NULL;
-	TEE_Result res = TEE_SUCCESS;
+
+	/* Caller is expected to hold tee_ta_mutex for safe changes in @sess */
+	assert(mutex_is_locked(&tee_ta_mutex));
 
 	if (memcmp(uuid, &stmm_uuid, sizeof(*uuid)))
 		return TEE_ERROR_ITEM_NOT_FOUND;
@@ -345,10 +348,16 @@ TEE_Result stmm_init_session(const TEE_UUID *uuid, struct tee_ta_session *sess)
 
 	spc->ta_ctx.is_initializing = true;
 
-	mutex_lock(&tee_ta_mutex);
 	sess->ts_sess.ctx = &spc->ta_ctx.ts_ctx;
 	sess->ts_sess.handle_scall = sess->ts_sess.ctx->ops->handle_scall;
-	mutex_unlock(&tee_ta_mutex);
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result stmm_complete_session(struct tee_ta_session *sess)
+{
+	struct stmm_ctx *spc = to_stmm_ctx(sess->ts_sess.ctx);
+	TEE_Result res = TEE_SUCCESS;
 
 	ts_push_current_session(&sess->ts_sess);
 	res = load_stmm(spc);

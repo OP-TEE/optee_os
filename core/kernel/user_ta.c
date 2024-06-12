@@ -458,6 +458,12 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	TEE_Result res = TEE_SUCCESS;
 	struct user_ta_ctx *utc = NULL;
 
+	/*
+	 * Caller is expected to hold tee_ta_mutex for safe changes
+	 * in @s and registering of the context in tee_ctxes list.
+	 */
+	assert(mutex_is_locked(&tee_ta_mutex));
+
 	utc = calloc(1, sizeof(struct user_ta_ctx));
 	if (!utc)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -477,15 +483,20 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 
 	utc->ta_ctx.ts_ctx.uuid = *uuid;
 	res = vm_info_init(&utc->uctx, &utc->ta_ctx.ts_ctx);
-	if (res)
-		goto out;
+	if (res) {
+		condvar_destroy(&utc->ta_ctx.busy_cv);
+		free_utc(utc);
+		return res;
+	}
+
 	utc->ta_ctx.is_initializing = true;
 
 #ifdef CFG_TA_PAUTH
 	crypto_rng_read(&utc->uctx.keys, sizeof(utc->uctx.keys));
 #endif
 
-	mutex_lock(&tee_ta_mutex);
+	assert(!mutex_trylock(&tee_ta_mutex));
+
 	s->ts_sess.ctx = &utc->ta_ctx.ts_ctx;
 	s->ts_sess.handle_scall = s->ts_sess.ctx->ops->handle_scall;
 	/*
@@ -494,7 +505,14 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	 * handle single instance TAs.
 	 */
 	TAILQ_INSERT_TAIL(&tee_ctxes, &utc->ta_ctx, link);
-	mutex_unlock(&tee_ta_mutex);
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result tee_ta_complete_user_ta_session(struct tee_ta_session *s)
+{
+	struct user_ta_ctx *utc = to_user_ta_ctx(s->ts_sess.ctx);
+	TEE_Result res = TEE_SUCCESS;
 
 	/*
 	 * We must not hold tee_ta_mutex while allocating page tables as
@@ -515,18 +533,14 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	} else {
 		s->ts_sess.ctx = NULL;
 		TAILQ_REMOVE(&tee_ctxes, &utc->ta_ctx, link);
+		condvar_destroy(&utc->ta_ctx.busy_cv);
+		free_utc(utc);
 	}
 
 	/* The state has changed for the context, notify eventual waiters. */
 	condvar_broadcast(&tee_ta_init_cv);
 
 	mutex_unlock(&tee_ta_mutex);
-
-out:
-	if (res) {
-		condvar_destroy(&utc->ta_ctx.busy_cv);
-		free_utc(utc);
-	}
 
 	return res;
 }

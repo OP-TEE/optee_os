@@ -59,6 +59,13 @@ static inline struct pseudo_ta_ctx *to_pseudo_ta_ctx(struct ts_ctx *ctx)
 	return container_of(ctx, struct pseudo_ta_ctx, ctx.ts_ctx);
 }
 
+/*
+ * Setup session context for a pseudo TA
+ * @uuid: Pseudo TA UUID
+ * @s: Session for which to setup a pseudo TA context
+ *
+ * This function must be called with tee_ta_mutex locked.
+ */
 TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s);
 

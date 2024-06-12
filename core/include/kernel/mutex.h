@@ -118,13 +118,13 @@ TEE_Result condvar_wait_timeout(struct condvar *cv, struct mutex *m,
 #endif
 
 /*
- * Helper for testing that a given mutex is locked. This helper is to be used
- * with caution since it does not enforce that the executing thread is holding
- * the mutex.
+ * Helper for testing that a given mutex is locked for writing. This helper
+ * is to be used with caution since it does not guarantee that the executing
+ * thread is holding the mutex.
  */
 static inline bool mutex_is_locked(struct mutex *m)
 {
-	return m->state;
+	return m->state == -1; /* write locked */
 }
 #endif /*__KERNEL_MUTEX_H*/
 

@@ -35,6 +35,12 @@ stmm_init_session(const TEE_UUID *uuid __unused,
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
+static inline TEE_Result
+stmm_complete_session(struct tee_ta_session *s __unused)
+{
+	return TEE_ERROR_GENERIC;
+}
+
 static inline const TEE_UUID *stmm_get_uuid(void) { return NULL; }
 
 #endif /*__KERNEL_STMM_SP_H*/

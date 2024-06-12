@@ -294,6 +294,12 @@ TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 	struct tee_ta_ctx *ctx;
 	const struct pseudo_ta_head *ta;
 
+	/*
+	 * Caller is expected to hold tee_ta_mutex for safe changes
+	 * in @s and registering of the context in tee_ctxes list.
+	 */
+	assert(mutex_is_locked(&tee_ta_mutex));
+
 	DMSG("Lookup pseudo TA %pUl", (void *)uuid);
 
 	ta = SCATTERED_ARRAY_BEGIN(pseudo_tas, struct pseudo_ta_head);
@@ -306,7 +312,6 @@ TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 		ta++;
 	}
 
-	/* Load a new TA and create a session */
 	DMSG("Open %s", ta->name);
 	stc = calloc(1, sizeof(struct pseudo_ta_ctx));
 	if (!stc)
@@ -319,10 +324,8 @@ TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 	ctx->ts_ctx.uuid = ta->uuid;
 	ctx->ts_ctx.ops = &pseudo_ta_ops;
 
-	mutex_lock(&tee_ta_mutex);
 	s->ts_sess.ctx = &ctx->ts_ctx;
 	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
-	mutex_unlock(&tee_ta_mutex);
 
 	DMSG("%s : %pUl", stc->pseudo_ta->name, (void *)&ctx->ts_ctx.uuid);
 
