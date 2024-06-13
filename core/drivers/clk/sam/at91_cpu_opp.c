@@ -20,6 +20,51 @@ struct clk_rates {
 
 static struct clk_rates *opp_rates;
 
+static TEE_Result get_rates_array(struct clk *clk __unused, size_t start_index,
+				  unsigned long *rates, size_t *nb_elts)
+{
+	if (!opp_rates)
+		panic("Invalid CPU OPP Rates Array");
+
+	if (!rates) {
+		*nb_elts = opp_rates->rate_num;
+
+		return TEE_SUCCESS;
+	}
+
+	if (start_index + *nb_elts > opp_rates->rate_num) {
+		EMSG("Bad parameter(s): start_index %zu, nb_elts %zu",
+		     start_index, *nb_elts);
+
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+	memcpy(rates, &opp_rates->rates[start_index],
+	       *nb_elts * sizeof(*rates));
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result cpu_opp_clk_set_rate(struct clk *clk, unsigned long rate,
+				       unsigned long parent_rate)
+{
+	size_t n = 0;
+
+	assert(clk->parent);
+
+	for (n = 0; n < opp_rates->rate_num; n++)
+		if (rate == opp_rates->rates[n])
+			break;
+	if (n == opp_rates->rate_num)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return clk->parent->ops->set_rate(clk->parent, rate, parent_rate);
+}
+
+static const struct clk_ops cpu_opp_clk_ops = {
+	.set_rate = cpu_opp_clk_set_rate,
+	.get_rates_array = get_rates_array,
+};
+
 static TEE_Result dt_get_opp_hz(const void *fdt, int node, unsigned long *value)
 {
 	const char *property = "opp-hz";
@@ -78,8 +123,36 @@ static TEE_Result opp_rates_setup(const void *fdt, int node)
 	return TEE_SUCCESS;
 }
 
-TEE_Result at91_clk_register_cpu_opp(const void *fdt, int node,
-				     struct clk *clk __unused)
+static struct clk *cpu_opp_clk;
+
+struct clk *at91_cpu_opp_clk_get(void)
 {
-	return opp_rates_setup(fdt, node);
+	return cpu_opp_clk;
+}
+
+TEE_Result at91_clk_register_cpu_opp(const void *fdt, int node, struct clk *clk)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = opp_rates_setup(fdt, node);
+	if (res == TEE_ERROR_NOT_SUPPORTED)
+		return TEE_SUCCESS;
+	if (res)
+		return res;
+
+	cpu_opp_clk = clk_alloc("cpu-opp", &cpu_opp_clk_ops, &clk, 1);
+	if (!cpu_opp_clk)
+		panic("CPU OPP clock alloc failed");
+
+	res = clk_register(cpu_opp_clk);
+	if (res) {
+		clk_free(cpu_opp_clk);
+		return res;
+	}
+
+	/* CPU clock is likely always enabled so set its refcount */
+	if (clk_enable(cpu_opp_clk))
+		panic("CPU clock should always enabled");
+
+	return TEE_SUCCESS;
 }
