@@ -1026,6 +1026,15 @@ static TEE_Result sam_init_scmi_clk(void)
 		return res;
 	}
 
+	clk = at91_cpu_opp_clk_get();
+	if (clk) {
+		res = scmi_clk_add(clk, 0, AT91_SCMI_CLK_CPU_OPP);
+		if (res) {
+			EMSG("Failed to add CPU OPP clock to SCMI clocks");
+			return res;
+		}
+	}
+
 	return TEE_SUCCESS;
 }
 
