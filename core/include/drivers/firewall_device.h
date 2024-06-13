@@ -144,6 +144,17 @@ void firewall_release_memory_access(struct firewall_query *fw, paddr_t paddr,
 				    size_t size, bool read, bool write);
 
 /**
+ * firewall_set_memory_configuration() - Reconfigure a memory range with
+ * the given firewall configuration
+ *
+ * @fw: Firewall query containing the configuration to set
+ * @paddr: Physical base address of the memory range
+ * @size: Size of the memory range
+ */
+TEE_Result firewall_set_memory_configuration(struct firewall_query *fw,
+					     paddr_t paddr, size_t size);
+
+/**
  * firewall_put() - Release a firewall_query structure allocated by
  * firewall_dt_get_by_index() or firewall_dt_get_by_name()
  *
@@ -211,6 +222,13 @@ firewall_release_memory_access(struct firewall_query *fw __unused,
 
 static inline TEE_Result
 firewall_set_configuration(struct firewall_query *fw __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+firewall_set_memory_configuration(struct firewall_query *fw __unused,
+				  paddr_t paddr __unused, size_t size __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
