@@ -1098,6 +1098,9 @@ static int add_mem_share(struct ffa_mem_transaction_x *mem_trans,
 	if (rc)
 		return rc;
 
+	if (!share.page_count || !share.region_count)
+		return FFA_INVALID_PARAMETERS;
+
 	if (MUL_OVERFLOW(share.region_count,
 			 sizeof(struct ffa_address_range), &n) ||
 	    ADD_OVERFLOW(n, addr_range_offs, &n) || n > blen)

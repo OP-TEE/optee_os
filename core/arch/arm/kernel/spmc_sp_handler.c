@@ -299,6 +299,10 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 	uint8_t highest_permission = 0;
 	struct sp_mem *smem = NULL;
 	uint16_t sender_id = mem_trans->sender_id;
+	size_t addr_range_cnt = 0;
+	struct ffa_address_range *addr_range = NULL;
+	size_t total_page_count = 0;
+	size_t page_count_sum = 0;
 
 	if (blen != flen) {
 		DMSG("Fragmented memory share is not supported for SPs");
@@ -319,7 +323,7 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 	mem_acc = (void *)((vaddr_t)rxtx->rx + mem_trans->mem_access_offs);
 
 	if (!num_mem_accs) {
-		res = FFA_DENIED;
+		res = FFA_INVALID_PARAMETERS;
 		goto cleanup;
 	}
 
@@ -332,32 +336,68 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 	if (MUL_OVERFLOW(num_mem_accs, sizeof(*mem_acc), &needed_size) ||
 	    ADD_OVERFLOW(needed_size, mem_trans->mem_access_offs,
 			 &needed_size) || needed_size > blen) {
-		res = FFA_NO_MEMORY;
+		res = FFA_INVALID_PARAMETERS;
 		goto cleanup;
 	}
 
 	for (i = 0; i < num_mem_accs; i++)
 		highest_permission |= READ_ONCE(mem_acc[i].access_perm.perm);
 
+	/* Check if the memory region array fits into the buffer */
 	addr_range_offs = READ_ONCE(mem_acc[0].region_offs);
+
+	if (ADD_OVERFLOW(addr_range_offs, sizeof(*mem_reg), &needed_size) ||
+	    needed_size > blen) {
+		res = FFA_INVALID_PARAMETERS;
+		goto cleanup;
+	}
+
 	mem_reg = (void *)((char *)rxtx->rx + addr_range_offs);
+	addr_range_cnt = READ_ONCE(mem_reg->address_range_count);
+	total_page_count = READ_ONCE(mem_reg->total_page_count);
+
+	/* Memory transaction without address ranges or pages is invalid */
+	if (!addr_range_cnt || !total_page_count) {
+		res = FFA_INVALID_PARAMETERS;
+		goto cleanup;
+	}
+
+	/* Check if the region descriptors fit into the buffer */
+	if (MUL_OVERFLOW(addr_range_cnt, sizeof(*addr_range), &needed_size) ||
+	    ADD_OVERFLOW(needed_size, addr_range_offs, &needed_size) ||
+	    needed_size > blen) {
+		res = FFA_INVALID_PARAMETERS;
+		goto cleanup;
+	}
+
+	page_count_sum = 0;
+	for (i = 0; i < addr_range_cnt; i++) {
+		addr_range = &mem_reg->address_range_array[i];
+
+		/* Memory region without pages is invalid */
+		if (!addr_range->page_count) {
+			res = FFA_INVALID_PARAMETERS;
+			goto cleanup;
+		}
+
+		/* Sum the page count of each region */
+		if (ADD_OVERFLOW(page_count_sum, addr_range->page_count,
+				 &page_count_sum)) {
+			res = FFA_INVALID_PARAMETERS;
+			goto cleanup;
+		}
+	}
+
+	/* Validate total page count */
+	if (total_page_count != page_count_sum) {
+		res = FFA_INVALID_PARAMETERS;
+		goto cleanup;
+	}
 
 	/* Iterate over all the addresses */
 	if (owner_sp) {
-		size_t address_range = READ_ONCE(mem_reg->address_range_count);
-
-		for (i = 0; i < address_range; i++) {
-			struct ffa_address_range *addr_range = NULL;
-
+		for (i = 0; i < addr_range_cnt; i++) {
 			addr_range = &mem_reg->address_range_array[i];
-
-			if (!core_is_buffer_inside((vaddr_t)addr_range,
-						   sizeof(*addr_range),
-						   (vaddr_t)rxtx->rx,
-						   rxtx->size)) {
-				res = FFA_NO_MEMORY;
-				goto cleanup;
-			}
 			res = spmc_sp_add_sp_region(smem, addr_range,
 						    owner_sp,
 						    highest_permission);
