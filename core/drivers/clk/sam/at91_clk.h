@@ -268,6 +268,8 @@ at91_clk_register_audio_pll_pmc(struct pmc_data *pmc, const char *name,
 				struct clk *parent);
 
 /* CPU OPP (Operation Performance Points) */
+struct clk *at91_cpu_opp_clk_get(void);
+
 TEE_Result at91_clk_register_cpu_opp(const void *fdt, int node,
 				     struct clk *clk);
 
