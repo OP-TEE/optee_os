@@ -142,8 +142,8 @@ static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
 
 	cpu_spin_lock(&rxtx->spinlock);
 
-	/* Descriptor fragments aren't supported yet. */
-	if (frag_len != tot_len)
+	/* Descriptor fragments or custom buffers aren't supported yet. */
+	if (frag_len != tot_len || args->a3 || args->a4)
 		res = FFA_NOT_SUPPORTED;
 	else if (frag_len > rxtx->size)
 		res = FFA_INVALID_PARAMETERS;
@@ -151,7 +151,7 @@ static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
 		res = spmc_read_mem_transaction(rxtx->ffa_vers, rxtx->rx,
 						frag_len, &mem_trans);
 	if (!res)
-		res = spmc_sp_add_share(&mem_trans, rxtx, tot_len,
+		res = spmc_sp_add_share(&mem_trans, rxtx, tot_len, frag_len,
 					&global_handle, owner_sp);
 	if (!res) {
 		args->a3 = high32_from_64(global_handle);
@@ -286,7 +286,7 @@ clean_up:
 }
 
 int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
-		      struct ffa_rxtx *rxtx, size_t blen,
+		      struct ffa_rxtx *rxtx, size_t blen, size_t flen,
 		      uint64_t *global_handle, struct sp_session *owner_sp)
 {
 	int res = FFA_INVALID_PARAMETERS;
@@ -297,9 +297,15 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 	size_t addr_range_offs = 0;
 	struct ffa_mem_region *mem_reg = NULL;
 	uint8_t highest_permission = 0;
-	struct sp_mem *smem = sp_mem_new();
+	struct sp_mem *smem = NULL;
 	uint16_t sender_id = mem_trans->sender_id;
 
+	if (blen != flen) {
+		DMSG("Fragmented memory share is not supported for SPs");
+		return FFA_NOT_SUPPORTED;
+	}
+
+	smem = sp_mem_new();
 	if (!smem)
 		return FFA_NO_MEMORY;
 

@@ -23,7 +23,7 @@ bool ffa_mem_reclaim(struct thread_smc_args *args,
 #ifdef CFG_SECURE_PARTITION
 void spmc_sp_start_thread(struct thread_smc_args *args);
 int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
-		      struct ffa_rxtx *rxtx, size_t blen,
+		      struct ffa_rxtx *rxtx, size_t blen, size_t flen,
 		      uint64_t *global_handle, struct sp_session *owner_sp);
 void spmc_sp_set_to_preempted(struct ts_session *ts_sess);
 int spmc_sp_resume_from_preempted(uint16_t endpoint_id);
@@ -35,7 +35,7 @@ static inline void spmc_sp_start_thread(struct thread_smc_args *args __unused)
 static inline int
 spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans __unused,
 		  struct ffa_rxtx *rxtx __unused, size_t blen __unused,
-		  uint64_t *global_handle __unused,
+		  size_t flen __unused, uint64_t *global_handle __unused,
 		  struct sp_session *owner_sp __unused)
 {
 	return FFA_NOT_SUPPORTED;
