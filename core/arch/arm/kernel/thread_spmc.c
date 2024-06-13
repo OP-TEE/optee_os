@@ -869,7 +869,8 @@ static void handle_direct_request(struct thread_smc_args *args,
 	 * thread cannot be allocated or found. virt_unset_guest() is also
 	 * called from thread_state_suspend() and thread_state_free().
 	 */
-	virt_unset_guest();
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		virt_unset_guest();
 }
 
 int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
@@ -1184,13 +1185,27 @@ static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
 
 	cpu_spin_lock(&rxtx->spinlock);
 	rc = spmc_read_mem_transaction(rxtx->ffa_vers, buf, flen, &mem_trans);
-	if (!rc && IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
-	    virt_set_guest(mem_trans.sender_id))
+	if (rc)
+		goto unlock;
+
+	if (is_sp_share(&mem_trans, buf)) {
+		rc = spmc_sp_add_share(&mem_trans, buf, blen, flen,
+				       global_handle, NULL);
+		goto unlock;
+	}
+
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+	    virt_set_guest(mem_trans.sender_id)) {
 		rc = FFA_DENIED;
-	if (!rc)
-		rc = add_mem_share(&mem_trans, mm, buf, blen, flen,
-				   global_handle);
-	virt_unset_guest();
+		goto unlock;
+	}
+
+	rc = add_mem_share(&mem_trans, mm, buf, blen, flen, global_handle);
+
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		virt_unset_guest();
+
+unlock:
 	cpu_spin_unlock(&rxtx->spinlock);
 	if (rc > 0)
 		return rc;
@@ -1218,7 +1233,7 @@ static int handle_mem_share_rxbuf(size_t blen, size_t flen,
 	if (rc)
 		goto out;
 	if (is_sp_share(&mem_trans, rxtx->rx)) {
-		rc = spmc_sp_add_share(&mem_trans, rxtx, blen,
+		rc = spmc_sp_add_share(&mem_trans, rxtx, blen, flen,
 				       global_handle, NULL);
 		goto out;
 	}
@@ -1230,7 +1245,8 @@ static int handle_mem_share_rxbuf(size_t blen, size_t flen,
 	rc = add_mem_share(&mem_trans, NULL, rxtx->rx, blen, flen,
 			   global_handle);
 
-	virt_unset_guest();
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		virt_unset_guest();
 
 out:
 	cpu_spin_unlock(&rxtx->spinlock);
@@ -1358,7 +1374,9 @@ static void handle_mem_frag_tx(struct thread_smc_args *args,
 
 	rc = add_mem_share_frag(s, buf, flen);
 out:
-	virt_unset_guest();
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		virt_unset_guest();
+
 	cpu_spin_unlock(&rxtx->spinlock);
 
 	if (rc <= 0 && mm) {
@@ -1424,7 +1442,8 @@ static void handle_mem_reclaim(struct thread_smc_args *args)
 		break;
 	}
 
-	virt_unset_guest();
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		virt_unset_guest();
 
 out:
 	set_simple_ret_val(args, rc);
