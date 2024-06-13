@@ -2,19 +2,7 @@
  *  Privacy Enhanced Mail (PEM) decoding
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 #include "common.h"
@@ -29,7 +17,6 @@
 #include "mbedtls/cipher.h"
 #include "mbedtls/platform_util.h"
 #include "mbedtls/error.h"
-#include "hash_info.h"
 
 #include <string.h>
 
@@ -39,20 +26,11 @@
 #include "psa/crypto.h"
 #endif
 
-#if !defined(MBEDTLS_MD5_C)
-#include "mbedtls/psa_util.h"
-#define PSA_TO_MBEDTLS_ERR(status) PSA_TO_MBEDTLS_ERR_LIST(status,          \
-                                                           psa_to_md_errors,                     \
-                                                           psa_generic_status_to_mbedtls)
-#endif
-
-#include "mbedtls/legacy_or_psa.h"
-
-#if defined(MBEDTLS_HAS_ALG_MD5_VIA_MD_OR_PSA_BASED_ON_USE_PSA) &&  \
+#if defined(MBEDTLS_MD_CAN_MD5) &&  \
     defined(MBEDTLS_CIPHER_MODE_CBC) &&                             \
     (defined(MBEDTLS_DES_C) || defined(MBEDTLS_AES_C))
 #define PEM_RFC1421
-#endif /* MBEDTLS_HAS_ALG_MD5_VIA_MD_OR_PSA_BASED_ON_USE_PSA &&
+#endif /* MBEDTLS_MD_CAN_MD5 &&
           MBEDTLS_CIPHER_MODE_CBC &&
           ( MBEDTLS_AES_C || MBEDTLS_DES_C ) */
 
@@ -94,7 +72,6 @@ static int pem_get_iv(const unsigned char *s, unsigned char *iv,
     return 0;
 }
 
-#if defined(MBEDTLS_MD5_C)
 static int pem_pbkdf1(unsigned char *key, size_t keylen,
                       unsigned char *iv,
                       const unsigned char *pwd, size_t pwdlen)
@@ -168,91 +145,6 @@ exit:
 
     return ret;
 }
-#else
-static int pem_pbkdf1(unsigned char *key, size_t keylen,
-                      unsigned char *iv,
-                      const unsigned char *pwd, size_t pwdlen)
-{
-    unsigned char md5sum[16];
-    psa_hash_operation_t operation = PSA_HASH_OPERATION_INIT;
-    size_t output_length = 0;
-    psa_status_t status = PSA_ERROR_CORRUPTION_DETECTED;
-
-
-    if ((status = psa_hash_setup(&operation, PSA_ALG_MD5)) != PSA_SUCCESS) {
-        goto exit;
-    }
-
-    if ((status = psa_hash_update(&operation, pwd, pwdlen)) != PSA_SUCCESS) {
-        goto exit;
-    }
-
-    if ((status = psa_hash_update(&operation, iv, 8)) != PSA_SUCCESS) {
-        goto exit;
-    }
-
-    if ((status = psa_hash_finish(&operation, md5sum,
-                                  PSA_HASH_LENGTH(PSA_ALG_MD5),
-                                  &output_length)) != PSA_SUCCESS) {
-        goto exit;
-    }
-
-    if ((status = psa_hash_abort(&operation)) != PSA_SUCCESS) {
-        goto exit;
-    }
-
-    /*
-     * key[ 0..15] = MD5(pwd || IV)
-     */
-    if (keylen <= 16) {
-        memcpy(key, md5sum, keylen);
-        goto exit;
-    }
-
-    memcpy(key, md5sum, 16);
-
-    /*
-     * key[16..23] = MD5(key[ 0..15] || pwd || IV])
-     */
-    if ((status = psa_hash_setup(&operation, PSA_ALG_MD5)) != PSA_SUCCESS) {
-        goto exit;
-    }
-
-    if ((status = psa_hash_update(&operation, md5sum, 16)) != PSA_SUCCESS) {
-        goto exit;
-    }
-
-    if ((status = psa_hash_update(&operation, pwd, pwdlen)) != PSA_SUCCESS) {
-        goto exit;
-    }
-
-    if ((status = psa_hash_update(&operation, iv, 8)) != PSA_SUCCESS) {
-        goto exit;
-    }
-
-    if ((status = psa_hash_finish(&operation, md5sum,
-                                  PSA_HASH_LENGTH(PSA_ALG_MD5),
-                                  &output_length)) != PSA_SUCCESS) {
-        goto exit;
-    }
-
-    if ((status = psa_hash_abort(&operation)) != PSA_SUCCESS) {
-        goto exit;
-    }
-
-    size_t use_len = 16;
-    if (keylen < 32) {
-        use_len = keylen - 16;
-    }
-
-    memcpy(key + 16, md5sum, use_len);
-
-exit:
-    mbedtls_platform_zeroize(md5sum, 16);
-
-    return PSA_TO_MBEDTLS_ERR(status);
-}
-#endif /* MBEDTLS_MD5_C */
 
 #if defined(MBEDTLS_DES_C)
 /*
@@ -348,6 +240,29 @@ exit:
 }
 #endif /* MBEDTLS_AES_C */
 
+#if defined(MBEDTLS_DES_C) || defined(MBEDTLS_AES_C)
+static int pem_check_pkcs_padding(unsigned char *input, size_t input_len, size_t *data_len)
+{
+    /* input_len > 0 is guaranteed by mbedtls_pem_read_buffer(). */
+    size_t pad_len = input[input_len - 1];
+    size_t i;
+
+    if (pad_len > input_len) {
+        return MBEDTLS_ERR_PEM_PASSWORD_MISMATCH;
+    }
+
+    *data_len = input_len - pad_len;
+
+    for (i = *data_len; i < input_len; i++) {
+        if (input[i] != pad_len) {
+            return MBEDTLS_ERR_PEM_PASSWORD_MISMATCH;
+        }
+    }
+
+    return 0;
+}
+#endif /* MBEDTLS_DES_C || MBEDTLS_AES_C */
+
 #endif /* PEM_RFC1421 */
 
 int mbedtls_pem_read_buffer(mbedtls_pem_context *ctx, const char *header, const char *footer,
@@ -406,7 +321,7 @@ int mbedtls_pem_read_buffer(mbedtls_pem_context *ctx, const char *header, const 
     if (*end == '\n') {
         end++;
     }
-    *use_len = end - data;
+    *use_len = (size_t) (end - data);
 
     enc = 0;
 
@@ -491,27 +406,29 @@ int mbedtls_pem_read_buffer(mbedtls_pem_context *ctx, const char *header, const 
         return MBEDTLS_ERR_PEM_INVALID_DATA;
     }
 
-    ret = mbedtls_base64_decode(NULL, 0, &len, s1, s2 - s1);
+    ret = mbedtls_base64_decode(NULL, 0, &len, s1, (size_t) (s2 - s1));
 
     if (ret == MBEDTLS_ERR_BASE64_INVALID_CHARACTER) {
         return MBEDTLS_ERROR_ADD(MBEDTLS_ERR_PEM_INVALID_DATA, ret);
+    }
+
+    if (len == 0) {
+        return MBEDTLS_ERR_PEM_BAD_INPUT_DATA;
     }
 
     if ((buf = mbedtls_calloc(1, len)) == NULL) {
         return MBEDTLS_ERR_PEM_ALLOC_FAILED;
     }
 
-    if ((ret = mbedtls_base64_decode(buf, len, &len, s1, s2 - s1)) != 0) {
-        mbedtls_platform_zeroize(buf, len);
-        mbedtls_free(buf);
+    if ((ret = mbedtls_base64_decode(buf, len, &len, s1, (size_t) (s2 - s1))) != 0) {
+        mbedtls_zeroize_and_free(buf, len);
         return MBEDTLS_ERROR_ADD(MBEDTLS_ERR_PEM_INVALID_DATA, ret);
     }
 
     if (enc != 0) {
 #if defined(PEM_RFC1421)
         if (pwd == NULL) {
-            mbedtls_platform_zeroize(buf, len);
-            mbedtls_free(buf);
+            mbedtls_zeroize_and_free(buf, len);
             return MBEDTLS_ERR_PEM_PASSWORD_REQUIRED;
         }
 
@@ -536,24 +453,22 @@ int mbedtls_pem_read_buffer(mbedtls_pem_context *ctx, const char *header, const 
 #endif /* MBEDTLS_AES_C */
 
         if (ret != 0) {
-            mbedtls_free(buf);
+            mbedtls_zeroize_and_free(buf, len);
             return ret;
         }
 
-        /*
-         * The result will be ASN.1 starting with a SEQUENCE tag, with 1 to 3
-         * length bytes (allow 4 to be sure) in all known use cases.
-         *
-         * Use that as a heuristic to try to detect password mismatches.
-         */
-        if (len <= 2 || buf[0] != 0x30 || buf[1] > 0x83) {
-            mbedtls_platform_zeroize(buf, len);
-            mbedtls_free(buf);
-            return MBEDTLS_ERR_PEM_PASSWORD_MISMATCH;
+        /* Check PKCS padding and update data length based on padding info.
+         * This can be used to detect invalid padding data and password
+         * mismatches. */
+        size_t unpadded_len;
+        ret = pem_check_pkcs_padding(buf, len, &unpadded_len);
+        if (ret != 0) {
+            mbedtls_zeroize_and_free(buf, len);
+            return ret;
         }
+        len = unpadded_len;
 #else
-        mbedtls_platform_zeroize(buf, len);
-        mbedtls_free(buf);
+        mbedtls_zeroize_and_free(buf, len);
         return MBEDTLS_ERR_PEM_FEATURE_UNAVAILABLE;
 #endif /* PEM_RFC1421 */
     }
@@ -567,8 +482,7 @@ int mbedtls_pem_read_buffer(mbedtls_pem_context *ctx, const char *header, const 
 void mbedtls_pem_free(mbedtls_pem_context *ctx)
 {
     if (ctx->buf != NULL) {
-        mbedtls_platform_zeroize(ctx->buf, ctx->buflen);
-        mbedtls_free(ctx->buf);
+        mbedtls_zeroize_and_free(ctx->buf, ctx->buflen);
     }
     mbedtls_free(ctx->info);
 
@@ -586,7 +500,7 @@ int mbedtls_pem_write_buffer(const char *header, const char *footer,
     size_t len = 0, use_len, add_len = 0;
 
     mbedtls_base64_encode(NULL, 0, &use_len, der_data, der_len);
-    add_len = strlen(header) + strlen(footer) + (use_len / 64) + 1;
+    add_len = strlen(header) + strlen(footer) + (((use_len > 2) ? (use_len - 2) : 0) / 64) + 1;
 
     if (use_len + add_len > buf_len) {
         *olen = use_len + add_len;
@@ -621,7 +535,7 @@ int mbedtls_pem_write_buffer(const char *header, const char *footer,
     p += strlen(footer);
 
     *p++ = '\0';
-    *olen = p - buf;
+    *olen = (size_t) (p - buf);
 
     /* Clean any remaining data previously written to the buffer */
     memset(buf + *olen, 0, buf_len - *olen);

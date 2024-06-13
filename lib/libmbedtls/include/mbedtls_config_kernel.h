@@ -95,6 +95,7 @@
 
 #if defined(CFG_CRYPTO_RSA)
 #define MBEDTLS_RSA_C
+#define MBEDTLS_RSA_GEN_KEY_MIN_BITS 128
 #endif
 
 #if defined(CFG_CRYPTO_RSA) || defined(CFG_CRYPTO_ECC)
@@ -130,7 +131,5 @@
 #endif
 
 #endif /*CFG_CRYPTOLIB_NAME_mbedtls*/
-
-#include <mbedtls/check_config.h>
 
 #endif /* __MBEDTLS_CONFIG_KERNEL_H */

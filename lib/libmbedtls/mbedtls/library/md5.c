@@ -2,19 +2,7 @@
  *  RFC 1321 compliant MD5 implementation
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 /*
  *  The MD5 algorithm was designed by Ron Rivest in 1991.
@@ -286,7 +274,7 @@ int mbedtls_md5_finish(mbedtls_md5_context *ctx,
         memset(ctx->buffer + used, 0, 64 - used);
 
         if ((ret = mbedtls_internal_md5_process(ctx, ctx->buffer)) != 0) {
-            return ret;
+            goto exit;
         }
 
         memset(ctx->buffer, 0, 56);
@@ -303,7 +291,7 @@ int mbedtls_md5_finish(mbedtls_md5_context *ctx,
     MBEDTLS_PUT_UINT32_LE(high, ctx->buffer, 60);
 
     if ((ret = mbedtls_internal_md5_process(ctx, ctx->buffer)) != 0) {
-        return ret;
+        goto exit;
     }
 
     /*
@@ -314,7 +302,11 @@ int mbedtls_md5_finish(mbedtls_md5_context *ctx,
     MBEDTLS_PUT_UINT32_LE(ctx->state[2], output,  8);
     MBEDTLS_PUT_UINT32_LE(ctx->state[3], output, 12);
 
-    return 0;
+    ret = 0;
+
+exit:
+    mbedtls_md5_free(ctx);
+    return ret;
 }
 
 #endif /* !MBEDTLS_MD5_ALT */

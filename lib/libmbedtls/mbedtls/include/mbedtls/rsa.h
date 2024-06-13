@@ -11,19 +11,7 @@
  */
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 #ifndef MBEDTLS_RSA_H
 #define MBEDTLS_RSA_H
@@ -84,6 +72,12 @@ extern "C" {
 #if !defined(MBEDTLS_RSA_ALT)
 // Regular implementation
 //
+
+#if !defined(MBEDTLS_RSA_GEN_KEY_MIN_BITS)
+#define MBEDTLS_RSA_GEN_KEY_MIN_BITS 1024
+#elif MBEDTLS_RSA_GEN_KEY_MIN_BITS < 128
+#error "MBEDTLS_RSA_GEN_KEY_MIN_BITS must be at least 128 bits"
+#endif
 
 /**
  * \brief   The RSA context structure.
@@ -282,15 +276,15 @@ int mbedtls_rsa_import_raw(mbedtls_rsa_context *ctx,
  * \brief          This function completes an RSA context from
  *                 a set of imported core parameters.
  *
- *                 To setup an RSA public key, precisely \p N and \p E
+ *                 To setup an RSA public key, precisely \c N and \c E
  *                 must have been imported.
  *
  *                 To setup an RSA private key, sufficient information must
  *                 be present for the other parameters to be derivable.
  *
  *                 The default implementation supports the following:
- *                 <ul><li>Derive \p P, \p Q from \p N, \p D, \p E.</li>
- *                 <li>Derive \p N, \p D from \p P, \p Q, \p E.</li></ul>
+ *                 <ul><li>Derive \c P, \c Q from \c N, \c D, \c E.</li>
+ *                 <li>Derive \c N, \c D from \c P, \c Q, \c E.</li></ul>
  *                 Alternative implementations need not support these.
  *
  *                 If this function runs successfully, it guarantees that
@@ -433,6 +427,16 @@ int mbedtls_rsa_export_crt(const mbedtls_rsa_context *ctx,
                            mbedtls_mpi *DP, mbedtls_mpi *DQ, mbedtls_mpi *QP);
 
 /**
+ * \brief          This function retrieves the length of the RSA modulus in bits.
+ *
+ * \param ctx      The initialized RSA context.
+ *
+ * \return         The length of the RSA modulus in bits.
+ *
+ */
+size_t mbedtls_rsa_get_bitlen(const mbedtls_rsa_context *ctx);
+
+/**
  * \brief          This function retrieves the length of RSA modulus in Bytes.
  *
  * \param ctx      The initialized RSA context.
@@ -547,7 +551,7 @@ int mbedtls_rsa_check_pub_priv(const mbedtls_rsa_context *pub,
  * \note           This function does not handle message padding.
  *
  * \note           Make sure to set \p input[0] = 0 or ensure that
- *                 input is smaller than \p N.
+ *                 input is smaller than \c N.
  *
  * \return         \c 0 on success.
  * \return         An \c MBEDTLS_ERR_RSA_XXX error code on failure.
@@ -690,6 +694,10 @@ int mbedtls_rsa_rsaes_oaep_encrypt(mbedtls_rsa_context *ctx,
  *                 It is the generic wrapper for performing a PKCS#1 decryption
  *                 operation.
  *
+ * \warning        When \p ctx->padding is set to #MBEDTLS_RSA_PKCS_V15,
+ *                 mbedtls_rsa_rsaes_pkcs1_v15_decrypt() is called, which is an
+ *                 inherently dangerous function (CWE-242).
+ *
  * \note           The output buffer length \c output_max_len should be
  *                 as large as the size \p ctx->len of \p ctx->N (for example,
  *                 128 Bytes if RSA-1024 is used) to be able to hold an
@@ -725,6 +733,11 @@ int mbedtls_rsa_pkcs1_decrypt(mbedtls_rsa_context *ctx,
 /**
  * \brief          This function performs a PKCS#1 v1.5 decryption
  *                 operation (RSAES-PKCS1-v1_5-DECRYPT).
+ *
+ * \warning        This is an inherently dangerous function (CWE-242). Unless
+ *                 it is used in a side channel free and safe way (eg.
+ *                 implementing the TLS protocol as per 7.4.7.1 of RFC 5246),
+ *                 the calling code is vulnerable.
  *
  * \note           The output buffer length \c output_max_len should be
  *                 as large as the size \p ctx->len of \p ctx->N, for example,
@@ -875,6 +888,7 @@ int mbedtls_rsa_rsassa_pkcs1_v15_sign(mbedtls_rsa_context *ctx,
                                       const unsigned char *hash,
                                       unsigned char *sig);
 
+#if defined(MBEDTLS_PKCS1_V21)
 /**
  * \brief          This function performs a PKCS#1 v2.1 PSS signature
  *                 operation (RSASSA-PSS-SIGN).
@@ -975,6 +989,7 @@ int mbedtls_rsa_rsassa_pss_sign(mbedtls_rsa_context *ctx,
                                 unsigned int hashlen,
                                 const unsigned char *hash,
                                 unsigned char *sig);
+#endif /* MBEDTLS_PKCS1_V21 */
 
 /**
  * \brief          This function performs a public RSA operation and checks
@@ -984,8 +999,8 @@ int mbedtls_rsa_rsassa_pss_sign(mbedtls_rsa_context *ctx,
  *                 verification.
  *
  * \note           For PKCS#1 v2.1 encoding, see comments on
- *                 mbedtls_rsa_rsassa_pss_verify() about \p md_alg and
- *                 \p hash_id.
+ *                 mbedtls_rsa_rsassa_pss_verify() about \c md_alg and
+ *                 \c hash_id.
  *
  * \param ctx      The initialized RSA public key context to use.
  * \param md_alg   The message-digest algorithm used to hash the original data.
