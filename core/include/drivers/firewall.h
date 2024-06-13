@@ -47,6 +47,7 @@ struct firewall_controller {
  * memory range covered by a firewall controller, for read and/or write accesses
  * @release_memory_access: Callback used to release resources taken by a
  * consumer when the memory access was acquired with @acquire_memory_access
+ * @set_memory_conf: Callback to set access rights to a physical memory range
  */
 struct firewall_controller_ops {
 	TEE_Result (*set_conf)(struct firewall_query *conf);
@@ -62,6 +63,8 @@ struct firewall_controller_ops {
 	void (*release_memory_access)(struct firewall_query *fw,
 				      paddr_t paddr, size_t size, bool read,
 				      bool write);
+	TEE_Result (*set_memory_conf)(struct firewall_query *fw, paddr_t paddr,
+				      size_t size);
 };
 
 #ifdef CFG_DRIVERS_FIREWALL
