@@ -452,8 +452,15 @@ static inline __noprof void write_##reg(type val)		\
 
 DEFINE_U32_REG_READWRITE_FUNCS(cpacr_el1)
 DEFINE_U32_REG_READWRITE_FUNCS(daif)
+#ifdef __clang__
+DEFINE_REG_READ_FUNC_(fpcr, uint32_t, S3_3_c4_c4_0)
+DEFINE_REG_WRITE_FUNC_(fpcr, uint32_t, S3_3_c4_c4_0)
+DEFINE_REG_READ_FUNC_(fpsr, uint32_t, S3_3_c4_c4_1)
+DEFINE_REG_WRITE_FUNC_(fpsr, uint32_t, S3_3_c4_c4_1)
+#else
 DEFINE_U32_REG_READWRITE_FUNCS(fpcr)
 DEFINE_U32_REG_READWRITE_FUNCS(fpsr)
+#endif
 
 DEFINE_U32_REG_READ_FUNC(ctr_el0)
 #define read_ctr() read_ctr_el0()
