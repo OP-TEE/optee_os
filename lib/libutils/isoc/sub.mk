@@ -3,6 +3,7 @@ global-incdirs-y += include
 srcs-y += bget_malloc.c
 cflags-remove-bget_malloc.c-y += -Wold-style-definition -Wredundant-decls
 cflags-bget_malloc.c-y += -Wno-sign-compare -Wno-cast-align
+cflags-bget_malloc.c-y += $(call cc-option,-Wno-deprecated-non-prototype)
 ifeq ($(sm),core)
 cflags-remove-bget_malloc.c-y += $(cflags_kasan)
 endif
