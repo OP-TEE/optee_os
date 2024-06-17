@@ -215,6 +215,10 @@ static TEE_Result sp_create_ctx(const TEE_UUID *bin_uuid, struct sp_session *s)
 
 	set_sp_ctx_ops(&spc->ts_ctx);
 
+#ifdef CFG_TA_PAUTH
+	crypto_rng_read(&spc->uctx.keys, sizeof(spc->uctx.keys));
+#endif
+
 	return TEE_SUCCESS;
 
 err:
@@ -1583,6 +1587,10 @@ TEE_Result sp_enter(struct thread_smc_args *args, struct sp_session *sp)
 	ctx->sp_regs.x[5] = args->a5;
 	ctx->sp_regs.x[6] = args->a6;
 	ctx->sp_regs.x[7] = args->a7;
+#ifdef CFG_TA_PAUTH
+	ctx->sp_regs.apiakey_hi = ctx->uctx.keys.apia_hi;
+	ctx->sp_regs.apiakey_lo = ctx->uctx.keys.apia_lo;
+#endif
 
 	res = sp->ts_sess.ctx->ops->enter_invoke_cmd(&sp->ts_sess, 0);
 
