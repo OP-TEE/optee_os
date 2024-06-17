@@ -1008,10 +1008,18 @@ static struct thread_pauth_keys *thread_get_pauth_keys(void)
 {
 #if defined(CFG_TA_PAUTH)
 	struct ts_session *s = ts_get_current_session();
-	/* Only user TA's support the PAUTH keys */
-	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 
-	return &utc->uctx.keys;
+	if  (is_user_ta_ctx(s->ctx)) {
+		struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
+
+		return &utc->uctx.keys;
+	} else if (is_sp_ctx(s->ctx)) {
+		struct sp_ctx *spc = to_sp_ctx(s->ctx);
+
+		return &spc->uctx.keys;
+	}
+
+	panic("[abort] Only user TAs and SPs support PAUTH keys");
 #else
 	return NULL;
 #endif
