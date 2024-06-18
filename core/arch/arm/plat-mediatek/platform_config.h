@@ -123,8 +123,9 @@
 #error "Unknown platform flavor"
 #endif
 
-#ifdef CFG_WITH_LPAE
-#define MAX_XLAT_TABLES		5
+#ifdef CFG_MTK_RESERVED_VA
+#define MAX_XLAT_TABLES		(30 + (CFG_RESERVED_VASPACE_SIZE) / \
+				 (CORE_MMU_PGDIR_SIZE) + 1)
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/

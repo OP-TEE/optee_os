@@ -14,6 +14,10 @@ CFG_DRAM_BASE ?= 0x40000000
 # default DRAM size 1 GiB
 CFG_DRAM_SIZE ?= 0x40000000
 
+# When need to create a virtual memory pool for mapping other
+# physical address, enable the config to increase MAX_XLAT_TABLES.
+CFG_MTK_RESERVED_VA ?= n
+
 ifeq ($(PLATFORM_FLAVOR),mt8173)
 # 2**1 = 2 cores per cluster
 $(call force,CFG_TEE_CORE_NB_CORE,4)
