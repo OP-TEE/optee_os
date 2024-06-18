@@ -510,6 +510,14 @@ static const struct tee_fs_dirfile_operations ree_dirf_ops = {
 	.commit_writes = ree_dirf_commit_writes,
 };
 
+/*
+ * ree_fs_dirh is caching the dirfile handle to avoid frequent opening and
+ * closing of that handle. When ree_fs_dirh_refcount reaches 0, ree_fs_dirh
+ * will be freed. However, ree_fs_dirh_refcount > 0 is not a guarantee that
+ * ree_fs_dirh will not be freed, it may very well be freed earlier in an
+ * error path. get_dirh() must be used to get the ree_fs_dirh pointer each
+ * time it's needed if ree_fs_mutex has been unlocked in between.
+ */
 static struct tee_fs_dirfile_dirh *ree_fs_dirh;
 static size_t ree_fs_dirh_refcount;
 
@@ -1015,7 +1023,8 @@ static TEE_Result ree_fs_opendir_rpc(const TEE_UUID *uuid,
 				     struct tee_fs_dir **dir)
 
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_fs_dirfile_dirh *dirh = NULL;
 	struct tee_fs_dir *d = calloc(1, sizeof(*d));
 
 	if (!d)
@@ -1025,14 +1034,14 @@ static TEE_Result ree_fs_opendir_rpc(const TEE_UUID *uuid,
 
 	mutex_lock(&ree_fs_mutex);
 
-	res = get_dirh(&d->dirh);
+	res = get_dirh(&dirh);
 	if (res)
 		goto out;
 
 	/* See that there's at least one file */
 	d->idx = -1;
 	d->d.oidlen = sizeof(d->d.oid);
-	res = tee_fs_dirfile_get_next(d->dirh, d->uuid, &d->idx, d->d.oid,
+	res = tee_fs_dirfile_get_next(dirh, d->uuid, &d->idx, d->d.oid,
 				      &d->d.oidlen);
 	d->idx = -1;
 
@@ -1041,7 +1050,7 @@ out:
 		*dir = d;
 	} else {
 		if (d)
-			put_dirh(d->dirh, false);
+			put_dirh(dirh, false);
 		free(d);
 	}
 	mutex_unlock(&ree_fs_mutex);
@@ -1054,7 +1063,7 @@ static void ree_fs_closedir_rpc(struct tee_fs_dir *d)
 	if (d) {
 		mutex_lock(&ree_fs_mutex);
 
-		put_dirh(d->dirh, false);
+		put_dirh(ree_fs_dirh, false);
 		free(d);
 
 		mutex_unlock(&ree_fs_mutex);
@@ -1064,16 +1073,23 @@ static void ree_fs_closedir_rpc(struct tee_fs_dir *d)
 static TEE_Result ree_fs_readdir_rpc(struct tee_fs_dir *d,
 				     struct tee_fs_dirent **ent)
 {
-	TEE_Result res;
+	struct tee_fs_dirfile_dirh *dirh = NULL;
+	TEE_Result res = TEE_SUCCESS;
 
 	mutex_lock(&ree_fs_mutex);
 
+	res = get_dirh(&dirh);
+	if (res)
+		goto out;
+
 	d->d.oidlen = sizeof(d->d.oid);
-	res = tee_fs_dirfile_get_next(d->dirh, d->uuid, &d->idx, d->d.oid,
+	res = tee_fs_dirfile_get_next(dirh, d->uuid, &d->idx, d->d.oid,
 				      &d->d.oidlen);
 	if (res == TEE_SUCCESS)
 		*ent = &d->d;
 
+	put_dirh(dirh, res);
+out:
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
