@@ -445,8 +445,7 @@ static void init_thread_stacks(void)
 		/* init effective stack */
 		sp = tee_mm_get_smem(mm) + tee_mm_get_bytes(mm);
 		asan_tag_access((void *)tee_mm_get_smem(mm), (void *)sp);
-		if (!thread_init_stack(n, sp))
-			panic("init stack failed");
+		threads[n].stack_va_end = sp;
 	}
 }
 #else
@@ -455,10 +454,8 @@ static void init_thread_stacks(void)
 	size_t n;
 
 	/* Assign the thread stacks */
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (!thread_init_stack(n, GET_STACK_BOTTOM(stack_thread, n)))
-			panic("thread_init_stack failed");
-	}
+	for (n = 0; n < CFG_NUM_THREADS; n++)
+		threads[n].stack_va_end = GET_STACK_BOTTOM(stack_thread, n);
 }
 #endif /*CFG_WITH_PAGER*/
 

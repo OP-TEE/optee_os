@@ -439,14 +439,6 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 	return ct;
 }
 
-bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
-{
-	if (thread_id >= CFG_NUM_THREADS)
-		return false;
-	threads[thread_id].stack_va_end = sp;
-	return true;
-}
-
 static void init_user_kcode(void)
 {
 }
