@@ -31,6 +31,7 @@ $(call force,CFG_GIC,y)
 $(call force,CFG_HALT_CORES_ON_PANIC_SGI,15)
 $(call force,CFG_INIT_CNTVOFF,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
+$(call force,CFG_STM32_SHARED_IO,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_WITH_LPAE,y)
 
