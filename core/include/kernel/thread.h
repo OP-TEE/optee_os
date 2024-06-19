@@ -61,14 +61,6 @@ static inline void thread_update_canaries(void) { }
 struct thread_core_local *thread_get_core_local(void);
 
 /*
- * Sets the stacks to be used by the different threads. Use THREAD_ID_0 for
- * first stack, THREAD_ID_0 + 1 for the next and so on.
- *
- * Returns true on success and false on errors.
- */
-bool thread_init_stack(uint32_t stack_id, vaddr_t sp);
-
-/*
  * Initializes thread contexts. Called in thread_init_boot_thread() if
  * virtualization is disabled. Virtualization subsystem calls it for
  * every new guest otherwise.
