@@ -1400,6 +1400,22 @@ static TEE_Result handle_hw_features(void *fdt)
 			return res;
 	}
 
+	/* Modify the property only if it's already present */
+	if (!sp_dt_get_u32(fdt, node, "bti", &val)) {
+		res = fdt_setprop_u32(fdt, node, "bti",
+				      feat_bti_is_implemented());
+		if (res)
+			return res;
+	}
+
+	/* Modify the property only if it's already present */
+	if (!sp_dt_get_u32(fdt, node, "pauth", &val)) {
+		res = fdt_setprop_u32(fdt, node, "pauth",
+				      feat_pauth_is_implemented());
+		if (res)
+			return res;
+	}
+
 	return TEE_SUCCESS;
 }
 
