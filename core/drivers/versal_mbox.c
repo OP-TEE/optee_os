@@ -176,7 +176,6 @@ static const char *const nvm_id[] = {
 	[33] = "EFUSE_READ_CACHE",
 	[34] = "EFUSE_RELOAD_N_PRGM_PROT_BITS",
 	[35] = "EFUSE_INVALID",
-
 #else
 	[6] = "EFUSE_WRITE",
 	[7] = "EFUSE_WRITE_PUF",
@@ -453,8 +452,7 @@ TEE_Result versal_mbox_notify(struct versal_ipi *ipi,
 	}
 
 	/* Trigger interrupt to remote */
-	io_write32(ipi->regs + IPI_TRIG_OFFSET,
-		   IPI_BIT_MASK(ipi->rmt));
+	io_write32(ipi->regs + IPI_TRIG_OFFSET, IPI_BIT_MASK(ipi->rmt));
 
 	/* Wait for remote to acknowledge the interrupt */
 	if (IO_READ32_POLL_TIMEOUT(ipi->regs + IPI_OBR_OFFSET, status,
@@ -485,7 +483,7 @@ static struct versal_ipi ipi_pmc;
 TEE_Result versal_mbox_notify_pmc(struct versal_ipi_cmd *cmd,
 				  struct versal_ipi_cmd *rsp, uint32_t *err)
 {
-	TEE_Result ret;
+	TEE_Result ret = TEE_SUCCESS;
 
 	if (IS_ENABLED(CFG_VERSAL_TRACE_MBOX))
 		versal_mbox_call_trace(cmd->data[0]);
