@@ -15,8 +15,9 @@
 static TEE_Result pta_versal_fpga_write(uint32_t param_types,
 					TEE_Param params[TEE_NUM_PARAMS])
 {
-	uint8_t *buf;
-	size_t bufsize;
+	TEE_Result ret = TEE_SUCCESS;
+	uint8_t *buf = NULL;
+	size_t bufsize = 0;
 	uint32_t exp_param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 						   TEE_PARAM_TYPE_NONE,
 						   TEE_PARAM_TYPE_NONE,
@@ -34,7 +35,11 @@ static TEE_Result pta_versal_fpga_write(uint32_t param_types,
 	memcpy(buf, params[0].memref.buffer, bufsize);
 	cache_operation(TEE_CACHEFLUSH, buf, bufsize);
 
-	return versal_write_fpga(virt_to_phys(buf));
+	ret = versal_write_fpga(virt_to_phys(buf));
+
+	free(buf);
+
+	return ret;
 }
 
 static TEE_Result invoke_command(void *sess_ctx __unused,
