@@ -333,11 +333,11 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	if (huk.ready)
 		goto out;
 
-#ifndef CFG_VERSAL_DUMMY_DNA
+#ifdef CFG_VERSAL_DUMMY_DNA
+	memcpy(dna, dummy_dna, EFUSE_DNA_LEN);
+#else
 	if (versal_efuse_read_dna(dna, sizeof(dna)))
 		return TEE_ERROR_GENERIC;
-#else
-	memcpy(dna, dummy_dna, EFUSE_DNA_LEN);
 #endif
 
 	if (versal_sha3_384((uint8_t *)dna, sizeof(dna), sha, sizeof(sha))) {
