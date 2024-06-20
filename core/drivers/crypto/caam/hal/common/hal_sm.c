@@ -101,13 +101,8 @@ void caam_hal_sm_set_access_group(vaddr_t jr_base, unsigned int partition,
 	if (!jr_base)
 		return;
 
-	if (grp1 != UINT32_MAX)
-		io_caam_write32(jr_base + SM_SMAG1(partition),
-				SHIFT_U32(1, grp1));
-
-	if (grp2 != UINT32_MAX)
-		io_caam_write32(jr_base + SM_SMAG2(partition),
-				SHIFT_U32(1, grp2));
+	io_caam_write32(jr_base + SM_SMAG1(partition), grp1);
+	io_caam_write32(jr_base + SM_SMAG2(partition), grp2);
 }
 
 void caam_hal_sm_open_access_perm(vaddr_t jr_base, unsigned int partition)
