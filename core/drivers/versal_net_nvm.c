@@ -341,7 +341,7 @@ static TEE_Result versal_efuse_read_cache(uint16_t off, uint16_t num,
 	reg_pair_from_64(virt_to_phys(p.buf), &b, &a);
 
 	cmd.data[0] = NVM_API_ID(EFUSE_READ_CACHE);
-	cmd.data[1] = (num << 16) | off;
+	cmd.data[1] = SHIFT_U32(num, 16) | off;
 	cmd.data[2] = a;
 	cmd.data[3] = b;
 
@@ -389,7 +389,7 @@ TEE_Result versal_efuse_read_dna(uint32_t *buf, size_t len)
 TEE_Result versal_efuse_read_user_data(uint32_t *buf, size_t len,
 				       uint32_t first, size_t num)
 {
-	uint16_t offset;
+	uint16_t offset = 0;
 
 	if (first + num > EFUSE_MAX_USER_FUSES || len < num * NVM_WORD_LEN)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -402,7 +402,7 @@ TEE_Result versal_efuse_read_user_data(uint32_t *buf, size_t len,
 TEE_Result versal_efuse_read_iv(uint32_t *buf, size_t len,
 				enum versal_nvm_iv_type type)
 {
-	uint16_t offset;
+	uint16_t offset = 0;
 
 	switch (type) {
 	case EFUSE_META_HEADER_IV_RANGE:
@@ -428,7 +428,7 @@ TEE_Result versal_efuse_read_iv(uint32_t *buf, size_t len,
 TEE_Result versal_efuse_read_ppk(uint32_t *buf, size_t len,
 				 enum versal_nvm_ppk_type type)
 {
-	uint16_t offset;
+	uint16_t offset = 0;
 
 	switch (type) {
 	case EFUSE_PPK0:
@@ -470,18 +470,18 @@ TEE_Result versal_efuse_read_misc_ctrl(struct versal_efuse_misc_ctrl_bits *buf)
 	if (ret)
 		return ret;
 
-	buf->glitch_det_halt_boot_en = ((misc_ctrl & GENMASK_32(31, 30)) >> 30);
-	buf->glitch_det_rom_monitor_en = ((misc_ctrl & BIT(29)) >> 29);
-	buf->halt_boot_error = ((misc_ctrl & GENMASK_32(22, 21)) >> 21);
-	buf->halt_boot_env = ((misc_ctrl & GENMASK_32(20, 19)) >> 19);
-	buf->crypto_kat_en = ((misc_ctrl & BIT(15)) >> 15);
-	buf->lbist_en = ((misc_ctrl & BIT(14)) >> 14);
-	buf->safety_mission_en = ((misc_ctrl & BIT(8)) >> 8);
-	buf->ppk0_invalid = ((misc_ctrl & GENMASK_32(7, 6)) >> 6);
-	buf->ppk1_invalid = ((misc_ctrl & GENMASK_32(5, 4)) >> 4);
-	buf->ppk2_invalid = ((misc_ctrl & GENMASK_32(3, 2)) >> 2);
+	buf->glitch_det_halt_boot_en = (misc_ctrl & GENMASK_32(31, 30)) >> 30;
+	buf->glitch_det_rom_monitor_en = (misc_ctrl & BIT(29)) >> 29;
+	buf->halt_boot_error = (misc_ctrl & GENMASK_32(22, 21)) >> 21;
+	buf->halt_boot_env = (misc_ctrl & GENMASK_32(20, 19)) >> 19;
+	buf->crypto_kat_en = (misc_ctrl & BIT(15)) >> 15;
+	buf->lbist_en = (misc_ctrl & BIT(14)) >> 14;
+	buf->safety_mission_en = (misc_ctrl & BIT(8)) >> 8;
+	buf->ppk0_invalid = (misc_ctrl & GENMASK_32(7, 6)) >> 6;
+	buf->ppk1_invalid = (misc_ctrl & GENMASK_32(5, 4)) >> 4;
+	buf->ppk2_invalid = (misc_ctrl & GENMASK_32(3, 2)) >> 2;
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
 TEE_Result versal_efuse_read_sec_ctrl(struct versal_efuse_sec_ctrl_bits *buf)
@@ -497,24 +497,24 @@ TEE_Result versal_efuse_read_sec_ctrl(struct versal_efuse_sec_ctrl_bits *buf)
 	if (ret)
 		return ret;
 
-	buf->aes_dis = (sec_ctrl & BIT(0));
-	buf->jtag_err_out_dis = ((sec_ctrl & BIT(1)) >> 1);
-	buf->jtag_dis = ((sec_ctrl & BIT(2)) >> 2);
-	buf->ppk0_wr_lk = ((sec_ctrl & BIT(6)) >> 6);
-	buf->ppk1_wr_lk = ((sec_ctrl & BIT(7)) >> 7);
-	buf->ppk2_wr_lk = ((sec_ctrl & BIT(8)) >> 8);
-	buf->aes_crc_lk = ((sec_ctrl & GENMASK_32(10, 9)) >> 9);
-	buf->aes_wr_lk = ((sec_ctrl & BIT(11)) >> 11);
-	buf->user_key0_crc_lk = ((sec_ctrl & BIT(12)) >> 12);
-	buf->user_key0_wr_lk = ((sec_ctrl & BIT(13)) >> 13);
-	buf->user_key1_crc_lk = ((sec_ctrl & BIT(14)) >> 14);
-	buf->user_key1_wr_lk = ((sec_ctrl & BIT(15)) >> 15);
-	buf->sec_dbg_dis = ((sec_ctrl & GENMASK_32(20, 19)) >> 19);
-	buf->sec_lock_dbg_dis = ((sec_ctrl & GENMASK_32(22, 21)) >> 21);
-	buf->boot_env_wr_lk = ((sec_ctrl & BIT(28)) >> 28);
-	buf->reg_init_dis = ((sec_ctrl & GENMASK_32(31, 30)) >> 30);
+	buf->aes_dis = sec_ctrl & BIT(0);
+	buf->jtag_err_out_dis = (sec_ctrl & BIT(1)) >> 1;
+	buf->jtag_dis = (sec_ctrl & BIT(2)) >> 2;
+	buf->ppk0_wr_lk = (sec_ctrl & BIT(6)) >> 6;
+	buf->ppk1_wr_lk = (sec_ctrl & BIT(7)) >> 7;
+	buf->ppk2_wr_lk = (sec_ctrl & BIT(8)) >> 8;
+	buf->aes_crc_lk = (sec_ctrl & GENMASK_32(10, 9)) >> 9;
+	buf->aes_wr_lk = (sec_ctrl & BIT(11)) >> 11;
+	buf->user_key0_crc_lk = (sec_ctrl & BIT(12)) >> 12;
+	buf->user_key0_wr_lk = (sec_ctrl & BIT(13)) >> 13;
+	buf->user_key1_crc_lk = (sec_ctrl & BIT(14)) >> 14;
+	buf->user_key1_wr_lk = (sec_ctrl & BIT(15)) >> 15;
+	buf->sec_dbg_dis = (sec_ctrl & GENMASK_32(20, 19)) >> 19;
+	buf->sec_lock_dbg_dis = (sec_ctrl & GENMASK_32(22, 21)) >> 21;
+	buf->boot_env_wr_lk = (sec_ctrl & BIT(28)) >> 28;
+	buf->reg_init_dis = (sec_ctrl & GENMASK_32(31, 30)) >> 30;
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
 TEE_Result versal_efuse_read_sec_misc1(struct versal_efuse_sec_misc1_bits *buf)
@@ -530,13 +530,13 @@ TEE_Result versal_efuse_read_sec_misc1(struct versal_efuse_sec_misc1_bits *buf)
 	if (ret)
 		return ret;
 
-	buf->lpd_mbist_en = ((sec_misc1 & GENMASK_32(12, 10)) >> 10);
-	buf->pmc_mbist_en = ((sec_misc1 & GENMASK_32(9, 7)) >> 7);
-	buf->lpd_noc_sc_en = ((sec_misc1 & GENMASK_32(6, 4)) >> 4);
-	buf->sysmon_volt_mon_en = ((sec_misc1 & GENMASK_32(3, 2)) >> 2);
-	buf->sysmon_temp_mon_en = (sec_misc1 & GENMASK_32(1, 0));
+	buf->lpd_mbist_en = (sec_misc1 & GENMASK_32(12, 10)) >> 10;
+	buf->pmc_mbist_en = (sec_misc1 & GENMASK_32(9, 7)) >> 7;
+	buf->lpd_noc_sc_en = (sec_misc1 & GENMASK_32(6, 4)) >> 4;
+	buf->sysmon_volt_mon_en = (sec_misc1 & GENMASK_32(3, 2)) >> 2;
+	buf->sysmon_temp_mon_en = sec_misc1 & GENMASK_32(1, 0);
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
 TEE_Result
@@ -553,15 +553,15 @@ versal_efuse_read_boot_env_ctrl(struct versal_efuse_boot_env_ctrl_bits *buf)
 	if (ret)
 		return ret;
 
-	buf->sysmon_temp_en = ((boot_env_ctrl & BIT(21)) >> 21);
-	buf->sysmon_volt_en = ((boot_env_ctrl & BIT(20)) >> 20);
-	buf->sysmon_temp_hot = ((boot_env_ctrl & GENMASK_32(18, 17)) >> 17);
-	buf->sysmon_volt_pmc = ((boot_env_ctrl & GENMASK_32(13, 12)) >> 12);
-	buf->sysmon_volt_pslp = ((boot_env_ctrl & GENMASK_32(11, 10)) >> 10);
-	buf->sysmon_volt_soc = ((boot_env_ctrl & GENMASK_32(9, 8)) >> 8);
-	buf->sysmon_temp_cold = (boot_env_ctrl & GENMASK_32(1, 0));
+	buf->sysmon_temp_en = (boot_env_ctrl & BIT(21)) >> 21;
+	buf->sysmon_volt_en = (boot_env_ctrl & BIT(20)) >> 20;
+	buf->sysmon_temp_hot = (boot_env_ctrl & GENMASK_32(18, 17)) >> 17;
+	buf->sysmon_volt_pmc = (boot_env_ctrl & GENMASK_32(13, 12)) >> 12;
+	buf->sysmon_volt_pslp = (boot_env_ctrl & GENMASK_32(11, 10)) >> 10;
+	buf->sysmon_volt_soc = (boot_env_ctrl & GENMASK_32(9, 8)) >> 8;
+	buf->sysmon_temp_cold = boot_env_ctrl & GENMASK_32(1, 0);
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
 TEE_Result versal_efuse_read_offchip_revoke_id(uint32_t *buf, size_t len,
@@ -593,7 +593,7 @@ TEE_Result versal_efuse_read_dec_only(uint32_t *buf, size_t len)
 
 	memcpy(buf, &sec_misc0, EFUSE_DEC_ONLY_LEN);
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
 TEE_Result versal_efuse_read_puf_sec_ctrl(struct versal_efuse_puf_sec_ctrl_bits
@@ -619,13 +619,13 @@ TEE_Result versal_efuse_read_puf_sec_ctrl(struct versal_efuse_puf_sec_ctrl_bits
 	if (ret)
 		return ret;
 
-	buf->puf_regen_dis = ((puf_ctrl & BIT(31)) >> 31);
-	buf->puf_hd_invalid = ((puf_ctrl & BIT(30)) >> 30);
-	buf->puf_test2_dis = ((puf_ctrl & BIT(29)) >> 29);
-	buf->puf_dis = ((sec_ctrl & BIT(18)) >> 18);
-	buf->puf_syn_lk = ((sec_ctrl & BIT(16)) >> 16);
+	buf->puf_regen_dis = (puf_ctrl & BIT(31)) >> 31;
+	buf->puf_hd_invalid = (puf_ctrl & BIT(30)) >> 30;
+	buf->puf_test2_dis = (puf_ctrl & BIT(29)) >> 29;
+	buf->puf_dis = (sec_ctrl & BIT(18)) >> 18;
+	buf->puf_syn_lk = (sec_ctrl & BIT(16)) >> 16;
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
 TEE_Result versal_efuse_read_puf(struct versal_efuse_puf_header *buf)
@@ -651,10 +651,9 @@ TEE_Result versal_efuse_read_puf(struct versal_efuse_puf_header *buf)
 	if (ret)
 		return ret;
 
-	ret = versal_efuse_read_cache(EFUSE_CACHE_PUF_SYN0_OFFSET,
+	return versal_efuse_read_cache(EFUSE_CACHE_PUF_SYN0_OFFSET,
 				      PUF_SYN_DATA_WORDS, buf->efuse_syn_data,
 				      PUF_SYN_DATA_WORDS * NVM_WORD_LEN);
-	return ret;
 }
 
 TEE_Result
@@ -710,15 +709,12 @@ static TEE_Result do_write_efuses_buffer(enum versal_nvm_api_id id,
 static TEE_Result do_write_efuses_value(enum versal_nvm_api_id id, uint32_t val)
 {
 	struct versal_ipi_cmd cmd = { };
-	TEE_Result ret = TEE_SUCCESS;
 
 	cmd.data[0] = NVM_API_ID(id);
 	cmd.data[1] = EFUSE_ENV_DIS_FLAG;
 	cmd.data[2] = val;
 
-	ret = versal_mbox_notify_pmc(&cmd, NULL, NULL);
-
-	return ret;
+	return versal_mbox_notify_pmc(&cmd, NULL, NULL);
 }
 
 static TEE_Result do_write_efuses(enum versal_nvm_api_id id)
@@ -729,7 +725,7 @@ static TEE_Result do_write_efuses(enum versal_nvm_api_id id)
 TEE_Result versal_efuse_write_aes_keys(struct versal_efuse_aes_keys *keys)
 {
 	TEE_Result ret = TEE_SUCCESS;
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 
 	if (!keys)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -774,7 +770,7 @@ TEE_Result versal_efuse_write_aes_keys(struct versal_efuse_aes_keys *keys)
 TEE_Result versal_efuse_write_ppk_hash(struct versal_efuse_ppk_hash *hash)
 {
 	TEE_Result ret = TEE_SUCCESS;
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 
 	if (!hash)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -815,7 +811,7 @@ TEE_Result versal_efuse_write_ppk_hash(struct versal_efuse_ppk_hash *hash)
 TEE_Result versal_efuse_write_iv(struct versal_efuse_ivs *p)
 {
 	TEE_Result ret = TEE_SUCCESS;
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 
 	if (!p)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -980,9 +976,7 @@ TEE_Result versal_efuse_write_offchip_ids(uint32_t id)
 
 TEE_Result versal_efuse_write_revoke_ppk(enum versal_nvm_ppk_type type)
 {
-	struct versal_efuse_misc_ctrl_bits misc_ctrl;
-
-	memset(&misc_ctrl, 0, sizeof(struct versal_efuse_misc_ctrl_bits));
+	struct versal_efuse_misc_ctrl_bits misc_ctrl = {};
 
 	switch (type) {
 	case EFUSE_PPK0:
@@ -1031,7 +1025,7 @@ TEE_Result versal_efuse_write_puf(struct versal_efuse_puf_header *buf)
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t a = 0;
 	uint32_t b = 0;
-	struct versal_efuse_write_puf_data *data;
+	struct versal_efuse_write_puf_data *data = NULL;
 
 	if (!buf)
 		return TEE_ERROR_BAD_PARAMETERS;
