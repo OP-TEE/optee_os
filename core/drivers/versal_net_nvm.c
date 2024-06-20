@@ -8,21 +8,19 @@
 #include <drivers/versal_nvm.h>
 #include <drivers/versal_mbox.h>
 #include <initcall.h>
+#include <io.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
 #include <string.h>
 #include <tee/cache.h>
-#include <io.h>
-
-#include "drivers/versal_nvm.h"
 
 #define NVM_WORD_LEN 4
 
 /* Protocol API with the remote processor */
 #define NVM_MODULE_SHIFT		8
 #define NVM_MODULE			11
-#define NVM_API_ID(_id) ((NVM_MODULE << NVM_MODULE_SHIFT) | (_id))
+#define NVM_API_ID(_id) (SHIFT_U32(NVM_MODULE, NVM_MODULE_SHIFT) | (_id))
 
 #define __aligned_efuse			__aligned(CACHELINE_LEN)
 
@@ -186,6 +184,7 @@ static void versal_free_read_buffer(struct versal_nvm_read_req *req)
 {
 	assert(req);
 	free(req->ibuf[0].buf);
+	req->ibuf[0].buf = NULL;
 }
 
 static void *versal_get_read_buffer(struct versal_nvm_read_req *req)
@@ -466,7 +465,7 @@ TEE_Result versal_efuse_read_misc_ctrl(struct versal_efuse_misc_ctrl_bits *buf)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	ret = versal_efuse_read_cache(EFUSE_CACHE_MISC_CTRL_OFFSET, 1,
-				      &misc_ctrl, sizeof(uint32_t));
+				      &misc_ctrl, sizeof(misc_ctrl));
 	if (ret)
 		return ret;
 
@@ -493,7 +492,7 @@ TEE_Result versal_efuse_read_sec_ctrl(struct versal_efuse_sec_ctrl_bits *buf)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	ret = versal_efuse_read_cache(EFUSE_CACHE_SEC_CTRL_OFFSET, 1,
-				      &sec_ctrl, sizeof(uint32_t));
+				      &sec_ctrl, sizeof(sec_ctrl));
 	if (ret)
 		return ret;
 
@@ -526,7 +525,7 @@ TEE_Result versal_efuse_read_sec_misc1(struct versal_efuse_sec_misc1_bits *buf)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	ret = versal_efuse_read_cache(EFUSE_CACHE_SEC_MISC1_OFFSET, 1,
-				      &sec_misc1, sizeof(uint32_t));
+				      &sec_misc1, sizeof(sec_misc1));
 	if (ret)
 		return ret;
 
@@ -549,7 +548,7 @@ versal_efuse_read_boot_env_ctrl(struct versal_efuse_boot_env_ctrl_bits *buf)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	ret = versal_efuse_read_cache(EFUSE_CACHE_BOOT_ENV_CTRL_OFFSET, 1,
-				      &boot_env_ctrl, sizeof(uint32_t));
+				      &boot_env_ctrl, sizeof(boot_env_ctrl));
 	if (ret)
 		return ret;
 
@@ -585,7 +584,7 @@ TEE_Result versal_efuse_read_dec_only(uint32_t *buf, size_t len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	ret = versal_efuse_read_cache(EFUSE_CACHE_SEC_MISC0_OFFSET, 1,
-				      &sec_misc0, sizeof(uint32_t));
+				      &sec_misc0, sizeof(sec_misc0));
 	if (ret)
 		return ret;
 
@@ -607,7 +606,7 @@ TEE_Result versal_efuse_read_puf_sec_ctrl(struct versal_efuse_puf_sec_ctrl_bits
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	ret = versal_efuse_read_cache(EFUSE_CACHE_PUF_ECC_CTRL_OFFSET, 1,
-				      &puf_ctrl, sizeof(uint32_t));
+				      &puf_ctrl, sizeof(puf_ctrl));
 	if (ret)
 		return ret;
 
@@ -615,7 +614,7 @@ TEE_Result versal_efuse_read_puf_sec_ctrl(struct versal_efuse_puf_sec_ctrl_bits
 	 * Some fuses have moved from PUF_ECC_CTRL to SECURITY_CTRL
 	 */
 	ret = versal_efuse_read_cache(EFUSE_CACHE_SEC_CTRL_OFFSET, 1,
-				      &sec_ctrl, sizeof(uint32_t));
+				      &sec_ctrl, sizeof(sec_ctrl));
 	if (ret)
 		return ret;
 
@@ -877,22 +876,22 @@ TEE_Result versal_efuse_write_sec(struct versal_efuse_sec_ctrl_bits *p)
 	if (!p)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	val = ((p->reg_init_dis & 0x3) << 30) |
-		  ((p->boot_env_wr_lk & 0x1) << 28) |
-		  ((p->sec_lock_dbg_dis & 0x3) << 21) |
-		  ((p->sec_dbg_dis & 0x3) << 19) |
-		  ((p->user_key1_wr_lk & 0x1) << 15) |
-		  ((p->user_key1_crc_lk & 0x1) << 14) |
-		  ((p->user_key0_wr_lk & 0x1) << 13) |
-		  ((p->user_key0_crc_lk & 0x1) << 12) |
-		  ((p->aes_wr_lk & 0x1) << 11) |
-		  ((p->aes_crc_lk & 0x3) << 9) |
-		  ((p->ppk2_wr_lk & 0x1) << 8) |
-		  ((p->ppk1_wr_lk & 0x1) << 7) |
-		  ((p->ppk0_wr_lk & 0x1) << 6) |
-		  ((p->jtag_dis & 0x1) << 2) |
-		  ((p->jtag_err_out_dis & 0x1) << 1) |
-		  (p->aes_dis & 0x1);
+	val = SHIFT_U32(p->reg_init_dis & 0x3, 30) |
+	      SHIFT_U32(p->boot_env_wr_lk & 0x1, 28) |
+	      SHIFT_U32(p->sec_lock_dbg_dis & 0x3, 21) |
+	      SHIFT_U32(p->sec_dbg_dis & 0x3, 19) |
+	      SHIFT_U32(p->user_key1_wr_lk & 0x1, 15) |
+	      SHIFT_U32(p->user_key1_crc_lk & 0x1, 14) |
+	      SHIFT_U32(p->user_key0_wr_lk & 0x1, 13) |
+	      SHIFT_U32(p->user_key0_crc_lk & 0x1, 12) |
+	      SHIFT_U32(p->aes_wr_lk & 0x1, 11) |
+	      SHIFT_U32(p->aes_crc_lk & 0x3, 9) |
+	      SHIFT_U32(p->ppk2_wr_lk & 0x1, 8) |
+	      SHIFT_U32(p->ppk1_wr_lk & 0x1, 7) |
+	      SHIFT_U32(p->ppk0_wr_lk & 0x1, 6) |
+	      SHIFT_U32(p->jtag_dis & 0x1, 2) |
+	      SHIFT_U32(p->jtag_err_out_dis & 0x1, 1) |
+	      (p->aes_dis & 0x1);
 
 	return do_write_efuses_value(EFUSE_WRITE_SEC_CTRL_BITS, val);
 }
@@ -904,16 +903,16 @@ TEE_Result versal_efuse_write_misc(struct versal_efuse_misc_ctrl_bits *p)
 	if (!p)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	val = ((p->glitch_det_halt_boot_en & 0x3) << 30) |
-		  ((p->glitch_det_rom_monitor_en & 0x1) << 29) |
-		  ((p->halt_boot_error & 0x3) << 21) |
-		  ((p->halt_boot_env & 0x3) << 19) |
-		  ((p->crypto_kat_en & 0x1) << 15) |
-		  ((p->lbist_en & 0x1) << 14) |
-		  ((p->safety_mission_en & 0x1) << 8) |
-		  ((p->ppk2_invalid & 0x3) << 6) |
-		  ((p->ppk1_invalid & 0x3) << 4) |
-		  ((p->ppk0_invalid & 0x3) << 2);
+	val = SHIFT_U32(p->glitch_det_halt_boot_en & 0x3, 30) |
+	      SHIFT_U32(p->glitch_det_rom_monitor_en & 0x1, 29) |
+	      SHIFT_U32(p->halt_boot_error & 0x3, 21) |
+	      SHIFT_U32(p->halt_boot_env & 0x3, 19) |
+	      SHIFT_U32(p->crypto_kat_en & 0x1, 15) |
+	      SHIFT_U32(p->lbist_en & 0x1, 14) |
+	      SHIFT_U32(p->safety_mission_en & 0x1, 8) |
+	      SHIFT_U32(p->ppk2_invalid & 0x3, 6) |
+	      SHIFT_U32(p->ppk1_invalid & 0x3, 4) |
+	      SHIFT_U32(p->ppk0_invalid & 0x3, 2);
 
 	return do_write_efuses_value(EFUSE_WRITE_MISC_CTRL_BITS, val);
 }
@@ -929,7 +928,7 @@ versal_efuse_write_glitch_cfg(struct versal_efuse_glitch_cfg_bits *p)
 	if (!p->prgm_glitch)
 		return TEE_SUCCESS;
 
-	val = ((p->glitch_det_wr_lk & 0x1) << 31) | p->glitch_det_trim;
+	val = SHIFT_U32(p->glitch_det_wr_lk & 0x1, 31) | p->glitch_det_trim;
 
 	return do_write_efuses_value(EFUSE_WRITE_GLITCH_CONFIG, val);
 }
@@ -942,13 +941,13 @@ versal_efuse_write_boot_env(struct versal_efuse_boot_env_ctrl_bits *p)
 	if (!p)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	val = ((p->sysmon_temp_en & 0x1) << 21) |
-		  ((p->sysmon_volt_en & 0x1) << 20) |
-		  ((p->sysmon_temp_hot & 0x3) << 17) |
-		  ((p->sysmon_volt_pmc & 0x3) << 12) |
-		  ((p->sysmon_volt_pslp & 0x3) << 10) |
-		  ((p->sysmon_volt_soc & 0x3) << 8) |
-		  (p->sysmon_temp_cold & 0x2);
+	val = SHIFT_U32(p->sysmon_temp_en & 0x1, 21) |
+	      SHIFT_U32(p->sysmon_volt_en & 0x1, 20) |
+	      SHIFT_U32(p->sysmon_temp_hot & 0x3, 17) |
+	      SHIFT_U32(p->sysmon_volt_pmc & 0x3, 12) |
+	      SHIFT_U32(p->sysmon_volt_pslp & 0x3, 10) |
+	      SHIFT_U32(p->sysmon_volt_soc & 0x3, 8) |
+	      (p->sysmon_temp_cold & 0x2);
 
 	return do_write_efuses_value(EFUSE_WRITE_BOOT_ENV_CTRL_BITS, val);
 }
@@ -960,11 +959,11 @@ TEE_Result versal_efuse_write_sec_misc1(struct versal_efuse_sec_misc1_bits *p)
 	if (!p)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	val = ((p->lpd_mbist_en & 0x7) << 10) |
-		  ((p->pmc_mbist_en & 0x7) << 7) |
-		  ((p->lpd_noc_sc_en & 0x7) << 4) |
-		  ((p->sysmon_volt_mon_en & 0x3) << 2) |
-		  (p->sysmon_temp_mon_en & 0x3);
+	val = SHIFT_U32(p->lpd_mbist_en & 0x7, 10) |
+	      SHIFT_U32(p->pmc_mbist_en & 0x7, 7) |
+	      SHIFT_U32(p->lpd_noc_sc_en & 0x7, 4) |
+	      SHIFT_U32(p->sysmon_volt_mon_en & 0x3, 2) |
+	      (p->sysmon_temp_mon_en & 0x3);
 
 	return do_write_efuses_value(EFUSE_WRITE_MISC1_CTRL_BITS, val);
 }
