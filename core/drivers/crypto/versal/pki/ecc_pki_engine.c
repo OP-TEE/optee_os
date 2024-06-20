@@ -3,24 +3,24 @@
  * Copyright (C) ProvenRun SAS 2023.
  */
 
+#include <config.h>
+#include <crypto/crypto_impl.h>
+#include <drivers/versal_trng.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
-#include <crypto/crypto_impl.h>
-#include <initcall.h>
 #include <ecc.h>
-#include <rng_support.h>
-#include <kernel/panic.h>
+#include <initcall.h>
+#include <io.h>
 #include <kernel/delay.h>
+#include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <rng_support.h>
+#include <stdint.h>
 #include <string.h>
 #include <tee/cache.h>
 #include <tee/tee_cryp_utl.h>
 #include <util.h>
-#include <io.h>
-#include <config.h>
-#include <drivers/versal_trng.h>
-#include <stdint.h>
 
 /* PKI Engine TRNG driver */
 #define TRNG_BASE            UINT64_C(0x20400051000)
@@ -162,17 +162,20 @@ static struct versal_pki versal_pki;
 #define PKI_DEFAULT_REQID		0xB04EU
 
 #define PKI_EXPECTED_CQ_STATUS		0
-#define PKI_EXPECTED_CQ_VALUE		(PKI_DEFAULT_REQID << 16 | 0x1)
+#define PKI_EXPECTED_CQ_VALUE		(SHIFT_U32(PKI_DEFAULT_REQID, 16) | 0x1)
 
 #define PKI_RESET_DELAY_US		10
 
-static void pki_get_opsize(uint32_t curve, uint32_t op, size_t *in_sz,
+static TEE_Result pki_get_opsize(uint32_t curve, uint32_t op, size_t *in_sz,
 			   size_t *out_sz)
 {
-	size_t bits;
-	size_t bytes;
+	TEE_Result ret = TEE_SUCCESS;
+	size_t bits = 0;
+	size_t bytes = 0;
 
-	versal_ecc_get_key_size(curve, &bytes, &bits);
+	ret = versal_ecc_get_key_size(curve, &bytes, &bits);
+	if (ret)
+		return ret;
 
 	switch (op) {
 	case PKI_DESC_OPTYPE_ECDSA_SIGN:
@@ -192,19 +195,24 @@ static void pki_get_opsize(uint32_t curve, uint32_t op, size_t *in_sz,
 		*out_sz = bytes * PKI_ECC_POINTMUL_OUTPUT_OP_COUNT;
 		break;
 	default:
-		break;
+		return TEE_ERROR_NOT_SUPPORTED;
 	}
+
+	return TEE_SUCCESS;
 }
 
 static TEE_Result pki_build_descriptors(uint32_t curve, uint32_t op,
 					uint32_t *descs)
 {
+	TEE_Result ret = TEE_SUCCESS;
 	size_t in_sz = 0;
 	size_t out_sz = 0;
 	uint32_t opsize = 0;
 	uint32_t selcurve = 0;
 
-	pki_get_opsize(curve, op, &in_sz, &out_sz);
+	ret = pki_get_opsize(curve, op, &in_sz, &out_sz);
+	if (ret)
+		return ret;
 
 	switch (curve) {
 	case TEE_ECC_CURVE_NIST_P256:
@@ -243,7 +251,6 @@ static TEE_Result pki_build_descriptors(uint32_t curve, uint32_t op,
 static TEE_Result pki_start_operation(uint32_t reqval)
 {
 	TEE_Result ret = TEE_ERROR_TIMEOUT;
-
 	uint32_t retries = PKI_MAX_RETRY_COUNT;
 
 	/* Soft reset */
@@ -297,8 +304,8 @@ static TEE_Result pki_start_operation(uint32_t reqval)
 
 static TEE_Result pki_check_status(void)
 {
-	uint32_t cq_status;
-	uint32_t cq_value;
+	uint32_t cq_status = 0;
+	uint32_t cq_value = 0;
 
 	cache_operation(TEE_CACHEFLUSH, versal_pki.cq, PKI_QUEUE_BUF_SIZE);
 
@@ -317,11 +324,9 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 			     const uint8_t *sig, size_t sig_len)
 {
 	TEE_Result ret = TEE_SUCCESS;
-
 	size_t bits = 0;
 	size_t bytes = 0;
 	size_t len = 0;
-
 	uintptr_t addr = (uintptr_t)versal_pki.rq_in;
 
 	ret = versal_ecc_get_key_size(key->curve, &bytes, &bits);
@@ -329,9 +334,9 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 		return ret;
 
 	/* Copy public key */
-	crypto_bignum_bn2bin_eswap(key->curve, key->x, (uint8_t *)addr);
+	versal_crypto_bignum_bn2bin_eswap(key->curve, key->x, (uint8_t *)addr);
 	addr += bytes;
-	crypto_bignum_bn2bin_eswap(key->curve, key->y, (uint8_t *)addr);
+	versal_crypto_bignum_bn2bin_eswap(key->curve, key->y, (uint8_t *)addr);
 	addr += bytes;
 
 	/* Copy signature */
@@ -399,12 +404,13 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	ret = versal_ecc_gen_keypair(&ephemeral);
 	if (ret) {
 		EMSG("Versal, can't generate the ephemeral key");
-		return ret;
+		goto out;
 	}
 
 	ret = versal_ecc_sign_ephemeral(algo, bytes, key, &ephemeral, msg,
 					msg_len, sig, sig_len);
 
+out:
 	crypto_bignum_free(&ephemeral.d);
 	crypto_bignum_free(&ephemeral.x);
 	crypto_bignum_free(&ephemeral.y);
@@ -420,15 +426,15 @@ TEE_Result versal_ecc_sign_ephemeral(uint32_t algo, size_t bytes,
 {
 	TEE_Result ret = TEE_SUCCESS;
 	size_t len = 0;
-
 	uintptr_t addr = (uintptr_t)versal_pki.rq_in;
 
 	/* Copy private key */
-	crypto_bignum_bn2bin_eswap(key->curve, key->d, (uint8_t *)addr);
+	versal_crypto_bignum_bn2bin_eswap(key->curve, key->d, (uint8_t *)addr);
 	addr += bytes;
 
 	/* Copy ephemeral key */
-	crypto_bignum_bn2bin_eswap(key->curve, ephemeral->d, (uint8_t *)addr);
+	versal_crypto_bignum_bn2bin_eswap(key->curve, ephemeral->d,
+					  (uint8_t *)addr);
 	addr += bytes;
 
 	/* Copy hash */
@@ -474,14 +480,14 @@ TEE_Result versal_ecc_sign_ephemeral(uint32_t algo, size_t bytes,
 	return ret;
 }
 
-static const uint8_t Order_P256[] = {
+static const uint8_t order_p256[] = {
 	0x51, 0x25, 0x63, 0xfc, 0xc2, 0xca, 0xb9, 0xf3,
 	0x84, 0x9e, 0x17, 0xa7, 0xad, 0xfa, 0xe6, 0xbc,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
 };
 
-static const uint8_t Order_P384[] = {
+static const uint8_t order_p384[] = {
 	0x73, 0x29, 0xc5, 0xcc, 0x6a, 0x19, 0xec, 0xec,
 	0x7a, 0xa7, 0xb0, 0x48, 0xb2, 0x0d, 0x1a, 0x58,
 	0xdf, 0x2d, 0x37, 0xf4, 0x81, 0x4d, 0x63, 0xc7,
@@ -490,7 +496,7 @@ static const uint8_t Order_P384[] = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 };
 
-static const uint8_t Order_P521[] = {
+static const uint8_t order_p521[] = {
 	0x09, 0x64, 0x38, 0x91, 0x1e, 0xb7, 0x6f, 0xbb,
 	0xae, 0x47, 0x9c, 0x89, 0xb8, 0xc9, 0xb5, 0x3b,
 	0xd0, 0xa5, 0x09, 0xf7, 0x48, 0x01, 0xcc, 0x7f,
@@ -502,21 +508,21 @@ static const uint8_t Order_P521[] = {
 	0xff, 0x01
 };
 
-static const uint8_t EcdsaGpoint_P256_Gx[] = {
+static const uint8_t ecdsa_gpoint_p256_gx[] = {
 	0x96, 0xc2, 0x98, 0xd8, 0x45, 0x39, 0xa1, 0xf4,
 	0xa0, 0x33, 0xeb, 0x2d, 0x81, 0x7d, 0x03, 0x77,
 	0xf2, 0x40, 0xa4, 0x63, 0xe5, 0xe6, 0xbc, 0xf8,
 	0x47, 0x42, 0x2c, 0xe1, 0xf2, 0xd1, 0x17, 0x6b
 };
 
-static const uint8_t EcdsaGpoint_P256_Gy[] = {
+static const uint8_t ecdsa_gpoint_p256_gy[] = {
 	0xf5, 0x51, 0xbf, 0x37, 0x68, 0x40, 0xb6, 0xcb,
 	0xce, 0x5e, 0x31, 0x6b, 0x57, 0x33, 0xce, 0x2b,
 	0x16, 0x9e, 0x0f, 0x7c, 0x4a, 0xeb, 0xe7, 0x8e,
 	0x9b, 0x7f, 0x1a, 0xfe, 0xe2, 0x42, 0xe3, 0x4f
 };
 
-static const uint8_t EcdsaGpoint_P384_Gx[] = {
+static const uint8_t ecdsa_gpoint_p384_gx[] = {
 	0xb7, 0x0a, 0x76, 0x72, 0x38, 0x5e, 0x54, 0x3a,
 	0x6c, 0x29, 0x55, 0xbf, 0x5d, 0xf2, 0x02, 0x55,
 	0x38, 0x2a, 0x54, 0x82, 0xe0, 0x41, 0xf7, 0x59,
@@ -525,7 +531,7 @@ static const uint8_t EcdsaGpoint_P384_Gx[] = {
 	0x37, 0x05, 0x8b, 0xbe, 0x22, 0xca, 0x87, 0xaa
 };
 
-static const uint8_t EcdsaGpoint_P384_Gy[] = {
+static const uint8_t ecdsa_gpoint_p384_gy[] = {
 	0x5f, 0x0e, 0xea, 0x90, 0x7c, 0x1d, 0x43, 0x7a,
 	0x9d, 0x81, 0x7e, 0x1d, 0xce, 0xb1, 0x60, 0x0a,
 	0xc0, 0xb8, 0xf0, 0xb5, 0x13, 0x31, 0xda, 0xe9,
@@ -534,7 +540,7 @@ static const uint8_t EcdsaGpoint_P384_Gy[] = {
 	0x6f, 0x2c, 0x26, 0x96, 0x4a, 0xde, 0x17, 0x36
 };
 
-static const uint8_t EcdsaGpoint_P521_Gx[] = {
+static const uint8_t ecdsa_gpoint_p521_gx[] = {
 	0x66, 0xbd, 0xe5, 0xc2, 0x31, 0x7e, 0x7e, 0xf9,
 	0x9b, 0x42, 0x6a, 0x85, 0xc1, 0xb3, 0x48, 0x33,
 	0xde, 0xa8, 0xff, 0xa2, 0x27, 0xc1, 0x1d, 0xfe,
@@ -546,7 +552,7 @@ static const uint8_t EcdsaGpoint_P521_Gx[] = {
 	0xc6, 0x00
 };
 
-static const uint8_t EcdsaGpoint_P521_Gy[] = {
+static const uint8_t ecdsa_gpoint_p521_gy[] = {
 	0x50, 0x66, 0xd1, 0x9f, 0x76, 0x94, 0xbe, 0x88,
 	0x40, 0xc2, 0x72, 0xa2, 0x86, 0x70, 0x3c, 0x35,
 	0x61, 0x07, 0xad, 0x3f, 0x01, 0xb9, 0x50, 0xc5,
@@ -562,18 +568,18 @@ static TEE_Result versal_ecc_gen_private_key(uint32_t curve, uint8_t *priv,
 					     size_t bytes)
 {
 	TEE_Result ret = TEE_SUCCESS;
-	const uint8_t *order;
+	const uint8_t *order = NULL;
 	uintptr_t addr = (uintptr_t)versal_pki.rq_in;
 
 	switch (curve) {
 	case TEE_ECC_CURVE_NIST_P256:
-		order = Order_P256;
+		order = order_p256;
 		break;
 	case TEE_ECC_CURVE_NIST_P384:
-		order = Order_P384;
+		order = order_p384;
 		break;
 	case TEE_ECC_CURVE_NIST_P521:
-		order = Order_P521;
+		order = order_p521;
 		break;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -619,16 +625,16 @@ static TEE_Result versal_ecc_gen_private_key(uint32_t curve, uint8_t *priv,
 	/* Copy back result */
 	memcpy(priv, versal_pki.rq_out, bytes);
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
 TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s)
 {
 	TEE_Result ret = TEE_SUCCESS;
-	size_t bytes;
-	size_t bits;
-	const uint8_t *Gx;
-	const uint8_t *Gy;
+	size_t bytes = 0;
+	size_t bits = 0;
+	const uint8_t *gx = NULL;
+	const uint8_t *gy = NULL;
 	uintptr_t addr = (uintptr_t)versal_pki.rq_in;
 
 	ret = versal_ecc_get_key_size(s->curve, &bytes, &bits);
@@ -637,16 +643,16 @@ TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s)
 
 	switch (s->curve) {
 	case TEE_ECC_CURVE_NIST_P256:
-		Gx = EcdsaGpoint_P256_Gx;
-		Gy = EcdsaGpoint_P256_Gy;
+		gx = ecdsa_gpoint_p256_gx;
+		gy = ecdsa_gpoint_p256_gy;
 		break;
 	case TEE_ECC_CURVE_NIST_P384:
-		Gx = EcdsaGpoint_P384_Gx;
-		Gy = EcdsaGpoint_P384_Gy;
+		gx = ecdsa_gpoint_p384_gx;
+		gy = ecdsa_gpoint_p384_gy;
 		break;
 	case TEE_ECC_CURVE_NIST_P521:
-		Gx = EcdsaGpoint_P521_Gx;
-		Gy = EcdsaGpoint_P521_Gy;
+		gx = ecdsa_gpoint_p521_gx;
+		gy = ecdsa_gpoint_p521_gy;
 		break;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -659,11 +665,11 @@ TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s)
 	addr += bytes;
 
 	/* Copy generator point x coordinate */
-	memcpy((uint8_t *)addr, Gx, bytes);
+	memcpy((uint8_t *)addr, gx, bytes);
 	addr += bytes;
 
 	/* Copy generator point y coordinate */
-	memcpy((uint8_t *)addr, Gy, bytes);
+	memcpy((uint8_t *)addr, gy, bytes);
 	addr += bytes;
 
 	if (s->curve == TEE_ECC_CURVE_NIST_P521) {
@@ -689,16 +695,16 @@ TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s)
 	cache_operation(TEE_CACHEFLUSH, versal_pki.rq_out, PKI_QUEUE_BUF_SIZE);
 
 	/* Copy private and public keys back */
-	crypto_bignum_bin2bn_eswap(versal_pki.rq_in, bytes, s->d);
-	crypto_bignum_bin2bn_eswap(versal_pki.rq_out, bytes, s->x);
-	crypto_bignum_bin2bn_eswap(versal_pki.rq_out + bytes, bytes, s->y);
+	versal_crypto_bignum_bin2bn_eswap(versal_pki.rq_in, bytes, s->d);
+	versal_crypto_bignum_bin2bn_eswap(versal_pki.rq_out, bytes, s->x);
+	versal_crypto_bignum_bin2bn_eswap(versal_pki.rq_out + bytes, bytes, s->y);
 
 	/* Clear memory */
 	memset(versal_pki.rq_in, 0, PKI_QUEUE_BUF_SIZE);
 	memset(versal_pki.rq_out, 0, PKI_QUEUE_BUF_SIZE);
 	memset(versal_pki.cq, 0, PKI_QUEUE_BUF_SIZE);
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
 #define PSX_CRF_RST_PKI			0xEC200340
@@ -708,7 +714,7 @@ TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s)
 
 static TEE_Result versal_pki_engine_reset(void)
 {
-	vaddr_t reset;
+	vaddr_t reset = 0;
 
 	/* Reset the PKI engine */
 	reset = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
@@ -740,7 +746,7 @@ static TEE_Result versal_pki_engine_reset(void)
 
 static TEE_Result versal_pki_engine_slcr_config(void)
 {
-	vaddr_t fpd_slcr;
+	vaddr_t fpd_slcr = 0;
 
 	fpd_slcr = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
 						 FPD_SLCR_BASEADDR,
@@ -768,8 +774,8 @@ static TEE_Result versal_pki_engine_slcr_config(void)
 
 static TEE_Result versal_pki_engine_config(void)
 {
-	vaddr_t regs;
-	uint64_t val;
+	vaddr_t regs = 0;
+	uint64_t val = 0;
 
 	regs = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
 					     FPD_PKI_CTRLSTAT_BASEADDR,
@@ -798,7 +804,7 @@ static TEE_Result versal_pki_engine_config(void)
 
 TEE_Result versal_ecc_hw_init(void)
 {
-	TEE_Result ret;
+	TEE_Result ret = TEE_SUCCESS;
 
 	ret = versal_pki_engine_slcr_config();
 	if (ret != TEE_SUCCESS)
@@ -824,15 +830,24 @@ TEE_Result versal_ecc_hw_init(void)
 	/* Allocate queues */
 	versal_pki.rq_in = memalign(CACHELINE_LEN, PKI_QUEUE_BUF_SIZE);
 	if (!versal_pki.rq_in)
-		return TEE_ERROR_GENERIC;
+		goto error;
 
 	versal_pki.rq_out = memalign(CACHELINE_LEN, PKI_QUEUE_BUF_SIZE);
 	if (!versal_pki.rq_out)
-		return TEE_ERROR_GENERIC;
+		goto error;
 
 	versal_pki.cq = memalign(CACHELINE_LEN, PKI_QUEUE_BUF_SIZE);
 	if (!versal_pki.cq)
-		return TEE_ERROR_GENERIC;
+		goto error;
 
 	return TEE_SUCCESS;
+
+error:
+	free(versal_pki.rq_in);
+	free(versal_pki.rq_out);
+
+	core_mmu_remove_mapping(MEM_AREA_IO_SEC,
+				(void *)versal_pki.regs, FPD_PKI_SIZE);
+
+	return TEE_ERROR_GENERIC;
 }

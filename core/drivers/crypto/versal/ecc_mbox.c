@@ -114,8 +114,8 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	if (ret)
 		goto out1;
 
-	crypto_bignum_bn2bin_eswap(key->curve, key->x, x.buf);
-	crypto_bignum_bn2bin_eswap(key->curve, key->y,
+	versal_crypto_bignum_bn2bin_eswap(key->curve, key->x, x.buf);
+	versal_crypto_bignum_bn2bin_eswap(key->curve, key->y,
 				   (uint8_t *)x.buf + bytes);
 	/* Validate the public key for the curve */
 	arg.data[0] = key->curve;
@@ -221,7 +221,7 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	if (ret)
 		goto out1;
 
-	crypto_bignum_bn2bin_eswap(key->curve, ephemeral.d, k.buf);
+	versal_crypto_bignum_bn2bin_eswap(key->curve, ephemeral.d, k.buf);
 	crypto_bignum_free(&ephemeral.d);
 	crypto_bignum_free(&ephemeral.x);
 	crypto_bignum_free(&ephemeral.y);
@@ -230,7 +230,7 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	ret = versal_mbox_alloc(bytes, NULL, &d);
 	if (ret)
 		goto out2;
-	crypto_bignum_bn2bin_eswap(key->curve, key->d, d.buf);
+	versal_crypto_bignum_bn2bin_eswap(key->curve, key->d, d.buf);
 
 	/* Signature */
 	ret = versal_mbox_alloc(*sig_len, NULL, &s);
@@ -284,7 +284,7 @@ out1:
 /* AMD/Xilinx Versal's Known Answer Tests */
 #define XSECURE_ECDSA_KAT_NIST_P384	0
 
-TEE_Result versal_ecc_kat(void)
+TEE_Result versal_ecc_kat_test(void)
 {
 	struct versal_cmd_args arg = { };
 	uint32_t err = 0;

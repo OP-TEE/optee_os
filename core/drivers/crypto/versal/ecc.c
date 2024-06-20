@@ -56,7 +56,7 @@ void memcpy_swp(uint8_t *to, const uint8_t *from, size_t len)
 		to[i] = from[len - 1 - i];
 }
 
-void crypto_bignum_bn2bin_eswap(uint32_t curve, struct bignum *from,
+void versal_crypto_bignum_bn2bin_eswap(uint32_t curve, struct bignum *from,
 				uint8_t *to)
 {
 	uint8_t pad[66] = { 0 };
@@ -71,7 +71,7 @@ void crypto_bignum_bn2bin_eswap(uint32_t curve, struct bignum *from,
 	memcpy_swp(to, pad, bytes);
 }
 
-void crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,
+void versal_crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,
 				struct bignum *to)
 {
 	uint8_t pad[66] = { 0 };
@@ -132,13 +132,14 @@ static TEE_Result do_sign(struct drvcrypt_sign_data *sdata)
 			      sdata->signature.data,
 			      &sdata->signature.length);
 
-	if (ret == TEE_ERROR_NOT_SUPPORTED)
+	if (ret == TEE_ERROR_NOT_SUPPORTED) {
 		/* Fallback to software */
 		return pair_ops->sign(sdata->algo, sdata->key,
 				      sdata->message.data,
 				      sdata->message.length,
 				      sdata->signature.data,
 				      &sdata->signature.length);
+	}
 
 	return ret;
 }
@@ -154,13 +155,14 @@ static TEE_Result do_verify(struct drvcrypt_sign_data *sdata)
 				sdata->signature.data,
 				sdata->signature.length);
 
-	if (ret == TEE_ERROR_NOT_SUPPORTED)
+	if (ret == TEE_ERROR_NOT_SUPPORTED) {
 		/* Fallback to software */
 		return pub_ops->verify(sdata->algo, sdata->key,
 				       sdata->message.data,
 				       sdata->message.length,
 				       sdata->signature.data,
 				       sdata->signature.length);
+	}
 
 	return ret;
 }
@@ -255,7 +257,7 @@ static TEE_Result ecc_init(void)
 		return ret;
 
 	/* Run KAT self-tests */
-	ret = versal_ecc_kat();
+	ret = versal_ecc_kat_test();
 	if (ret != TEE_SUCCESS)
 		return ret;
 

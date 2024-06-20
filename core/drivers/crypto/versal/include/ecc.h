@@ -11,7 +11,7 @@ TEE_Result versal_ecc_prepare_msg(uint32_t algo, const uint8_t *msg,
 				  size_t msg_len, size_t *len, uint8_t *buf);
 
 TEE_Result versal_ecc_hw_init(void);
-TEE_Result versal_ecc_kat(void);
+TEE_Result versal_ecc_kat_test(void);
 
 TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s);
 #ifdef CFG_VERSAL_PKI_PWCT
@@ -30,9 +30,9 @@ TEE_Result versal_ecc_sign_ephemeral(uint32_t algo, size_t bytes,
 				     uint8_t *sig, size_t *sig_len);
 
 void memcpy_swp(uint8_t *to, const uint8_t *from, size_t len);
-void crypto_bignum_bn2bin_eswap(uint32_t curve, struct bignum *from,
+void versal_crypto_bignum_bn2bin_eswap(uint32_t curve, struct bignum *from,
 				uint8_t *to);
-void crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,
+void versal_crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,
 				struct bignum *to);
 
 #endif
