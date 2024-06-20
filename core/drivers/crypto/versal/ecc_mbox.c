@@ -207,16 +207,14 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 					      TEE_TYPE_ECDSA_KEYPAIR, bits);
 	if (ret) {
 		EMSG("Versal, can't allocate the ephemeral key");
-		versal_mbox_free(&p);
-		return ret;
+		goto out1;
 	}
 
 	ephemeral.curve = key->curve;
 	ret = crypto_acipher_gen_ecc_key(&ephemeral, bits);
 	if (ret) {
 		EMSG("Versal, can't generate the ephemeral key");
-		versal_mbox_free(&p);
-		return ret;
+		goto out1;
 	}
 
 	ret = versal_mbox_alloc(bytes, NULL, &k);

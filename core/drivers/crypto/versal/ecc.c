@@ -4,11 +4,13 @@
  * Author: Jorge Ramirez <jorge@foundries.io>
  */
 
+#include <config.h>
+#include <crypto/crypto_impl.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
-#include <crypto/crypto_impl.h>
-#include <initcall.h>
 #include <ecc.h>
+#include <initcall.h>
+#include <io.h>
 #include <kernel/panic.h>
 #include <kernel/delay.h>
 #include <mm/core_memprot.h>
@@ -17,8 +19,6 @@
 #include <tee/cache.h>
 #include <tee/tee_cryp_utl.h>
 #include <util.h>
-#include <io.h>
-#include <config.h>
 
 /* Software based ECDSA operations */
 static const struct crypto_ecc_keypair_ops *pair_ops;
@@ -76,6 +76,8 @@ void crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,
 {
 	uint8_t pad[66] = { 0 };
 
+	assert(sz <= sizeof(pad));
+
 	memcpy_swp(pad, from, sz);
 	crypto_bignum_bin2bn(pad, sz, to);
 }
@@ -121,7 +123,7 @@ static TEE_Result do_shared_secret(struct drvcrypt_secret_data *sdata)
 
 static TEE_Result do_sign(struct drvcrypt_sign_data *sdata)
 {
-	TEE_Result ret;
+	TEE_Result ret = TEE_SUCCESS;
 
 	ret = versal_ecc_sign(sdata->algo,
 			      sdata->key,
