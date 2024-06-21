@@ -338,6 +338,8 @@ prune_done:
 }
 #else /* !CFG_CORE_PREALLOC_EL0_TBLS */
 
+#define PGT_CACHE_SIZE	ROUNDUP(CFG_PGT_CACHE_ENTRIES, PGT_NUM_PGT_PER_PAGE)
+
 #if defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE)
 static struct pgt_parent pgt_parents[PGT_CACHE_SIZE / PGT_NUM_PGT_PER_PAGE];
 #else

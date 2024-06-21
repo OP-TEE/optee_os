@@ -1097,6 +1097,26 @@ ifeq (y-y,$(CFG_CORE_PREALLOC_EL0_TBLS)-$(CFG_WITH_PAGER))
 $(error "CFG_WITH_PAGER can't support CFG_CORE_PREALLOC_EL0_TBLS")
 endif
 
+# CFG_PGT_CACHE_ENTRIES defines the number of entries on the memory
+# mapping page table cache used for Trusted Application mapping.
+# CFG_PGT_CACHE_ENTRIES is ignored when CFG_CORE_PREALLOC_EL0_TBLS
+# is enabled.
+#
+# A proper value for CFG_PGT_CACHE_ENTRIES depends on many factors:
+# CFG_WITH_LPAE, CFG_TA_ASLR, size of TAs, size of memrefs passed
+# to TA, CFG_ULIBS_SHARED and possibly others. The default value
+# is based on the number of threads as an indicator on how large
+# the system might be.
+ifeq ($(CFG_NUM_THREADS),1)
+CFG_PGT_CACHE_ENTRIES ?= 4
+endif
+ifeq ($(CFG_NUM_THREADS),2)
+ifneq ($(CFG_WITH_LPAE),y)
+CFG_PGT_CACHE_ENTRIES ?= 8
+endif
+endif
+CFG_PGT_CACHE_ENTRIES ?= ($(CFG_NUM_THREADS) * 2)
+
 # User TA runtime context dump.
 # When this option is enabled, OP-TEE provides a debug method for
 # developer to dump user TA's runtime context, including TA's heap stats.
