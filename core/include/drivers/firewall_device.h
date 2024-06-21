@@ -15,6 +15,18 @@
 struct firewall_controller;
 
 /**
+ * struct firewall_conf - Firewall configuration for a device.
+ *
+ * @queries: Pointer referencing the firewall queries composing the
+ * configuration
+ * @nb_queries: Number of elements in @queries
+ */
+struct firewall_conf {
+	struct firewall_query *queries;
+	size_t nb_queries;
+};
+
+/**
  * struct firewall_query - Information on a device's firewall.
  *
  * @ctrl: Pointer referencing a firewall controller of the device. It is opaque
@@ -31,8 +43,8 @@ struct firewall_query {
 
 #ifdef CFG_DRIVERS_FIREWALL
 /**
- * firewall_dt_get_by_index() - Get the firewall configuration associated to a
- * given index for a device node.
+ * firewall_dt_get_by_index() - Get the firewall query associated to a
+ * given index for a device node in the "access-controllers" property.
  *
  * @fdt: FDT to work on
  * @node: Device node to read from
@@ -48,12 +60,12 @@ TEE_Result firewall_dt_get_by_index(const void *fdt, int node,
 				    struct firewall_query **out_fw);
 
 /**
- * firewall_dt_get_by_name() - Get the firewall configuration associated to a
- * given name for a device node.
+ * firewall_dt_get_by_name() - Get the firewall query associated to a
+ * given name for a device node in the "access-controllers" property.
  *
  * @fdt: FDT to work on
  * @node: Device node to read from
- * @name: Name of the firewall configuration to search for
+ * @name: Name of the firewall query to search for
  * @out_fw: Firewall query reference
  *
  * Returns TEE_SUCCESS on success, TEE_ERROR_ITEM_NOT_FOUND if there's no match
@@ -64,12 +76,39 @@ TEE_Result firewall_dt_get_by_name(const void *fdt, int node, const char *name,
 				   struct firewall_query **out_fw);
 
 /**
- * firewall_set_configuration() - Reconfigure the firewall controller associated
- * to the given firewall configuration with it.
+ * firewall_dt_get_conf() - Get the firewall configuration associated to a
+ * given name for a device node. Firewall configurations are identified by
+ * "[conf_name]-access-conf". It is composed of one or more firewall queries.
  *
- * @fw:	Firewall query containing the configuration to set
+ * @fdt: FDT to work on
+ * @node: Device node to read from
+ * @conf_name: Name of the target firewall configuration
+ * @conf: Pointer to the configuration
+ *
+ * Returns TEE_SUCCESS on success, TEE_ERROR_ITEM_NOT_FOUND if the property is
+ * not found or appropriate TEE_Result error code if an error occurred.
  */
-TEE_Result firewall_set_configuration(struct firewall_query *fw);
+TEE_Result firewall_dt_get_conf(const void *fdt, int node,
+				const char *conf_name,
+				struct firewall_conf **conf);
+
+/**
+ * firewall_set_configuration() - Set a firewall configuration.
+ *
+ * @conf: Pointer to the configuration to set
+ */
+TEE_Result firewall_set_configuration(struct firewall_conf *conf);
+
+/**
+ * firewall_set_memory_configuration() - Set a alternate firewall
+ * configuration on a given memory range.
+ *
+ * @conf: Pointer to the alternate configuration to set
+ * @paddr: Physical base address of the memory range
+ * @size: Size of the memory range
+ */
+TEE_Result firewall_set_memory_configuration(struct firewall_conf *conf,
+					     paddr_t paddr, size_t size);
 
 /**
  * firewall_acquire_access() - Check if OP-TEE can access the consumer and
@@ -125,6 +164,14 @@ void firewall_release_memory_access(struct firewall_query *fw, paddr_t paddr,
  */
 void firewall_put(struct firewall_query *fw);
 
+/**
+ * firewall_conf_put() - Release a firewall_conf structure allocated by
+ * firewall_dt_get_conf()
+ *
+ * @conf: Firewall configuration to put
+ */
+void firewall_conf_put(struct firewall_conf *conf);
+
 #else /* CFG_DRIVERS_FIREWALL */
 
 static inline TEE_Result
@@ -139,6 +186,14 @@ static inline TEE_Result
 firewall_dt_get_by_name(const void *fdt __unused, int node __unused,
 			const char *name __unused,
 			struct firewall_query **out_fw __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+firewall_dt_get_conf(const void *fdt __unused, int node __unused,
+		     const char *conf_name __unused,
+		     struct firewall_conf **conf __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
@@ -170,12 +225,24 @@ firewall_release_memory_access(struct firewall_query *fw __unused,
 }
 
 static inline TEE_Result
-firewall_set_configuration(struct firewall_query *fw __unused)
+firewall_set_configuration(struct firewall_conf *conf __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+firewall_set_memory_configuration(struct firewall_conf *conf __unused,
+				  paddr_t paddr __unused, size_t size __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
 static inline void firewall_put(struct firewall_query *fw __unused)
+{
+}
+
+static inline void
+firewall_conf_put(struct firewall_conf *conf __unused)
 {
 }
 

@@ -34,11 +34,13 @@ struct firewall_controller {
 /**
  * struct firewall_controller_ops - Firewall controller operation handlers
  *
- * @set_conf: Callback used to set given firewall configuration
+ * @set_conf: Callback used to set given firewall configuration from a query
  * @acquire_access: Callback used to acquire access for OP-TEE on a resource
  * against a firewall controller
  * @release_access: Callback used to release resources taken by a consumer when
  * the access was acquired with @acquire_access
+ * @set_memory_conf: Callback used to set given firewall configuration for a
+ * memory range covered by a firewall controller from a query
  * @acquire_memory_access: Callback used to acquire access for OP-TEE to a
  * memory range covered by a firewall controller, for read and/or write accesses
  * @release_memory_access: Callback used to release resources taken by a
@@ -48,6 +50,8 @@ struct firewall_controller_ops {
 	TEE_Result (*set_conf)(struct firewall_query *conf);
 	TEE_Result (*acquire_access)(struct firewall_query *conf);
 	void (*release_access)(struct firewall_query *conf);
+	TEE_Result (*set_memory_conf)(struct firewall_query *fw, paddr_t paddr,
+				      size_t size);
 	TEE_Result (*acquire_memory_access)(struct firewall_query *fw,
 					    paddr_t paddr, size_t size,
 					    bool read, bool write);
