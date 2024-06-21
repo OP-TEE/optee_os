@@ -72,6 +72,8 @@ struct itr_ops {
 	void (*raise_pi)(struct itr_chip *chip, size_t it);
 	void (*raise_sgi)(struct itr_chip *chip, size_t it,
 			  uint32_t cpu_mask);
+	void (*release)(struct itr_chip *chip, size_t it,
+			uint8_t prio, uint8_t cpu_mask);
 	void (*set_affinity)(struct itr_chip *chip, size_t it,
 		uint8_t cpu_mask);
 };
@@ -297,6 +299,20 @@ static inline void interrupt_raise_sgi(struct itr_chip *chip, size_t itr_num,
 {
 	assert(interrupt_can_raise_sgi(chip));
 	chip->ops->raise_sgi(chip, itr_num, cpu_mask);
+}
+
+/*
+ * interrupt_release() - Reset the property for a shared peripheral interrupt
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number to release
+ * @prio	Interrupt priority
+ * @cpu_mask	Mask of the CPUs targeted by the interrupt
+ */
+static inline void interrupt_release(struct itr_chip *chip, size_t itr_num,
+				     uint8_t prio, uint8_t cpu_mask)
+{
+	assert(chip->ops->release);
+	chip->ops->release(chip, itr_num, prio, cpu_mask);
 }
 
 /*
