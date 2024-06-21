@@ -5,6 +5,12 @@
 #ifndef __MM_PGT_CACHE_H
 #define __MM_PGT_CACHE_H
 
+#include <assert.h>
+#include <kernel/tee_ta_manager.h>
+#include <sys/queue.h>
+#include <types_ext.h>
+#include <util.h>
+
 #ifdef CFG_WITH_LPAE
 #define PGT_SIZE	(4 * 1024)
 #define PGT_NUM_PGT_PER_PAGE	1
@@ -12,12 +18,6 @@
 #define PGT_SIZE	(1 * 1024)
 #define PGT_NUM_PGT_PER_PAGE	4
 #endif
-
-#include <assert.h>
-#include <kernel/tee_ta_manager.h>
-#include <sys/queue.h>
-#include <types_ext.h>
-#include <util.h>
 
 struct ts_ctx;
 
@@ -37,20 +37,6 @@ struct pgt {
 #endif
 	SLIST_ENTRY(pgt) link;
 };
-
-/*
- * A proper value for PGT_CACHE_SIZE depends on many factors: CFG_WITH_LPAE,
- * CFG_TA_ASLR, size of TA, size of memrefs passed to TA, CFG_ULIBS_SHARED and
- * possibly others. The value is based on the number of threads as an indicator
- * on how large the system might be.
- */
-#if CFG_NUM_THREADS < 2
-#define PGT_CACHE_SIZE	4
-#elif (CFG_NUM_THREADS == 2 && !defined(CFG_WITH_LPAE))
-#define PGT_CACHE_SIZE	8
-#else
-#define PGT_CACHE_SIZE	ROUNDUP(CFG_NUM_THREADS * 2, PGT_NUM_PGT_PER_PAGE)
-#endif
 
 SLIST_HEAD(pgt_cache, pgt);
 struct user_mode_ctx;
