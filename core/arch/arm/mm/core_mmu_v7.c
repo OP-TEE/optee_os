@@ -709,47 +709,6 @@ bool core_mmu_user_mapping_is_active(void)
 	return ret;
 }
 
-static void print_mmap_area(const struct tee_mmap_region *mm __maybe_unused,
-				const char *str __maybe_unused)
-{
-	if (!(mm->attr & TEE_MATTR_VALID_BLOCK))
-		debug_print("%s [%08" PRIxVA " %08" PRIxVA "] not mapped",
-				str, mm->va, mm->va + mm->size);
-	else
-		debug_print("%s [%08" PRIxVA " %08" PRIxVA "] %s-%s-%s-%s",
-				str, mm->va, mm->va + mm->size,
-				mattr_is_cached(mm->attr) ? "MEM" : "DEV",
-				mm->attr & TEE_MATTR_PW ? "RW" : "RO",
-				mm->attr & TEE_MATTR_PX ? "X" : "XN",
-				mm->attr & TEE_MATTR_SECURE ? "S" : "NS");
-}
-
-void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb)
-{
-	uint32_t attr = mattr_to_desc(1, mm->attr);
-	size_t idx = mm->va >> SECTION_SHIFT;
-	paddr_t pa = 0;
-	size_t n;
-
-	if (core_mmap_is_end_of_table(mm))
-		return;
-
-	print_mmap_area(mm, "section map");
-
-	attr = mattr_to_desc(1, mm->attr);
-	if (attr != INVALID_DESC)
-		pa = mm->pa;
-
-	n = ROUNDUP(mm->size, SECTION_SIZE) >> SECTION_SHIFT;
-	while (n--) {
-		assert(!attr || !ttb[idx] || ttb[idx] == (pa | attr));
-
-		ttb[idx] = pa | attr;
-		idx++;
-		pa += SECTION_SIZE;
-	}
-}
-
 void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 {
 	void *ttb1 = (void *)core_mmu_get_main_ttb_va(prtn);
