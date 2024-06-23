@@ -172,9 +172,6 @@ static inline TEE_Result cache_op_outer(enum cache_op op __unused,
 }
 #endif
 
-/* Do section mapping, not support on LPAE */
-void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb);
-
 #if defined(ARM64)
 unsigned int core_mmu_arm64_get_pa_width(void);
 #endif
