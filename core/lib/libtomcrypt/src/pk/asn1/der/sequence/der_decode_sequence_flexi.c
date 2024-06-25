@@ -268,7 +268,7 @@ static int s_der_decode_sequence_flexi(const unsigned char *in, unsigned long *i
             }
             l->size = len;
 
-            if ((l->data = XCALLOC(sizeof(wchar_t), l->size)) == NULL) {
+            if ((l->data = XCALLOC(l->size, sizeof(wchar_t))) == NULL) {
                err = CRYPT_MEM;
                goto error;
             }
