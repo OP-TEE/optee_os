@@ -224,7 +224,7 @@ struct sp_mem *sp_mem_new(void)
 	uint32_t exceptions = 0;
 	int i = 0;
 
-	smem = calloc(sizeof(*smem), 1);
+	smem = calloc(1, sizeof(*smem));
 	if (!smem)
 		return NULL;
 

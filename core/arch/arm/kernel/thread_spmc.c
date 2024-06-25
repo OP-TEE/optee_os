@@ -1113,7 +1113,7 @@ static int add_mem_share(struct ffa_mem_transaction_x *mem_trans,
 		return FFA_NO_MEMORY;
 
 	if (flen != blen) {
-		struct mem_frag_state *s = calloc(sizeof(*s), 1);
+		struct mem_frag_state *s = calloc(1, sizeof(*s));
 
 		if (!s) {
 			rc = FFA_NO_MEMORY;
