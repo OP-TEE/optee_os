@@ -1,0 +1,48 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt update && apt upgrade -y && apt-get install -y \
+    build-essential \
+    autoconf \
+    bc \
+    bison \
+    ccache \
+    clang \
+    lld \
+    cmake \
+    codespell \
+    device-tree-compiler \
+    expect \
+    flex \
+    gcc-aarch64-linux-gnu \
+    gcc-arm-linux-gnueabihf \
+    gcc-riscv64-linux-gnu \
+    gdb-multiarch \
+    gdisk \
+    gettext \
+    libncurses5 \
+    libssl-dev \
+    lsb-release \
+    python3 \
+    python3-pip \
+    python3-cryptography \
+    python3-pycodestyle \
+    python3-pycryptodome \
+    python3-pyelftools \
+    sudo \
+    uuid-dev \
+    wget \
+    curl \
+    git-core \
+    git-man \
+    git-email \
+    sudo \
+    nano \
+    vim \
+    openssh-client \
+    bash-completion
+
+# Add non root user
+RUN useradd -ms /bin/bash optee
+RUN echo "optee ALL=(ALL) NOPASSWD: ALL" | tee -a /etc/sudoers
+USER optee
