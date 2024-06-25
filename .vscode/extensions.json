@@ -1,0 +1,10 @@
+{
+	"recommendations": [
+                "ms-vscode-remote.remote-containers",
+                "ms-vscode-remote.remote-wsl",
+                "ms-vscode-remote.vscode-remote-extensionpack",
+                "ms-vscode.cpptools-extension-pack",
+                "ms-vscode.cpptools",
+                "eamodio.gitlens",
+	]
+}
