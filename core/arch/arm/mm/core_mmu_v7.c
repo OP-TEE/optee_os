@@ -229,25 +229,9 @@ static struct mmu_partition default_partition = {
 	.tables_used = 0,
 };
 
-#ifdef CFG_NS_VIRTUALIZATION
-static struct mmu_partition *current_prtn[CFG_TEE_CORE_NB_CORE];
-
-void core_mmu_set_default_prtn_tbl(void)
-{
-	size_t n = 0;
-
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
-		current_prtn[n] = &default_partition;
-}
-#endif
-
 static struct mmu_partition *get_prtn(void)
 {
-#ifdef CFG_NS_VIRTUALIZATION
-	return current_prtn[get_core_pos()];
-#else
 	return &default_partition;
-#endif
 }
 
 static vaddr_t core_mmu_get_main_ttb_va(struct mmu_partition *prtn)
