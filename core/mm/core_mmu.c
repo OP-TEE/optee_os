@@ -286,7 +286,9 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 	struct tee_mmap_region *map = get_memory_map();
 
 	while (!core_mmap_is_end_of_table(map)) {
-		if (pa >= map->pa && pa <= (map->pa + map->size - 1))
+		/* Skip unmapped regions */
+		if ((map->attr & TEE_MATTR_VALID_BLOCK) &&
+		    pa >= map->pa && pa <= (map->pa + map->size - 1))
 			return map;
 		map++;
 	}
