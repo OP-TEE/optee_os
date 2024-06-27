@@ -346,9 +346,6 @@ CFG_TEE_CORE_DEBUG ?= n
 CFG_UNWIND ?= n
 CFG_LOCKDEP ?= n
 CFG_TA_BGET_TEST ?= n
-# Default disable early TA compression to support a smaller HEAP size
-CFG_EARLY_TA_COMPRESS ?= n
-CFG_CORE_HEAP_SIZE ?= 49152
 endif
 
 # Non-secure UART and GPIO/pinctrl for the output console
