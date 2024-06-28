@@ -114,9 +114,8 @@ FUNC sha3_ce_transform , :
 	b	4f
 
 	/* SHA3-224: digest size 28 bytes, block size 144 bytes */
-2:	ld1	{v25.8b-v26.8b}, [x1], #16
-	eor	v17.8b, v17.8b, v25.8b
-	eor	v18.8b, v18.8b, v26.8b
+2:	ld1	{v29.8b}, [x1], #8
+	eor	v17.8b, v17.8b, v29.8b
 	b	4f
 
 	/* SHA3-512: digest size 64 bytes , block size 72 bytes */
