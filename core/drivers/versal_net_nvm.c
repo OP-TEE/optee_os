@@ -970,7 +970,7 @@ TEE_Result versal_efuse_write_sec_misc1(struct versal_efuse_sec_misc1_bits *p)
 
 TEE_Result versal_efuse_write_offchip_ids(uint32_t id)
 {
-	return do_write_efuses_value(EFUSE_WRITE_OFFCHIP_REVOKE_ID, id);
+	return do_write_efuses_value(EFUSE_WRITE_OFFCHIP_REVOKE_ID, id + 1);
 }
 
 TEE_Result versal_efuse_write_revoke_ppk(enum versal_nvm_ppk_type type)
