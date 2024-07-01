@@ -140,6 +140,7 @@ static const struct rstctrl_ops *stm32_reset_get_ops(unsigned int id __unused)
 static const struct stm32_reset_data stm32mp1_reset_data = {
 	.get_rstctrl_ops = stm32_reset_get_ops
 };
+DECLARE_KEEP_PAGER(stm32mp1_reset_data);
 
 static const struct dt_device_match stm32_rstctrl_match_table[] = {
 	{
