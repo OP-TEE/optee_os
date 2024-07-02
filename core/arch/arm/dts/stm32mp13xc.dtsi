@@ -18,7 +18,8 @@
 		compatible = "st,stm32mp13-saes";
 		reg = <0x54005000 0x400>;
 		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&rcc SAES_K>;
+		clocks = <&rcc SAES_K>, <&rcc RNG1_K>;
+		clock-names = "bus", "rng";
 		resets = <&rcc SAES_R>;
 		status = "disabled";
 	};
