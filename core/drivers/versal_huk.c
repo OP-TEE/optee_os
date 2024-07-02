@@ -14,7 +14,7 @@
 #include <kernel/tee_common_otp.h>
 #include <mm/core_memprot.h>
 #include <string_ext.h>
-#include <tee/tee_cryp_utl.h>
+#include <tee/tee_cryp_hkdf.h>
 #include <trace.h>
 #include <utee_defines.h>
 
@@ -56,7 +56,7 @@ enum versal_aes_key_src {
 };
 
 enum versal_crypto_api {
-	VERSAL_AES_INIT = 96U,
+	VERSAL_AES_INIT = 9U,
 	VERSAL_AES_OP_INIT,
 	VERSAL_AES_UPDATE_AAD,
 	VERSAL_AES_ENCRYPT_UPDATE,
@@ -68,8 +68,6 @@ enum versal_crypto_api {
 	VERSAL_AES_LOCK_USER_KEY,
 	VERSAL_AES_KEK_DECRYPT,
 	VERSAL_AES_SET_DPA_CM,
-	VERSAL_AES_DECRYPT_KAT,
-	VERSAL_AES_DECRYPT_CM_KAT,
 };
 
 struct versal_aes_input_param {
@@ -109,6 +107,13 @@ struct versal_aes_init {
 		0xd2, 0x45, 0x0e, 0x07, 0xea, 0x5d, 0xe0, 0x42, 0x6c, 0x0f, \
 		0xa1, 0x33, \
 	}
+
+#ifdef CFG_VERSAL_DUMMY_DNA
+static uint8_t dummy_dna[EFUSE_DNA_LEN] = {
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+};
+#endif
 
 static bool versal_persistent_key(enum versal_aes_key_src src, bool *secure)
 {
@@ -186,7 +191,7 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	cmd.data[0] = API_ID(VERSAL_AES_INIT);
-	if (versal_mbox_notify(&cmd, NULL, NULL)) {
+	if (versal_mbox_notify_pmc(&cmd, NULL, NULL)) {
 		EMSG("AES_INIT error");
 		return TEE_ERROR_GENERIC;
 	}
@@ -195,18 +200,21 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 		for (i = 0; i < ARRAY_SIZE(key_data); i++)
 			key_data[i] = TEE_U32_BSWAP(key_data[i]);
 
-		versal_mbox_alloc(key_len, key_data, &p);
+		ret = versal_mbox_alloc(key_len, key_data, &p);
+		if (ret)
+			return ret;
+
 		cmd.data[0] = API_ID(VERSAL_AES_WRITE_KEY);
 		cmd.data[1] = VERSAL_AES_KEY_SIZE_256;
 		cmd.data[2] = key_id;
 		reg_pair_from_64(virt_to_phys(p.buf),
 				 &cmd.data[4], &cmd.data[3]);
 		cmd.ibuf[0].mem = p;
-		if (versal_mbox_notify(&cmd, NULL, NULL)) {
+		if (versal_mbox_notify_pmc(&cmd, NULL, NULL)) {
 			EMSG("AES_WRITE_KEY error");
 			ret = TEE_ERROR_GENERIC;
 		}
-		free(p.buf);
+		versal_mbox_free(&p);
 		memset(&cmd, 0, sizeof(cmd));
 		if (ret)
 			return ret;
@@ -215,8 +223,15 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 	/* Trace indication that it is safe to generate a RPMB key */
 	IMSG("Using %s HUK", secure ? "Production" : "Development");
 
-	versal_mbox_alloc(sizeof(*init), NULL, &init_buf);
-	versal_mbox_alloc(nce_len, nce_data, &p);
+	ret = versal_mbox_alloc(sizeof(*init), NULL, &init_buf);
+	if (ret)
+		return ret;
+	ret = versal_mbox_alloc(nce_len, nce_data, &p);
+	if (ret) {
+		versal_mbox_free(&init_buf);
+		return ret;
+	}
+
 	init = init_buf.buf;
 	init->operation = VERSAL_AES_GCM_ENCRYPT;
 	init->key_len = VERSAL_AES_KEY_SIZE_256;
@@ -226,17 +241,20 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 	reg_pair_from_64(virt_to_phys(init), &cmd.data[2], &cmd.data[1]);
 	cmd.ibuf[0].mem = init_buf;
 	cmd.ibuf[1].mem = p;
-	if (versal_mbox_notify(&cmd, NULL, NULL)) {
+	if (versal_mbox_notify_pmc(&cmd, NULL, NULL)) {
 		EMSG("AES_OP_INIT error");
 		ret = TEE_ERROR_GENERIC;
 	}
-	free(init);
-	free(p.buf);
+	versal_mbox_free(&init_buf);
+	versal_mbox_free(&p);
 	memset(&cmd, 0, sizeof(cmd));
 	if (ret)
 		return ret;
 
-	versal_mbox_alloc(aad_len, aad_data, &p);
+	ret = versal_mbox_alloc(aad_len, aad_data, &p);
+	if (ret)
+		return ret;
+
 	cmd.data[0] = API_ID(VERSAL_AES_UPDATE_AAD);
 	reg_pair_from_64(virt_to_phys(p.buf), &cmd.data[2], &cmd.data[1]);
 	if (p.len % 16)
@@ -244,18 +262,30 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 	else
 		cmd.data[3] = p.len;
 	cmd.ibuf[0].mem = p;
-	if (versal_mbox_notify(&cmd, NULL, NULL)) {
+	if (versal_mbox_notify_pmc(&cmd, NULL, NULL)) {
 		EMSG("AES_UPDATE_AAD error");
 		ret = TEE_ERROR_GENERIC;
 	}
-	free(p.buf);
+	versal_mbox_free(&p);
 	memset(&cmd, 0, sizeof(cmd));
 	if (ret)
 		return ret;
 
-	versal_mbox_alloc(sizeof(*input), NULL, &input_cmd);
-	versal_mbox_alloc(src_len, src, &p);
-	versal_mbox_alloc(dst_len, NULL, &q);
+	ret = versal_mbox_alloc(sizeof(*input), NULL, &input_cmd);
+	if (ret)
+		return ret;
+	ret = versal_mbox_alloc(src_len, src, &p);
+	if (ret) {
+		versal_mbox_free(&input_cmd);
+		return ret;
+	}
+	ret = versal_mbox_alloc(dst_len, NULL, &q);
+	if (ret) {
+		versal_mbox_free(&input_cmd);
+		versal_mbox_free(&p);
+		return ret;
+	}
+
 	input = input_cmd.buf;
 	input->input_addr = virt_to_phys(p.buf);
 	input->input_len = p.len;
@@ -266,26 +296,28 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 	cmd.ibuf[0].mem = input_cmd;
 	cmd.ibuf[1].mem = p;
 	cmd.ibuf[2].mem = q;
-	if (versal_mbox_notify(&cmd, NULL, NULL)) {
+	if (versal_mbox_notify_pmc(&cmd, NULL, NULL)) {
 		EMSG("AES_UPDATE_PAYLOAD error");
 		ret = TEE_ERROR_GENERIC;
 	}
 	memcpy(dst, q.buf, dst_len);
-	free(input);
-	free(p.buf);
-	free(q.buf);
+	versal_mbox_free(&input_cmd);
+	versal_mbox_free(&p);
+	versal_mbox_free(&q);
 	memset(&cmd, 0, sizeof(cmd));
 	if (ret)
 		return ret;
 
-	versal_mbox_alloc(16, NULL, &p);
+	ret = versal_mbox_alloc(16, NULL, &p);
+	if (ret)
+		return ret;
 	cmd.data[0] = API_ID(VERSAL_AES_ENCRYPT_FINAL);
 	reg_pair_from_64(virt_to_phys(p.buf), &cmd.data[2], &cmd.data[1]);
-	if (versal_mbox_notify(&cmd, NULL, NULL)) {
+	if (versal_mbox_notify_pmc(&cmd, NULL, NULL)) {
 		EMSG("AES_ENCRYPT_FINAL error");
 		ret = TEE_ERROR_GENERIC;
 	}
-	free(p.buf);
+	versal_mbox_free(&p);
 	memzero_explicit(&cmd, sizeof(cmd));
 
 	return ret;
@@ -301,8 +333,12 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	if (huk.ready)
 		goto out;
 
+#ifdef CFG_VERSAL_DUMMY_DNA
+	memcpy(dna, dummy_dna, EFUSE_DNA_LEN);
+#else
 	if (versal_efuse_read_dna(dna, sizeof(dna)))
 		return TEE_ERROR_GENERIC;
+#endif
 
 	if (versal_sha3_384((uint8_t *)dna, sizeof(dna), sha, sizeof(sha))) {
 		ret = TEE_ERROR_GENERIC;
@@ -314,8 +350,15 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 		goto cleanup;
 	}
 
-	if (tee_hash_createdigest(TEE_ALG_SHA256, enc_data, sizeof(enc_data),
-				  huk.key, sizeof(huk.key))) {
+	/*
+	 * Use RFC 5869 HKDF to derive a key from HUK-seed:
+	 *   HUK-seed = AES-GCM-encrypt(K, DNA)
+	 * where K is either PUF KEK or eFuse User Keys 0 or 1
+	 *
+	 * HKDF salt and info are set empty for now
+	 */
+	if (tee_cryp_hkdf(TEE_MAIN_ALGO_SHA256, enc_data, sizeof(enc_data),
+			  NULL, 0, NULL, 0, huk.key, sizeof(huk.key))) {
 		ret = TEE_ERROR_GENERIC;
 		goto cleanup;
 	}

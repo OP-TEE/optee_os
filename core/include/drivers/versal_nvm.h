@@ -14,7 +14,12 @@
 
 #define PUF_EFUSES_WORDS		(128)
 #define PUF_SYN_DATA_WORDS		(127)
+
+#if defined(PLATFORM_FLAVOR_net)
+#define EFUSE_MAX_USER_FUSES		(48)
+#else
 #define EFUSE_MAX_USER_FUSES		(64)
+#endif
 
 #define EFUSE_OFFCHIP_REVOCATION_ID_LEN	(4)
 #define EFUSE_REVOCATION_ID_LEN		(4)
@@ -22,6 +27,7 @@
 #define EFUSE_DNA_LEN			(16)
 #define EFUSE_PPK_LEN			(32)
 #define EFUSE_IV_LEN			(12)
+#define EFUSE_AES_KEY_LEN		(32)
 
 enum versal_nvm_iv_type {
 	EFUSE_META_HEADER_IV_RANGE = 0,
@@ -243,7 +249,11 @@ TEE_Result versal_efuse_write_glitch_cfg(struct versal_efuse_glitch_cfg_bits
 TEE_Result versal_efuse_write_boot_env(struct versal_efuse_boot_env_ctrl_bits
 				       *p);
 TEE_Result versal_efuse_write_sec_misc1(struct versal_efuse_sec_misc1_bits *p);
+#if defined(PLATFORM_FLAVOR_net)
+TEE_Result versal_efuse_write_offchip_ids(uint32_t id);
+#else
 TEE_Result versal_efuse_write_offchip_ids(struct versal_efuse_offchip_ids *p);
+#endif
 TEE_Result versal_efuse_write_revoke_ppk(enum versal_nvm_ppk_type type);
 TEE_Result versal_efuse_write_revoke_id(uint32_t id);
 TEE_Result versal_efuse_read_revoke_id(uint32_t *buf, size_t len,
