@@ -362,6 +362,16 @@ static struct drvcrypt_cipher driver_cipher_saes = {
 
 TEE_Result stm32_register_cipher(enum stm32_cipher_ip_id cipher_ip)
 {
+	void *op = drvcrypt_get_ops(CRYPTO_CIPHER);
+
+	if (op) {
+		EMSG("%s already registered for CRYPTO_CIPHER",
+		     op == &driver_cipher_cryp ? "CRYP peripheral" :
+		     op == &driver_cipher_saes ? "SAES peripheral" :
+		     "Other cipher driver");
+		return TEE_ERROR_GENERIC;
+	}
+
 	if (cipher_ip == SAES_IP)
 		return drvcrypt_register_cipher(&driver_cipher_saes);
 	else if (cipher_ip == CRYP_IP)
