@@ -60,6 +60,9 @@
 #define SP_MANIFEST_DIRECT_REQ_SEND	BIT(1)
 #define SP_MANIFEST_INDIRECT_REQ	BIT(2)
 
+#define SP_MANIFEST_VM_CREATED_MSG	BIT(0)
+#define SP_MANIFEST_VM_DESTROYED_MSG	BIT(1)
+
 #define SP_PKG_HEADER_MAGIC (0x474b5053)
 #define SP_PKG_HEADER_VERSION_V1 (0x1)
 #define SP_PKG_HEADER_VERSION_V2 (0x2)
@@ -1485,6 +1488,35 @@ static TEE_Result read_sp_msg_types(const void *fdt, struct sp_session *s)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result read_vm_availability_msg(const void *fdt,
+					   struct sp_session *s)
+{
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	uint32_t v = 0;
+
+	res = sp_dt_get_u32(fdt, 0, "vm-availability-messages", &v);
+
+	/* This field in the manifest is optional */
+	if (res == TEE_ERROR_ITEM_NOT_FOUND)
+		return TEE_SUCCESS;
+
+	if (res)
+		return res;
+
+	if (v & ~(SP_MANIFEST_VM_CREATED_MSG | SP_MANIFEST_VM_DESTROYED_MSG)) {
+		EMSG("Invalid vm-availability-messages value: %"PRIu32, v);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	if (v & SP_MANIFEST_VM_CREATED_MSG)
+		s->props |= FFA_PART_PROP_NOTIF_CREATED;
+
+	if (v & SP_MANIFEST_VM_DESTROYED_MSG)
+		s->props |= FFA_PART_PROP_NOTIF_DESTROYED;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -1533,6 +1565,10 @@ static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 		return res;
 
 	res = read_sp_msg_types(fdt, sess);
+	if (res)
+		return res;
+
+	res = read_vm_availability_msg(fdt, sess);
 	if (res)
 		return res;
 
