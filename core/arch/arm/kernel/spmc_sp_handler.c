@@ -46,9 +46,6 @@ static TEE_Result ffa_get_dst(struct thread_smc_args *args,
 {
 	struct sp_session *s = NULL;
 
-	if (args->a2 != FFA_PARAM_MBZ)
-		return FFA_INVALID_PARAMETERS;
-
 	s = sp_get_session(FFA_DST(args->a1));
 
 	/* Message came from the NW */
@@ -875,11 +872,6 @@ ffa_handle_sp_direct_req(struct thread_smc_args *args,
 	struct sp_session *dst = NULL;
 	TEE_Result res = FFA_OK;
 
-	if (args->a2 != FFA_PARAM_MBZ) {
-		ffa_set_error(args, FFA_INVALID_PARAMETERS);
-		return caller_sp;
-	}
-
 	res = ffa_get_dst(args, caller_sp, &dst);
 	if (res) {
 		/* Tried to send message to an incorrect endpoint */
@@ -910,6 +902,43 @@ ffa_handle_sp_direct_req(struct thread_smc_args *args,
 		EMSG("SP 0x%"PRIx16" doesn't support receipt of direct requests",
 		     dst->endpoint_id);
 		ffa_set_error(args, FFA_NOT_SUPPORTED);
+		return caller_sp;
+	}
+
+	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
+		switch (args->a2 & FFA_MSG_TYPE_MASK) {
+		case FFA_MSG_SEND_VM_CREATED:
+			/* The sender must be the NWd hypervisor (ID 0) */
+			if (FFA_SRC(args->a1) != 0 || caller_sp) {
+				ffa_set_error(args, FFA_INVALID_PARAMETERS);
+				return caller_sp;
+			}
+
+			/* The SP must be subscribed for this message */
+			if (!(dst->props & FFA_PART_PROP_NOTIF_CREATED)) {
+				ffa_set_error(args, FFA_INVALID_PARAMETERS);
+				return caller_sp;
+			}
+			break;
+		case FFA_MSG_SEND_VM_DESTROYED:
+			/* The sender must be the NWd hypervisor (ID 0) */
+			if (FFA_SRC(args->a1) != 0 || caller_sp) {
+				ffa_set_error(args, FFA_INVALID_PARAMETERS);
+				return caller_sp;
+			}
+
+			/* The SP must be subscribed for this message */
+			if (!(dst->props & FFA_PART_PROP_NOTIF_DESTROYED)) {
+				ffa_set_error(args, FFA_INVALID_PARAMETERS);
+				return caller_sp;
+			}
+			break;
+		default:
+			ffa_set_error(args, FFA_NOT_SUPPORTED);
+			return caller_sp;
+		}
+	} else if (args->a2 != FFA_PARAM_MBZ) {
+		ffa_set_error(args, FFA_INVALID_PARAMETERS);
 		return caller_sp;
 	}
 
@@ -959,6 +988,43 @@ ffa_handle_sp_direct_resp(struct thread_smc_args *args,
 	if (res) {
 		/* Tried to send response to an incorrect endpoint */
 		ffa_set_error(args, res);
+		return caller_sp;
+	}
+
+	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
+		switch (args->a2 & FFA_MSG_TYPE_MASK) {
+		case FFA_MSG_RESP_VM_CREATED:
+			/* The destination must be the NWd hypervisor (ID 0) */
+			if (FFA_DST(args->a1) != 0 || dst) {
+				ffa_set_error(args, FFA_INVALID_PARAMETERS);
+				return caller_sp;
+			}
+
+			/* The SP must be subscribed for this message */
+			if (!(dst->props & FFA_PART_PROP_NOTIF_CREATED)) {
+				ffa_set_error(args, FFA_INVALID_PARAMETERS);
+				return caller_sp;
+			}
+			break;
+		case FFA_MSG_RESP_VM_DESTROYED:
+			/* The destination must be the NWd hypervisor (ID 0) */
+			if (FFA_DST(args->a1) != 0 || dst) {
+				ffa_set_error(args, FFA_INVALID_PARAMETERS);
+				return caller_sp;
+			}
+
+			/* The SP must be subscribed for this message */
+			if (!(dst->props & FFA_PART_PROP_NOTIF_DESTROYED)) {
+				ffa_set_error(args, FFA_INVALID_PARAMETERS);
+				return caller_sp;
+			}
+			break;
+		default:
+			ffa_set_error(args, FFA_NOT_SUPPORTED);
+			return caller_sp;
+		}
+	} else if (args->a2 != FFA_PARAM_MBZ) {
+		ffa_set_error(args, FFA_INVALID_PARAMETERS);
 		return caller_sp;
 	}
 
