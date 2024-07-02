@@ -902,9 +902,11 @@ static void stm32_enable_oscillator_msi(struct clk_stm32_priv *priv,
 	if (!osci->freq)
 		return;
 
-	if (clk_stm32_osc_msi_set_rate(priv, osci->freq) != TEE_SUCCESS)
+	if (clk_stm32_osc_msi_set_rate(priv, osci->freq) != TEE_SUCCESS) {
 		EMSG("invalid rate %ld Hz for MSI ! (4000000 or 16000000 only)",
 		     osci->freq);
+		panic();
+	}
 
 	/* Enable clock and wait ready bit */
 	if (stm32_gate_rdy_enable(osc_data->gate_id))
@@ -1503,7 +1505,8 @@ static void clk_stm32_pll_init(struct clk_stm32_priv *priv, int pll_idx,
 	 * a configuration on the fly.
 	 */
 
-	stm32_gate_rdy_disable(pll->gate_id);
+	if (stm32_gate_rdy_disable(pll->gate_id))
+		panic();
 
 	if (clk_stm32_pll_set_mux(priv, pll_conf->src))
 		panic();
@@ -1516,7 +1519,8 @@ static void clk_stm32_pll_init(struct clk_stm32_priv *priv, int pll_idx,
 		spread_spectrum = true;
 	}
 
-	stm32_gate_rdy_enable(pll->gate_id);
+	if (stm32_gate_rdy_enable(pll->gate_id))
+		panic();
 
 	if (spread_spectrum)
 		io_clrbits32(pllxcfgr1, RCC_PLLxCFGR1_SSMODRST);
