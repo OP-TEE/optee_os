@@ -335,14 +335,14 @@ TEE_Result hisi_sec_digest_do_update(struct hashctx *hash_ctx,
 		hash_ctx->in = malloc(hash_ctx->buf_len);
 		if (!hash_ctx->in) {
 			EMSG("Fail to alloc in data buf");
-			return TEE_ERROR_STORAGE_NO_SPACE;
+			return TEE_ERROR_OUT_OF_MEMORY;
 		}
 		hash_ctx->in_dma = virt_to_phys(hash_ctx->in);
 		if (!hash_ctx->in_dma) {
 			free(hash_ctx->in);
 			hash_ctx->in = NULL;
 			EMSG("Fail to get in_dma");
-			return TEE_ERROR_STORAGE_NO_SPACE;
+			return TEE_ERROR_OUT_OF_MEMORY;
 		}
 	}
 
@@ -556,19 +556,19 @@ static TEE_Result sec_hash_get_dma(struct hashctx *hash_ctx)
 	hash_ctx->key_dma = virt_to_phys(hash_ctx->key);
 	if (!hash_ctx->key_dma) {
 		EMSG("Fail to get key_dma");
-		return TEE_ERROR_STORAGE_NO_SPACE;
+		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
 	hash_ctx->iv_dma = virt_to_phys(hash_ctx->iv);
 	if (!hash_ctx->iv_dma) {
 		EMSG("Fail to get iv_dma");
-		return TEE_ERROR_STORAGE_NO_SPACE;
+		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
 	hash_ctx->out_dma = virt_to_phys(hash_ctx->out);
 	if (!hash_ctx->out_dma) {
 		EMSG("Fail to get out_dma");
-		return TEE_ERROR_STORAGE_NO_SPACE;
+		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
 	return TEE_SUCCESS;
@@ -623,13 +623,13 @@ static TEE_Result sec_hash_ctx_allocate(struct crypto_hash_ctx **ctx,
 	hash = calloc(1, sizeof(*hash));
 	if (!hash) {
 		EMSG("Fail to alloc hash");
-		return TEE_ERROR_STORAGE_NO_SPACE;
+		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
 	hash_ctx = calloc(1, sizeof(*hash_ctx));
 	if (!hash_ctx) {
 		EMSG("Fail to alloc hash_ctx");
-		ret = TEE_ERROR_STORAGE_NO_SPACE;
+		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto free_hash;
 	}
 
