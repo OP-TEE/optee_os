@@ -375,6 +375,7 @@ enum thread_shm_type {
  * @THREAD_SHM_CACHE_USER_SOCKET - socket communication
  * @THREAD_SHM_CACHE_USER_FS - filesystem access
  * @THREAD_SHM_CACHE_USER_I2C - I2C communication
+ * @THREAD_SHM_CACHE_USER_RPMB - RPMB communication
  *
  * To ensure that each user of the shared memory cache doesn't interfere
  * with each other a unique ID per user is used.
@@ -383,6 +384,7 @@ enum thread_shm_cache_user {
 	THREAD_SHM_CACHE_USER_SOCKET,
 	THREAD_SHM_CACHE_USER_FS,
 	THREAD_SHM_CACHE_USER_I2C,
+	THREAD_SHM_CACHE_USER_RPMB,
 };
 
 /*

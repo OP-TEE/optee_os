@@ -24,16 +24,17 @@
 	 */
 #define TA_FLAG_CONCURRENT		BIT32(8)
 	/*
-	 * Device enumeration is done in two stages by the normal world, first
-	 * before the tee-supplicant has started and then once more when the
-	 * tee-supplicant is started. The flags below control if the TA should
-	 * be reported in the first or second or case.
+	 * Device enumeration is done in multiple stages by the normal
+	 * world, first before the tee-supplicant has started and then once
+	 * more when the tee-supplicant is started. The flags below control
+	 * if the TA should be reported in the first or second or case.
 	 */
 #define TA_FLAG_DEVICE_ENUM		BIT32(9)  /* without tee-supplicant */
 #define TA_FLAG_DEVICE_ENUM_SUPP	BIT32(10) /* with tee-supplicant */
 	/* See also "gpd.ta.doesNotCloseHandleOnCorruptObject" */
 #define TA_FLAG_DONT_CLOSE_HANDLE_ON_CORRUPT_OBJECT \
 					BIT32(11)
+#define TA_FLAG_DEVICE_ENUM_RPMB	BIT32(12) /* with rpmb */
 
 #define TA_FLAGS_MASK			GENMASK_32(10, 0)
 

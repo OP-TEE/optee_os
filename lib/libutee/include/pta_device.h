@@ -25,5 +25,6 @@
  */
 #define PTA_CMD_GET_DEVICES		0x0 /* before tee-supplicant run */
 #define PTA_CMD_GET_DEVICES_SUPP	0x1 /* after tee-supplicant run */
+#define PTA_CMD_GET_DEVICES_RPMB	0x2 /* probe for RPMB */
 
 #endif /* __PTA_DEVICE_H */
