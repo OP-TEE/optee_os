@@ -146,6 +146,8 @@ static void gic_op_disable(struct itr_chip *chip, size_t it);
 static void gic_op_raise_pi(struct itr_chip *chip, size_t it);
 static void gic_op_raise_sgi(struct itr_chip *chip, size_t it,
 			     uint32_t cpu_mask);
+static void gic_op_release(struct itr_chip *chip, size_t it,
+			   uint8_t prio, uint8_t cpu_mask);
 static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
 			uint8_t cpu_mask);
 
@@ -157,6 +159,7 @@ static const struct itr_ops gic_ops = {
 	.disable = gic_op_disable,
 	.raise_pi = gic_op_raise_pi,
 	.raise_sgi = gic_op_raise_sgi,
+	.release = gic_op_release,
 	.set_affinity = gic_op_set_affinity,
 };
 DECLARE_KEEP_PAGER(gic_ops);
@@ -786,6 +789,27 @@ static void gic_it_raise_sgi(struct gic_data *gd __maybe_unused, size_t it,
 #endif
 }
 
+static void gic_it_release(struct gic_data *gd, size_t it, uint8_t prio,
+			   uint8_t cpu_mask)
+{
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
+
+	/* Assigned to group0 */
+	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
+
+	gic_it_set_cpu_mask(gd, it, cpu_mask);
+	gic_it_set_prio(gd, it, prio);
+
+	/* Clear pending status */
+	io_write32(gd->gicd_base + GICD_ICPENDR(idx), mask);
+	/* Assign it to group1 */
+	io_setbits32(gd->gicd_base + GICD_IGROUPR(idx), mask);
+#if defined(CFG_ARM_GICV3)
+	io_clrbits32(gd->gicd_base + GICD_IGROUPMODR(idx), mask);
+#endif
+}
+
 static uint32_t gic_read_iar(struct gic_data *gd __maybe_unused)
 {
 	assert(gd == &gic_data);
@@ -838,6 +862,12 @@ static uint32_t __maybe_unused gic_it_get_target(struct gic_data *gd, size_t it)
 	return (target & target_mask) >> target_shift;
 }
 
+static uint8_t __maybe_unused gic_it_get_prio(struct gic_data *gd, size_t it)
+{
+	assert(gd == &gic_data);
+	return io_read8(gd->gicd_base + GICD_IPRIORITYR(0) + it);
+}
+
 void gic_dump_state(void)
 {
 	struct gic_data *gd = &gic_data;
@@ -856,6 +886,20 @@ void gic_dump_state(void)
 			     gic_it_get_group(gd, i), gic_it_get_target(gd, i));
 		}
 	}
+}
+
+void gic_spi_get_prop(size_t it, uint8_t *cpu_mask, uint8_t *prio)
+{
+	struct gic_data *gd = &gic_data;
+
+	if (it > gd->max_it)
+		panic();
+
+	if (it < GIC_SPI_BASE)
+		panic("SGIs and PPIs are not supported");
+
+	*cpu_mask = (uint8_t)gic_it_get_target(gd, it);
+	*prio = gic_it_get_prio(gd, it);
 }
 
 static void __maybe_unused gic_native_itr_handler(void)
@@ -994,6 +1038,22 @@ static void gic_op_raise_sgi(struct itr_chip *chip, size_t it,
 
 	ns = BIT32(it) & gd->per_cpu_group_status;
 	gic_it_raise_sgi(gd, it, cpu_mask, ns);
+}
+
+static void gic_op_release(struct itr_chip *chip, size_t it, uint8_t prio,
+			   uint8_t cpu_mask)
+{
+	struct gic_data *gd = container_of(chip, struct gic_data, chip);
+
+	assert(gd == &gic_data);
+
+	if (it > gd->max_it)
+		panic();
+
+	if (it < GIC_SPI_BASE)
+		panic("SGIs and PPIs are not supported");
+
+	gic_it_release(gd, it, prio, cpu_mask);
 }
 
 static void gic_op_set_affinity(struct itr_chip *chip, size_t it,

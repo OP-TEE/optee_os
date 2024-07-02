@@ -56,4 +56,7 @@ void gic_init_per_cpu(void);
 
 /* Print GIC state to console */
 void gic_dump_state(void);
+
+/* Get the cpu_mask and priority for a SPI */
+void gic_spi_get_prop(size_t it, uint8_t *cpu_mask, uint8_t *prio);
 #endif /*__DRIVERS_GIC_H*/
