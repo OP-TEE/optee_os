@@ -12,3 +12,5 @@
 !.gitattributes
 !.gitignore
 !.github
+!.devcontainer
+!.vscode

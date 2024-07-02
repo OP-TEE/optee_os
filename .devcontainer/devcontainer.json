@@ -1,0 +1,29 @@
+{
+	"name": "optee-os-docker",
+	"build": {
+		"dockerfile": "Dockerfile.vscode"
+	},
+
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"terminal.integrated.profiles.linux": {
+					"bash": {
+					  "path": "/bin/bash",
+					  "args": ["-l"]
+					}
+				},
+				"terminal.integrated.defaultProfile.linux": "bash"
+			},
+			"extensions": [
+				"ms-vscode.cpptools",
+				"eamodio.gitlens"
+			]
+		}
+	},
+
+	// Map the host .ssh folder into the container for a seamless ssh experience
+	"mounts": [
+		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/optee/.ssh,type=bind,consistency=cached"
+	]
+}
