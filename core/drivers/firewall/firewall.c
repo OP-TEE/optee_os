@@ -167,8 +167,9 @@ TEE_Result firewall_dt_controller_register(const void *fdt, int node,
 					   ctrl, DT_DRIVER_FIREWALL);
 }
 
-TEE_Result firewall_dt_probe_bus(const void *fdt, int node,
-				 struct firewall_controller *ctrl)
+TEE_Result
+firewall_dt_probe_bus(const void *fdt, int node,
+		      struct firewall_controller *ctrl __maybe_unused)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct firewall_query *fw = NULL;
