@@ -1367,25 +1367,6 @@ static TEE_Result dt_stm32_gpio_pinctrl(const void *fdt, int node,
 	return TEE_SUCCESS;
 }
 
-void stm32_gpio_set_secure_cfg(unsigned int bank_id, unsigned int pin,
-			       bool secure)
-{
-	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
-	uint32_t exceptions = 0;
-
-	if (clk_enable(bank->clock))
-		panic();
-	exceptions = cpu_spin_lock_xsave(&gpio_lock);
-
-	if (secure)
-		io_setbits32(bank->base + GPIO_SECR_OFFSET, BIT(pin));
-	else
-		io_clrbits32(bank->base + GPIO_SECR_OFFSET, BIT(pin));
-
-	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
-	clk_disable(bank->clock);
-}
-
 #ifdef CFG_DRIVERS_PINCTRL
 static TEE_Result stm32_pinctrl_conf_apply(struct pinconf *conf)
 {
@@ -1494,29 +1475,6 @@ void stm32_gpio_pinctrl_bank_pin(struct pinctrl_state *pinctrl,
 
 out:
 	*count = pin_count;
-}
-
-void stm32_pinctrl_set_secure_cfg(struct pinctrl_state *pinctrl, bool secure)
-{
-	size_t conf_index = 0;
-
-	if (!pinctrl)
-		return;
-
-	for (conf_index = 0; conf_index < pinctrl->conf_count; conf_index++) {
-		struct pinconf *pinconf = pinctrl->confs[conf_index];
-		struct stm32_pinctrl_array *ref = pinconf->priv;
-		struct stm32_pinctrl *pc = NULL;
-		size_t n = 0;
-
-		for (n = 0; n < ref->count; n++) {
-			if (pinconf->ops != &stm32_pinctrl_ops)
-				continue;
-
-			pc = ref->pinctrl + n;
-			stm32_gpio_set_secure_cfg(pc->bank, pc->pin, secure);
-		}
-	}
 }
 
 /* Allocate and return a pinctrl configuration from a DT reference */
