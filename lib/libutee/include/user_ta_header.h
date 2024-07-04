@@ -35,7 +35,7 @@
 #define TA_FLAG_DONT_CLOSE_HANDLE_ON_CORRUPT_OBJECT \
 					BIT32(11)
 
-#define TA_FLAGS_MASK			GENMASK_32(10, 0)
+#define TA_FLAGS_MASK			GENMASK_32(11, 0)
 
 struct ta_head {
 	TEE_UUID uuid;
