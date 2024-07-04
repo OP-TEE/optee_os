@@ -53,7 +53,7 @@
 #define TA_FLAG_DEVICE_ENUM_TEE_STORAGE_PRIVATE	\
 					BIT32(12) /* with TEE_STORAGE_PRIVATE */
 
-#define TA_FLAGS_MASK			GENMASK_32(11, 0)
+#define TA_FLAGS_MASK			GENMASK_32(12, 0)
 
 struct ta_head {
 	TEE_UUID uuid;
