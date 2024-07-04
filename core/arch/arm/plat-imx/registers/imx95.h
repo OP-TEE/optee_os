@@ -10,4 +10,7 @@
 
 #define UART1_BASE 0x44380000
 
+#define MU_BASE 0x47530000
+#define MU_SIZE 0x10000
+
 #endif /* __IMX95_H__ */
