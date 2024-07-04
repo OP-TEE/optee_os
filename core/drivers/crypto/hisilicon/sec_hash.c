@@ -335,15 +335,9 @@ TEE_Result hisi_sec_digest_do_update(struct hashctx *hash_ctx,
 		hash_ctx->in = malloc(hash_ctx->buf_len);
 		if (!hash_ctx->in) {
 			EMSG("Fail to alloc in data buf");
-			return TEE_ERROR_STORAGE_NO_SPACE;
+			return TEE_ERROR_OUT_OF_MEMORY;
 		}
 		hash_ctx->in_dma = virt_to_phys(hash_ctx->in);
-		if (!hash_ctx->in_dma) {
-			free(hash_ctx->in);
-			hash_ctx->in = NULL;
-			EMSG("Fail to get in_dma");
-			return TEE_ERROR_STORAGE_NO_SPACE;
-		}
 	}
 
 	while (len > 0) {
@@ -478,12 +472,6 @@ void hisi_sec_digest_copy_state(struct hashctx *out_hash_ctx,
 			return;
 		}
 		out_hash_ctx->in_dma = virt_to_phys(out_hash_ctx->in);
-		if (!out_hash_ctx->in_dma) {
-			free(out_hash_ctx->in);
-			out_hash_ctx->in = NULL;
-			EMSG("Fail to get in_dma");
-			return;
-		}
 		out_hash_ctx->in_len = in_hash_ctx->in_len;
 		memcpy(out_hash_ctx->in, in_hash_ctx->in,
 		       out_hash_ctx->buf_len);
@@ -556,19 +544,19 @@ static TEE_Result sec_hash_get_dma(struct hashctx *hash_ctx)
 	hash_ctx->key_dma = virt_to_phys(hash_ctx->key);
 	if (!hash_ctx->key_dma) {
 		EMSG("Fail to get key_dma");
-		return TEE_ERROR_STORAGE_NO_SPACE;
+		return TEE_ERROR_GENERIC;
 	}
 
 	hash_ctx->iv_dma = virt_to_phys(hash_ctx->iv);
 	if (!hash_ctx->iv_dma) {
 		EMSG("Fail to get iv_dma");
-		return TEE_ERROR_STORAGE_NO_SPACE;
+		return TEE_ERROR_GENERIC;
 	}
 
 	hash_ctx->out_dma = virt_to_phys(hash_ctx->out);
 	if (!hash_ctx->out_dma) {
 		EMSG("Fail to get out_dma");
-		return TEE_ERROR_STORAGE_NO_SPACE;
+		return TEE_ERROR_GENERIC;
 	}
 
 	return TEE_SUCCESS;
@@ -623,13 +611,13 @@ static TEE_Result sec_hash_ctx_allocate(struct crypto_hash_ctx **ctx,
 	hash = calloc(1, sizeof(*hash));
 	if (!hash) {
 		EMSG("Fail to alloc hash");
-		return TEE_ERROR_STORAGE_NO_SPACE;
+		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
 	hash_ctx = calloc(1, sizeof(*hash_ctx));
 	if (!hash_ctx) {
 		EMSG("Fail to alloc hash_ctx");
-		ret = TEE_ERROR_STORAGE_NO_SPACE;
+		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto free_hash;
 	}
 
@@ -657,7 +645,7 @@ static TEE_Result sec_hash_init(void)
 
 	ret = drvcrypt_register_hash(&sec_hash_ctx_allocate);
 	if (ret)
-		EMSG("Sec hash register to crypto fail");
+		EMSG("Sec hash register to crypto fail ret=%#"PRIx32, ret);
 
 	return ret;
 }
