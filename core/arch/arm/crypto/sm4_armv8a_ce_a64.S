@@ -1028,3 +1028,5 @@ FUNC ce_sm4_xts_decrypt , :
 	frame_pop
 	ret
 END_FUNC ce_sm4_xts_decrypt
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)
