@@ -57,6 +57,8 @@
 #define TA_FLAG_DONT_CLOSE_HANDLE_ON_CORRUPT_OBJECT \
 					BIT32(11)
 #define TA_FLAG_DEVICE_ENUM_SEC_STORAGE	BIT32(12) /* with secure storage */
+/* Temporary compat, not to be merged upstream */
+#define TA_FLAG_DEVICE_ENUM_RPMB	TA_FLAG_DEVICE_ENUM_SEC_STORAGE
 
 #define TA_FLAGS_MASK			GENMASK_32(12, 0)
 
