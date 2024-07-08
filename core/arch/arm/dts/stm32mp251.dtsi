@@ -136,6 +136,13 @@
 			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		serc: serc@44080000 {
+			compatible = "st,stm32mp25-serc";
+			reg = <0x44080000 0x1000>;
+			interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&rcc CK_BUS_SERC>;
+		};
+
 		rcc: rcc@44200000 {
 			compatible = "st,stm32mp25-rcc", "syscon";
 			reg = <0x44200000 0x10000>;
