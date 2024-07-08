@@ -22,7 +22,22 @@
  * Version of the register convention used.
  * Set to 1 for both AArch64 and AArch32 according to fw handoff spec v0.9
  */
-#define REG_CONVENTION_VER_MASK BIT(24)
+#define TL_REG_CONVENTION_VER_SHIFT_64	UL(32)
+#define TL_REG_CONVENTION_VER_SHIFT_32	UL(24)
+#define TL_REG_CONVENTION_VER_MASK	UL(0xff)
+#define TL_REG_CONVENTION_VER	UL(1)
+
+#define TL_HANDOFF_X1_VALUE(__version)	\
+	((TRANSFER_LIST_SIGNATURE &	\
+	((BIT64(TL_REG_CONVENTION_VER_SHIFT_64)) - 1)) |	\
+	(((__version) & TL_REG_CONVENTION_VER_MASK) <<	\
+	 TL_REG_CONVENTION_VER_SHIFT_64))
+
+#define TL_HANDOFF_R1_VALUE(__version)	\
+	((TRANSFER_LIST_SIGNATURE &	\
+	((BIT32(TL_REG_CONVENTION_VER_SHIFT_32)) - 1)) |	\
+	(((__version) & TL_REG_CONVENTION_VER_MASK) <<	\
+	 TL_REG_CONVENTION_VER_SHIFT_32))
 
 #define TL_FLAGS_HAS_CHECKSUM BIT(0)
 

@@ -1381,22 +1381,25 @@ void __weak boot_save_args(unsigned long a0, unsigned long a1,
 	 *       Transfer List
 	 * a0	- DTB address or 0 (AArch64)
 	 *	- must be 0 (AArch32)
-	 * a1	- TRANSFER_LIST_SIGNATURE | REG_CONVENTION_VER_MASK
+	 * a1	- 1 << 32 | TRANSFER_LIST_SIGNATURE[0:31] (AArch64)
+	 *	- 1 << 24 | TRANSFER_LIST_SIGNATURE[0:23] (AArch32)
 	 * a2	- must be 0 (AArch64)
 	 *	- DTB address or 0 (AArch32)
 	 * a3	- Transfer list base address
 	 * a4	- Not used
 	 */
 
-	if (IS_ENABLED(CFG_TRANSFER_LIST) &&
-	    a1 == (TRANSFER_LIST_SIGNATURE | REG_CONVENTION_VER_MASK)) {
-		if (IS_ENABLED(CFG_ARM64_core)) {
+	if (IS_ENABLED(CFG_TRANSFER_LIST)) {
+		if (IS_ENABLED(CFG_ARM64_core) &&
+		    a1 == TL_HANDOFF_X1_VALUE(TL_REG_CONVENTION_VER)) {
 			boot_save_transfer_list(a2, a3, a0);
 			boot_arg_fdt = a0;
-		} else {
+		} else if (IS_ENABLED(CFG_ARM32_core) &&
+			   a1 == TL_HANDOFF_R1_VALUE(TL_REG_CONVENTION_VER)) {
 			boot_save_transfer_list(a0, a3, a2);
 			boot_arg_fdt = a2;
 		}
+
 		return;
 	}
 
