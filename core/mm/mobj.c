@@ -21,7 +21,6 @@
 #include <types_ext.h>
 #include <util.h>
 
-struct mobj *mobj_sec_ddr;
 struct mobj *mobj_tee_ram_rx;
 struct mobj *mobj_tee_ram_rw;
 
@@ -498,13 +497,6 @@ bool mobj_is_paged(struct mobj *mobj)
 
 static TEE_Result mobj_init(void)
 {
-	mobj_sec_ddr = mobj_phys_alloc(tee_mm_sec_ddr.lo,
-				       tee_mm_sec_ddr.size,
-				       TEE_MATTR_MEM_TYPE_CACHED,
-				       CORE_MEM_TA_RAM);
-	if (!mobj_sec_ddr)
-		panic("Failed to register secure ta ram");
-
 	if (IS_ENABLED(CFG_CORE_RWDATA_NOEXEC)) {
 		mobj_tee_ram_rx = mobj_phys_init(0,
 						 VCORE_UNPG_RX_SZ,
