@@ -130,6 +130,12 @@
 			};
 		};
 
+		iac: iac@42090000 {
+			compatible = "st,stm32mp25-iac";
+			reg = <0x42090000 0x400>;
+			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		rcc: rcc@44200000 {
 			compatible = "st,stm32mp25-rcc", "syscon";
 			reg = <0x44200000 0x10000>;
