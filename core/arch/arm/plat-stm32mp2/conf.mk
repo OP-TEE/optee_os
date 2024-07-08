@@ -63,6 +63,7 @@ CFG_STM32_IPCC ?= y
 CFG_STM32_RIF ?= y
 CFG_STM32_RIFSC ?= y
 CFG_STM32_RNG ?= y
+CFG_STM32_SERC ?= y
 CFG_STM32_UART ?= y
 
 # Default enable some test facitilites
