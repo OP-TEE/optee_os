@@ -47,7 +47,7 @@ sv set25519(gf r, const gf a)
 sv car25519(gf o)
 {
   int i;
-  i64 c;
+  u64 c;
   FOR(i,16) {
     o[i]+=(1LL<<16);
     c=o[i]>>16;
@@ -109,7 +109,7 @@ static u8 par25519(const gf a)
 sv unpack25519(gf o, const u8 *n)
 {
   int i;
-  FOR(i,16) o[i]=n[2*i]+((i64)n[2*i+1]<<8);
+  FOR(i,16) o[i]=n[2*i]+((u64)n[2*i+1]<<8);
   o[15]&=0x7fff;
 }
 
@@ -348,7 +348,8 @@ static const u64 L[32] = {0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 
 
 sv modL(u8 *r,i64 x[64])
 {
-  i64 carry,i,j;
+  i64 i,j;
+  u64 carry;
   for (i = 63;i >= 32;--i) {
     carry = 0;
     for (j = i - 32;j < i - 12;++j) {
