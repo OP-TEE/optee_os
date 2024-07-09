@@ -63,6 +63,7 @@
 #include <config.h>
 #include <inttypes.h>
 #include <keep.h>
+#include <kernel/boot.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
@@ -72,6 +73,8 @@
 #include <memtag.h>
 #include <mm/core_memprot.h>
 #include <mm/pgt_cache.h>
+#include <mm/phys_mem.h>
+#include <stdalign.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
@@ -237,7 +240,7 @@ typedef uint16_t l1_idx_t;
  * components.
  *
  * TTBR is assigned a base translation table of NUM_BASE_LEVEL_ENTRIES
- * entries.  NUM_BASE_LEVEL_ENTRIES is determined based on
+ * entries. NUM_BASE_LEVEL_ENTRIES is determined based on
  * CFG_LPAE_ADDR_SPACE_BITS.  CFG_LPAE_ADDR_SPACE_BITS is by default 32
  * which results in NUM_BASE_LEVEL_ENTRIES defined to 4 where one entry is
  * a uint64_t, 8 bytes.
@@ -247,12 +250,12 @@ typedef uint16_t l1_idx_t;
  * EL0 where EL1 is unmapped except for a minimal trampoline needed to
  * restore EL1 mappings on exception from EL0.
  *
- * Each CPU core is assign a unique set of base translation tables as:
- * core0: table0: entry0 (maps both EL1 and EL0)
+ * Each CPU core is assigned a unique set of base translation tables as:
+ * core0: table0: entry0 (table0 maps both EL1 and EL0)
  *                entry1
  *                entry2
  *                entry3
- * core0: table1: entry (maps only EL0)
+ * core0: table1: entry0 (table1 maps only EL0)
  *                entry1
  *                entry2
  *                entry3
@@ -263,26 +266,27 @@ typedef uint16_t l1_idx_t;
  * 48.
  */
 
+/* The size of base tables for one core */
 #define BASE_TABLE_SIZE		(NUM_BASE_LEVEL_ENTRIES * NUM_BASE_TABLES * \
 				 XLAT_ENTRY_SIZE)
+#ifndef CFG_DYN_CONFIG
 static uint64_t base_xlation_table[BASE_TABLE_SIZE * CFG_TEE_CORE_NB_CORE /
 				   XLAT_ENTRY_SIZE]
 	__aligned(NUM_BASE_LEVEL_ENTRIES * XLAT_ENTRY_SIZE)
 	__section(".nozi.mmu.base_table");
 
-#define XLAT_TABLES_SIZE	(XLAT_TABLE_ENTRIES * MAX_XLAT_TABLES * \
-				 XLAT_ENTRY_SIZE)
-static uint64_t xlat_tables[XLAT_TABLES_SIZE / XLAT_ENTRY_SIZE]
+static uint64_t xlat_tables[XLAT_TABLE_SIZE * MAX_XLAT_TABLES /
+			    XLAT_ENTRY_SIZE]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
-#define XLAT_TABLES_UL1_SIZE	(XLAT_TABLE_ENTRIES * XLAT_ENTRY_SIZE)
 /* MMU L2 table for TAs, one for each thread */
-static uint64_t xlat_tables_ul1[XLAT_TABLES_UL1_SIZE * CFG_NUM_THREADS /
+static uint64_t xlat_tables_ul1[XLAT_TABLE_SIZE * CFG_NUM_THREADS /
 				XLAT_ENTRY_SIZE]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
 #if (CORE_MMU_BASE_TABLE_LEVEL == 0)
 static l1_idx_t user_l1_table_idx[NUM_BASE_TABLES * CFG_TEE_CORE_NB_CORE];
+#endif
 #endif
 
 /*
@@ -340,6 +344,9 @@ struct mmu_partition {
 #endif
 };
 
+#ifdef CFG_DYN_CONFIG
+static struct mmu_partition default_partition __nex_bss;
+#else
 static struct mmu_partition default_partition __nex_data = {
 	.base_tables = base_xlation_table,
 	.xlat_tables = xlat_tables,
@@ -350,6 +357,7 @@ static struct mmu_partition default_partition __nex_data = {
 	.xlat_tables_used = 0,
 	.asid = 0
 };
+#endif
 
 #ifdef CFG_NS_VIRTUALIZATION
 static struct mmu_partition *current_prtn[CFG_TEE_CORE_NB_CORE] __nex_bss;
@@ -535,8 +543,7 @@ static void set_l1_ta_table(struct mmu_partition *prtn, size_t base_idx,
 	size_t idx = 0;
 
 	idx = ((vaddr_t)tbl - (vaddr_t)prtn->xlat_tables) / XLAT_TABLE_SIZE;
-	if (idx > MAX_XLAT_TABLES)
-		panic();
+	assert(idx < prtn->xlat_tables_used);
 	prtn->user_l1_table_idx[core_pos * NUM_BASE_TABLES + base_idx] = idx;
 }
 #endif
@@ -544,9 +551,14 @@ static void set_l1_ta_table(struct mmu_partition *prtn, size_t base_idx,
 #ifdef CFG_NS_VIRTUALIZATION
 size_t core_mmu_get_total_pages_size(void)
 {
-	return ROUNDUP(BASE_TABLE_SIZE * CFG_TEE_CORE_NB_CORE,
-		       SMALL_PAGE_SIZE) +
-	       XLAT_TABLES_SIZE + XLAT_TABLES_UL1_SIZE * CFG_NUM_THREADS;
+	size_t sz = ROUNDUP(BASE_TABLE_SIZE * CFG_TEE_CORE_NB_CORE,
+			    SMALL_PAGE_SIZE);
+
+	sz += XLAT_TABLE_SIZE * CFG_NUM_THREADS;
+	if (!IS_ENABLED(CFG_DYN_CONFIG))
+		sz += XLAT_TABLE_SIZE * MAX_XLAT_TABLES;
+
+	return sz;
 }
 
 struct mmu_partition *core_alloc_mmu_prtn(void *tables)
@@ -561,24 +573,35 @@ struct mmu_partition *core_alloc_mmu_prtn(void *tables)
 		return NULL;
 
 	prtn = nex_malloc(sizeof(*prtn));
-	if (!prtn) {
-		asid_free(asid);
-		return NULL;
-	}
+	if (!prtn)
+		goto err;
+#if (CORE_MMU_BASE_TABLE_LEVEL == 0)
+	prtn->user_l1_table_idx = nex_calloc(NUM_BASE_TABLES *
+					     CFG_TEE_CORE_NB_CORE,
+					     sizeof(l1_idx_t));
+	if (!prtn->user_l1_table_idx)
+		goto err;
+#endif
 
 	memset(tables, 0, core_mmu_get_total_pages_size());
 	prtn->base_tables = (void *)tbl;
 	tbl += ROUNDUP(BASE_TABLE_SIZE * CFG_TEE_CORE_NB_CORE, SMALL_PAGE_SIZE);
 
-	prtn->xlat_tables = (void *)tbl;
-	tbl += XLAT_TABLES_SIZE;
-	assert(((vaddr_t)tbl) % SMALL_PAGE_SIZE == 0);
+	if (!IS_ENABLED(CFG_DYN_CONFIG)) {
+		prtn->xlat_tables = (void *)tbl;
+		tbl += XLAT_TABLE_SIZE * MAX_XLAT_TABLES;
+		assert(((vaddr_t)tbl) % SMALL_PAGE_SIZE == 0);
+	}
 
 	prtn->l2_ta_tables = (void *)tbl;
 	prtn->xlat_tables_used = 0;
 	prtn->asid = asid;
 
 	return prtn;
+err:
+	nex_free(prtn);
+	asid_free(asid);
+	return NULL;
 }
 
 void core_free_mmu_prtn(struct mmu_partition *prtn)
@@ -623,18 +646,61 @@ static uint64_t *core_mmu_xlat_table_alloc(struct mmu_partition *prtn)
 {
 	uint64_t *new_table = NULL;
 
-	if (prtn->xlat_tables_used >= MAX_XLAT_TABLES) {
-		EMSG("%u xlat tables exhausted", MAX_XLAT_TABLES);
+	if (IS_ENABLED(CFG_DYN_CONFIG)) {
+		if (cpu_mmu_enabled()) {
+			tee_mm_entry_t *mm = NULL;
+			paddr_t pa = 0;
 
-		return NULL;
+			if (prtn == get_prtn()) {
+				mm = phys_mem_core_alloc(XLAT_TABLE_SIZE);
+				if (!mm)
+					EMSG("Phys mem exhausted");
+			} else {
+				mm = nex_phys_mem_core_alloc(XLAT_TABLE_SIZE);
+				if (!mm)
+					EMSG("Phys nex mem exhausted");
+			}
+			if (!mm)
+				return NULL;
+			pa = tee_mm_get_smem(mm);
+
+			new_table = phys_to_virt(pa, MEM_AREA_SEC_RAM_OVERALL,
+						 XLAT_TABLE_SIZE);
+			assert(new_table);
+		} else {
+			new_table = boot_mem_alloc(XLAT_TABLE_SIZE,
+						   XLAT_TABLE_SIZE);
+			if (prtn->xlat_tables) {
+				/*
+				 * user_l1_table_idx[] is used to index
+				 * xlat_tables so we depend on the
+				 * xlat_tables are linearly allocated or
+				 * l1_idx_t might need a wider type.
+				 */
+				assert((vaddr_t)prtn->xlat_tables +
+				       prtn->xlat_tables_used *
+				       XLAT_TABLE_SIZE == (vaddr_t)new_table);
+			} else {
+				boot_mem_add_reloc(&prtn->xlat_tables);
+				prtn->xlat_tables = new_table;
+			}
+		}
+		prtn->xlat_tables_used++;
+		DMSG("xlat tables used %u", prtn->xlat_tables_used);
+	} else {
+		if (prtn->xlat_tables_used >= MAX_XLAT_TABLES) {
+			EMSG("%u xlat tables exhausted", MAX_XLAT_TABLES);
+
+			return NULL;
+		}
+
+		new_table = prtn->xlat_tables +
+			    prtn->xlat_tables_used * XLAT_TABLE_ENTRIES;
+		prtn->xlat_tables_used++;
+
+		DMSG("xlat tables used %u / %u",
+		     prtn->xlat_tables_used, MAX_XLAT_TABLES);
 	}
-
-	new_table = prtn->xlat_tables +
-		    prtn->xlat_tables_used * XLAT_TABLE_ENTRIES;
-	prtn->xlat_tables_used++;
-
-	DMSG("xlat tables used %u / %u",
-	     prtn->xlat_tables_used, MAX_XLAT_TABLES);
 
 	return new_table;
 }
@@ -659,7 +725,7 @@ static void *core_mmu_xlat_table_entry_pa2va(struct mmu_partition *prtn,
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION) || prtn == &default_partition)
 		va = phys_to_virt(pa, MEM_AREA_TEE_RAM_RW_DATA,
 				  XLAT_TABLE_SIZE);
-	else
+	if (!va)
 		va = phys_to_virt(pa, MEM_AREA_SEC_RAM_OVERALL,
 				  XLAT_TABLE_SIZE);
 
@@ -734,7 +800,7 @@ static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 	}
 
 	/* Clear table before use */
-	memset(prtn->base_tables, 0, sizeof(base_xlation_table));
+	memset(prtn->base_tables, 0, BASE_TABLE_SIZE * CFG_TEE_CORE_NB_CORE);
 
 	for (n = 0; n < mem_map->count; n++)
 		if (!core_mmu_is_dynamic_vaspace(mem_map->map + n))
@@ -899,6 +965,7 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct memory_map *mem_map)
 
 void core_init_mmu(struct memory_map *mem_map)
 {
+	struct mmu_partition *prtn = &default_partition;
 	uint64_t max_va = 0;
 	size_t n;
 
@@ -908,7 +975,26 @@ void core_init_mmu(struct memory_map *mem_map)
 	COMPILE_TIME_ASSERT(CORE_MMU_BASE_TABLE_OFFSET ==
 			    BASE_TABLE_SIZE / NUM_BASE_TABLES);
 #endif
-	COMPILE_TIME_ASSERT(XLAT_TABLES_SIZE == sizeof(xlat_tables));
+
+	if (IS_ENABLED(CFG_DYN_CONFIG)) {
+#if (CORE_MMU_BASE_TABLE_LEVEL == 0)
+		prtn->user_l1_table_idx = boot_mem_alloc(NUM_BASE_TABLES *
+							 CFG_TEE_CORE_NB_CORE *
+							 sizeof(l1_idx_t),
+							 alignof(l1_idx_t));
+		boot_mem_add_reloc(&prtn->user_l1_table_idx);
+#endif
+		prtn->base_tables = boot_mem_alloc(BASE_TABLE_SIZE *
+						   CFG_TEE_CORE_NB_CORE,
+						   NUM_BASE_LEVEL_ENTRIES *
+						   XLAT_ENTRY_SIZE);
+		boot_mem_add_reloc(&prtn->base_tables);
+
+		prtn->l2_ta_tables = boot_mem_alloc(XLAT_TABLE_SIZE *
+						    CFG_NUM_THREADS,
+						    XLAT_TABLE_SIZE);
+		boot_mem_add_reloc(&prtn->l2_ta_tables);
+	}
 
 	/* Initialize default pagetables */
 	core_init_mmu_prtn_tee(&default_partition, mem_map);
