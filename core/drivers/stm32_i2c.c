@@ -1614,7 +1614,7 @@ static TEE_Result stm32_get_i2c_dev(struct dt_pargs *args, void *data,
 	struct stm32_i2c_dev *stm32_i2c_dev = NULL;
 	paddr_t addr = 0;
 
-	addr = fdt_reg_base_address(args->fdt, args->phandle_node);
+	addr = fdt_reg_base_address(args->fdt, args->consumer_node);
 	if (addr == DT_INFO_INVALID_REG) {
 		DMSG("Can't get device I2C address");
 		return TEE_ERROR_GENERIC;
