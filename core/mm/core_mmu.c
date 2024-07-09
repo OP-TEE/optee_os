@@ -18,6 +18,7 @@
 #include <kernel/user_mode_ctx.h>
 #include <kernel/virtualization.h>
 #include <libfdt.h>
+#include <memtag.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -2339,7 +2340,7 @@ paddr_t virt_to_phys(void *va)
 
 	if (!arch_va2pa_helper(va, &pa))
 		pa = 0;
-	check_pa_matches_va(va, pa);
+	check_pa_matches_va(memtag_strip_tag(va), pa);
 	return pa;
 }
 
