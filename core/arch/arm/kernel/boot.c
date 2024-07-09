@@ -376,25 +376,31 @@ void boot_init_memtag(void)
 	memtag_init_ops(feat_mte_implemented());
 }
 
+static TEE_Result mmap_clear_memtag(struct tee_mmap_region *map,
+				    void *ptr __unused)
+{
+	switch (map->type) {
+	case MEM_AREA_TEE_RAM:
+	case MEM_AREA_TEE_RAM_RW:
+	case MEM_AREA_NEX_RAM_RO:
+	case MEM_AREA_NEX_RAM_RW:
+	case MEM_AREA_TEE_ASAN:
+	case MEM_AREA_TA_RAM:
+		DMSG("Clearing tags for VA %#"PRIxVA"..%#"PRIxVA,
+		     map->va, map->va + map->size - 1);
+		memtag_set_tags((void *)map->va, map->size, 0);
+		break;
+	default:
+		break;
+	}
+
+	return TEE_SUCCESS;
+}
+
 /* Called from entry_a64.S only when MEMTAG is configured */
 void boot_clear_memtag(void)
 {
-	enum teecore_memtypes mtypes[] = {
-		MEM_AREA_TEE_RAM, MEM_AREA_TEE_RAM_RW, MEM_AREA_NEX_RAM_RO,
-		MEM_AREA_NEX_RAM_RW, MEM_AREA_TEE_ASAN, MEM_AREA_TA_RAM
-	};
-	vaddr_t s = 0;
-	vaddr_t e = 0;
-	size_t n = 0;
-
-	for (n = 0; n < ARRAY_SIZE(mtypes); n++) {
-		core_mmu_get_mem_by_type(mtypes[n], &s, &e);
-		if (e > s) {
-			DMSG("Clearing tags for VA %#"PRIxVA"..%#"PRIxVA,
-			     s, e - 1);
-			memtag_set_tags((void *)s, e - s, 0);
-		}
-	}
+	core_mmu_for_each_map(NULL, mmap_clear_memtag);
 }
 #endif
 
