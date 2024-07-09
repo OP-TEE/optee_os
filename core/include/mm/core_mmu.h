@@ -557,6 +557,10 @@ bool core_mmu_user_mapping_is_active(void);
  */
 bool core_mmu_mattr_is_ok(uint32_t mattr);
 
+TEE_Result core_mmu_for_each_map(void *ptr,
+				 TEE_Result (*fn)(struct tee_mmap_region *map,
+						  void *ptr));
+
 void core_mmu_get_mem_by_type(enum teecore_memtypes type, vaddr_t *s,
 			      vaddr_t *e);
 

@@ -259,6 +259,23 @@ static bool pbuf_inside_map_area(unsigned long p, size_t l,
 	return core_is_buffer_inside(p, l, map->pa, map->size);
 }
 
+TEE_Result core_mmu_for_each_map(void *ptr,
+				 TEE_Result (*fn)(struct tee_mmap_region *map,
+						  void *ptr))
+{
+	struct memory_map *mem_map = get_memory_map();
+	TEE_Result res = TEE_SUCCESS;
+	size_t n = 0;
+
+	for (n = 0; n < mem_map->count; n++) {
+		res = fn(mem_map->map + n, ptr);
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static struct tee_mmap_region *find_map_by_type(enum teecore_memtypes type)
 {
 	struct memory_map *mem_map = get_memory_map();
