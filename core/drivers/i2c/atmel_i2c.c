@@ -284,7 +284,7 @@ static TEE_Result atmel_i2c_get_dt_i2c(struct dt_pargs *args, void *data,
 	struct i2c_dev *i2c_dev = NULL;
 	struct i2c_ctrl *i2c_ctrl = data;
 
-	i2c_dev = i2c_create_dev(i2c_ctrl, args->fdt, args->phandle_node);
+	i2c_dev = i2c_create_dev(i2c_ctrl, args->fdt, args->consumer_node);
 	if (!i2c_dev)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
