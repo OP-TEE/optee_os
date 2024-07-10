@@ -41,8 +41,10 @@ static TEE_Result nvmem_die_id_probe(const void *fdt, int node,
 		return res;
 
 	res = nvmem_cell_malloc_and_read(cell, &data);
-	if (!res)
+	if (!res) {
 		die_id = data;
+		die_id_len = cell->len;
+	}
 
 	nvmem_put_cell(cell);
 
