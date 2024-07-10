@@ -1568,7 +1568,11 @@ void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 	vaddr_t start = ROUNDDOWN((vaddr_t)__vcore_nex_rw_start,
 				  SMALL_PAGE_SIZE);
 #endif
+#ifdef CFG_DYN_CONFIG
+	vaddr_t len = ROUNDUP(VCORE_FREE_END_PA, SMALL_PAGE_SIZE) - start;
+#else
 	vaddr_t len = ROUNDUP((vaddr_t)__nozi_end, SMALL_PAGE_SIZE) - start;
+#endif
 	struct tee_mmap_region tmp_mmap_region = { };
 	struct memory_map mem_map = { };
 	unsigned long offs = 0;

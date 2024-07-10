@@ -1270,3 +1270,11 @@ $(call force,CFG_BOOT_MEM,y)
 else
 CFG_BOOT_MEM ?= n
 endif
+
+# CFG_DYN_CONFIG, when enabled, use dynamic memory allocation for translation
+# tables. Not supported with pager.
+ifeq ($(CFG_WITH_PAGER),y)
+$(call force,CFG_DYN_CONFIG,n,conflicts with CFG_WITH_PAGER)
+else
+CFG_DYN_CONFIG ?= $(CFG_BOOT_MEM)
+endif
