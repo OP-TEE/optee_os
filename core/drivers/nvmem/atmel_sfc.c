@@ -32,6 +32,9 @@ static TEE_Result atmel_sfc_read_cell(struct nvmem_cell *cell, uint8_t *data)
 {
 	struct atmel_sfc *atmel_sfc = cell->drv_data;
 
+	if (cell->offset + cell->len > ATMEL_SFC_CELLS_8)
+		return TEE_ERROR_GENERIC;
+
 	memcpy(data, &atmel_sfc->fuses[cell->offset], cell->len);
 
 	return TEE_SUCCESS;
