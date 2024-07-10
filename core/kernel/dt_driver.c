@@ -135,13 +135,15 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
 
 	provider_cells = fdt_get_dt_driver_cells(fdt, nodeoffset, type);
 	if (provider_cells < 0) {
-		DMSG("Failed to find provider cells: %d", provider_cells);
+		DMSG("Failed to find provider cells: %d on node %s",
+		     provider_cells, fdt_get_name(fdt, nodeoffset, NULL));
 		return TEE_ERROR_GENERIC;
 	}
 
 	phandle = fdt_get_phandle(fdt, nodeoffset);
 	if (phandle == (uint32_t)-1) {
-		DMSG("Failed to find provide phandle");
+		DMSG("Failed to find provider phandle on node %s",
+		     fdt_get_name(fdt, nodeoffset, NULL));
 		return TEE_ERROR_GENERIC;
 	}
 
