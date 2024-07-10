@@ -1805,10 +1805,11 @@ static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
 
 #ifdef CFG_WITH_PAGER
 	/*
-	 * If pager is enabled, we need to map tee ram
+	 * If pager is enabled, we need to map TEE RAM and the whole pager
 	 * regions with small pages only
 	 */
-	if (map_is_tee_ram(mm) && block_size != SMALL_PAGE_SIZE)
+	if ((map_is_tee_ram(mm) || mm->type == MEM_AREA_PAGER_VASPACE) &&
+	    block_size != SMALL_PAGE_SIZE)
 		return false;
 #endif
 
