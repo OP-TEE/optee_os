@@ -21,6 +21,9 @@ $(error Error: Please use CFG_LPAE_ADDR_SPACE_BITS instead)
 endif
 
 CFG_LPAE_ADDR_SPACE_BITS ?= 32
+ifeq ($(CFG_ARM32_core),y)
+$(call force,CFG_LPAE_ADDR_SPACE_BITS,32)
+endif
 
 CFG_MMAP_REGIONS ?= 13
 CFG_RESERVED_VASPACE_SIZE ?= (1024 * 1024 * 10)
