@@ -389,14 +389,6 @@ static TEE_Result pmic_set_voltage(struct regulator *regulator, int level_uv)
 	return TEE_SUCCESS;
 }
 
-static int cmp_int_value(const void *a, const void *b)
-{
-	const int *ia = a;
-	const int *ib = b;
-
-	return CMP_TRILEAN(*ia, *ib);
-}
-
 static size_t refine_levels_array(size_t count, int *levels_uv,
 				  int min_uv, int max_uv)
 {
@@ -404,7 +396,7 @@ static size_t refine_levels_array(size_t count, int *levels_uv,
 	size_t m = 0;
 
 	/* We need to sort the array has STPMIC1 driver does not */
-	qsort(levels_uv, count, sizeof(*levels_uv), cmp_int_value);
+	qsort_int(levels_uv, count);
 
 	/* Remove duplicates and return optimized count */
 	for (n = 1; n < count; n++) {
