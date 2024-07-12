@@ -8,6 +8,10 @@
 #include <compiler.h>
 #include <inttypes.h>
 
+#ifndef __ASSEMBLER__
+#include <stddef.h>
+#endif
+
 #define SIZE_4K	UINTPTR_C(0x1000)
 #define SIZE_1M	UINTPTR_C(0x100000)
 #define SIZE_2M	UINTPTR_C(0x200000)
@@ -204,6 +208,22 @@ static inline uint64_t set_field_u64(uint64_t reg, uint64_t mask, uint64_t val)
 {
 	return (reg & ~mask) | (val * (mask & ~(mask - 1)));
 }
+
+/* Helper function for qsort with standard types */
+void qsort_int(int *aa, size_t n);
+void qsort_uint(unsigned int *aa, size_t n);
+void qsort_long(long int *aa, size_t n);
+void qsort_ul(unsigned long int *aa, size_t n);
+void qsort_ll(long long int *aa, size_t n);
+void qsort_ull(unsigned long long int *aa, size_t n);
+void qsort_s8(int8_t *aa, size_t n);
+void qsort_u8(uint8_t *aa, size_t n);
+void qsort_s16(int16_t *aa, size_t n);
+void qsort_u16(uint16_t *aa, size_t n);
+void qsort_s32(int32_t *aa, size_t n);
+void qsort_u32(uint32_t *aa, size_t n);
+void qsort_s64(int64_t *aa, size_t n);
+void qsort_u64(uint64_t *aa, size_t n);
 #endif
 
 #endif /*UTIL_H*/
