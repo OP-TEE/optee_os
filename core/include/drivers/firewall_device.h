@@ -72,16 +72,6 @@ TEE_Result firewall_dt_get_by_name(const void *fdt, int node, const char *name,
 TEE_Result firewall_set_configuration(struct firewall_query *fw);
 
 /**
- * firewall_check_access() - Check if the access is authorized for a consumer
- * and the given firewall configuration according to the settings of its
- * firewall controller
- *
- * @fw:	Firewall query containing the configuration to check against its
- * firewall controller
- */
-TEE_Result firewall_check_access(struct firewall_query *fw);
-
-/**
  * firewall_acquire_access() - Check if OP-TEE can access the consumer and
  * acquire potential resources to allow the access
  *
@@ -89,22 +79,6 @@ TEE_Result firewall_check_access(struct firewall_query *fw);
  * firewall controller
  */
 TEE_Result firewall_acquire_access(struct firewall_query *fw);
-
-/**
- * firewall_check_memory_access() - Check if a consumer can access the memory
- * address range, in read and/or write mode and given the firewall
- * configuration, against a firewall controller
- *
- * @fw: Firewall query containing the configuration to check against its
- * firewall controller
- * @paddr: Physical base address of the memory range to check
- * @size: Size of the memory range to check
- * @read: If true, check rights for a read access
- * @write: If true, check rights for a write access
- */
-TEE_Result firewall_check_memory_access(struct firewall_query *fw,
-					paddr_t paddr, size_t size, bool read,
-					bool write);
 
 /**
  * firewall_acquire_memory_access() - Request OP-TEE access, in read and/or
@@ -170,21 +144,7 @@ firewall_dt_get_by_name(const void *fdt __unused, int node __unused,
 }
 
 static inline TEE_Result
-firewall_check_access(struct firewall_query *fw __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-static inline TEE_Result
 firewall_acquire_access(struct firewall_query *fw __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-static inline TEE_Result
-firewall_check_memory_access(struct firewall_query *fw __unused,
-			     paddr_t paddr __unused, size_t size __unused,
-			     bool read __unused, bool write __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }

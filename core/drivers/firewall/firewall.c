@@ -90,16 +90,6 @@ TEE_Result firewall_set_configuration(struct firewall_query *fw)
 	return fw->ctrl->ops->set_conf(fw);
 }
 
-TEE_Result firewall_check_access(struct firewall_query *fw)
-{
-	assert(fw && fw->ctrl && fw->ctrl->ops);
-
-	if (!fw->ctrl->ops->check_access)
-		return TEE_ERROR_NOT_SUPPORTED;
-
-	return fw->ctrl->ops->check_access(fw);
-}
-
 TEE_Result firewall_acquire_access(struct firewall_query *fw)
 {
 	assert(fw && fw->ctrl && fw->ctrl->ops);
@@ -108,18 +98,6 @@ TEE_Result firewall_acquire_access(struct firewall_query *fw)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	return fw->ctrl->ops->acquire_access(fw);
-}
-
-TEE_Result firewall_check_memory_access(struct firewall_query *fw,
-					paddr_t paddr, size_t size, bool read,
-					bool write)
-{
-	assert(fw && fw->ctrl && fw->ctrl->ops);
-
-	if (!fw->ctrl->ops->check_memory_access)
-		return TEE_ERROR_NOT_SUPPORTED;
-
-	return fw->ctrl->ops->check_memory_access(fw, paddr, size, read, write);
 }
 
 TEE_Result firewall_acquire_memory_access(struct firewall_query *fw,
