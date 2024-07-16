@@ -118,6 +118,10 @@ static TEE_Result opp_rates_setup(const void *fdt, int node)
 
 		rate_num++;
 	}
+
+	/* Ensure rates are in ascending order */
+	qsort_ul(opp_rates->rates, rate_num);
+
 	opp_rates->rate_num = rate_num;
 
 	return TEE_SUCCESS;

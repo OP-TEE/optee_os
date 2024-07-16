@@ -68,7 +68,7 @@ struct clk_duty_cycle {
  * @get_parent: Get the current parent index of the clock
  * @set_rate: Set the clock rate
  * @get_rate: Get the clock rate
- * @get_rates_array: Get the supported clock rates as array
+ * @get_rates_array: Get the supported clock rates as array in ascending order
  * @get_rates_steps: Get support clock rates by min/max/step representation
  * @get_duty_cycle: Get duty cytcle of the clock
  *
@@ -212,7 +212,7 @@ struct clk *clk_get_parent_by_index(struct clk *clk, size_t pidx);
 TEE_Result clk_set_parent(struct clk *clk, struct clk *parent);
 
 /**
- * clk_get_rates_array() - Get supported rates as an array
+ * clk_get_rates_array() - Get supported rates in ascending order
  *
  * @clk: Clock for which the rates are requested
  * @start_index: start index of requested rates
