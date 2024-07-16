@@ -679,14 +679,45 @@ static void verify_special_mem_areas(struct memory_map *mem_map,
 	}
 }
 
+static void merge_mmaps(struct tee_mmap_region *dst,
+			const struct tee_mmap_region *src)
+{
+	paddr_t end_pa = MAX(dst->pa + dst->size - 1, src->pa + src->size - 1);
+	paddr_t pa = MIN(dst->pa, src->pa);
+
+	DMSG("Merging %#"PRIxPA"..%#"PRIxPA" and %#"PRIxPA"..%#"PRIxPA,
+	     dst->pa, dst->pa + dst->size - 1, src->pa,
+	     src->pa + src->size - 1);
+	dst->pa = pa;
+	dst->size = end_pa - pa + 1;
+}
+
+static bool mmaps_are_mergeable(const struct tee_mmap_region *r1,
+				const struct tee_mmap_region *r2)
+{
+	if (r1->type != r2->type)
+		return false;
+
+	if (r1->pa == r2->pa)
+		return true;
+
+	if (r1->pa < r2->pa)
+		return r1->pa + r1->size >= r2->pa;
+	else
+		return r2->pa + r2->size >= r1->pa;
+}
+
 static void add_phys_mem(struct memory_map *mem_map,
 			 const char *mem_name __maybe_unused,
 			 enum teecore_memtypes mem_type,
 			 paddr_t mem_addr, paddr_size_t mem_size)
 {
 	size_t n = 0;
-	paddr_t pa = 0;
-	paddr_size_t size = 0;
+	const struct tee_mmap_region m0 = {
+		.type = mem_type,
+		.pa = mem_addr,
+		.size = mem_size,
+	};
 
 	if (!mem_size)	/* Discard null size entries */
 		return;
@@ -704,30 +735,40 @@ static void add_phys_mem(struct memory_map *mem_map,
 	DMSG("%s type %s 0x%08" PRIxPA " size 0x%08" PRIxPASZ,
 	     mem_name, teecore_memtype_name(mem_type), mem_addr, mem_size);
 	for  (n = 0; n < mem_map->count; n++) {
-		pa = mem_map->map[n].pa;
-		size = mem_map->map[n].size;
-		if (mem_type == mem_map->map[n].type &&
-		    ((pa <= (mem_addr + (mem_size - 1))) &&
-		    (mem_addr <= (pa + (size - 1))))) {
-			DMSG("Physical mem map overlaps 0x%" PRIxPA, mem_addr);
-			mem_map->map[n].pa = MIN(pa, mem_addr);
-			mem_map->map[n].size = MAX(size, mem_size) +
-					     (pa - mem_map->map[n].pa);
+		if (mmaps_are_mergeable(mem_map->map + n, &m0)) {
+			merge_mmaps(mem_map->map + n, &m0);
+			/*
+			 * The merged result might be mergeable with the
+			 * next or previous entry.
+			 */
+			if (n + 1 < mem_map->count &&
+			    mmaps_are_mergeable(mem_map->map + n,
+						mem_map->map + n + 1)) {
+				merge_mmaps(mem_map->map + n,
+					    mem_map->map + n + 1);
+				rem_array_elem(mem_map->map, mem_map->count,
+					       sizeof(*mem_map->map), n + 1);
+				mem_map->count--;
+			}
+			if (n > 0 && mmaps_are_mergeable(mem_map->map + n - 1,
+							 mem_map->map + n)) {
+				merge_mmaps(mem_map->map + n - 1,
+					    mem_map->map + n);
+				rem_array_elem(mem_map->map, mem_map->count,
+					       sizeof(*mem_map->map), n);
+				mem_map->count--;
+			}
 			return;
 		}
 		if (mem_type < mem_map->map[n].type ||
-		    (mem_type == mem_map->map[n].type && mem_addr < pa))
+		    (mem_type == mem_map->map[n].type &&
+		     mem_addr < mem_map->map[n].pa))
 			break; /* found the spot where to insert this memory */
 	}
 
 	grow_mem_map(mem_map);
 	ins_array_elem(mem_map->map, mem_map->count, sizeof(*mem_map->map),
-		       n, NULL);
-	mem_map->map[n] = (struct tee_mmap_region){
-		.type = mem_type,
-		.pa = mem_addr,
-		.size = mem_size,
-	};
+		       n, &m0);
 }
 
 static void add_va_space(struct memory_map *mem_map,
