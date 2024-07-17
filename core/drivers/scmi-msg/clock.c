@@ -321,7 +321,7 @@ static void scmi_clock_describe_rates(struct scmi_msg *msg)
 		}
 
 		out_count = rate_index - in_args->rate_index;
-		remaining = nb_rates - in_args->rate_index;
+		remaining = nb_rates - rate_index;
 		p2a.num_rates_flags = SCMI_RATES_BY_ARRAY(out_count, remaining);
 	} else if (status == SCMI_NOT_SUPPORTED) {
 		unsigned long triplet[3] = { 0, 0, 0 };
