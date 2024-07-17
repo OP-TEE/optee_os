@@ -38,7 +38,7 @@
 
 #ifdef ARM64
 #if (defined(__clang__) && !defined(__OPTIMIZE_SIZE__)) || \
-	defined(CFG_CORE_SANITIZE_KADDRESS)
+	defined(CFG_CORE_SANITIZE_KADDRESS) || defined(CFG_NS_VIRTUALIZATION)
 #define STACK_TMP_SIZE		(4096 + STACK_TMP_OFFS + CFG_STACK_TMP_EXTRA)
 #else
 #define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS + CFG_STACK_TMP_EXTRA)
