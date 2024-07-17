@@ -135,7 +135,7 @@ static unsigned long core_mmu_ptp_create(unsigned long ppn)
 
 static unsigned long core_mmu_pte_ppn(struct mmu_pte *pte)
 {
-	return pte->entry >> PTE_PPN_SHIFT;
+	return (pte->entry & PTE_PPN) >> PTE_PPN_SHIFT;
 }
 
 static unsigned long pa_to_ppn(paddr_t pa)
