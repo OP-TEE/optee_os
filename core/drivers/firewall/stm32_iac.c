@@ -48,7 +48,7 @@
 #define _IAC_VERR_MAJREV_MASK	GENMASK_32(7, 4)
 #define _IAC_VERR_MAJREV_SHIFT	4
 
-/* Periph id per register */
+/* Periph ID per register */
 #define _PERIPH_IDS_PER_REG	32
 
 #define _IAC_FLD_PREP(field, value)	(((uint32_t)(value) << \
@@ -78,20 +78,20 @@ struct iac_driver_data {
 /**
  * struct stm32_iac_platdata - Platform data for the IAC driver
  *
- * @base: Base address of the iac peripheral
- * @irq: Id of the IAC interrupt
+ * @irq_chip: Reference to the main IRQ chip of the platform
+ * @base: Virtual base address of the IAC peripheral
+ * @irq: ID of the IAC interrupt
  */
 struct stm32_iac_platdata {
-	uintptr_t base;
-	int irq;
+	struct itr_chip *irq_chip;
+	vaddr_t base;
+	size_t irq;
 };
 
 struct iac_device {
-	const void *fdt;
 	struct stm32_iac_platdata pdata;
 	struct iac_driver_data *ddata;
 	struct itr_handler *itr;
-	int node;
 };
 
 static struct iac_device iac_dev;
@@ -99,7 +99,7 @@ static struct iac_device iac_dev;
 static void stm32_iac_get_hwdata(void)
 {
 	struct iac_driver_data *ddata = iac_dev.ddata;
-	uintptr_t base = iac_dev.pdata.base;
+	vaddr_t base = iac_dev.pdata.base;
 	uint32_t regval = 0;
 
 	regval = io_read32(base + _IAC_HWCFGR1);
@@ -114,23 +114,25 @@ static void stm32_iac_get_hwdata(void)
 	DMSG("HW cap: enabled, num ilac:[%"PRIu8"]", ddata->num_ilac);
 }
 
-static TEE_Result stm32_iac_parse_fdt(void)
+static TEE_Result stm32_iac_parse_fdt(const void *fdt, int node)
 {
 	struct stm32_iac_platdata *pdata = &iac_dev.pdata;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dt_node_info dt_info = { };
-	static struct io_pa_va base;
-	const void *fdt = iac_dev.fdt;
-	int node = iac_dev.node;
+	struct io_pa_va base = { };
 
 	fdt_fill_device_info(fdt, &dt_info, node);
 	if (dt_info.status == DT_STATUS_DISABLED ||
-	    dt_info.reg == DT_INFO_INVALID_REG ||
-	    dt_info.interrupt == DT_INFO_INVALID_INTERRUPT)
+	    dt_info.reg == DT_INFO_INVALID_REG)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	pdata->irq_chip = interrupt_get_main_chip();
+	res = interrupt_dt_get(fdt, node, &pdata->irq_chip, &pdata->irq);
+	if (res)
+		return res;
 
 	base.pa = dt_info.reg;
 	pdata->base = io_pa_or_va_secure(&base, 1);
-	pdata->irq = dt_info.interrupt;
 
 	return TEE_SUCCESS;
 }
@@ -138,7 +140,7 @@ static TEE_Result stm32_iac_parse_fdt(void)
 static enum itr_return stm32_iac_itr(struct itr_handler *h __unused)
 {
 	struct iac_driver_data *ddata = iac_dev.ddata;
-	uintptr_t base = iac_dev.pdata.base;
+	vaddr_t base = iac_dev.pdata.base;
 	unsigned int nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
 	bool do_panic = false;
 	unsigned int i = 0;
@@ -156,7 +158,7 @@ static enum itr_return stm32_iac_itr(struct itr_handler *h __unused)
 
 		if (isr) {
 			do_panic = true;
-			EMSG("IAC exceptions [%d:%d]: %#x",
+			EMSG("IAC exceptions [%d:%d]: %#"PRIx32,
 			     IAC_EXCEPT_MSB_BIT(i), IAC_EXCEPT_LSB_BIT(i), isr);
 		}
 
@@ -185,21 +187,21 @@ static enum itr_return stm32_iac_itr(struct itr_handler *h __unused)
 static void stm32_iac_setup(void)
 {
 	struct iac_driver_data *ddata = iac_dev.ddata;
-	uintptr_t base = iac_dev.pdata.base;
+	vaddr_t base = iac_dev.pdata.base;
 	int nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
 	int i = 0;
 
 	for (i = 0; i < nreg; i++) {
 		vaddr_t reg_ofst = base + sizeof(uint32_t) * i;
 
-		//clear status flags
+		/* Clear status flags */
 		io_write32(reg_ofst + _IAC_ICR0, ~0x0);
-		//enable all peripherals of nreg
+		/* Enable all peripherals of nreg */
 		io_write32(reg_ofst + _IAC_IER0, ~0x0);
 	}
 }
 
-static TEE_Result probe_iac_device(void)
+static TEE_Result probe_iac_device(const void *fdt, int node)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	bool is_tdcid = false;
@@ -212,21 +214,21 @@ static TEE_Result probe_iac_device(void)
 	if (!is_tdcid)
 		return TEE_ERROR_ACCESS_DENIED;
 
-	res = stm32_iac_parse_fdt();
+	res = stm32_iac_parse_fdt(fdt, node);
 	if (res)
 		return res;
 
 	stm32_iac_get_hwdata();
 	stm32_iac_setup();
 
-	res = interrupt_alloc_add_handler(interrupt_get_main_chip(),
+	res = interrupt_alloc_add_handler(iac_dev.pdata.irq_chip,
 					  iac_dev.pdata.irq, stm32_iac_itr,
 					  ITRF_TRIGGER_LEVEL, NULL,
 					  &iac_dev.itr);
 	if (res)
-		return res;
+		panic();
 
-	interrupt_enable(interrupt_get_main_chip(), iac_dev.itr->it);
+	interrupt_enable(iac_dev.pdata.irq_chip, iac_dev.itr->it);
 
 	return TEE_SUCCESS;
 }
@@ -248,10 +250,7 @@ static TEE_Result stm32_iac_probe(const void *fdt, int node,
 	if (!iac_dev.ddata)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	iac_dev.fdt = fdt;
-	iac_dev.node = node;
-
-	res = probe_iac_device();
+	res = probe_iac_device(fdt, node);
 	if (res)
 		stm32_iac_free();
 
