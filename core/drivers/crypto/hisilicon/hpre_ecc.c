@@ -479,13 +479,56 @@ static enum hisi_drv_status ecc_dh_out_to_crypto_bin(struct hpre_ecc_msg *msg)
 	return ret;
 }
 
-static enum hisi_drv_status hpre_ecc_out_to_crypto_bin(struct hpre_ecc_msg *msg)
+static enum hisi_drv_status ecc_sign_out_to_crypto_bin(struct hpre_ecc_msg *msg)
+{
+	struct hpre_ecc_sign *ecc_sign = &msg->param_size.ecc_sign;
+	uint8_t *r = msg->out;
+	uint8_t *s = r + msg->key_bytes;
+	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
+
+	ret = hpre_bin_to_crypto_bin(r, r, msg->key_bytes,
+				     ecc_sign->r_bytes);
+	if (ret) {
+		EMSG("Fail to transfer ecc sign r from hpre_bin to crypto_bin");
+		return ret;
+	}
+
+	ret = hpre_bin_to_crypto_bin(s, s, msg->key_bytes,
+				     ecc_sign->s_bytes);
+	if (ret)
+		EMSG("Fail to transfer ecc sign s from hpre_bin to crypto_bin");
+
+	return ret;
+}
+
+static enum hisi_drv_status hpre_ecc_verify_get_result(struct hpre_ecc_msg *msg,
+						       struct hpre_sqe *sqe)
+{
+	if (sqe->out & BIT64(1)) {
+		msg->result = ECC_VERIFY_SUCCESS;
+		return HISI_QM_DRVCRYPT_NO_ERR;
+	}
+
+	msg->result = ECC_VERIFY_ERR;
+	return HISI_QM_DRVCRYPT_VERIFY_ERR;
+}
+
+static enum hisi_drv_status
+hpre_ecc_out_to_crypto_bin(struct hpre_ecc_msg *msg, struct hpre_sqe *sqe)
 {
 	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
 
 	switch (msg->alg_type) {
 	case HPRE_ALG_ECDH_MULTIPLY:
 		ret = ecc_dh_out_to_crypto_bin(msg);
+		break;
+	case HPRE_ALG_ECDSA_SIGN:
+	case HPRE_ALG_SM2_SIGN:
+		ret = ecc_sign_out_to_crypto_bin(msg);
+		break;
+	case HPRE_ALG_ECDSA_VERF:
+	case HPRE_ALG_SM2_VERF:
+		ret = hpre_ecc_verify_get_result(msg, sqe);
 		break;
 	default:
 		EMSG("Invalid alg type.");
@@ -519,7 +562,7 @@ static enum hisi_drv_status hpre_ecc_parse_sqe(void *bd, void *info)
 		return HISI_QM_DRVCRYPT_IN_EPARA;
 	}
 
-	if (hpre_ecc_out_to_crypto_bin(msg)) {
+	if (hpre_ecc_out_to_crypto_bin(msg, sqe)) {
 		EMSG("HPRE qm transfer ecc out fail.");
 		msg->result = HISI_QM_DRVCRYPT_EINVAL;
 		return HISI_QM_DRVCRYPT_EINVAL;
@@ -974,12 +1017,454 @@ done:
 	return ret;
 }
 
+static enum hisi_drv_status
+hpre_ecc_sign_params_fill(const struct hpre_ecc_curve *curve,
+			  struct hpre_ecc_msg *msg,
+			  struct drvcrypt_sign_data *sdata,
+			  struct bignum *rand_k)
+{
+	struct ecc_keypair *ecc_key = sdata->key;
+	struct hpre_ecc_sign *ecc_sign = &msg->param_size.ecc_sign;
+	uint8_t *p = msg->key;
+	uint8_t *a = p + msg->key_bytes;
+	uint8_t *d = a + msg->key_bytes;
+	uint8_t *b = d + msg->key_bytes;
+	uint8_t *n = b + msg->key_bytes;
+	uint8_t *gx = n + msg->key_bytes;
+	uint8_t *gy = gx + msg->key_bytes;
+	uint8_t *e = msg->in;
+	uint8_t *k = e + msg->key_bytes;
+	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
+
+	memcpy(p, curve->p, msg->curve_bytes);
+	memcpy(a, curve->a, msg->curve_bytes);
+	crypto_bignum_bn2bin(ecc_key->d, d);
+	ecc_sign->d_bytes = crypto_bignum_num_bytes(ecc_key->d);
+	memcpy(b, curve->b, msg->curve_bytes);
+	memcpy(n, curve->n, msg->curve_bytes);
+	memcpy(gx, curve->x, msg->curve_bytes);
+	memcpy(gy, curve->y, msg->curve_bytes);
+	crypto_bignum_bn2bin(rand_k, k);
+	ecc_sign->k_bytes = crypto_bignum_num_bytes(rand_k);
+
+	ecc_sign->e_bytes = MIN(sdata->message.length, msg->curve_bytes);
+	memcpy(e, sdata->message.data, ecc_sign->e_bytes);
+	if (is_all_zero(e, ecc_sign->e_bytes, "ecc sign msg_e"))
+		return HISI_QM_DRVCRYPT_EINVAL;
+
+	ret = hpre_ecc_curve_to_hpre_bin(p, a, b, n, gx, gy, msg->curve_bytes,
+					 msg->key_bytes);
+	if (ret)
+		return ret;
+
+	ret = hpre_bin_from_crypto_bin(d, d, msg->key_bytes,
+				       ecc_sign->d_bytes);
+	if (ret) {
+		EMSG("Fail to transfer ecdsa sign d");
+		return ret;
+	}
+
+	ret = hpre_bin_from_crypto_bin(e, e, msg->key_bytes,
+				       ecc_sign->e_bytes);
+	if (ret) {
+		EMSG("Fail to transfer ecdsa sign e");
+		return ret;
+	}
+
+	ret = hpre_bin_from_crypto_bin(k, k, msg->key_bytes,
+				       ecc_sign->k_bytes);
+	if (ret)
+		EMSG("Fail to transfer ecdsa sign k");
+
+	return ret;
+}
+
+static enum hisi_drv_status hpre_ecc_sign_params_alloc(struct hpre_ecc_msg *msg)
+{
+	uint32_t size = HPRE_ECC_SIGN_TOTAL_BUF_SIZE(msg->key_bytes);
+	uint8_t *data = NULL;
+
+	data = calloc(1, size);
+	if (!data) {
+		EMSG("Fail to alloc ecc sign total buf");
+		return HISI_QM_DRVCRYPT_ENOMEM;
+	}
+
+	msg->key = data;
+	msg->key_dma = virt_to_phys(msg->key);
+	if (!msg->key_dma) {
+		EMSG("Fail to get key dma addr");
+		free(data);
+		return HISI_QM_DRVCRYPT_EFAULT;
+	}
+
+	msg->in = msg->key + ECC_SIGN_KEY_SIZE(msg->key_bytes);
+	msg->in_dma = msg->key_dma + ECC_SIGN_KEY_SIZE(msg->key_bytes);
+	msg->out = msg->in + ECC_SIGN_IN_SIZE(msg->key_bytes);
+	msg->out_dma = msg->in_dma + ECC_SIGN_IN_SIZE(msg->key_bytes);
+
+	return HISI_QM_DRVCRYPT_NO_ERR;
+}
+
+static void hpre_ecc_sign_request_deinit(struct hpre_ecc_msg *msg)
+{
+	if (msg->key) {
+		free_wipe(msg->key);
+		msg->key = NULL;
+	}
+}
+
+static TEE_Result
+hpre_ecc_sign_request_init(const struct hpre_ecc_curve *curve,
+			   struct hpre_ecc_msg *msg,
+			   struct drvcrypt_sign_data *sdata,
+			   struct bignum *rand_k)
+{
+	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
+
+	if (curve->id == TEE_ECC_CURVE_SM2)
+		msg->alg_type = HPRE_ALG_SM2_SIGN;
+	else
+		msg->alg_type = HPRE_ALG_ECDSA_SIGN;
+	msg->curve_bytes = BITS_TO_BYTES(curve->key_bits);
+	msg->key_bytes = hpre_ecc_get_hw_kbytes(curve->key_bits);
+	if (!msg->key_bytes)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	ret = hpre_ecc_sign_params_alloc(msg);
+	if (ret)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	ret = hpre_ecc_sign_params_fill(curve, msg, sdata, rand_k);
+	if (ret) {
+		hpre_ecc_sign_request_deinit(msg);
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	msg->param_size.ecc_sign.r_bytes = msg->curve_bytes;
+	msg->param_size.ecc_sign.s_bytes = msg->curve_bytes;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result hpre_ecdsa_param_check(struct drvcrypt_sign_data *sdata,
+					 const struct hpre_ecc_curve *curve)
+{
+	if (sdata->size_sec != BITS_TO_BYTES(curve->key_bits)) {
+		EMSG("Invalid sdata size_sec %zu", sdata->size_sec);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static void hpre_ecc_sign_get_data_out(struct hpre_ecc_msg *msg,
+				       struct drvcrypt_sign_data *sdata)
+{
+	struct hpre_ecc_sign *ecc_sign;
+
+	ecc_sign = &msg->param_size.ecc_sign;
+	sdata->signature.length = ecc_sign->r_bytes + ecc_sign->s_bytes;
+	memcpy(sdata->signature.data, msg->out, ecc_sign->r_bytes);
+	memcpy(sdata->signature.data + ecc_sign->r_bytes, msg->out +
+	       msg->key_bytes, ecc_sign->s_bytes);
+}
+
+static TEE_Result hpre_ecc_sign(struct drvcrypt_sign_data *sdata)
+{
+	struct hpre_ecc_msg msg = { };
+	const struct hpre_ecc_curve *curve = NULL;
+	struct ecc_keypair *ecc_key = NULL;
+	struct bignum *rand_k = NULL;
+	TEE_Result ret = TEE_SUCCESS;
+
+	if (!sdata || !sdata->key) {
+		EMSG("Invalid ecc_sign input parameters");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	ecc_key = sdata->key;
+
+	curve = get_curve_from_list(ecc_key->curve);
+	if (!curve) {
+		EMSG("Fail to get valid curve, id %"PRIu32, ecc_key->curve);
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	ret = hpre_ecdsa_param_check(sdata, curve);
+	if (ret)
+		return ret;
+
+	rand_k = crypto_bignum_allocate(curve->key_bits);
+	if (!rand_k) {
+		EMSG("Fail to alloc private k");
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
+	ret = gen_random_k(rand_k, curve->key_bits, curve->n);
+	if (ret)
+		goto free_key;
+
+	ret = hpre_ecc_sign_request_init(curve, &msg, sdata, rand_k);
+	if (ret) {
+		EMSG("Ecc sign request init fail");
+		goto free_key;
+	}
+
+	ret = hpre_do_ecc_task(&msg);
+	if (ret) {
+		EMSG("Fail to do ecc sign task! ret = 0x%"PRIX16, ret);
+		goto done;
+	}
+
+	hpre_ecc_sign_get_data_out(&msg, sdata);
+
+done:
+	hpre_ecc_sign_request_deinit(&msg);
+free_key:
+	crypto_bignum_free(&rand_k);
+
+	return ret;
+}
+
+static enum hisi_drv_status
+hpre_ecc_verify_transfer_key(struct hpre_ecc_msg *msg)
+{
+	struct hpre_ecc_verify *ecc_verify = &msg->param_size.ecc_verify;
+	uint8_t *p = msg->key;
+	uint8_t *a = p + msg->key_bytes;
+	uint8_t *b = a + msg->key_bytes;
+	uint8_t *n = b + msg->key_bytes;
+	uint8_t *gx = n + msg->key_bytes;
+	uint8_t *gy = gx + msg->key_bytes;
+	uint8_t *pubx = gy + msg->key_bytes;
+	uint8_t *puby = pubx + msg->key_bytes;
+	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
+
+	ret = hpre_ecc_curve_to_hpre_bin(p, a, b, n, gx, gy, msg->curve_bytes,
+					 msg->key_bytes);
+	if (ret)
+		return ret;
+
+	ret = hpre_bin_from_crypto_bin(pubx, pubx, msg->key_bytes,
+				       ecc_verify->pubx_bytes);
+	if (ret) {
+		EMSG("Fail to transfer ecdsa verify pub_x");
+		return ret;
+	}
+
+	ret = hpre_bin_from_crypto_bin(puby, puby, msg->key_bytes,
+				       ecc_verify->puby_bytes);
+	if (ret)
+		EMSG("Fail to transfer ecdsa verify pub_y");
+
+	return ret;
+}
+
+static enum hisi_drv_status
+hpre_ecc_verify_transfer_in(struct hpre_ecc_msg *msg)
+{
+	struct hpre_ecc_verify *ecc_verify = &msg->param_size.ecc_verify;
+	uint8_t *e = msg->in;
+	uint8_t *s = e + msg->key_bytes;
+	uint8_t *r = s + msg->key_bytes;
+	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
+
+	ret = hpre_bin_from_crypto_bin(e, e, msg->key_bytes,
+				       ecc_verify->e_bytes);
+	if (ret) {
+		EMSG("Fail to transfer ecdsa verify e");
+		return ret;
+	}
+
+	ret = hpre_bin_from_crypto_bin(s, s, msg->key_bytes,
+				       ecc_verify->s_bytes);
+	if (ret) {
+		EMSG("Fail to transfer ecdsa verify s");
+		return ret;
+	}
+
+	ret = hpre_bin_from_crypto_bin(r, r, msg->key_bytes,
+				       ecc_verify->r_bytes);
+	if (ret)
+		EMSG("Fail to transfer ecdsa verify r");
+
+	return ret;
+}
+
+static TEE_Result
+hpre_ecc_verify_params_fill(const struct hpre_ecc_curve *curve,
+			    struct hpre_ecc_msg *msg,
+			    struct drvcrypt_sign_data *sdata)
+{
+	struct ecc_public_key *ecc_key = sdata->key;
+	struct hpre_ecc_verify *ecc_verify = &msg->param_size.ecc_verify;
+	uint8_t *p = msg->key;
+	uint8_t *a = p + msg->key_bytes;
+	uint8_t *b = a + msg->key_bytes;
+	uint8_t *n = b + msg->key_bytes;
+	uint8_t *gx = n + msg->key_bytes;
+	uint8_t *gy = gx + msg->key_bytes;
+	uint8_t *pubx = gy + msg->key_bytes;
+	uint8_t *puby = pubx + msg->key_bytes;
+	uint8_t *e = msg->in;
+	uint8_t *s = e + msg->key_bytes;
+	uint8_t *r = s + msg->key_bytes;
+	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
+
+	memcpy(p, curve->p, msg->curve_bytes);
+	memcpy(a, curve->a, msg->curve_bytes);
+	memcpy(b, curve->b, msg->curve_bytes);
+	memcpy(n, curve->n, msg->curve_bytes);
+	memcpy(gx, curve->x, msg->curve_bytes);
+	memcpy(gy, curve->y, msg->curve_bytes);
+	crypto_bignum_bn2bin(ecc_key->x, pubx);
+	ecc_verify->pubx_bytes = crypto_bignum_num_bytes(ecc_key->x);
+	crypto_bignum_bn2bin(ecc_key->y, puby);
+	ecc_verify->puby_bytes = crypto_bignum_num_bytes(ecc_key->y);
+
+	ecc_verify->e_bytes = MIN(sdata->message.length, msg->curve_bytes);
+	memcpy(e, sdata->message.data, ecc_verify->e_bytes);
+	if (is_all_zero(e, ecc_verify->e_bytes, "ecc verify msg_e"))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* user should make param r and s be full width */
+	ecc_verify->r_bytes = sdata->signature.length >> 1;
+	memcpy(r, sdata->signature.data, ecc_verify->r_bytes);
+	ecc_verify->s_bytes = ecc_verify->r_bytes;
+	memcpy(s, sdata->signature.data + ecc_verify->r_bytes,
+	       ecc_verify->s_bytes);
+
+	ret = hpre_ecc_verify_transfer_key(msg);
+	if (ret)
+		return TEE_ERROR_BAD_STATE;
+
+	ret = hpre_ecc_verify_transfer_in(msg);
+	if (ret)
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
+}
+
+static enum hisi_drv_status
+hpre_ecc_verify_params_alloc(struct hpre_ecc_msg *msg)
+{
+	uint32_t size = HPRE_ECC_VERIFY_TOTAL_BUF_SIZE(msg->key_bytes);
+	uint8_t *data = NULL;
+
+	data = calloc(1, size);
+	if (!data) {
+		EMSG("Fail to alloc ecc verify total buf");
+		return HISI_QM_DRVCRYPT_ENOMEM;
+	}
+
+	msg->key = data;
+	msg->key_dma = virt_to_phys(msg->key);
+	if (!msg->key_dma) {
+		EMSG("Fail to get key dma addr");
+		free(data);
+		return HISI_QM_DRVCRYPT_EFAULT;
+	}
+
+	msg->in = msg->key + ECC_VERIF_KEY_SIZE(msg->key_bytes);
+	msg->in_dma = msg->key_dma + ECC_VERIF_KEY_SIZE(msg->key_bytes);
+	msg->out = msg->in + ECC_VERIF_IN_SIZE(msg->key_bytes);
+	msg->out_dma = msg->in_dma + ECC_VERIF_IN_SIZE(msg->key_bytes);
+
+	return HISI_QM_DRVCRYPT_NO_ERR;
+}
+
+static void hpre_ecc_verify_request_deinit(struct hpre_ecc_msg *msg)
+{
+	if (msg->key) {
+		free_wipe(msg->key);
+		msg->key = NULL;
+	}
+}
+
+static TEE_Result
+hpre_ecc_verify_request_init(const struct hpre_ecc_curve *curve,
+			     struct hpre_ecc_msg *msg,
+			     struct drvcrypt_sign_data *sdata)
+{
+	int32_t ret = 0;
+
+	if (curve->id == TEE_ECC_CURVE_SM2)
+		msg->alg_type = HPRE_ALG_SM2_VERF;
+	else
+		msg->alg_type = HPRE_ALG_ECDSA_VERF;
+	msg->curve_bytes = BITS_TO_BYTES(curve->key_bits);
+	msg->key_bytes = hpre_ecc_get_hw_kbytes(curve->key_bits);
+	if (!msg->key_bytes)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	ret = hpre_ecc_verify_params_alloc(msg);
+	if (ret)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	ret = hpre_ecc_verify_params_fill(curve, msg, sdata);
+	if (ret) {
+		hpre_ecc_verify_request_deinit(msg);
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result hpre_ecc_verify(struct drvcrypt_sign_data *sdata)
+{
+	struct hpre_ecc_msg msg = { };
+	const struct hpre_ecc_curve *curve = NULL;
+	struct ecc_public_key *pub_key = NULL;
+	TEE_Result ret = TEE_SUCCESS;
+
+	if (!sdata || !sdata->key) {
+		EMSG("Invalid ecc_verify input parameters");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	pub_key = sdata->key;
+
+	curve = get_curve_from_list(pub_key->curve);
+	if (!curve) {
+		EMSG("Fail to get valid curve, id %"PRIu32, pub_key->curve);
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	ret = hpre_ecdsa_param_check(sdata, curve);
+	if (ret)
+		return ret;
+
+	ret = hpre_ecc_verify_request_init(curve, &msg, sdata);
+	if (ret) {
+		EMSG("Ecc verify request init fail");
+		return ret;
+	}
+
+	ret = hpre_do_ecc_task(&msg);
+	if (ret) {
+		EMSG("Fail to do ecc verify task! ret = 0x%"PRIX16, ret);
+		goto done;
+	}
+
+	if (msg.result == ECC_VERIFY_ERR) {
+		EMSG("Hpre ecc verify fail");
+		ret = TEE_ERROR_SIGNATURE_INVALID;
+	}
+
+done:
+	hpre_ecc_verify_request_deinit(&msg);
+	return ret;
+}
+
 static struct drvcrypt_ecc driver_ecc = {
 	.alloc_keypair = hpre_ecc_alloc_keypair,
 	.alloc_publickey = hpre_ecc_alloc_publickey,
 	.free_publickey = hpre_ecc_free_publickey,
 	.gen_keypair = hpre_ecc_gen_keypair,
 	.shared_secret = hpre_ecc_do_shared_secret,
+	.sign = hpre_ecc_sign,
+	.verify = hpre_ecc_verify,
 };
 
 static TEE_Result hpre_ecc_init(void)

@@ -11,6 +11,11 @@
 #include <tee_api_types.h>
 #include <types_ext.h>
 
+enum ecc_verify_status {
+	ECC_VERIFY_ERR = 0,
+	ECC_VERIFY_SUCCESS = 1,
+};
+
 struct hpre_ecc_dh {
 	uint32_t d_bytes;
 	uint32_t x_bytes;
