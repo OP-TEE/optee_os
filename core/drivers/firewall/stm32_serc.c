@@ -68,22 +68,22 @@ struct serc_driver_data {
 /**
  * struct stm32_serc_platdata - Platform data for the SERC driver
  *
+ * @irq_chip: Reference to the main IRQ chip of the platform
  * @base: Base address of the SERC peripheral
  * @clock: Reference on the SERC clock
- * @irq: Id of the SERC interrupt
+ * @irq: ID of the SERC interrupt
  */
 struct stm32_serc_platdata {
-	uintptr_t base;
+	struct itr_chip *irq_chip;
 	struct clk *clock;
-	int irq;
+	vaddr_t base;
+	size_t irq;
 };
 
 struct serc_device {
-	int node;
 	struct stm32_serc_platdata pdata;
 	struct serc_driver_data *ddata;
 	struct itr_handler *itr;
-	const void *fdt;
 };
 
 static struct serc_device serc_dev;
@@ -92,7 +92,7 @@ static void stm32_serc_get_hwdata(void)
 {
 	struct stm32_serc_platdata *pdata = &serc_dev.pdata;
 	struct serc_driver_data *ddata = serc_dev.ddata;
-	uintptr_t base = pdata->base;
+	vaddr_t base = pdata->base;
 	uint32_t regval = 0;
 
 	regval = io_read32(base + _SERC_HWCFGR);
@@ -108,26 +108,25 @@ static void stm32_serc_get_hwdata(void)
 	DMSG("HW cap: num ilac:[%"PRIu8"]", ddata->num_ilac);
 }
 
-static TEE_Result stm32_serc_parse_fdt(void)
+static TEE_Result stm32_serc_parse_fdt(const void *fdt, int node)
 {
 	struct stm32_serc_platdata *pdata = &serc_dev.pdata;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dt_node_info dt_info = { };
-	static struct io_pa_va base = { };
-	const void *fdt = serc_dev.fdt;
-	int node = serc_dev.node;
-
-	assert(serc_dev.fdt);
+	struct io_pa_va base = { };
 
 	fdt_fill_device_info(fdt, &dt_info, node);
 	if (dt_info.status == DT_STATUS_DISABLED ||
-	    dt_info.reg == DT_INFO_INVALID_REG ||
-	    dt_info.clock == DT_INFO_INVALID_CLOCK ||
-	    dt_info.interrupt == DT_INFO_INVALID_INTERRUPT)
+	    dt_info.reg == DT_INFO_INVALID_REG)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	pdata->irq_chip = interrupt_get_main_chip();
+	res = interrupt_dt_get(fdt, node, &pdata->irq_chip, &pdata->irq);
+	if (res)
+		return res;
 
 	base.pa = dt_info.reg;
 	pdata->base = io_pa_or_va_secure(&base, 1);
-	pdata->irq = dt_info.interrupt;
 
 	return clk_dt_get_by_index(fdt, node, 0, &pdata->clock);
 }
@@ -136,7 +135,7 @@ static void stm32_serc_handle_ilac(void)
 {
 	struct serc_driver_data *ddata = serc_dev.ddata;
 	struct stm32_serc_platdata *pdata = &serc_dev.pdata;
-	uintptr_t base = pdata->base;
+	vaddr_t base = pdata->base;
 	int nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
 	bool do_panic = false;
 	uint32_t isr = 0;
@@ -152,7 +151,7 @@ static void stm32_serc_handle_ilac(void)
 		if (isr) {
 			do_panic = true;
 
-			EMSG("SERC exceptions [%d:%d]: %#x",
+			EMSG("SERC exceptions [%d:%d]: %#"PRIx32,
 			     SERC_EXCEPT_MSB_BIT(i), SERC_EXCEPT_LSB_BIT(i),
 			     isr);
 		}
@@ -189,7 +188,7 @@ static void stm32_serc_setup(void)
 {
 	struct stm32_serc_platdata *pdata = &serc_dev.pdata;
 	struct serc_driver_data *ddata = serc_dev.ddata;
-	uintptr_t base = serc_dev.pdata.base;
+	vaddr_t base = serc_dev.pdata.base;
 	uint32_t nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
 	uint32_t i = 0;
 
@@ -198,18 +197,18 @@ static void stm32_serc_setup(void)
 	for (i = 0; i < nreg; i++) {
 		vaddr_t reg_ofst = base + sizeof(uint32_t) * i;
 
-		//clear status flags
+		/* Clear status flags */
 		io_write32(reg_ofst + _SERC_ICR0, ~0x0);
-		//enable all peripherals of nreg
+		/* Enable all peripherals of nreg */
 		io_write32(reg_ofst + _SERC_IER0, ~0x0);
 	}
 }
 
-static TEE_Result probe_serc_device(void)
+static TEE_Result probe_serc_device(const void *fdt, int node)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	res = stm32_serc_parse_fdt();
+	res = stm32_serc_parse_fdt(fdt, node);
 	if (res)
 		return res;
 
@@ -220,14 +219,14 @@ static TEE_Result probe_serc_device(void)
 	stm32_serc_get_hwdata();
 	stm32_serc_setup();
 
-	res = interrupt_alloc_add_handler(interrupt_get_main_chip(),
+	res = interrupt_alloc_add_handler(serc_dev.pdata.irq_chip,
 					  serc_dev.pdata.irq, stm32_serc_itr,
 					  ITRF_TRIGGER_LEVEL, NULL,
 					  &serc_dev.itr);
 	if (res)
-		return res;
+		panic();
 
-	interrupt_enable(interrupt_get_main_chip(), serc_dev.itr->it);
+	interrupt_enable(serc_dev.pdata.irq_chip, serc_dev.itr->it);
 
 	return TEE_SUCCESS;
 }
@@ -268,10 +267,7 @@ static TEE_Result stm32_serc_probe(const void *fdt, int node,
 	if (!serc_dev.ddata)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	serc_dev.fdt = fdt;
-	serc_dev.node = node;
-
-	res = probe_serc_device();
+	res = probe_serc_device(fdt, node);
 	if (res) {
 		stm32_serc_free();
 		return res;
