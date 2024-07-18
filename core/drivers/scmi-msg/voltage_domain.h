@@ -12,7 +12,7 @@
 
 #include "common.h"
 
-#define SCMI_PROTOCOL_VERSION_VOLTAGE_DOMAIN	0x30000
+#define SCMI_PROTOCOL_VERSION_VOLTAGE_DOMAIN	0x20000
 
 /*
  * Identifiers of the SCMI Clock Management Protocol commands
