@@ -73,7 +73,12 @@ static void stm32_gate_endisable(uint16_t gate_id, bool enable)
 			io_write32(addr, BIT(gate->bit_idx));
 		else
 			io_setbits32_stm32shregs(addr, BIT(gate->bit_idx));
+		/* Make sure the clock is enabled before returning to caller */
+		dsb();
 	} else {
+		/* Waiting pending operation before disabling clock */
+		dsb();
+
 		if (gate->set_clr)
 			io_write32(addr + RCC_MP_ENCLRR_OFFSET,
 				   BIT(gate->bit_idx));
@@ -84,11 +89,23 @@ static void stm32_gate_endisable(uint16_t gate_id, bool enable)
 
 void stm32_gate_disable(uint16_t gate_id)
 {
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	uint8_t *gate_cpt = priv->gate_cpt;
+
+	if (--gate_cpt[gate_id] > 0)
+		return;
+
 	stm32_gate_endisable(gate_id, false);
 }
 
 void stm32_gate_enable(uint16_t gate_id)
 {
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	uint8_t *gate_cpt = priv->gate_cpt;
+
+	if (gate_cpt[gate_id]++ > 0)
+		return;
+
 	stm32_gate_endisable(gate_id, true);
 }
 
@@ -487,11 +504,14 @@ int clk_stm32_parse_fdt_by_name(const void *fdt, int node, const char *name,
 	uint32_t i = 0;
 
 	cell = fdt_getprop(fdt, node, name, &len);
-	if (cell)
+	if (cell && len > 0) {
 		for (i = 0; i < ((uint32_t)len / sizeof(uint32_t)); i++)
 			tab[i] = fdt32_to_cpu(cell[i]);
 
-	*nb = (uint32_t)len / sizeof(uint32_t);
+		*nb = (uint32_t)len / sizeof(uint32_t);
+	} else {
+		*nb = 0;
+	}
 
 	return 0;
 }
@@ -501,6 +521,10 @@ TEE_Result clk_stm32_init(struct clk_stm32_priv *priv, uintptr_t base)
 	stm32_clock_data = priv;
 
 	priv->base = base;
+
+	priv->gate_cpt = calloc(priv->nb_gates, sizeof(uint8_t));
+	if (!priv->gate_cpt)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	return TEE_SUCCESS;
 }

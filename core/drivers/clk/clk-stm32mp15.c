@@ -1459,8 +1459,12 @@ static unsigned long clk_op_compute_rate(struct clk *clk,
 
 static TEE_Result clk_op_enable(struct clk *clk)
 {
-	if (clk_is_gate(clk))
+	if (clk_is_gate(clk)) {
 		__clk_enable(clk_to_gate_ref(clk));
+
+		/* Make sure the clock is enabled before returning to caller */
+		dsb();
+	}
 
 	return TEE_SUCCESS;
 }
@@ -1468,8 +1472,12 @@ DECLARE_KEEP_PAGER(clk_op_enable);
 
 static void clk_op_disable(struct clk *clk)
 {
-	if (clk_is_gate(clk))
+	if (clk_is_gate(clk)) {
+		/* Make sure the previous operations are visible */
+		dsb();
+
 		__clk_disable(clk_to_gate_ref(clk));
+	}
 }
 DECLARE_KEEP_PAGER(clk_op_disable);
 
