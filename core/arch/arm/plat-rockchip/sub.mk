@@ -5,6 +5,7 @@ srcs-$(PLATFORM_FLAVOR_px30) += platform_px30.c
 srcs-$(PLATFORM_FLAVOR_rk322x) += platform_rk322x.c
 srcs-$(PLATFORM_FLAVOR_rk3399) += platform_rk3399.c
 srcs-$(PLATFORM_FLAVOR_rk3588) += platform_rk3588.c
+srcs-$(PLATFORM_FLAVOR_rk3566) += platform_rk3566.c
 
 ifeq ($(PLATFORM_FLAVOR),rk322x)
 srcs-y += plat_init.S

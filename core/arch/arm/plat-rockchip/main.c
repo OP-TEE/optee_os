@@ -31,7 +31,11 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
 void boot_primary_init_intc(void)
 {
+	#ifdef PLATFORM_FLAVOR_rk3566
+	gic_init_v3(0, GICD_BASE, GICR_BASE);
+	#else
 	gic_init(GICC_BASE, GICD_BASE);
+	#endif
 }
 
 void boot_secondary_init_intc(void)
