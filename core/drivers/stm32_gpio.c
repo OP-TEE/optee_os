@@ -343,6 +343,10 @@ static void stm32_gpio_set_direction(struct gpio_chip *chip,
 static TEE_Result consumed_gpios_pm(enum pm_op op, unsigned int pm_hint,
 				    const struct pm_callback_handle *pm_hdl);
 
+/* Forward reference to RIF semaphore release helper function */
+static void release_rif_semaphore_if_acquired(struct stm32_gpio_bank *bank,
+					      unsigned int pin);
+
 static void stm32_gpio_put_gpio(struct gpio_chip *chip, struct gpio *gpio)
 {
 	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
@@ -360,6 +364,7 @@ static void stm32_gpio_put_gpio(struct gpio_chip *chip, struct gpio *gpio)
 			SLIST_REMOVE(&consumed_gpios_head, state,
 				     stm32_gpio_pm_state, link);
 			unregister_pm_driver_cb(consumed_gpios_pm, state);
+			release_rif_semaphore_if_acquired(bank, gpio->pin);
 			free(state);
 			free(gpio);
 			break;
@@ -393,6 +398,82 @@ static struct stm32_gpio_bank *stm32_gpio_get_bank(unsigned int bank_id)
 
 	panic();
 }
+
+#if defined(CFG_STM32_RIF)
+static TEE_Result acquire_rif_semaphore_if_needed(struct stm32_gpio_bank *bank,
+						  unsigned int pin)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t cidcfgr = 0;
+
+	if (!bank->rif_cfg)
+		return TEE_SUCCESS;
+
+	res = clk_enable(bank->clock);
+	if (res)
+		return res;
+
+	cidcfgr = io_read32(bank->base + GPIO_CIDCFGR(pin));
+
+	if (stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1))
+		res = stm32_rif_acquire_semaphore(bank->base + GPIO_SEMCR(pin),
+						  GPIO_MAX_CID_SUPPORTED);
+
+	clk_disable(bank->clock);
+
+	return res;
+}
+
+static uint32_t semaphore_current_cid(struct stm32_gpio_bank *bank,
+				      unsigned int pin)
+{
+	return (io_read32(bank->base + GPIO_SEMCR(pin)) >>
+		_CIDCFGR_SCID_SHIFT) &
+		GENMASK_32(GPIO_MAX_CID_SUPPORTED - 1, 0);
+}
+
+static void release_rif_semaphore_if_acquired(struct stm32_gpio_bank *bank,
+					      unsigned int pin)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t cidcfgr = 0;
+
+	if (!bank->rif_cfg)
+		return;
+
+	res = clk_enable(bank->clock);
+	if (res)
+		panic();
+
+	cidcfgr = io_read32(bank->base + GPIO_CIDCFGR(pin));
+
+	if (stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1) &&
+	    semaphore_current_cid(bank, pin) == RIF_CID1) {
+		res = stm32_rif_release_semaphore(bank->base + GPIO_SEMCR(pin),
+						  GPIO_MAX_CID_SUPPORTED);
+		if (res) {
+			EMSG("Failed to release GPIO %c%u semaphore",
+			     bank->bank_id + 'A', pin);
+			panic();
+		}
+	}
+
+	clk_disable(bank->clock);
+}
+#else
+static TEE_Result
+acquire_rif_semaphore_if_needed(struct stm32_gpio_bank *bank __unused,
+				unsigned int pin __unused)
+{
+	return TEE_SUCCESS;
+}
+
+static void
+release_rif_semaphore_if_acquired(struct stm32_gpio_bank *bank __unused,
+				  unsigned int pin __unused)
+{
+}
+#endif /*CFG_STM32_RIF*/
 
 /* Save to output @cfg the current GPIO (@bank_id/@pin) configuration */
 static void get_gpio_cfg(uint32_t bank_id, uint32_t pin, struct gpio_cfg *cfg)
@@ -619,6 +700,7 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 				    struct gpio **out_gpio)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	const char *consumer_name __maybe_unused = NULL;
 	struct stm32_gpio_pm_state *reg_state = NULL;
 	struct stm32_gpio_pm_state *state = NULL;
 	struct stm32_gpio_bank *bank = data;
@@ -629,6 +711,9 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 	uint32_t otype = 0;
 	uint32_t pupd = 0;
 	uint32_t mode = 0;
+
+	consumer_name = fdt_get_name(pargs->fdt, pargs->consumer_node,
+				     NULL);
 
 	res = gpio_dt_alloc_pin(pargs, &gpio);
 	if (res)
@@ -657,6 +742,13 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 			free(gpio);
 			return TEE_ERROR_GENERIC;
 		}
+	}
+
+	res = acquire_rif_semaphore_if_needed(bank, gpio->pin);
+	if (res) {
+		EMSG("Failed to acquire GPIO %c%u semaphore for node %s",
+		     bank->bank_id + 'A', gpio->pin, consumer_name);
+		return res;
 	}
 
 	state->gpio_pinctrl.pin = gpio->pin;
@@ -1201,8 +1293,30 @@ static TEE_Result stm32_pinctrl_conf_apply(struct pinconf *conf)
 {
 	struct stm32_pinctrl_array *ref = conf->priv;
 	struct stm32_pinctrl *p = ref->pinctrl;
+	struct stm32_gpio_bank *bank = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	size_t pin_count = ref->count;
 	size_t n = 0;
+	bool error = false;
+
+	for (n = 0; n < pin_count; n++) {
+		bank = stm32_gpio_get_bank(p[n].bank);
+		res = acquire_rif_semaphore_if_needed(bank, p[n].pin);
+		if (res) {
+			EMSG("Failed to acquire GPIO %c%u semaphore",
+			     bank->bank_id + 'A', p[n].pin);
+			error = true;
+		}
+	}
+
+	if (error) {
+		for (n = 0; n < pin_count; n++) {
+			bank = stm32_gpio_get_bank(p[n].bank);
+			release_rif_semaphore_if_acquired(bank, p[n].pin);
+		}
+
+		return TEE_ERROR_SECURITY;
+	}
 
 	for (n = 0; n < pin_count; n++)
 		set_gpio_cfg(p[n].bank, p[n].pin, &p[n].cfg);
@@ -1432,6 +1546,7 @@ static TEE_Result apply_sec_cfg(void)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct stm32_gpio_bank *bank = NULL;
+	unsigned int pin = 0;
 
 	STAILQ_FOREACH(bank, &bank_list, link) {
 		if (bank->ready)
@@ -1448,6 +1563,17 @@ static TEE_Result apply_sec_cfg(void)
 				free(bank);
 				return res;
 			}
+
+			/*
+			 * Semaphores for pinctrl and GPIO are taken when
+			 * these are used (pinctrl state applied, GPIO
+			 * consumed) or when an explicit firewall configuration
+			 * is requested through the firewall framework.
+			 * Therefore release here the taken semaphores.
+			 */
+			for (pin = 0; pin < bank->ngpios; pin++)
+				release_rif_semaphore_if_acquired(bank, pin);
+
 		} else {
 			stm32_gpio_set_conf_sec(bank);
 		}
