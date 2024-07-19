@@ -618,6 +618,7 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 				    struct gpio **out_gpio)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	struct stm32_gpio_pm_state *reg_state = NULL;
 	struct stm32_gpio_pm_state *state = NULL;
 	struct stm32_gpio_bank *bank = data;
 	struct gpio *gpio = NULL;
@@ -642,6 +643,19 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 	if (!state) {
 		free(gpio);
 		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
+	SLIST_FOREACH(reg_state, &consumed_gpios_head, link) {
+		if (reg_state->gpio_pinctrl.bank == bank->bank_id &&
+		    reg_state->gpio_pinctrl.pin == gpio->pin) {
+			EMSG("node %s: GPIO %c%u is used by another device",
+			     fdt_get_name(pargs->fdt, pargs->consumer_node,
+					  NULL),
+			     bank->bank_id + 'A', gpio->pin);
+			free(state);
+			free(gpio);
+			return TEE_ERROR_GENERIC;
+		}
 	}
 
 	state->gpio_pinctrl.pin = gpio->pin;
