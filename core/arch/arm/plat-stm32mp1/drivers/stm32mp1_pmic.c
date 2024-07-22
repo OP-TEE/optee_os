@@ -542,8 +542,10 @@ static TEE_Result release_voltage_lists(void)
 	for (n = 0; n < ARRAY_SIZE(pmic_regulators); n++) {
 		struct pmic_regulator_data *priv = pmic_regulators[n].priv;
 
-		if (priv && priv->voltages_level)
+		if (priv && priv->voltages_level) {
 			free(priv->voltages_level);
+			priv->voltages_level = NULL;
+		}
 	}
 
 	return TEE_SUCCESS;
