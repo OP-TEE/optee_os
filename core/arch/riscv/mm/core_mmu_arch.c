@@ -526,6 +526,7 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 	struct mmu_pte *pte = NULL;
 	struct mmu_partition *prtn = core_mmu_get_prtn();
 	unsigned long ptp = 0;
+	paddr_t pgt_pa = 0;
 
 	if (!core_mmu_level_in_range(tbl_info->level))
 		return false;
@@ -538,7 +539,12 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 		if (!pgt)
 			return false;
 
-		ptp = core_mmu_ptp_create(pa_to_ppn((paddr_t)pgt));
+		if (cpu_mmu_enabled())
+			pgt_pa = virt_to_phys(pgt);
+		else
+			pgt_pa = (paddr_t)pgt;
+
+		ptp = core_mmu_ptp_create(pa_to_ppn(pgt_pa));
 		core_mmu_entry_set(pte, ptp);
 	}
 
