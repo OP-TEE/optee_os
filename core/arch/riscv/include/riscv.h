@@ -155,6 +155,29 @@ static inline __noprof void wfi(void)
 	asm volatile ("wfi");
 }
 
+static inline __noprof void riscv_cpu_pause(void)
+{
+	unsigned long dummy = 0;
+
+	/*
+	 * Use a divide instruction to force wait
+	 * for multiple CPU cycles.
+	 * Note: RISC-V does not raise an exception
+	 * on divide by zero.
+	 */
+	asm volatile ("div %0, %0, zero" : "=r" (dummy));
+
+	/*
+	 * Use the encoding of the 'pause' instruction,
+	 * thus no need to verify toolchain support for
+	 * zihintpause.
+	 * On hardware platforms that do not implement
+	 * this extension, it will simply serve as a no-op.
+	 */
+	asm volatile (".4byte 0x100000f"); /* pause */
+	barrier();
+}
+
 static inline __noprof void flush_tlb(void)
 {
 	asm volatile("sfence.vma zero, zero");
