@@ -898,6 +898,21 @@ ffa_handle_sp_direct_req(struct thread_smc_args *args,
 		return caller_sp;
 	}
 
+	if (caller_sp &&
+	    !(caller_sp->props & FFA_PART_PROP_DIRECT_REQ_SEND)) {
+		EMSG("SP 0x%"PRIx16" doesn't support sending direct requests",
+		     caller_sp->endpoint_id);
+		ffa_set_error(args, FFA_NOT_SUPPORTED);
+		return caller_sp;
+	}
+
+	if (!(dst->props & FFA_PART_PROP_DIRECT_REQ_RECV)) {
+		EMSG("SP 0x%"PRIx16" doesn't support receipt of direct requests",
+		     dst->endpoint_id);
+		ffa_set_error(args, FFA_NOT_SUPPORTED);
+		return caller_sp;
+	}
+
 	cpu_spin_lock(&dst->spinlock);
 	if (dst->state != sp_idle) {
 		DMSG("SP is busy");

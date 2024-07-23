@@ -523,6 +523,12 @@ TEE_Result spmc_fill_partition_entry(uint32_t ffa_vers, void *buf, size_t blen,
 
 	fpi->partition_properties = part_props;
 
+	/* In FF-A 1.0 only bits [2:0] are defined, let's mask others */
+	if (ffa_vers < FFA_VERSION_1_1)
+		fpi->partition_properties &= FFA_PART_PROP_DIRECT_REQ_RECV |
+					     FFA_PART_PROP_DIRECT_REQ_SEND |
+					     FFA_PART_PROP_INDIRECT_MSGS;
+
 	if (ffa_vers >= FFA_VERSION_1_1) {
 		if (uuid_words)
 			memcpy(fpi->uuid, uuid_words, FFA_UUID_SIZE);

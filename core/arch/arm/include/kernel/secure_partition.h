@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2020-2023, Arm Limited.
+ * Copyright (c) 2020-2024, Arm Limited.
  */
 #ifndef __KERNEL_SECURE_PARTITION_H
 #define __KERNEL_SECURE_PARTITION_H
@@ -33,6 +33,7 @@ struct sp_session {
 	TEE_UUID ffa_uuid;
 	uint32_t ns_int_mode;
 	uint32_t ns_int_mode_inherited;
+	uint32_t props;
 	TAILQ_ENTRY(sp_session) link;
 };
 
