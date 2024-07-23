@@ -4,46 +4,70 @@
  */
 
 #include <crypto/crypto.h>
+#include <encoding.h>
+#include <kernel/delay.h>
 #include <kernel/panic.h>
 #include <riscv.h>
 #include <rng_support.h>
 #include <tee/tee_cryp_utl.h>
 
-#define OPST_BIST 0b00
-#define OPST_WAIT 0b01
-#define OPST_ES16 0b10
-#define OPST_DEAD 0b11
+#define RNG_TIMEOUT_US	1000000
+
+static bool __must_check seed_get_random_u16(uint16_t *val)
+{
+	uint64_t timeout = timeout_init_us(RNG_TIMEOUT_US);
+	uint32_t seed = 0;
+	uint32_t opst = 0;
+
+	do {
+		/*
+		 * The seed register must be accessed using CSR
+		 * read-write instructions. The write operation
+		 * is ignored and serves to indicate polling and
+		 * flushing.
+		 */
+		seed = swap_csr(CSR_SEED, 0);
+		opst = seed & SEED_OPST;
+
+		switch (opst) {
+		case SEED_OPST_ES16:
+			*val = seed & SEED_ENTROPY;
+			return true;
+		case SEED_OPST_DEAD:
+			/* Unrecoverable self-test error */
+			return false;
+		case SEED_OPST_BIST:
+		case SEED_OPST_WAIT:
+		default:
+			riscv_cpu_pause();
+		}
+	} while (!timeout_elapsed(timeout));
+
+	/* Consider timeout case due to normal world scheduler */
+	seed = swap_csr(CSR_SEED, 0);
+	if ((seed & SEED_OPST) == SEED_OPST_ES16) {
+		*val = seed & SEED_ENTROPY;
+		return true;
+	}
+
+	EMSG("Failed to produce a sufficient amount of entropy");
+
+	return false;
+}
 
 TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
 	uint8_t *ptr = buf;
-	uint32_t val = 0;
+	uint16_t seed = 0;
 
 	while (len > 0) {
-		/*
-		 * The seed register must be accessed using CSR read-write
-		 * instructions. The write operation is ignored and serves
-		 * to indicate polling and flushing.
-		 */
-		val = swap_csr(CSR_SEED, val);
-
-		switch (val >> 30) {
-		case OPST_BIST:
-		case OPST_WAIT:
-			continue;
-		case OPST_ES16:
-			*ptr++ = val & 0xff;
+		if (!seed_get_random_u16(&seed))
+			return TEE_ERROR_ACCESS_DENIED;
+		*ptr++ = seed & 0xff;
+		len--;
+		if (len > 0) {
+			*ptr++ = seed >> 8;
 			len--;
-			if (len > 0) {
-				*ptr++ = val >> 8;
-				len--;
-			}
-			break;
-		case OPST_DEAD:
-			/* Unrecoverable self-test error */
-			return TEE_ERROR_BAD_STATE;
-		default:
-			break; /* can't happen */
 		}
 	}
 
