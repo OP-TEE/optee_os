@@ -53,6 +53,13 @@
 #define SP_MANIFEST_NS_INT_MANAGED_EXIT	(0x1)
 #define SP_MANIFEST_NS_INT_SIGNALED	(0x2)
 
+#define SP_MANIFEST_EXEC_STATE_AARCH64	(0x0)
+#define SP_MANIFEST_EXEC_STATE_AARCH32	(0x1)
+
+#define SP_MANIFEST_DIRECT_REQ_RECEIVE	BIT(0)
+#define SP_MANIFEST_DIRECT_REQ_SEND	BIT(1)
+#define SP_MANIFEST_INDIRECT_REQ	BIT(2)
+
 #define SP_PKG_HEADER_MAGIC (0x474b5053)
 #define SP_PKG_HEADER_VERSION_V1 (0x1)
 #define SP_PKG_HEADER_VERSION_V2 (0x2)
@@ -119,8 +126,6 @@ TEE_Result sp_partition_info_get(uint32_t ffa_vers, void *buf, size_t buf_size,
 				 bool count_only)
 {
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t part_props = FFA_PART_PROP_DIRECT_REQ_RECV |
-			      FFA_PART_PROP_DIRECT_REQ_SEND;
 	struct sp_session *s = NULL;
 
 	TAILQ_FOREACH(s, &open_sp_sessions, link) {
@@ -137,7 +142,7 @@ TEE_Result sp_partition_info_get(uint32_t ffa_vers, void *buf, size_t buf_size,
 			res = spmc_fill_partition_entry(ffa_vers, buf, buf_size,
 							*elem_count,
 							s->endpoint_id, 1,
-							part_props, uuid_words);
+							s->props, uuid_words);
 		}
 		*elem_count += 1;
 	}
@@ -256,6 +261,9 @@ static TEE_Result sp_create_session(struct sp_sessions_head *open_sessions,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	s->boot_order = boot_order;
+
+	/* Other properties are filled later, based on the SP's manifest */
+	s->props = FFA_PART_PROP_IS_PE_ID;
 
 	res = new_session_id(&s->endpoint_id);
 	if (res)
@@ -1432,6 +1440,51 @@ static TEE_Result read_ffa_version(const void *fdt, struct sp_session *s)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result read_sp_exec_state(const void *fdt, struct sp_session *s)
+{
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	uint32_t exec_state = 0;
+
+	res = sp_dt_get_u32(fdt, 0, "execution-state", &exec_state);
+	if (res) {
+		EMSG("Mandatory property is missing: execution-state");
+		return res;
+	}
+
+	/* Currently only AArch64 SPs are supported */
+	if (exec_state == SP_MANIFEST_EXEC_STATE_AARCH64) {
+		s->props |= FFA_PART_PROP_AARCH64_STATE;
+	} else {
+		EMSG("Invalid execution-state value: %"PRIu32, exec_state);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result read_sp_msg_types(const void *fdt, struct sp_session *s)
+{
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	uint32_t msg_method = 0;
+
+	res = sp_dt_get_u32(fdt, 0, "messaging-method", &msg_method);
+	if (res) {
+		EMSG("Mandatory property is missing: messaging-method");
+		return res;
+	}
+
+	if (msg_method & SP_MANIFEST_DIRECT_REQ_RECEIVE)
+		s->props |= FFA_PART_PROP_DIRECT_REQ_RECV;
+
+	if (msg_method & SP_MANIFEST_DIRECT_REQ_SEND)
+		s->props |= FFA_PART_PROP_DIRECT_REQ_SEND;
+
+	if (msg_method & SP_MANIFEST_INDIRECT_REQ)
+		IMSG("Indirect messaging is not supported");
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -1472,6 +1525,14 @@ static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 		return res;
 
 	res = read_ffa_version(fdt, sess);
+	if (res)
+		return res;
+
+	res = read_sp_exec_state(fdt, sess);
+	if (res)
+		return res;
+
+	res = read_sp_msg_types(fdt, sess);
 	if (res)
 		return res;
 
