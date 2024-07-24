@@ -8,9 +8,26 @@
 
 #ifndef __ASSEMBLER__
 #include <compiler.h>
-#include <riscv.h>
 #include <types_ext.h>
 #endif
+
+#include <platform_config.h>
+#include <riscv.h>
+
+#ifdef PLAT_THREAD_EXCP_FOREIGN_INTR
+#define THREAD_EXCP_FOREIGN_INTR	PLAT_THREAD_EXCP_FOREIGN_INTR
+#else
+#define THREAD_EXCP_FOREIGN_INTR	(CSR_XIE_EIE)
+#endif
+
+#ifdef PLAT_THREAD_EXCP_NATIVE_INTR
+#define THREAD_EXCP_NATIVE_INTR		PLAT_THREAD_EXCP_NATIVE_INTR
+#else
+#define THREAD_EXCP_NATIVE_INTR		(CSR_XIE_SIE | CSR_XIE_TIE)
+#endif
+
+#define THREAD_EXCP_ALL			(THREAD_EXCP_FOREIGN_INTR |\
+					 THREAD_EXCP_NATIVE_INTR)
 
 #ifndef __ASSEMBLER__
 
@@ -153,20 +170,6 @@ struct thread_ctx_regs {
 };
 
 struct user_mode_ctx;
-
-/*
- * These flags should vary according to the privilege mode selected
- * to run OP-TEE core on (M/HS/S). For now default to S-Mode.
- */
-
-#define CSR_XIE_SIE	BIT64(IRQ_XSOFT)
-#define CSR_XIE_TIE	BIT64(IRQ_XTIMER)
-#define CSR_XIE_EIE	BIT64(IRQ_XEXT)
-
-#define THREAD_EXCP_FOREIGN_INTR	CSR_XIE_EIE
-#define THREAD_EXCP_NATIVE_INTR	        (CSR_XIE_SIE | CSR_XIE_TIE)
-#define THREAD_EXCP_ALL			(THREAD_EXCP_FOREIGN_INTR |\
-					 THREAD_EXCP_NATIVE_INTR)
 
 #ifdef CFG_WITH_VFP
 uint32_t thread_kernel_enable_vfp(void);
