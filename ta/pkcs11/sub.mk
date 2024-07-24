@@ -13,6 +13,11 @@ CFG_PKCS11_TA_TOKEN_COUNT ?= 3
 # When enabled, embed support for object checksum value computation
 CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE ?= y
 
+# When enabled, embed support for CKM_RSA_X_509 (a.k.a. Raw RSA) ciphering
+# and authentication. The feature can be needed for some TLS v1.2 connections.
+# Raw RSA can be unsafe if client uses a weak clear data padding scheme.
+CFG_PKCS11_TA_RSA_X_509 ?= y
+
 global-incdirs-y += include
 global-incdirs-y += src
 subdirs-y += src

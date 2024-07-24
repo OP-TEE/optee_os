@@ -283,4 +283,6 @@ enum pkcs11_rc pkcs2tee_algo_ecdh(uint32_t *tee_id,
 				  struct pkcs11_attribute_head *proc_params,
 				  struct pkcs11_object *obj);
 
+enum pkcs11_rc pkcs2tee_rsa_nopad_context(struct active_processing *proc);
+
 #endif /*PKCS11_TA_PROCESSING_H*/
