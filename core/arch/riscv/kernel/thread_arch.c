@@ -109,8 +109,8 @@ static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 	regs->sp = (uintptr_t)(regs + 1);
 }
 
-static void thread_unhandled_trap(unsigned long cause __unused,
-				  struct thread_ctx_regs *regs __unused)
+static void thread_unhandled_trap(struct thread_ctx_regs *regs __unused,
+				  unsigned long cause __unused)
 {
 	DMSG("Unhandled trap xepc:0x%016lx xcause:0x%016lx xtval:0x%016lx",
 	     read_csr(CSR_XEPC), read_csr(CSR_XCAUSE), read_csr(CSR_XTVAL));
@@ -148,20 +148,21 @@ static void thread_irq_handler(void)
 	interrupt_main_handler();
 }
 
-void thread_interrupt_handler(unsigned long cause, struct thread_ctx_regs *regs)
+void thread_native_interrupt_handler(struct thread_ctx_regs *regs,
+				     unsigned long cause)
 {
 	switch (cause & LONG_MAX) {
 	case IRQ_XTIMER:
 		clear_csr(CSR_XIE, CSR_XIE_TIE);
 		break;
 	case IRQ_XSOFT:
-		thread_unhandled_trap(cause, regs);
+		thread_unhandled_trap(regs, cause);
 		break;
 	case IRQ_XEXT:
 		thread_irq_handler();
 		break;
 	default:
-		thread_unhandled_trap(cause, regs);
+		thread_unhandled_trap(regs, cause);
 	}
 }
 

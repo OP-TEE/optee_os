@@ -88,12 +88,11 @@ interrupt_from_kernel:
 	store_xregs sp, THREAD_CTX_REG_EPC, REG_T0
 
 	/*
-	 * a0 = cause
-	 * a1 = sp
-	 * Call thread_interrupt_handler(cause, regs)
+	 * a0 = struct thread_ctx_regs *regs
+	 * a1 = cause
 	 */
-	csrr	a0, CSR_XCAUSE
-	mv	a1, sp
+	mv	a0, sp
+	csrr	a1, CSR_XCAUSE
 	/* Load tmp_stack_va_end as current sp. */
 	load_xregs tp, THREAD_CORE_LOCAL_TMP_STACK_VA_END, REG_SP
 	call	thread_interrupt_handler
@@ -283,12 +282,11 @@ interrupt_from_user:
 	store_xregs sp, THREAD_CTX_REG_EPC, REG_T0
 
 	/*
-	 * a0 = cause
-	 * a1 = sp
-	 * Call thread_interrupt_handler(cause, regs)
+	 * a0 = struct thread_ctx_regs *regs
+	 * a1 = cause
 	 */
-	csrr	a0, CSR_XCAUSE
-	mv	a1, sp
+	mv	a0, sp
+	csrr	a1, CSR_XCAUSE
 	/* Load tmp_stack_va_end as current sp. */
 	load_xregs tp, THREAD_CORE_LOCAL_TMP_STACK_VA_END, REG_SP
 	call	thread_interrupt_handler
