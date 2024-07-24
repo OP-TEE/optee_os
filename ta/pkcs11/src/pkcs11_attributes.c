@@ -2082,6 +2082,7 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 	case PKCS11_CKM_RSA_AES_KEY_WRAP:
 	case PKCS11_CKM_RSA_PKCS_OAEP:
 	case PKCS11_CKM_RSA_PKCS_PSS:
+	case PKCS11_CKM_RSA_X_509:
 	case PKCS11_CKM_SHA1_RSA_PKCS_PSS:
 	case PKCS11_CKM_SHA224_RSA_PKCS_PSS:
 	case PKCS11_CKM_SHA256_RSA_PKCS_PSS:
