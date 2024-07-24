@@ -125,12 +125,23 @@ foreign_interrupt_from_kernel:
 	tail	thread_foreign_interrupt_handler
 
 native_interrupt_from_kernel:
+	/* Update 32-bit core local flags */
+	lw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+	slli	a2, a2, THREAD_CLF_SAVED_SHIFT
+	ori	a2, a2, (THREAD_CLF_TMP | THREAD_CLF_IRQ)
+	sw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+
 	/*
 	 * a0 = struct thread_ctx_regs *regs
 	 * a1 = cause
 	 * Call thread_native_interrupt_handler(regs, cause)
 	 */
 	call	thread_native_interrupt_handler
+
+	/* Update 32-bit core local flags */
+	lw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+	srli	a2, a2, THREAD_CLF_SAVED_SHIFT
+	sw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
 
 	/* Get thread context as sp */
 	get_thread_ctx sp, t0
@@ -351,12 +362,23 @@ foreign_interrupt_from_user:
 	tail	thread_foreign_interrupt_handler
 
 native_interrupt_from_user:
+	/* Update 32-bit core local flags */
+	lw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+	slli	a2, a2, THREAD_CLF_SAVED_SHIFT
+	ori	a2, a2, (THREAD_CLF_TMP | THREAD_CLF_IRQ)
+	sw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+
 	/*
 	 * a0 = struct thread_ctx_regs *regs
 	 * a1 = cause
 	 * Call thread_native_interrupt_handler(regs, cause)
 	 */
 	call	thread_native_interrupt_handler
+
+	/* Update 32-bit core local flags */
+	lw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+	srli	a2, a2, THREAD_CLF_SAVED_SHIFT
+	sw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
 
 	/* Get thread context as sp */
 	get_thread_ctx sp, t0
