@@ -98,7 +98,39 @@ interrupt_from_kernel:
 	csrr	a1, CSR_XCAUSE
 	/* Load tmp_stack_va_end as current sp. */
 	load_xregs tp, THREAD_CORE_LOCAL_TMP_STACK_VA_END, REG_SP
-	call	thread_interrupt_handler
+
+	/*
+	 * Get interrupt code from XCAUSE and build XIP. For example, if the
+	 * value of XCAUSE is 0x8000000000000005 (supervisor timer interrupt),
+	 * we build 0x20, which is (1 << 5) and indicates the sip.STIP signal.
+	 */
+	li	a2, CSR_XCAUSE_INTR_FLAG
+	sub	a2, a1, a2
+	li	a3, 1
+	sll	a3, a3, a2
+	/*
+	 * Compare built XIP with THREAD_EXCP_FOREIGN_INTR. If XIP is one of
+	 * THREAD_EXCP_FOREIGN_INTR, we call thread_foreign_interrupt_handler().
+	 */
+	li	a2, THREAD_EXCP_FOREIGN_INTR
+	and	a2, a3, a2
+	beqz	a2, native_interrupt_from_kernel
+
+foreign_interrupt_from_kernel:
+	/*
+	 * a0 = struct thread_ctx_regs *regs
+	 * Tail call thread_foreign_interrupt_handler(regs) since we will not
+	 * return to here.
+	 */
+	tail	thread_foreign_interrupt_handler
+
+native_interrupt_from_kernel:
+	/*
+	 * a0 = struct thread_ctx_regs *regs
+	 * a1 = cause
+	 * Call thread_native_interrupt_handler(regs, cause)
+	 */
+	call	thread_native_interrupt_handler
 
 	/* Get thread context as sp */
 	get_thread_ctx sp, t0
@@ -292,7 +324,39 @@ interrupt_from_user:
 	csrr	a1, CSR_XCAUSE
 	/* Load tmp_stack_va_end as current sp. */
 	load_xregs tp, THREAD_CORE_LOCAL_TMP_STACK_VA_END, REG_SP
-	call	thread_interrupt_handler
+
+	/*
+	 * Get interrupt code from XCAUSE and build XIP. For example, if the
+	 * value of XCAUSE is 0x8000000000000005 (supervisor timer interrupt),
+	 * we build 0x20, which is (1 << 5) and indicates the sip.STIP signal.
+	 */
+	li	a2, CSR_XCAUSE_INTR_FLAG
+	sub	a2, a1, a2
+	li	a3, 1
+	sll	a3, a3, a2
+	/*
+	 * Compare built XIP with THREAD_EXCP_FOREIGN_INTR. If XIP is one of
+	 * THREAD_EXCP_FOREIGN_INTR, call thread_foreign_interrupt_handler().
+	 */
+	li	a2, THREAD_EXCP_FOREIGN_INTR
+	and	a2, a3, a2
+	beqz	a2, native_interrupt_from_user
+
+foreign_interrupt_from_user:
+	/*
+	 * a0 = struct thread_ctx_regs *regs
+	 * Tail call thread_foreign_interrupt_handler(regs) since we will not
+	 * return to here.
+	 */
+	tail	thread_foreign_interrupt_handler
+
+native_interrupt_from_user:
+	/*
+	 * a0 = struct thread_ctx_regs *regs
+	 * a1 = cause
+	 * Call thread_native_interrupt_handler(regs, cause)
+	 */
+	call	thread_native_interrupt_handler
 
 	/* Get thread context as sp */
 	get_thread_ctx sp, t0
