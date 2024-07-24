@@ -69,6 +69,8 @@
 #define CSR_XSTATUS_SUM		BIT(18)
 #define CSR_XSTATUS_MXR		BIT(19)
 
+#define CSR_XCAUSE_INTR_FLAG	BIT64(__riscv_xlen - 1)
+
 #ifndef __ASSEMBLER__
 
 #define read_csr(csr)							\
