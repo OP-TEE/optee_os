@@ -9,6 +9,7 @@
 #define PLATFORM_CONFIG_H
 
 #include <mm/generic_ram_layout.h>
+#include <riscv.h>
 
 /* The stack pointer is always kept 16-byte aligned */
 #define STACK_ALIGNMENT		16
@@ -91,5 +92,9 @@
 #else
 #define RISCV_MTIME_RATE 1000000
 #endif
+
+#define PLAT_THREAD_EXCP_FOREIGN_INTR	\
+	(CSR_XIE_EIE | CSR_XIE_TIE | CSR_XIE_SIE)
+#define PLAT_THREAD_EXCP_NATIVE_INTR	(0)
 
 #endif /*PLATFORM_CONFIG_H*/
