@@ -167,7 +167,7 @@ TEE_Result stm32_rif_release_semaphore(vaddr_t addr,
 
 /*
  * The action to take upon an access violation depends on the platform.
- * Therefore, it should be defined at platform level
+ * Therefore, it should be defined at platform level.
  */
 void stm32_rif_access_violation_action(void);
 #else
