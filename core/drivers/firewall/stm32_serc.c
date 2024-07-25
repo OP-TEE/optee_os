@@ -68,9 +68,9 @@ struct serc_driver_data {
 /**
  * struct stm32_serc_platdata - Platform data for the SERC driver
  *
- * @irq_chip: Reference to the main IRQ chip of the platform
- * @base: Base address of the SERC peripheral
+ * @irq_chip: Reference to the SERC's IRQ chip
  * @clock: Reference on the SERC clock
+ * @base: Base address of the SERC peripheral
  * @irq: ID of the SERC interrupt
  */
 struct stm32_serc_platdata {
@@ -80,6 +80,12 @@ struct stm32_serc_platdata {
 	size_t irq;
 };
 
+/**
+ * struct serc_device - SERC device private data
+ * @pdata: Platform data read from the DT
+ * @ddata: Device data read from the hardware
+ * @itr: Interrupt handler reference
+ */
 struct serc_device {
 	struct stm32_serc_platdata pdata;
 	struct serc_driver_data *ddata;
@@ -116,65 +122,59 @@ static TEE_Result stm32_serc_parse_fdt(const void *fdt, int node)
 	struct io_pa_va base = { };
 
 	fdt_fill_device_info(fdt, &dt_info, node);
-	if (dt_info.status == DT_STATUS_DISABLED ||
-	    dt_info.reg == DT_INFO_INVALID_REG)
+	if (dt_info.reg == DT_INFO_INVALID_REG)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	pdata->irq_chip = interrupt_get_main_chip();
 	res = interrupt_dt_get(fdt, node, &pdata->irq_chip, &pdata->irq);
 	if (res)
 		return res;
 
 	base.pa = dt_info.reg;
-	pdata->base = io_pa_or_va_secure(&base, 1);
+	pdata->base = io_pa_or_va_secure(&base, dt_info.reg_size);
 
 	return clk_dt_get_by_index(fdt, node, 0, &pdata->clock);
 }
 
 static void stm32_serc_handle_ilac(void)
 {
-	struct serc_driver_data *ddata = serc_dev.ddata;
 	struct stm32_serc_platdata *pdata = &serc_dev.pdata;
+	struct serc_driver_data *ddata = serc_dev.ddata;
+	unsigned int nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
 	vaddr_t base = pdata->base;
-	int nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
-	bool do_panic = false;
 	uint32_t isr = 0;
 	uint32_t i = 0;
 
-	for (i = 0; i < (unsigned int)nreg; i++) {
+	for (i = 0; i < nreg; i++) {
 		uint32_t offset = sizeof(uint32_t) * i;
-		uint8_t tries = 0;
+		uint8_t j = 0;
 
 		isr = io_read32(base + _SERC_ISR0 + offset);
 		isr &= io_read32(base + _SERC_IER0 + offset);
 
-		if (isr) {
-			do_panic = true;
+		if (!isr)
+			continue;
 
-			EMSG("SERC exceptions [%d:%d]: %#"PRIx32,
-			     SERC_EXCEPT_MSB_BIT(i), SERC_EXCEPT_LSB_BIT(i),
-			     isr);
-		}
+		EMSG("SERC exceptions [%d:%d]: %#"PRIx32,
+		     SERC_EXCEPT_MSB_BIT(i), SERC_EXCEPT_LSB_BIT(i), isr);
 
-		while (isr && tries < _PERIPH_IDS_PER_REG) {
+		for (j = 0; j < _PERIPH_IDS_PER_REG; j++) {
 			EMSG("SERC exception ID: %d",
 			     SERC_EXCEPT_LSB_BIT(i) + __builtin_ffs(isr) - 1);
 
 			io_write32(base + _SERC_ICR0 + offset,
-				   1 << (__builtin_ffs(isr) - 1));
+				   BIT(__builtin_ffs(isr) - 1));
 
 			isr = io_read32(base + _SERC_ISR0 + offset);
 			isr &= io_read32(base + _SERC_IER0 + offset);
 
-			tries++;
+			if (!isr)
+				break;
 		}
 	}
 
-	if (do_panic) {
-		stm32_rif_access_violation_action();
-		if (IS_ENABLED(CFG_STM32_PANIC_ON_SERC_EVENT))
-			panic();
-	}
+	stm32_rif_access_violation_action();
+	if (IS_ENABLED(CFG_STM32_PANIC_ON_SERC_EVENT))
+		panic();
 }
 
 static enum itr_return stm32_serc_itr(struct itr_handler *h __unused)
@@ -212,7 +212,7 @@ static TEE_Result probe_serc_device(const void *fdt, int node)
 	if (res)
 		return res;
 
-	/* Asymmetric clock enable to have the SERC running */
+	/* Unbalanced clock enable to have the SERC running */
 	if (clk_enable(serc_dev.pdata.clock))
 		panic();
 
@@ -250,14 +250,6 @@ static TEE_Result stm32_serc_pm(enum pm_op op, unsigned int pm_hint,
 	return TEE_SUCCESS;
 }
 
-static void stm32_serc_free(void)
-{
-	if (serc_dev.itr)
-		interrupt_remove_free_handler(serc_dev.itr);
-
-	free(serc_dev.ddata);
-}
-
 static TEE_Result stm32_serc_probe(const void *fdt, int node,
 				   const void *compat_data __unused)
 {
@@ -269,7 +261,7 @@ static TEE_Result stm32_serc_probe(const void *fdt, int node,
 
 	res = probe_serc_device(fdt, node);
 	if (res) {
-		stm32_serc_free();
+		free(serc_dev.ddata);
 		return res;
 	}
 
