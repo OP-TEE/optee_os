@@ -88,6 +88,12 @@ struct stm32_iac_platdata {
 	size_t irq;
 };
 
+/**
+ * struct iac_device - IAC device private data
+ * @pdata: Platform data read from the DT
+ * @ddata: Device data read from the hardware
+ * @itr: Interrupt handler reference
+ */
 struct iac_device {
 	struct stm32_iac_platdata pdata;
 	struct iac_driver_data *ddata;
@@ -122,17 +128,15 @@ static TEE_Result stm32_iac_parse_fdt(const void *fdt, int node)
 	struct io_pa_va base = { };
 
 	fdt_fill_device_info(fdt, &dt_info, node);
-	if (dt_info.status == DT_STATUS_DISABLED ||
-	    dt_info.reg == DT_INFO_INVALID_REG)
+	if (dt_info.reg == DT_INFO_INVALID_REG)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	pdata->irq_chip = interrupt_get_main_chip();
 	res = interrupt_dt_get(fdt, node, &pdata->irq_chip, &pdata->irq);
 	if (res)
 		return res;
 
 	base.pa = dt_info.reg;
-	pdata->base = io_pa_or_va_secure(&base, 1);
+	pdata->base = io_pa_or_va_secure(&base, dt_info.reg_size);
 
 	return TEE_SUCCESS;
 }
@@ -148,7 +152,7 @@ static enum itr_return stm32_iac_itr(struct itr_handler *h __unused)
 
 	for (i = 0; i < nreg; i++) {
 		uint32_t offset = sizeof(uint32_t) * i;
-		uint8_t tries = 0;
+		uint8_t j = 0;
 
 		isr = io_read32(base + _IAC_ISR0 + offset);
 		isr &= io_read32(base + _IAC_IER0 + offset);
@@ -156,13 +160,10 @@ static enum itr_return stm32_iac_itr(struct itr_handler *h __unused)
 		if (!isr)
 			continue;
 
-		if (isr) {
-			do_panic = true;
-			EMSG("IAC exceptions [%d:%d]: %#"PRIx32,
-			     IAC_EXCEPT_MSB_BIT(i), IAC_EXCEPT_LSB_BIT(i), isr);
-		}
+		EMSG("IAC exceptions [%d:%d]: %#"PRIx32, IAC_EXCEPT_MSB_BIT(i),
+		     IAC_EXCEPT_LSB_BIT(i), isr);
 
-		while (isr && tries < _PERIPH_IDS_PER_REG) {
+		for (j = 0; j < _PERIPH_IDS_PER_REG; j++) {
 			EMSG("IAC exception ID: %d", IAC_ILAC_ID(isr, i));
 
 			io_write32(base + _IAC_ICR0 + offset,
@@ -171,7 +172,8 @@ static enum itr_return stm32_iac_itr(struct itr_handler *h __unused)
 			isr = io_read32(base + _IAC_ISR0 + offset);
 			isr &= io_read32(base + _IAC_IER0 + offset);
 
-			tries++;
+			if (!isr)
+				break;
 		}
 	}
 
@@ -188,8 +190,8 @@ static void stm32_iac_setup(void)
 {
 	struct iac_driver_data *ddata = iac_dev.ddata;
 	vaddr_t base = iac_dev.pdata.base;
-	int nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
-	int i = 0;
+	unsigned int nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
+	unsigned int i = 0;
 
 	for (i = 0; i < nreg; i++) {
 		vaddr_t reg_ofst = base + sizeof(uint32_t) * i;
@@ -210,7 +212,7 @@ static TEE_Result probe_iac_device(const void *fdt, int node)
 	if (res)
 		return res;
 
-	/* IAC must be manage by the trusted domain CID */
+	/* IAC must be managed by the trusted domain CID */
 	if (!is_tdcid)
 		return TEE_ERROR_ACCESS_DENIED;
 
@@ -233,14 +235,6 @@ static TEE_Result probe_iac_device(const void *fdt, int node)
 	return TEE_SUCCESS;
 }
 
-static void stm32_iac_free(void)
-{
-	if (iac_dev.itr)
-		interrupt_remove_free_handler(iac_dev.itr);
-
-	free(iac_dev.ddata);
-}
-
 static TEE_Result stm32_iac_probe(const void *fdt, int node,
 				  const void *compat_data __unused)
 {
@@ -252,7 +246,7 @@ static TEE_Result stm32_iac_probe(const void *fdt, int node,
 
 	res = probe_iac_device(fdt, node);
 	if (res)
-		stm32_iac_free();
+		free(iac_dev.ddata);
 
 	return res;
 }
