@@ -467,8 +467,42 @@ END_FUNC thread_unwind_user_mode
 	push	{r0-r3, r12, lr}
 	.endif
 
+	/*
+	 * Use SP_abt to update core local flags.
+	 * flags = (flags << THREAD_CLF_SAVED_SHIFT) | THREAD_CLF_TMP |
+	 *         THREAD_CLF_{FIQ|IRQ};
+	 */
+	cps     #CPSR_MODE_ABT
+	ldr     r1, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	lsl     r1, r1, #THREAD_CLF_SAVED_SHIFT
+	.ifc    \mode\(),fiq
+	orr     r1, r1, #(THREAD_CLF_TMP | THREAD_CLF_FIQ)
+	.else
+	orr     r1, r1, #(THREAD_CLF_TMP | THREAD_CLF_IRQ)
+	.endif
+	str     r1, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	.ifc    \mode\(),fiq
+	cps     #CPSR_MODE_FIQ
+	.else
+	cps     #CPSR_MODE_IRQ
+	.endif
+
 	bl	thread_check_canaries
 	bl	interrupt_main_handler
+
+	/*
+	 * Use SP_abt to update core local flags.
+	 * flags >>= THREAD_CLF_SAVED_SHIFT;
+	 */
+	cps     #CPSR_MODE_ABT
+	ldr     r1, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	lsr     r1, r1, #THREAD_CLF_SAVED_SHIFT
+	str     r1, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	.ifc    \mode\(),fiq
+	cps     #CPSR_MODE_FIQ
+	.else
+	cps     #CPSR_MODE_IRQ
+	.endif
 
 	mrs	r0, spsr
 	cmp_spsr_user_mode r0
