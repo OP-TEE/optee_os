@@ -20,6 +20,7 @@
  * PM_HINT_POWER_STATE - When set device power shall be suspended/restored
  * PM_HINT_IO_STATE - When set IO pins shall be suspended/restored
  * PM_HINT_CONTEXT_STATE - When set the full context be suspended/restored
+ * PM_HINT_SUSPEND_TYPE - Contains the type of suspend operation
  * PM_HINT_PLATFORM_STATE_MASK - Bit mask reserved for platform specific hints
  * PM_HINT_PLATFORM_STATE_SHIFT - LSBit position of platform specific hints mask
  */
@@ -27,8 +28,18 @@
 #define PM_HINT_POWER_STATE		BIT(1)
 #define PM_HINT_IO_STATE		BIT(2)
 #define PM_HINT_CONTEXT_STATE		BIT(3)
+#define PM_HINT_SUSPEND_TYPE_MASK       GENMASK_32(5, 4)
+#define PM_HINT_SUSPEND_TYPE_SHIFT      U(4)
 #define PM_HINT_PLATFORM_STATE_MASK	GENMASK_32(31, 16)
 #define PM_HINT_PLATFORM_STATE_SHIFT	U(16)
+
+enum pm_suspend_type {
+	PM_SUSPEND_STANDBY,
+	PM_SUSPEND_TO_MEM,
+};
+
+#define PM_HINT_SUSPEND_TYPE(__hint) \
+	(((__hint) & PM_HINT_SUSPEND_TYPE_MASK) >> PM_HINT_SUSPEND_TYPE_SHIFT)
 
 #define PM_HINT_STATE(_x)		((_x) & ~PM_HINT_PLATFORM_STATE_MASK)
 #define PM_HINT_PLATFORM_STATE(_x) \
