@@ -280,6 +280,21 @@ static TEE_Result at91_write_backup_data(void)
 	return TEE_SUCCESS;
 }
 
+static void at91_pm_change_state(enum pm_op op)
+{
+	int type = 0;
+	uint32_t hint = 0;
+
+	if (soc_pm.mode == AT91_PM_STANDBY)
+		type = PM_SUSPEND_STANDBY;
+	else
+		type = PM_SUSPEND_TO_MEM;
+
+	hint = SHIFT_U32(type, PM_HINT_SUSPEND_TYPE_SHIFT);
+
+	pm_change_state(op, hint);
+}
+
 static TEE_Result at91_enter_backup(void)
 {
 	int ret = -1;
@@ -289,7 +304,7 @@ static TEE_Result at91_enter_backup(void)
 	if (res)
 		return res;
 
-	pm_change_state(PM_OP_SUSPEND, 0);
+	at91_pm_change_state(PM_OP_SUSPEND);
 	ret = sm_pm_cpu_suspend((uint32_t)&soc_pm,
 				(void *)at91_suspend_sram_fn);
 	if (ret < 0) {
@@ -299,7 +314,7 @@ static TEE_Result at91_enter_backup(void)
 		res = TEE_SUCCESS;
 	}
 
-	pm_change_state(PM_OP_RESUME, 0);
+	at91_pm_change_state(PM_OP_RESUME);
 	if (res)
 		return res;
 
