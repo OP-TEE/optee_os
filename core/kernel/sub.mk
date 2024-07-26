@@ -1,5 +1,6 @@
 srcs-$(CFG_CORE_SANITIZE_KADDRESS) += asan.c
 cflags-remove-asan.c-y += $(cflags_kasan)
+cflags-remove-asan.c-y += $(finstrument-functions)
 srcs-$(CFG_TEE_CORE_DEBUG) += spin_lock_debug.c
 srcs-y += assert.c
 srcs-y += console.c
