@@ -157,13 +157,13 @@ SECTIONS
 	}
 
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
-	.ARM.exidx : {
+	.ARM.exidx : ALIGN(8) {
 		__exidx_start = .;
 		*(.ARM.exidx* .gnu.linkonce.armexidx.*)
 		__exidx_end = .;
 	}
 
-	.ARM.extab : {
+	.ARM.extab : ALIGN(8) {
 		__extab_start = .;
 		*(.ARM.extab*)
 		__extab_end = .;
