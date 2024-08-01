@@ -62,7 +62,7 @@ define update-buildcount
 endef
 
 # filter-out to workaround objdump warning
-version-o-cflags = $(filter-out -g3,$(core-platform-cflags) \
+version-o-cflags = $(filter-out -g3,$(CFLAGS) $(core-platform-cflags) \
 			$(platform-cflags) $(cflagscore))
 # SOURCE_DATE_EPOCH defined for reproducible builds
 ifneq ($(SOURCE_DATE_EPOCH),)
