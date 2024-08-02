@@ -70,10 +70,10 @@ struct rstctrl {
 #define RSTCTRL_NO_TIMEOUT	0
 
 /*
- * rstctrl_assert_to - Assert reset control possibly with timeout
- * rstctrl_assert - Assert reset control
- * rstctrl_deassert_to - Deassert reset control possibly with timeout
- * rstctrl_deassert - Deassert reset control
+ * rstctrl_assert_to() - Assert reset control possibly with timeout
+ * rstctrl_assert() - Assert reset control
+ * rstctrl_deassert_to() - Deassert reset control possibly with timeout
+ * rstctrl_deassert() - Deassert reset control
  *
  * @rstctrl: Reset controller
  * @to_us: Timeout in microseconds
@@ -102,7 +102,7 @@ static inline TEE_Result rstctrl_deassert(struct rstctrl *rstctrl)
 }
 
 /*
- * rstctrl_name - Get a name for the reset level control or NULL
+ * rstctrl_name() - Get a name for the reset level control or NULL
  *
  * @rstctrl: Reset controller
  * Return a pointer to controller name or NULL
@@ -116,7 +116,7 @@ static inline const char *rstctrl_name(struct rstctrl *rstctrl)
 }
 
 /**
- * rstctrl_dt_get_exclusive - Get exclusive access to reset controller
+ * rstctrl_get_exclusive() - Get exclusive access to reset controller
  *
  * @rstctrl: Reset controller
  * Return a TEE_Result compliant value
@@ -124,14 +124,14 @@ static inline const char *rstctrl_name(struct rstctrl *rstctrl)
 TEE_Result rstctrl_get_exclusive(struct rstctrl *rstctrl);
 
 /**
- * rstctrl_put_exclusive - Release exclusive access to target
+ * rstctrl_put_exclusive() - Release exclusive access to target
  *
  * @rstctrl: Reset controller
  */
 void rstctrl_put_exclusive(struct rstctrl *rstctrl);
 
 /**
- * rstctrl_ops_is_valid - Check reset controller ops is valid
+ * rstctrl_ops_is_valid() - Check reset controller ops is valid
  *
  * @ops: Reference to reset controller operator instance
  */
@@ -142,7 +142,7 @@ static inline bool rstctrl_ops_is_valid(const struct rstctrl_ops *ops)
 
 #ifdef CFG_DT
 /**
- * rstctrl_dt_get_by_index - Get a reset controller at a specific index in
+ * rstctrl_dt_get_by_index() - Get a reset controller at a specific index in
  * 'resets' property
  *
  * @fdt: Device tree to work on
@@ -182,7 +182,7 @@ static inline TEE_Result rstctrl_dt_get_by_index(const void *fdt __unused,
 #endif /*CFG_DT*/
 
 /**
- * rstctrl_dt_get_by_name - Get a reset controller matching a name in the
+ * rstctrl_dt_get_by_name() - Get a reset controller matching a name in the
  * 'reset-names' property
  *
  * @fdt: Device tree to work on
@@ -203,14 +203,14 @@ TEE_Result rstctrl_dt_get_by_name(const void *fdt, int nodeoffset,
  * devicetree properties
  *
  * @args: Pointer to devicetree description of the reset controller to parse
- * @data: Pointer to data given at rstctrl_dt_register_provider() call
+ * @data: Pointer to data given at rstctrl_register_provider() call
  * @rstctrl: Output reset controller reference upon success
  */
 typedef TEE_Result (*rstctrl_dt_get_func)(struct dt_pargs *args, void *data,
 					  struct rstctrl **out_rstctrl);
 
 /**
- * rstctrl_dt_register_provider - Register a reset controller provider
+ * rstctrl_register_provider() - Register a reset controller provider
  *
  * @fdt: Device tree to work on
  * @nodeoffset: Node offset of the reset controller
@@ -228,4 +228,3 @@ static inline TEE_Result rstctrl_register_provider(const void *fdt,
 					   DT_DRIVER_RSTCTRL);
 }
 #endif /* __DRIVERS_RSTCTRL_H */
-
