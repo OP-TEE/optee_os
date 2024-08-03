@@ -4,6 +4,7 @@
  */
 #include <assert.h>
 #include <io.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/secure_partition.h>
 #include <kernel/spinlock.h>
@@ -1196,8 +1197,8 @@ out:
  * here. This is the entry of the sp_spmc kernel thread. The caller_sp is set
  * to NULL when it is the Normal World.
  */
-void spmc_sp_msg_handler(struct thread_smc_args *args,
-			 struct sp_session *caller_sp)
+void __nopauth spmc_sp_msg_handler(struct thread_smc_args *args,
+				   struct sp_session *caller_sp)
 {
 	thread_check_canaries();
 	do {

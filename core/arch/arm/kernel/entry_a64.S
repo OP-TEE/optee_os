@@ -384,6 +384,7 @@ clear_nex_bss:
 #ifdef CFG_CORE_PAUTH
 	init_pauth_per_cpu
 #endif
+	bl  boot_init_primary_finalcalls
 
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	x0, #THREAD_CLF_TMP

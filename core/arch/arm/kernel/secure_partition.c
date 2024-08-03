@@ -37,6 +37,7 @@
 #define SP_MANIFEST_ATTR_WRITE		BIT(1)
 #define SP_MANIFEST_ATTR_EXEC		BIT(2)
 #define SP_MANIFEST_ATTR_NSEC		BIT(3)
+#define SP_MANIFEST_ATTR_GP		BIT(4)
 
 #define SP_MANIFEST_ATTR_RO		(SP_MANIFEST_ATTR_READ)
 #define SP_MANIFEST_ATTR_RW		(SP_MANIFEST_ATTR_READ | \
@@ -213,6 +214,10 @@ static TEE_Result sp_create_ctx(const TEE_UUID *bin_uuid, struct sp_session *s)
 		goto err;
 
 	set_sp_ctx_ops(&spc->ts_ctx);
+
+#ifdef CFG_TA_PAUTH
+	crypto_rng_read(&spc->uctx.keys, sizeof(spc->uctx.keys));
+#endif
 
 	return TEE_SUCCESS;
 
@@ -459,8 +464,8 @@ static TEE_Result sp_binary_open(const TEE_UUID *uuid,
 	return res;
 }
 
-static TEE_Result load_binary_sp(struct ts_session *s,
-				 struct user_mode_ctx *uctx)
+static TEE_Result __nopauth load_binary_sp(struct ts_session *s,
+					   struct user_mode_ctx *uctx)
 {
 	size_t bin_size = 0, bin_size_rounded = 0, bin_page_count = 0;
 	size_t bb_size = ROUNDUP(BOUNCE_BUFFER_SIZE, SMALL_PAGE_SIZE);
@@ -581,12 +586,13 @@ err:
 	return res;
 }
 
-static TEE_Result sp_open_session(struct sp_session **sess,
-				  struct sp_sessions_head *open_sessions,
-				  const TEE_UUID *ffa_uuid,
-				  const TEE_UUID *bin_uuid,
-				  const uint32_t boot_order,
-				  const void *fdt)
+static TEE_Result __nopauth
+sp_open_session(struct sp_session **sess,
+		struct sp_sessions_head *open_sessions,
+		const TEE_UUID *ffa_uuid,
+		const TEE_UUID *bin_uuid,
+		const uint32_t boot_order,
+		const void *fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *s = NULL;
@@ -878,6 +884,15 @@ static TEE_Result handle_fdt_load_relative_mem_regions(struct sp_ctx *ctx,
 		default:
 			EMSG("Invalid memory access permissions");
 			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		if (IS_ENABLED(CFG_TA_BTI) &&
+		    attributes & SP_MANIFEST_ATTR_GP) {
+			if (!(attributes & SP_MANIFEST_ATTR_RX)) {
+				EMSG("Guard only executable region");
+				return TEE_ERROR_BAD_FORMAT;
+			}
+			perm |= TEE_MATTR_GUARDED;
 		}
 
 		res = sp_dt_get_u32(fdt, subnode, "load-flags", &flags);
@@ -1209,6 +1224,15 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 			return TEE_ERROR_BAD_FORMAT;
 		}
 
+		if (IS_ENABLED(CFG_TA_BTI) &&
+		    attributes & SP_MANIFEST_ATTR_GP) {
+			if (!(attributes & SP_MANIFEST_ATTR_RX)) {
+				EMSG("Guard only executable region");
+				return TEE_ERROR_BAD_FORMAT;
+			}
+			perm |= TEE_MATTR_GUARDED;
+		}
+
 		/*
 		 * The SP is a secure endpoint, security attribute can be
 		 * secure or non-secure.
@@ -1377,6 +1401,22 @@ static TEE_Result handle_hw_features(void *fdt)
 			return res;
 	}
 
+	/* Modify the property only if it's already present */
+	if (!sp_dt_get_u32(fdt, node, "bti", &val)) {
+		res = fdt_setprop_u32(fdt, node, "bti",
+				      feat_bti_is_implemented());
+		if (res)
+			return res;
+	}
+
+	/* Modify the property only if it's already present */
+	if (!sp_dt_get_u32(fdt, node, "pauth", &val)) {
+		res = fdt_setprop_u32(fdt, node, "pauth",
+				      feat_pauth_is_implemented());
+		if (res)
+			return res;
+	}
+
 	return TEE_SUCCESS;
 }
 
@@ -1432,7 +1472,8 @@ static TEE_Result read_ffa_version(const void *fdt, struct sp_session *s)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
+static TEE_Result __nopauth sp_init_uuid(const TEE_UUID *bin_uuid,
+					 const void *const fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *sess = NULL;
@@ -1478,7 +1519,7 @@ static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sp_first_run(struct sp_session *sess)
+static TEE_Result __nopauth sp_first_run(struct sp_session *sess)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct thread_smc_args args = { };
@@ -1551,7 +1592,8 @@ out:
 	return res;
 }
 
-TEE_Result sp_enter(struct thread_smc_args *args, struct sp_session *sp)
+TEE_Result __nopauth sp_enter(struct thread_smc_args *args,
+			      struct sp_session *sp)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_ctx *ctx = to_sp_ctx(sp->ts_sess.ctx);
@@ -1564,6 +1606,10 @@ TEE_Result sp_enter(struct thread_smc_args *args, struct sp_session *sp)
 	ctx->sp_regs.x[5] = args->a5;
 	ctx->sp_regs.x[6] = args->a6;
 	ctx->sp_regs.x[7] = args->a7;
+#ifdef CFG_TA_PAUTH
+	ctx->sp_regs.apiakey_hi = ctx->uctx.keys.apia_hi;
+	ctx->sp_regs.apiakey_lo = ctx->uctx.keys.apia_lo;
+#endif
 
 	res = sp->ts_sess.ctx->ops->enter_invoke_cmd(&sp->ts_sess, 0);
 
@@ -1608,8 +1654,8 @@ static void sp_cpsr_configure_foreign_interrupts(struct sp_session *s,
 				    ARM32_CPSR_F_SHIFT);
 }
 
-static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
-				      uint32_t cmd __unused)
+static TEE_Result __nopauth sp_enter_invoke_cmd(struct ts_session *s,
+						uint32_t cmd __unused)
 {
 	struct sp_ctx *ctx = to_sp_ctx(s->ctx);
 	TEE_Result res = TEE_SUCCESS;
@@ -1854,7 +1900,7 @@ static void fip_sp_deinit_all(void)
 	}
 }
 
-static TEE_Result sp_init_all(void)
+static TEE_Result __nopauth sp_init_all(void)
 {
 	TEE_Result res = TEE_SUCCESS;
 	const struct sp_image *sp = NULL;

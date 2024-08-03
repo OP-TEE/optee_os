@@ -6,6 +6,7 @@
 
 #include <initcall.h>
 #include <trace.h>
+#include <kernel/boot.h>
 #include <kernel/linker.h>
 
 /*
@@ -50,7 +51,7 @@ void __weak call_initcalls(void)
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
-void __weak call_finalcalls(void)
+void __weak __nopauth call_finalcalls(void)
 {
 	const struct initcall *call = NULL;
 	TEE_Result ret = TEE_SUCCESS;

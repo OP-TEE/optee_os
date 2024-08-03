@@ -6,6 +6,7 @@
  */
 
 #include <assert.h>
+#include <kernel/boot.h>
 #include <kernel/ldelf_loader.h>
 #include <kernel/ldelf_syscalls.h>
 #include <kernel/scall.h>
@@ -112,8 +113,8 @@ TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx)
 	return TEE_SUCCESS;
 }
 
-TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
-				 struct user_mode_ctx *uctx)
+TEE_Result __nopauth ldelf_init_with_ldelf(struct ts_session *sess,
+					   struct user_mode_ctx *uctx)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct ldelf_arg *arg = NULL;

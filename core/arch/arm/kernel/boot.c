@@ -1061,6 +1061,14 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 	} else {
 		init_tee_runtime();
 	}
+}
+
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+void __weak __nopauth boot_init_primary_finalcalls(void)
+{
 	call_finalcalls();
 	IMSG("Primary CPU switching to normal world boot");
 }

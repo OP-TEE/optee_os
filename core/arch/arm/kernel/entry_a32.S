@@ -530,6 +530,7 @@ shadow_stack_access_ok:
 	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
 #endif
 	bl	boot_init_primary_late
+	bl	boot_init_primary_finalcalls
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	r0, #THREAD_CLF_TMP
 	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]

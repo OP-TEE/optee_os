@@ -1008,19 +1008,29 @@ static struct thread_pauth_keys *thread_get_pauth_keys(void)
 {
 #if defined(CFG_TA_PAUTH)
 	struct ts_session *s = ts_get_current_session();
-	/* Only user TA's support the PAUTH keys */
-	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 
-	return &utc->uctx.keys;
+	if  (is_user_ta_ctx(s->ctx)) {
+		struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
+
+		return &utc->uctx.keys;
+	} else if (is_sp_ctx(s->ctx)) {
+		struct sp_ctx *spc = to_sp_ctx(s->ctx);
+
+		return &spc->uctx.keys;
+	}
+
+	panic("[abort] Only user TA's and SP-s support PAUTH keys");
 #else
 	return NULL;
 #endif
 }
 
-uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
-		unsigned long a2, unsigned long a3, unsigned long user_sp,
-		unsigned long entry_func, bool is_32bit,
-		uint32_t *exit_status0, uint32_t *exit_status1)
+uint32_t __nopauth thread_enter_user_mode(unsigned long a0, unsigned long a1,
+					  unsigned long a2, unsigned long a3,
+					  unsigned long user_sp,
+					  unsigned long entry_func,
+					  bool is_32bit, uint32_t *exit_status0,
+					  uint32_t *exit_status1)
 {
 	uint32_t spsr = 0;
 	uint32_t exceptions = 0;
