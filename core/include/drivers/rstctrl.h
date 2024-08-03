@@ -203,14 +203,14 @@ TEE_Result rstctrl_dt_get_by_name(const void *fdt, int nodeoffset,
  * devicetree properties
  *
  * @args: Pointer to devicetree description of the reset controller to parse
- * @data: Pointer to data given at rstctrl_dt_register_provider() call
+ * @data: Pointer to data given at rstctrl_register_provider() call
  * @rstctrl: Output reset controller reference upon success
  */
 typedef TEE_Result (*rstctrl_dt_get_func)(struct dt_pargs *args, void *data,
 					  struct rstctrl **out_rstctrl);
 
 /**
- * rstctrl_dt_register_provider - Register a reset controller provider
+ * rstctrl_register_provider - Register a reset controller provider
  *
  * @fdt: Device tree to work on
  * @nodeoffset: Node offset of the reset controller
