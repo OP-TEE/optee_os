@@ -58,10 +58,12 @@ CFG_STM32_FMC ?= y
 CFG_STM32_GPIO ?= y
 CFG_STM32_HPDMA ?= y
 CFG_STM32_HSEM ?= y
+CFG_STM32_IAC ?= y
 CFG_STM32_IPCC ?= y
 CFG_STM32_RIF ?= y
 CFG_STM32_RIFSC ?= y
 CFG_STM32_RNG ?= y
+CFG_STM32_SERC ?= y
 CFG_STM32_UART ?= y
 
 # Default enable some test facitilites
@@ -89,4 +91,12 @@ endif
 ifeq ($(CFG_STM32MP25_RSTCTRL),y)
 $(call force,CFG_DRIVERS_RSTCTRL,y)
 $(call force,CFG_STM32_RSTCTRL,y)
+endif
+
+# Optional behavior upon receiving illegal access events
+CFG_STM32_PANIC_ON_IAC_EVENT ?= y
+ifeq ($(CFG_TEE_CORE_DEBUG),y)
+CFG_STM32_PANIC_ON_SERC_EVENT ?= n
+else
+CFG_STM32_PANIC_ON_SERC_EVENT ?= y
 endif

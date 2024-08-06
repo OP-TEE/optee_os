@@ -6,6 +6,7 @@
 #include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
+#include <drivers/stm32_rif.h>
 #include <drivers/stm32_uart.h>
 #include <initcall.h>
 #include <kernel/boot.h>
@@ -149,3 +150,9 @@ void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
 }
+
+#ifdef CFG_STM32_RIF
+void stm32_rif_access_violation_action(void)
+{
+}
+#endif /* CFG_STM32_RIF */

@@ -164,6 +164,12 @@ TEE_Result stm32_rif_acquire_semaphore(vaddr_t addr,
  */
 TEE_Result stm32_rif_release_semaphore(vaddr_t addr,
 				       unsigned int nb_cid_supp);
+
+/*
+ * The action to take upon an access violation depends on the platform.
+ * Therefore, it should be defined at platform level.
+ */
+void stm32_rif_access_violation_action(void);
 #else
 static inline bool stm32_rif_scid_ok(uint32_t cidcfgr, uint32_t scid_m,
 				     uint32_t cid_to_check)
@@ -219,6 +225,10 @@ stm32_rif_release_semaphore(vaddr_t addr __unused,
 			    unsigned int nb_cid_supp __unused)
 {
 	return TEE_SUCCESS;
+}
+
+static inline void stm32_rif_access_violation_action(void)
+{
 }
 #endif /* CFG_STM32_RIF */
 #endif /* __DRIVERS_STM32_RIF_H */
