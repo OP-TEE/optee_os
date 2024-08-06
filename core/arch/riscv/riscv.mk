@@ -70,6 +70,14 @@ ifeq ($(CFG_RISCV_WITH_M_MODE_SM),y)
 $(call force,CFG_RISCV_SBI,y)
 endif
 
+# Zkr entropy source extension
+ifeq ($(CFG_RISCV_ZKR_RNG),y)
+# Maximum retry count to produce 16 bits of
+# randomness. If the entropy source has low
+# bandwidth, consider increasing this value.
+CFG_SEED_RETRY_COUNT_MAX ?= 100
+endif
+
 # Disable unsupported and other arch-specific flags
 $(call force,CFG_CORE_FFA,n)
 $(call force,CFG_SECURE_PARTITION,n)

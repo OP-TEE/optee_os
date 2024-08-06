@@ -155,6 +155,16 @@ static inline __noprof void wfi(void)
 	asm volatile ("wfi");
 }
 
+static inline __noprof void cpu_relax(void)
+{
+#ifdef __riscv_muldiv
+	unsigned long dummy = 0;
+
+	asm volatile ("div %0, %0, zero" : "=r" (dummy));
+#endif
+	asm volatile ("" : : : "memory");
+}
+
 static inline __noprof void flush_tlb(void)
 {
 	asm volatile("sfence.vma zero, zero");
