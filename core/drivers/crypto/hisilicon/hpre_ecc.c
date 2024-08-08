@@ -553,18 +553,14 @@ static enum hisi_drv_status hpre_ecc_parse_sqe(void *bd, void *info)
 		EMSG("HPRE do ecc fail! done=0x%"PRIX16", etype=0x%"PRIX16
 		     ",etype1=0x%"PRIX16, done, err, err1);
 
-		if (done == HPRE_HW_TASK_INIT) {
-			msg->result = HISI_QM_DRVCRYPT_ENOPROC;
+		if (done == HPRE_HW_TASK_INIT)
 			return HISI_QM_DRVCRYPT_ENOPROC;
-		}
 
-		msg->result = HISI_QM_DRVCRYPT_IN_EPARA;
 		return HISI_QM_DRVCRYPT_IN_EPARA;
 	}
 
 	if (hpre_ecc_out_to_crypto_bin(msg, sqe)) {
 		EMSG("HPRE qm transfer ecc out fail.");
-		msg->result = HISI_QM_DRVCRYPT_EINVAL;
 		return HISI_QM_DRVCRYPT_EINVAL;
 	}
 
