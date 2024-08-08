@@ -819,8 +819,7 @@ static enum hisi_drv_status hpre_ecc_dh_params_alloc(struct hpre_ecc_msg *msg)
 static void hpre_ecc_request_deinit(struct hpre_ecc_msg *msg)
 {
 	if (msg->key) {
-		memzero_explicit(msg->key, ECC_DH_KEY_SIZE(msg->key_bytes));
-		free(msg->key);
+		free_wipe(msg->key);
 		msg->key = NULL;
 	}
 }
