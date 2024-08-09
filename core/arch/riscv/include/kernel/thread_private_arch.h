@@ -49,8 +49,10 @@ struct thread_user_mode_rec {
 
 extern long thread_user_kcode_offset;
 
-void thread_interrupt_handler(unsigned long cause,
-			      struct thread_ctx_regs *regs);
+void thread_native_interrupt_handler(struct thread_ctx_regs *regs,
+				     unsigned long cause);
+void thread_foreign_interrupt_handler(struct thread_ctx_regs *regs);
+
 /*
  * Initializes TVEC for current hart. Called by thread_init_per_cpu()
  */

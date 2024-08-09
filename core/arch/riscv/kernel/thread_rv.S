@@ -12,6 +12,9 @@
 #include <mm/core_mmu.h>
 #include <riscv.h>
 #include <riscv_macros.S>
+#include <tee/optee_abi.h>
+#include <tee/teeabi_opteed.h>
+#include <tee/teeabi_opteed_macros.h>
 
 .macro get_thread_ctx res, tmp0
 	lw	\tmp0, THREAD_CORE_LOCAL_CURR_THREAD(tp)
@@ -88,15 +91,57 @@ interrupt_from_kernel:
 	store_xregs sp, THREAD_CTX_REG_EPC, REG_T0
 
 	/*
-	 * a0 = cause
-	 * a1 = sp
-	 * Call thread_interrupt_handler(cause, regs)
+	 * a0 = struct thread_ctx_regs *regs
+	 * a1 = cause
 	 */
-	csrr	a0, CSR_XCAUSE
-	mv	a1, sp
+	mv	a0, sp
+	csrr	a1, CSR_XCAUSE
 	/* Load tmp_stack_va_end as current sp. */
 	load_xregs tp, THREAD_CORE_LOCAL_TMP_STACK_VA_END, REG_SP
-	call	thread_interrupt_handler
+
+	/*
+	 * Get interrupt code from XCAUSE and build XIP. For example, if the
+	 * value of XCAUSE is 0x8000000000000005 (supervisor timer interrupt),
+	 * we build 0x20, which is (1 << 5) and indicates the sip.STIP signal.
+	 */
+	li	a2, CSR_XCAUSE_INTR_FLAG
+	sub	a2, a1, a2
+	li	a3, 1
+	sll	a3, a3, a2
+	/*
+	 * Compare built XIP with THREAD_EXCP_FOREIGN_INTR. If XIP is one of
+	 * THREAD_EXCP_FOREIGN_INTR, we call thread_foreign_interrupt_handler().
+	 */
+	li	a2, THREAD_EXCP_FOREIGN_INTR
+	and	a2, a3, a2
+	beqz	a2, native_interrupt_from_kernel
+
+foreign_interrupt_from_kernel:
+	/*
+	 * a0 = struct thread_ctx_regs *regs
+	 * Tail call thread_foreign_interrupt_handler(regs) since we will not
+	 * return to here.
+	 */
+	tail	thread_foreign_interrupt_handler
+
+native_interrupt_from_kernel:
+	/* Update 32-bit core local flags */
+	lw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+	slli	a2, a2, THREAD_CLF_SAVED_SHIFT
+	ori	a2, a2, (THREAD_CLF_TMP | THREAD_CLF_IRQ)
+	sw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+
+	/*
+	 * a0 = struct thread_ctx_regs *regs
+	 * a1 = cause
+	 * Call thread_native_interrupt_handler(regs, cause)
+	 */
+	call	thread_native_interrupt_handler
+
+	/* Update 32-bit core local flags */
+	lw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+	srli	a2, a2, THREAD_CLF_SAVED_SHIFT
+	sw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
 
 	/* Get thread context as sp */
 	get_thread_ctx sp, t0
@@ -283,15 +328,57 @@ interrupt_from_user:
 	store_xregs sp, THREAD_CTX_REG_EPC, REG_T0
 
 	/*
-	 * a0 = cause
-	 * a1 = sp
-	 * Call thread_interrupt_handler(cause, regs)
+	 * a0 = struct thread_ctx_regs *regs
+	 * a1 = cause
 	 */
-	csrr	a0, CSR_XCAUSE
-	mv	a1, sp
+	mv	a0, sp
+	csrr	a1, CSR_XCAUSE
 	/* Load tmp_stack_va_end as current sp. */
 	load_xregs tp, THREAD_CORE_LOCAL_TMP_STACK_VA_END, REG_SP
-	call	thread_interrupt_handler
+
+	/*
+	 * Get interrupt code from XCAUSE and build XIP. For example, if the
+	 * value of XCAUSE is 0x8000000000000005 (supervisor timer interrupt),
+	 * we build 0x20, which is (1 << 5) and indicates the sip.STIP signal.
+	 */
+	li	a2, CSR_XCAUSE_INTR_FLAG
+	sub	a2, a1, a2
+	li	a3, 1
+	sll	a3, a3, a2
+	/*
+	 * Compare built XIP with THREAD_EXCP_FOREIGN_INTR. If XIP is one of
+	 * THREAD_EXCP_FOREIGN_INTR, call thread_foreign_interrupt_handler().
+	 */
+	li	a2, THREAD_EXCP_FOREIGN_INTR
+	and	a2, a3, a2
+	beqz	a2, native_interrupt_from_user
+
+foreign_interrupt_from_user:
+	/*
+	 * a0 = struct thread_ctx_regs *regs
+	 * Tail call thread_foreign_interrupt_handler(regs) since we will not
+	 * return to here.
+	 */
+	tail	thread_foreign_interrupt_handler
+
+native_interrupt_from_user:
+	/* Update 32-bit core local flags */
+	lw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+	slli	a2, a2, THREAD_CLF_SAVED_SHIFT
+	ori	a2, a2, (THREAD_CLF_TMP | THREAD_CLF_IRQ)
+	sw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+
+	/*
+	 * a0 = struct thread_ctx_regs *regs
+	 * a1 = cause
+	 * Call thread_native_interrupt_handler(regs, cause)
+	 */
+	call	thread_native_interrupt_handler
+
+	/* Update 32-bit core local flags */
+	lw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
+	srli	a2, a2, THREAD_CLF_SAVED_SHIFT
+	sw	a2, THREAD_CORE_LOCAL_FLAGS(tp)
 
 	/* Get thread context as sp */
 	get_thread_ctx sp, t0
@@ -677,3 +764,40 @@ FUNC thread_resume , :
 
 	XRET
 END_FUNC thread_resume
+
+/* void thread_foreign_interrupt_handler(struct thread_ctx_regs *regs) */
+FUNC thread_foreign_interrupt_handler , :
+	/* Update 32-bit core local flags */
+	lw	s1, THREAD_CORE_LOCAL_FLAGS(tp)
+	slli	s1, s1, THREAD_CLF_SAVED_SHIFT
+	ori	s1, s1, (THREAD_CLF_TMP | THREAD_CLF_FIQ)
+	sw	s1, THREAD_CORE_LOCAL_FLAGS(tp)
+
+	/*
+	 * Mark current thread as suspended.
+	 * a0 = THREAD_FLAGS_EXIT_ON_FOREIGN_INTR
+	 * a1 = status
+	 * a2 = epc
+	 * thread_state_suspend(flags, status, pc)
+	 */
+	LDR	a1, THREAD_CTX_REG_STATUS(a0)
+	LDR	a2, THREAD_CTX_REG_EPC(a0)
+	li	a0, THREAD_FLAGS_EXIT_ON_FOREIGN_INTR
+	call	thread_state_suspend
+	/* Now return value a0 contains suspended thread ID. */
+
+	/* Update core local flags */
+	lw	s1, THREAD_CORE_LOCAL_FLAGS(tp)
+	srli	s1, s1, THREAD_CLF_SAVED_SHIFT
+	ori	s1, s1, THREAD_CLF_TMP
+	sw	s1, THREAD_CORE_LOCAL_FLAGS(tp)
+
+	/* Passing thread index in a0, and return to untrusted domain. */
+	mv	a4, a0
+	li	a0, TEEABI_OPTEED_RETURN_CALL_DONE
+	li	a1, OPTEE_ABI_RETURN_RPC_FOREIGN_INTR
+	mv	a2, zero
+	mv	a3, zero
+	mv	a5, zero
+	j	thread_return_to_udomain
+END_FUNC thread_foreign_interrupt_handler
