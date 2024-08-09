@@ -625,7 +625,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 #endif
 
 /* Initialize MMU partition */
-void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm);
+void core_init_mmu_prtn(struct mmu_partition *prtn, struct memory_map *mem_map);
 
 unsigned int asid_alloc(void);
 void asid_free(unsigned int asid);
@@ -649,7 +649,7 @@ void core_mmu_init_virtualization(void);
 /* init some allocation pools */
 void core_mmu_init_ta_ram(void);
 
-void core_init_mmu(struct tee_mmap_region *mm);
+void core_init_mmu(struct memory_map *mem_map);
 
 void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 			     unsigned int level, vaddr_t va_base, void *table);

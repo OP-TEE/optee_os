@@ -609,26 +609,27 @@ static bool core_mmu_entry_copy(struct core_mmu_table_info *tbl_info,
 }
 
 static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
-				   struct tee_mmap_region *mm)
+				   struct memory_map *mem_map)
 {
-	size_t n;
+	size_t n = 0;
 
-	assert(prtn && mm);
+	assert(prtn && mem_map);
 
-	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++) {
+	for (n = 0; n < mem_map->count; n++) {
+		struct tee_mmap_region *mm = mem_map->map + n;
 		debug_print(" %010" PRIxVA " %010" PRIxPA " %10zx %x",
-			    mm[n].va, mm[n].pa, mm[n].size, mm[n].attr);
+			    mm->va, mm->pa, mm->size, mm->attr);
 
-		if (!IS_PAGE_ALIGNED(mm[n].pa) || !IS_PAGE_ALIGNED(mm[n].size))
+		if (!IS_PAGE_ALIGNED(mm->pa) || !IS_PAGE_ALIGNED(mm->size))
 			panic("unaligned region");
 	}
 
 	/* Clear table before use */
 	memset(prtn->base_tables, 0, sizeof(base_xlation_table));
 
-	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
-		if (!core_mmu_is_dynamic_vaspace(mm + n))
-			core_mmu_map_region(prtn, mm + n);
+	for (n = 0; n < mem_map->count; n++)
+		if (!core_mmu_is_dynamic_vaspace(mem_map->map + n))
+			core_mmu_map_region(prtn, mem_map->map + n);
 
 	/*
 	 * Primary mapping table is ready at index `get_core_pos()`
@@ -787,13 +788,13 @@ static void core_init_mmu_prtn_ta(struct mmu_partition *prtn)
 			core_init_mmu_prtn_ta_core(prtn, base_idx, core);
 }
 
-void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
+void core_init_mmu_prtn(struct mmu_partition *prtn, struct memory_map *mem_map)
 {
-	core_init_mmu_prtn_tee(prtn, mm);
+	core_init_mmu_prtn_tee(prtn, mem_map);
 	core_init_mmu_prtn_ta(prtn);
 }
 
-void core_init_mmu(struct tee_mmap_region *mm)
+void core_init_mmu(struct memory_map *mem_map)
 {
 	uint64_t max_va = 0;
 	size_t n;
@@ -807,10 +808,10 @@ void core_init_mmu(struct tee_mmap_region *mm)
 	COMPILE_TIME_ASSERT(XLAT_TABLES_SIZE == sizeof(xlat_tables));
 
 	/* Initialize default pagetables */
-	core_init_mmu_prtn_tee(&default_partition, mm);
+	core_init_mmu_prtn_tee(&default_partition, mem_map);
 
-	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++) {
-		vaddr_t va_end = mm[n].va + mm[n].size - 1;
+	for (n = 0; n < mem_map->count; n++) {
+		vaddr_t va_end = mem_map->map[n].va + mem_map->map[n].size - 1;
 
 		if (va_end > max_va)
 			max_va = va_end;
