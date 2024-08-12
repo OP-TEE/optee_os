@@ -105,8 +105,9 @@ struct initcall {
 
 #define early_init(fn)			__define_initcall(early_init, 1, fn)
 #define early_init_late(fn)		__define_initcall(early_init, 2, fn)
-#define service_init(fn)		__define_initcall(service_init, 1, fn)
-#define service_init_late(fn)		__define_initcall(service_init, 2, fn)
+#define service_init_crypto(fn)		__define_initcall(service_init, 1, fn)
+#define service_init(fn)		__define_initcall(service_init, 2, fn)
+#define service_init_late(fn)		__define_initcall(service_init, 3, fn)
 #define driver_init(fn)			__define_initcall(driver_init, 1, fn)
 #define driver_init_late(fn)		__define_initcall(driver_init, 2, fn)
 #define release_init_resource(fn)	__define_initcall(driver_init, 3, fn)
