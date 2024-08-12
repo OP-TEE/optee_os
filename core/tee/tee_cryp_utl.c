@@ -214,4 +214,4 @@ static TEE_Result tee_cryp_init(void)
 
 	return TEE_SUCCESS;
 }
-service_init(tee_cryp_init);
+service_init_crypto(tee_cryp_init);
