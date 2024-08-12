@@ -34,8 +34,20 @@ struct initcall {
 			SCATTERED_ARRAY_BEGIN(preinitcall, struct initcall)
 #define preinitcall_end SCATTERED_ARRAY_END(preinitcall, struct initcall)
 
-#define initcall_begin	SCATTERED_ARRAY_BEGIN(initcall, struct initcall)
-#define initcall_end	SCATTERED_ARRAY_END(initcall, struct initcall)
+#define early_initcall_begin \
+			SCATTERED_ARRAY_BEGIN(early_initcall, struct initcall)
+#define early_initcall_end \
+			SCATTERED_ARRAY_END(early_initcall, struct initcall)
+
+#define service_initcall_begin \
+			SCATTERED_ARRAY_BEGIN(service_initcall, struct initcall)
+#define service_initcall_end \
+			SCATTERED_ARRAY_END(service_initcall, struct initcall)
+
+#define driver_initcall_begin \
+			SCATTERED_ARRAY_BEGIN(driver_initcall, struct initcall)
+#define driver_initcall_end \
+			SCATTERED_ARRAY_END(driver_initcall, struct initcall)
 
 #define finalcall_begin	SCATTERED_ARRAY_BEGIN(finalcall, struct initcall)
 #define finalcall_end	SCATTERED_ARRAY_END(finalcall, struct initcall)
@@ -91,13 +103,13 @@ struct initcall {
 #define preinit(fn)			__define_initcall(preinit, 2, fn)
 #define preinit_late(fn)		__define_initcall(preinit, 3, fn)
 
-#define early_init(fn)			__define_initcall(init, 1, fn)
-#define early_init_late(fn)		__define_initcall(init, 2, fn)
-#define service_init(fn)		__define_initcall(init, 3, fn)
-#define service_init_late(fn)		__define_initcall(init, 4, fn)
-#define driver_init(fn)			__define_initcall(init, 5, fn)
-#define driver_init_late(fn)		__define_initcall(init, 6, fn)
-#define release_init_resource(fn)	__define_initcall(init, 7, fn)
+#define early_init(fn)			__define_initcall(early_init, 1, fn)
+#define early_init_late(fn)		__define_initcall(early_init, 2, fn)
+#define service_init(fn)		__define_initcall(service_init, 1, fn)
+#define service_init_late(fn)		__define_initcall(service_init, 2, fn)
+#define driver_init(fn)			__define_initcall(driver_init, 1, fn)
+#define driver_init_late(fn)		__define_initcall(driver_init, 2, fn)
+#define release_init_resource(fn)	__define_initcall(driver_init, 3, fn)
 
 #define boot_final(fn)			__define_initcall(final, 1, fn)
 
@@ -127,6 +139,9 @@ struct initcall {
 #endif
 
 void call_preinitcalls(void);
+void call_early_initcalls(void);
+void call_service_initcalls(void);
+void call_driver_initcalls(void);
 void call_initcalls(void);
 void call_finalcalls(void);
 
