@@ -935,7 +935,8 @@ void init_tee_runtime(void)
 	 */
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		call_preinitcalls();
-	call_initcalls();
+	call_early_initcalls();
+	call_service_initcalls();
 
 	/*
 	 * These two functions uses crypto_rng_read() to initialize the
@@ -1075,6 +1076,8 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
  */
 void __weak boot_init_primary_final(void)
 {
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		call_driver_initcalls();
 	call_finalcalls();
 	IMSG("Primary CPU switching to normal world boot");
 }

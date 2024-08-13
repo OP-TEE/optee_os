@@ -579,6 +579,7 @@ void virt_on_stdcall(void)
 		mutex_lock(&prtn->mutex);
 		if (!prtn->runtime_initialized) {
 			init_tee_runtime();
+			call_driver_initcalls();
 			prtn->runtime_initialized = true;
 		}
 		mutex_unlock(&prtn->mutex);
