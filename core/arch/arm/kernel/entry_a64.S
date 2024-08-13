@@ -136,7 +136,7 @@
 11:
 	.endm
 
-	.macro init_pauth_per_cpu
+	.macro init_pauth_secondary_cpu
 		msr	spsel, #1
 		ldp	x0, x1, [sp, #THREAD_CORE_LOCAL_KEYS]
 		msr	spsel, #0
@@ -382,7 +382,14 @@ clear_nex_bss:
 #endif
 	bl	boot_init_primary_late
 #ifdef CFG_CORE_PAUTH
-	init_pauth_per_cpu
+	adr_l	x0, threads
+	ldp	x1, x2, [x0, #THREAD_CTX_KEYS]
+	write_apiakeyhi x1
+	write_apiakeylo x2
+	mrs	x0, sctlr_el1
+	orr	x0, x0, #SCTLR_ENIA
+	msr	sctlr_el1, x0
+	isb
 #endif
 	bl	boot_init_primary_final
 
@@ -390,6 +397,12 @@ clear_nex_bss:
 	mov	x0, #THREAD_CLF_TMP
 	str     w0, [x24, #THREAD_CORE_LOCAL_FLAGS]
 	mov	sp, x23
+#ifdef CFG_CORE_PAUTH
+	ldp	x0, x1, [x24, #THREAD_CORE_LOCAL_KEYS]
+	write_apiakeyhi x0
+	write_apiakeylo x1
+	isb
+#endif
 #endif
 
 #ifdef _CFG_CORE_STACK_PROTECTOR
@@ -620,7 +633,7 @@ FUNC cpu_on_handler , :
 	init_memtag_per_cpu
 #endif
 #ifdef CFG_CORE_PAUTH
-	init_pauth_per_cpu
+	init_pauth_secondary_cpu
 #endif
 
 	mov	x0, x19
