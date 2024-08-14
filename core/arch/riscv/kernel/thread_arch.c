@@ -100,7 +100,13 @@ static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 {
 	regs->ra = (uintptr_t)thread_unwind_user_mode;
 	regs->status = xstatus_for_xret(true, PRV_S);
-	regs->sp = thread_get_saved_thread_sp();
+	/*
+	 * We are going to exit user mode. The stack pointer must be set as the
+	 * original value it had before allocating space of scall "regs" and
+	 * calling thread_scall_handler(). Thus, we can simply set stack pointer
+	 * as (regs + 1) value.
+	 */
+	regs->sp = (uintptr_t)(regs + 1);
 }
 
 static void thread_unhandled_trap(unsigned long cause __unused,
