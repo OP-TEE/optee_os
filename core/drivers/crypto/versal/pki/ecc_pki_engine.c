@@ -720,7 +720,8 @@ static TEE_Result versal_pki_engine_reset(void)
 
 	/* Reset the PKI engine */
 	reset = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
-			      PSX_CRF_RST_PKI, SMALL_PAGE_SIZE);
+					      PSX_CRF_RST_PKI,
+					      SMALL_PAGE_SIZE);
 	if (!reset)
 		return TEE_ERROR_GENERIC;
 
