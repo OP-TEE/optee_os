@@ -323,6 +323,27 @@ static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 	}
 }
 
+/*
+ * Given an entry that points to a table.
+ * If mmu is disabled, returns the pa of pointed table.
+ * If mmu is enabled, returns the va of pointed table.
+ * returns NULL otherwise.
+ */
+static struct mmu_pgt *core_mmu_xlat_table_entry_pa2va(struct mmu_pte *pte,
+						       struct mmu_pgt *pgt)
+{
+	if (core_mmu_entry_is_invalid(pte) ||
+	    core_mmu_entry_is_leaf(pte))
+		return NULL;
+
+	if (!cpu_mmu_enabled())
+		return (struct mmu_pgt *)pte_to_pa(pte);
+
+	return phys_to_virt(pte_to_pa(pte),
+			    MEM_AREA_TEE_RAM_RW_DATA,
+			    sizeof(*pgt));
+}
+
 void tlbi_va_range(vaddr_t va, size_t len,
 		   size_t granule)
 {
@@ -464,8 +485,7 @@ bool arch_va2pa_helper(void *va, paddr_t *pa)
 			return true;
 		}
 
-		pgt = phys_to_virt(pte_to_pa(pte),
-				   MEM_AREA_TEE_RAM_RW_DATA, sizeof(*pgt));
+		pgt = core_mmu_xlat_table_entry_pa2va(pte, pgt);
 	}
 
 	thread_unmask_exceptions(exceptions);
@@ -508,8 +528,7 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 			ret = true;
 			goto out;
 		}
-		pgt = phys_to_virt(pte_to_pa(pte),
-				   MEM_AREA_TEE_RAM_RW_DATA, sizeof(*pgt));
+		pgt = core_mmu_xlat_table_entry_pa2va(pte, pgt);
 		if (!pgt)
 			goto out;
 		va_base += SHIFT_U64(idx, CORE_MMU_SHIFT_OF_LEVEL(level));
