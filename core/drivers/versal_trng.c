@@ -1014,8 +1014,8 @@ TEE_Result versal_trng_hw_init(struct versal_trng *trng,
 			       struct trng_usr_cfg *usr_cfg)
 {
 	trng->cfg.addr = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
-						     trng->cfg.base,
-						     trng->cfg.len);
+						       trng->cfg.base,
+						       trng->cfg.len);
 	if (!trng->cfg.addr) {
 		EMSG("Failed to map TRNG");
 		panic();
