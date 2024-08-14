@@ -292,7 +292,7 @@ $2: $1 FORCE
 	    $$(filter-out $$(dtb-old-precmd-$2), $$(dtb-precmd-$2)) 	\
 	    $$(filter-out $$(dtb-cmd-$2), $$(dtb-old-cmd-$2)) 		\
 	    $$(filter-out $$(dtb-old-cmd-$2), $$(dtb-cmd-$2))),		\
-		@set -e; 						\
+		$(q)set -e; 						\
 		mkdir -p $$(dir $2); 					\
 		$(cmd-echo-silent) '  CPP     $$(dtb-predts-$2)'; 	\
 		$$(dtb-precmd-$2);					\
