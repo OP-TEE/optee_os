@@ -49,7 +49,7 @@ static TEE_Result versal_ecc_trng_init(void)
 		.predict_en = false,
 		.df_disable = false,
 		.dfmul = CFG_VERSAL_TRNG_DF_MUL,
-		.iseed_en =  false,
+		.iseed_en = false,
 		.pstr_en = true,
 	};
 
@@ -159,7 +159,7 @@ static struct versal_pki versal_pki;
 #define PKI_SIGN_P521_PADD_BYTES	2
 #define PKI_VERIFY_P521_PADD_BYTES	6
 
-#define PKI_DEFAULT_REQID		0xB04EU
+#define PKI_DEFAULT_REQID		UINT16_C(0xB04EU)
 
 #define PKI_EXPECTED_CQ_STATUS		0
 #define PKI_EXPECTED_CQ_VALUE		(SHIFT_U32(PKI_DEFAULT_REQID, 16) | 0x1)
@@ -167,7 +167,7 @@ static struct versal_pki versal_pki;
 #define PKI_RESET_DELAY_US		10
 
 static TEE_Result pki_get_opsize(uint32_t curve, uint32_t op, size_t *in_sz,
-			   size_t *out_sz)
+				 size_t *out_sz)
 {
 	TEE_Result ret = TEE_SUCCESS;
 	size_t bits = 0;
@@ -250,7 +250,6 @@ static TEE_Result pki_build_descriptors(uint32_t curve, uint32_t op,
 
 static TEE_Result pki_start_operation(uint32_t reqval)
 {
-	TEE_Result ret = TEE_ERROR_TIMEOUT;
 	uint32_t retries = PKI_MAX_RETRY_COUNT;
 
 	/* Soft reset */
@@ -294,12 +293,11 @@ static TEE_Result pki_start_operation(uint32_t reqval)
 			io_write64(versal_pki.regs +
 				   PKI_CRYPTO_IRQ_RESET_OFFSET,
 				   PKI_IRQ_DONE_STATUS_VAL);
-			ret = TEE_SUCCESS;
-			break;
+			return TEE_SUCCESS;
 		}
 	}
 
-	return ret;
+	return TEE_ERROR_TIMEOUT;
 }
 
 static TEE_Result pki_check_status(void)
@@ -327,30 +325,31 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	size_t bits = 0;
 	size_t bytes = 0;
 	size_t len = 0;
-	uintptr_t addr = (uintptr_t)versal_pki.rq_in;
+	uint8_t *addr = versal_pki.rq_in;
+	uint32_t descriptors[8] = { };
 
 	ret = versal_ecc_get_key_size(key->curve, &bytes, &bits);
 	if (ret)
 		return ret;
 
 	/* Copy public key */
-	versal_crypto_bignum_bn2bin_eswap(key->curve, key->x, (uint8_t *)addr);
+	versal_crypto_bignum_bn2bin_eswap(key->curve, key->x, addr);
 	addr += bytes;
-	versal_crypto_bignum_bn2bin_eswap(key->curve, key->y, (uint8_t *)addr);
+	versal_crypto_bignum_bn2bin_eswap(key->curve, key->y, addr);
 	addr += bytes;
 
 	/* Copy signature */
-	memcpy_swp((uint8_t *)addr, sig, sig_len / 2);
+	memcpy_swp(addr, sig, sig_len / 2);
 	addr += sig_len / 2;
-	memcpy_swp((uint8_t *)addr, sig + sig_len / 2, sig_len / 2);
+	memcpy_swp(addr, sig + sig_len / 2, sig_len / 2);
 	addr += sig_len / 2;
 
 	/* Copy hash */
-	ret = versal_ecc_prepare_msg(algo, msg, msg_len, &len, (uint8_t *)addr);
+	ret = versal_ecc_prepare_msg(algo, msg, msg_len, &len, addr);
 	if (ret)
 		return ret;
 	if (len < bytes)
-		memset((uint8_t *)addr + len, 0, bytes - len);
+		memset(addr + len, 0, bytes - len);
 	addr += bytes;
 
 	if (key->curve == TEE_ECC_CURVE_NIST_P521) {
@@ -359,12 +358,15 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	}
 
 	/* Build descriptors */
+	if (!IS_ALIGNED_WITH_TYPE(addr, uint32_t))
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	ret = pki_build_descriptors(key->curve, PKI_DESC_OPTYPE_ECDSA_VERIFY,
-				    (uint32_t *)addr);
+				    descriptors);
 	if (ret)
 		return ret;
 
-	ret = pki_start_operation(PKI_NEW_REQUEST_MASK & (addr + 1));
+	ret = pki_start_operation(PKI_NEW_REQUEST_MASK & ((uintptr_t)addr + 1));
 	if (ret)
 		return ret;
 
@@ -823,7 +825,8 @@ TEE_Result versal_ecc_hw_init(void)
 		return ret;
 
 	versal_pki.regs = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
-		FPD_PKI_CRYPTO_BASEADDR, FPD_PKI_SIZE);
+							FPD_PKI_CRYPTO_BASEADDR,
+							FPD_PKI_SIZE);
 	if (!versal_pki.regs)
 		return TEE_ERROR_GENERIC;
 

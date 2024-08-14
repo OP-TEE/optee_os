@@ -31,8 +31,8 @@ TEE_Result versal_ecc_sign_ephemeral(uint32_t algo, size_t bytes,
 
 void memcpy_swp(uint8_t *to, const uint8_t *from, size_t len);
 void versal_crypto_bignum_bn2bin_eswap(uint32_t curve, struct bignum *from,
-				uint8_t *to);
+				       uint8_t *to);
 void versal_crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,
-				struct bignum *to);
+				       struct bignum *to);
 
 #endif

@@ -57,7 +57,7 @@ void memcpy_swp(uint8_t *to, const uint8_t *from, size_t len)
 }
 
 void versal_crypto_bignum_bn2bin_eswap(uint32_t curve, struct bignum *from,
-				uint8_t *to)
+				       uint8_t *to)
 {
 	uint8_t pad[66] = { 0 };
 	size_t len = crypto_bignum_num_bytes(from);
@@ -72,7 +72,7 @@ void versal_crypto_bignum_bn2bin_eswap(uint32_t curve, struct bignum *from,
 }
 
 void versal_crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,
-				struct bignum *to)
+				       struct bignum *to)
 {
 	uint8_t pad[66] = { 0 };
 
@@ -146,7 +146,7 @@ static TEE_Result do_sign(struct drvcrypt_sign_data *sdata)
 
 static TEE_Result do_verify(struct drvcrypt_sign_data *sdata)
 {
-	TEE_Result ret;
+	TEE_Result ret = TEE_SUCCESS;
 
 	ret = versal_ecc_verify(sdata->algo,
 				sdata->key,
@@ -175,6 +175,9 @@ static TEE_Result do_gen_keypair(struct ecc_keypair *s, size_t size_bits)
 		return pair_ops->generate(s, size_bits);
 
 #ifdef CFG_VERSAL_PKI_PWCT
+	if (ret != TEE_SUCCESS)
+		return ret;
+
 	/* Perform a pairwise consistencty test on the generated key pair */
 	ret = versal_ecc_keypair_pwct(s);
 	if (ret)
@@ -249,7 +252,7 @@ static struct drvcrypt_ecc driver_ecc = {
 
 static TEE_Result ecc_init(void)
 {
-	TEE_Result ret;
+	TEE_Result ret = TEE_SUCCESS;
 
 	/* HW initialization if needed */
 	ret = versal_ecc_hw_init();

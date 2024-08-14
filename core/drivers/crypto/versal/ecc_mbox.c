@@ -4,22 +4,22 @@
  * Author: Jorge Ramirez <jorge@foundries.io>
  */
 
+#include <config.h>
+#include <crypto/crypto_impl.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
-#include <crypto/crypto_impl.h>
+#include <ecc.h>
 #include <initcall.h>
 #include <ipi.h>
-#include <ecc.h>
-#include <kernel/panic.h>
+#include <io.h>
 #include <kernel/delay.h>
+#include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <string.h>
 #include <tee/cache.h>
 #include <tee/tee_cryp_utl.h>
 #include <util.h>
-#include <io.h>
-#include <config.h>
 
 enum versal_ecc_err {
 	KAT_KEY_NOTVALID_ERROR = 0xC0,
@@ -207,19 +207,19 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 					      TEE_TYPE_ECDSA_KEYPAIR, bits);
 	if (ret) {
 		EMSG("Versal, can't allocate the ephemeral key");
-		goto out1;
+		goto out;
 	}
 
 	ephemeral.curve = key->curve;
 	ret = crypto_acipher_gen_ecc_key(&ephemeral, bits);
 	if (ret) {
 		EMSG("Versal, can't generate the ephemeral key");
-		goto out1;
+		goto out;
 	}
 
 	ret = versal_mbox_alloc(bytes, NULL, &k);
 	if (ret)
-		goto out1;
+		goto out;
 
 	versal_crypto_bignum_bn2bin_eswap(key->curve, ephemeral.d, k.buf);
 	crypto_bignum_free(&ephemeral.d);
@@ -229,18 +229,18 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	/* Private key*/
 	ret = versal_mbox_alloc(bytes, NULL, &d);
 	if (ret)
-		goto out2;
+		goto out;
 	versal_crypto_bignum_bn2bin_eswap(key->curve, key->d, d.buf);
 
 	/* Signature */
 	ret = versal_mbox_alloc(*sig_len, NULL, &s);
 	if (ret)
-		goto out3;
+		goto out;
 
 	/* IPI command */
 	ret = versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
 	if (ret)
-		goto out4;
+		goto out;
 
 	cmd = cmd_buf.buf;
 	cmd->priv_key_addr = virt_to_phys(d.buf);
@@ -258,7 +258,7 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	if (versal_crypto_request(VERSAL_ELLIPTIC_GENERATE_SIGN, &arg, &err)) {
 		EMSG("Versal ECC: %s", versal_ecc_error(err));
 		ret = TEE_ERROR_GENERIC;
-		goto error;
+		goto out;
 	}
 
 	*sig_len = 2 * bytes;
@@ -267,15 +267,12 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	memcpy_swp(sig, s.buf, *sig_len / 2);
 	memcpy_swp(sig + *sig_len / 2, (uint8_t *)s.buf + *sig_len / 2,
 		   *sig_len / 2);
-error:
+
+out:
 	versal_mbox_free(&cmd_buf);
-out4:
 	versal_mbox_free(&s);
-out3:
 	versal_mbox_free(&d);
-out2:
 	versal_mbox_free(&k);
-out1:
 	versal_mbox_free(&p);
 
 	return ret;
