@@ -289,7 +289,7 @@ static void core_init_mmu_prtn_ta(struct mmu_partition *prtn)
 {
 	unsigned int core = 0;
 
-	assert(user_va_idx != -1);
+	assert(core_mmu_user_va_range_is_defined());
 
 	memset(prtn->user_pgts, 0, CFG_NUM_THREADS * RISCV_MMU_PGT_SIZE);
 	for (core = 0; core < CFG_TEE_CORE_NB_CORE; core++)
@@ -637,7 +637,7 @@ core_mmu_get_user_mapping_entry(struct mmu_partition *prtn)
 {
 	struct mmu_pgt *pgt = core_mmu_get_root_pgt_va(prtn);
 
-	assert(user_va_idx != -1);
+	assert(core_mmu_user_va_range_is_defined());
 
 	return core_mmu_table_get_entry(pgt, user_va_idx);
 }
@@ -669,9 +669,14 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	thread_unmask_exceptions(exceptions);
 }
 
+bool core_mmu_user_va_range_is_defined(void)
+{
+	return user_va_idx != -1;
+}
+
 void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
 {
-	assert(user_va_idx != -1);
+	assert(core_mmu_user_va_range_is_defined());
 
 	if (base)
 		*base = SHIFT_U64(user_va_idx, CORE_MMU_BASE_TABLE_SHIFT);

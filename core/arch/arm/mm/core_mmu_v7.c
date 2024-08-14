@@ -693,6 +693,11 @@ bool core_mmu_user_mapping_is_active(void)
 	return ret;
 }
 
+bool __noprof core_mmu_user_va_range_is_defined(void)
+{
+	return true;
+}
+
 void core_init_mmu_prtn(struct mmu_partition *prtn, struct memory_map *mem_map)
 {
 	void *ttb1 = (void *)core_mmu_get_main_ttb_va(prtn);
