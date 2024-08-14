@@ -584,6 +584,8 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 	struct token_persistent_main *db_main = NULL;
 	struct token_persistent_objs *db_objs = NULL;
 	void *ptr = NULL;
+	void *initial_data = NULL;
+	uint32_t initial_data_size = 0;
 
 	if (!token)
 		return NULL;
@@ -666,33 +668,33 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 		/*
 		 * Object stores persistent state + persistent object
 		 * references.
+		 *
+		 * Allocate the initial_data buffer to encompass the data from
+		 * both db_main and db_objs. Since the initial data for the
+		 * objects will be zeroed out upon creation, there’s no need
+		 * to copy it from db_objs.
 		 */
+		initial_data_size = sizeof(*db_main) + sizeof(*db_objs);
+		initial_data = TEE_Malloc(initial_data_size,
+					  TEE_MALLOC_FILL_ZERO);
+		if (!initial_data) {
+			EMSG("Failed to allocate initial_data buffer");
+			goto error;
+		}
+		TEE_MemMove(initial_data, db_main, sizeof(*db_main));
 		res = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE,
 						 file, sizeof(file),
 						 TEE_DATA_FLAG_ACCESS_READ |
 						 TEE_DATA_FLAG_ACCESS_WRITE,
 						 TEE_HANDLE_NULL,
-						 db_main, sizeof(*db_main),
+						 initial_data,
+						 initial_data_size,
 						 &db_hdl);
+		TEE_Free(initial_data);
 		if (res) {
 			EMSG("Failed to create db: %#"PRIx32, res);
 			goto error;
 		}
-
-		res = TEE_TruncateObjectData(db_hdl, sizeof(*db_main) +
-						     sizeof(*db_objs));
-		if (res)
-			TEE_Panic(0);
-
-		res = TEE_SeekObjectData(db_hdl, sizeof(*db_main),
-					 TEE_DATA_SEEK_SET);
-		if (res)
-			TEE_Panic(0);
-
-		db_objs->count = 0;
-		res = TEE_WriteObjectData(db_hdl, db_objs, sizeof(*db_objs));
-		if (res)
-			TEE_Panic(0);
 
 	} else {
 		goto error;
