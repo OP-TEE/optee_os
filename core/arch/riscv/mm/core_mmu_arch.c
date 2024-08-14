@@ -152,9 +152,10 @@ static unsigned long core_mmu_pgt_to_satp(unsigned long asid,
 					  struct mmu_pgt *pgt)
 {
 	unsigned long satp = 0;
-	unsigned long pgt_ppn = virt_to_phys(pgt) >> RISCV_PGSHIFT;
+	unsigned long pgt_ppn = (paddr_t)pgt >> RISCV_PGSHIFT;
 
-	assert(asid & g_asid == asid);
+	assert(!cpu_mmu_enabled());
+
 	satp |= SHIFT_U64(asid, RISCV_SATP_ASID_SHIFT);
 	satp |= SHIFT_U64(RISCV_SATP_MODE, RISCV_SATP_MODE_SHIFT);
 	satp |= pgt_ppn;
