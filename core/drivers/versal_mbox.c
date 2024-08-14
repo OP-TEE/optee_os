@@ -497,8 +497,8 @@ TEE_Result versal_mbox_notify_pmc(struct versal_ipi_cmd *cmd,
 		 * detailed information.
 		 */
 		DMSG("PLM: plm status = 0x%" PRIx32 ", lib_status = 0x%" PRIx32,
-			 (*err & 0xFFFF0000) >> 16,
-			 (*err & 0x0000FFFF));
+		     (*err & 0xFFFF0000) >> 16,
+		     (*err & 0x0000FFFF));
 	}
 
 	return ret;
@@ -506,7 +506,7 @@ TEE_Result versal_mbox_notify_pmc(struct versal_ipi_cmd *cmd,
 
 static TEE_Result versal_mbox_init(void)
 {
-	uint32_t lcl;
+	uint32_t lcl = 0;
 
 	switch (CFG_VERSAL_MBOX_IPI_ID) {
 	case 0:
