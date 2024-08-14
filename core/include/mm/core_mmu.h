@@ -552,6 +552,12 @@ void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages);
 bool core_mmu_user_mapping_is_active(void);
 
 /*
+ * core_mmu_user_va_range_is_defined() - check if user va range is defined
+ * @returns true if a user VA space is defined, false if not.
+ */
+bool core_mmu_user_va_range_is_defined(void);
+
+/*
  * core_mmu_mattr_is_ok() - Check that supplied mem attributes can be used
  * @returns true if the attributes can be used, false if not.
  */
