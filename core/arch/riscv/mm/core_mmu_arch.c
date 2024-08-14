@@ -450,7 +450,7 @@ void asid_free(unsigned int asid)
 	if (asid) {
 		int i = asid - 1;
 
-		assert(i < RISCV_MMU_ASID_WIDTH && bit_test(&g_asid, i));
+		assert(i < RISCV_MMU_ASID_WIDTH && bit_test(g_asid, i));
 		bit_clear(g_asid, i);
 	}
 
