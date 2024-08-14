@@ -12,8 +12,7 @@
 /**
  * Write FPGA bitstream
  *
- * [in]		memref[0].buffer	FPGA bitstream buffer
- * [in]		memref[0].size		FPGA bitstream buffer size
+ * [in]		memref[0]	FPGA bitstream buffer
  *
  * Return codes:
  * TEE_SUCCESS - Invoke command success
