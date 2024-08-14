@@ -262,6 +262,7 @@ define gen-dtb-file
 dtb-basename-$2	:= $$(basename $$(notdir $2))
 dtb-predts-$2   := $$(dir $2)$$(dtb-basename-$2).pre.dts
 dtb-predep-$2	:= $$(dir $2).$$(dtb-basename-$2).pre.dts.d
+dtb-precmd-file-$2 := $$(dir $2).$$(dtb-basename-$2).pre.dts.cmd
 dtb-dep-$2	:= $$(dir $2).$$(notdir $2).d
 dtb-cmd-file-$2	:= $$(dir $2).$$(notdir $2).cmd
 
@@ -279,27 +280,32 @@ dtb-dtcflags-$2	:= $$(DTC_FLAGS) -I dts -O dtb -Wno-unit_address_vs_reg \
 -include $$(dtb-dep-$2)
 -include $$(dtb-predep-$2)
 -include $$(dtb-cmd-file-$2)
+-include $$(dtb-precmd-file-$2)
 
 dtb-precmd-$2 = $$(CPP$(sm)) $$(dtb-cppflags-$2) -o $$(dtb-predts-$2) $$<
 dtb-cmd-$2 = $$(DTC) $$(dtb-dtcflags-$2) -o $$@ $$(dtb-predts-$2)
 
-$2: $1 FORCE
-# Check if any prerequisites are newer than the target and
-# check if command line has changed
+$$(dtb-predts-$2): $1 FORCE
 	$$(if $$(strip $$(filter-out FORCE, $$?) \
 	    $$(filter-out $$(dtb-precmd-$2), $$(dtb-old-precmd-$2)) 	\
-	    $$(filter-out $$(dtb-old-precmd-$2), $$(dtb-precmd-$2)) 	\
-	    $$(filter-out $$(dtb-cmd-$2), $$(dtb-old-cmd-$2)) 		\
-	    $$(filter-out $$(dtb-old-cmd-$2), $$(dtb-cmd-$2))),		\
+	    $$(filter-out $$(dtb-old-precmd-$2), $$(dtb-precmd-$2))), 	\
 		$(q)set -e; 						\
 		mkdir -p $$(dir $2); 					\
 		$(cmd-echo-silent) '  CPP     $$(dtb-predts-$2)'; 	\
 		$$(dtb-precmd-$2);					\
+		echo "dtb-old-precmd-$2 := $$(subst \",\\\",$$(dtb-precmd-$2))" > \
+			$$(dtb-precmd-file-$2) ;\
+	)
+
+$2: $$(dtb-predts-$2) FORCE
+	$$(if $$(strip $$(filter-out FORCE, $$?) \
+	    $$(filter-out $$(dtb-cmd-$2), $$(dtb-old-cmd-$2)) 		\
+	    $$(filter-out $$(dtb-old-cmd-$2), $$(dtb-cmd-$2))),		\
+		$(q)set -e; 						\
+		mkdir -p $$(dir $2); 					\
 		$(cmd-echo-silent) '  DTC     $$@'; 			\
 		$$(dtb-cmd-$2);						\
-		echo "dtb-old-precmd-$2 := $$(subst \",\\\",$$(dtb-precmd-$2))" > \
-			$$(dtb-cmd-file-$2) ;\
-		echo "dtb-old-cmd-$2 := $$(subst \",\\\",$$(dtb-cmd-$2))" >> \
+		echo "dtb-old-cmd-$2 := $$(subst \",\\\",$$(dtb-cmd-$2))" > \
 			$$(dtb-cmd-file-$2) ;\
 	)
 
