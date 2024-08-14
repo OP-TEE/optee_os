@@ -43,8 +43,8 @@
 #define PM_MODULE_SHIFT		8
 #define PM_MODULE		2
 #define PM_API_ID(x)		((PM_MODULE << PM_MODULE_SHIFT) | (x))
-#define VERSAL_PM_MAJOR		1
-#define VERSAL_PM_MINOR		0
+#define VERSAL_PM_MAJOR		0
+#define VERSAL_PM_MINOR		1
 
 /* PM API ids */
 #define PM_GET_API_VERSION		1
