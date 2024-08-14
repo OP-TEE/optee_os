@@ -254,8 +254,6 @@ $(foreach f,$(asm-defines-files),$(eval $(call gen-asm-defines-file,$(f),$(out-d
 
 # Device tree source file compilation
 DTC := dtc
-DTC_FLAGS += -I dts -O dtb
-DTC_FLAGS += -Wno-unit_address_vs_reg
 
 define gen-dtb-file
 # dts file path/name in $1
@@ -275,7 +273,8 @@ dtb-cppflags-$2 := -Icore/include/ -x assembler-with-cpp -Ulinux -Uunix \
 		   -E -ffreestanding $$(CPPFLAGS) \
 		   -MD -MF $$(dtb-predep-$2) -MT $2
 
-dtb-dtcflags-$2	:= $$(DTC_FLAGS) -d $$(dtb-dep-$2)
+dtb-dtcflags-$2	:= $$(DTC_FLAGS) -I dts -O dtb -Wno-unit_address_vs_reg \
+		   -d $$(dtb-dep-$2)
 
 -include $$(dtb-dep-$2)
 -include $$(dtb-predep-$2)
