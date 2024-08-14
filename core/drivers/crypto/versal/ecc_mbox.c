@@ -222,9 +222,6 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 		goto out;
 
 	versal_crypto_bignum_bn2bin_eswap(key->curve, ephemeral.d, k.buf);
-	crypto_bignum_free(&ephemeral.d);
-	crypto_bignum_free(&ephemeral.x);
-	crypto_bignum_free(&ephemeral.y);
 
 	/* Private key*/
 	ret = versal_mbox_alloc(bytes, NULL, &d);
@@ -269,6 +266,10 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 		   *sig_len / 2);
 
 out:
+	crypto_bignum_free(&ephemeral.d);
+	crypto_bignum_free(&ephemeral.x);
+	crypto_bignum_free(&ephemeral.y);
+
 	versal_mbox_free(&cmd_buf);
 	versal_mbox_free(&s);
 	versal_mbox_free(&d);
