@@ -43,8 +43,8 @@
 #define PM_MODULE_SHIFT		8
 #define PM_MODULE		2
 #define PM_API_ID(x)		((PM_MODULE << PM_MODULE_SHIFT) | (x))
-#define VERSAL_PM_MAJOR		0
-#define VERSAL_PM_MINOR		1
+#define VERSAL_PM_MAJOR		1
+#define VERSAL_PM_MINOR		0
 
 /* PM API ids */
 #define PM_GET_API_VERSION		1
@@ -211,7 +211,7 @@ static TEE_Result versal_check_pm_abi(void)
 
 	minor = rsp.data[1] & 0xFFFF;
 	major = rsp.data[1] >> 16;
-	if (major != VERSAL_PM_MAJOR || minor < VERSAL_PM_MINOR) {
+	if (major != VERSAL_PM_MAJOR || minor != VERSAL_PM_MINOR) {
 		EMSG("Invalid PM version: Major %d, Minor %d", major, minor);
 		return TEE_ERROR_GENERIC;
 	}
