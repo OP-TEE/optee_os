@@ -2379,7 +2379,14 @@ paddr_t virt_to_phys(void *va)
 	return pa;
 }
 
-#if defined(CFG_TEE_CORE_DEBUG)
+/*
+ * Don't use check_va_matches_pa() for RISC-V, as its callee
+ * arch_va2pa_helper() will call it eventually, this creates
+ * indirect recursion and can lead to a stack overflow.
+ * Moreover, if arch_va2pa_helper() returns true, it implies
+ * the va2pa mapping is matched, no need to check it again.
+ */
+#if defined(CFG_TEE_CORE_DEBUG) && !defined(__riscv)
 static void check_va_matches_pa(paddr_t pa, void *va)
 {
 	paddr_t p = 0;
