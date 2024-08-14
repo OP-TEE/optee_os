@@ -723,47 +723,47 @@ static TEE_Result do_write_efuses(enum versal_nvm_api_id id)
 
 TEE_Result versal_efuse_write_aes_keys(struct versal_efuse_aes_keys *keys)
 {
-	TEE_Result ret = TEE_SUCCESS;
 	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res2 = TEE_SUCCESS;
 
 	if (!keys)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (keys->prgm_aes_key) {
-		res = do_write_efuses_buffer(EFUSE_WRITE_AES_KEY,
+		res2 = do_write_efuses_buffer(EFUSE_WRITE_AES_KEY,
 					     EFUSE_AES_KEY_ID,
 					     keys->aes_key, EFUSE_AES_KEY_LEN);
-		if (res) {
-			DMSG("Error programming AES key (0x%" PRIx32 ")", res);
-			ret = TEE_ERROR_GENERIC;
+		if (res2) {
+			DMSG("Error programming AES key (0x%" PRIx32 ")", res2);
+			res = TEE_ERROR_GENERIC;
 		}
 	}
 
 	if (keys->prgm_user_key0) {
-		res = do_write_efuses_buffer(EFUSE_WRITE_AES_KEY,
+		res2 = do_write_efuses_buffer(EFUSE_WRITE_AES_KEY,
 					     EFUSE_USER_KEY0_ID,
 					     keys->user_key0,
 					     EFUSE_AES_KEY_LEN);
-		if (res) {
+		if (res2) {
 			DMSG("Error programming User key 0 (0x%" PRIx32 ")",
-			     res);
-			ret = TEE_ERROR_GENERIC;
+			     res2);
+			res = TEE_ERROR_GENERIC;
 		}
 	}
 
 	if (keys->prgm_user_key1) {
-		res = do_write_efuses_buffer(EFUSE_WRITE_AES_KEY,
+		res2 = do_write_efuses_buffer(EFUSE_WRITE_AES_KEY,
 					     EFUSE_USER_KEY1_ID,
 					     keys->user_key1,
 					     EFUSE_AES_KEY_LEN);
-		if (res) {
+		if (res2) {
 			DMSG("Error programming User key 1 (0x%" PRIx32 ")",
-			     res);
-			ret = TEE_ERROR_GENERIC;
+			     res2);
+			res = TEE_ERROR_GENERIC;
 		}
 	}
 
-	return ret;
+	return res;
 }
 
 TEE_Result versal_efuse_write_ppk_hash(struct versal_efuse_ppk_hash *hash)
