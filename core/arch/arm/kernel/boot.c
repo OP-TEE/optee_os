@@ -541,9 +541,9 @@ static void init_runtime(unsigned long pageable_part)
 
 	/*
 	 * Need physical memory pool initialized to be able to allocate
-	 * secure DDR below.
+	 * secure physical memory below.
 	 */
-	core_mmu_init_ta_ram();
+	core_mmu_init_phys_mem();
 
 	carve_out_asan_mem();
 
@@ -891,7 +891,7 @@ void init_tee_runtime(void)
 {
 #ifndef CFG_WITH_PAGER
 	/* Pager initializes TA RAM early */
-	core_mmu_init_ta_ram();
+	core_mmu_init_phys_mem();
 #endif
 	/*
 	 * With virtualization we call this function when creating the

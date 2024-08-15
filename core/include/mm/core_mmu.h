@@ -644,8 +644,8 @@ void core_mmu_set_default_prtn_tbl(void);
 
 void core_mmu_init_virtualization(void);
 
-/* init some allocation pools */
-void core_mmu_init_ta_ram(void);
+/* Initialize physical memory pool */
+void core_mmu_init_phys_mem(void);
 
 void core_init_mmu(struct memory_map *mem_map);
 
