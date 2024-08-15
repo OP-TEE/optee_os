@@ -2599,7 +2599,7 @@ static TEE_Result teecore_init_pub_ram(void)
 early_init(teecore_init_pub_ram);
 #endif /*CFG_CORE_RESERVED_SHM*/
 
-void core_mmu_init_ta_ram(void)
+void core_mmu_init_phys_mem(void)
 {
 	vaddr_t s = 0;
 	vaddr_t e = 0;

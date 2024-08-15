@@ -89,7 +89,7 @@ static void init_runtime(void)
 
 void init_tee_runtime(void)
 {
-	core_mmu_init_ta_ram();
+	core_mmu_init_phys_mem();
 	call_preinitcalls();
 	call_initcalls();
 }
