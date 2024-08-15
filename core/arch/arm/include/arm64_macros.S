@@ -181,3 +181,10 @@
 	/* msr pan, #0 */
 	msr	S0_0_c4_c0_4, xzr
 	.endm
+
+	.macro return_from_exception
+		eret
+		/* Guard against speculation past ERET */
+		dsb nsh
+		isb
+	.endm

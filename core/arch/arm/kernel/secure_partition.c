@@ -6,6 +6,7 @@
 #include <initcall.h>
 #include <kernel/boot.h>
 #include <kernel/embedded_ts.h>
+#include <kernel/interrupt.h>
 #include <kernel/ldelf_loader.h>
 #include <kernel/secure_partition.h>
 #include <kernel/spinlock.h>
@@ -48,6 +49,29 @@
 					 SP_MANIFEST_ATTR_EXEC)
 
 #define SP_MANIFEST_FLAG_NOBITS	BIT(0)
+
+/*
+ * Secure interrupt manifest attributes
+ *   [7:0] Priority
+ *     [8] Security state: NS = 0, S = 1
+ *     [9] Configuration: Edge = 0, Level = 1
+ * [11:10] Type: SGI = 0, PPI = 1, SPI = 2
+ */
+
+#define SP_MANIFEST_INT_PRIORITY_GET(x)	((x) & GENMASK_32(7, 0))
+
+#define SP_MANIFEST_INT_SECURITY_STATE_GET(x)		(((x) & BIT(8)) >> 8)
+#define SP_MANIFEST_INT_SECURITY_STATE_NON_SECURE	(0x0)
+#define SP_MANIFEST_INT_SECURITY_STATE_SECURE		(0x1)
+
+#define SP_MANIFEST_INT_CONFIGRATION_GET(x)	(((x) & BIT32(9)) >> 9)
+#define SP_MANIFEST_INT_CONFIGRATION_EDGE	(0x0)
+#define SP_MANIFEST_INT_CONFIGRATION_LEVEL	(0x1)
+
+#define SP_MANIFEST_INT_TYPE_GET(x)	(((x) & GENMASK_32(11, 10)) >> 10)
+#define SP_MANIFEST_INT_TYPE_SGI	(0x0)
+#define SP_MANIFEST_INT_TYPE_PPI	(0x1)
+#define SP_MANIFEST_INT_TYPE_SPI	(0x2)
 
 #define SP_MANIFEST_NS_INT_QUEUED	(0x0)
 #define SP_MANIFEST_NS_INT_MANAGED_EXIT	(0x1)
@@ -942,7 +966,144 @@ err_mm_free:
 	return res;
 }
 
-static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
+bool sp_pop_pending_interrupt(struct sp_session *s, struct sp_interrupt *it)
+{
+	if (!s->pending_interrupt_count)
+		return false;
+
+	*it = s->pending_interrupts[--s->pending_interrupt_count];
+	return true;
+}
+
+void sp_unmask_interrupt(struct sp_interrupt *it)
+{
+	interrupt_unmask(it->chip, it->it);
+}
+
+struct sp_session *sp_find_pending_interrupt(struct sp_interrupt *it)
+{
+	struct sp_session *s = NULL;
+
+	TAILQ_FOREACH(s, &open_sp_sessions, link) {
+		cpu_spin_lock(&s->spinlock);
+		if (s->state == sp_idle && sp_pop_pending_interrupt(s, it)) {
+			s->state = sp_busy;
+			cpu_spin_unlock(&s->spinlock);
+
+			return s;
+		}
+
+		cpu_spin_unlock(&s->spinlock);
+	}
+
+	return NULL;
+}
+
+static enum itr_return sp_interrupt_callback(struct itr_handler *h)
+{
+	struct sp_session *s = h->data;
+	struct sp_interrupt *it = NULL;
+
+	DMSG("SP interrupt: %ld 0x%04x", h->it, s->endpoint_id);
+
+	cpu_spin_lock(&s->spinlock);
+	/* Store the interrupt number in the SP's active interrupt list */
+	if (s->pending_interrupt_count < s->max_interrupt_count) {
+		it = &s->pending_interrupts[s->pending_interrupt_count++];
+
+		it->chip = h->chip;
+		it->it = h->it;
+	} else {
+		panic("Maximum number of active SP interrupts reached");
+	}
+	cpu_spin_unlock(&s->spinlock);
+
+	/*
+	 * The interrupt will be unmasked after calling the interrupt handler
+	 * of the SP.
+	 */
+	interrupt_mask(h->chip, h->it);
+
+	return ITRR_HANDLED;
+}
+DECLARE_KEEP_PAGER(sp_interrupt_callback);
+
+static TEE_Result sp_configure_interrupt(struct sp_session *s, uint32_t id,
+					 uint32_t attributes)
+{
+	uint32_t configuration = SP_MANIFEST_INT_CONFIGRATION_GET(attributes);
+	uint32_t security = SP_MANIFEST_INT_SECURITY_STATE_GET(attributes);
+	uint32_t prio = SP_MANIFEST_INT_PRIORITY_GET(attributes);
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct itr_handler *itr = NULL;
+	uint32_t flags = 0;
+
+	if (security != SP_MANIFEST_INT_SECURITY_STATE_SECURE) {
+		EMSG("Only secure interrupt is supported");
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	if (configuration == SP_MANIFEST_INT_CONFIGRATION_LEVEL)
+		flags |= ITRF_TRIGGER_LEVEL;
+
+	res = interrupt_alloc_add_conf_handler(interrupt_get_main_chip(), id,
+					       sp_interrupt_callback, flags, s,
+					       IRQ_TYPE_NONE, prio, &itr);
+	if (res != TEE_SUCCESS) {
+		EMSG("Failed to configure interrupt handler");
+		return res;
+	}
+
+	interrupt_enable(interrupt_get_main_chip(), id);
+
+	DMSG("Interrupt %"PRId32" enabled", id);
+
+	return res;
+}
+
+static TEE_Result handle_fdt_dev_interrupts(struct sp_session *s, void *fdt,
+					    int subnode)
+{
+	/* The property must contain a list of uint32_t pairs */
+	static const size_t entry_size = sizeof(uint32_t) * 2;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	const fdt32_t *prop = NULL;
+	size_t count = 0;
+	size_t i = 0;
+	int len = 0;
+
+	/* Optional property, return success if not found */
+	prop = (const fdt32_t *)fdt_getprop(fdt, subnode, "interrupts", &len);
+	if (!prop)
+		return TEE_SUCCESS;
+
+	if (!IS_ALIGNED(len, entry_size)) {
+		EMSG("interrupts property must be a list of uint32_t pairs");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	count = len / entry_size;
+
+	for (i = 0; i < count; i++) {
+		uint32_t id = fdt32_to_cpu(prop[i * 2]);
+		uint32_t attributes = fdt32_to_cpu(prop[i * 2 + 1]);
+
+		res = sp_configure_interrupt(s, id, attributes);
+		if (res)
+			return res;
+
+		s->max_interrupt_count++;
+	}
+
+	s->pending_interrupts =
+		(struct sp_interrupt *)calloc(s->max_interrupt_count,
+					      sizeof(struct sp_interrupt));
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result handle_fdt_dev_regions(struct sp_session *s,
+					 struct sp_ctx *ctx, void *fdt)
 {
 	int node = 0;
 	int subnode = 0;
@@ -1042,6 +1203,10 @@ static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
 			vm_unmap(&ctx->uctx, va, pages_cnt * SMALL_PAGE_SIZE);
 			return res;
 		}
+
+		res = handle_fdt_dev_interrupts(s, fdt, subnode);
+		if (res)
+			return res;
 	}
 
 	return TEE_SUCCESS;
@@ -1506,7 +1671,7 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 	if (res)
 		goto out;
 
-	res = handle_fdt_dev_regions(ctx, fdt_copy);
+	res = handle_fdt_dev_regions(sess, ctx, fdt_copy);
 	if (res)
 		goto out;
 
@@ -1591,13 +1756,19 @@ static void sp_cpsr_configure_foreign_interrupts(struct sp_session *s,
 						 struct ts_session *caller,
 						 uint64_t *cpsr)
 {
+	uint32_t ns_int_mode = s->ns_int_mode;
+
+	/* Disable foreign interrupt while handling a native interrupt */
+	if (s->has_active_interrupt)
+		ns_int_mode = SP_MANIFEST_NS_INT_QUEUED;
+
 	if (caller) {
 		struct sp_session *caller_sp = to_sp_session(caller);
 
 		s->ns_int_mode_inherited = MIN(caller_sp->ns_int_mode_inherited,
-					       s->ns_int_mode);
+					       ns_int_mode);
 	} else {
-		s->ns_int_mode_inherited = s->ns_int_mode;
+		s->ns_int_mode_inherited = ns_int_mode;
 	}
 
 	if (s->ns_int_mode_inherited == SP_MANIFEST_NS_INT_QUEUED)

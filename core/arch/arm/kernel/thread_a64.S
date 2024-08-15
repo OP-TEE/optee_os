@@ -22,13 +22,6 @@
 		madd	x\res, x\tmp0, x\tmp1, x\res
 	.endm
 
-	.macro return_from_exception
-		eret
-		/* Guard against speculation past ERET */
-		dsb nsh
-		isb
-	.endm
-
 	.macro b_if_spsr_is_el0 reg, label
 		tbnz	\reg, #(SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT), \label
 		tst	\reg, #(SPSR_64_MODE_EL_MASK << SPSR_64_MODE_EL_SHIFT)
@@ -1312,8 +1305,12 @@ END_FUNC el0_sync_abort
 	/* Restore x0..x1 */
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 
+#if defined(CFG_SECURE_PARTITION)
+	b thread_return_to_sp_interrupt_handler
+#else /* CFG_SECURE_PARTITION */
 	/* Return from exception */
 	return_from_exception
+#endif /* CFG_SECURE_PARTITION */
 1:	b	eret_to_el0
 .endm
 

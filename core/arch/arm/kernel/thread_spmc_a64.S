@@ -120,6 +120,110 @@ FUNC spmc_sp_thread_entry , :
 	mov     w7, w27
 	b .ffa_msg_loop
 END_FUNC spmc_sp_thread_entry
+
+FUNC thread_return_to_sp_interrupt_handler , :
+	/* Save interrupt ELR as LR */
+	mrs	lr, elr_el1
+
+	/* Push X0 */
+	str	x0, [sp, #8]
+
+	/* Set ELR_EL1 to point to thread_native_intr_sp_handler */
+	adr_l	x0, thread_sp_interrupt_handler_starter
+	msr	elr_el1, x0
+
+	/* Pop X0 */
+	ldr	x0, [sp, #8]
+
+	return_from_exception
+
+thread_sp_interrupt_handler_starter:
+	/* Disable native interrupts */
+	msr	daifset, #DAIFBIT_NATIVE_INTR
+
+	/* Store original FF-A call arguments */
+	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
+	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
+
+	/* Store original ELR_EL1 and SP to thread stack */
+	add x0, sp, #THREAD_SMC_ARGS_SIZE
+	sub	sp, sp, #16
+	stp lr, x0, [sp]
+
+	/* Set function arguments */
+	add	x0, sp, #16
+	mov x1, sp
+
+	b thread_sp_alloc_and_run_interrupt_handler
+END_FUNC thread_return_to_sp_interrupt_handler
+
+/**
+ * void spmc_sp_interrupt_handler_entry(struct thread_smc_args *args,
+ * 					uint64_t *lr_sp)
+ */
+FUNC spmc_sp_interrupt_handler_entry , :
+	/* Copy interrupted call parameters to thread stack */
+	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
+	load_xregs x0, THREAD_SMC_ARGS_X0, 20, 27
+	store_xregs sp, THREAD_SMC_ARGS_X0, 20, 27
+
+	/* Copy interrupted LR and SP to thread_stack */
+	sub	sp, sp, #16
+	ldp	x0, x1, [x1]
+	stp	x0, x1, [sp]
+
+	/* Create FFA_INTERRUPT request parameters */
+	mov_imm	x0, FFA_INTERRUPT
+	mov	x1, xzr
+	mov	x2, xzr
+	mov	x3, xzr
+	mov	x4, xzr
+	mov	x5, xzr
+	mov	x6, xzr
+	mov	x7, xzr
+
+	/* Store the parameters as struct thread_smc_args on stack */
+	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
+	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
+	mov	x0, sp
+	mov	x1, #0 /* Pass NULL pointer for caller_sp */
+	bl	spmc_sp_msg_handler
+
+	/* Discard call parameters */
+	add	sp, sp, #THREAD_SMC_ARGS_SIZE
+
+	/* Mask all maskable exceptions before switching to temporary stack */
+	msr     daifset, #DAIFBIT_ALL
+
+	/* Restore original LR and SP */
+	ldp	x0, x1, [sp]
+	add	sp, sp, #16
+
+	/* Restore interrupted call parameters to X20-X27 */
+	load_xregs sp, THREAD_SMC_ARGS_X0, 20, 27
+	add	sp, sp, #THREAD_SMC_ARGS_SIZE
+
+	mov	sp, x1
+	sub	sp, sp, #16
+	str	x0, [sp]
+
+	bl	thread_state_free
+
+	ldr	lr, [sp]
+	add	sp, sp, #16
+
+	/* Restore the FF-A arguments before the SMC instruction. */
+	mov	x0, x20
+	mov	x1, x21
+	mov	x2, x22
+	mov	x3, x23
+	mov	x4, x24
+	mov	x5, x25
+	mov	x6, x26
+	mov	x7, x27
+
+	ret
+END_FUNC spmc_sp_interrupt_handler_entry
 #endif
 
 /* void thread_rpc_spsr(uint32_t rv[THREAD_RPC_NUM_ARGS], uint64_t spsr) */
