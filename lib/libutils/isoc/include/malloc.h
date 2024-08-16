@@ -140,6 +140,10 @@ void nex_malloc_reset_stats(void);
 #define nex_calloc(nmemb, size) calloc(nmemb, size)
 #define nex_realloc(ptr, size) realloc(ptr, size)
 #define nex_memalign(alignment, size) memalign(alignment, size)
+#define nex_malloc_buffer_overlaps_heap(buf, len) \
+	malloc_buffer_overlaps_heap(buf, len)
+#define nex_malloc_buffer_is_within_alloced(buf, len) \
+	malloc_buffer_is_within_alloced(buf, len)
 
 #endif	/* CFG_NS_VIRTUALIZATION */
 
