@@ -42,7 +42,7 @@ END_FUNC csr_detect_trap_vect
 
 /* Detect CSR by csrr/csrrw instruction. a0=1 if detected, otherwise a0=0 */
 .macro detect_csr csr, op, reg0, reg1, reg2
-	addi	a0, a0, 1
+	li	a0, 1
 	save_and_disable_xie \reg0
 	save_and_replace_xtvec \reg1, csr_detect_trap_vect
 .if \op == DETECT_OP_CSRR
