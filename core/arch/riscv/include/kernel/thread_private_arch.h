@@ -18,15 +18,26 @@
 #define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS + CFG_STACK_TMP_EXTRA)
 #endif
 
-#define STACK_THREAD_SIZE	(8192 + CFG_STACK_THREAD_EXTRA)
-
-#if TRACE_LEVEL > 0
-#define STACK_ABT_SIZE		3072
+#ifdef CFG_CORE_DEBUG_CHECK_STACKS
+#define STACK_THREAD_SIZE	(10240 + CFG_STACK_THREAD_EXTRA)
 #else
-#define STACK_ABT_SIZE		1024
+#define STACK_THREAD_SIZE	(8192 + CFG_STACK_THREAD_EXTRA)
 #endif
 
+#define STACK_ABT_SIZE		4096
+
+#ifdef CFG_CORE_DEBUG_CHECK_STACKS
+/*
+ * Extra space added to each stack in order to reliably detect and dump stack
+ * overflows. Should cover the maximum expected overflow size caused by any C
+ * function (say, 512 bytes; no function should have that much local variables),
+ * plus the maximum stack space needed by __cyg_profile_func_exit(): about 1 KB,
+ * a large part of which is used to print the call stack. Total: 1.5 KB.
+ */
+#define STACK_CHECK_EXTRA	1536
+#else
 #define STACK_CHECK_EXTRA	0
+#endif
 
 #define THREAD_RPC_NUM_ARGS     4
 
