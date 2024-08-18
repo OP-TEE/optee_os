@@ -236,13 +236,10 @@ static void handle_user_mode_panic(struct abort_info *ai)
 	ai->regs->a0 = TEE_ERROR_TARGET_DEAD;
 	ai->regs->a1 = true;
 	ai->regs->a2 = 0xdeadbeef;
-	ai->regs->ra = (vaddr_t)thread_unwind_user_mode;
+	ai->regs->epc = (vaddr_t)thread_unwind_user_mode;
 	ai->regs->sp = thread_get_saved_thread_sp();
 	ai->regs->status = xstatus_for_xret(true, PRV_S);
-
-	thread_exit_user_mode(ai->regs->a0, ai->regs->a1, ai->regs->a2,
-			      ai->regs->a3, ai->regs->sp, ai->regs->ra,
-			      ai->regs->status);
+	ai->regs->ie = 0;
 }
 
 #ifdef CFG_WITH_VFP
