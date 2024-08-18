@@ -472,27 +472,35 @@ ecall_from_user:
 	addi	t0, sp, THREAD_SCALL_REGS_SIZE
 	store_xregs a0, THREAD_CTX_KERN_SP, REG_T0
 
-	/*
-	 * We are returning to U-Mode, on return, the program counter
-	 * is set to xsepc (pc=xepc), we add 4 (size of an instruction)
-	 * to continue to next instruction.
-	 */
+	/* Restore XEPC */
 	load_xregs sp, THREAD_SCALL_REG_EPC, REG_T0
-	addi	t0, t0, 4
 	csrw	CSR_XEPC, t0
-
 	/* Restore XIE */
 	load_xregs sp, THREAD_SCALL_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_SCALL_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
-	/* Set scratch as thread_core_local */
+	/* Check previous privilege mode by status.SPP */
+	b_if_prev_priv_is_u t0, 1f
+	/*
+	 * We are going to XRET to kernel mode.
+	 * XSCRATCH is already zero to indicate that we are in kernel mode.
+	 * We must keep kernel gp & tp, so skip restoring user gp & tp.
+	 */
+	j	2f
+1:
+	/*
+	 * We are going to XRET to user mode.
+	 * XSCRATCH must be tp(thread_core_local) to be used in next trap.
+	 * We also need to restore user gp & tp
+	 */
 	csrw	CSR_XSCRATCH, tp
-	/* Restore caller-saved registers */
-	load_xregs sp, THREAD_SCALL_REG_RA, REG_RA
 	load_xregs sp, THREAD_SCALL_REG_GP, REG_GP
 	load_xregs sp, THREAD_SCALL_REG_TP, REG_TP
+2:
+	/* Restore remaining caller-saved registers */
+	load_xregs sp, THREAD_SCALL_REG_RA, REG_RA
 	load_xregs sp, THREAD_SCALL_REG_T0, REG_T0, REG_T2
 	load_xregs sp, THREAD_SCALL_REG_A0, REG_A0, REG_A7
 	load_xregs sp, THREAD_SCALL_REG_T3, REG_T3, REG_T6
@@ -586,18 +594,32 @@ abort_from_user:
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
-	/* Set scratch as thread_core_local */
-	csrw	CSR_XSCRATCH, tp
 
 	/* Update core local flags */
 	lw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
 	srli	a0, a0, THREAD_CLF_SAVED_SHIFT
 	sw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
 
-	/* Restore all GPRs */
-	load_xregs sp, THREAD_ABT_REG_RA, REG_RA
+	/* Check previous privilege mode by status.SPP */
+	b_if_prev_priv_is_u t0, 1f
+	/*
+	 * We are going to XRET to kernel mode.
+	 * XSCRATCH is already zero to indicate that we are in kernel mode.
+	 * We must keep kernel gp & tp, so skip restoring user gp & tp.
+	 */
+	j	2f
+1:
+	/*
+	 * We are going to XRET to user mode.
+	 * XSCRATCH must be tp(thread_core_local) to be used in next trap.
+	 * We also need to restore user gp & tp
+	 */
+	csrw	CSR_XSCRATCH, tp
 	load_xregs sp, THREAD_ABT_REG_GP, REG_GP
 	load_xregs sp, THREAD_ABT_REG_TP, REG_TP
+2:
+	/* Restore remaining GPRs */
+	load_xregs sp, THREAD_ABT_REG_RA, REG_RA
 	load_xregs sp, THREAD_ABT_REG_T0, REG_T0, REG_T2
 	load_xregs sp, THREAD_ABT_REG_S0, REG_S0, REG_S1
 	load_xregs sp, THREAD_ABT_REG_A0, REG_A0, REG_A7
@@ -638,37 +660,6 @@ FUNC thread_unwind_user_mode , :
 END_FUNC thread_unwind_user_mode
 
 /*
- * void thread_exit_user_mode(unsigned long a0, unsigned long a1,
- *			       unsigned long a2, unsigned long a3,
- *			       unsigned long sp, unsigned long pc,
- *			       unsigned long status);
- */
-FUNC thread_exit_user_mode , :
-	/* Set kernel stack pointer */
-	mv	sp, a4
-
-	/* Set xSTATUS */
-	csrw	CSR_XSTATUS, a6
-
-	/*
-	 * Zeroize xSCRATCH to indicate to thread_trap_vect()
-	 * that we are executing in kernel.
-	 */
-	csrw	CSR_XSCRATCH, zero
-
-	/*
-	 * Mask all interrupts first. Interrupts will be unmasked after
-	 * returning from __thread_enter_user_mode().
-	 */
-	csrw	CSR_XIE, zero
-
-	/* Set epc as thread_unwind_user_mode() */
-	csrw	CSR_XEPC, a5
-
-	XRET
-END_FUNC thread_exit_user_mode
-
-/*
  * uint32_t __thread_enter_user_mode(struct thread_ctx_regs *regs,
  *				     uint32_t *exit_status0,
  *				     uint32_t *exit_status1);
@@ -695,7 +686,7 @@ FUNC __thread_enter_user_mode , :
 
 	/*
 	 * Save kernel stack pointer to ensure that
-	 * thread_exit_user_mode() uses correct stack pointer.
+	 * exception_from_user() uses correct stack pointer.
 	 */
 
 	store_xregs s0, THREAD_CTX_KERN_SP, REG_SP

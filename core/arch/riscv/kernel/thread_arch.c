@@ -98,8 +98,9 @@ static void thread_lazy_restore_ns_vfp(void)
 
 static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 {
-	regs->ra = (uintptr_t)thread_unwind_user_mode;
+	regs->epc = (uintptr_t)thread_unwind_user_mode;
 	regs->status = xstatus_for_xret(true, PRV_S);
+	regs->ie = 0;
 	/*
 	 * We are going to exit user mode. The stack pointer must be set as the
 	 * original value it had before allocating space of scall "regs" and
@@ -135,11 +136,15 @@ void thread_scall_handler(struct thread_scall_regs *regs)
 
 	assert(sess && sess->handle_scall);
 
-	if (!sess->handle_scall(regs)) {
+	if (sess->handle_scall(regs)) {
+		/*
+		 * We're about to switch back to next instruction of ecall in
+		 * user-mode
+		 */
+		regs->epc += 4;
+	} else {
+		/* We're returning from __thread_enter_user_mode() */
 		setup_unwind_user_mode(regs);
-		thread_exit_user_mode(regs->a0, regs->a1, regs->a2,
-				      regs->a3, regs->sp, regs->ra,
-				      regs->status);
 	}
 }
 
