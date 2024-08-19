@@ -202,11 +202,6 @@ TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 int mbedtls_internal_sha1_process(mbedtls_sha1_context *ctx,
 				  const unsigned char data[64])
 {
-	MBEDTLS_INTERNAL_VALIDATE_RET(ctx != NULL,
-				      MBEDTLS_ERR_SHA1_BAD_INPUT_DATA);
-	MBEDTLS_INTERNAL_VALIDATE_RET((const unsigned char *)data != NULL,
-				      MBEDTLS_ERR_SHA1_BAD_INPUT_DATA);
-
 	crypto_accel_sha1_compress(ctx->state, data, 1);
 
 	return 0;
@@ -217,11 +212,6 @@ int mbedtls_internal_sha1_process(mbedtls_sha1_context *ctx,
 int mbedtls_internal_sha256_process(mbedtls_sha256_context *ctx,
 				    const unsigned char data[64])
 {
-	MBEDTLS_INTERNAL_VALIDATE_RET(ctx != NULL,
-				      MBEDTLS_ERR_SHA256_BAD_INPUT_DATA);
-	MBEDTLS_INTERNAL_VALIDATE_RET((const unsigned char *)data != NULL,
-				      MBEDTLS_ERR_SHA256_BAD_INPUT_DATA);
-
 	crypto_accel_sha256_compress(ctx->state, data, 1);
 
 	return 0;
@@ -232,11 +222,6 @@ int mbedtls_internal_sha256_process(mbedtls_sha256_context *ctx,
 int mbedtls_internal_sha512_process(mbedtls_sha512_context *ctx,
 				    const unsigned char data[64])
 {
-	MBEDTLS_INTERNAL_VALIDATE_RET(ctx != NULL,
-				      MBEDTLS_ERR_SHA512_BAD_INPUT_DATA);
-	MBEDTLS_INTERNAL_VALIDATE_RET((const unsigned char *)data != NULL,
-				      MBEDTLS_ERR_SHA512_BAD_INPUT_DATA);
-
 	crypto_accel_sha512_compress(ctx->state, data, 1);
 
 	return 0;
