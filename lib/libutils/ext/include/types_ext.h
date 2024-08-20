@@ -20,12 +20,16 @@ typedef uintptr_t vaddr_t;
 #if defined(__ILP32__) && defined(CFG_CORE_LARGE_PHYS_ADDR)
 typedef uint64_t paddr_t;
 typedef uint64_t paddr_size_t;
+#define PADDR_MAX		UINT64_MAX
+#define PADDR_SIZE_MAX		UINT64_MAX
 #define PRIxPA			PRIx64
 #define PRIxPASZ		PRIx64
 #define __SIZEOF_PADDR__	8
 #else
 typedef uintptr_t paddr_t;
 typedef uintptr_t paddr_size_t;
+#define PADDR_MAX		UINTPTR_MAX
+#define PADDR_SIZE_MAX		UINTPTR_MAX
 #define PRIxPA			PRIxPTR
 #define PRIxPASZ		PRIxPTR
 #define __SIZEOF_PADDR__	__SIZEOF_POINTER__
