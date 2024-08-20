@@ -374,7 +374,10 @@ SECTIONS
 	ASSERT(TEE_LOAD_ADDR < (TEE_RAM_START + TEE_RAM_PH_SIZE),
 		"Load address after end of physical memory")
 	ASSERT((TEE_RAM_START + TEE_RAM_PH_SIZE - __init_end) >
-		SMALL_PAGE_SIZE, "Too few free pages to initialize paging")
+		SMALL_PAGE_SIZE * 2 +
+		(__pageable_end - __pageable_start) / 4096 * 32 +
+		SIZEOF(.rel) / 2 + SIZEOF(.rela) / 3 ,
+		"Too few free pages to initialize paging")
 
 
 #endif /*CFG_WITH_PAGER*/
