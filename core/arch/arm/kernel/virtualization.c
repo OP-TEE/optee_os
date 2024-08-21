@@ -361,6 +361,7 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 
 	set_current_prtn(prtn);
 
+	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 	/* Initialize threads */
 	thread_init_threads();
 	/* Do the preinitcalls */

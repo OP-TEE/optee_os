@@ -912,17 +912,6 @@ static void update_external_dt(void)
 }
 #endif /*!CFG_DT*/
 
-#ifdef CFG_NS_VIRTUALIZATION
-static TEE_Result virt_init_heap(void)
-{
-	/* We need to initialize pool for every virtual guest partition */
-	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
-
-	return TEE_SUCCESS;
-}
-preinit_early(virt_init_heap);
-#endif
-
 void init_tee_runtime(void)
 {
 #ifndef CFG_WITH_PAGER
