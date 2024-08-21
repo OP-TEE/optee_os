@@ -8,6 +8,11 @@
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 
+#define SAM_SMC_SIP_PL310_ENABLE	1
+#define SAM_SMC_SIP_PL310_DISABLE	2
+#define SAM_SMC_SIP_PL310_EN_WRITEBACK	3
+#define SAM_SMC_SIP_PL310_DIS_WRITEBACK	4
+
 #define SAMA5_SMC_SIP_SCMI_CALL_ID	0x200
 
 #define SAMA5_SMC_SIP_SFR_SET_USB_SUSPEND	0x300

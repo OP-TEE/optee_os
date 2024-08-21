@@ -25,6 +25,7 @@ include core/arch/arm/cpu/cortex-a5.mk
 $(call force,CFG_SAMA5D2,y)
 $(call force,CFG_ATMEL_SAIC,y)
 $(call force,CFG_PL310,y)
+$(call force,CFG_PL310_SIP_PROTOCOL,y)
 endif
 
 $(call force,CFG_TEE_CORE_NB_CORE,1)

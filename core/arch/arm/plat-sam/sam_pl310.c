@@ -33,7 +33,13 @@
 #include <mm/core_mmu.h>
 #include <sama5d2.h>
 #include <sam_sfr.h>
+#include <sam_pl310.h>
+#include <sm/optee_smc.h>
 #include <types_ext.h>
+
+/* L2 Cache Controller (L2CC) */
+#define L2CC_DCR_DWB	BIT(1) /* Disable Write-back, Force Write-through */
+#define L2CC_DCR_DCL	BIT(0) /* Disable Cache Linefill */
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, PL310_BASE, CORE_MMU_PGDIR_SIZE);
 
@@ -66,3 +72,41 @@ void arm_cl2_enable(vaddr_t pl310_base)
 	/* Enable PL310 ctrl -> only set lsb bit */
 	io_write32(pl310_base + PL310_CTRL, 1);
 }
+
+#ifdef CFG_PL310_SIP_PROTOCOL
+TEE_Result pl310_enable(void)
+{
+	vaddr_t base = pl310_base();
+
+	arm_cl2_config(base);
+	arm_cl2_enable(base);
+
+	return OPTEE_SMC_RETURN_OK;
+}
+
+TEE_Result pl310_disable(void)
+{
+	EMSG("not implemented");
+
+	return OPTEE_SMC_RETURN_ENOTAVAIL;
+}
+
+TEE_Result pl310_enable_writeback(void)
+{
+	vaddr_t base = pl310_base();
+
+	io_write32(base + PL310_DEBUG_CTRL, 0);
+
+	return OPTEE_SMC_RETURN_OK;
+}
+
+TEE_Result pl310_disable_writeback(void)
+{
+	uint32_t val = L2CC_DCR_DWB | L2CC_DCR_DCL;
+	vaddr_t base = pl310_base();
+
+	io_write32(base + PL310_DEBUG_CTRL, val);
+
+	return OPTEE_SMC_RETURN_OK;
+}
+#endif
