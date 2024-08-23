@@ -38,7 +38,9 @@
  * CIDCFGR register bitfields
  */
 #define _HPDMA_CIDCFGR_SEMWL_MASK	GENMASK_32(23, 16)
+#define _HPDMA_CIDCFGR_SEMWL_SHIFT	U(16)
 #define _HPDMA_CIDCFGR_SCID_MASK	GENMASK_32(5, 4)
+#define _HPDMA_CIDCFGR_SCID_SHIFT	U(4)
 #define _HPDMA_CIDCFGR_CONF_MASK	(_CIDCFGR_CFEN |	 \
 					 _CIDCFGR_SEMEN |	 \
 					 _HPDMA_CIDCFGR_SCID_MASK |\
@@ -79,6 +81,7 @@ struct hpdma_pdata {
 	struct rif_conf_data *conf_data;
 	unsigned int nb_channels;
 	vaddr_t base;
+	bool errata_ahbrisab;
 
 	SLIST_ENTRY(hpdma_pdata) link;
 };
@@ -168,12 +171,30 @@ static TEE_Result apply_rif_config(struct hpdma_pdata *hpdma_d, bool is_tdcid)
 		goto end;
 
 	for (i = 0; i < HPDMA_RIF_CHANNELS; i++) {
+		uint32_t cid_conf = hpdma_d->conf_data->cid_confs[i];
+
 		if (!(BIT(i) & hpdma_d->conf_data->access_mask[0]))
 			continue;
 
+		/*
+		 * Errata: When CID filtering is enabled on one of RISAB 3/4/5
+		 * instances, we forbid the use of CID0 for any initiator on the
+		 * bus to handle transient CID0 transactions on these RAMs.
+		 */
+		if (hpdma_d->errata_ahbrisab &&
+		    (!(cid_conf & _CIDCFGR_CFEN) ||
+		     (!(cid_conf & _CIDCFGR_SEMEN) &&
+		      ((cid_conf & _HPDMA_CIDCFGR_SCID_MASK) >>
+		       _HPDMA_CIDCFGR_SCID_SHIFT) == RIF_CID0) ||
+		     (cid_conf & _CIDCFGR_SEMEN &&
+		      cid_conf & BIT(RIF_CID0 + _HPDMA_CIDCFGR_SEMWL_SHIFT)))) {
+			EMSG("HPDMA channel cannot hold CID0 value");
+			if (!IS_ENABLED(CFG_INSECURE))
+				panic();
+		}
+
 		io_clrsetbits32(hpdma_d->base + _HPDMA_CIDCFGR(i),
-				_HPDMA_CIDCFGR_CONF_MASK,
-				hpdma_d->conf_data->cid_confs[i]);
+				_HPDMA_CIDCFGR_CONF_MASK, cid_conf);
 	}
 
 	/*
@@ -225,6 +246,9 @@ static TEE_Result parse_dt(const void *fdt, int node,
 	res = clk_dt_get_by_index(fdt, node, 0, &hpdma_d->hpdma_clock);
 	if (res)
 		return res;
+
+	hpdma_d->errata_ahbrisab = fdt_getprop(fdt, node, "st,errata-ahbrisab",
+					       NULL);
 
 	cuint = fdt_getprop(fdt, node, "st,protreg", &lenp);
 	if (!cuint) {
