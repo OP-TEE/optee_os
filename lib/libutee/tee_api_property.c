@@ -3,12 +3,14 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2017-2020, Linaro Limited
  */
+#include <base64.h>
 #include <printk.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tee_api_defines.h>
+#include <string_ext.h>
 #include <tee_api.h>
+#include <tee_api_defines.h>
 #include <tee_api_types.h>
 #include <tee_arith_internal.h>
 #include <tee_internal_api_extensions.h>
@@ -17,8 +19,6 @@
 #include <utee_syscalls.h>
 #include <util.h>
 
-#include "base64.h"
-#include "string_ext.h"
 #include "tee_api_private.h"
 
 #define PROP_STR_MAX    80
@@ -108,7 +108,7 @@ static TEE_Result propget_get_ext_prop(const struct user_ta_property *ep,
 		 * string
 		 */
 		l = *len;
-		if (!_base64_dec(ep->value, strlen(ep->value), buf, &l) &&
+		if (!base64_dec(ep->value, strlen(ep->value), buf, &l) &&
 		    l <= *len)
 			return TEE_ERROR_GENERIC;
 		if (*len < l) {
@@ -231,7 +231,7 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 				 * with the size of the of the base64 encoded
 				 * see base64_enc() function
 				 */
-				tmp_len = _base64_enc_len(tmp_len);
+				tmp_len = base64_enc_len(tmp_len);
 			}
 			*value_len = tmp_len;
 		}
@@ -266,7 +266,7 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 
 	case USER_TA_PROP_TYPE_BINARY_BLOCK:
 		l = *value_len;	/* l includes the zero-termination */
-		if (!_base64_enc(tmp_buf, tmp_len, value, &l) &&
+		if (!base64_enc(tmp_buf, tmp_len, value, &l) &&
 		    l <= *value_len) {
 			res = TEE_ERROR_GENERIC;
 			goto out;
