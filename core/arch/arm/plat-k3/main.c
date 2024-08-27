@@ -64,7 +64,13 @@ static TEE_Result init_ti_sci(void)
 	return TEE_SUCCESS;
 }
 
-service_init(init_ti_sci);
+/*
+ * TISCI services are required for initialization of TRNG service that gets
+ * initialized during service_init_crypto.
+ *
+ * Initialize TISCI service just before service_init_crypto.
+ */
+early_init_late(init_ti_sci);
 
 static TEE_Result secure_boot_information(void)
 {
