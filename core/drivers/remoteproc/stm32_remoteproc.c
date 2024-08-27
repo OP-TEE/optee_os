@@ -315,6 +315,35 @@ err:
 	return res;
 }
 
+TEE_Result stm32_rproc_clean_up_memories(uint32_t rproc_id)
+{
+	struct stm32_rproc_instance *rproc = stm32_rproc_get(rproc_id);
+	struct stm32_rproc_mem *mems = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	unsigned int i = 0;
+	void *va = NULL;
+	size_t size = 0;
+	paddr_t pa = 0;
+
+	if (!rproc)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mems = rproc->regions;
+	for (i = 0; i < rproc->n_regions; i++) {
+		pa = mems[i].addr;
+		size = mems[i].size;
+		res = stm32_rproc_map(rproc_id, pa, size, &va);
+		if (res)
+			break;
+		memset(va, 0, size);
+		res = stm32_rproc_unmap(rproc_id, va, size);
+		if (res)
+			break;
+	}
+
+	return res;
+}
+
 static void stm32_rproc_cleanup(struct stm32_rproc_instance *rproc)
 {
 	free(rproc->regions);
