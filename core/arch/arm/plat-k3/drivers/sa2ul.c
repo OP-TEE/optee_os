@@ -150,4 +150,4 @@ static TEE_Result sa2ul_init(void)
 
 	return TEE_SUCCESS;
 }
-driver_init(sa2ul_init);
+service_init_crypto(sa2ul_init);
