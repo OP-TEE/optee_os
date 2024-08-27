@@ -67,4 +67,11 @@ TEE_Result stm32_rproc_start(uint32_t rproc_id);
  */
 TEE_Result stm32_rproc_stop(uint32_t rproc_id);
 
+/*
+ * stm32_rproc_clean_up_memories() - clear remote processor memory regions
+ * @rproc_id	unique identifier of the remote processor
+ * Return TEE_SUCCESS or appropriate error.
+ */
+TEE_Result stm32_rproc_clean_up_memories(uint32_t rproc_id);
+
 #endif /* __DRIVERS_STM32_REMOTEPROC_H */
