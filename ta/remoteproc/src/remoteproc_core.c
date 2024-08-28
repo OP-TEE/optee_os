@@ -1037,6 +1037,35 @@ static TEE_Result remoteproc_get_rsc_table(uint32_t pt,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result remoteproc_release_fw(uint32_t pt,
+					TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	struct remoteproc_context *ctx = NULL;
+	uint32_t rproc_id = params[0].value.a;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	ctx = remoteproc_find_firmware(rproc_id);
+	if (!ctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (ctx->state == REMOTEPROC_STARTED)
+		return TEE_ERROR_BAD_STATE;
+
+	res = TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
+				  PTA_REMOTEPROC_RELEASE, pt, params, NULL);
+	if (res == TEE_SUCCESS)
+		ctx->state = REMOTEPROC_OFF;
+
+	return res;
+}
+
 TEE_Result TA_CreateEntryPoint(void)
 {
 	return TEE_SUCCESS;
@@ -1101,6 +1130,8 @@ TEE_Result TA_InvokeCommandEntryPoint(void *sess __unused, uint32_t cmd_id,
 		return remoteproc_get_rsc_table(pt, params);
 	case TA_RPROC_CMD_GET_COREDUMP:
 		return TEE_ERROR_NOT_IMPLEMENTED;
+	case TA_RPROC_CMD_RELEASE_FW:
+		return remoteproc_release_fw(pt, params);
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
