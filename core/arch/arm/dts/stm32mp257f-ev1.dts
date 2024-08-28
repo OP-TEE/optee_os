@@ -8,11 +8,11 @@
 #include <dt-bindings/clock/stm32mp25-clksrc.h>
 #include <dt-bindings/firewall/stm32mp25-rif.h>
 #include <dt-bindings/firewall/stm32mp25-rifsc.h>
-#include "stm32mp25-pinctrl.dtsi"
 #include "stm32mp257.dtsi"
 #include "stm32mp257f-ev1-ca35tdcid-rcc.dtsi"
 #include "stm32mp257f-ev1-ca35tdcid-rif.dtsi"
 #include "stm32mp25xf.dtsi"
+#include "stm32mp25-pinctrl.dtsi"
 #include "stm32mp25xxai-pinctrl.dtsi"
 
 / {
@@ -31,4 +31,10 @@
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x1 0x00000000>;
 	};
+};
+
+&usart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usart2_pins_a>;
+	status = "okay";
 };

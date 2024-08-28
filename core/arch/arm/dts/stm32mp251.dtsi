@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/clock/st,stm32mp25-rcc.h>
+#include <dt-bindings/firewall/stm32mp25-rifsc.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/st,stm32mp25-rcc.h>
 
@@ -125,7 +126,11 @@
 			#size-cells = <1>;
 
 			usart2: serial@400e0000 {
+				compatible = "st,stm32h7-uart";
 				reg = <0x400e0000 0x400>;
+				interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_KER_USART2>;
+				access-controllers = <&rifsc STM32MP25_RIFSC_USART2_ID>;
 				status = "disabled";
 			};
 		};
