@@ -141,6 +141,36 @@
 			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		risaf1: risaf@420a0000 {
+			compatible = "st,stm32mp25-risaf";
+			reg = <0x420a0000 0x1000>;
+			clocks = <&rcc CK_BUS_BKPSRAM>;
+			st,mem-map = <0x0 0x42000000 0x0 0x2000>;
+		};
+
+		risaf2: risaf@420b0000 {
+			compatible = "st,stm32mp25-risaf";
+			reg = <0x420b0000 0x1000>;
+			clocks = <&rcc CK_KER_OSPI1>;
+			st,mem-map = <0x0 0x60000000 0x0 0x10000000>;
+			status = "disabled";
+		};
+
+		risaf4: risaf@420d0000 {
+			compatible = "st,stm32mp25-risaf-enc";
+			reg = <0x420d0000 0x1000>;
+			clocks = <&rcc CK_BUS_RISAF4>;
+			st,mem-map = <0x0 0x80000000 0x1 0x00000000>;
+		};
+
+		risaf5: risaf@420e0000 {
+			compatible = "st,stm32mp25-risaf";
+			reg = <0x420e0000 0x1000>;
+			clocks = <&rcc CK_BUS_PCIE>;
+			st,mem-map = <0x0 0x10000000 0x0 0x10000000>;
+			status = "disabled";
+		};
+
 		serc: serc@44080000 {
 			compatible = "st,stm32mp25-serc";
 			reg = <0x44080000 0x1000>;
