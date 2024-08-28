@@ -42,6 +42,7 @@ struct clk_stm32_priv {
 	const struct mux_cfg *muxes;
 	const uint32_t nb_muxes;
 	const struct gate_cfg *gates;
+	uint8_t *gate_cpt;
 	const uint32_t nb_gates;
 	const struct div_cfg *div;
 	const uint32_t nb_div;
