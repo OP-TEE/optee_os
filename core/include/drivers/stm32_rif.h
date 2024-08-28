@@ -171,14 +171,16 @@ TEE_Result stm32_rif_release_semaphore(vaddr_t addr,
  */
 void stm32_rif_access_violation_action(void);
 #else
-static inline bool stm32_rif_scid_ok(uint32_t cidcfgr, uint32_t scid_m,
-				     uint32_t cid_to_check)
+static inline bool stm32_rif_scid_ok(uint32_t cidcfgr __unused,
+				     uint32_t scid_m __unused,
+				     uint32_t cid_to_check __unused)
 {
 	return true;
 }
 
-static inline bool stm32_rif_semaphore_enabled_and_ok(uint32_t cidcfgr,
-						      uint32_t cid_to_check)
+static inline bool
+stm32_rif_semaphore_enabled_and_ok(uint32_t cidcfgr __unused,
+				   uint32_t cid_to_check __unused)
 {
 	return true;
 }
