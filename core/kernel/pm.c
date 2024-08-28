@@ -6,6 +6,7 @@
 #include <keep.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
+#include <kernel/spinlock.h>
 #include <malloc.h>
 #include <mm/core_memprot.h>
 #include <string.h>
@@ -13,6 +14,7 @@
 
 #define PM_FLAG_SUSPENDED	BIT(0)
 
+static unsigned int pm_list_lock = SPINLOCK_UNLOCK;
 static struct pm_callback_handle *pm_cb_ref;
 static size_t pm_cb_count;
 
@@ -35,6 +37,7 @@ void register_pm_cb(struct pm_callback_handle *pm_hdl)
 	struct pm_callback_handle *ref = NULL;
 	const char *name = pm_hdl->name;
 	size_t count = pm_cb_count;
+	uint32_t exceptions = 0;
 
 	verify_cb_args(pm_hdl);
 
@@ -47,6 +50,8 @@ void register_pm_cb(struct pm_callback_handle *pm_hdl)
 			panic();
 	}
 
+	exceptions = cpu_spin_lock_xsave(&pm_list_lock);
+
 	ref = realloc(pm_cb_ref, sizeof(*ref) * (count + 1));
 	if (!ref)
 		panic();
@@ -57,6 +62,30 @@ void register_pm_cb(struct pm_callback_handle *pm_hdl)
 
 	pm_cb_count = count + 1;
 	pm_cb_ref = ref;
+
+	cpu_spin_unlock_xrestore(&pm_list_lock, exceptions);
+}
+
+void unregister_pm_cb(struct pm_callback_handle *pm_hdl)
+{
+	uint32_t exceptions = 0;
+	size_t n = 0;
+
+	exceptions = cpu_spin_lock_xsave(&pm_list_lock);
+
+	for (n = 0; n < pm_cb_count; n++)
+		if (pm_cb_ref[n].callback == pm_hdl->callback &&
+		    pm_cb_ref[n].handle == pm_hdl->handle &&
+		    pm_cb_ref[n].order == pm_hdl->order)
+			break;
+
+	if (n < pm_cb_count) {
+		pm_cb_count--;
+		memmove(pm_cb_ref + n, pm_cb_ref + n + 1,
+			(pm_cb_count - n) * sizeof(*pm_cb_ref));
+	}
+
+	cpu_spin_unlock_xrestore(&pm_list_lock, exceptions);
 }
 
 static TEE_Result do_pm_callback(enum pm_op op, uint32_t pm_hint,
