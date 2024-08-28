@@ -147,4 +147,13 @@ static inline size_t rproc_pta_keyinfo_size(struct rproc_pta_key_info *keyinf)
  */
 #define PTA_RPROC_VERIFY_DIGEST		8
 
+/*
+ * Remote processor resources release.
+ *
+ * Release the resources associated to the remote processor.
+ *
+ * [in]  params[0].value.a:	Unique 32bit remote processor identifier
+ */
+#define PTA_REMOTEPROC_RELEASE		9
+
 #endif /* __REMOTEPROC_PTA_H */
