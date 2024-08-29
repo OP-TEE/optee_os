@@ -134,6 +134,15 @@
 				access-controllers = <&rifsc STM32MP25_RIFSC_USART2_ID>;
 				status = "disabled";
 			};
+
+			rng: rng@42020000 {
+				compatible = "st,stm32mp25-rng";
+				reg = <0x42020000 0x400>;
+				clocks = <&clk_rcbsec>, <&rcc CK_BUS_RNG>;
+				clock-names = "rng_clk", "rng_hclk";
+				resets = <&rcc RNG_R>;
+				access-controllers = <&rifsc STM32MP25_RIFSC_RNG_ID>;
+			};
 		};
 
 		iac: iac@42090000 {
