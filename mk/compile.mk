@@ -272,7 +272,7 @@ cleanfiles := $$(cleanfiles) $2 \
 
 dtb-cppflags-$2 := -Icore/include/ -x assembler-with-cpp -Ulinux -Uunix \
 		   -E -ffreestanding $$(CPPFLAGS) \
-		   -MD -MF $$(dtb-predep-$2) -MT $2
+		   -MD -MF $$(dtb-predep-$2) -MT $$(dtb-predts-$2)
 
 dtb-dtcflags-$2	:= $$(DTC_FLAGS) -I dts -O dtb -Wno-unit_address_vs_reg \
 		   -d $$(dtb-dep-$2)
