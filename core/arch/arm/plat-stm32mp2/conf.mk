@@ -101,3 +101,6 @@ CFG_STM32_PANIC_ON_SERC_EVENT ?= n
 else
 CFG_STM32_PANIC_ON_SERC_EVENT ?= y
 endif
+
+# Default enable firewall support
+CFG_DRIVERS_FIREWALL ?= y
