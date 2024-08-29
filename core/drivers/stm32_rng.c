@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2018-2023, STMicroelectronics
+ * Copyright (c) 2018-2024, STMicroelectronics
  */
 
 #include <assert.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/rstctrl.h>
+#include <drivers/stm32_etzpc.h>
+#if defined(CFG_STM32MP15)
+#include <drivers/stm32mp1_etzpc.h>
+#endif /* defined(CFG_STM32MP15) */
 #include <io.h>
-#include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <kernel/thread.h>
@@ -22,7 +26,6 @@
 #include <stm32_util.h>
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
-#include <util.h>
 
 #define RNG_CR			U(0x00)
 #define RNG_SR			U(0x04)
@@ -93,7 +96,6 @@ struct stm32_rng_instance {
 	uint32_t health_test_conf;
 	uint32_t noise_ctrl_conf;
 	uint32_t rng_config;
-	bool release_post_boot;
 	bool clock_error;
 	bool error_conceal;
 };
@@ -284,11 +286,48 @@ static uint32_t stm32_rng_clock_freq_restrain(void)
 	return clock_div;
 }
 
-static TEE_Result init_rng(void)
+static TEE_Result enable_rng_clock(void)
 {
+	TEE_Result res = clk_enable(stm32_rng->clock);
+
+	if (!res && stm32_rng->bus_clock) {
+		res = clk_enable(stm32_rng->bus_clock);
+		if (res)
+			clk_disable(stm32_rng->clock);
+	}
+
+	return res;
+}
+
+static void disable_rng_clock(void)
+{
+	clk_disable(stm32_rng->clock);
+	if (stm32_rng->bus_clock)
+		clk_disable(stm32_rng->bus_clock);
+}
+
+static TEE_Result stm32_rng_init(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
 	vaddr_t rng_base = get_base();
 	uint32_t cr_ced_mask = 0;
 	uint32_t value = 0;
+
+	res = enable_rng_clock();
+	if (res)
+		return res;
+
+	if (stm32_rng->rstctrl &&
+	    rstctrl_assert_to(stm32_rng->rstctrl, RNG_RESET_TIMEOUT_US)) {
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	if (stm32_rng->rstctrl &&
+	    rstctrl_deassert_to(stm32_rng->rstctrl, RNG_RESET_TIMEOUT_US)) {
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
 
 	if (!stm32_rng->clock_error)
 		cr_ced_mask = RNG_CR_CED;
@@ -353,7 +392,12 @@ static TEE_Result init_rng(void)
 				   RNG_READY_TIMEOUT_US))
 		return TEE_ERROR_GENERIC;
 
-	return TEE_SUCCESS;
+	res =  TEE_SUCCESS;
+
+out:
+	disable_rng_clock();
+
+	return res;
 }
 
 static TEE_Result stm32_rng_read(uint8_t *out, size_t size)
@@ -371,17 +415,9 @@ static TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	rc = clk_enable(stm32_rng->clock);
+	rc = enable_rng_clock();
 	if (rc)
 		return rc;
-
-	if (stm32_rng->bus_clock) {
-		rc = clk_enable(stm32_rng->bus_clock);
-		if (rc) {
-			clk_disable(stm32_rng->clock);
-			return rc;
-		}
-	}
 
 	rng_base = get_base();
 
@@ -420,9 +456,7 @@ static TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 
 out:
 	assert(!rc || rc == TEE_ERROR_GENERIC);
-	clk_disable(stm32_rng->clock);
-	if (stm32_rng->bus_clock)
-		clk_disable(stm32_rng->bus_clock);
+	disable_rng_clock();
 
 	return rc;
 }
@@ -538,26 +572,16 @@ stm32_rng_pm(enum pm_op op, unsigned int pm_hint __unused,
 
 	assert(stm32_rng && (op == PM_OP_SUSPEND || op == PM_OP_RESUME));
 
-	res = clk_enable(stm32_rng->clock);
+	res = enable_rng_clock();
 	if (res)
 		return res;
-
-	if (stm32_rng->bus_clock) {
-		res = clk_enable(stm32_rng->bus_clock);
-		if (res) {
-			clk_disable(stm32_rng->clock);
-			return res;
-		}
-	}
 
 	if (op == PM_OP_RESUME)
 		res = stm32_rng_pm_resume();
 	else
 		res = stm32_rng_pm_suspend();
 
-	clk_disable(stm32_rng->clock);
-	if (stm32_rng->bus_clock)
-		clk_disable(stm32_rng->bus_clock);
+	disable_rng_clock();
 
 	return res;
 }
@@ -600,9 +624,6 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 	if (fdt_getprop(fdt, node, "clock-error-detect", NULL))
 		stm32_rng->clock_error = true;
 
-	/* Release device if not used after initialization */
-	stm32_rng->release_post_boot = IS_ENABLED(CFG_WITH_SOFTWARE_PRNG);
-
 	stm32_rng->rng_config = stm32_rng->ddata->cr;
 	if (stm32_rng->rng_config & ~RNG_CR_ENTROPY_SRC_MASK)
 		panic("Incorrect entropy source configuration");
@@ -617,8 +638,8 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 static TEE_Result stm32_rng_probe(const void *fdt, int offs,
 				  const void *compat_data)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
 	unsigned int __maybe_unused version = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	/* Expect a single RNG instance */
 	assert(!stm32_rng);
@@ -634,60 +655,39 @@ static TEE_Result stm32_rng_probe(const void *fdt, int offs,
 	if (res)
 		goto err;
 
-	res = clk_enable(stm32_rng->clock);
+	res = enable_rng_clock();
 	if (res)
 		goto err;
-
-	if (stm32_rng->bus_clock) {
-		res = clk_enable(stm32_rng->bus_clock);
-		if (res) {
-			clk_disable(stm32_rng->clock);
-			goto err;
-		}
-	}
 
 	version = io_read32(get_base() + RNG_VERR);
 	DMSG("RNG version Major %u, Minor %u",
 	     (version & RNG_VERR_MAJOR_MASK) >> RNG_VERR_MAJOR_SHIFT,
 	     version & RNG_VERR_MINOR_MASK);
 
-	if (stm32_rng->rstctrl &&
-	    rstctrl_assert_to(stm32_rng->rstctrl, RNG_RESET_TIMEOUT_US)) {
-		res = TEE_ERROR_GENERIC;
-		goto err_clk;
-	}
+	disable_rng_clock();
 
-	if (stm32_rng->rstctrl &&
-	    rstctrl_deassert_to(stm32_rng->rstctrl, RNG_RESET_TIMEOUT_US)) {
-		res = TEE_ERROR_GENERIC;
-		goto err_clk;
-	}
-
-	res = init_rng();
+	res = stm32_rng_init();
 	if (res)
-		goto err_clk;
+		goto err;
 
-	clk_disable(stm32_rng->clock);
-	if (stm32_rng->bus_clock)
-		clk_disable(stm32_rng->bus_clock);
-
-	if (stm32_rng->release_post_boot)
+#if defined(CFG_STM32MP15)
+	/* Only STM32MP15 requires a software registering of RNG secure state */
+	if (etzpc_get_decprot(STM32MP1_ETZPC_RNG1_ID) == ETZPC_DECPROT_NS_RW)
 		stm32mp_register_non_secure_periph_iomem(stm32_rng->base.pa);
 	else
 		stm32mp_register_secure_periph_iomem(stm32_rng->base.pa);
+#endif /* defined(CFG_STM32MP15) */
 
 	/* Power management implementation expects both or none are set */
 	assert(stm32_rng->ddata->has_power_optim ==
 	       stm32_rng->ddata->has_cond_reset);
 
-	register_pm_core_service_cb(stm32_rng_pm, &stm32_rng, "rng-service");
+	if (!IS_ENABLED(CFG_WITH_SOFTWARE_PRNG))
+		register_pm_core_service_cb(stm32_rng_pm, &stm32_rng,
+					    "rng-service");
 
 	return TEE_SUCCESS;
 
-err_clk:
-	clk_disable(stm32_rng->clock);
-	if (stm32_rng->bus_clock)
-		clk_disable(stm32_rng->bus_clock);
 err:
 	free(stm32_rng);
 	stm32_rng = NULL;
@@ -744,7 +744,7 @@ DEFINE_DT_DRIVER(stm32_rng_dt_driver) = {
 
 static TEE_Result stm32_rng_release(void)
 {
-	if (stm32_rng && stm32_rng->release_post_boot) {
+	if (stm32_rng && IS_ENABLED(CFG_WITH_SOFTWARE_PRNG)) {
 		DMSG("Release RNG driver");
 		free(stm32_rng);
 		stm32_rng = NULL;
