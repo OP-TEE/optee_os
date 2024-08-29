@@ -3,7 +3,9 @@
  * Copyright (c) 2021-2024, STMicroelectronics
  */
 
+#include <drivers/firewall.h>
 #include <drivers/stm32_rif.h>
+#include <drivers/stm32_shared_io.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #include <io.h>
 #include <kernel/boot.h>
@@ -74,27 +76,22 @@
 #define _PERIPH_IDS_PER_REG		U(32)
 #define _OFFSET_PERX_CIDCFGR		U(0x8)
 
-#define RIFSC_RISC_CFEN_MASK		BIT(0)
-#define RIFSC_RISC_CFEN_SHIFT		U(0)
-#define RIFSC_RISC_SEM_EN_MASK		BIT(1)
-#define RIFSC_RISC_SEM_EN_SHIFT		U(1)
-#define RIFSC_RISC_SCID_MASK		GENMASK_32(6, 4)
-#define RIFSC_RISC_SCID_SHIFT		U(4)
-#define RIFSC_RISC_SEC_MASK		BIT(8)
-#define RIFSC_RISC_SEC_SHIFT		U(8)
-#define RIFSC_RISC_PRIV_MASK		BIT(9)
-#define RIFSC_RISC_PRIV_SHIFT		U(9)
-#define RIFSC_RISC_LOCK_MASK		BIT(10)
-#define RIFSC_RISC_LOCK_SHIFT		U(10)
-#define RIFSC_RISC_SEML_MASK		GENMASK_32(23, 16)
-#define RIFSC_RISC_SEML_SHIFT		U(16)
-#define RIFSC_RISC_PER_ID_MASK		GENMASK_32(31, 24)
-#define RIFSC_RISC_PER_ID_SHIFT		U(24)
+#define RIFSC_RISC_CIDCFGR_CFEN_MASK	BIT(0)
+#define RIFSC_RISC_CIDCFGR_CFEN_SHIFT	U(0)
+#define RIFSC_RISC_CIDCFGR_SEM_EN_MASK	BIT(1)
+#define RIFSC_RISC_CIDCFGR_SEM_EN_SHIFT	U(1)
+#define RIFSC_RISC_CIDCFGR_SCID_MASK	GENMASK_32(6, 4)
+#define RIFSC_RISC_CIDCFGR_SCID_SHIFT	U(4)
+#define RIFSC_RISC_CIDCFGR_LOCK_MASK	BIT(10)
+#define RIFSC_RISC_CIDCFGR_LOCK_SHIFT	U(10)
+#define RIFSC_RISC_CIDCFGR_SEML_MASK	GENMASK_32(23, 16)
+#define RIFSC_RISC_CIDCFGR_SEML_SHIFT	U(16)
 
-#define RIFSC_RISC_PERx_CID_MASK	(RIFSC_RISC_CFEN_MASK | \
-					 RIFSC_RISC_SEM_EN_MASK | \
-					 RIFSC_RISC_SCID_MASK | \
-					 RIFSC_RISC_SEML_MASK)
+#define RIFSC_RISC_PERx_CID_MASK	(RIFSC_RISC_CIDCFGR_CFEN_MASK | \
+					 RIFSC_RISC_CIDCFGR_SEM_EN_MASK | \
+					 RIFSC_RISC_CIDCFGR_SCID_MASK | \
+					 RIFSC_RISC_CIDCFGR_SCID_SHIFT)
+
 #define RIFSC_RISC_PERx_CID_SHIFT	U(0)
 
 #define RIFSC_RIMC_MODE_MASK		BIT(2)
@@ -147,6 +144,7 @@ struct rifsc_platdata {
 	unsigned int nrisup;
 	struct rimu_cfg *rimu;
 	unsigned int nrimu;
+	bool is_tdcid;
 };
 
 /* There is only 1 instance of the RIFSC subsystem */
@@ -246,11 +244,11 @@ static TEE_Result stm32_rifsc_dt_conf_risup(const void *fdt, int node,
 		uint32_t value = fdt32_to_cpu(conf_list[i]);
 		struct risup_cfg *risup = pdata->risup + i;
 
-		risup->id = _RIF_FLD_GET(RIFSC_RISC_PER_ID, value);
-		risup->sec = _RIF_FLD_GET(RIFSC_RISC_SEC, value) != 0;
-		risup->priv = _RIF_FLD_GET(RIFSC_RISC_PRIV, value) != 0;
-		risup->lock = _RIF_FLD_GET(RIFSC_RISC_LOCK, value) != 0;
-		risup->cid_attr = _RIF_FLD_GET(RIFSC_RISC_PERx_CID, value);
+		risup->id = _RIF_FLD_GET(RIF_PER_ID, value);
+		risup->sec = _RIF_FLD_GET(RIF_SEC, value) != 0;
+		risup->priv = _RIF_FLD_GET(RIF_PRIV, value) != 0;
+		risup->lock = _RIF_FLD_GET(RIF_LOCK, value) != 0;
+		risup->cid_attr = _RIF_FLD_GET(RIF_PERx_CID, value);
 	}
 
 	return TEE_SUCCESS;
@@ -279,8 +277,9 @@ static TEE_Result stm32_rifsc_dt_conf_rimu(const void *fdt, int node,
 		uint32_t value = fdt32_to_cpu(*conf_list);
 		struct rimu_cfg *rimu = pdata->rimu + i;
 
-		rimu->id = _RIF_FLD_GET(RIFSC_RIMC_M_ID, value);
-		rimu->attr = _RIF_FLD_GET(RIFSC_RIMC_ATTRx, value);
+		rimu->id = _RIF_FLD_GET(RIMUPROT_RIMC_M_ID, value) -
+			   RIMU_ID_OFFSET;
+		rimu->attr = _RIF_FLD_GET(RIMUPROT_RIMC_ATTRx, value);
 	}
 
 	return TEE_SUCCESS;
@@ -303,9 +302,19 @@ static TEE_Result stm32_rifsc_parse_fdt(const void *fdt, int node,
 
 	pdata->base = io_pa_or_va_secure(&base, reg_size);
 
-	res = stm32_rifsc_dt_conf_risup(fdt, node, pdata);
+	res = stm32_rifsc_check_tdcid(&rifsc_pdata.is_tdcid);
 	if (res)
+		panic();
+
+	res = stm32_rifsc_dt_conf_risup(fdt, node, pdata);
+	if (res && res != TEE_ERROR_ITEM_NOT_FOUND)
 		return res;
+
+	if (rifsc_pdata.is_tdcid) {
+		res = stm32_rifsc_dt_conf_rimu(fdt, node, pdata);
+		if (res && res != TEE_ERROR_ITEM_NOT_FOUND)
+			return res;
+	}
 
 	return stm32_rifsc_dt_conf_rimu(fdt, node, pdata);
 }
@@ -323,46 +332,56 @@ static TEE_Result stm32_risup_cfg(struct rifsc_platdata *pdata,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (drv_data->sec_en)
-		io_clrsetbits32(pdata->base + _RIFSC_RISC_SECCFGR0 + offset,
-				BIT(shift), SHIFT_U32(risup->sec, shift));
+		io_clrsetbits32_stm32shregs(pdata->base + _RIFSC_RISC_SECCFGR0 +
+					    offset, BIT(shift),
+					    SHIFT_U32(risup->sec, shift));
 
 	if (drv_data->priv_en)
-		io_clrsetbits32(pdata->base + _RIFSC_RISC_PRIVCFGR0 + offset,
-				BIT(shift), SHIFT_U32(risup->priv, shift));
+		io_clrsetbits32_stm32shregs(pdata->base +
+					    _RIFSC_RISC_PRIVCFGR0 + offset,
+					    BIT(shift),
+					    SHIFT_U32(risup->priv, shift));
 
-	if (drv_data->rif_en)
-		io_write32(pdata->base + _RIFSC_RISC_PER0_CIDCFGR +
-			   cidcfgr_offset, risup->cid_attr);
+	if (rifsc_pdata.is_tdcid) {
+		if (drv_data->rif_en)
+			io_write32(pdata->base + _RIFSC_RISC_PER0_CIDCFGR +
+				   cidcfgr_offset, risup->cid_attr);
 
-	/* Lock configuration for this RISUP */
-	if (risup->lock) {
-		DMSG("Locking RIF conf for peripheral %"PRIu32, risup->id);
-		io_setbits32(pdata->base + _RIFSC_RISC_RCFGLOCKR0 + offset,
-			     BIT(shift));
+		/* Lock configuration for this RISUP */
+		if (risup->lock) {
+			DMSG("Locking RIF conf for peripheral ID: %"PRIu32,
+			     risup->id);
+			io_setbits32_stm32shregs(pdata->base +
+						 _RIFSC_RISC_RCFGLOCKR0 +
+						 offset, BIT(shift));
+		}
 	}
 
 	/* Take semaphore if the resource is in semaphore mode and secured */
-	if (!stm32_rif_semaphore_enabled_and_ok(risup->cid_attr, RIF_CID1) ||
-	    !(io_read32(pdata->base + _RIFSC_RISC_SECCFGR0 + offset) &
-	      BIT(shift))) {
-		res = stm32_rif_release_semaphore(pdata->base +
-						  _RIFSC_RISC_PER0_SEMCR +
-						  cidcfgr_offset,
-						  MAX_CID_SUPPORTED);
-		if (res) {
-			EMSG("Couldn't release semaphore for resource %"PRIu32,
-			     risup->id);
-			return TEE_ERROR_ACCESS_DENIED;
-		}
-	} else {
-		res = stm32_rif_acquire_semaphore(pdata->base +
-						  _RIFSC_RISC_PER0_SEMCR +
-						  cidcfgr_offset,
-						  MAX_CID_SUPPORTED);
-		if (res) {
-			EMSG("Couldn't acquire semaphore for resource %"PRIu32,
-			     risup->id);
-			return TEE_ERROR_ACCESS_DENIED;
+	if (stm32_rif_semaphore_enabled_and_ok(risup->cid_attr, RIF_CID1)) {
+		if (!(io_read32(pdata->base + _RIFSC_RISC_SECCFGR0 + offset) &
+		      BIT(shift))) {
+			res =
+			stm32_rif_release_semaphore(pdata->base +
+						    _RIFSC_RISC_PER0_SEMCR +
+						    cidcfgr_offset,
+						    MAX_CID_SUPPORTED);
+			if (res) {
+				EMSG("Couldn't release semaphore for resource %"PRIu32,
+				     risup->id);
+				return TEE_ERROR_ACCESS_DENIED;
+			}
+		} else {
+			res =
+			stm32_rif_acquire_semaphore(pdata->base +
+						    _RIFSC_RISC_PER0_SEMCR +
+						    cidcfgr_offset,
+						    MAX_CID_SUPPORTED);
+			if (res) {
+				EMSG("Couldn't acquire semaphore for resource %"PRIu32,
+				     risup->id);
+				return TEE_ERROR_ACCESS_DENIED;
+			}
 		}
 	}
 
@@ -420,6 +439,188 @@ static TEE_Result stm32_rimu_setup(struct rifsc_platdata *pdata)
 	}
 
 	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_rifsc_check_access(struct firewall_query *firewall)
+{
+	uintptr_t rifsc_base = rifsc_pdata.base;
+	unsigned int cid_reg_offset = 0;
+	unsigned int periph_offset = 0;
+	unsigned int resource_id = 0;
+	uint32_t cid_to_check = 0;
+	unsigned int reg_id = 0;
+	bool priv_check = true;
+	bool sec_check = true;
+	uint32_t privcfgr = 0;
+	uint32_t seccfgr = 0;
+	uint32_t cidcfgr = 0;
+
+	assert(rifsc_base);
+
+	if (!firewall || firewall->arg_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * Peripheral configuration, we assume the configuration is as
+	 * follows:
+	 * firewall->args[0]: RIF configuration to check
+	 */
+	resource_id = firewall->args[0] & RIF_PER_ID_MASK;
+	if (resource_id >= RIMU_ID_OFFSET)
+		return TEE_SUCCESS;
+
+	reg_id = resource_id / _PERIPH_IDS_PER_REG;
+	periph_offset = resource_id % _PERIPH_IDS_PER_REG;
+	cid_reg_offset = _OFFSET_PERX_CIDCFGR * resource_id;
+	cidcfgr = io_read32(rifsc_base + _RIFSC_RISC_PER0_CIDCFGR +
+			    cid_reg_offset);
+	seccfgr = io_read32(rifsc_base + _RIFSC_RISC_SECCFGR0 + 0x4 * reg_id);
+	privcfgr = io_read32(rifsc_base + _RIFSC_RISC_PRIVCFGR0 + 0x4 * reg_id);
+	sec_check = (BIT(RIF_SEC_SHIFT) & firewall->args[0]) != 0;
+	priv_check = (BIT(RIF_PRIV_SHIFT) & firewall->args[0]) != 0;
+	cid_to_check = (firewall->args[0] & RIF_SCID_MASK) >> RIF_SCID_SHIFT;
+
+	if (!sec_check && seccfgr & BIT(periph_offset))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	if (!priv_check && (privcfgr & BIT(periph_offset)))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	if (!(cidcfgr & _CIDCFGR_CFEN))
+		return TEE_SUCCESS;
+
+	if ((cidcfgr & _CIDCFGR_SEMEN &&
+	     !stm32_rif_semaphore_enabled_and_ok(cidcfgr, cid_to_check)) ||
+	    (!(cidcfgr & _CIDCFGR_SEMEN) &&
+	     !stm32_rif_scid_ok(cidcfgr, RIFSC_RISC_CIDCFGR_SCID_MASK,
+				cid_to_check)))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_rifsc_acquire_access(struct firewall_query *firewall)
+{
+	uintptr_t rifsc_base = rifsc_pdata.base;
+	unsigned int cid_reg_offset = 0;
+	unsigned int resource_id = 0;
+	uint32_t cidcfgr = 0;
+
+	assert(rifsc_base);
+
+	if (!firewall || !firewall->arg_count)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * Peripheral configuration, we assume the configuration is as
+	 * follows:
+	 * firewall->args[0]: Firewall ID of the resource to acquire
+	 */
+	resource_id = firewall->args[0] & RIF_PER_ID_MASK;
+	if (resource_id >= RIMU_ID_OFFSET)
+		return TEE_SUCCESS;
+
+	cid_reg_offset = _OFFSET_PERX_CIDCFGR * resource_id;
+	cidcfgr = io_read32(rifsc_base + _RIFSC_RISC_PER0_CIDCFGR +
+			    cid_reg_offset);
+
+	/* Only check CID attributes */
+	if (!(cidcfgr & _CIDCFGR_CFEN))
+		return TEE_SUCCESS;
+
+	if (cidcfgr & _CIDCFGR_SEMEN) {
+		if (!stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1))
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		/* Take the semaphore, static CID is irrelevant here */
+		return stm32_rif_acquire_semaphore(rifsc_base +
+						   _RIFSC_RISC_PER0_SEMCR +
+						   cid_reg_offset,
+						   MAX_CID_SUPPORTED);
+	}
+
+	if (!stm32_rif_scid_ok(cidcfgr, RIFSC_RISC_CIDCFGR_SCID_MASK, RIF_CID1))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_rifsc_set_config(struct firewall_query *firewall)
+{
+	struct rimu_cfg rimu = { };
+	unsigned int id = 0;
+	uint32_t conf = 0;
+
+	if (!firewall || firewall->arg_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * Peripheral configuration, we assume the configuration is as
+	 * follows:
+	 * firewall->args[0]: RIF configuration to set
+	 */
+	id = firewall->args[0] & RIF_PER_ID_MASK;
+	conf = firewall->args[0];
+
+	if (id < RIMU_ID_OFFSET) {
+		struct risup_cfg risup = { };
+		uint32_t cidcfgr = 0;
+
+		risup.id = id;
+		risup.sec = (BIT(RIF_SEC_SHIFT) & conf) != 0;
+		risup.priv = (BIT(RIF_PRIV_SHIFT) & conf) != 0;
+		risup.lock = (BIT(RIF_LOCK_SHIFT) & conf) != 0;
+		risup.cid_attr = _RIF_FLD_GET(RIF_PERx_CID, conf);
+
+		if (!rifsc_pdata.is_tdcid) {
+			cidcfgr = io_read32(rifsc_pdata.base +
+					    _OFFSET_PERX_CIDCFGR * risup.id +
+					    _RIFSC_RISC_PER0_CIDCFGR);
+
+			if (cidcfgr != risup.cid_attr)
+				return TEE_ERROR_BAD_PARAMETERS;
+		}
+
+		DMSG("Setting config for peripheral: %u, %s, %s, cid attr: %#"PRIx32", %s",
+		     id, risup.sec ? "Secure" : "Non secure",
+		     risup.priv ? "Privileged" : "Non privileged",
+		     risup.cid_attr, risup.lock ? "Locked" : "Unlocked");
+
+		return stm32_risup_cfg(&rifsc_pdata, &risup);
+	}
+
+	if (!rifsc_pdata.is_tdcid)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	rimu.id = _RIF_FLD_GET(RIMUPROT_RIMC_M_ID, conf) - RIMU_ID_OFFSET;
+	rimu.attr = _RIF_FLD_GET(RIMUPROT_RIMC_ATTRx, conf);
+
+	return stm32_rimu_cfg(&rifsc_pdata, &rimu);
+}
+
+static void stm32_rifsc_release_access(struct firewall_query *firewall)
+{
+	uintptr_t rifsc_base = rifsc_pdata.base;
+	uint32_t cidcfgr = 0;
+	uint32_t id = 0;
+
+	assert(rifsc_base && firewall && firewall->arg_count);
+
+	id = firewall->args[0];
+
+	if (id >= RIMU_ID_OFFSET)
+		return;
+
+	cidcfgr = io_read32(rifsc_base + _RIFSC_RISC_PER0_CIDCFGR +
+			    _OFFSET_PERX_CIDCFGR * id);
+
+	/* Only thing possible is to release a semaphore taken by OP-TEE CID */
+	if (stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1))
+		if (stm32_rif_release_semaphore(rifsc_base +
+						_RIFSC_RISC_PER0_SEMCR +
+						id * _OFFSET_PERX_CIDCFGR,
+						MAX_CID_SUPPORTED))
+			panic("Could not release the RIF semaphore");
 }
 
 static TEE_Result stm32_rifsc_sem_pm_suspend(void)
@@ -521,9 +722,17 @@ TEE_Result stm32_rifsc_check_tdcid(bool *tdcid_state)
 	return TEE_SUCCESS;
 }
 
+static const struct firewall_controller_ops firewall_ops = {
+	.set_conf = stm32_rifsc_set_config,
+	.check_access = stm32_rifsc_check_access,
+	.acquire_access = stm32_rifsc_acquire_access,
+	.release_access = stm32_rifsc_release_access,
+};
+
 static TEE_Result stm32_rifsc_probe(const void *fdt, int node,
 				    const void *compat_data __unused)
 {
+	struct firewall_controller *controller = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	res = stm32_rifsc_parse_fdt(fdt, node, &rifsc_pdata);
@@ -541,15 +750,33 @@ static TEE_Result stm32_rifsc_probe(const void *fdt, int node,
 		panic();
 	}
 
-	res = stm32_rimu_setup(&rifsc_pdata);
-	if (res) {
-		EMSG("Could not setup RIMUs, res = %#"PRIx32, res);
-		panic();
+	if (rifsc_pdata.is_tdcid) {
+		res = stm32_rimu_setup(&rifsc_pdata);
+		if (res) {
+			EMSG("Could not setup RIMUs, res = %#"PRIx32, res);
+			panic();
+		}
 	}
 
 	res = stm32_rifsc_glock_config(fdt, node, &rifsc_pdata);
 	if (res)
 		panic("Couldn't lock RIFSC configuration");
+
+	controller = calloc(1, sizeof(*controller));
+	if (!controller)
+		panic();
+
+	controller->name = "RIFSC";
+	controller->priv = &rifsc_pdata;
+	controller->ops = &firewall_ops;
+
+	res = firewall_dt_controller_register(fdt, node, controller);
+	if (res)
+		panic();
+
+	res = firewall_dt_probe_bus(fdt, node, controller);
+	if (res)
+		panic();
 
 	register_pm_core_service_cb(stm32_rifsc_sem_pm, NULL,
 				    "stm32-rifsc-semaphores");

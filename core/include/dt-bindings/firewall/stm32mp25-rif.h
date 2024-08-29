@@ -89,24 +89,36 @@
 
 #define RIF_TAMP_RESOURCE(x)	(x)
 
-#define RISC_CFEN_SHIFT			0
-#define RISC_SEM_EN_SHIFT		1
-#define RISC_SCID_SHIFT			4
-#define RISC_SEC_SHIFT			8
-#define RISC_PRIV_SHIFT			9
-#define RISC_LOCK_SHIFT			10
-#define RISC_SEML_SHIFT			16
-#define RISC_PER_ID_SHIFT		24
-#define RISC_PERx_CID_SHIFT		0
+#define RIF_PER_ID_SHIFT		0
+#define RIF_CFEN_SHIFT			8
+#define RIF_SEM_EN_SHIFT		9
+#define RIF_SCID_SHIFT			12
+#define RIF_SEC_SHIFT			16
+#define RIF_PRIV_SHIFT			17
+#define RIF_LOCK_SHIFT			18
+#define RIF_SEML_SHIFT			24
+#define RIF_PERx_CID_SHIFT		8
+#ifndef __ASSEMBLER__
+#define RIF_PER_ID_MASK			GENMASK_32(7, 0)
+#define RIF_SCID_MASK			GENMASK_32(15, 12)
+#define RIF_SEC_MASK			BIT(16)
+#define RIF_PRIV_MASK			BIT(17)
+#define RIF_LOCK_MASK			BIT(18)
+#define RIF_SEML_MASK			GENMASK_32(31, 24)
+#endif
+
+#define RIF_PERx_CID_MASK		(BIT(RIF_CFEN_SHIFT) | \
+					 BIT(RIF_SEM_EN_SHIFT) | \
+					 RIF_SCID_MASK | RIF_SEML_MASK)
 
 #define RIFPROT(rifid, sem_list, lock, sec, priv, scid, sem_en, cfen) \
-	(((rifid) << RISC_PER_ID_SHIFT) | \
-	 ((sem_list) << RISC_SEML_SHIFT) | \
-	 ((lock) << RISC_LOCK_SHIFT) | \
-	 ((priv) << RISC_PRIV_SHIFT) | \
-	 ((sec) << RISC_SEC_SHIFT) | \
-	 ((scid) << RISC_SCID_SHIFT) | \
-	 ((sem_en) << RISC_SEM_EN_SHIFT) | \
-	 ((cfen) << RISC_CFEN_SHIFT))
+	(((sem_list) << RIF_SEML_SHIFT) | \
+	 ((lock) << RIF_LOCK_SHIFT) | \
+	 ((priv) << RIF_PRIV_SHIFT) | \
+	 ((sec) << RIF_SEC_SHIFT) | \
+	 ((scid) << RIF_SCID_SHIFT) | \
+	 ((sem_en) << RIF_SEM_EN_SHIFT) | \
+	 ((cfen) << RIF_CFEN_SHIFT) | \
+	 ((rifid) << RIF_PER_ID_SHIFT))
 
 #endif /* _DT_BINDINGS_FIREWALL_STM32MP25_RIF_H */
