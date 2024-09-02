@@ -518,6 +518,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				#access-controller-cells = <1>;
 				reg = <0 0x400>;
 				clocks = <&rcc GPIOZ>;
 				st,bank-name = "GPIOZ";
