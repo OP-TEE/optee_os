@@ -75,34 +75,11 @@ struct firewall_controller_ops {
 TEE_Result firewall_dt_controller_register(const void *fdt, int node,
 					   struct firewall_controller *ctrl);
 
-/**
- * firewall_dt_probe_bus() - Add bus device tree subnodes that are accessible by
- * OP-TEE to the driver probe list. This is used at boot time only, as a sanity
- * check between device tree and firewalls hardware configurations to prevent
- * undesired accesses when access to a device is not authorized. This function
- * tries to acquire access to every resource entries listed in the
- * access-controllers property of each of the subnodes. It panics if it fails
- * to do so.
- *
- * @fdt: FDT to work on
- * @node: Firewall controller node
- * @ctrl:Firewall controller which subnodes will be populated or not
- */
-TEE_Result firewall_dt_probe_bus(const void *fdt, int node,
-				 struct firewall_controller *ctrl);
-
 #else /* CFG_DRIVERS_FIREWALL */
 
 static inline TEE_Result
 firewall_dt_controller_register(const void *fdt __unused, int node __unused,
 				struct firewall_controller *ctrl __unused)
-{
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
-
-static inline TEE_Result
-firewall_dt_probe_bus(const void *fdt __unused, int node __unused,
-		      struct firewall_controller *ctrl __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
