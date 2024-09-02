@@ -156,3 +156,21 @@ void stm32_rif_access_violation_action(void)
 {
 }
 #endif /* CFG_STM32_RIF */
+
+bool stm32mp_allow_probe_shared_device(const void *fdt, int node)
+{
+	static int uart_console_node = -1;
+	static bool once;
+
+	if (!once) {
+		get_console_node_from_dt((void *)fdt, &uart_console_node,
+					 NULL, NULL);
+		once = true;
+	}
+
+	/* Allow OP-TEE console to be shared with non-secure world */
+	if (node == uart_console_node)
+		return true;
+
+	return false;
+}

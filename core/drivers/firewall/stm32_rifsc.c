@@ -15,6 +15,7 @@
 #include <kernel/pm.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
+#include <stm32_util.h>
 #include <tee_api_defines.h>
 #include <trace.h>
 #include <util.h>
@@ -503,8 +504,11 @@ static TEE_Result stm32_rifsc_acquire_access(struct firewall_query *firewall)
 {
 	uintptr_t rifsc_base = rifsc_pdata.base;
 	unsigned int cid_reg_offset = 0;
+	unsigned int periph_offset = 0;
 	unsigned int resource_id = 0;
+	unsigned int reg_id = 0;
 	uint32_t cidcfgr = 0;
+	uint32_t seccfgr = 0;
 
 	assert(rifsc_base);
 
@@ -520,9 +524,16 @@ static TEE_Result stm32_rifsc_acquire_access(struct firewall_query *firewall)
 	if (resource_id >= RIMU_ID_OFFSET)
 		return TEE_SUCCESS;
 
+	reg_id = resource_id / _PERIPH_IDS_PER_REG;
+	periph_offset = resource_id % _PERIPH_IDS_PER_REG;
+
 	cid_reg_offset = _OFFSET_PERX_CIDCFGR * resource_id;
 	cidcfgr = io_read32(rifsc_base + _RIFSC_RISC_PER0_CIDCFGR +
 			    cid_reg_offset);
+
+	seccfgr = io_read32(rifsc_base + _RIFSC_RISC_SECCFGR0 + 0x4 * reg_id);
+	if (!(seccfgr & BIT(periph_offset)))
+		return TEE_ERROR_ACCESS_DENIED;
 
 	/* Only check CID attributes */
 	if (!(cidcfgr & _CIDCFGR_CFEN))
@@ -729,6 +740,87 @@ static const struct firewall_controller_ops firewall_ops = {
 	.release_access = stm32_rifsc_release_access,
 };
 
+/**
+ * stm32_rifsc_dt_probe_bus() - Add bus device tree subnodes that are accessible
+ * by OP-TEE and secure to the driver probe list. This is used at boot time
+ * only, as a sanity check between device tree and firewalls hardware
+ * configurations to prevent undesired accesses when access to a device is not
+ * authorized. This function tries to acquire access to every resource entries
+ * listed in the access-controllers property of each of the subnodes. It panics
+ * if it fails to do so. When CFG_INSECURE is enabled, platform can bypass this
+ * access control test for specific devices assigned to non-secure world and
+ * used by OP-TEE, such as an UART console device.
+ *
+ * @fdt: FDT to work on
+ * @node: RIFSC node
+ * @ctrl: RIFSC firewall controller reference
+ */
+static TEE_Result
+stm32_rifsc_dt_probe_bus(const void *fdt, int node,
+			 struct firewall_controller *ctrl __maybe_unused)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct firewall_query *fw = NULL;
+	int subnode = 0;
+
+	DMSG("Populating %s firewall bus", ctrl->name);
+
+	fdt_for_each_subnode(subnode, fdt, node) {
+		unsigned int i = 0;
+
+		if (fdt_get_status(fdt, subnode) == DT_STATUS_DISABLED)
+			continue;
+
+		if (IS_ENABLED(CFG_INSECURE) &&
+		    stm32mp_allow_probe_shared_device(fdt, subnode)) {
+			DMSG("Skipping firewall attributes check for %s",
+			     fdt_get_name(fdt, subnode, NULL));
+			goto skip_check;
+		}
+
+		DMSG("Acquiring firewall access for %s when probing bus",
+		     fdt_get_name(fdt, subnode, NULL));
+
+		do {
+			/*
+			 * The access-controllers property is mandatory for
+			 * firewall bus devices
+			 */
+			res = firewall_dt_get_by_index(fdt, subnode, i, &fw);
+			if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+				/* Stop when nothing more to parse */
+				break;
+			} else if (res) {
+				EMSG("%s: Error on node %s: %#"PRIx32,
+				     ctrl->name,
+				     fdt_get_name(fdt, subnode, NULL), res);
+				panic();
+			}
+
+			res = firewall_acquire_access(fw);
+			if (res) {
+				EMSG("%s: %s not accessible: %#"PRIx32,
+				     ctrl->name,
+				     fdt_get_name(fdt, subnode, NULL), res);
+				panic();
+			}
+
+			firewall_put(fw);
+			i++;
+		} while (true);
+
+skip_check:
+		res = dt_driver_maybe_add_probe_node(fdt, subnode);
+		if (res) {
+			EMSG("Failed on node %s with %#"PRIx32,
+			     fdt_get_name(fdt, subnode, NULL), res);
+			panic();
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result stm32_rifsc_probe(const void *fdt, int node,
 				    const void *compat_data __unused)
 {
@@ -774,7 +866,7 @@ static TEE_Result stm32_rifsc_probe(const void *fdt, int node,
 	if (res)
 		panic();
 
-	res = firewall_dt_probe_bus(fdt, node, controller);
+	res = stm32_rifsc_dt_probe_bus(fdt, node, controller);
 	if (res)
 		panic();
 

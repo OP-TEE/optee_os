@@ -23,4 +23,7 @@ static inline void stm32mp_register_gpioz_pin_count(size_t count __unused) { }
 #define may_spin_lock(lock)		  cpu_spin_lock_xsave(lock)
 #define may_spin_unlock(lock, exceptions) cpu_spin_unlock_xrestore(lock, \
 								   exceptions)
+
+bool stm32mp_allow_probe_shared_device(const void *fdt, int node);
+
 #endif /*__STM32_UTIL_H__*/
