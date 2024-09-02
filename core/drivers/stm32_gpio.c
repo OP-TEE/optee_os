@@ -9,11 +9,12 @@
 #include <compiler.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/firewall.h>
 #include <drivers/gpio.h>
 #include <drivers/pinctrl.h>
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32_rif.h>
-#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/stm32mp_gpio.h>
 #include <io.h>
 #include <kernel/dt.h>
 #include <kernel/boot.h>
@@ -875,6 +876,69 @@ static TEE_Result apply_rif_config(struct stm32_gpio_bank *bank __unused,
 }
 #endif /* CFG_STM32_RIF */
 
+/* Forward reference to stm32_gpio_set_conf_sec() defined below */
+static void stm32_gpio_set_conf_sec(struct stm32_gpio_bank *bank);
+
+static TEE_Result stm32_gpio_fw_configure(struct firewall_query *firewall)
+{
+	struct stm32_gpio_bank *bank = firewall->ctrl->priv;
+	uint32_t firewall_arg = 0;
+	uint32_t gpios_mask = 0;
+	bool secure = true;
+
+	assert(bank->sec_support);
+
+	if (firewall->arg_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	firewall_arg = firewall->args[0];
+
+	if (bank->rif_cfg) {
+		gpios_mask = BIT(RIF_CHANNEL_ID(firewall_arg));
+
+		/* We're about to change a specific GPIO config */
+		bank->rif_cfg->access_mask[0] |= gpios_mask;
+
+		/*
+		 * Update bank RIF config with firewall configuration data
+		 * and apply it.
+		 */
+		stm32_rif_parse_cfg(firewall_arg, bank->rif_cfg,
+				    bank->ngpios);
+		return apply_rif_config(bank, gpios_mask);
+	}
+
+	/*
+	 * Non RIF GPIO banks use a single cell as a bit mask (bits 0 to 15)
+	 * to define the a group of GPIO pins (one or several) to configure
+	 * for that bank, and GPIO_STM32_NSEC bit flag to set if these pins
+	 * are non-secure (flag set) or non-secure (flag cleared).
+	 */
+	gpios_mask = firewall_arg & GENMASK_32(15, 0);
+
+	secure = !(firewall_arg & GPIO_STM32_NSEC);
+
+	if (gpios_mask & ~GENMASK_32(bank->ngpios, 0)) {
+		EMSG("Invalid bitmask %#"PRIx32" for GPIO bank %c",
+		     gpios_mask, 'A' + bank->bank_id);
+		return TEE_ERROR_GENERIC;
+	}
+
+	/* Update bank secure register configuration data and apply it */
+	if (secure)
+		bank->seccfgr |= gpios_mask;
+	else
+		bank->seccfgr &= ~gpios_mask;
+
+	stm32_gpio_set_conf_sec(bank);
+
+	return TEE_SUCCESS;
+}
+
+static const struct firewall_controller_ops stm32_gpio_firewall_ops = {
+	.set_conf = stm32_gpio_fw_configure,
+};
+
 static void stm32_gpio_save_rif_config(struct stm32_gpio_bank *bank)
 {
 	size_t i = 0;
@@ -1020,6 +1084,41 @@ static TEE_Result dt_stm32_gpio_bank(const void *fdt, int node,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result stm32_gpio_firewall_register(const void *fdt, int node,
+					       struct stm32_gpio_bank *bank)
+{
+	struct firewall_controller *controller = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	char bank_name[] = "gpio-bank-X";
+	char *name = NULL;
+
+	if (!IS_ENABLED(CFG_DRIVERS_FIREWALL) ||
+	    !bank->sec_support)
+		return TEE_SUCCESS;
+
+	controller = calloc(1, sizeof(*controller));
+	if (!controller)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	bank_name[sizeof(bank_name) - 2] = 'A' + bank->bank_id;
+	name = strdup(bank_name);
+
+	controller->name = name;
+	controller->priv = bank;
+	controller->ops = &stm32_gpio_firewall_ops;
+
+	if (!controller->name)
+		EMSG("Warning: out of memory to store bank name");
+
+	res = firewall_dt_controller_register(fdt, node, controller);
+	if (res) {
+		free(name);
+		free(controller);
+	}
+
+	return res;
+}
+
 /* Parse a pinctrl node to register the GPIO banks it describes */
 static TEE_Result dt_stm32_gpio_pinctrl(const void *fdt, int node,
 					const void *compat_data)
@@ -1061,6 +1160,10 @@ static TEE_Result dt_stm32_gpio_pinctrl(const void *fdt, int node,
 			/* Registering a provider should not defer probe */
 			res = gpio_register_provider(fdt, b_node,
 						     stm32_gpio_get_dt, bank);
+			if (res)
+				panic();
+
+			res = stm32_gpio_firewall_register(fdt, b_node, bank);
 			if (res)
 				panic();
 
