@@ -473,6 +473,9 @@ shadow_stack_access_ok:
 
 #ifdef CFG_CORE_ASLR
 	bl	get_aslr_seed
+#ifdef CFG_CORE_ASLR_SEED
+	mov_imm	r0, CFG_CORE_ASLR_SEED
+#endif
 #else
 	mov	r0, #0
 #endif
