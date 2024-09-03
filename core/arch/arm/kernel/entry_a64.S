@@ -314,6 +314,9 @@ clear_nex_bss:
 
 #ifdef CFG_CORE_ASLR
 	bl	get_aslr_seed
+#ifdef CFG_CORE_ASLR_SEED
+	mov_imm	x0, CFG_CORE_ASLR_SEED
+#endif
 #else
 	mov	x0, #0
 #endif

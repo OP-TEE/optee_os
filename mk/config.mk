@@ -957,6 +957,12 @@ endif
 endif # CFG_WARN_INSECURE defined
 CFG_INSECURE ?= y
 
+ifneq ($(CFG_INSECURE),y)
+ifneq ($(CFG_CORE_ASLR_SEED),)
+$(error CFG_CORE_ASLR_SEED requires CFG_INSECURE=y)
+endif
+endif
+
 # Enables warnings for declarations mixed with statements
 CFG_WARN_DECL_AFTER_STATEMENT ?= y
 
