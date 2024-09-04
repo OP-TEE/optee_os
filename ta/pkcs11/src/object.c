@@ -1094,6 +1094,7 @@ enum pkcs11_rc entry_set_attribute_value(struct pkcs11_client *client,
 	if (get_bool(obj->attributes, PKCS11_CKA_TOKEN)) {
 		rc = update_persistent_object_attributes(obj);
 		if (rc) {
+			TEE_Free(obj->attributes);
 			obj->attributes = head_old;
 			goto out;
 		}
