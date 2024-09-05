@@ -84,6 +84,14 @@
 					(level) + \
 					RISCV_PGSHIFT)
 
+#ifdef RV64
+#define CORE_MMU_PAGE_OFFSET_MASK(level) \
+		GENMASK_64(CORE_MMU_SHIFT_OF_LEVEL(level) - 1, 0)
+#else
+#define CORE_MMU_PAGE_OFFSET_MASK(level) \
+		GENMASK_32(CORE_MMU_SHIFT_OF_LEVEL(level) - 1, 0)
+#endif
+
 #define CORE_MMU_USER_CODE_SHIFT	SMALL_PAGE_SHIFT
 #define CORE_MMU_USER_PARAM_SHIFT	SMALL_PAGE_SHIFT
 
