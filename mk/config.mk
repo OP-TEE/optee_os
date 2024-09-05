@@ -214,6 +214,14 @@ CFG_RPMB_TESTKEY ?= n
 # - RPMB key provisioning in a controlled environment (factory setup)
 CFG_RPMB_WRITE_KEY ?= n
 
+# For the kernel driver to enable in-kernel RPMB routing it must know in
+# advance that OP-TEE supports it. Setting CFG_RPMB_ANNOUNCE_PROBE_CAP=y
+# will announce OP-TEE's capability for RPMB probing to the kernel and it
+# will use in-kernel RPMB routing, without it all RPMB commands will be
+# routed to tee-supplicant. This option is intended give some control over
+# how the RPMB commands are routed to simplify testing.
+CFG_RPMB_ANNOUNCE_PROBE_CAP ?= y
+
 _CFG_WITH_SECURE_STORAGE := $(call cfg-one-enabled,CFG_REE_FS CFG_RPMB_FS)
 
 # Signing key for OP-TEE TA's
