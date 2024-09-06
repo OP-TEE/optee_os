@@ -238,9 +238,11 @@ allocate_tee_operation(struct pkcs11_session *session,
 	if (params->id == PKCS11_CKM_RSA_X_509) {
 		assert(!hash_algo);
 		switch (function) {
+		case PKCS11_FUNCTION_ENCRYPT:
 		case PKCS11_FUNCTION_VERIFY:
 			mode = TEE_MODE_ENCRYPT;
 			break;
+		case PKCS11_FUNCTION_DECRYPT:
 		case PKCS11_FUNCTION_SIGN:
 			mode = TEE_MODE_DECRYPT;
 			break;
@@ -826,6 +828,47 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 
 	case PKCS11_CKM_RSA_X_509:
 		switch (function) {
+		case PKCS11_FUNCTION_ENCRYPT:
+			/*
+			 * Input message size shall be at most the key size
+			 * As encrypting with raw RSA can be unsafe, it
+			 * remains the responsibility of the client to
+			 * prolerly pad the message for safe usage.
+			 */
+			if (in_size > sz) {
+				rc = PKCS11_CKR_DATA_LEN_RANGE;
+				break;
+			}
+			res = TEE_AsymmetricEncrypt(proc->tee_op_handle,
+						    tee_attrs, tee_attrs_count,
+						    in_buf, in_size,
+						    out_buf, &out_size);
+			output_data = true;
+			rc = tee2pkcs_error(res);
+			if (rc == PKCS11_CKR_ARGUMENTS_BAD)
+				rc = PKCS11_CKR_DATA_LEN_RANGE;
+			break;
+		case PKCS11_FUNCTION_DECRYPT:
+			/*
+			 * Input message size shall be at most the key size
+			 * As decrypting with raw RSA can be unsafe, it
+			 * remains the responsibility of the encryption
+			 * instance to have prolerly padded its message.
+			 */
+			if (in_size > sz) {
+				rc = PKCS11_CKR_ENCRYPTED_DATA_LEN_RANGE;
+				break;
+			}
+
+			res = TEE_AsymmetricDecrypt(proc->tee_op_handle,
+						    tee_attrs, tee_attrs_count,
+						    in_buf, in_size,
+						    out_buf, &out_size);
+			output_data = true;
+			rc = tee2pkcs_error(res);
+			if (rc == PKCS11_CKR_ARGUMENTS_BAD)
+				rc = PKCS11_CKR_ENCRYPTED_DATA_LEN_RANGE;
+			break;
 		case PKCS11_FUNCTION_SIGN:
 			/*
 			 * GP TEE API only allows Decrypt, not Verify operation,
