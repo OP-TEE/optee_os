@@ -1,9 +1,9 @@
 #include <kernel/pseudo_ta.h>
 #include <pta_remote_attestation.h>
 
-#include "base64.h"
 #include "cbor.h"
 #include "hash.h"
+#include <base64.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -73,8 +73,8 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
         return status;
 
     /* For debug print */
-    if (base64_encode(measurement_value, TEE_SHA256_HASH_SIZE,
-                      b64_measurement_value, &b64_measurement_value_len) != 1) {
+    if (base64_enc(measurement_value, TEE_SHA256_HASH_SIZE,
+                   b64_measurement_value, &b64_measurement_value_len) != 1) {
         DMSG("Failed to encode measurement_value to base64");
         return TEE_ERROR_GENERIC;
     }
