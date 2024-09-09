@@ -981,7 +981,6 @@ static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 	regs->x[1] = a1;
 	regs->x[2] = a2;
 	regs->x[3] = a3;
-	regs->sp = user_sp;
 	regs->pc = entry_func;
 	regs->cpsr = spsr;
 	regs->x[13] = user_sp;	/* Used when running TA in Aarch32 */
