@@ -705,14 +705,15 @@ FUNC __thread_enter_user_mode , :
 	 */
 	csrw	CSR_XSCRATCH, tp
 
+	/* Set exception return PC */
+	load_xregs a0, THREAD_CTX_REG_EPC, REG_S0
+	csrw	CSR_XEPC, s0
 	/* Set user ie */
 	load_xregs a0, THREAD_CTX_REG_IE, REG_S0
 	csrw	CSR_XIE, s0
-
 	/* Set user status */
 	load_xregs a0, THREAD_CTX_REG_STATUS, REG_S0
 	csrw	CSR_XSTATUS, s0
-
 	/* Load the rest of the general purpose registers */
 	load_xregs a0, THREAD_CTX_REG_RA, REG_RA, REG_TP
 	load_xregs a0, THREAD_CTX_REG_T0, REG_T0, REG_T2
@@ -720,9 +721,6 @@ FUNC __thread_enter_user_mode , :
 	load_xregs a0, THREAD_CTX_REG_S2, REG_S2, REG_S11
 	load_xregs a0, THREAD_CTX_REG_T3, REG_T3, REG_T6
 	load_xregs a0, THREAD_CTX_REG_A0, REG_A0, REG_A7
-
-	/* Set exception program counter */
-	csrw		CSR_XEPC, ra
 
 	/* Jump into user mode */
 	XRET
