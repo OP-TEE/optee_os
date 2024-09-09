@@ -502,7 +502,7 @@ static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 		.a3 = a3,
 		.s0 = 0,
 		.sp = user_sp,
-		.ra = entry_func,
+		.epc = entry_func,
 		.status = status,
 		.ie = ie,
 	};
