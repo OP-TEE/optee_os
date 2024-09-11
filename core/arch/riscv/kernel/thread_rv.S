@@ -154,8 +154,8 @@ native_interrupt_from_kernel:
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
-	/* Set scratch as thread_core_local */
-	csrw	CSR_XSCRATCH, tp
+	/* We are going to XRET to kernel mode. Set XSCRATCH as 0 */
+	csrw	CSR_XSCRATCH, 0
 	/* Restore all GPRs */
 	load_xregs sp, THREAD_CTX_REG_RA, REG_RA
 	load_xregs sp, THREAD_CTX_REG_GP, REG_GP
@@ -252,8 +252,8 @@ set_sp:
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
-	/* Set scratch as thread_core_local */
-	csrw	CSR_XSCRATCH, tp
+	/* We are going to XRET to kernel mode. Set XSCRATCH as 0 */
+	csrw	CSR_XSCRATCH, 0
 
 	/* Update core local flags */
 	lw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
