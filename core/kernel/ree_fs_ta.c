@@ -726,7 +726,7 @@ static TEE_Result buf_ta_open(const TEE_UUID *uuid,
 		goto err;
 	}
 	handle->buf = phys_to_virt(tee_mm_get_smem(handle->mm),
-				   MEM_AREA_TA_RAM, handle->ta_size);
+				   MEM_AREA_SEC_RAM_OVERALL, handle->ta_size);
 	if (!handle->buf) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;

@@ -112,7 +112,8 @@ static struct pgt_parent *alloc_pgt_parent(void)
 		free(parent);
 		return NULL;
 	}
-	tbl = phys_to_virt(tee_mm_get_smem(parent->mm), MEM_AREA_TA_RAM,
+	tbl = phys_to_virt(tee_mm_get_smem(parent->mm),
+			   MEM_AREA_SEC_RAM_OVERALL,
 			   PGT_PARENT_SIZE);
 	assert(tbl); /* "can't fail" */
 

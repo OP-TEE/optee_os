@@ -1871,7 +1871,7 @@ static const struct ts_ops sp_ops = {
 
 static TEE_Result process_sp_pkg(uint64_t sp_pkg_pa, TEE_UUID *sp_uuid)
 {
-	enum teecore_memtypes mtype = MEM_AREA_TA_RAM;
+	enum teecore_memtypes mtype = MEM_AREA_SEC_RAM_OVERALL;
 	struct sp_pkg_header *sp_pkg_hdr = NULL;
 	struct fip_sp *sp = NULL;
 	uint64_t sp_fdt_end = 0;
