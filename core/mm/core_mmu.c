@@ -2064,6 +2064,12 @@ TEE_Result core_mmu_map_contiguous_pages(vaddr_t vstart, paddr_t pstart,
 	return TEE_SUCCESS;
 }
 
+static bool mem_range_is_in_vcore_free(vaddr_t vstart, size_t num_pages)
+{
+	return core_is_buffer_inside(vstart, num_pages * SMALL_PAGE_SIZE,
+				     VCORE_FREE_PA, VCORE_FREE_SZ);
+}
+
 void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 {
 	struct core_mmu_table_info tbl_info;
@@ -2078,7 +2084,8 @@ void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 	if (!mm || !va_is_in_map(mm, vstart + num_pages * SMALL_PAGE_SIZE - 1))
 		panic("VA does not belong to any known mm region");
 
-	if (!core_mmu_is_dynamic_vaspace(mm))
+	if (!core_mmu_is_dynamic_vaspace(mm) &&
+	    !mem_range_is_in_vcore_free(vstart, num_pages))
 		panic("Trying to unmap static region");
 
 	for (i = 0; i < num_pages; i++, vstart += SMALL_PAGE_SIZE) {
