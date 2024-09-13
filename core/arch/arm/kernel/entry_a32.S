@@ -366,22 +366,30 @@ copy_init:
 	/*
 	 * The binary is built as:
 	 * [Core, rodata and data] : In correct location
-	 * [struct boot_embdata + data] : Should be moved to __end, first
-	 * uint32_t tells the length of the struct + data
+	 * [struct boot_embdata + data] : Should be moved to right before
+	 * __vcore_free_end, the first uint32_t tells the length of the
+	 * struct + data
 	 */
-	ldr	r0, =__end		/* dst */
 	ldr	r1, =__data_end		/* src */
 	ldr	r2, [r1]		/* struct boot_embdata::total_len */
+	/* dst */
+	ldr	r0, =__vcore_free_end
+	sub	r0, r0, r2
+	/* round down to beginning of page */
+	mov	r3,  #(SMALL_PAGE_SIZE - 1)
+	bic	r0, r0, r3
+	ldr	r3, =boot_embdata_ptr
+	str	r0, [r3]
 	/* Copy backwards (as memmove) in case we're overlapping */
-	add	r0, r0, r2
 	add	r1, r1, r2
+	add	r2, r0, r2
 	ldr	r3, =boot_cached_mem_end
 	str	r2, [r3]
 
 copy_init:
 	ldmdb	r1!, {r3, r9-r12}
-	stmdb	r0!, {r3, r9-r12}
-	cmp	r0, r2
+	stmdb	r2!, {r3, r9-r12}
+	cmp	r2, r0
 	bgt	copy_init
 #endif
 
@@ -458,6 +466,23 @@ shadow_stack_access_ok:
 	bl	boot_save_args
 	add	sp, sp, #(2 * 4)
 
+#ifdef CFG_WITH_PAGER
+	ldr	r0, =__init_end	/* pointer to boot_embdata */
+	ldr	r1, [r0]	/* struct boot_embdata::total_len */
+	add	r0, r0, r1
+	mov_imm	r1, 0xfff
+	add	r0, r0, r1	/* round up */
+	bic	r0, r0, r1	/* to next page */
+	mov_imm r1, (TEE_RAM_PH_SIZE + TEE_RAM_START)
+	mov	r2, r1
+#else
+	ldr	r0, =__vcore_free_start
+	ldr	r1, =boot_embdata_ptr
+	ldr	r1, [r1]
+	ldr	r2, =__vcore_free_end
+#endif
+	bl	boot_mem_init
+
 #ifdef CFG_PL310
 	bl	pl310_base
 	bl	arm_cl2_config
@@ -512,6 +537,9 @@ shadow_stack_access_ok:
 	bl	__get_core_pos
 	bl	enable_mmu
 #ifdef CFG_CORE_ASLR
+	ldr	r0, =boot_mmu_config
+	ldr	r0, [r0, #CORE_MMU_CONFIG_MAP_OFFSET]
+	bl	boot_mem_relocate
 	/*
 	 * Reinitialize console, since register_serial_console() has
 	 * previously registered a PA and with ASLR the VA is different
@@ -639,6 +667,12 @@ LOCAL_DATA cached_mem_start , :
 	.word	__text_start
 END_DATA cached_mem_start
 
+#ifndef CFG_WITH_PAGER
+LOCAL_DATA boot_embdata_ptr , :
+	.skip	4
+END_DATA boot_embdata_ptr
+#endif
+
 LOCAL_FUNC unhandled_cpu , :
 	wfi
 	b	unhandled_cpu
@@ -651,7 +685,8 @@ LOCAL_FUNC relocate , :
 #ifdef CFG_WITH_PAGER
 	ldr	r12, =__init_end
 #else
-	ldr	r12, =__end
+	ldr	r12, =boot_embdata_ptr
+	ldr	r12, [r12]
 #endif
 	ldr	r2, [r12, #BOOT_EMBDATA_RELOC_OFFSET]
 	ldr	r3, [r12, #BOOT_EMBDATA_RELOC_LEN]

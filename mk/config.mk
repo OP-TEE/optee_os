@@ -1231,4 +1231,8 @@ CFG_SEMIHOSTING ?= n
 CFG_FFA_CONSOLE ?= n
 
 # CFG_BOOT_MEM, when enabled, adds stack like memory allocation during boot.
+ifeq ($(ARCH),arm)
+$(call force,CFG_BOOT_MEM,y)
+else
 CFG_BOOT_MEM ?= n
+endif
