@@ -90,6 +90,11 @@ void *phys_to_virt_io(paddr_t pa, size_t len);
  */
 paddr_t virt_to_phys(void *va);
 
+static inline paddr_t vaddr_to_phys(vaddr_t va)
+{
+	return virt_to_phys((void *)va);
+}
+
 /*
  * Return runtime usable address, irrespective of whether
  * the MMU is enabled or not. In case of MMU enabled also will be performed
