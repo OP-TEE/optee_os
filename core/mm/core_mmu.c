@@ -2627,6 +2627,15 @@ static TEE_Result teecore_init_pub_ram(void)
 early_init(teecore_init_pub_ram);
 #endif /*CFG_CORE_RESERVED_SHM*/
 
+static void __maybe_unused carve_out_core_mem(paddr_t pa, paddr_t end_pa)
+{
+	tee_mm_entry_t *mm __maybe_unused = NULL;
+
+	DMSG("%#"PRIxPA" .. %#"PRIxPA, pa, end_pa);
+	mm = phys_mem_alloc2(pa, end_pa - pa);
+	assert(mm);
+}
+
 void core_mmu_init_phys_mem(void)
 {
 	paddr_t ps = 0;
@@ -2643,10 +2652,48 @@ void core_mmu_init_phys_mem(void)
 		virt_get_ta_ram(&s, &e);
 		ps = virt_to_phys((void *)s);
 		size = e - s;
-
+		phys_mem_init(0, 0, ps, size);
 	} else {
-		core_mmu_get_ta_range(&ps, &size);
-	}
+#ifdef CFG_WITH_PAGER
+		/*
+		 * The pager uses all core memory so there's no need to add
+		 * it to the pool.
+		 */
+		static_assert(ARRAY_SIZE(secure_only) == 2);
+		phys_mem_init(0, 0, secure_only[1].paddr, secure_only[1].size);
+#else /*!CFG_WITH_PAGER*/
+		size_t align = BIT(CORE_MMU_USER_CODE_SHIFT);
+		paddr_t end_pa = 0;
+		paddr_t pa = 0;
 
-	phys_mem_init(0, 0, ps, size);
+		static_assert(ARRAY_SIZE(secure_only) <= 2);
+		if (ARRAY_SIZE(secure_only) == 2) {
+			ps = secure_only[1].paddr;
+			size = secure_only[1].size;
+		}
+		phys_mem_init(secure_only[0].paddr, secure_only[0].size,
+			      ps, size);
+
+		/*
+		 * The VCORE macros are relocatable so we need to translate
+		 * the addresses now that the MMU is enabled.
+		 */
+		end_pa = vaddr_to_phys(ROUNDUP(VCORE_FREE_END_PA,
+					       align) - 1) + 1;
+		/* Carve out the part used by OP-TEE core */
+		carve_out_core_mem(vaddr_to_phys(VCORE_UNPG_RX_PA), end_pa);
+		if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS)) {
+			pa = vaddr_to_phys(ROUNDUP(ASAN_MAP_PA, align));
+			carve_out_core_mem(pa, pa + ASAN_MAP_SZ);
+		}
+
+		/* Carve out test SDP memory */
+#ifdef TEE_SDP_TEST_MEM_BASE
+		if (TEE_SDP_TEST_MEM_SIZE) {
+			pa = vaddr_to_phys(TEE_SDP_TEST_MEM_BASE);
+			carve_out_core_mem(pa, pa + TEE_SDP_TEST_MEM_SIZE);
+		}
+#endif
+#endif /*!CFG_WITH_PAGER*/
+	}
 }
