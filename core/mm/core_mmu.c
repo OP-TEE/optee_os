@@ -2590,20 +2590,6 @@ bool is_nexus(const void *va)
 }
 #endif
 
-void core_mmu_init_virtualization(void)
-{
-	paddr_t b1 = 0;
-	paddr_size_t s1 = 0;
-
-	static_assert(ARRAY_SIZE(secure_only) <= 2);
-	if (ARRAY_SIZE(secure_only) == 2) {
-		b1 = secure_only[1].paddr;
-		s1 = secure_only[1].size;
-	}
-	virt_init_memory(&static_memory_map, secure_only[0].paddr,
-			 secure_only[0].size, b1, s1);
-}
-
 vaddr_t io_pa_or_va(struct io_pa_va *p, size_t len)
 {
 	assert(p->pa);
@@ -2684,10 +2670,19 @@ static void __maybe_unused carve_out_core_mem(paddr_t pa, paddr_t end_pa)
 
 void core_mmu_init_phys_mem(void)
 {
-	paddr_t ps = 0;
-	size_t size = 0;
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		paddr_t b1 = 0;
+		paddr_size_t s1 = 0;
 
-	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		static_assert(ARRAY_SIZE(secure_only) <= 2);
+
+		if (ARRAY_SIZE(secure_only) == 2) {
+			b1 = secure_only[1].paddr;
+			s1 = secure_only[1].size;
+		}
+		virt_init_memory(&static_memory_map, secure_only[0].paddr,
+				 secure_only[0].size, b1, s1);
+	} else {
 #ifdef CFG_WITH_PAGER
 		/*
 		 * The pager uses all core memory so there's no need to add
@@ -2698,6 +2693,8 @@ void core_mmu_init_phys_mem(void)
 #else /*!CFG_WITH_PAGER*/
 		size_t align = BIT(CORE_MMU_USER_CODE_SHIFT);
 		paddr_t end_pa = 0;
+		size_t size = 0;
+		paddr_t ps = 0;
 		paddr_t pa = 0;
 
 		static_assert(ARRAY_SIZE(secure_only) <= 2);
