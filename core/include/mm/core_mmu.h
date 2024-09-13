@@ -295,6 +295,7 @@ extern const unsigned long core_mmu_tee_load_pa;
 
 void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg);
 void core_init_mmu_regs(struct core_mmu_config *cfg);
+void core_mmu_save_mem_map(void);
 
 /* Arch specific function to help optimizing 1 MMU xlat table */
 bool core_mmu_prefer_tee_ram_at_top(paddr_t paddr);
