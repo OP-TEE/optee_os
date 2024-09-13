@@ -192,7 +192,12 @@ tee_mm_entry_t *phys_mem_mm_find(paddr_t addr)
 
 tee_mm_entry_t *phys_mem_core_alloc(size_t size)
 {
-	return mm_alloc(core_pool, NULL, size);
+	/*
+	 * With CFG_NS_VIRTUALIZATION all memory is equally secure so we
+	 * should normally be able to use one pool only, but if we have two
+	 * make sure to use both even for core allocations.
+	 */
+	return mm_alloc(core_pool, ta_pool, size);
 }
 
 tee_mm_entry_t *phys_mem_ta_alloc(size_t size)
