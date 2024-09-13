@@ -381,12 +381,8 @@ static TEE_Result mmap_clear_memtag(struct tee_mmap_region *map,
 				    void *ptr __unused)
 {
 	switch (map->type) {
-	case MEM_AREA_TEE_RAM:
-	case MEM_AREA_TEE_RAM_RW:
 	case MEM_AREA_NEX_RAM_RO:
-	case MEM_AREA_NEX_RAM_RW:
-	case MEM_AREA_TEE_ASAN:
-	case MEM_AREA_TA_RAM:
+	case MEM_AREA_SEC_RAM_OVERALL:
 		DMSG("Clearing tags for VA %#"PRIxVA"..%#"PRIxVA,
 		     map->va, map->va + map->size - 1);
 		memtag_set_tags((void *)map->va, map->size, 0);
@@ -549,8 +545,8 @@ static void init_runtime(unsigned long pageable_part)
 
 	mm = nex_phys_mem_ta_alloc(pageable_size);
 	assert(mm);
-	paged_store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM,
-				   pageable_size);
+	paged_store = phys_to_virt(tee_mm_get_smem(mm),
+				   MEM_AREA_SEC_RAM_OVERALL, pageable_size);
 	/*
 	 * Load pageable part in the dedicated allocated area:
 	 * - Move pageable non-init part into pageable area. Note bootloader

@@ -110,7 +110,7 @@ static size_t get_ta_ram_size(void)
 }
 
 static TEE_Result prepare_memory_map(struct memory_map *mem_map,
-				     paddr_t tee_data, paddr_t ta_ram)
+				     paddr_t tee_data)
 {
 	struct tee_mmap_region *map = NULL;
 	vaddr_t max_va = 0;
@@ -145,18 +145,6 @@ static TEE_Result prepare_memory_map(struct memory_map *mem_map,
 		if (map->va + map->size > max_va)
 			max_va = map->va + map->size;
 	}
-
-	/* Map TA_RAM */
-	mem_map->count++;
-	map = ins_array_elem(mem_map->map, mem_map->count,
-			     sizeof(*mem_map->map), n, NULL);
-	map->region_size = SMALL_PAGE_SIZE;
-	map->va = ROUNDUP(max_va, map->region_size);
-	map->va += (ta_ram - map->va) & CORE_MMU_PGDIR_MASK;
-	map->pa = ta_ram;
-	map->size = get_ta_ram_size();
-	map->type = MEM_AREA_TA_RAM;
-	map->attr = core_mmu_type_to_attr(map->type);
 
 	DMSG("New map (%08lx):",  (vaddr_t)(VCORE_UNPG_RW_PA));
 
@@ -241,8 +229,8 @@ static TEE_Result configure_guest_prtn_mem(struct guest_partition *prtn)
 		goto err;
 	}
 
-	res = prepare_memory_map(&prtn->mem_map, tee_mm_get_smem(prtn->tee_ram),
-				 tee_mm_get_smem(prtn->ta_ram));
+	res = prepare_memory_map(&prtn->mem_map,
+				 tee_mm_get_smem(prtn->tee_ram));
 	if (res)
 		goto err;
 
@@ -576,7 +564,7 @@ void virt_get_ta_ram(vaddr_t *start, vaddr_t *end)
 	struct guest_partition *prtn = get_current_prtn();
 
 	*start = (vaddr_t)phys_to_virt(tee_mm_get_smem(prtn->ta_ram),
-				       MEM_AREA_TA_RAM,
+				       MEM_AREA_SEC_RAM_OVERALL,
 				       tee_mm_get_bytes(prtn->ta_ram));
 	*end = *start + tee_mm_get_bytes(prtn->ta_ram);
 }
