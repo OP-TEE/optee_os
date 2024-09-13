@@ -705,22 +705,28 @@ FUNC __thread_enter_user_mode , :
 	 */
 	csrw	CSR_XSCRATCH, tp
 
+	/* Move struct thread_ctx_regs *regs to sp to reduce code size */
+	mv	sp, a0
+
 	/* Set exception return PC */
-	load_xregs a0, THREAD_CTX_REG_EPC, REG_S0
+	load_xregs sp, THREAD_CTX_REG_EPC, REG_S0
 	csrw	CSR_XEPC, s0
 	/* Set user ie */
-	load_xregs a0, THREAD_CTX_REG_IE, REG_S0
+	load_xregs sp, THREAD_CTX_REG_IE, REG_S0
 	csrw	CSR_XIE, s0
 	/* Set user status */
-	load_xregs a0, THREAD_CTX_REG_STATUS, REG_S0
+	load_xregs sp, THREAD_CTX_REG_STATUS, REG_S0
 	csrw	CSR_XSTATUS, s0
 	/* Load the rest of the general purpose registers */
-	load_xregs a0, THREAD_CTX_REG_RA, REG_RA, REG_TP
-	load_xregs a0, THREAD_CTX_REG_T0, REG_T0, REG_T2
-	load_xregs a0, THREAD_CTX_REG_S0, REG_S0, REG_S1
-	load_xregs a0, THREAD_CTX_REG_S2, REG_S2, REG_S11
-	load_xregs a0, THREAD_CTX_REG_T3, REG_T3, REG_T6
-	load_xregs a0, THREAD_CTX_REG_A0, REG_A0, REG_A7
+	load_xregs sp, THREAD_CTX_REG_RA, REG_RA
+	load_xregs sp, THREAD_CTX_REG_GP, REG_GP
+	load_xregs sp, THREAD_CTX_REG_TP, REG_TP
+	load_xregs sp, THREAD_CTX_REG_T0, REG_T0, REG_T2
+	load_xregs sp, THREAD_CTX_REG_S0, REG_S0, REG_S1
+	load_xregs sp, THREAD_CTX_REG_A0, REG_A0, REG_A7
+	load_xregs sp, THREAD_CTX_REG_S2, REG_S2, REG_S11
+	load_xregs sp, THREAD_CTX_REG_T3, REG_T3, REG_T6
+	load_xregs sp, THREAD_CTX_REG_SP, REG_SP /* sp must be last one */
 
 	/* Jump into user mode */
 	XRET
@@ -731,16 +737,17 @@ FUNC thread_resume , :
 	/* Disable global interrupts first */
 	csrc	CSR_XSTATUS, CSR_XSTATUS_IE
 
+	/* Move struct thread_ctx_regs *regs to sp to reduce code size */
+	mv	sp, a0
+
 	/* Restore epc */
-	load_xregs a0, THREAD_CTX_REG_EPC, REG_T0
+	load_xregs sp, THREAD_CTX_REG_EPC, REG_T0
 	csrw	CSR_XEPC, t0
-
 	/* Restore ie */
-	load_xregs a0, THREAD_CTX_REG_IE, REG_T0
+	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
-
 	/* Restore status */
-	load_xregs a0, THREAD_CTX_REG_STATUS, REG_T0
+	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
 
 	/* Check if previous privilege mode by status.SPP */
@@ -753,12 +760,15 @@ FUNC thread_resume , :
 	csrw	CSR_XSCRATCH, tp
 2:
 	/* Restore all general-purpose registers */
-	load_xregs a0, THREAD_CTX_REG_RA, REG_RA, REG_TP
-	load_xregs a0, THREAD_CTX_REG_T0, REG_T0, REG_T2
-	load_xregs a0, THREAD_CTX_REG_S0, REG_S0, REG_S1
-	load_xregs a0, THREAD_CTX_REG_S2, REG_S2, REG_S11
-	load_xregs a0, THREAD_CTX_REG_T3, REG_T3, REG_T6
-	load_xregs a0, THREAD_CTX_REG_A0, REG_A0, REG_A7
+	load_xregs sp, THREAD_CTX_REG_RA, REG_RA
+	load_xregs sp, THREAD_CTX_REG_GP, REG_GP
+	load_xregs sp, THREAD_CTX_REG_TP, REG_TP
+	load_xregs sp, THREAD_CTX_REG_T0, REG_T0, REG_T2
+	load_xregs sp, THREAD_CTX_REG_S0, REG_S0, REG_S1
+	load_xregs sp, THREAD_CTX_REG_A0, REG_A0, REG_A7
+	load_xregs sp, THREAD_CTX_REG_S2, REG_S2, REG_S11
+	load_xregs sp, THREAD_CTX_REG_T3, REG_T3, REG_T6
+	load_xregs sp, THREAD_CTX_REG_SP, REG_SP /* sp must be last one */
 
 	XRET
 END_FUNC thread_resume
