@@ -105,4 +105,30 @@ void discover_nsec_memory(void);
 /* Add reserved memory for static shared memory in the device-tree */
 int mark_static_shm_as_reserved(struct dt_descriptor *dt);
 
+#ifdef CFG_BOOT_MEM
+/*
+ * Stack-like memory allocations during boot before a heap has been
+ * configured. boot_mem_relocate() performs relocation of the boot memory
+ * and address cells registered with boot_mem_add_reloc() during virtual
+ * memory initialization. Unused memory is unmapped and released to pool of
+ * free physical memory once MMU is initialized.
+ */
+void boot_mem_init(vaddr_t start, vaddr_t end, vaddr_t orig_end);
+void boot_mem_add_reloc(void *ptr);
+void boot_mem_relocate(size_t offs);
+void *boot_mem_alloc(size_t len, size_t align);
+void *boot_mem_alloc_tmp(size_t len, size_t align);
+vaddr_t boot_mem_release_unused(void);
+void boot_mem_release_tmp_alloc(void);
+#else
+static inline void boot_mem_add_reloc(void *ptr __unused) { }
+static inline void *boot_mem_alloc(size_t len __unused, size_t align __unused)
+{ return NULL; }
+static inline void *boot_mem_alloc_tmp(size_t len __unused,
+				       size_t align __unused)
+{ return NULL; }
+static inline vaddr_t boot_mem_release_unused(void) { return 0; }
+static inline void boot_mem_release_tmp_alloc(void) { }
+#endif
+
 #endif /* __KERNEL_BOOT_H */

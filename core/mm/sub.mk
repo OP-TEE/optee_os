@@ -10,3 +10,4 @@ srcs-y += phys_mem.c
 ifneq ($(CFG_CORE_FFA),y)
 srcs-$(CFG_CORE_DYN_SHM) += mobj_dyn_shm.c
 endif
+srcs-$(CFG_BOOT_MEM) += boot_mem.c
