@@ -13,6 +13,10 @@ CFG_PKCS11_TA_TOKEN_COUNT ?= 3
 # When enabled, embed support for object checksum value computation
 CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE ?= y
 
+# Locks correspondingly User or SO PIN when reaching maximum
+# failed authentication attemps (continous) limit
+CFG_PKCS11_TA_LOCK_PIN_AFTER_FAILED_LOGIN_ATTEMPTS ?= y
+
 global-incdirs-y += include
 global-incdirs-y += src
 subdirs-y += src
