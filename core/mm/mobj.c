@@ -93,11 +93,10 @@ static bool mobj_phys_matches(struct mobj *mobj, enum buf_is_attr attr)
 	switch (attr) {
 	case CORE_MEM_SEC:
 		return a == CORE_MEM_SEC || a == CORE_MEM_TEE_RAM ||
-		       a == CORE_MEM_TA_RAM || a == CORE_MEM_SDP_MEM;
+		       a == CORE_MEM_SDP_MEM;
 	case CORE_MEM_NON_SEC:
 		return a == CORE_MEM_NSEC_SHM;
 	case CORE_MEM_TEE_RAM:
-	case CORE_MEM_TA_RAM:
 	case CORE_MEM_NSEC_SHM:
 	case CORE_MEM_SDP_MEM:
 		return attr == a;

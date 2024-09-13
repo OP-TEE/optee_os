@@ -1604,8 +1604,6 @@ bool core_mmu_mattr_is_ok(uint32_t mattr)
  */
 bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 {
-	paddr_t ta_base = 0;
-	size_t ta_size = 0;
 	struct tee_mmap_region *map;
 
 	/* Empty buffers complies with anything */
@@ -1621,9 +1619,6 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 	case CORE_MEM_TEE_RAM:
 		return core_is_buffer_inside(pbuf, len, TEE_RAM_START,
 							TEE_RAM_PH_SIZE);
-	case CORE_MEM_TA_RAM:
-		core_mmu_get_ta_range(&ta_base, &ta_size);
-		return core_is_buffer_inside(pbuf, len, ta_base, ta_size);
 #ifdef CFG_CORE_RESERVED_SHM
 	case CORE_MEM_NSEC_SHM:
 		return core_is_buffer_inside(pbuf, len, TEE_SHMEM_START,
