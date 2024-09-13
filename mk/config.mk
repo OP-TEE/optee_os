@@ -1229,3 +1229,6 @@ CFG_SEMIHOSTING ?= n
 # writes trace messages via FFA interface to the SPM (Secure Partition Manager)
 # like hafnium.
 CFG_FFA_CONSOLE ?= n
+
+# CFG_BOOT_MEM, when enabled, adds stack like memory allocation during boot.
+CFG_BOOT_MEM ?= n
