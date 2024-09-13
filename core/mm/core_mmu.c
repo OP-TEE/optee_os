@@ -196,40 +196,6 @@ void core_mmu_set_secure_memory(paddr_t base, size_t size)
 	secure_only[0].size = size;
 }
 
-void core_mmu_get_ta_range(paddr_t *base, size_t *size)
-{
-	paddr_t b = 0;
-	size_t s = 0;
-
-	static_assert(!(TEE_RAM_VA_SIZE % SMALL_PAGE_SIZE));
-#ifdef TA_RAM_START
-	b = TA_RAM_START;
-	s = TA_RAM_SIZE;
-#else
-	static_assert(ARRAY_SIZE(secure_only) <= 2);
-	if (ARRAY_SIZE(secure_only) == 1) {
-		vaddr_t load_offs = 0;
-
-		assert(core_mmu_tee_load_pa >= secure_only[0].paddr);
-		load_offs = core_mmu_tee_load_pa - secure_only[0].paddr;
-
-		assert(secure_only[0].size >
-		       load_offs + TEE_RAM_VA_SIZE + TEE_SDP_TEST_MEM_SIZE);
-		b = secure_only[0].paddr + load_offs + TEE_RAM_VA_SIZE;
-		s = secure_only[0].size - load_offs - TEE_RAM_VA_SIZE -
-		    TEE_SDP_TEST_MEM_SIZE;
-	} else {
-		assert(secure_only[1].size > TEE_SDP_TEST_MEM_SIZE);
-		b = secure_only[1].paddr;
-		s = secure_only[1].size - TEE_SDP_TEST_MEM_SIZE;
-	}
-#endif
-	if (base)
-		*base = b;
-	if (size)
-		*size = s;
-}
-
 static struct memory_map *get_memory_map(void)
 {
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
@@ -2721,19 +2687,7 @@ void core_mmu_init_phys_mem(void)
 	paddr_t ps = 0;
 	size_t size = 0;
 
-	/*
-	 * Get virtual addr/size of RAM where TA are loaded/executedNSec
-	 * shared mem allocated from teecore.
-	 */
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
-		vaddr_t s = 0;
-		vaddr_t e = 0;
-
-		virt_get_ta_ram(&s, &e);
-		ps = virt_to_phys((void *)s);
-		size = e - s;
-		phys_mem_init(0, 0, ps, size);
-	} else {
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 #ifdef CFG_WITH_PAGER
 		/*
 		 * The pager uses all core memory so there's no need to add

@@ -322,6 +322,8 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 	set_current_prtn(prtn);
 
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
+	phys_mem_init(0, 0, tee_mm_get_smem(prtn->ta_ram),
+		      tee_mm_get_bytes(prtn->ta_ram));
 	/* Initialize threads */
 	thread_init_threads();
 	/* Do the preinitcalls */
@@ -557,16 +559,6 @@ struct memory_map *virt_get_memory_map(void)
 		return NULL;
 
 	return &prtn->mem_map;
-}
-
-void virt_get_ta_ram(vaddr_t *start, vaddr_t *end)
-{
-	struct guest_partition *prtn = get_current_prtn();
-
-	*start = (vaddr_t)phys_to_virt(tee_mm_get_smem(prtn->ta_ram),
-				       MEM_AREA_SEC_RAM_OVERALL,
-				       tee_mm_get_bytes(prtn->ta_ram));
-	*end = *start + tee_mm_get_bytes(prtn->ta_ram);
 }
 
 #ifdef CFG_CORE_SEL1_SPMC
