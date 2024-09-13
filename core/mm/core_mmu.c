@@ -909,14 +909,12 @@ static void dump_mmap_table(struct memory_map *mem_map)
 	size_t n = 0;
 
 	for (n = 0; n < mem_map->count; n++) {
-		struct tee_mmap_region *map = mem_map->map + n;
-		vaddr_t __maybe_unused vstart;
+		struct tee_mmap_region *map __maybe_unused = mem_map->map + n;
 
-		vstart = map->va + ((vaddr_t)map->pa & (map->region_size - 1));
 		DMSG("type %-12s va 0x%08" PRIxVA "..0x%08" PRIxVA
 		     " pa 0x%08" PRIxPA "..0x%08" PRIxPA " size 0x%08zx (%s)",
-		     teecore_memtype_name(map->type), vstart,
-		     vstart + map->size - 1, map->pa,
+		     teecore_memtype_name(map->type), map->va,
+		     map->va + map->size - 1, map->pa,
 		     (paddr_t)(map->pa + map->size - 1), map->size,
 		     map->region_size == SMALL_PAGE_SIZE ? "smallpg" : "pgdir");
 	}
@@ -1190,15 +1188,13 @@ static void assign_mem_granularity(struct memory_map *mem_map)
 	for  (n = 0; n < mem_map->count; n++) {
 		paddr_t mask = mem_map->map[n].pa | mem_map->map[n].size;
 
-		if (!(mask & CORE_MMU_PGDIR_MASK))
-			mem_map->map[n].region_size = CORE_MMU_PGDIR_SIZE;
-		else if (!(mask & SMALL_PAGE_MASK))
-			mem_map->map[n].region_size = SMALL_PAGE_SIZE;
-		else
+		if (mask & SMALL_PAGE_MASK)
 			panic("Impossible memory alignment");
 
 		if (map_is_tee_ram(mem_map->map + n))
 			mem_map->map[n].region_size = SMALL_PAGE_SIZE;
+		else
+			mem_map->map[n].region_size = CORE_MMU_PGDIR_SIZE;
 	}
 }
 
@@ -1852,7 +1848,7 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 
 static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
 			     size_t size_left, paddr_t block_size,
-			     struct tee_mmap_region *mm __maybe_unused)
+			     struct tee_mmap_region *mm)
 {
 	/* VA and PA are aligned to block size at current level */
 	if ((vaddr | paddr) & (block_size - 1))
@@ -1860,6 +1856,13 @@ static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
 
 	/* Remainder fits into block at current level */
 	if (size_left < block_size)
+		return false;
+
+	/*
+	 * The required block size of the region is compatible with the
+	 * block size of the current level.
+	 */
+	if (mm->region_size < block_size)
 		return false;
 
 #ifdef CFG_WITH_PAGER
