@@ -938,6 +938,7 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 #endif
 	IMSG_RAW("\n");
 
+	core_mmu_save_mem_map();
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		IMSG("Initializing virtualization support");
 		core_mmu_init_virtualization();
