@@ -650,8 +650,6 @@ void core_mmu_set_default_prtn(void);
 void core_mmu_set_default_prtn_tbl(void);
 #endif
 
-void core_mmu_init_virtualization(void);
-
 /* Initialize physical memory pool */
 void core_mmu_init_phys_mem(void);
 
