@@ -270,7 +270,8 @@ static struct fobj *rwp_unpaged_iv_alloc(unsigned int num_pages)
 	mm = nex_phys_mem_ta_alloc(size);
 	if (!mm)
 		goto err_free_state;
-	rwp->store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM, size);
+	rwp->store = phys_to_virt(tee_mm_get_smem(mm),
+				  MEM_AREA_SEC_RAM_OVERALL, size);
 	assert(rwp->store);
 
 	fobj_init(&rwp->fobj, &ops_rwp_unpaged_iv, num_pages);
@@ -395,7 +396,7 @@ static TEE_Result rwp_init(void)
 	assert(rwp_state_base);
 
 	rwp_store_base = phys_to_virt(nex_phys_mem_get_ta_base(),
-				      MEM_AREA_TA_RAM, ta_size);
+				      MEM_AREA_SEC_RAM_OVERALL, ta_size);
 	assert(rwp_store_base);
 
 	return TEE_SUCCESS;
@@ -766,7 +767,8 @@ struct fobj *fobj_sec_mem_alloc(unsigned int num_pages)
 	if (!f->mm)
 		goto err;
 
-	va = phys_to_virt(tee_mm_get_smem(f->mm), MEM_AREA_TA_RAM, size);
+	va = phys_to_virt(tee_mm_get_smem(f->mm), MEM_AREA_SEC_RAM_OVERALL,
+			  size);
 	if (!va)
 		goto err;
 
