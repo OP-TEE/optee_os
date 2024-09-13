@@ -867,9 +867,6 @@ static void update_external_dt(void)
 
 void init_tee_runtime(void)
 {
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
-		core_mmu_init_phys_mem();
-
 	/*
 	 * With virtualization we call this function when creating the
 	 * OP-TEE partition instead.
