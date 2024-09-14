@@ -188,7 +188,7 @@
 #else
 #	define XLAT_TABLE_ASLR_EXTRA 0
 #endif
-#define MAX_XLAT_TABLES		(4 + XLAT_TABLE_ASLR_EXTRA)
+#define MAX_XLAT_TABLES		(6 + XLAT_TABLE_ASLR_EXTRA)
 #endif /*!MAX_XLAT_TABLES*/
 
 enum desc_type {
