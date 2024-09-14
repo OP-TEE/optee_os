@@ -489,17 +489,20 @@ __vcore_nex_rw_end = __vcore_nex_rw_start + __vcore_nex_rw_size;
 
 /* Paged/init read-only memories */
 __vcore_init_rx_start = __flatmap_init_rx_start;
-__vcore_init_ro_start = __flatmap_init_ro_start;
 #ifdef CFG_CORE_RODATA_NOEXEC
 __vcore_init_rx_size = __flatmap_init_rx_size;
+__vcore_init_ro_start = __flatmap_init_ro_start;
 __vcore_init_ro_size = __flatmap_init_ro_size + __FLATMAP_PAGER_TRAILING_SPACE;
 #else
 __vcore_init_rx_size = __flatmap_init_rx_size + __flatmap_init_ro_size +
 		       __FLATMAP_PAGER_TRAILING_SPACE;
+__vcore_init_ro_start = __vcore_init_rx_end;
 __vcore_init_ro_size = 0;
 #endif /* CFG_CORE_RODATA_NOEXEC */
 __vcore_init_rx_end = __vcore_init_rx_start + __vcore_init_rx_size;
 __vcore_init_ro_end = __vcore_init_ro_start + __vcore_init_ro_size;
+ASSERT(__vcore_init_ro_start == __vcore_init_rx_end,
+       "__vcore_init_ro_start should follow __vcore_init_rx_end")
 #endif /* CFG_WITH_PAGER */
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
