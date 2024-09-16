@@ -116,6 +116,13 @@ static void *add_offs(void *p, size_t offs)
 	return (uint8_t *)p + offs;
 }
 
+static void *add_offs_or_null(void *p, size_t offs)
+{
+	if (!p)
+		return NULL;
+	return (uint8_t *)p + offs;
+}
+
 void boot_mem_relocate(size_t offs)
 {
 	struct boot_mem_reloc *reloc = NULL;
@@ -132,7 +139,8 @@ void boot_mem_relocate(size_t offs)
 	for (reloc = boot_mem_desc->reloc;; reloc = reloc->next) {
 		for (n = 0; n < reloc->count; n++) {
 			reloc->ptrs[n] = add_offs(reloc->ptrs[n], offs);
-			*reloc->ptrs[n] = add_offs(*reloc->ptrs[n], offs);
+			*reloc->ptrs[n] = add_offs_or_null(*reloc->ptrs[n],
+							   offs);
 		}
 		if (!reloc->next)
 			break;
