@@ -26,12 +26,25 @@ struct boot_mem_reloc {
 };
 
 /*
+ * struct boot_mem_padding - unused memory between allocations
+ * @start: Start of padding
+ * @len: Length of padding
+ * @next: Next padding
+ */
+struct boot_mem_padding {
+	vaddr_t start;
+	size_t len;
+	struct boot_mem_padding *next;
+};
+
+/*
  * struct boot_mem_desc - Stack like boot memory allocation pool
  * @orig_mem_start: Boot memory stack base address
  * @orig_mem_end: Boot memory start end address
  * @mem_start: Boot memory free space start address
  * @mem_end: Boot memory free space end address
  * @reloc: Boot memory pointers requiring relocation
+ * @padding: Linked list of unused memory between allocated blocks
  */
 struct boot_mem_desc {
 	vaddr_t orig_mem_start;
@@ -39,6 +52,7 @@ struct boot_mem_desc {
 	vaddr_t mem_start;
 	vaddr_t mem_end;
 	struct boot_mem_reloc *reloc;
+	struct boot_mem_padding *padding;
 };
 
 static struct boot_mem_desc *boot_mem_desc;
@@ -58,6 +72,21 @@ static void *mem_alloc_tmp(struct boot_mem_desc *desc, size_t len, size_t align)
 	return (void *)va;
 }
 
+static void add_padding(struct boot_mem_desc *desc, vaddr_t va)
+{
+	struct boot_mem_padding *pad = NULL;
+	vaddr_t rounded = ROUNDUP(desc->mem_start, alignof(*pad));
+
+	if (rounded < va && va - rounded > sizeof(*pad)) {
+		pad = (struct boot_mem_padding *)rounded;
+		pad->start = desc->mem_start;
+		pad->len = va - desc->mem_start;
+		DMSG("%#"PRIxVA" len %#zx", pad->start, pad->len);
+		pad->next = desc->padding;
+		desc->padding = pad;
+	}
+}
+
 static void *mem_alloc(struct boot_mem_desc *desc, size_t len, size_t align)
 {
 	vaddr_t va = 0;
@@ -71,6 +100,7 @@ static void *mem_alloc(struct boot_mem_desc *desc, size_t len, size_t align)
 		panic();
 	if (ve > desc->mem_end)
 		panic();
+	add_padding(desc, va);
 	desc->mem_start = ve;
 	return (void *)va;
 }
@@ -126,6 +156,7 @@ static void *add_offs_or_null(void *p, size_t offs)
 void boot_mem_relocate(size_t offs)
 {
 	struct boot_mem_reloc *reloc = NULL;
+	struct boot_mem_padding *pad = NULL;
 	size_t n = 0;
 
 	boot_mem_desc = add_offs(boot_mem_desc, offs);
@@ -146,6 +177,18 @@ void boot_mem_relocate(size_t offs)
 			break;
 		reloc->next = add_offs(reloc->next, offs);
 	}
+
+	if (boot_mem_desc->padding) {
+		boot_mem_desc->padding = add_offs(boot_mem_desc->padding, offs);
+		pad = boot_mem_desc->padding;
+		while (true) {
+			pad->start += offs;
+			if (!pad->next)
+				break;
+			pad->next = add_offs(pad->next, offs);
+			pad = pad->next;
+		}
+	}
 }
 
 void *boot_mem_alloc(size_t len, size_t align)
@@ -156,6 +199,37 @@ void *boot_mem_alloc(size_t len, size_t align)
 void *boot_mem_alloc_tmp(size_t len, size_t align)
 {
 	return mem_alloc_tmp(boot_mem_desc, len, align);
+}
+
+/*
+ * Calls the supplied @func() for each padding and removes the paddings
+ * where @func() returns true.
+ */
+void boot_mem_foreach_padding(bool (*func)(vaddr_t va, size_t len, void *ptr),
+			      void *ptr)
+{
+	struct boot_mem_padding **prev = NULL;
+	struct boot_mem_padding *next = NULL;
+	struct boot_mem_padding *pad = NULL;
+
+	assert(boot_mem_desc);
+
+	prev = &boot_mem_desc->padding;
+	for (pad = boot_mem_desc->padding; pad; pad = next) {
+		vaddr_t start = pad->start;
+		size_t len = pad->len;
+
+		next = pad->next;
+		if (func(start, len, ptr)) {
+			DMSG("consumed %p %#"PRIxVA" len %#zx",
+			     pad, start, len);
+			*prev = next;
+		} else {
+			DMSG("keeping %p %#"PRIxVA" len %#zx",
+			     pad, start, len);
+			prev = &pad->next;
+		}
+	}
 }
 
 vaddr_t boot_mem_release_unused(void)
