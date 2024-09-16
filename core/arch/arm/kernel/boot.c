@@ -895,6 +895,16 @@ void init_tee_runtime(void)
 		thread_update_canaries();
 }
 
+static bool add_padding_to_pool(vaddr_t va, size_t len, void *ptr __unused)
+{
+#ifdef CFG_NS_VIRTUALIZATION
+	nex_malloc_add_pool((void *)va, len);
+#else
+	malloc_add_pool((void *)va, len);
+#endif
+	return true;
+}
+
 static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 {
 	vaddr_t va = 0;
@@ -937,6 +947,7 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 
 	core_mmu_save_mem_map();
 	core_mmu_init_phys_mem();
+	boot_mem_foreach_padding(add_padding_to_pool, NULL);
 	va = boot_mem_release_unused();
 	if (!IS_ENABLED(CFG_WITH_PAGER)) {
 		/*
