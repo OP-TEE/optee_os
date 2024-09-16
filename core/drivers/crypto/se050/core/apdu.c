@@ -16,6 +16,11 @@ TEE_Result crypto_se_do_apdu(enum crypto_apdu_type type,
 {
 	sss_status_t status = kStatus_SSS_Fail;
 
+	if (IS_ENABLED(CFG_CORE_SE05X_I2C_TRAMPOLINE_ONLY) && !se050_session) {
+		/* Defer until REE is ready */
+		return TEE_ERROR_COMMUNICATION;
+	}
+
 	status = sss_se05x_do_apdu(&se050_session->s_ctx, type,
 				   hdr, hdr_len, src_data, src_len,
 				   dst_data, dst_len);

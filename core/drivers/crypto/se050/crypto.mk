@@ -37,6 +37,8 @@ CFG_CORE_SE05X_BAUDRATE ?= 3400000
 CFG_CORE_SE05X_I2C_BUS ?= 2
 # I2C access via REE after TEE boot
 CFG_CORE_SE05X_I2C_TRAMPOLINE ?= y
+# TEE has no native I2C driver - all I2C access done via REE
+CFG_CORE_SE05X_I2C_TRAMPOLINE_ONLY ?= n
 
 # Extra stacks required to support the Plug and Trust external library
 ifeq ($(shell test $(CFG_STACK_THREAD_EXTRA) -lt 8192; echo $$?), 0)

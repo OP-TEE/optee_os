@@ -120,6 +120,11 @@ static TEE_Result se050_early_init_scp03(void)
 
 static TEE_Result se050_session_init(void)
 {
+	if (IS_ENABLED(CFG_CORE_SE05X_I2C_TRAMPOLINE_ONLY)) {
+		/* Nothing to do */
+		return TEE_SUCCESS;
+	}
+
 	if (IS_ENABLED(CFG_CORE_SCP03_ONLY))
 		return se050_early_init_scp03();
 
