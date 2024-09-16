@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016, 2024 Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
 #include <arm.h>
 #include <assert.h>
 #include <keep.h>
+#include <kernel/boot.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
-#include <kernel/tlb_helpers.h>
 #include <kernel/thread.h>
+#include <kernel/tlb_helpers.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/pgt_cache.h>
+#include <mm/phys_mem.h>
 #include <platform_config.h>
 #include <stdlib.h>
 #include <string.h>
@@ -204,6 +206,7 @@ typedef uint32_t l1_xlat_tbl_t[NUM_L1_ENTRIES];
 typedef uint32_t l2_xlat_tbl_t[NUM_L2_ENTRIES];
 typedef uint32_t ul1_xlat_tbl_t[NUM_UL1_ENTRIES];
 
+#ifndef CFG_DYN_CONFIG
 static l1_xlat_tbl_t main_mmu_l1_ttb
 		__aligned(L1_ALIGNMENT) __section(".nozi.mmu.l1");
 
@@ -214,19 +217,31 @@ static l2_xlat_tbl_t main_mmu_l2_ttb[MAX_XLAT_TABLES]
 /* MMU L1 table for TAs, one for each thread */
 static ul1_xlat_tbl_t main_mmu_ul1_ttb[CFG_NUM_THREADS]
 		__aligned(UL1_ALIGNMENT) __section(".nozi.mmu.ul1");
+#endif
 
+/*
+ * struct mmu_partition - core virtual memory tables
+ * @l1_table:       Level 1 translation tables base address
+ * @l2_table:       Level 2 translation tables base address (CFG_DYN_CONFIG=n)
+ * @last_l2_page:   Pre-allocated Level 2 table chunk (CFG_DYN_CONFIG=y)
+ * @ul1_tables:     Level 1 translation tab le for EL0 mapping
+ * @tables_used:    Number of level 2 tables already used
+ */
 struct mmu_partition {
 	l1_xlat_tbl_t *l1_table;
 	l2_xlat_tbl_t *l2_tables;
+	uint8_t *last_l2_page;
 	ul1_xlat_tbl_t *ul1_tables;
 	uint32_t tables_used;
 };
 
 static struct mmu_partition default_partition = {
+#ifndef CFG_DYN_CONFIG
 	.l1_table = &main_mmu_l1_ttb,
 	.l2_tables = main_mmu_l2_ttb,
 	.ul1_tables = main_mmu_ul1_ttb,
 	.tables_used = 0,
+#endif
 };
 
 static struct mmu_partition *get_prtn(void)
@@ -262,19 +277,76 @@ static paddr_t core_mmu_get_ul1_ttb_pa(struct mmu_partition *prtn)
 	return pa;
 }
 
-static void *core_mmu_alloc_l2(struct mmu_partition *prtn, size_t size)
+static uint32_t *alloc_l2_table(struct mmu_partition *prtn)
 {
-	uint32_t to_alloc = ROUNDUP_DIV(size, NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
+	uint32_t *new_table = NULL;
 
-	DMSG("L2 table used: %d/%d", prtn->tables_used + to_alloc,
-	     MAX_XLAT_TABLES);
-	if (prtn->tables_used + to_alloc > MAX_XLAT_TABLES)
-		return NULL;
+	/* The CFG_DYN_CONFIG implementation below depends on this */
+	static_assert(sizeof(l2_xlat_tbl_t) * 4 == SMALL_PAGE_SIZE);
 
-	memset(prtn->l2_tables[prtn->tables_used], 0,
-		sizeof(l2_xlat_tbl_t) * to_alloc);
-	prtn->tables_used += to_alloc;
-	return prtn->l2_tables[prtn->tables_used - to_alloc];
+	if (IS_ENABLED(CFG_DYN_CONFIG)) {
+		void *p = NULL;
+
+		if (prtn->last_l2_page)
+			goto dyn_out;
+		if (cpu_mmu_enabled()) {
+			tee_mm_entry_t *mm = NULL;
+			paddr_t pa = 0;
+
+			mm = phys_mem_core_alloc(SMALL_PAGE_SIZE);
+			if (!mm) {
+				EMSG("Phys mem exhausted");
+				return NULL;
+			}
+			pa = tee_mm_get_smem(mm);
+
+			p = phys_to_virt(pa, MEM_AREA_SEC_RAM_OVERALL,
+					 SMALL_PAGE_SIZE);
+			assert(p);
+		} else {
+			p = boot_mem_alloc(SMALL_PAGE_SIZE, SMALL_PAGE_SIZE);
+			/*
+			 * L2 tables are allocated four at a time as a 4k
+			 * page. The pointer prtn->last_l2_page keeps track
+			 * of that page until all the l2 tables have been
+			 * used. That pointer may need to be relocated when
+			 * the MMU is enabled so the address of the pointer
+			 * is recorded, but it must only be recorded once.
+			 *
+			 * The already used 4k pages are only referenced
+			 * via recorded physical addresses in the l1 table
+			 * so those pointers don't need to be updated for
+			 * relocation.
+			 */
+			if (!prtn->tables_used)
+				boot_mem_add_reloc(&prtn->last_l2_page);
+		}
+		prtn->last_l2_page = p;
+dyn_out:
+		new_table = (void *)(prtn->last_l2_page +
+				     (prtn->tables_used % 4) *
+				     sizeof(l2_xlat_tbl_t));
+		prtn->tables_used++;
+		/*
+		 * The current page is exhausted now, the next time we need
+		 * to allocate a new one.
+		 */
+		if (!(prtn->tables_used % 4))
+			prtn->last_l2_page = NULL;
+		DMSG("L2 tables used %u", prtn->tables_used);
+	} else {
+		if (prtn->tables_used >= MAX_XLAT_TABLES) {
+			EMSG("%u L2 tables exhausted", MAX_XLAT_TABLES);
+			return NULL;
+		}
+
+		new_table = prtn->l2_tables[prtn->tables_used];
+		prtn->tables_used++;
+		DMSG("L2 table used: %"PRIu32"/%d", prtn->tables_used,
+		     MAX_XLAT_TABLES);
+	}
+
+	return new_table;
 }
 
 static enum desc_type get_desc_type(unsigned level, uint32_t desc)
@@ -523,6 +595,9 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 					   L2_TBL_SIZE);
 
 		if (!l2tbl)
+			l2tbl = phys_to_virt(ntbl, MEM_AREA_SEC_RAM_OVERALL,
+					     L2_TBL_SIZE);
+		if (!l2tbl)
 			return false;
 
 		core_mmu_set_info_table(tbl_info, 2, n << SECTION_SHIFT, l2tbl);
@@ -599,9 +674,7 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 	if (attr && secure != (bool)(attr & TEE_MATTR_SECURE))
 		return false;
 
-	new_table = core_mmu_alloc_l2(get_prtn(),
-				      NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
-
+	new_table = alloc_l2_table(get_prtn());
 	if (!new_table)
 		return false;
 
@@ -615,6 +688,8 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 		desc = mattr_to_desc(2, attr);
 		for (i = 0; i < NUM_L2_ENTRIES; i++, pa += SMALL_PAGE_SIZE)
 			new_table[i] = desc | pa;
+	} else {
+		memset(new_table, 0, sizeof(l2_xlat_tbl_t));
 	}
 
 	/* Update descriptor at current level */
@@ -712,8 +787,19 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct memory_map *mem_map)
 
 void core_init_mmu(struct memory_map *mem_map)
 {
+	struct mmu_partition *prtn = &default_partition;
+
+	if (IS_ENABLED(CFG_DYN_CONFIG)) {
+		prtn->l1_table = boot_mem_alloc(sizeof(l1_xlat_tbl_t),
+						L1_ALIGNMENT);
+		boot_mem_add_reloc(&prtn->l1_table);
+		prtn->ul1_tables = boot_mem_alloc(sizeof(ul1_xlat_tbl_t) *
+						  CFG_NUM_THREADS,
+						  UL1_ALIGNMENT);
+		boot_mem_add_reloc(&prtn->ul1_tables);
+	}
 	/* Initialize default pagetables */
-	core_init_mmu_prtn(&default_partition, mem_map);
+	core_init_mmu_prtn(prtn, mem_map);
 }
 
 void core_init_mmu_regs(struct core_mmu_config *cfg)
