@@ -27,13 +27,13 @@
 
 	uart4_pins_a: uart4-0 {
 		pins1 {
-			pinmux = <STM32_PINMUX('D', 6, AF8)>; /* UART4_TX */
+			pinmux = <STM32_PINMUX_NSEC('D', 6, AF8)>; /* UART4_TX */
 			bias-disable;
 			drive-push-pull;
 			slew-rate = <0>;
 		};
 		pins2 {
-			pinmux = <STM32_PINMUX('D', 8, AF8)>; /* UART4_RX */
+			pinmux = <STM32_PINMUX_NSEC('D', 8, AF8)>; /* UART4_RX */
 			bias-disable;
 		};
 	};
