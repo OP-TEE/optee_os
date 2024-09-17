@@ -33,6 +33,11 @@
 
 #define STM32_PINMUX(port, line, mode) (((PIN_NO(port, line)) << 8) | (mode))
 
+#define STM32_PIN_NSEC		(1 << 31)
+
+#define STM32_PINMUX_NSEC(port, line, mode) \
+	(STM32_PIN_NSEC | STM32_PINMUX((port), (line), (mode)))
+
 /*  package information */
 #define STM32MP_PKG_AA	0x1
 #define STM32MP_PKG_AB	0x2
