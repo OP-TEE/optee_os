@@ -8,6 +8,19 @@
 &pinctrl {
 	usart2_pins_a: usart2-0 {
 		pins1 {
+			pinmux = <STM32_PINMUX_NSEC('A', 4, AF6)>; /* USART2_TX */
+			bias-disable;
+			drive-push-pull;
+			slew-rate = <0>;
+		};
+		pins2 {
+			pinmux = <STM32_PINMUX_NSEC('A', 8, AF8)>; /* USART2_RX */
+			bias-disable;
+		};
+	};
+
+	usart2_secure_pins_a: usart2-sec-0 {
+		pins1 {
 			pinmux = <STM32_PINMUX('A', 4, AF6)>; /* USART2_TX */
 			bias-disable;
 			drive-push-pull;
