@@ -5,8 +5,8 @@
  */
 
 #include <arm.h>
-#include <drivers/versal_nvm.h>
 #include <drivers/versal_mbox.h>
+#include <drivers/versal_nvm.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/panic.h>
@@ -768,94 +768,94 @@ TEE_Result versal_efuse_write_aes_keys(struct versal_efuse_aes_keys *keys)
 
 TEE_Result versal_efuse_write_ppk_hash(struct versal_efuse_ppk_hash *hash)
 {
-	TEE_Result ret = TEE_SUCCESS;
 	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res2 = TEE_SUCCESS;
 
 	if (!hash)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (hash->prgm_ppk0_hash) {
-		res = do_write_efuses_buffer(EFUSE_WRITE_PPK_HASH, EFUSE_PPK0,
+		res2 = do_write_efuses_buffer(EFUSE_WRITE_PPK_HASH, EFUSE_PPK0,
 					     hash->ppk0_hash, EFUSE_PPK_LEN);
-		if (res) {
+		if (res2) {
 			DMSG("Error programming PPK hash 0 (0x%" PRIx32 ")",
-			     res);
-			ret = TEE_ERROR_GENERIC;
+			     res2);
+			res = TEE_ERROR_GENERIC;
 		}
 	}
 
 	if (hash->prgm_ppk1_hash) {
-		res = do_write_efuses_buffer(EFUSE_WRITE_PPK_HASH, EFUSE_PPK1,
+		res2 = do_write_efuses_buffer(EFUSE_WRITE_PPK_HASH, EFUSE_PPK1,
 					     hash->ppk1_hash, EFUSE_PPK_LEN);
-		if (res) {
+		if (res2) {
 			DMSG("Error programming PPK hash 1 (0x%" PRIx32 ")",
-			     res);
-			ret = TEE_ERROR_GENERIC;
+			     res2);
+			res = TEE_ERROR_GENERIC;
 		}
 	}
 
 	if (hash->prgm_ppk2_hash) {
-		res = do_write_efuses_buffer(EFUSE_WRITE_PPK_HASH, EFUSE_PPK2,
+		res2 = do_write_efuses_buffer(EFUSE_WRITE_PPK_HASH, EFUSE_PPK2,
 					     hash->ppk2_hash, EFUSE_PPK_LEN);
-		if (res) {
+		if (res2) {
 			DMSG("Error programming PPK hash 2 (0x%" PRIx32 ")",
-			     res);
-			ret = TEE_ERROR_GENERIC;
+			     res2);
+			res = TEE_ERROR_GENERIC;
 		}
 	}
 
-	return ret;
+	return res;
 }
 
 TEE_Result versal_efuse_write_iv(struct versal_efuse_ivs *p)
 {
-	TEE_Result ret = TEE_SUCCESS;
 	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res2 = TEE_SUCCESS;
 
 	if (!p)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (p->prgm_meta_header_iv) {
-		res = do_write_efuses_buffer(EFUSE_WRITE_IV,
+		res2 = do_write_efuses_buffer(EFUSE_WRITE_IV,
 					     EFUSE_META_HEADER_IV_RANGE,
 					     p->meta_header_iv, EFUSE_IV_LEN);
-		if (res) {
+		if (res2) {
 			DMSG("Error programming meta header IV (0x%" PRIx32 ")",
-			     res);
-			ret = TEE_ERROR_GENERIC;
+			     res2);
+			res = TEE_ERROR_GENERIC;
 		}
 	}
 
 	if (p->prgm_blk_obfus_iv) {
-		res = do_write_efuses_buffer(EFUSE_WRITE_IV, EFUSE_BLACK_IV,
+		res2 = do_write_efuses_buffer(EFUSE_WRITE_IV, EFUSE_BLACK_IV,
 					     p->blk_obfus_iv, EFUSE_IV_LEN);
-		if (res) {
-			DMSG("Error programming black IV (0x%" PRIx32 ")", res);
-			ret = TEE_ERROR_GENERIC;
+		if (res2) {
+			DMSG("Error programming black IV (0x%" PRIx32 ")", res2);
+			res = TEE_ERROR_GENERIC;
 		}
 	}
 
 	if (p->prgm_plm_iv) {
-		res = do_write_efuses_buffer(EFUSE_WRITE_IV, EFUSE_PLM_IV_RANGE,
+		res2 = do_write_efuses_buffer(EFUSE_WRITE_IV, EFUSE_PLM_IV_RANGE,
 					     p->plm_iv, EFUSE_IV_LEN);
-		if (res) {
-			DMSG("Error programming plm IV (0x%" PRIx32 ")", res);
-			ret = TEE_ERROR_GENERIC;
+		if (res2) {
+			DMSG("Error programming plm IV (0x%" PRIx32 ")", res2);
+			res = TEE_ERROR_GENERIC;
 		}
 	}
 
 	if (p->prgm_data_partition_iv) {
-		res = do_write_efuses_buffer(EFUSE_WRITE_IV,
+		res2 = do_write_efuses_buffer(EFUSE_WRITE_IV,
 					     EFUSE_DATA_PARTITION_IV_RANGE,
 					     p->data_partition_iv,
 					     EFUSE_IV_LEN);
-		if (res) {
-			DMSG("Error programming data IV (0x%" PRIx32 ")", res);
-			ret = TEE_ERROR_GENERIC;
+		if (res2) {
+			DMSG("Error programming data IV (0x%" PRIx32 ")", res2);
+			res = TEE_ERROR_GENERIC;
 		}
 	}
 
-	return ret;
+	return res;
 }
 
 TEE_Result versal_efuse_write_dec_only(struct versal_efuse_dec_only *p)
