@@ -494,10 +494,10 @@ update_payload(struct drvcrypt_authenc_update_payload *dupdate, bool is_last)
 		return ret;
 	ret = versal_mbox_alloc(dupdate->dst.length, NULL, &q);
 	if (ret)
-		goto error;
+		goto out;
 	ret = versal_mbox_alloc(sizeof(*input), NULL, &input_cmd);
 	if (ret)
-		goto error;
+		goto out;
 
 	input = input_cmd.buf;
 	input->input_addr = virt_to_phys(p.buf);
@@ -519,7 +519,7 @@ update_payload(struct drvcrypt_authenc_update_payload *dupdate, bool is_last)
 	if (versal_crypto_request(id, &arg, &err)) {
 		EMSG("AES_UPDATE_PAYLOAD error: %s", versal_aes_error(err));
 		ret = TEE_ERROR_GENERIC;
-		goto error;
+		goto out;
 	}
 
 	if (dupdate->dst.data)
@@ -529,7 +529,7 @@ update_payload(struct drvcrypt_authenc_update_payload *dupdate, bool is_last)
 		node = calloc(1, sizeof(*node));
 		if (!node) {
 			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto error;
+			goto out;
 		}
 
 		node->is_aad = false;
@@ -541,7 +541,7 @@ update_payload(struct drvcrypt_authenc_update_payload *dupdate, bool is_last)
 
 		return TEE_SUCCESS;
 	}
-error:
+out:
 	versal_mbox_free(&input_cmd);
 	versal_mbox_free(&q);
 	versal_mbox_free(&p);
