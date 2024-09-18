@@ -5,8 +5,8 @@
 #ifndef __DRIVERS_VERSAL_MBOX_H
 #define __DRIVERS_VERSAL_MBOX_H
 
-#include <platform_config.h>
 #include <kernel/mutex.h>
+#include <platform_config.h>
 #include <tee_api_types.h>
 #include <util.h>
 
