@@ -4,6 +4,7 @@
  */
 #include <drivers/versal_pm.h>
 #include <kernel/pseudo_ta.h>
+#include <malloc.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <pta_versal_fpga.h>
