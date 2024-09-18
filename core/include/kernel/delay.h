@@ -52,7 +52,7 @@ static inline uint64_t timeout_init_us(uint32_t us)
 
 static inline bool timeout_elapsed(uint64_t expire)
 {
-	return delay_cnt_read() > expire;
+	return delay_cnt_read() >= expire;
 }
 
 /*
