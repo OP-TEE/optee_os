@@ -105,8 +105,6 @@ struct versal_nvm_buf {
 
 struct versal_nvm_read_req {
 	enum versal_nvm_api_id efuse_id;
-	enum versal_nvm_revocation_id revocation_id;
-	enum versal_nvm_offchip_id offchip_id;
 	enum versal_nvm_ppk_type ppk_type;
 	enum versal_nvm_iv_type iv_type;
 	struct versal_nvm_buf ibuf[VERSAL_MAX_IPI_BUF];
@@ -447,11 +445,17 @@ TEE_Result versal_efuse_read_ppk(uint32_t *buf, size_t len,
 				       buf, len);
 }
 
-TEE_Result versal_efuse_read_revoke_id(uint32_t *buf, size_t len,
-				       enum versal_nvm_revocation_id id)
+TEE_Result versal_efuse_read_revoke_id(uint32_t *buf, size_t len, uint32_t id)
 {
-	return versal_efuse_read_cache(EFUSE_CACHE_REVOCATION_ID0_OFFSET +
-				       id * NVM_WORD_LEN,
+	uint32_t reg = EFUSE_CACHE_REVOCATION_ID0_OFFSET;
+
+	if ((id < VERSAL_NET_REVOKE_EFUSE_MIN) ||
+	    (id > VERSAL_NET_REVOKE_EFUSE_MAX))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	reg += (id - 1) / 8;
+
+	return versal_efuse_read_cache(reg,
 				       EFUSE_REVOCATION_ID_LEN / NVM_WORD_LEN,
 				       buf, len);
 }
@@ -564,13 +568,17 @@ versal_efuse_read_boot_env_ctrl(struct versal_efuse_boot_env_ctrl_bits *buf)
 }
 
 TEE_Result versal_efuse_read_offchip_revoke_id(uint32_t *buf, size_t len,
-					       enum versal_nvm_offchip_id id)
+					       uint32_t id)
 {
-	if (id == EFUSE_INVLD)
+	uint32_t reg = EFUSE_CACHE_OFFCHIP_REVOKE_ID0_OFFSET;
+
+	if ((id < VERSAL_NET_REVOKE_EFUSE_MIN) ||
+	    (id > VERSAL_NET_REVOKE_EFUSE_MAX))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	return versal_efuse_read_cache(EFUSE_CACHE_OFFCHIP_REVOKE_ID0_OFFSET +
-				       id * NVM_WORD_LEN,
+	reg += (id - 1) / 8;
+
+	return versal_efuse_read_cache(reg,
 				       EFUSE_REVOCATION_ID_LEN / NVM_WORD_LEN,
 				       buf, len);
 }
@@ -968,9 +976,17 @@ TEE_Result versal_efuse_write_sec_misc1(struct versal_efuse_sec_misc1_bits *p)
 	return do_write_efuses_value(EFUSE_WRITE_MISC1_CTRL_BITS, val);
 }
 
+/*
+ * versal_efuse_write_offchip_ids expects an efuse identifier between
+ * 1 and 256. 
+ */
 TEE_Result versal_efuse_write_offchip_ids(uint32_t id)
 {
-	return do_write_efuses_value(EFUSE_WRITE_OFFCHIP_REVOKE_ID, id + 1);
+	if ((id < VERSAL_NET_REVOKE_EFUSE_MIN) ||
+	    (id > VERSAL_NET_REVOKE_EFUSE_MAX))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return do_write_efuses_value(EFUSE_WRITE_OFFCHIP_REVOKE_ID, id);
 }
 
 TEE_Result versal_efuse_write_revoke_ppk(enum versal_nvm_ppk_type type)
@@ -994,8 +1010,16 @@ TEE_Result versal_efuse_write_revoke_ppk(enum versal_nvm_ppk_type type)
 	return versal_efuse_write_misc(&misc_ctrl);
 }
 
+/*
+ * versal_efuse_write_revoke_id expects an efuse identifier between
+ * 1 and 256. 
+ */
 TEE_Result versal_efuse_write_revoke_id(uint32_t id)
 {
+	if ((id < VERSAL_NET_REVOKE_EFUSE_MIN) ||
+	    (id > VERSAL_NET_REVOKE_EFUSE_MAX))
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	return do_write_efuses_value(EFUSE_WRITE_REVOCATION_ID, id);
 }
 
