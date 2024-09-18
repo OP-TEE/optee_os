@@ -731,8 +731,8 @@ TEE_Result versal_efuse_write_aes_keys(struct versal_efuse_aes_keys *keys)
 
 	if (keys->prgm_aes_key) {
 		res2 = do_write_efuses_buffer(EFUSE_WRITE_AES_KEY,
-					     EFUSE_AES_KEY_ID,
-					     keys->aes_key, EFUSE_AES_KEY_LEN);
+					      EFUSE_AES_KEY_ID,
+					      keys->aes_key, EFUSE_AES_KEY_LEN);
 		if (res2) {
 			DMSG("Error programming AES key (0x%" PRIx32 ")", res2);
 			res = TEE_ERROR_GENERIC;
@@ -741,9 +741,9 @@ TEE_Result versal_efuse_write_aes_keys(struct versal_efuse_aes_keys *keys)
 
 	if (keys->prgm_user_key0) {
 		res2 = do_write_efuses_buffer(EFUSE_WRITE_AES_KEY,
-					     EFUSE_USER_KEY0_ID,
-					     keys->user_key0,
-					     EFUSE_AES_KEY_LEN);
+					      EFUSE_USER_KEY0_ID,
+					      keys->user_key0,
+					      EFUSE_AES_KEY_LEN);
 		if (res2) {
 			DMSG("Error programming User key 0 (0x%" PRIx32 ")",
 			     res2);
@@ -753,9 +753,9 @@ TEE_Result versal_efuse_write_aes_keys(struct versal_efuse_aes_keys *keys)
 
 	if (keys->prgm_user_key1) {
 		res2 = do_write_efuses_buffer(EFUSE_WRITE_AES_KEY,
-					     EFUSE_USER_KEY1_ID,
-					     keys->user_key1,
-					     EFUSE_AES_KEY_LEN);
+					      EFUSE_USER_KEY1_ID,
+					      keys->user_key1,
+					      EFUSE_AES_KEY_LEN);
 		if (res2) {
 			DMSG("Error programming User key 1 (0x%" PRIx32 ")",
 			     res2);
@@ -776,7 +776,7 @@ TEE_Result versal_efuse_write_ppk_hash(struct versal_efuse_ppk_hash *hash)
 
 	if (hash->prgm_ppk0_hash) {
 		res2 = do_write_efuses_buffer(EFUSE_WRITE_PPK_HASH, EFUSE_PPK0,
-					     hash->ppk0_hash, EFUSE_PPK_LEN);
+					      hash->ppk0_hash, EFUSE_PPK_LEN);
 		if (res2) {
 			DMSG("Error programming PPK hash 0 (0x%" PRIx32 ")",
 			     res2);
@@ -786,7 +786,7 @@ TEE_Result versal_efuse_write_ppk_hash(struct versal_efuse_ppk_hash *hash)
 
 	if (hash->prgm_ppk1_hash) {
 		res2 = do_write_efuses_buffer(EFUSE_WRITE_PPK_HASH, EFUSE_PPK1,
-					     hash->ppk1_hash, EFUSE_PPK_LEN);
+					      hash->ppk1_hash, EFUSE_PPK_LEN);
 		if (res2) {
 			DMSG("Error programming PPK hash 1 (0x%" PRIx32 ")",
 			     res2);
@@ -796,7 +796,7 @@ TEE_Result versal_efuse_write_ppk_hash(struct versal_efuse_ppk_hash *hash)
 
 	if (hash->prgm_ppk2_hash) {
 		res2 = do_write_efuses_buffer(EFUSE_WRITE_PPK_HASH, EFUSE_PPK2,
-					     hash->ppk2_hash, EFUSE_PPK_LEN);
+					      hash->ppk2_hash, EFUSE_PPK_LEN);
 		if (res2) {
 			DMSG("Error programming PPK hash 2 (0x%" PRIx32 ")",
 			     res2);
@@ -817,8 +817,8 @@ TEE_Result versal_efuse_write_iv(struct versal_efuse_ivs *p)
 
 	if (p->prgm_meta_header_iv) {
 		res2 = do_write_efuses_buffer(EFUSE_WRITE_IV,
-					     EFUSE_META_HEADER_IV_RANGE,
-					     p->meta_header_iv, EFUSE_IV_LEN);
+					      EFUSE_META_HEADER_IV_RANGE,
+					      p->meta_header_iv, EFUSE_IV_LEN);
 		if (res2) {
 			DMSG("Error programming meta header IV (0x%" PRIx32 ")",
 			     res2);
@@ -828,7 +828,7 @@ TEE_Result versal_efuse_write_iv(struct versal_efuse_ivs *p)
 
 	if (p->prgm_blk_obfus_iv) {
 		res2 = do_write_efuses_buffer(EFUSE_WRITE_IV, EFUSE_BLACK_IV,
-					     p->blk_obfus_iv, EFUSE_IV_LEN);
+					      p->blk_obfus_iv, EFUSE_IV_LEN);
 		if (res2) {
 			DMSG("Error programming black IV (0x%" PRIx32 ")", res2);
 			res = TEE_ERROR_GENERIC;
@@ -837,7 +837,7 @@ TEE_Result versal_efuse_write_iv(struct versal_efuse_ivs *p)
 
 	if (p->prgm_plm_iv) {
 		res2 = do_write_efuses_buffer(EFUSE_WRITE_IV, EFUSE_PLM_IV_RANGE,
-					     p->plm_iv, EFUSE_IV_LEN);
+					      p->plm_iv, EFUSE_IV_LEN);
 		if (res2) {
 			DMSG("Error programming plm IV (0x%" PRIx32 ")", res2);
 			res = TEE_ERROR_GENERIC;
@@ -846,9 +846,9 @@ TEE_Result versal_efuse_write_iv(struct versal_efuse_ivs *p)
 
 	if (p->prgm_data_partition_iv) {
 		res2 = do_write_efuses_buffer(EFUSE_WRITE_IV,
-					     EFUSE_DATA_PARTITION_IV_RANGE,
-					     p->data_partition_iv,
-					     EFUSE_IV_LEN);
+					      EFUSE_DATA_PARTITION_IV_RANGE,
+					      p->data_partition_iv,
+					      EFUSE_IV_LEN);
 		if (res2) {
 			DMSG("Error programming data IV (0x%" PRIx32 ")", res2);
 			res = TEE_ERROR_GENERIC;
