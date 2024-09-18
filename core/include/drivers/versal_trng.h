@@ -6,6 +6,7 @@
 #ifndef __DRIVERS_VERSAL_TRNG_H
 #define __DRIVERS_VERSAL_TRNG_H
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
