@@ -699,7 +699,8 @@ TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s)
 	/* Copy private and public keys back */
 	versal_crypto_bignum_bin2bn_eswap(versal_pki.rq_in, bytes, s->d);
 	versal_crypto_bignum_bin2bn_eswap(versal_pki.rq_out, bytes, s->x);
-	versal_crypto_bignum_bin2bn_eswap(versal_pki.rq_out + bytes, bytes, s->y);
+	versal_crypto_bignum_bin2bn_eswap(versal_pki.rq_out + bytes,
+					  bytes, s->y);
 
 	/* Clear memory */
 	memset(versal_pki.rq_in, 0, PKI_QUEUE_BUF_SIZE);

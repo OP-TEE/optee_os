@@ -116,7 +116,7 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 
 	versal_crypto_bignum_bn2bin_eswap(key->curve, key->x, x.buf);
 	versal_crypto_bignum_bn2bin_eswap(key->curve, key->y,
-				   (uint8_t *)x.buf + bytes);
+					  (uint8_t *)x.buf + bytes);
 	/* Validate the public key for the curve */
 	arg.data[0] = key->curve;
 	arg.dlen = 1;
@@ -136,7 +136,7 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	/* Swap the {R,S} components */
 	versal_memcpy_swp(s.buf, sig, sig_len / 2);
 	versal_memcpy_swp((uint8_t *)s.buf + sig_len / 2, sig + sig_len / 2,
-		   sig_len / 2);
+			  sig_len / 2);
 
 	ret = versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
 	if (ret)
@@ -263,7 +263,7 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	/* Swap the {R,S} components */
 	versal_memcpy_swp(sig, s.buf, *sig_len / 2);
 	versal_memcpy_swp(sig + *sig_len / 2, (uint8_t *)s.buf + *sig_len / 2,
-		   *sig_len / 2);
+			  *sig_len / 2);
 
 out:
 	crypto_bignum_free(&ephemeral.d);
