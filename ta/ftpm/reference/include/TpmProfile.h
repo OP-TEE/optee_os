@@ -1,4 +1,12 @@
-/* Microsoft Reference Implementation for TPM 2.0
+/* SPDX-License-Identifier: BSD-2-Clause */
+/**********************************************************************
+ * Copyright (c) 2024, Siemens AG
+ * All rights reserved.
+ *
+ * Based on the original code by Microsoft. Modified to support using
+ * TEE functions to provide cryptographic functionality.
+ *
+ * Portions Copyright Microsoft Corporation, see below for details:
  *
  *  The copyright in this software is being made available under the BSD License,
  *  included below. This software may be subject to other third party and
@@ -121,10 +129,14 @@
 #endif
 
 // Table 0:7 - Defines for Implementation Values
-#ifdef USE_WOLFCRYPT
+#if defined(USE_WOLFCRYPT)
 #define HASH_LIB                        Wolf
 #define SYM_LIB                         Wolf
 #define MATH_LIB                        Wolf
+#elif defined(USE_TEE)
+#define HASH_LIB                        TEE
+#define SYM_LIB                         TEE
+#define MATH_LIB                        TEE
 #else
 #define HASH_LIB                        Ossl
 #define SYM_LIB                         Ossl
@@ -136,15 +148,6 @@ typedef UINT32                              TPM_CC;
 // Table 0:7 - Defines for Implementation Values
 #ifndef FIELD_UPGRADE_IMPLEMENTED
 #define FIELD_UPGRADE_IMPLEMENTED       NO
-#endif
-#ifdef USE_WOLFCRYPT
-#define HASH_LIB                        Wolf
-#define SYM_LIB                         Wolf
-#define MATH_LIB                        Wolf
-#else
-#define HASH_LIB                        Ossl
-#define SYM_LIB                         Ossl
-#define MATH_LIB                        Ossl
 #endif
 #ifndef IMPLEMENTATION_PCR
 #define IMPLEMENTATION_PCR              24
