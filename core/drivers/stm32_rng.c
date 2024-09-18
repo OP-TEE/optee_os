@@ -428,10 +428,16 @@ out:
 }
 
 #ifdef CFG_WITH_SOFTWARE_PRNG
-/* Override weak plat_rng_init with platform handler to seed PRNG */
+/* Override weak plat_rng_init with platform handler to attempt to seed PRNG */
 void plat_rng_init(void)
 {
 	uint8_t seed[RNG_FIFO_BYTE_DEPTH] = { };
+
+	if (!stm32_rng) {
+		__plat_rng_init();
+		DMSG("PRNG seeded without RNG");
+		return;
+	}
 
 	if (stm32_rng_read(seed, sizeof(seed)))
 		panic();
