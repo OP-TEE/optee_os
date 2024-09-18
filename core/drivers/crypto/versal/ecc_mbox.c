@@ -10,8 +10,8 @@
 #include <drvcrypt_acipher.h>
 #include <ecc.h>
 #include <initcall.h>
-#include <ipi.h>
 #include <io.h>
+#include <ipi.h>
 #include <kernel/delay.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
@@ -134,8 +134,8 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 		goto out2;
 
 	/* Swap the {R,S} components */
-	memcpy_swp(s.buf, sig, sig_len / 2);
-	memcpy_swp((uint8_t *)s.buf + sig_len / 2, sig + sig_len / 2,
+	versal_memcpy_swp(s.buf, sig, sig_len / 2);
+	versal_memcpy_swp((uint8_t *)s.buf + sig_len / 2, sig + sig_len / 2,
 		   sig_len / 2);
 
 	ret = versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
@@ -261,8 +261,8 @@ TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	*sig_len = 2 * bytes;
 
 	/* Swap the {R,S} components */
-	memcpy_swp(sig, s.buf, *sig_len / 2);
-	memcpy_swp(sig + *sig_len / 2, (uint8_t *)s.buf + *sig_len / 2,
+	versal_memcpy_swp(sig, s.buf, *sig_len / 2);
+	versal_memcpy_swp(sig + *sig_len / 2, (uint8_t *)s.buf + *sig_len / 2,
 		   *sig_len / 2);
 
 out:
@@ -310,8 +310,8 @@ TEE_Result versal_ecc_kat_test(void)
 TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s __maybe_unused)
 {
 	/*
-	 * Versal requires little endian so need to memcpy_swp on Versal IP ops.
-	 * We chose not to do it here because some tests might be using
+	 * Versal requires little endian so need to versal_memcpy_swp on Versal IP
+	 * ops. We chose not to do it here because some tests might be using
 	 * their own keys
 	 */
 

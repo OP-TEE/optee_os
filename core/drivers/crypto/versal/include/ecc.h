@@ -6,6 +6,11 @@
 #ifndef ECC_H
 #define ECC_H
 
+#include <crypto/crypto.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <tee_api_types.h>
+
 TEE_Result versal_ecc_get_key_size(uint32_t curve, size_t *bytes, size_t *bits);
 TEE_Result versal_ecc_prepare_msg(uint32_t algo, const uint8_t *msg,
 				  size_t msg_len, size_t *len, uint8_t *buf);
@@ -29,7 +34,7 @@ TEE_Result versal_ecc_sign_ephemeral(uint32_t algo, size_t bytes,
 				     const uint8_t *msg, size_t msg_len,
 				     uint8_t *sig, size_t *sig_len);
 
-void memcpy_swp(uint8_t *to, const uint8_t *from, size_t len);
+void versal_memcpy_swp(uint8_t *to, const uint8_t *from, size_t len);
 void versal_crypto_bignum_bn2bin_eswap(uint32_t curve, struct bignum *from,
 				       uint8_t *to);
 void versal_crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,

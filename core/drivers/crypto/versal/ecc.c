@@ -11,8 +11,8 @@
 #include <ecc.h>
 #include <initcall.h>
 #include <io.h>
-#include <kernel/panic.h>
 #include <kernel/delay.h>
+#include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <string.h>
@@ -48,7 +48,7 @@ TEE_Result versal_ecc_get_key_size(uint32_t curve, size_t *bytes, size_t *bits)
 	return TEE_SUCCESS;
 }
 
-void memcpy_swp(uint8_t *to, const uint8_t *from, size_t len)
+void versal_memcpy_swp(uint8_t *to, const uint8_t *from, size_t len)
 {
 	size_t i = 0;
 
@@ -68,7 +68,7 @@ void versal_crypto_bignum_bn2bin_eswap(uint32_t curve, struct bignum *from,
 		panic();
 
 	crypto_bignum_bn2bin(from, pad + bytes - len);
-	memcpy_swp(to, pad, bytes);
+	versal_memcpy_swp(to, pad, bytes);
 }
 
 void versal_crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,
@@ -78,7 +78,7 @@ void versal_crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,
 
 	assert(sz <= sizeof(pad));
 
-	memcpy_swp(pad, from, sz);
+	versal_memcpy_swp(pad, from, sz);
 	crypto_bignum_bin2bn(pad, sz, to);
 }
 
@@ -100,7 +100,7 @@ TEE_Result versal_ecc_prepare_msg(uint32_t algo, const uint8_t *msg,
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	/* Swap the hash/message and pad if necessary */
-	memcpy_swp(buf, msg, msg_len);
+	versal_memcpy_swp(buf, msg, msg_len);
 
 	return TEE_SUCCESS;
 }

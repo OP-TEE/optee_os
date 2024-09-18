@@ -144,7 +144,7 @@ static struct versal_pki versal_pki;
 #define PKI_DESC_SELCURVE_P521		0x3
 
 #define PKI_DESC_TAG_START_CMD(op, opsize, selcurve, field) \
-	((op) | ((field) << 7) | ((opsize)  << 8) | ((selcurve) << 20))
+	((op) | ((field) << 7) | ((opsize) << 8) | ((selcurve) << 20))
 
 #define PKI_SIGN_INPUT_OP_COUNT		3
 #define PKI_VERIFY_INPUT_OP_COUNT	5
@@ -339,9 +339,9 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	addr += bytes;
 
 	/* Copy signature */
-	memcpy_swp(addr, sig, sig_len / 2);
+	versal_memcpy_swp(addr, sig, sig_len / 2);
 	addr += sig_len / 2;
-	memcpy_swp(addr, sig + sig_len / 2, sig_len / 2);
+	versal_memcpy_swp(addr, sig + sig_len / 2, sig_len / 2);
 	addr += sig_len / 2;
 
 	/* Copy hash */
@@ -471,8 +471,8 @@ TEE_Result versal_ecc_sign_ephemeral(uint32_t algo, size_t bytes,
 
 	cache_operation(TEE_CACHEFLUSH, versal_pki.rq_out, PKI_QUEUE_BUF_SIZE);
 
-	memcpy_swp(sig, versal_pki.rq_out, bytes);
-	memcpy_swp(sig + bytes, versal_pki.rq_out + bytes, bytes);
+	versal_memcpy_swp(sig, versal_pki.rq_out, bytes);
+	versal_memcpy_swp(sig + bytes, versal_pki.rq_out + bytes, bytes);
 
 	/* Clear memory */
 	memset(versal_pki.rq_in, 0, PKI_QUEUE_BUF_SIZE);
