@@ -310,8 +310,8 @@ TEE_Result versal_ecc_kat_test(void)
 TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s __maybe_unused)
 {
 	/*
-	 * Versal requires little endian so need to versal_memcpy_swp on Versal IP
-	 * ops. We chose not to do it here because some tests might be using
+	 * Versal requires little endian so need to versal_memcpy_swp on Versal
+	 * IP ops. We chose not to do it here because some tests might be using
 	 * their own keys
 	 */
 
