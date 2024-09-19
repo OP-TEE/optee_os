@@ -154,7 +154,7 @@ R:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
 S:	Maintained
 F:	core/arch/arm/plat-hisilicon
 
-Marvell Armada 70x0, Armada 80x0, Armada 3700, OcteonTX2 CN96XX, OcteonTX2 CFN95XX, OcteonTX2 CN98XX, CN10K
+Marvell Armada 70x0, Armada 80x0, Armada 3700, OcteonTX2 CN96XX, OcteonTX2 CFN95XX, OcteonTX2 CN98XX, CN10K, Octeon20 (CN20K)
 R:	Tao Lu <taolu@marvell.com> [@taovcu]
 S:	Maintained
 F:	core/arch/arm/plat-marvell/

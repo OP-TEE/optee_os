@@ -266,6 +266,8 @@ jobs:
           _make PLATFORM=marvell-cn10kb
           _make PLATFORM=marvell-cnf10ka
           _make PLATFORM=marvell-cnf10kb
+          _make PLATFORM=marvell-cn20ka
+          _make PLATFORM=marvell-cnf20ka
           _make PLATFORM=synquacer
           _make PLATFORM=sunxi-bpi_zero
           _make PLATFORM=sunxi-sun50i_a64
