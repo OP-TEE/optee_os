@@ -126,11 +126,10 @@ include  $(ta-dev-kit-dir$(sm))/mk/subdir.mk
 
 ifneq ($(user-ta-uuid),)
 # Build target is TA
-vpath %.c $(ta-dev-kit-dir$(sm))/src
-srcs += user_ta_header.c
+spec-out-dir := $(link-out-dir$(sm))
+spec-srcs += $(ta-dev-kit-dir$(sm))/src/user_ta_header.c
 ifeq ($(sm),ta_arm32)
-vpath %.S $(ta-dev-kit-dir$(sm))/src
-srcs += ta_entry_a32.S
+spec-srcs += $(ta-dev-kit-dir$(sm))/src/ta_entry_a32.S
 endif
 endif
 
