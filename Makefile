@@ -98,6 +98,10 @@ include ta/mk/build-user-ta.mk
 endef
 $(foreach t, $(sort $(wildcard ta/*/user_ta.mk)), $(eval $(call build-user-ta,$(t))))
 endif
+ifneq ($(CFG_MS_TPM_20_REF),)
+ta-mk-file := ta/ftpm/ftpm_user_ta.mk
+include ta/mk/build-user-ta.mk
+endif
 endif
 
 include mk/cleandirs.mk
