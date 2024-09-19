@@ -171,7 +171,7 @@ __weak void plat_prng_add_jitter_entropy(enum crypto_rng_src sid,
 		crypto_rng_add_event(sid, pnum, &current, sizeof(current));
 }
 
-__weak void plat_rng_init(void)
+void __plat_rng_init(void)
 {
 	TEE_Result res = TEE_SUCCESS;
 	TEE_Time t;
@@ -199,6 +199,8 @@ __weak void plat_rng_init(void)
 		panic();
 	}
 }
+
+void plat_rng_init(void) __weak __alias("__plat_rng_init");
 
 static TEE_Result tee_cryp_init(void)
 {
