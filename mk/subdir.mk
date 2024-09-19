@@ -23,8 +23,8 @@ asm-defines-files :=
 
 uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 
-define process-file-vars
-# $1 is source file name
+define process-file-vars-helper
+# $1 is local source file name
 # $2 is output file name
 cflags-$(2) 		:= $$(cflags-y) $$(cflags-$(1)-y)
 cflags-remove-$(2) 	:= $$(cflags-remove-y) $$(cflags-remove-$(1)-y)
@@ -49,23 +49,48 @@ cppflags-lib-y			:=
 aflags-$(1)-y 			:=
 aflags-remove-$(1)-y		:=
 incdirs-$(1)-y			:=
-endef #process-file-vars
+endef #process-file-vars-helper
+
+define process-file-vars
+# $1 is local source file name
+# $2 is output file name
+# $3 is tree source file name
+oname-$(sm)-$3	:= $$(if $$(oname-$1-y),$(out-dir)/$(base-prefix)/$$(oname-$1-y),$2)
+$$(eval $$(call process-file-vars-helper,$1,$$(oname-$(sm)-$3)))
+endef
 
 define process-subdir-srcs-y
 ifeq ($$(sub-dir),.)
-srcs 				+= $1
-oname				:= $(out-dir)/$(base-prefix)$(basename $1).o
+srcs 		+= $1
+fname		:= $1
+oname		:= $(out-dir)/$(base-prefix)$(basename $1).o
 else
 ifneq ($(filter /%,$(1)),)
 # $1 is an absolute path - start with "/"
-srcs 				+= $1
-oname				:= $(out-dir)/$(base-prefix)$(basename $1).o
+srcs 		+= $1
+fname		:= $1
+oname		:= $(out-dir)/$(base-prefix)$(basename $1).o
 else
-srcs				+= $(sub-dir)/$1
-oname				:= $(out-dir)/$(base-prefix)$(basename $$(sub-dir)/$1).o
+srcs		+= $(sub-dir)/$1
+fname		:= $(sub-dir)/$1
+oname		:= $(out-dir)/$(base-prefix)$(basename $$(sub-dir)/$1).o
 endif
 endif
-$$(eval $$(call process-file-vars,$1,$$(oname)))
+$$(eval $$(call process-file-vars,$1,$$(oname),$$(fname)))
+endef #process-subdir-srcs-y
+
+define process-subdir-srcs_ext-y
+ifneq ($(filter /%,$(1)),)
+$$(error Absolute path not supported for srcs_ext-y: $(1))
+endif
+srcs		+= $2/$1
+fname		:= $2/$1
+ifeq ($$(sub-dir),.)
+oname		:= $(out-dir)/$(base-prefix)$(basename $1).o
+else
+oname		:= $(out-dir)/$(base-prefix)$(basename $$(sub-dir)/$1).o
+endif
+$$(eval $$(call process-file-vars,$1,$$(oname),$$(fname)))
 endef #process-subdir-srcs-y
 
 define process-subdir-gensrcs-helper
@@ -124,9 +149,13 @@ endif
 # Process files in current directory
 $$(foreach g, $$(gensrcs-y), $$(eval $$(call process-subdir-gensrcs-y,$$(g))))
 $$(foreach s, $$(srcs-y), $$(eval $$(call process-subdir-srcs-y,$$(s))))
+$$(foreach s, $$(srcs_ext-y), $$(eval $$(call \
+	process-subdir-srcs_ext-y,$$(s),$$(firstword $$(srcs_ext_base-y)))))
 $$(foreach a, $$(asm-defines-y), $$(eval $$(call process-subdir-asm-defines-y,$$(a))))
 # Clear flags used when processing current directory
 srcs-y :=
+srcs_ext-y :=
+srcs_ext_base-y :=
 cflags-y :=
 cflags-lib-y :=
 cxxflags-y :=
