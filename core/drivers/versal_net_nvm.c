@@ -449,8 +449,8 @@ TEE_Result versal_efuse_read_revoke_id(uint32_t *buf, size_t len, uint32_t id)
 {
 	uint32_t reg = EFUSE_CACHE_REVOCATION_ID0_OFFSET;
 
-	if ((id < VERSAL_NET_REVOKE_EFUSE_MIN) ||
-	    (id > VERSAL_NET_REVOKE_EFUSE_MAX))
+	if (id < VERSAL_NET_REVOKE_EFUSE_MIN ||
+	    id > VERSAL_NET_REVOKE_EFUSE_MAX)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	reg += (id - 1) / 8;
@@ -572,8 +572,8 @@ TEE_Result versal_efuse_read_offchip_revoke_id(uint32_t *buf, size_t len,
 {
 	uint32_t reg = EFUSE_CACHE_OFFCHIP_REVOKE_ID0_OFFSET;
 
-	if ((id < VERSAL_NET_REVOKE_EFUSE_MIN) ||
-	    (id > VERSAL_NET_REVOKE_EFUSE_MAX))
+	if (id < VERSAL_NET_REVOKE_EFUSE_MIN ||
+	    id > VERSAL_NET_REVOKE_EFUSE_MAX)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	reg += (id - 1) / 8;
@@ -838,13 +838,15 @@ TEE_Result versal_efuse_write_iv(struct versal_efuse_ivs *p)
 		res2 = do_write_efuses_buffer(EFUSE_WRITE_IV, EFUSE_BLACK_IV,
 					      p->blk_obfus_iv, EFUSE_IV_LEN);
 		if (res2) {
-			DMSG("Error programming black IV (0x%" PRIx32 ")", res2);
+			DMSG("Error programming black IV (0x%" PRIx32 ")",
+			     res2);
 			res = TEE_ERROR_GENERIC;
 		}
 	}
 
 	if (p->prgm_plm_iv) {
-		res2 = do_write_efuses_buffer(EFUSE_WRITE_IV, EFUSE_PLM_IV_RANGE,
+		res2 = do_write_efuses_buffer(EFUSE_WRITE_IV,
+					      EFUSE_PLM_IV_RANGE,
 					      p->plm_iv, EFUSE_IV_LEN);
 		if (res2) {
 			DMSG("Error programming plm IV (0x%" PRIx32 ")", res2);
@@ -978,12 +980,12 @@ TEE_Result versal_efuse_write_sec_misc1(struct versal_efuse_sec_misc1_bits *p)
 
 /*
  * versal_efuse_write_offchip_ids expects an efuse identifier between
- * 1 and 256. 
+ * 1 and 256.
  */
 TEE_Result versal_efuse_write_offchip_ids(uint32_t id)
 {
-	if ((id < VERSAL_NET_REVOKE_EFUSE_MIN) ||
-	    (id > VERSAL_NET_REVOKE_EFUSE_MAX))
+	if (id < VERSAL_NET_REVOKE_EFUSE_MIN ||
+	    id > VERSAL_NET_REVOKE_EFUSE_MAX)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	return do_write_efuses_value(EFUSE_WRITE_OFFCHIP_REVOKE_ID, id);
@@ -1012,12 +1014,12 @@ TEE_Result versal_efuse_write_revoke_ppk(enum versal_nvm_ppk_type type)
 
 /*
  * versal_efuse_write_revoke_id expects an efuse identifier between
- * 1 and 256. 
+ * 1 and 256.
  */
 TEE_Result versal_efuse_write_revoke_id(uint32_t id)
 {
-	if ((id < VERSAL_NET_REVOKE_EFUSE_MIN) ||
-	    (id > VERSAL_NET_REVOKE_EFUSE_MAX))
+	if (id < VERSAL_NET_REVOKE_EFUSE_MIN ||
+	    id > VERSAL_NET_REVOKE_EFUSE_MAX)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	return do_write_efuses_value(EFUSE_WRITE_REVOCATION_ID, id);
