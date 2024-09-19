@@ -111,7 +111,7 @@ endif
 
 include $1/sub.mk
 sub-subdirs := $$(addprefix $1/,$$(subdirs-y)) $$(subdirs_ext-y)
-incdirs$(sm) := $(incdirs$(sm)) $$(addprefix $1/,$$(global-incdirs-y))
+incdirs$(sm) := $(incdirs$(sm)) $$(addprefix $1/,$$(global-incdirs-y)) $$(global-incdirs_ext-y)
 thissubdir-incdirs := $(out-dir)/$(base-prefix)$1 $$(addprefix $1/,$$(incdirs-y)) $$(incdirs_ext-y)
 ifneq ($$(libname),)
 incdirs-lib$$(libname)-$$(sm) := $$(incdirs-lib$$(libname)-$$(sm)) $$(addprefix $1/,$$(incdirs-lib-y))
@@ -139,6 +139,7 @@ aflags-remove-y :=
 subdirs-y :=
 subdirs_ext-y :=
 global-incdirs-y :=
+global-incdirs_ext-y :=
 incdirs-lib-y :=
 incdirs-y :=
 incdirs_ext-y :=
