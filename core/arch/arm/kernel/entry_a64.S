@@ -200,7 +200,7 @@ FUNC _start , :
 	/* Copy backwards (as memmove) in case we're overlapping */
 	add	x0, x0, x2		/* __init_start + len */
 	add	x1, x1, x2		/* __data_end + len */
-	adr	x3, cached_mem_end
+	adr_l	x3, boot_cached_mem_end
 	str	x0, [x3]
 	adr	x2, __init_start
 copy_init:
@@ -221,7 +221,7 @@ copy_init:
 	/* Copy backwards (as memmove) in case we're overlapping */
 	add	x0, x0, x2
 	add	x1, x1, x2
-	adr	x3, cached_mem_end
+	adr_l	x3, boot_cached_mem_end
 	str	x0, [x3]
 	adr_l	x2, __end
 
@@ -289,7 +289,8 @@ clear_nex_bss:
 	 * entries used by for instance ARM Trusted Firmware.
 	 */
 	adr_l	x0, __text_start
-	ldr	x1, cached_mem_end
+	adr_l	x1, boot_cached_mem_end
+	ldr	x1, [x1]
 	sub	x1, x1, x0
 	bl	dcache_cleaninv_range
 
@@ -333,10 +334,10 @@ clear_nex_bss:
 	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	cbz	x0, 1f
 	/*
-	 * Update cached_mem_end address with load offset since it was
+	 * Update boot_cached_mem_end address with load offset since it was
 	 * calculated before relocation.
 	 */
-	adr	x5, cached_mem_end
+	adr_l	x5, boot_cached_mem_end
 	ldr	x6, [x5]
 	add	x6, x6, x0
 	str	x6, [x5]
@@ -427,7 +428,8 @@ clear_nex_bss:
 	 * D-cache before exiting to normal world.
 	 */
 	adr_l	x0, __text_start
-	ldr	x1, cached_mem_end
+	adr_l	x1, boot_cached_mem_end
+	ldr	x1, [x1]
 	sub	x1, x1, x0
 	bl	dcache_cleaninv_range
 
@@ -468,12 +470,9 @@ clear_nex_bss:
 END_FUNC _start
 DECLARE_KEEP_INIT _start
 
+#ifndef CFG_WITH_PAGER
 	.section .identity_map.data
 	.balign	8
-LOCAL_DATA cached_mem_end , :
-	.skip	8
-END_DATA cached_mem_end
-
 #if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PHYS_RELOCATABLE)
 LOCAL_FUNC relocate , :
 	/*
