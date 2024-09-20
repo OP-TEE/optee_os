@@ -39,15 +39,17 @@ struct utee_params;
 TEE_Result __utee_entry(unsigned long func, unsigned long session_id,
 			struct utee_params *up, unsigned long cmd_id);
 
-void __noreturn _C_FUNCTION(__ta_entry)(unsigned long func,
-					unsigned long session_id,
-					struct utee_params *up,
-					unsigned long cmd_id);
+void __noreturn __no_stack_protector
+_C_FUNCTION(__ta_entry)(unsigned long func,
+			unsigned long session_id,
+			struct utee_params *up,
+			unsigned long cmd_id);
 
-void __noreturn _C_FUNCTION(__ta_entry)(unsigned long func,
-					unsigned long session_id,
-					struct utee_params *up,
-					unsigned long cmd_id)
+void __noreturn __no_stack_protector
+_C_FUNCTION(__ta_entry)(unsigned long func,
+			unsigned long session_id,
+			struct utee_params *up,
+			unsigned long cmd_id)
 {
 	static bool stack_canary_inited;
 	TEE_Result res = TEE_ERROR_GENERIC;
