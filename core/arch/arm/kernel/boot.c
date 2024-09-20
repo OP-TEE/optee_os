@@ -80,6 +80,12 @@ uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 DECLARE_KEEP_PAGER(sem_cpu_sync);
 #endif
 
+/*
+ * Must not be in .bss since it's initialized and used from assembly before
+ * .bss is cleared.
+ */
+vaddr_t boot_cached_mem_end __nex_data = 1;
+
 static unsigned long boot_arg_fdt __nex_bss;
 static unsigned long boot_arg_nsec_entry __nex_bss;
 static unsigned long boot_arg_pageable_part __nex_bss;

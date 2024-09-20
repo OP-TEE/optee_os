@@ -284,11 +284,13 @@ DECLARE_KEEP_INIT _start
 		assert_flat_mapped_range (\vbase), (\line)
 		bl	pl310_base
 		ldr	r1, \vbase
-		ldr	r2, \vend
+		ldr	r2, =\vend
+		ldr	r2, [r2]
 		bl	arm_cl2_invbypa
 #endif
 		ldr	r0, \vbase
-		ldr	r1, \vend
+		ldr	r1, =\vend
+		ldr	r1, [r1]
 		sub	r1, r1, r0
 		bl	dcache_inv_range
 	.endm
@@ -297,16 +299,19 @@ DECLARE_KEEP_INIT _start
 #if defined(CFG_PL310) && !defined(CFG_PL310_SIP_PROTOCOL)
 		assert_flat_mapped_range (\vbase), (\line)
 		ldr	r0, \vbase
-		ldr	r1, \vend
+		ldr	r1, =\vend
+		ldr	r1, [r1]
 		sub	r1, r1, r0
 		bl	dcache_clean_range
 		bl	pl310_base
 		ldr	r1, \vbase
-		ldr	r2, \vend
+		ldr	r2, =\vend
+		ldr	r2, [r2]
 		bl	arm_cl2_cleaninvbypa
 #endif
 		ldr	r0, \vbase
-		ldr	r1, \vend
+		ldr	r1, =\vend
+		ldr	r1, [r1]
 		sub	r1, r1, r0
 		bl	dcache_cleaninv_range
 	.endm
@@ -349,7 +354,8 @@ UNWIND(	.cantunwind)
 	/* Copy backwards (as memmove) in case we're overlapping */
 	add	r0, r0, r2		/* __init_start + len */
 	add	r1, r1, r2		/* __data_end + len */
-	str	r0, cached_mem_end
+	ldr	r3, =boot_cached_mem_end
+	str	r0, [r3]
 	ldr	r2, =__init_start
 copy_init:
 	ldmdb	r1!, {r3, r9-r12}
@@ -369,8 +375,8 @@ copy_init:
 	/* Copy backwards (as memmove) in case we're overlapping */
 	add	r0, r0, r2
 	add	r1, r1, r2
-	str	r0, cached_mem_end
-	ldr	r2, =__end
+	ldr	r3, =boot_cached_mem_end
+	str	r2, [r3]
 
 copy_init:
 	ldmdb	r1!, {r3, r9-r12}
@@ -463,7 +469,7 @@ shadow_stack_access_ok:
 	 * invalidate memory not used by OP-TEE since we may invalidate
 	 * entries used by for instance ARM Trusted Firmware.
 	 */
-	inval_cache_vrange(cached_mem_start, cached_mem_end)
+	inval_cache_vrange(cached_mem_start, boot_cached_mem_end)
 
 #if defined(CFG_PL310) && !defined(CFG_PL310_SIP_PROTOCOL)
 	/* Enable PL310 if not yet enabled */
@@ -492,12 +498,13 @@ shadow_stack_access_ok:
 	ldr	r0, =boot_mmu_config
 	ldr	r0, [r0, #CORE_MMU_CONFIG_MAP_OFFSET]
 	/*
-	 * Update cached_mem_end address with load offset since it was
+	 * Update boot_cached_mem_end address with load offset since it was
 	 * calculated before relocation.
 	 */
-	ldr	r2, cached_mem_end
+	ldr	r3, =boot_cached_mem_end
+	ldr	r2, [r3]
 	add	r2, r2, r0
-	str	r2, cached_mem_end
+	str	r2, [r3]
 
 	bl	relocate
 #endif
@@ -558,7 +565,7 @@ shadow_stack_access_ok:
 	 * they have turned on their D-cache, clean and invalidate the
 	 * D-cache before exiting to normal world.
 	 */
-	flush_cache_vrange(cached_mem_start, cached_mem_end)
+	flush_cache_vrange(cached_mem_start, boot_cached_mem_end)
 
 	/* release secondary boot cores and sync with them */
 	cpu_is_ready
@@ -631,10 +638,6 @@ END_DATA sem_cpu_sync_end
 LOCAL_DATA cached_mem_start , :
 	.word	__text_start
 END_DATA cached_mem_start
-
-LOCAL_DATA cached_mem_end , :
-	.skip	4
-END_DATA cached_mem_end
 
 LOCAL_FUNC unhandled_cpu , :
 	wfi
