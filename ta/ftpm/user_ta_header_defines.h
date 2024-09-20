@@ -44,7 +44,9 @@
 
 #define TA_UUID                     TA_FTPM_UUID
 
-#define TA_FLAGS                    (TA_FLAG_SINGLE_INSTANCE | TA_FLAG_INSTANCE_KEEP_ALIVE)
+#define TA_FLAGS                    (TA_FLAG_SINGLE_INSTANCE | \
+				     TA_FLAG_INSTANCE_KEEP_ALIVE | \
+				     TA_FLAG_DEVICE_ENUM_TEE_STORAGE_PRIVATE)
 #define TA_STACK_SIZE               (64 * 1024)
 #define TA_DATA_SIZE                (32 * 1024)
 
