@@ -1024,6 +1024,10 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
 	     (unsigned long)boot_mmu_config.map_offset, VCORE_START_VA);
 #endif
+#ifdef CFG_NS_VIRTUALIZATION
+	DMSG("NS-virtualization enabled, supporting %u guests",
+	     CFG_VIRT_GUEST_COUNT);
+#endif
 	if (IS_ENABLED(CFG_MEMTAG))
 		DMSG("Memory tagging %s",
 		     memtag_is_enabled() ?  "enabled" : "disabled");
