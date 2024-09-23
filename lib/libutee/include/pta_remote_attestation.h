@@ -16,7 +16,7 @@
  *
  * Return codes:
  * TEE_SUCCESS
- * TEE_ERROR_ACCESS_DENIED  - Caller is not a user space TA
+ * TEE_ERROR_ACCESS_DENIED  - Client is not a user space TA
  * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
  * TEE_ERROR_SHORT_BUFFER   - Output buffer size less than required
  */
