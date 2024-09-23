@@ -567,28 +567,28 @@ TEE_Result stm32_saes_init(struct stm32_saes_context *ctx, bool is_dec,
 	}
 
 	if (is_dec)
-		ctx->cr |= set_field_u32(ctx->cr, _SAES_CR_MODE_MASK,
-					 _SAES_CR_MODE_DEC);
+		ctx->cr = set_field_u32(ctx->cr, _SAES_CR_MODE_MASK,
+					_SAES_CR_MODE_DEC);
 	else
-		ctx->cr |= set_field_u32(ctx->cr, _SAES_CR_MODE_MASK,
-					 _SAES_CR_MODE_ENC);
+		ctx->cr = set_field_u32(ctx->cr, _SAES_CR_MODE_MASK,
+					_SAES_CR_MODE_ENC);
 
 	/* Save chaining mode */
 	switch (ch_mode) {
 	case STM32_SAES_MODE_ECB:
-		ctx->cr |= SET_CHAINING_MODE(ECB, ctx->cr);
+		ctx->cr = SET_CHAINING_MODE(ECB, ctx->cr);
 		break;
 	case STM32_SAES_MODE_CBC:
-		ctx->cr |= SET_CHAINING_MODE(CBC, ctx->cr);
+		ctx->cr = SET_CHAINING_MODE(CBC, ctx->cr);
 		break;
 	case STM32_SAES_MODE_CTR:
-		ctx->cr |= SET_CHAINING_MODE(CTR, ctx->cr);
+		ctx->cr = SET_CHAINING_MODE(CTR, ctx->cr);
 		break;
 	case STM32_SAES_MODE_GCM:
-		ctx->cr |= SET_CHAINING_MODE(GCM, ctx->cr);
+		ctx->cr = SET_CHAINING_MODE(GCM, ctx->cr);
 		break;
 	case STM32_SAES_MODE_CCM:
-		ctx->cr |= SET_CHAINING_MODE(CCM, ctx->cr);
+		ctx->cr = SET_CHAINING_MODE(CCM, ctx->cr);
 		break;
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -603,8 +603,8 @@ TEE_Result stm32_saes_init(struct stm32_saes_context *ctx, bool is_dec,
 	 *
 	 * But note that wrap key only accept _SAES_CR_DATATYPE_NONE.
 	 */
-	ctx->cr |= set_field_u32(ctx->cr, _SAES_CR_DATATYPE_MASK,
-				 _SAES_CR_DATATYPE_BYTE);
+	ctx->cr = set_field_u32(ctx->cr, _SAES_CR_DATATYPE_MASK,
+				_SAES_CR_DATATYPE_BYTE);
 
 	/* Configure keysize */
 	switch (key_size) {
@@ -621,9 +621,8 @@ TEE_Result stm32_saes_init(struct stm32_saes_context *ctx, bool is_dec,
 	/* Configure key */
 	switch (key_select) {
 	case STM32_SAES_KEY_SOFT:
-		ctx->cr |= set_field_u32(ctx->cr, _SAES_CR_KEYSEL_MASK,
-					 SHIFT_U32(_SAES_CR_KEYSEL_SOFT,
-						   _SAES_CR_KEYSEL_SHIFT));
+		ctx->cr = set_field_u32(ctx->cr, _SAES_CR_KEYSEL_MASK,
+					_SAES_CR_KEYSEL_SOFT);
 		/* Save key */
 		switch (key_size) {
 		case AES_KEYSIZE_128:
@@ -654,24 +653,20 @@ TEE_Result stm32_saes_init(struct stm32_saes_context *ctx, bool is_dec,
 		}
 		break;
 	case STM32_SAES_KEY_DHU:
-		ctx->cr |= set_field_u32(ctx->cr, _SAES_CR_KEYSEL_MASK,
-					 SHIFT_U32(_SAES_CR_KEYSEL_DHUK,
-						   _SAES_CR_KEYSEL_SHIFT));
+		ctx->cr = set_field_u32(ctx->cr, _SAES_CR_KEYSEL_MASK,
+					_SAES_CR_KEYSEL_DHUK);
 		break;
 	case STM32_SAES_KEY_BH:
-		ctx->cr |= set_field_u32(ctx->cr, _SAES_CR_KEYSEL_MASK,
-					 SHIFT_U32(_SAES_CR_KEYSEL_BHK,
-						   _SAES_CR_KEYSEL_SHIFT));
+		ctx->cr = set_field_u32(ctx->cr, _SAES_CR_KEYSEL_MASK,
+					_SAES_CR_KEYSEL_BHK);
 		break;
 	case STM32_SAES_KEY_BHU_XOR_BH:
-		ctx->cr |= set_field_u32(ctx->cr, _SAES_CR_KEYSEL_MASK,
-					 SHIFT_U32(_SAES_CR_KEYSEL_BHU_XOR_BH_K,
-						   _SAES_CR_KEYSEL_SHIFT));
+		ctx->cr = set_field_u32(ctx->cr, _SAES_CR_KEYSEL_MASK,
+					_SAES_CR_KEYSEL_BHU_XOR_BH_K);
 		break;
 	case STM32_SAES_KEY_WRAPPED:
-		ctx->cr |= set_field_u32(ctx->cr, _SAES_CR_KEYSEL_MASK,
-					 SHIFT_U32(_SAES_CR_KEYSEL_SOFT,
-						   _SAES_CR_KEYSEL_SHIFT));
+		ctx->cr = set_field_u32(ctx->cr, _SAES_CR_KEYSEL_MASK,
+					_SAES_CR_KEYSEL_SOFT);
 		break;
 
 	default:
