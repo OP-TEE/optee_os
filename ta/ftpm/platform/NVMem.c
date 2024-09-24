@@ -556,7 +556,7 @@ _plat__MarkDirtyBlocks (
 // NOTE: A useful optimization would be for this code to compare the current
 // contents of NV with the local copy and note the blocks that have changed. Then
 // only write those blocks when _plat__NvCommit() is called.
-LIB_EXPORT void
+LIB_EXPORT int
 _plat__NvMemoryWrite(
     unsigned int     startOffset,   // IN: write start
     unsigned int     size,          // IN: size of bytes to write
@@ -568,6 +568,7 @@ _plat__NvMemoryWrite(
 
 	_plat__MarkDirtyBlocks(startOffset, size);
     memcpy(&s_NV[startOffset], data, size);
+    return TRUE;
 }
 
 //***_plat__NvMemoryClear()
