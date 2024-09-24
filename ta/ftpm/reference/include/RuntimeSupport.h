@@ -73,16 +73,6 @@ int strncasecmp(const char *str1, const char *str2, size_t n);
 #define XMEMCMP(str1,str2,n) memcmp((str1),(str2),(n))
 #endif
 
-#ifndef XTOUPPER
-int toupper (int c);
-#define XTOUPPER(str1) toupper((str1))
-#endif
-
-#ifndef XTOLOWER
-int tolower (int c);
-#define XTOLOWER(str1) tolower((str1))
-#endif
-
 #undef  WC_NO_HASHDRBG
 #define WC_NO_HASHDRBG
 
