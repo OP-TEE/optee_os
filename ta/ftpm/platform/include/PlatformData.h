@@ -118,12 +118,6 @@ extern unsigned char s_locality;
 #   define      FILE_BACKED_NV          NO
 #endif // SIMULATION
 
-extern unsigned char     s_NV[NV_MEMORY_SIZE];
-extern BOOL              s_NvIsAvailable;
-extern BOOL              s_NV_unrecoverable;
-extern BOOL              s_NV_recoverable;
-
-
 // For PPPlat.c
 // Physical presence.  It is initialized to FALSE
 extern BOOL     s_physicalPresence;
