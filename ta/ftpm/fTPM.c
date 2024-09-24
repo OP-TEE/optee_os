@@ -45,8 +45,6 @@
 
 #include "fTPM.h"
 
-#define TA_ALL_PARAM_TYPE(type) TEE_PARAM_TYPES(type, type, type, type)
-
 //
 // Ensure we have only one active session
 //
