@@ -87,4 +87,5 @@ _plat__Fail(
     )
 {
     TEE_Panic(TEE_ERROR_BAD_STATE);
+    while (true); /* Not reached */
 }
