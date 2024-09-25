@@ -1,36 +1,42 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright (c) 2024, Linaro Limited
+ */
 /* Microsoft Reference Implementation for TPM 2.0
  *
- *  The copyright in this software is being made available under the BSD License,
- *  included below. This software may be subject to other third party and
- *  contributor rights, including patent rights, and no such rights are granted
- *  under this license.
+ * The copyright in this software is being made available under the BSD
+ * License, included below. This software may be subject to other third
+ * party and contributor rights, including patent rights, and no such
+ * rights are granted under this license.
  *
- *  Copyright (c) Microsoft Corporation
+ * Copyright (c) 2018 Microsoft Corporation
  *
- *  All rights reserved.
+ * All rights reserved.
  *
- *  BSD License
+ * BSD License
  *
- *  Redistribution and use in source and binary forms, with or without modification,
- *  are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *  Redistributions of source code must retain the above copyright notice, this list
- *  of conditions and the following disclaimer.
+ * Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
  *
- *  Redistributions in binary form must reproduce the above copyright notice, this
- *  list of conditions and the following disclaimer in the documentation and/or
- *  other materials provided with the distribution.
+ * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
  *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ""AS IS""
- *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- *  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 //**Introduction
@@ -48,24 +54,11 @@
 #include "TpmProfile.h"
 #include "TpmSal.h"
 #include "TpmError.h"
+#include "GpMacros.h"
 
 // Parameter reference and types from ref impl headers
 #ifndef UNREFERENCED_PARAMETER
 #define UNREFERENCED_PARAMETER(a) do { (void)(a); } while (0)
-#endif
-
-#define FAIL(errorCode) (TpmFail(__FUNCTION__, __LINE__, errorCode))
-
-#if defined(EMPTY_ASSERT)
-#define pAssert(a)  ((void)0)
-#else
-#define pAssert(a) \
-    do { \
-        if (!(a)) { \
-            EMSG("## ASSERT:" #a "##\n"); \
-            FAIL(FATAL_ERROR_PARAMETER); \
-        } \
-    } while (0)
 #endif
 
 #if defined(__GNUC__)
@@ -89,8 +82,6 @@ typedef UINT32  TPM_RC;
 #define TPM_RC_SUCCESS      (TPM_RC)(0x000)
 #define RC_VER1             (TPM_RC)(0x100)
 #define TPM_RC_BAD_TAG      (TPM_RC)(0x01E)
-#define TPM_RC_FAILURE      (TPM_RC)(RC_VER1+0x001)
-#define TPM_RC_COMMAND_SIZE (TPM_RC)(RC_VER1+0x042)
 
 // Chip flags
 typedef union {

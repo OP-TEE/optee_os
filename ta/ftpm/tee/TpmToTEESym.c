@@ -1,11 +1,13 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
-/**********************************************************************
+// SPDX-License-Identifier: BSD-2-Clause
+/*
  * Copyright (c) 2024, Siemens AG
  * All rights reserved.
+ * Copyright (c) 2024, Linaro Limited
  */
 
 #include <tee_internal_api.h>
 #include <stdint.h>
+#include <string.h>
 #ifdef DEBUG_OUTPUT_TEE_SYM
 #  include <stdio.h>
 #endif
