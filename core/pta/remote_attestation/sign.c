@@ -175,9 +175,9 @@ err:
 void free_keypair(void) {
     assert(key && key->d && key->x && key->y);
 
-    crypto_bignum_free(key->d);
-    crypto_bignum_free(key->x);
-    crypto_bignum_free(key->y);
+    crypto_bignum_free(&key->d);
+    crypto_bignum_free(&key->x);
+    crypto_bignum_free(&key->y);
 
     memset(key, 0, sizeof(*key));
     free(key);
@@ -187,8 +187,8 @@ void free_keypair(void) {
 void free_pubkey(void) {
     assert(pubkey && pubkey->x && pubkey->y);
 
-    crypto_bignum_free(pubkey->x);
-    crypto_bignum_free(pubkey->y);
+    crypto_bignum_free(&pubkey->x);
+    crypto_bignum_free(&pubkey->y);
 
     memset(pubkey, 0, sizeof(*pubkey));
     free(pubkey);
