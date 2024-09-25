@@ -1,7 +1,7 @@
 #ifndef PTA_REMOTE_ATTESTATION_TA_CBOR_H
 #define PTA_REMOTE_ATTESTATION_TA_CBOR_H
 
-#include "qcbor/qcbor_encode.h"
+#include <qcbor_encode.h>
 #include <stddef.h>
 #include <stdint.h>
 
