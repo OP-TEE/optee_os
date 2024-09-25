@@ -1,14 +1,11 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2024, Linaro Limited
- */
-
-/* Microsoft Reference Implementation for TPM 2.0
+ * Copyright (c) 2024 Linaro Limited
  *
- * The copyright in this software is being made available under the BSD
- * License, included below. This software may be subject to other third
- * party and contributor rights, including patent rights, and no such
- * rights are granted under this license.
+ * The copyright in this software is being made available under the BSD License,
+ * included below. This software may be subject to other third party and
+ * contributor rights, including patent rights, and no such rights are granted
+ * under this license.
  *
  * Copyright (c) 2018 Microsoft Corporation
  *
@@ -40,26 +37,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * The name of this file must not be modified
- */
+#ifndef FTPM_TA_H
+#define FTPM_TA_H
 
-#ifndef USER_TA_HEADER_DEFINES_H
-#define USER_TA_HEADER_DEFINES_H
+/* This UUID is generated with uuidgen */
+#define TA_FTPM_UUID { 0xBC50D971, 0xD4C9, 0x42C4, \
+	{0x82, 0xCB, 0x34, 0x3F, 0xB7, 0xF3, 0x78, 0x96}}
 
-#include <ftpm_ta.h>
+/* The TAFs ID implemented in this TA */
+#define TA_FTPM_SUBMIT_COMMAND  (0)
+#define TA_FTPM_EMULATE_PPI     (1)
 
-#define TA_UUID                     TA_FTPM_UUID
-
-#define TA_FLAGS                    (TA_FLAG_SINGLE_INSTANCE | \
-				     TA_FLAG_INSTANCE_KEEP_ALIVE | \
-				     TA_FLAG_DEVICE_ENUM_TEE_STORAGE_PRIVATE)
-#define TA_STACK_SIZE               (64 * 1024)
-#define TA_DATA_SIZE                (32 * 1024)
-
-#define TA_CURRENT_TA_EXT_PROPERTIES \
-    { "gp.ta.description", USER_TA_PROP_TYPE_STRING, \
-        "fTPM TA" }, \
-    { "gp.ta.version", USER_TA_PROP_TYPE_U32, &(const uint32_t){ 0x0010 } }
-
-#endif /*USER_TA_HEADER_DEFINES_H*/
+#endif /*FTPM_TA_H*/
