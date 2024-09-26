@@ -148,12 +148,12 @@ native_interrupt_from_kernel:
 	/* Restore XEPC */
 	load_xregs sp, THREAD_CTX_REG_EPC, REG_T0
 	csrw	CSR_XEPC, t0
-	/* Restore XIE */
-	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
-	csrw	CSR_XIE, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
+	/* Restore XIE */
+	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
 	/* We are going to XRET to kernel mode. Set XSCRATCH as 0 */
 	csrw	CSR_XSCRATCH, 0
 	/* Restore all GPRs */
@@ -246,12 +246,12 @@ set_sp:
 	/* Restore XEPC */
 	load_xregs sp, THREAD_ABT_REG_EPC, REG_T0
 	csrw	CSR_XEPC, t0
-	/* Restore XIE */
-	load_xregs sp, THREAD_ABT_REG_IE, REG_T0
-	csrw	CSR_XIE, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
+	/* Restore XIE */
+	load_xregs sp, THREAD_ABT_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
 	/* We are going to XRET to kernel mode. Set XSCRATCH as 0 */
 	csrw	CSR_XSCRATCH, 0
 
@@ -385,12 +385,12 @@ native_interrupt_from_user:
 	/* Restore XEPC */
 	load_xregs sp, THREAD_CTX_REG_EPC, REG_T0
 	csrw	CSR_XEPC, t0
-	/* Restore XIE */
-	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
-	csrw	CSR_XIE, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
+	/* Restore XIE */
+	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
 	/* Set scratch as thread_core_local */
 	csrw	CSR_XSCRATCH, tp
 	/* Restore all GPRs */
@@ -475,13 +475,14 @@ ecall_from_user:
 	/* Restore XEPC */
 	load_xregs sp, THREAD_SCALL_REG_EPC, REG_T0
 	csrw	CSR_XEPC, t0
-	/* Restore XIE */
-	load_xregs sp, THREAD_SCALL_REG_IE, REG_T0
-	csrw	CSR_XIE, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_SCALL_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
+	/* Restore XIE */
+	load_xregs sp, THREAD_SCALL_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
 	/* Check previous privilege mode by status.SPP */
+	csrr	t0, CSR_XSTATUS
 	b_if_prev_priv_is_u t0, 1f
 	/*
 	 * We are going to XRET to kernel mode.
@@ -588,12 +589,12 @@ abort_from_user:
 	/* Restore XEPC */
 	load_xregs sp, THREAD_ABT_REG_EPC, REG_T0
 	csrw	CSR_XEPC, t0
-	/* Restore XIE */
-	load_xregs sp, THREAD_ABT_REG_IE, REG_T0
-	csrw	CSR_XIE, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
+	/* Restore XIE */
+	load_xregs sp, THREAD_ABT_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
 
 	/* Update core local flags */
 	lw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
@@ -601,6 +602,7 @@ abort_from_user:
 	sw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
 
 	/* Check previous privilege mode by status.SPP */
+	csrr	t0, CSR_XSTATUS
 	b_if_prev_priv_is_u t0, 1f
 	/*
 	 * We are going to XRET to kernel mode.
@@ -665,9 +667,6 @@ END_FUNC thread_unwind_user_mode
  *				     uint32_t *exit_status1);
  */
 FUNC __thread_enter_user_mode , :
-	/* Disable kernel mode exceptions first */
-	csrc	CSR_XSTATUS, CSR_XSTATUS_IE
-
 	/*
 	 * Create and fill in the struct thread_user_mode_rec
 	 */
@@ -702,12 +701,12 @@ FUNC __thread_enter_user_mode , :
 	/* Set exception return PC */
 	load_xregs sp, THREAD_CTX_REG_EPC, REG_S0
 	csrw	CSR_XEPC, s0
-	/* Set user ie */
-	load_xregs sp, THREAD_CTX_REG_IE, REG_S0
-	csrw	CSR_XIE, s0
 	/* Set user status */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_S0
 	csrw	CSR_XSTATUS, s0
+	/* Set user ie */
+	load_xregs sp, THREAD_CTX_REG_IE, REG_S0
+	csrw	CSR_XIE, s0
 	/* Load the rest of the general purpose registers */
 	load_xregs sp, THREAD_CTX_REG_RA, REG_RA
 	load_xregs sp, THREAD_CTX_REG_GP, REG_GP
@@ -725,23 +724,21 @@ END_FUNC __thread_enter_user_mode
 
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
-	/* Disable global interrupts first */
-	csrc	CSR_XSTATUS, CSR_XSTATUS_IE
-
 	/* Move struct thread_ctx_regs *regs to sp to reduce code size */
 	mv	sp, a0
 
 	/* Restore epc */
 	load_xregs sp, THREAD_CTX_REG_EPC, REG_T0
 	csrw	CSR_XEPC, t0
-	/* Restore ie */
-	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
-	csrw	CSR_XIE, t0
 	/* Restore status */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
+	/* Restore ie */
+	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
 
 	/* Check if previous privilege mode by status.SPP */
+	csrr	t0, CSR_XSTATUS
 	b_if_prev_priv_is_u t0, 1f
 	/* Set scratch as zero to indicate that we are in kernel mode */
 	csrw	CSR_XSCRATCH, zero
