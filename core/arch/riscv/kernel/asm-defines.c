@@ -55,14 +55,12 @@ DEFINES
 	/* struct thread_user_mode_rec */
 	DEFINE(THREAD_USER_MODE_REC_CTX_REGS_PTR,
 	       offsetof(struct thread_user_mode_rec, ctx_regs_ptr));
-	DEFINE(THREAD_USER_MODE_REC_X1,
+	DEFINE(THREAD_USER_MODE_REC_RA,
 	       offsetof(struct thread_user_mode_rec, x[0]));
-	DEFINE(THREAD_USER_MODE_REC_X4,
+	DEFINE(THREAD_USER_MODE_REC_S0,
+	       offsetof(struct thread_user_mode_rec, x[1]));
+	DEFINE(THREAD_USER_MODE_REC_S2,
 	       offsetof(struct thread_user_mode_rec, x[3]));
-	DEFINE(THREAD_USER_MODE_REC_X8,
-	       offsetof(struct thread_user_mode_rec, x[4]));
-	DEFINE(THREAD_USER_MODE_REC_X18,
-	       offsetof(struct thread_user_mode_rec, x[6]));
 	DEFINE(THREAD_USER_MODE_REC_SIZE, sizeof(struct thread_user_mode_rec));
 
 	/* struct thread_abort_regs */

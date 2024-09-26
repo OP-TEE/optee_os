@@ -633,30 +633,22 @@ END_FUNC trap_from_user
 
 /*
  * void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
- * 		uint32_t exit_status1);
+ * 				uint32_t exit_status1);
  * See description in thread.h
  */
 FUNC thread_unwind_user_mode , :
-
 	/* Store the exit status */
 	load_xregs sp, THREAD_USER_MODE_REC_CTX_REGS_PTR, REG_A3, REG_A5
 	sw	a1, (a4)
 	sw	a2, (a5)
-
-	/* Save user callee regs */
+	/* Save user callee-saved regs */
 	store_xregs a3, THREAD_CTX_REG_S0, REG_S0, REG_S1
 	store_xregs a3, THREAD_CTX_REG_S2, REG_S2, REG_S11
-	store_xregs a3, THREAD_CTX_REG_SP, REG_SP, REG_TP
-
-	/* Restore kernel callee regs */
-	mv	a1, sp
-
-	load_xregs a1, THREAD_USER_MODE_REC_X1, REG_RA, REG_GP
-	load_xregs a1, THREAD_USER_MODE_REC_X8, REG_S0, REG_S1
-	load_xregs a1, THREAD_USER_MODE_REC_X18, REG_S2, REG_S11
-
+	/* Restore kernel ra(thread_enter_user_mode()) & callee-saved regs */
+	load_xregs sp, THREAD_USER_MODE_REC_RA, REG_RA
+	load_xregs sp, THREAD_USER_MODE_REC_S0, REG_S0, REG_S1
+	load_xregs sp, THREAD_USER_MODE_REC_S2, REG_S2, REG_S11
 	add	sp, sp, THREAD_USER_MODE_REC_SIZE
-
 	/* Return from the call of thread_enter_user_mode() */
 	ret
 END_FUNC thread_unwind_user_mode
@@ -672,9 +664,9 @@ FUNC __thread_enter_user_mode , :
 	 */
 	addi	sp, sp, -THREAD_USER_MODE_REC_SIZE
 	store_xregs sp, THREAD_USER_MODE_REC_CTX_REGS_PTR, REG_A0, REG_A2
-	store_xregs sp, THREAD_USER_MODE_REC_X1, REG_RA, REG_GP
-	store_xregs sp, THREAD_USER_MODE_REC_X8, REG_S0, REG_S1
-	store_xregs sp, THREAD_USER_MODE_REC_X18, REG_S2, REG_S11
+	store_xregs sp, THREAD_USER_MODE_REC_RA, REG_RA
+	store_xregs sp, THREAD_USER_MODE_REC_S0, REG_S0, REG_S1
+	store_xregs sp, THREAD_USER_MODE_REC_S2, REG_S2, REG_S11
 
 	/*
 	 * Save the kernel stack pointer in the thread context

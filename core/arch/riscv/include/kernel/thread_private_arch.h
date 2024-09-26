@@ -51,11 +51,11 @@ struct thread_user_mode_rec {
 	unsigned long pad;
 	/*
 	 * x[] is used to save registers for user/kernel context-switching
-	 * 0-3: ra-tp
-	 * 4-6: s0-s1
-	 * 6-15: s2-s11
+	 * 0: ra
+	 * 1-2: s0-s1
+	 * 3-12: s2-s11
 	 */
-	unsigned long x[16];
+	unsigned long x[13];
 };
 
 extern long thread_user_kcode_offset;
