@@ -9,9 +9,9 @@
 cppflags-y += -include ta/ftpm/reference/include/VendorString.h
 cppflags-y += -include ta/ftpm/platform/include/Platform.h
 
-cppflags-y += -DHASH_LIB=TEE -DSYM_LIB=TEE -DMATH_LIB=TEE
+cppflags-y += -DHASH_LIB=MBEDTLS -DSYM_LIB=TEE -DMATH_LIB=TEE
 cppflags-y += -DALG_CAMELLIA=ALG_NO -DALG_KDF2=ALG_NO
-cppflags-y += -DALG_SM3_256=YES -DALG_SM4=YES
+cppflags-y += -DALG_SM3_256=NO -DALG_SM4=YES
 cppflags-y += -D_ARM_ -DFAIL_TRACE=NO
 cppflags-y += -DGCC -DSIMULATION=NO -DVTPM
 cppflags-y += -DRSA_INSTRUMENT=NO
@@ -82,7 +82,6 @@ cppflags-y += -DMEASURED_BOOT
 endif
 
 
-srcs-y += tee/TpmToTEEHash.c
 srcs-y += tee/TpmToTEEMath.c
 srcs-y += tee/TpmToTEESupport.c
 srcs-y += tee/TpmToTEESym.c
