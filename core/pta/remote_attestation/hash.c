@@ -8,10 +8,13 @@
  * Exclude writable regions as well as those that are not specific to the TA
  * (ldelf, kernel or temporary mappings).
  */
-static bool is_region_valid(struct vm_region *r) {
-    uint32_t skip_flags = VM_FLAG_EPHEMERAL | VM_FLAG_PERMANENT | VM_FLAG_LDELF;
+static bool is_region_valid(struct vm_region *r)
+{
+    uint32_t dontwant = VM_FLAG_EPHEMERAL | VM_FLAG_PERMANENT |
+                        VM_FLAG_LDELF;
+    uint32_t want = VM_FLAG_READONLY;
 
-    return !(r->flags & skip_flags || r->attr & TEE_MATTR_UW);
+    return ((r->flags & want) == want && !(r->flags & dontwant));
 }
 
 /*
