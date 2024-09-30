@@ -81,7 +81,7 @@ endef #process-subdir-srcs-y
 
 define process-subdir-srcs_ext-y
 ifneq ($(filter /%,$(1)),)
-$$(error Absolute path not supported for srcs_ext-y: $(1)
+$$(error Absolute path not supported for srcs_ext-y: $(1))
 endif
 srcs		+= $2/$1
 fname		:= $2/$1
