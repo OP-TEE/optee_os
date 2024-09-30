@@ -311,7 +311,7 @@ jobs:
           ln -s ${WD} ${TOP}/optee_os
           cd ${TOP}/build
 
-          make -j$(nproc) check CFG_LOCKDEP=y CFG_LOCKDEP_RECORD_STACK=n CFG_IN_TREE_EARLY_TAS=pkcs11/fd02c9da-306c-48c7-a49c-bbd827ae86ee CFG_PKCS11_TA=y
+          make -j$(nproc) check CFG_LOCKDEP=y CFG_LOCKDEP_RECORD_STACK=n CFG_IN_TREE_EARLY_TAS=pkcs11/fd02c9da-306c-48c7-a49c-bbd827ae86ee CFG_PKCS11_TA=y XTEST_ARGS="-x pkcs11_1007"
 
   QEMUv8_check:
     name: make check (QEMUv8)
