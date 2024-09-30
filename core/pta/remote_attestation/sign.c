@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: BSD-2-Clause
+/*
+ * Copyright (C) 2024, Insitite of Information Security (IISEC)
+ */
+
 #include "sign.h"
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>

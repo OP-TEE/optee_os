@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: BSD-2-Clause
+/*
+ * Copyright (C) 2024, Insitite of Information Security (IISEC)
+ */
+
 #ifndef PTA_REMOTE_ATTESTATION_SIGN_H
 #define PTA_REMOTE_ATTESTATION_SIGN_H
 
