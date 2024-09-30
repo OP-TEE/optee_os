@@ -154,6 +154,16 @@ out:
 	mutex_unlock(&notif_mutex);
 	virt_put_guest(prtn);
 }
+
+#ifdef CFG_NS_VIRTUALIZATION
+static TEE_Result nex_init_notif(void)
+{
+	return virt_add_guest_spec_data(&notif_data_id,
+					sizeof(struct notif_data), NULL);
+}
+nex_early_init(nex_init_notif);
+#endif
+
 #endif /*CFG_CORE_ASYNC_NOTIF*/
 
 static TEE_Result notif_rpc(uint32_t func, uint32_t value1, uint32_t value2)
@@ -179,11 +189,3 @@ TEE_Result notif_wait_timeout(uint32_t value, uint32_t timeout_ms)
 	return notif_rpc(OPTEE_RPC_NOTIFICATION_WAIT, value, timeout_ms);
 }
 
-#ifdef CFG_NS_VIRTUALIZATION
-static TEE_Result nex_init_notif(void)
-{
-	return virt_add_guest_spec_data(&notif_data_id,
-					sizeof(struct notif_data), NULL);
-}
-nex_early_init(nex_init_notif);
-#endif
