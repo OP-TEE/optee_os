@@ -9,6 +9,7 @@
 #include <dt-bindings/clock/stm32mp13-clks.h>
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
 #include <dt-bindings/firewall/stm32mp13-etzpc.h>
+#include <dt-bindings/firewall/stm32mp13-tzc400.h>
 #include <dt-bindings/regulator/st,stm32mp13-regulator.h>
 #include <dt-bindings/reset/stm32mp13-resets.h>
 #endif
@@ -16,6 +17,7 @@
 #ifdef CFG_STM32MP15
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <dt-bindings/firewall/stm32mp15-etzpc.h>
+#include <dt-bindings/firewall/stm32mp15-tzc400.h>
 #include <dt-bindings/regulator/st,stm32mp15-regulator.h>
 #include <dt-bindings/reset/stm32mp1-resets.h>
 #endif
