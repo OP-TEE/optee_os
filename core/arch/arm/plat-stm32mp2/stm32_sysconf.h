@@ -21,6 +21,17 @@ enum syscon_banks {
 				((offset) & GENMASK_32(15, 0)))
 
 /*
+ * SYSCFG register offsets (base relative)
+ */
+#define SYSCFG_VDERAMCR		SYSCON_ID(SYSCON_SYSCFG, 0x1800)
+
+/*
+ * SYSCFG_VDERAMCR register offsets
+ */
+#define VDERAMCR_VDERAM_EN		BIT(0)
+#define VDERAMCR_MASK			BIT(0)
+
+/*
  * A35SSC register offsets (base relative)
  */
 #define A35SS_SSC_CHGCLKREQ	SYSCON_ID(SYSCON_A35SSC, 0x0)
