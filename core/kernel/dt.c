@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <bisect.h>
 #include <config.h>
 #include <initcall.h>
 #include <kernel/dt.h>
@@ -178,22 +179,24 @@ bad:
 
 paddr_t fdt_reg_base_address(const void *fdt, int offs)
 {
-	const void *reg;
-	int ncells;
-	int len;
-	int parent;
-
-	parent = fdt_parent_offset(fdt, offs);
-	if (parent < 0)
-		return DT_INFO_INVALID_REG;
+	const void *reg = NULL;
+	int ncells = 0;
+	int len = 0;
+	int parent = 0;
 
 	reg = fdt_getprop(fdt, offs, "reg", &len);
 	if (!reg)
 		return DT_INFO_INVALID_REG;
 
-	ncells = fdt_address_cells(fdt, parent);
-	if (ncells < 0)
-		return DT_INFO_INVALID_REG;
+	if (fdt_find_cached_parent_reg_cells(fdt, offs, &ncells, NULL)) {
+		parent = fdt_parent_offset(fdt, offs);
+		if (parent < 0)
+			return DT_INFO_INVALID_REG;
+
+		ncells = fdt_address_cells(fdt, parent);
+		if (ncells < 0)
+			return DT_INFO_INVALID_REG;
+	}
 
 	return fdt_read_paddr(reg, ncells);
 }
@@ -216,26 +219,32 @@ static size_t fdt_read_size(const uint32_t *cell, int n)
 
 size_t fdt_reg_size(const void *fdt, int offs)
 {
-	const uint32_t *reg;
-	int n;
-	int len;
-	int parent;
-
-	parent = fdt_parent_offset(fdt, offs);
-	if (parent < 0)
-		return DT_INFO_INVALID_REG_SIZE;
+	const uint32_t *reg = NULL;
+	int n = 0;
+	int len = 0;
+	int parent = 0;
+	int addr_cells = 0;
 
 	reg = (const uint32_t *)fdt_getprop(fdt, offs, "reg", &len);
 	if (!reg)
 		return DT_INFO_INVALID_REG_SIZE;
 
-	n = fdt_address_cells(fdt, parent);
-	if (n < 1 || n > 2)
-		return DT_INFO_INVALID_REG_SIZE;
+	if (fdt_find_cached_parent_reg_cells(fdt, offs, &addr_cells, &n) == 0) {
+		reg += addr_cells;
+	} else {
+		parent = fdt_parent_offset(fdt, offs);
+		if (parent < 0)
+			return DT_INFO_INVALID_REG_SIZE;
 
-	reg += n;
+		n = fdt_address_cells(fdt, parent);
+		if (n < 1 || n > 2)
+			return DT_INFO_INVALID_REG_SIZE;
 
-	n = fdt_size_cells(fdt, parent);
+		reg += n;
+
+		n = fdt_size_cells(fdt, parent);
+	}
+
 	if (n < 1 || n > 2)
 		return DT_INFO_INVALID_REG_SIZE;
 
@@ -284,10 +293,25 @@ void fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
 		.reset = DT_INFO_INVALID_RESET,
 		.interrupt = DT_INFO_INVALID_INTERRUPT,
 	};
-	const fdt32_t *cuint;
+	const fdt32_t *cuint = NULL;
+	int addr_cells = 0;
+	int size_cells = 0;
 
-	dinfo.reg = fdt_reg_base_address(fdt, offs);
-	dinfo.reg_size = fdt_reg_size(fdt, offs);
+	if (fdt_find_cached_parent_reg_cells(fdt, offs, &addr_cells,
+					     &size_cells) == 0) {
+		int len = 0;
+
+		cuint = fdt_getprop(fdt, offs, "reg", &len);
+		if (cuint &&
+		    (size_t)len == (addr_cells + size_cells) * sizeof(*cuint)) {
+			dinfo.reg = fdt_read_paddr(cuint, addr_cells);
+			dinfo.reg_size = fdt_read_size(cuint + addr_cells,
+						       size_cells);
+		}
+	} else {
+		dinfo.reg = fdt_reg_base_address(fdt, offs);
+		dinfo.reg_size = fdt_reg_size(fdt, offs);
+	}
 
 	cuint = fdt_getprop(fdt, offs, "clocks", NULL);
 	if (cuint) {
@@ -472,6 +496,203 @@ void *get_secure_dt(void)
 	return fdt;
 }
 
+#ifdef CFG_DT_CACHED_NODE_INFO
+/* Reference to the FDT for which node information are cached */
+static const void *cached_node_info_fdt;
+
+/*
+ * struct parent_node_cache - Cache of FDT parent node references
+ *
+ * @node_offset: Offset of a node in @cached_node_info_fdt
+ * @parent_offset: Offset of @node_offset parent node or -1 if root node
+ * @address_cells: Parent node #address-cells property value or 0
+ * @size_cells: Parent node #size-cells property value or 0
+ */
+struct parent_node_cache {
+	int node_offset;
+	int parent_offset;
+	size_t address_cells;
+	size_t size_cells;
+};
+
+/* Reference to node's parent information */
+static struct {
+	struct parent_node_cache *array;
+	size_t count;
+	size_t alloced_count;
+} parent_node_cache;
+
+static int cmp_parent_node_cache(const void *a, const void *b)
+{
+	const struct parent_node_cache *cell_a = a;
+	const struct parent_node_cache *cell_b = b;
+
+	return CMP_TRILEAN(cell_a->node_offset, cell_b->node_offset);
+}
+
+static struct parent_node_cache *find_cached_parent_node(const void *fdt,
+							 int node_offset)
+{
+	struct parent_node_cache target = {
+		.node_offset = node_offset,
+	};
+
+	if (!cached_node_info_fdt || fdt != cached_node_info_fdt)
+		return NULL;
+
+	return bisect_equal(parent_node_cache.array, parent_node_cache.count,
+			    sizeof(target), &target, cmp_parent_node_cache);
+}
+
+int fdt_find_cached_parent_node(const void *fdt, int node_offset,
+				int *parent_offset)
+{
+	struct parent_node_cache *cell = NULL;
+
+	cell = find_cached_parent_node(fdt, node_offset);
+	if (!cell)
+		return -FDT_ERR_NOTFOUND;
+
+	*parent_offset = cell->parent_offset;
+
+	return 0;
+}
+
+int fdt_find_cached_parent_reg_cells(const void *fdt, int node_offset,
+				     int *address_cells, int *size_cells)
+{
+	struct parent_node_cache *cell = NULL;
+
+	cell = find_cached_parent_node(fdt, node_offset);
+	if (!cell)
+		return -FDT_ERR_NOTFOUND;
+
+	if (address_cells)
+		*address_cells = cell->address_cells;
+
+	if (size_cells)
+		*size_cells = cell->size_cells;
+
+	return 0;
+}
+
+static void release_parent_node_cache(void)
+{
+	free(parent_node_cache.array);
+	parent_node_cache.array = NULL;
+	parent_node_cache.count = 0;
+	parent_node_cache.alloced_count = 0;
+}
+
+static TEE_Result enlarge_parent_node_cache(void)
+{
+	if (parent_node_cache.count + 1 > parent_node_cache.alloced_count) {
+		/* Allocate by chunk of 64 cells for efficiency */
+		size_t new_count = parent_node_cache.alloced_count + 64;
+		struct parent_node_cache *new = NULL;
+
+		new = realloc(parent_node_cache.array,
+			      sizeof(*parent_node_cache.array) * new_count);
+		if (!new)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
+		parent_node_cache.array = new;
+		parent_node_cache.alloced_count = new_count;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result add_parent_node_info(const void *fdt __maybe_unused,
+				       int parent_offset, int node_offset,
+				       int address_cells, int size_cells)
+{
+	size_t count = parent_node_cache.count;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = enlarge_parent_node_cache();
+	if (res)
+		return res;
+
+	parent_node_cache.array[count] = (struct parent_node_cache){
+		.node_offset = node_offset,
+		.parent_offset = parent_offset,
+		.address_cells = address_cells,
+		.size_cells = size_cells,
+	};
+
+	parent_node_cache.count++;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result add_node_cached_info(const void *fdt, int node_offset)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	const fdt32_t *cuint = NULL;
+	int subnode_offset = 0;
+	size_t addr_cells = 0;
+	size_t size_cells = 0;
+
+	cuint = fdt_getprop(fdt, node_offset, "#address-cells", NULL);
+	if (cuint)
+		addr_cells = (int)fdt32_to_cpu(*cuint);
+
+	cuint = fdt_getprop(fdt, node_offset, "#size-cells", NULL);
+	if (cuint)
+		size_cells = (int)fdt32_to_cpu(*cuint);
+
+	fdt_for_each_subnode(subnode_offset, fdt, node_offset) {
+		res = add_parent_node_info(fdt, node_offset, subnode_offset,
+					   addr_cells, size_cells);
+		if (res)
+			return res;
+
+		res = add_node_cached_info(fdt, subnode_offset);
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result release_cached_node_info(void)
+{
+	release_parent_node_cache();
+
+	cached_node_info_fdt = NULL;
+
+	return TEE_SUCCESS;
+}
+
+release_init_resource(release_cached_node_info);
+
+static void init_cached_node_info(const void *fdt)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = add_node_cached_info(fdt, 0);
+	if (res) {
+		EMSG("Error %#"PRIx32", disable DT cached info", res);
+		release_cached_node_info();
+		return;
+	}
+
+	/*
+	 * Parent node cache is expected already ordered but sort it
+	 * for consistency, it should not take long.
+	 */
+	bisect_sort(parent_node_cache.array, parent_node_cache.count,
+		    sizeof(*parent_node_cache.array), cmp_parent_node_cache);
+
+	cached_node_info_fdt = fdt;
+}
+#else
+static void init_cached_node_info(const void *fdt __unused)
+{
+}
+#endif /* CFG_DT_CACHED_NODE_INFO */
+
 #if defined(CFG_EMBED_DTB)
 void *get_embedded_dt(void)
 {
@@ -486,6 +707,8 @@ void *get_embedded_dt(void)
 			panic("Invalid embedded DTB");
 
 		checked = true;
+
+		init_cached_node_info(embedded_secure_dtb);
 	}
 
 	return embedded_secure_dtb;

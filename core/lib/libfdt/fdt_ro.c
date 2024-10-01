@@ -489,6 +489,7 @@ uint32_t fdt_get_phandle(const void *fdt, int nodeoffset)
 	const fdt32_t *php;
 	int len;
 
+
 	/* FIXME: This is a bit sub-optimal, since we potentially scan
 	 * over all the properties twice. */
 	php = fdt_getprop(fdt, nodeoffset, "phandle", &len);
@@ -617,9 +618,31 @@ int fdt_node_depth(const void *fdt, int nodeoffset)
 	return nodedepth;
 }
 
+#ifdef CFG_DT_CACHED_NODE_INFO
+/* This function is OP-TEE specific, outside of libfdt */
+int fdt_find_cached_parent_node(const void *fdt, int node_offset,
+				int *parent_offset);
+#else
+static int fdt_find_cached_parent_node(const void *fdt, int node_offset,
+				       int *parent_offset)
+{
+	(void)fdt;
+	(void)node_offset;
+	(void)parent_offset;
+
+	return -1;
+}
+#endif
+
 int fdt_parent_offset(const void *fdt, int nodeoffset)
 {
-	int nodedepth = fdt_node_depth(fdt, nodeoffset);
+	int parent_offset = 0;
+	int nodedepth = 0;
+
+	if (fdt_find_cached_parent_node(fdt, nodeoffset, &parent_offset) == 0)
+		return parent_offset;
+
+	nodedepth = fdt_node_depth(fdt, nodeoffset);
 
 	if (nodedepth < 0)
 		return nodedepth;
