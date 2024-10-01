@@ -5,7 +5,9 @@
  */
 
 #include <dt-bindings/clock/st,stm32mp25-rcc.h>
+#include <dt-bindings/firewall/stm32mp25-rif.h>
 #include <dt-bindings/firewall/stm32mp25-rifsc.h>
+#include <dt-bindings/firewall/stm32mp25-risaf.h>
 #include <dt-bindings/firewall/stm32mp25-risab.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/st,stm32mp25-rcc.h>
