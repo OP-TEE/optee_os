@@ -28,6 +28,7 @@ srcs-y += islower.c
 srcs-y += isprint.c
 srcs-y += ispunct.c
 srcs-y += toupper.c
+srcs-y += bisect.c
 
 ifneq (,$(filter ta_%,$(sm)))
 srcs-y += fp.c
