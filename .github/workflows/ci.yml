@@ -212,6 +212,8 @@ jobs:
           _make PLATFORM=k3-am64x CFG_ARM64_core=y
           _make PLATFORM=k3-am62x
           _make PLATFORM=k3-am62x CFG_ARM64_core=y
+          _make PLATFORM=k3-am62lx
+          _make PLATFORM=k3-am62lx CFG_ARM64_core=y
           _make PLATFORM=ti-dra7xx out/core/tee{,-pager,-pageable}.bin
           _make PLATFORM=ti-am57xx
           _make PLATFORM=ti-am43xx
