@@ -26,6 +26,26 @@ static void tee_entry_get_shm_config(struct thread_smc_args *args)
 }
 #endif
 
+#ifdef CFG_SECURE_DATA_PATH
+static void tee_entry_get_sdp_config(struct thread_smc_args *args)
+{
+#if defined(CFG_TEE_SDP_MEM_BASE)
+	args->a0 = OPTEE_SMC_RETURN_OK;
+	args->a1 = CFG_TEE_SDP_MEM_BASE;
+	args->a2 = CFG_TEE_SDP_MEM_SIZE;
+#elif defined(TEE_SDP_TEST_MEM_BASE)
+	args->a0 = OPTEE_SMC_RETURN_OK;
+	args->a1 = TEE_SDP_TEST_MEM_BASE;
+	args->a2 = TEE_SDP_TEST_MEM_SIZE;
+#else
+	args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+	args->a1 = 0;
+	args->a2 = 0;
+#endif
+	args->a3 = 0;
+}
+#endif
+
 static void tee_entry_fastcall_l2cc_mutex(struct thread_smc_args *args)
 {
 #ifdef ARM32
@@ -114,6 +134,9 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 	}
 	IMSG("Asynchronous notifications are %sabled",
 	     IS_ENABLED(CFG_CORE_ASYNC_NOTIF) ? "en" : "dis");
+
+	if (IS_ENABLED(CFG_SECURE_DATA_PATH))
+		args->a1 |= OPTEE_SMC_SEC_CAP_SDP;
 
 	args->a1 |= OPTEE_SMC_SEC_CAP_RPC_ARG;
 	args->a3 = THREAD_RPC_MAX_NUM_PARAMS;
@@ -259,6 +282,11 @@ void __tee_entry_fast(struct thread_smc_args *args)
 #ifdef CFG_CORE_RESERVED_SHM
 	case OPTEE_SMC_GET_SHM_CONFIG:
 		tee_entry_get_shm_config(args);
+		break;
+#endif
+#ifdef CFG_SECURE_DATA_PATH
+	case OPTEE_SMC_GET_SDP_CONFIG:
+		tee_entry_get_sdp_config(args);
 		break;
 #endif
 	case OPTEE_SMC_L2CC_MUTEX:
