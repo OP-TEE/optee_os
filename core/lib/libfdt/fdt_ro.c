@@ -8,6 +8,9 @@
 #include <fdt.h>
 #include <libfdt.h>
 
+/* OP-TEE helper function to leveral cached information from the DT */
+#include <kernel/dt.h>
+
 #include "libfdt_internal.h"
 
 static int fdt_nodename_eq_(const void *fdt, int offset,
@@ -489,6 +492,7 @@ uint32_t fdt_get_phandle(const void *fdt, int nodeoffset)
 	const fdt32_t *php;
 	int len;
 
+
 	/* FIXME: This is a bit sub-optimal, since we potentially scan
 	 * over all the properties twice. */
 	php = fdt_getprop(fdt, nodeoffset, "phandle", &len);
@@ -619,13 +623,22 @@ int fdt_node_depth(const void *fdt, int nodeoffset)
 
 int fdt_parent_offset(const void *fdt, int nodeoffset)
 {
-	int nodedepth = fdt_node_depth(fdt, nodeoffset);
+	int parent_offset = 0;
+	int nodedepth = 0;
+
+	/* OP-TEE helper function to leveral cached information from the DT */
+	if (fdt_find_cached_parent_node(fdt, nodeoffset, &parent_offset) == 0)
+		return parent_offset;
+
+	nodedepth = fdt_node_depth(fdt, nodeoffset);
 
 	if (nodedepth < 0)
 		return nodedepth;
 	return fdt_supernode_atdepth_offset(fdt, nodeoffset,
 					    nodedepth - 1, NULL);
 }
+
+/* OP-TEE implements fdt_parent_offset() to leverage cached information */
 
 int fdt_node_offset_by_prop_value(const void *fdt, int startoffset,
 				  const char *propname,
@@ -660,6 +673,10 @@ int fdt_node_offset_by_phandle(const void *fdt, uint32_t phandle)
 
 	if ((phandle == 0) || (phandle == -1))
 		return -FDT_ERR_BADPHANDLE;
+
+	/* OP-TEE helper function to leveral cached information from the DT */
+	if (fdt_find_cached_node_phandle(fdt, phandle, &offset) == 0)
+		return offset;
 
 	FDT_RO_PROBE(fdt);
 
