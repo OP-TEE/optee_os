@@ -105,3 +105,6 @@ endif
 
 # Default enable firewall support
 CFG_DRIVERS_FIREWALL ?= y
+ifeq ($(call cfg-one-enabled, CFG_STM32_RISAB CFG_STM32_RIFSC),y)
+$(call force,CFG_DRIVERS_FIREWALL,y)
+endif
