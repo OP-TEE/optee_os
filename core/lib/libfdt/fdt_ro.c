@@ -6,6 +6,7 @@
 #include "libfdt_env.h"
 
 #include <fdt.h>
+#include <kernel/dt.h>	/* fdt_find_cached_xxx() */
 #include <libfdt.h>
 
 #include "libfdt_internal.h"
@@ -619,7 +620,13 @@ int fdt_node_depth(const void *fdt, int nodeoffset)
 
 int fdt_parent_offset(const void *fdt, int nodeoffset)
 {
-	int nodedepth = fdt_node_depth(fdt, nodeoffset);
+	int parent_offset = 0;
+	int nodedepth = 0;
+
+	if (fdt_find_cached_parent_node(fdt, nodeoffset, &parent_offset) == 0)
+		return parent_offset;
+
+	nodedepth = fdt_node_depth(fdt, nodeoffset);
 
 	if (nodedepth < 0)
 		return nodedepth;
@@ -660,6 +667,9 @@ int fdt_node_offset_by_phandle(const void *fdt, uint32_t phandle)
 
 	if ((phandle == 0) || (phandle == -1))
 		return -FDT_ERR_BADPHANDLE;
+
+	if (fdt_find_cached_node_phandle(fdt, phandle, &offset) == 0)
+		return offset;
 
 	FDT_RO_PROBE(fdt);
 
