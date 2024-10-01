@@ -104,3 +104,8 @@ endif
 
 # Default enable firewall support
 CFG_DRIVERS_FIREWALL ?= y
+
+# Enabling CFG_DT_CACHED_NODE_INFO saves few hundreds of millisecond
+# at boot time.
+CFG_DT_CACHED_NODE_INFO ?= y
+
