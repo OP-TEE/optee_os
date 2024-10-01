@@ -9,6 +9,42 @@
 		#size-cells = <2>;
 		ranges;
 
+		/* Internal RAM reserved memory declaration */
+		tfa_bl31: tfa-bl31@a000000 {
+			reg = <0x0 0xa000000 0x0 0x20000>;
+			no-map;
+		};
+
+		hpdma_lli: hpdma-lli@a020000 {
+			reg = <0x0 0xa020000 0x0 0x20000>;
+			no-map;
+		};
+
+		bsec_mirror: bsec-mirror@a040000 {
+			reg = <0x0 0xa040000 0x0 0x1000>;
+			no-map;
+		};
+
+		cm33_sram1: cm33-sram1@a041000 {
+			reg = <0x0 0xa041000 0x0 0x1f000>;
+			no-map;
+		};
+
+		cm33_sram2: cm33-sram2@a060000 {
+			reg = <0x0 0xa060000 0x0 0x20000>;
+			no-map;
+		};
+
+		cm33_retram: cm33-retram@a080000 {
+			reg = <0x0 0xa080000 0x0 0x1f000>;
+			no-map;
+		};
+
+		ddr_param: ddr-param@a09f000 {
+			reg = <0x0 0xa09f000 0x0 0x1000>;
+			no-map;
+		};
+
 		/* PCIe reserved memory declaration */
 		pcie_device: pcie-device@10000000 {
 			reg = <0x0 0x10000000 0x0 0x10000000>;
