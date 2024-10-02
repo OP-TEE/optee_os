@@ -87,6 +87,14 @@ static void stm32_gate_endisable(uint16_t gate_id, bool enable)
 	}
 }
 
+void stm32_gate_set_init_state(uint16_t gate_id, bool enable)
+{
+	struct clk_stm32_priv __maybe_unused *priv = clk_stm32_get_priv();
+
+	assert(!priv->gate_cpt[gate_id]);
+	stm32_gate_endisable(gate_id, enable);
+}
+
 void stm32_gate_disable(uint16_t gate_id)
 {
 	struct clk_stm32_priv *priv = clk_stm32_get_priv();
