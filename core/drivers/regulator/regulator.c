@@ -310,7 +310,8 @@ static TEE_Result regulator_core_cleanup(void)
 		}
 	}
 
-	regulator_print_tree();
+	if (TRACE_LEVEL >= TRACE_DEBUG)
+		regulator_print_tree();
 
 	return TEE_SUCCESS;
 }
@@ -447,7 +448,7 @@ out:
 	if (!msg)
 		snprintf(msg_end - 4, 4, "...");
 
-	DMSG("%s", msg_buf);
+	IMSG("%s", msg_buf);
 }
 
 static void print_tree(void)
@@ -486,10 +487,10 @@ static void print_tree(void)
 void regulator_print_tree(void)
 {
 	if (IS_ENABLED(CFG_DRIVERS_REGULATOR_PRINT_TREE) &&
-	    TRACE_LEVEL >= TRACE_DEBUG) {
-		DMSG("Regulator tree summary");
+	    TRACE_LEVEL >= TRACE_INFO) {
+		IMSG("Regulator tree summary");
 		if (SLIST_EMPTY(&regulator_device_list))
-			DMSG("-- No registered regulator");
+			IMSG("-- No registered regulator");
 		else
 			print_tree();
 	}
