@@ -61,21 +61,6 @@
 	};
 };
 
-&adc_2 {
-	vdda-supply = <&vdd_adc>;
-	vref-supply = <&vdd_adc>;
-	status = "okay";
-
-	adc2: adc@0 {
-		status = "okay";
-
-		channel@15 {
-			reg = <15>;
-			label = "vbat";
-		};
-	};
-};
-
 &bsec {
 	board_id: board_id@f0 {
 		reg = <0xf0 0x4>;
