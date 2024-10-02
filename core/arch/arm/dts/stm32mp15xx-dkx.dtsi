@@ -742,5 +742,5 @@
 	regulator-min-microvolt = <2500000>;
 	regulator-max-microvolt = <2500000>;
 	vdda-supply = <&vdd>;
-	status = "okay";
+	status = "disabled";
 };
