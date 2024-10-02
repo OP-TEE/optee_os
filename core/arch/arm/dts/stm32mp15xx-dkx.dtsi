@@ -242,6 +242,7 @@
 };
 
 &i2c4 {
+	compatible = "st,stm32mp15-i2c-non-secure";
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c4_pins_a>;
 	pinctrl-1 = <&i2c4_sleep_pins_a>;
