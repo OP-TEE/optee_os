@@ -3,6 +3,7 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 #include <assert.h>
+#include <bisect.h>
 #include <config.h>
 #include <kernel/dt_driver.h>
 #include <malloc.h>
@@ -551,6 +552,96 @@ static int self_test_nex_malloc(void)
 }
 #endif
 
+static int cmp_int(const void *a, const void *b)
+{
+	const int *ia = a;
+	const int *ib = b;
+
+	return CMP_TRILEAN(*ia, *ib);
+}
+
+static int self_test_bisect(void)
+{
+	int array[65] = { 0 };
+	size_t array_sz = 0;
+	int *result = NULL;
+	size_t hide = 0;
+	size_t cnt = 0;
+	int target = 0;
+
+	/*
+	 * Create an array of integers from 0 to n and use bisect to
+	 * find each cell location.
+	 *
+	 * Test for various array sizes: from 0 to ARRAY_SIZE(array).
+	 * Test out of bound value by bisecting for value -1 and n+1.
+	 * Test absent cases by hiding a value. It is replaced by
+	 * its neighbor value or by n+2 if there is not neighbor.
+	 */
+	LOG("bisect tests on a %zu element array", sizeof(array));
+
+	for (array_sz = 0; array_sz < ARRAY_SIZE(array); array_sz++) {
+		for (hide = 0; hide <= array_sz; hide++) {
+			/* Fill array with incremental values */
+			for (cnt = 0; cnt < array_sz; cnt++)
+				array[cnt] = cnt;
+
+			/*
+			 * Possibly hide 1 element so that it can't be found.
+			 * Do hide any value when the array size is zero.
+			 * Test no hidden value when hide == array_sz.
+			 */
+			if (array_sz && hide < array_sz) {
+				if (!hide) {
+					if (array_sz == 1)
+						array[hide] = array_sz + 2;
+					else
+						array[hide] = array[hide + 1];
+				} else if (hide == array_sz - 1) {
+					if (array_sz == 1)
+						array[hide] = array_sz + 2;
+					else
+						array[hide] = array[hide - 1];
+				} else {
+					array[hide] = array[hide - 1];
+				}
+			}
+
+			/* Try to find present/out-of-bound/absent cells */
+			for (target = -1; target <= (int)array_sz; target++) {
+				result = bisect_equal(array, array_sz,
+						      sizeof(int), &target,
+						      cmp_int);
+
+				if (target == -1 ||
+				    target == (int)array_sz ||
+				    target == (int)hide) {
+					if (result) {
+						LOG("-> Found unexpected target %d (size %zu, hide %zu)",
+						    target, array_sz, hide);
+						return -1;
+					}
+				} else {
+					assert(result && *result == target);
+					if (!result) {
+						LOG("- Failed to find target %d (size %zu, hide %zu)",
+						    target, array_sz, hide);
+						return -1;
+					}
+					if (*result != target) {
+						LOG("- Wrongly found %d for target %d (size %zu, hide %zu)",
+						    *result, target, array_sz,
+						    hide);
+						return -1;
+					}
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
 /* exported entry points for some basic test */
 TEE_Result core_self_tests(uint32_t nParamTypes __unused,
 		TEE_Param pParams[TEE_NUM_PARAMS] __unused)
@@ -558,7 +649,7 @@ TEE_Result core_self_tests(uint32_t nParamTypes __unused,
 	if (self_test_mul_signed_overflow() || self_test_add_overflow() ||
 	    self_test_sub_overflow() || self_test_mul_unsigned_overflow() ||
 	    self_test_division() || self_test_malloc() ||
-	    self_test_nex_malloc()) {
+	    self_test_nex_malloc() || self_test_bisect()) {
 		EMSG("some self_test_xxx failed! you should enable local LOG");
 		return TEE_ERROR_GENERIC;
 	}
