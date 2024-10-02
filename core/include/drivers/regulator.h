@@ -318,7 +318,7 @@ TEE_Result regulator_supported_voltages(struct regulator *regulator,
 					struct regulator_voltages_desc **desc,
 					const int **levels);
 
-/* Print current regulator tree summary to console with debug trace level */
+/* Print current regulator tree summary to console with info trace level */
 #ifdef CFG_DRIVERS_REGULATOR
 void regulator_print_tree(void);
 #else
