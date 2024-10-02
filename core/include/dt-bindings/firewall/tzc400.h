@@ -1,0 +1,29 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/*
+ * Copyright (C) 2020-2024, STMicroelectronics - All Rights Reserved
+ */
+
+#ifndef _DT_BINDINGS_FIREWALL_TZC400_H
+#define _DT_BINDINGS_FIREWALL_TZC400_H
+
+#define	DT_TZC_REGION_S_NONE	0
+#define	DT_TZC_REGION_S_RD	1
+#define	DT_TZC_REGION_S_WR	2
+#define	DT_TZC_REGION_S_RDWR	3
+
+#define DT_REGION_ID_ACCESS_NSAID_WR_EN_SHIFT	16
+#define DT_REGION_ID_ACCESS_NSAID_RD_EN_SHIFT	0
+#define DT_REGION_ID_ACCESS_NSAID_ID_MASK	0xf
+
+#define DT_TZC_REGION_ACCESS_RD(id)					\
+		((1 << ((id) & DT_REGION_ID_ACCESS_NSAID_ID_MASK)) <<	\
+		 DT_REGION_ID_ACCESS_NSAID_RD_EN_SHIFT)
+
+#define DT_TZC_REGION_ACCESS_WR(id)					\
+		((1 << ((id) & DT_REGION_ID_ACCESS_NSAID_ID_MASK)) <<	\
+		 DT_REGION_ID_ACCESS_NSAID_WR_EN_SHIFT)
+
+#define DT_TZC_REGION_ACCESS_RDWR(id)					\
+		(DT_TZC_REGION_ACCESS_RD(id) | DT_TZC_REGION_ACCESS_WR(id))
+
+#endif /* _DT_BINDINGS_FIREWALL_TZC400_H */
