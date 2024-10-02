@@ -1011,6 +1011,7 @@
 			#dma-cells = <4>;
 			st,mem2mem;
 			dma-requests = <8>;
+			status = "disabled";
 		};
 
 		dma2: dma-controller@48001000 {
@@ -1029,6 +1030,7 @@
 			#dma-cells = <4>;
 			st,mem2mem;
 			dma-requests = <8>;
+			status = "disabled";
 		};
 
 		dmamux1: dma-router@48002000 {
@@ -1040,6 +1042,7 @@
 			dma-channels = <16>;
 			clocks = <&rcc DMAMUX>;
 			resets = <&rcc DMAMUX_R>;
+			status = "disabled";
 		};
 
 		adc: adc@48003000 {
