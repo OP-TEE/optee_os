@@ -511,6 +511,15 @@ int fdt_find_cached_parent_node(const void *fdt, int node_offset,
  */
 int fdt_find_cached_parent_reg_cells(const void *fdt, int node_offset,
 				     int *address_cells, int *size_cells);
+/*
+ * Find the node offset from its phandle in the phandle cache
+ * @fdt: FDT to work on
+ * @phandle: Node phandle
+ * @node_offset: Pointer to output node offset upon success
+ * @return 0 on success and -FDT_ERR_NOTFOUND on failure
+ */
+int fdt_find_cached_node_phandle(const void *fdt, uint32_t phandle,
+				 int *node_offset);
 #else
 static inline int fdt_find_cached_parent_node(const void *fdt __unused,
 					      int node_offset __unused,
@@ -523,6 +532,13 @@ static inline int fdt_find_cached_parent_reg_cells(const void *fdt __unused,
 						   int node_offset __unused,
 						   int *address_cells __unused,
 						   int *size_cells __unused)
+{
+	return -1;
+}
+
+static inline int fdt_find_cached_node_phandle(const void *fdt __unused,
+					       uint32_t phandle __unused,
+					       int *node_offset __unused)
 {
 	return -1;
 }

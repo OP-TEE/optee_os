@@ -626,6 +626,101 @@ static TEE_Result add_parent_node_info(const void *fdt __maybe_unused,
 	return TEE_SUCCESS;
 }
 
+/*
+ * struct phandle_cache Cache node offsets related to DT phandle
+ * @node_offset: Node offset in FTD @cached_node_info_fdt
+ * @phandle: Phandle associated to @node_offset
+ */
+struct phandle_cache {
+	int node_offset;
+	uint32_t phandle;
+};
+
+static struct {
+	struct phandle_cache *array;
+	size_t count;
+	size_t alloced_count;
+} phandle_cache;
+
+static int cmp_phandle_cache(const void *a, const void *b)
+{
+	const struct phandle_cache *cell_a = a;
+	const struct phandle_cache *cell_b = b;
+
+	return CMP_TRILEAN(cell_a->phandle, cell_b->phandle);
+}
+
+int fdt_find_cached_node_phandle(const void *fdt, uint32_t phandle,
+				 int *node_offset)
+{
+	struct phandle_cache *cell = NULL;
+	struct phandle_cache target = {
+		.phandle = phandle,
+	};
+
+	if (!cached_node_info_fdt || fdt != cached_node_info_fdt)
+		return -FDT_ERR_NOTFOUND;
+
+	cell = bisect_equal(phandle_cache.array, phandle_cache.count,
+			    sizeof(*cell), &target, cmp_phandle_cache);
+
+	if (!cell)
+		return -FDT_ERR_NOTFOUND;
+
+	*node_offset = cell->node_offset;
+
+	return 0;
+}
+
+static void release_phandle_cache(void)
+{
+	free(phandle_cache.array);
+	phandle_cache.array = NULL;
+	phandle_cache.count = 0;
+	phandle_cache.alloced_count = 0;
+}
+
+static TEE_Result enlarge_node_phandle_cache(void)
+{
+	if (phandle_cache.count + 1 > phandle_cache.alloced_count) {
+		/* Allocate by chunk of 64 cells for efficiency */
+		size_t new_count = phandle_cache.alloced_count + 64;
+		struct phandle_cache *new = NULL;
+
+		new = realloc(phandle_cache.array, sizeof(*new) * new_count);
+		if (!new)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
+		phandle_cache.array = new;
+		phandle_cache.alloced_count = new_count;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result add_node_phandle_info(const void *fdt __maybe_unused,
+					int node_offset)
+{
+	uint32_t phandle = fdt_get_phandle(fdt, node_offset);
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (phandle <= 0)
+		return TEE_SUCCESS;
+
+	res = enlarge_node_phandle_cache();
+	if (res)
+		return res;
+
+	phandle_cache.array[phandle_cache.count] = (struct phandle_cache){
+		.node_offset = node_offset,
+		.phandle = phandle,
+	};
+
+	phandle_cache.count++;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result add_node_cached_info(const void *fdt, int node_offset)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -648,6 +743,10 @@ static TEE_Result add_node_cached_info(const void *fdt, int node_offset)
 		if (res)
 			return res;
 
+		res = add_node_phandle_info(fdt, subnode_offset);
+		if (res)
+			return res;
+
 		res = add_node_cached_info(fdt, subnode_offset);
 		if (res)
 			return res;
@@ -659,6 +758,7 @@ static TEE_Result add_node_cached_info(const void *fdt, int node_offset)
 static TEE_Result release_cached_node_info(void)
 {
 	release_parent_node_cache();
+	release_phandle_cache();
 
 	cached_node_info_fdt = NULL;
 
@@ -684,6 +784,9 @@ static void init_cached_node_info(const void *fdt)
 	 */
 	bisect_sort(parent_node_cache.array, parent_node_cache.count,
 		    sizeof(*parent_node_cache.array), cmp_parent_node_cache);
+
+	bisect_sort(phandle_cache.array, phandle_cache.count,
+		    sizeof(*phandle_cache.array), cmp_phandle_cache);
 
 	cached_node_info_fdt = fdt;
 }
