@@ -7,6 +7,7 @@
 /dts-v1/;
 
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
+#include <dt-bindings/firewall/stm32mp13-tzc400.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/stm32mp_gpio.h>
 #include <dt-bindings/regulator/st,stm32mp13-regulator.h>
@@ -40,6 +41,7 @@
 		optee_framebuffer: optee-framebuffer@dd000000 {
 			/* Secure framebuffer memory */
 			reg = <0xdd000000 0x1000000>;
+			st,protreg = <DT_TZC_REGION_S_RDWR 0>;
 			no-map;
 		};
 	};
@@ -495,6 +497,10 @@
 
 &sdmmc2_io {
 	vddsd2-supply = <&vdd>;
+};
+
+&tzc400 {
+	memory-region = <&optee_framebuffer>;
 };
 
 &uart4 {
