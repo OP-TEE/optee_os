@@ -496,8 +496,12 @@ void *get_secure_dt(void)
 	return fdt;
 }
 
+#if defined(CFG_EMBED_DTB)
 #ifdef CFG_DT_CACHED_NODE_INFO
-/* Reference to the FDT for which node information are cached */
+/*
+ * Reference to the embedded DT for which node information are cached
+ * when CFG_DT_CACHED_NODE_INFO is enabled.
+ */
 static const void *cached_node_info_fdt;
 
 /*
@@ -796,7 +800,6 @@ static void init_cached_node_info(const void *fdt __unused)
 }
 #endif /* CFG_DT_CACHED_NODE_INFO */
 
-#if defined(CFG_EMBED_DTB)
 void *get_embedded_dt(void)
 {
 	static bool checked;
