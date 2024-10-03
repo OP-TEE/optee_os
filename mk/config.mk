@@ -1035,7 +1035,8 @@ endif
 CFG_CALLOUT ?= $(CFG_CORE_ASYNC_NOTIF)
 
 # Enable notification based test watchdog
-CFG_NOTIF_TEST_WD ?= $(CFG_ENABLE_EMBEDDED_TESTS)
+CFG_NOTIF_TEST_WD ?= $(call cfg-all-enabled,CFG_ENABLE_EMBEDDED_TESTS \
+		       CFG_CALLOUT CFG_CORE_ASYNC_NOTIF)
 $(eval $(call cfg-depends-all,CFG_NOTIF_TEST_WD,CFG_CALLOUT \
 	 CFG_CORE_ASYNC_NOTIF))
 
