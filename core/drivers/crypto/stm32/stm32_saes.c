@@ -1350,15 +1350,9 @@ out:
 static TEE_Result stm32_saes_parse_fdt(struct stm32_saes_platdata *pdata,
 				       const void *fdt, int node)
 {
-	struct dt_node_info dt_saes = { };
 	TEE_Result res = TEE_ERROR_GENERIC;
-
-	dt_saes.reg = fdt_reg_base_address(fdt, node);
-	dt_saes.reg_size = fdt_reg_size(fdt, node);
-
-	if (dt_saes.reg == DT_INFO_INVALID_REG ||
-	    dt_saes.reg_size == DT_INFO_INVALID_REG_SIZE)
-		return TEE_ERROR_BAD_PARAMETERS;
+	size_t reg_size = 0;
+	paddr_t reg = 0;
 
 	res = clk_dt_get_by_name(fdt, node, "bus", &pdata->clk);
 	if (res != TEE_SUCCESS)
@@ -1372,8 +1366,10 @@ static TEE_Result stm32_saes_parse_fdt(struct stm32_saes_platdata *pdata,
 	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
 		return res;
 
-	pdata->base = (vaddr_t)phys_to_virt(dt_saes.reg, MEM_AREA_IO_SEC,
-					    dt_saes.reg_size);
+	if (fdt_reg_info(fdt, node, &reg, &reg_size))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	pdata->base = (vaddr_t)phys_to_virt(reg, MEM_AREA_IO_SEC, reg_size);
 	if (!pdata->base)
 		panic();
 
