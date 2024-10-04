@@ -250,7 +250,7 @@ TEE_Result clk_get_duty_cycle(struct clk *clk,
 /**
  * clk_print_tree() - Print current clock tree summary to output console
  *
- * The clock is printed with the debug trace level.
+ * The clock is printed with the info trace level.
  */
 void clk_print_tree(void);
 #else
