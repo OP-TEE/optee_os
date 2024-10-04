@@ -175,6 +175,17 @@ paddr_t fdt_reg_base_address(const void *fdt, int offs);
 size_t fdt_reg_size(const void *fdt, int offs);
 
 /*
+ * Read the base address and/or reg size for the "reg" property of the
+ * specified node.
+ * @fdt: Reference to the Device Tree
+ * @offs: Offset to the node to read "reg" property from
+ * @base: Pointer to the output base address value, or NULL
+ * @size: Pointer to the output size value, or NULL
+ * Returns 0 on success and a negative FDT error value in case of failure
+ */
+int fdt_reg_info(const void *fdt, int offs, paddr_t *base, size_t *size);
+
+/*
  * Read the status and secure-status properties into a bitfield.
  * Return -1 on failure, DT_STATUS_DISABLED if the node is disabled,
  * otherwise return a combination of DT_STATUS_OK_NSEC and DT_STATUS_OK_SEC.
@@ -350,6 +361,12 @@ static inline size_t fdt_reg_size(const void *fdt __unused,
 				  int offs __unused)
 {
 	return (size_t)-1;
+}
+
+static inline int fdt_reg_info(const void *fdt __unused, int offs __unused,
+			       paddr_t *base __unused, size_t *size __unused)
+{
+	return -1;
 }
 
 static inline int fdt_get_status(const void *fdt __unused, int offs __unused)

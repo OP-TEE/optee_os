@@ -110,11 +110,7 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size,
 	if (st == DT_STATUS_DISABLED)
 		return -1;
 
-	pbase = fdt_reg_base_address(fdt, offs);
-	if (pbase == DT_INFO_INVALID_REG)
-		return -1;
-	sz = fdt_reg_size(fdt, offs);
-	if (sz == DT_INFO_INVALID_REG_SIZE)
+	if (fdt_reg_info(fdt, offs, &pbase, &sz))
 		return -1;
 
 	switch (mapping) {
@@ -176,30 +172,6 @@ bad:
 
 }
 
-paddr_t fdt_reg_base_address(const void *fdt, int offs)
-{
-	const void *reg = NULL;
-	int ncells = 0;
-	int len = 0;
-	int parent = 0;
-
-	reg = fdt_getprop(fdt, offs, "reg", &len);
-	if (!reg)
-		return DT_INFO_INVALID_REG;
-
-	if (fdt_find_cached_parent_reg_cells(fdt, offs, &ncells, NULL)) {
-		parent = fdt_parent_offset(fdt, offs);
-		if (parent < 0)
-			return DT_INFO_INVALID_REG;
-
-		ncells = fdt_address_cells(fdt, parent);
-		if (ncells < 0)
-			return DT_INFO_INVALID_REG;
-	}
-
-	return fdt_read_paddr(reg, ncells);
-}
-
 static size_t fdt_read_size(const uint32_t *cell, int n)
 {
 	uint32_t sz = 0;
@@ -216,38 +188,72 @@ static size_t fdt_read_size(const uint32_t *cell, int n)
 	return sz;
 }
 
-size_t fdt_reg_size(const void *fdt, int offs)
+int fdt_reg_info(const void *fdt, int offs, paddr_t *base, size_t *size)
 {
-	const uint32_t *reg = NULL;
-	int n = 0;
-	int len = 0;
+	const fdt32_t *reg = NULL;
+	int addr_ncells = 0;
+	int size_ncells = 0;
 	int parent = 0;
-	int addr_cells = 0;
+	int len = 0;
 
 	reg = (const uint32_t *)fdt_getprop(fdt, offs, "reg", &len);
 	if (!reg)
-		return DT_INFO_INVALID_REG_SIZE;
+		return -FDT_ERR_NOTFOUND;
 
-	if (fdt_find_cached_parent_reg_cells(fdt, offs, &addr_cells, &n) == 0) {
-		reg += addr_cells;
-	} else {
+	if (fdt_find_cached_parent_reg_cells(fdt, offs, &addr_ncells,
+					     &size_ncells) != 0) {
 		parent = fdt_parent_offset(fdt, offs);
 		if (parent < 0)
-			return DT_INFO_INVALID_REG_SIZE;
+			return -FDT_ERR_NOTFOUND;
 
-		n = fdt_address_cells(fdt, parent);
-		if (n < 1 || n > 2)
-			return DT_INFO_INVALID_REG_SIZE;
+		addr_ncells = fdt_address_cells(fdt, parent);
+		if (addr_ncells < 0)
+			return -FDT_ERR_NOTFOUND;
 
-		reg += n;
-
-		n = fdt_size_cells(fdt, parent);
+		size_ncells = fdt_size_cells(fdt, parent);
+		if (size_ncells < 0)
+			return -FDT_ERR_NOTFOUND;
 	}
 
-	if (n < 1 || n > 2)
+	if ((size_t)len < addr_ncells * sizeof(*reg))
+		return -FDT_ERR_BADSTRUCTURE;
+
+	if (base) {
+		*base = fdt_read_paddr(reg, addr_ncells);
+		if (*base == DT_INFO_INVALID_REG)
+			return -FDT_ERR_NOTFOUND;
+	}
+
+	if (size) {
+		if ((size_t)len < (addr_ncells + size_ncells) * sizeof(*reg))
+			return -FDT_ERR_BADSTRUCTURE;
+
+		*size = fdt_read_size(reg + addr_ncells, size_ncells);
+		if (*size == DT_INFO_INVALID_REG_SIZE)
+			return -FDT_ERR_NOTFOUND;
+	}
+
+	return 0;
+}
+
+paddr_t fdt_reg_base_address(const void *fdt, int offs)
+{
+	paddr_t base = 0;
+
+	if (fdt_reg_info(fdt, offs, &base, NULL))
+		return DT_INFO_INVALID_REG;
+
+	return base;
+}
+
+size_t fdt_reg_size(const void *fdt, int offs)
+{
+	size_t size = 0;
+
+	if (fdt_reg_info(fdt, offs, NULL, &size))
 		return DT_INFO_INVALID_REG_SIZE;
 
-	return fdt_read_size(reg, n);
+	return size;
 }
 
 static bool is_okay(const char *st, int len)
@@ -293,24 +299,9 @@ void fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
 		.interrupt = DT_INFO_INVALID_INTERRUPT,
 	};
 	const fdt32_t *cuint = NULL;
-	int addr_cells = 0;
-	int size_cells = 0;
 
-	if (fdt_find_cached_parent_reg_cells(fdt, offs, &addr_cells,
-					     &size_cells) == 0) {
-		int len = 0;
-
-		cuint = fdt_getprop(fdt, offs, "reg", &len);
-		if (cuint &&
-		    (size_t)len == (addr_cells + size_cells) * sizeof(*cuint)) {
-			dinfo.reg = fdt_read_paddr(cuint, addr_cells);
-			dinfo.reg_size = fdt_read_size(cuint + addr_cells,
-						       size_cells);
-		}
-	} else {
-		dinfo.reg = fdt_reg_base_address(fdt, offs);
-		dinfo.reg_size = fdt_reg_size(fdt, offs);
-	}
+	/* Intentionally discard fdt_reg_info() return value */
+	fdt_reg_info(fdt, offs, &dinfo.reg, &dinfo.reg_size);
 
 	cuint = fdt_getprop(fdt, offs, "clocks", NULL);
 	if (cuint) {
