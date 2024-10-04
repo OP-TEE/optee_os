@@ -295,10 +295,8 @@ static TEE_Result stm32_rproc_parse_mems(struct stm32_rproc_instance *rproc,
 			goto err;
 		}
 
-		regions[i].addr = fdt_reg_base_address(fdt, pnode);
-		regions[i].size = fdt_reg_size(fdt, pnode);
-
-		if (regions[i].addr <= 0 || regions[i].size <= 0) {
+		if (fdt_reg_info(fdt, pnode, &regions[i].addr,
+				 &regions[i].size)) {
 			res = TEE_ERROR_GENERIC;
 			goto err;
 		}

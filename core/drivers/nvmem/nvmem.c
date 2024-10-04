@@ -10,19 +10,8 @@
 TEE_Result nvmem_cell_parse_dt(const void *fdt, int nodeoffset,
 			       struct nvmem_cell *cell)
 {
-	size_t buf_len = 0;
-	paddr_t offset = 0;
-
-	buf_len = fdt_reg_size(fdt, nodeoffset);
-	if (buf_len == DT_INFO_INVALID_REG_SIZE)
+	if (fdt_reg_info(fdt, nodeoffset, &cell->offset, &cell->len))
 		return TEE_ERROR_GENERIC;
-
-	offset = fdt_reg_base_address(fdt, nodeoffset);
-	if (offset == DT_INFO_INVALID_REG)
-		return TEE_ERROR_GENERIC;
-
-	cell->len = buf_len;
-	cell->offset = offset;
 
 	return TEE_SUCCESS;
 }
