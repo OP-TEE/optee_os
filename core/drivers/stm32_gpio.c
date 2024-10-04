@@ -941,15 +941,10 @@ static TEE_Result dt_stm32_gpio_bank(const void *fdt, int node,
 	 * Do not rely *only* on the "reg" property to get the address,
 	 * but consider also the "ranges" translation property
 	 */
-	pa = fdt_reg_base_address(fdt, node);
-	if (pa == DT_INFO_INVALID_REG)
-		panic("missing reg property");
+	if (fdt_reg_info(fdt, node, &pa, &blen))
+		panic("missing reg or reg size property");
 
 	pa_va.pa = pa + range_offset;
-
-	blen = fdt_reg_size(fdt, node);
-	if (blen == DT_INFO_INVALID_REG_SIZE)
-		panic("missing reg size property");
 
 	DMSG("Bank name %s", fdt_get_name(fdt, node, NULL));
 	bank->bank_id = dt_get_bank_id(fdt, node);

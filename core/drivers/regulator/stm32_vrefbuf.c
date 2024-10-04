@@ -343,10 +343,7 @@ static TEE_Result stm32_vrefbuf_regulator_probe(const void *fdt, int node,
 	if (!regu_name)
 		panic();
 
-	reg_base = fdt_reg_base_address(fdt, node);
-	reg_size = fdt_reg_size(fdt, node);
-	if (reg_base == DT_INFO_INVALID_REG ||
-	    reg_size == DT_INFO_INVALID_REG_SIZE)
+	if (fdt_reg_info(fdt, node, &reg_base, &reg_size))
 		panic();
 
 	vr->base = (vaddr_t)phys_to_virt(reg_base, MEM_AREA_IO_SEC, reg_size);
