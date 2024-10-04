@@ -362,15 +362,8 @@ static bool dtb_get_sdp_region(void)
 			     fdt_get_name(fdt, tmp_node, NULL));
 	}
 
-	tmp_addr = fdt_reg_base_address(fdt, node);
-	if (tmp_addr == DT_INFO_INVALID_REG) {
-		EMSG("%s: Unable to get base addr from DT", tz_sdp_match);
-		return false;
-	}
-
-	tmp_size = fdt_reg_size(fdt, node);
-	if (tmp_size == DT_INFO_INVALID_REG_SIZE) {
-		EMSG("%s: Unable to get size of base addr from DT",
+	if (fdt_reg_info(fdt, node, &tmp_addr, &tmp_size)) {
+		EMSG("%s: Unable to get base addr or size from DT",
 		     tz_sdp_match);
 		return false;
 	}
