@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
  * Copyright (C) 2020-2024, STMicroelectronics - All Rights Reserved
  */
 
 #ifndef _DT_BINDINGS_FIREWALL_STM32MP13_TZC400_H
 #define _DT_BINDINGS_FIREWALL_STM32MP13_TZC400_H
+
+#include <dt-bindings/firewall/tzc400.h>
 
 /* NSAID */
 #define STM32MP1_TZC_A7_ID		0
