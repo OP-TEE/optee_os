@@ -1,3 +1,5 @@
+CFG_FTPM_EMULATE_PPI ?= n
+
 #
 # The fTPM needs to overwrite some of the header files used in the
 # reference implementation. The search order GCC uses is dependent on the

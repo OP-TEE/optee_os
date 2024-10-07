@@ -36,6 +36,7 @@
 
 #define STR_TRACE_USER_TA "fTPM"
 
+#include <config.h>
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
 #include <string.h>
@@ -467,6 +468,8 @@ TEE_Result TA_InvokeCommandEntryPoint(void      *sess_ctx,
         }
 
         case TA_FTPM_EMULATE_PPI: {
+            if (!IS_ENABLED(CFG_FTPM_EMULATE_PPI))
+                return TEE_ERROR_NOT_SUPPORTED;
             return fTPM_Emulate_PPI(param_types, params);
         }
 
