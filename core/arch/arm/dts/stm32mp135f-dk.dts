@@ -7,7 +7,7 @@
 /dts-v1/;
 
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
-#include <dt-bindings/firewall/tzc400.h>
+#include <dt-bindings/firewall/stm32mp13-tzc400.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/stm32mp_gpio.h>
 #include <dt-bindings/regulator/st,stm32mp13-regulator.h>
