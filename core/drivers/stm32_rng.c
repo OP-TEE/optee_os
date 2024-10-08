@@ -670,13 +670,13 @@ static TEE_Result stm32_rng_probe(const void *fdt, int offs,
 	if (res)
 		goto err;
 
-#if defined(CFG_STM32MP15)
+#if defined(CFG_STM32MP15) && defined(CFG_STM32_ETZPC)
 	/* Only STM32MP15 requires a software registering of RNG secure state */
-	if (IS_ENABLED(CFG_WITH_SOFTWARE_PRNG))
+	if (etzpc_get_decprot(STM32MP1_ETZPC_RNG1_ID) == ETZPC_DECPROT_NS_RW)
 		stm32mp_register_non_secure_periph_iomem(stm32_rng->base.pa);
 	else
 		stm32mp_register_secure_periph_iomem(stm32_rng->base.pa);
-#endif /* defined(CFG_STM32MP15) */
+#endif /* defined(CFG_STM32MP15) && defined(CFG_STM32_ETZPC) */
 
 	/* Power management implementation expects both or none are set */
 	assert(stm32_rng->ddata->has_power_optim ==
