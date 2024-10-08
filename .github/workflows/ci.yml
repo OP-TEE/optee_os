@@ -356,6 +356,45 @@ jobs:
           make -j$(nproc) check CFG_PAN=y
           make -j$(nproc) check CFG_WITH_PAGER=y
 
+  QEMUv8_clang_check:
+    name: make check (QEMUv8, Clang)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemu_check
+    steps:
+      - name: Remove /__t/*
+        run: rm -rf /__t/*
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_check-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_check-cache-
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_ATTESTATION_PTA=y
+          export CFG_ATTESTATION_PTA_KEY_SIZE=1024
+          export COMPILER=clang
+          OPTEE_OS_TO_TEST=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee.sh qemu_v8 ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          make -j$(nproc) check
+
   QEMUv8_Xen_check:
     name: make check (QEMUv8, Xen)
     runs-on: ubuntu-latest
