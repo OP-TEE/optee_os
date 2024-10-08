@@ -8,6 +8,7 @@
  */
 
 #include <assert.h>
+#include <kernel/mutex.h>
 #include <malloc.h>
 #include <platform_config.h>
 #include <string.h>
@@ -20,6 +21,7 @@
 #include "ti_sci_protocol.h"
 
 static uint8_t message_sequence;
+static struct mutex ti_sci_mutex_lock = MUTEX_INITIALIZER;
 
 /**
  * struct ti_sci_xfer - Structure representing a message flow
@@ -136,11 +138,13 @@ static inline int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 	struct k3_sec_proxy_msg *msg = &xfer->tx_message;
 	int ret = 0;
 
+	mutex_lock(&ti_sci_mutex_lock);
+
 	/* Send the message */
 	ret = k3_sec_proxy_send(msg);
 	if (ret) {
 		EMSG("Message sending failed (%d)", ret);
-		return ret;
+		goto unlock;
 	}
 
 	/* Get the response */
@@ -148,10 +152,12 @@ static inline int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 	if (ret) {
 		if ((TEE_Result)ret != TEE_ERROR_ACCESS_DENIED)
 			EMSG("Failed to get response (%d)", ret);
-		return ret;
+		goto unlock;
 	}
 
-	return 0;
+unlock:
+	mutex_unlock(&ti_sci_mutex_lock);
+	return ret;
 }
 
 int ti_sci_get_revision(struct ti_sci_msg_resp_version *rev_info)
