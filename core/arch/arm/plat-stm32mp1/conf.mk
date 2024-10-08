@@ -58,6 +58,9 @@ flavorlist-MP15 = $(flavor_dts_file-157A_DHCOR_AVENGER96) \
 
 flavorlist-MP13 = $(flavor_dts_file-135F_DK)
 
+flavorlist-dh-platforms = $(flavor_dts_file-157A_DHCOR_AVENGER96) \
+			  $(flavor_dts_file-157C_DHCOM_PDK2)
+
 ifneq ($(PLATFORM_FLAVOR),)
 ifeq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
 $(error Invalid platform flavor $(PLATFORM_FLAVOR))
@@ -87,6 +90,10 @@ endif
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP15)),)
 $(call force,CFG_STM32MP15,y)
+endif
+
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-dh-platforms)),)
+CFG_STM32_ALLOW_UNSAFE_PROBE ?= y
 endif
 
 # CFG_STM32MP1x switches are exclusive.
@@ -416,3 +423,6 @@ CFG_DRIVERS_FIREWALL ?= y
 ifeq ($(CFG_STM32_ETZPC),y)
 $(call force,CFG_DRIVERS_FIREWALL,y)
 endif
+
+# Allow probing of unsafe peripherals. Firewall config will not be checked
+CFG_STM32_ALLOW_UNSAFE_PROBE ?= n
