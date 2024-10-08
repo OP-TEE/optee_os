@@ -91,13 +91,6 @@ void virt_init_memory(struct memory_map *mem_map, paddr_t secmem0_base,
 struct memory_map *virt_get_memory_map(void);
 
 /**
- * virt_get_ta_ram() - get TA RAM mapping for current VM
- * @start: beginning of TA RAM returned here
- * @end: end of TA RAM returned here
- */
-void virt_get_ta_ram(vaddr_t *start, vaddr_t *end);
-
-/**
  * virt_get_current_guest_id() - return current guest ID
  *
  * Returns current guest ID or 0 if none is set.
@@ -201,8 +194,6 @@ static inline TEE_Result virt_set_guest(uint16_t guest_id __unused)
 static inline void virt_unset_guest(void) { }
 static inline void virt_on_stdcall(void) { }
 static inline struct memory_map *virt_get_memory_map(void) { return NULL; }
-static inline void
-virt_get_ta_ram(vaddr_t *start __unused, vaddr_t *end __unused) { }
 static inline void virt_init_memory(struct memory_map *mem_map __unused,
 				    paddr_t secmem0_base __unused,
 				    paddr_size_t secmem0_size __unused,
