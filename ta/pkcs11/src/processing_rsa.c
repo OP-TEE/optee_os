@@ -777,3 +777,22 @@ size_t rsa_get_input_max_byte_size(TEE_OperationHandle op)
 
 	return info.maxKeySize / 8;
 }
+
+enum pkcs11_rc pkcs2tee_rsa_nopad_context(struct active_processing *proc)
+{
+	size_t key_size = 0;
+
+	/*
+	 * RSA no-pad (CKM_RSA_X_509) verify needs a buffer of the size
+	 * of the key to safely run.
+	 */
+	key_size = rsa_get_input_max_byte_size(proc->tee_op_handle);
+	if (!key_size)
+		return PKCS11_CKR_GENERAL_ERROR;
+
+	proc->extra_ctx = TEE_Malloc(key_size, TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!proc->extra_ctx)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	return PKCS11_CKR_OK;
+}
