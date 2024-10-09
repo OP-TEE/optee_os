@@ -144,10 +144,20 @@ TEE_Result stm32_gate_wait_ready(uint16_t gate_id, bool ready_on)
 static TEE_Result stm32_gate_ready_endisable(uint16_t gate_id, bool enable,
 					     bool wait_rdy)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
+
 	stm32_gate_endisable(gate_id, enable);
 
-	if (wait_rdy)
-		return stm32_gate_wait_ready(gate_id + 1, enable);
+	if (wait_rdy) {
+		res = stm32_gate_wait_ready(gate_id + 1, enable);
+		if (res) {
+			stm32_gate_endisable(gate_id, !enable);
+			if (stm32_gate_wait_ready(gate_id + 1, !enable))
+				panic("Gate failed to sync");
+
+			return res;
+		}
+	}
 
 	return TEE_SUCCESS;
 }
