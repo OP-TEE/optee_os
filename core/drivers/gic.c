@@ -508,7 +508,7 @@ static void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
 	vers &= GICD_PIDR2_ARCHREV_MASK;
 
 	if (IS_ENABLED(CFG_ARM_GICV3)) {
-		assert(vers == 3);
+		assert(vers == 4 || vers == 3);
 	} else {
 		assert(vers == 2 || vers == 1);
 		gicc_base = core_mmu_get_va(gicc_base_pa, MEM_AREA_IO_SEC,
