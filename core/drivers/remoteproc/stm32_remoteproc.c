@@ -16,6 +16,7 @@
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <stm32_util.h>
 
 #define TIMEOUT_US_1MS	U(1000)
 
@@ -303,6 +304,16 @@ static TEE_Result stm32_rproc_parse_mems(struct stm32_rproc_instance *rproc,
 			res = TEE_ERROR_GENERIC;
 			goto err;
 		}
+
+#if defined(CFG_STM32MP15)
+		if (stm32mp1_ram_intersect_pager_ram(regions[i].addr,
+						     regions[i].size)) {
+			EMSG("Region %#"PRIxPA"..%#"PRIxPA" intersects pager secure memory",
+			     regions[i].addr,
+			     regions[i].addr + regions[i].size);
+			return TEE_ERROR_GENERIC;
+		}
+#endif
 
 		res = stm32_rproc_get_dma_range(&regions[i], fdt, node);
 		if (res)
