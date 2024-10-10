@@ -485,8 +485,15 @@ static TEE_Result stm32_etzpc_configure(struct firewall_query *firewall)
 		attr = etzpc_binding2decprot(mode);
 
 		if (decprot_is_locked(id)) {
-			EMSG("Peripheral configuration locked");
-			return TEE_ERROR_ACCESS_DENIED;
+			if (etzpc_get_decprot(id) != attr) {
+				EMSG("Peripheral configuration locked");
+				return TEE_ERROR_ACCESS_DENIED;
+			}
+
+			DMSG("Compliant locked config for periph %"PRIu32" - attr %s",
+			     id, etzpc_decprot_strings[attr]);
+
+			return TEE_SUCCESS;
 		}
 
 #ifdef CFG_STM32MP15
