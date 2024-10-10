@@ -557,4 +557,12 @@ paddr_t stm32mp1_pa_or_sram_alias_pa(paddr_t pa)
 
 	return pa;
 }
+
+bool stm32mp1_ram_intersect_pager_ram(paddr_t base, size_t size)
+{
+	base = stm32mp1_pa_or_sram_alias_pa(base);
+
+	return core_is_buffer_intersect(base, size, CFG_TZSRAM_START,
+					CFG_TZSRAM_SIZE);
+}
 #endif
