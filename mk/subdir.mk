@@ -23,33 +23,18 @@ asm-defines-files :=
 
 uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 
-define process-subdir-srcs-y
-ifeq ($$(sub-dir),.)
-srcs 				+= $1
-oname				:= $(out-dir)/$(base-prefix)$(basename $1).o
-else
-ifneq ($(filter /%,$(1)),)
-# $1 is an absolute path - start with "/"
-srcs 				+= $1
-oname				:= $(out-dir)/$(base-prefix)$(basename $1).o
-else
-srcs				+= $(sub-dir)/$1
-oname				:= $(out-dir)/$(base-prefix)$(basename $$(sub-dir)/$1).o
-endif
-endif
-cflags-$$(oname) 		:= $$(cflags-y) $$(cflags-$(1)-y)
-cflags-remove-$$(oname) 	:= $$(cflags-remove-y) \
-					$$(cflags-remove-$(1)-y)
-cxxflags-$$(oname) 		:= $$(cxxflags-y) $$(cxxflags-$(1)-y)
-cxxflags-remove-$$(oname) 	:= $$(cxxflags-remove-y) \
-					$$(cxxflags-remove-$(1)-y)
-cppflags-$$(oname) 		:= $$(cppflags-y) $$(cppflags-$(1)-y)
-cppflags-remove-$$(oname) 	:= $$(cppflags-remove-y) \
-					$$(cppflags-remove-$(1)-y)
-aflags-$$(oname) 		:= $$(aflags-y) $$(aflags-$(1)-y)
-aflags-remove-$$(oname) 	:= $$(aflags-remove-y) \
-					$$(aflags-remove-$(1)-y)
-incdirs-$$(oname)		:= $$(thissubdir-incdirs) $$(addprefix $(sub-dir)/,$$(incdirs-$(1)-y))
+define process-file-vars-helper
+# $1 is local source file name
+# $2 is output file name
+cflags-$(2) 		:= $$(cflags-y) $$(cflags-$(1)-y)
+cflags-remove-$(2) 	:= $$(cflags-remove-y) $$(cflags-remove-$(1)-y)
+cxxflags-$(2) 		:= $$(cxxflags-y) $$(cxxflags-$(1)-y)
+cxxflags-remove-$(2) 	:= $$(cxxflags-remove-y) $$(cxxflags-remove-$(1)-y)
+cppflags-$(2) 		:= $$(cppflags-y) $$(cppflags-$(1)-y)
+cppflags-remove-$(2) 	:= $$(cppflags-remove-y) $$(cppflags-remove-$(1)-y)
+aflags-$(2) 		:= $$(aflags-y) $$(aflags-$(1)-y)
+aflags-remove-$(2) 	:= $$(aflags-remove-y) $$(aflags-remove-$(1)-y)
+incdirs-$(2)		:= $$(thissubdir-incdirs) $$(addprefix $(sub-dir)/,$$(incdirs-$(1)-y))
 # Clear local filename specific variables to avoid accidental reuse
 # in another subdirectory
 cflags-$(1)-y 			:=
@@ -64,8 +49,44 @@ cppflags-lib-y			:=
 aflags-$(1)-y 			:=
 aflags-remove-$(1)-y		:=
 incdirs-$(1)-y			:=
-fname				:=
-oname				:=
+endef #process-file-vars-helper
+
+define process-file-vars
+# $1 is local source file name
+# $2 is output file name
+# $3 is tree source file name
+oname-$(sm)-$3	:= $$(if $$(oname-$1-y),$(out-dir)/$(base-prefix)/$$(oname-$1-y),$2)
+$$(eval $$(call process-file-vars-helper,$1,$$(oname-$(sm)-$3)))
+endef
+
+define process-subdir-srcs-y
+ifeq ($$(sub-dir),.)
+srcs 		+= $1
+fname		:= $1
+oname		:= $(out-dir)/$(base-prefix)$(basename $1).o
+else
+ifneq ($(filter /%,$(1)),)
+# $1 is an absolute path - start with "/"
+srcs 		+= $1
+fname		:= $1
+oname		:= $(out-dir)/$(base-prefix)$(basename $1).o
+else
+srcs		+= $(sub-dir)/$1
+fname		:= $(sub-dir)/$1
+oname		:= $(out-dir)/$(base-prefix)$(basename $$(sub-dir)/$1).o
+endif
+endif
+$$(eval $$(call process-file-vars,$1,$$(oname),$$(fname)))
+endef #process-subdir-srcs-y
+
+define process-subdir-srcs_ext-y
+ifneq ($(filter /%,$(1)),)
+$$(error Absolute path not supported for srcs_ext-y: $(1))
+endif
+srcs		+= $2/$1
+fname		:= $2/$1
+oname		:= $(out-dir)/$(base-prefix)$(basename $$(sub-dir)/$1).o
+$$(eval $$(call process-file-vars,$1,$$(oname),$$(fname)))
 endef #process-subdir-srcs-y
 
 define process-subdir-gensrcs-helper
@@ -90,36 +111,7 @@ $2: $$(depends-$1)
 	$(q)mkdir -p $4
 	$(q)$$(recipe-$2)
 
-cflags-$$(oname) 		:= $$(cflags-y) $$(cflags-$(1)-y)
-cflags-remove-$$(oname) 	:= $$(cflags-remove-y) \
-					$$(cflags-remove-$(1)-y)
-cxxflags-$$(oname) 		:= $$(cxxflags-y) $$(cxxflags-$(1)-y)
-cxxflags-remove-$$(oname) 	:= $$(cxxflags-remove-y) \
-					$$(cxxflags-remove-$(1)-y)
-cppflags-$$(oname) 		:= $$(cppflags-y) $$(cppflags-$(1)-y)
-cppflags-remove-$$(oname) 	:= $$(cppflags-remove-y) \
-					$$(cppflags-remove-$(1)-y)
-aflags-$$(oname) 		:= $$(aflags-y) $$(aflags-$(1)-y)
-aflags-remove-$$(oname) 	:= $$(aflags-remove-y) \
-					$$(aflags-remove-$(1)-y)
-incdirs-$$(oname)		:= $$(thissubdir-incdirs) $$(addprefix $(sub-dir)/,$$(incdirs-$(1)-y))
-# Clear local filename specific variables to avoid accidental reuse
-# in another subdirectory
-cflags-$(1)-y 			:=
-cflags-remove-$(1)-y		:=
-cflags-lib-y			:=
-cxxflags-$(1)-y 			:=
-cxxflags-remove-$(1)-y		:=
-cxxflags-lib-y			:=
-cppflags-$(1)-y			:=
-cppflags-remove-$(1)-y		:=
-cppflags-lib-y			:=
-aflags-$(1)-y 			:=
-aflags-remove-$(1)-y		:=
-incdirs-$(1)-y			:=
-fname				:=
-oname				:=
-
+$$(eval $$(call process-file-vars,$1,$$(oname)))
 endef #process-subdir-gensrcs-helper
 
 define process-subdir-gensrcs-y
@@ -140,7 +132,7 @@ endif
 
 include $1/sub.mk
 sub-subdirs := $$(addprefix $1/,$$(subdirs-y)) $$(subdirs_ext-y)
-incdirs$(sm) := $(incdirs$(sm)) $$(addprefix $1/,$$(global-incdirs-y))
+incdirs$(sm) := $(incdirs$(sm)) $$(addprefix $1/,$$(global-incdirs-y)) $$(global-incdirs_ext-y)
 thissubdir-incdirs := $(out-dir)/$(base-prefix)$1 $$(addprefix $1/,$$(incdirs-y)) $$(incdirs_ext-y)
 ifneq ($$(libname),)
 incdirs-lib$$(libname)-$$(sm) := $$(incdirs-lib$$(libname)-$$(sm)) $$(addprefix $1/,$$(incdirs-lib-y))
@@ -152,9 +144,13 @@ endif
 # Process files in current directory
 $$(foreach g, $$(gensrcs-y), $$(eval $$(call process-subdir-gensrcs-y,$$(g))))
 $$(foreach s, $$(srcs-y), $$(eval $$(call process-subdir-srcs-y,$$(s))))
+$$(foreach s, $$(srcs_ext-y), $$(eval $$(call \
+	process-subdir-srcs_ext-y,$$(s),$$(firstword $$(srcs_ext_base-y)))))
 $$(foreach a, $$(asm-defines-y), $$(eval $$(call process-subdir-asm-defines-y,$$(a))))
 # Clear flags used when processing current directory
 srcs-y :=
+srcs_ext-y :=
+srcs_ext_base-y :=
 cflags-y :=
 cflags-lib-y :=
 cxxflags-y :=
@@ -168,6 +164,7 @@ aflags-remove-y :=
 subdirs-y :=
 subdirs_ext-y :=
 global-incdirs-y :=
+global-incdirs_ext-y :=
 incdirs-lib-y :=
 incdirs-y :=
 incdirs_ext-y :=
