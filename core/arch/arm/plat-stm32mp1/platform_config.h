@@ -235,6 +235,12 @@
 #endif
 
 #ifdef CFG_STM32MP15
+/* Alternate SRAM base address possibly used by remoteproc firmware */
+#define SRAM1_ALT_BASE			0x10000000
+#define SRAM2_ALT_BASE			0x10020000
+#define SRAM3_ALT_BASE			0x10040000
+#define SRAM4_ALT_BASE			0x10050000
+
 #define SRAM1_SIZE			0x20000
 #define SRAM2_SIZE			0x20000
 #define SRAM3_SIZE			0x10000
