@@ -536,3 +536,25 @@ bool stm32mp_allow_probe_shared_device(const void *fdt, int node)
 
 	return false;
 }
+
+#if defined(CFG_STM32MP15) && defined(CFG_WITH_PAGER)
+paddr_t stm32mp1_pa_or_sram_alias_pa(paddr_t pa)
+{
+	/*
+	 * OP-TEE uses the alias physical addresses of SRAM1/2/3/4,
+	 * not the standard physical addresses. This choice was initially
+	 * driven by pager that needs physically contiguous memories
+	 * for internal secure memories.
+	 */
+	if (core_is_buffer_inside(pa, 1, SRAM1_ALT_BASE, SRAM1_SIZE))
+		pa += SRAM1_BASE - SRAM1_ALT_BASE;
+	else if (core_is_buffer_inside(pa, 1, SRAM2_ALT_BASE, SRAM2_SIZE))
+		pa += SRAM2_BASE - SRAM2_ALT_BASE;
+	else if (core_is_buffer_inside(pa, 1, SRAM3_ALT_BASE, SRAM3_SIZE))
+		pa += SRAM3_BASE - SRAM3_ALT_BASE;
+	else if (core_is_buffer_inside(pa, 1, SRAM4_ALT_BASE, SRAM4_SIZE))
+		pa += SRAM4_BASE - SRAM4_ALT_BASE;
+
+	return pa;
+}
+#endif
