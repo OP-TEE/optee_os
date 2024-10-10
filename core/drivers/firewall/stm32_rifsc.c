@@ -293,12 +293,7 @@ static TEE_Result stm32_rifsc_parse_fdt(const void *fdt, int node,
 	struct io_pa_va base = { };
 	size_t reg_size = 0;
 
-	base.pa = fdt_reg_base_address(fdt, node);
-	if (base.pa == DT_INFO_INVALID_REG)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	reg_size = fdt_reg_size(fdt, node);
-	if (reg_size == DT_INFO_INVALID_REG_SIZE)
+	if (fdt_reg_info(fdt, node, &base.pa, &reg_size))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	pdata->base = io_pa_or_va_secure(&base, reg_size);

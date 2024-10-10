@@ -652,8 +652,12 @@ static TEE_Result stm32_risaf_probe(const void *fdt, int node,
 		if (pnode < 0)
 			continue;
 
-		regions[i].addr = fdt_reg_base_address(fdt, pnode);
-		regions[i].len = fdt_reg_size(fdt, pnode);
+		if (fdt_reg_info(fdt, pnode, &regions[i].addr,
+				 &regions[i].len)) {
+			EMSG("Invalid config in node %s",
+			     fdt_get_name(fdt, pnode, NULL));
+			panic();
+		}
 
 		if (!regions[i].len)
 			continue;

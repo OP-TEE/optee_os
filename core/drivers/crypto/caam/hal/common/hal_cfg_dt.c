@@ -69,15 +69,8 @@ void caam_hal_cfg_get_ctrl_dt(void *fdt, vaddr_t *ctrl_base)
 	 * already present in the MMU table.
 	 * Then get the virtual address of the CAAM controller
 	 */
-	pctrl_base = fdt_reg_base_address(fdt, node);
-	if (pctrl_base == DT_INFO_INVALID_REG) {
-		HAL_TRACE("CAAM control base address not defined");
-		return;
-	}
-
-	size = fdt_reg_size(fdt, node);
-	if (size == DT_INFO_INVALID_REG_SIZE) {
-		HAL_TRACE("CAAM control base address size not defined");
+	if (fdt_reg_info(fdt, node, &pctrl_base, &size)) {
+		HAL_TRACE("CAAM control base address or size not defined");
 		return;
 	}
 
