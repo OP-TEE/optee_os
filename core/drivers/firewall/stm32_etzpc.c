@@ -415,6 +415,52 @@ stm32_etzpc_acquire_memory_access(struct firewall_query *firewall,
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
+#ifdef CFG_STM32MP15
+static bool pager_permits_decprot_config(uint32_t decprot_id,
+					 enum etzpc_decprot_attributes attr)
+{
+	paddr_t ram_base = 0;
+	size_t ram_size = 0;
+
+	if (!IS_ENABLED(CFG_WITH_PAGER))
+		return true;
+
+	switch (decprot_id) {
+	case ETZPC_TZMA1_ID:
+		ram_base = SYSRAM_BASE;
+		ram_size = SYSRAM_SEC_SIZE;
+		break;
+	case STM32MP1_ETZPC_SRAM1_ID:
+		ram_base = SRAM1_BASE;
+		ram_size = SRAM1_SIZE;
+		break;
+	case STM32MP1_ETZPC_SRAM2_ID:
+		ram_base = SRAM2_BASE;
+		ram_size = SRAM2_SIZE;
+		break;
+	case STM32MP1_ETZPC_SRAM3_ID:
+		ram_base = SRAM3_BASE;
+		ram_size = SRAM3_SIZE;
+		break;
+	case STM32MP1_ETZPC_SRAM4_ID:
+		ram_base = SRAM4_BASE;
+		ram_size = SRAM4_SIZE;
+		break;
+	default:
+		return true;
+	}
+
+	if (stm32mp1_ram_intersect_pager_ram(ram_base, ram_size) &&
+	    attr != ETZPC_DECPROT_S_RW) {
+		EMSG("Internal RAM %#"PRIxPA"..%#"PRIxPA" is used by pager, must be secure",
+		     ram_base, ram_base + ram_size);
+		return false;
+	}
+
+	return true;
+}
+#endif /* CFG_STM32MP15 */
+
 static TEE_Result stm32_etzpc_configure(struct firewall_query *firewall)
 {
 	enum etzpc_decprot_attributes attr = ETZPC_DECPROT_MAX;
@@ -442,6 +488,11 @@ static TEE_Result stm32_etzpc_configure(struct firewall_query *firewall)
 			EMSG("Peripheral configuration locked");
 			return TEE_ERROR_ACCESS_DENIED;
 		}
+
+#ifdef CFG_STM32MP15
+		if (!pager_permits_decprot_config(id, attr))
+			return TEE_ERROR_ACCESS_DENIED;
+#endif
 
 		DMSG("Setting access config for periph %"PRIu32" - attr %s", id,
 		     etzpc_decprot_strings[attr]);
@@ -502,6 +553,12 @@ static void fdt_etzpc_conf_decprot(const void *fdt, int node)
 		}
 
 		attr = etzpc_binding2decprot(mode);
+
+#ifdef CFG_STM32MP15
+		if (!pager_permits_decprot_config(id, attr))
+			panic();
+#endif
+
 		etzpc_configure_decprot(id, attr);
 
 		if (lock)
