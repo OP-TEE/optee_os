@@ -1206,6 +1206,13 @@ $(eval $(call cfg-depends-all,CFG_WIDEVINE_HUK,CFG_DT))
 CFG_WIDEVINE_PTA ?= n
 $(eval $(call cfg-depends-all,CFG_WIDEVINE_PTA,CFG_DT CFG_WIDEVINE_HUK))
 
+# When enabled, CFG_REMOTE_ATTESTATION_PTA embeds remote attestation PTA
+# service.
+CFG_REMOTE_ATTESTATION_PTA ?= n
+ifeq ($(CFG_REMOTE_ATTESTATION_PTA),y)
+$(call force,CFG_QCBOR,y)
+endif
+
 # CFG_SEMIHOSTING_CONSOLE, when enabled, embeds a semihosting console driver.
 # When CFG_SEMIHOSTING_CONSOLE_FILE=NULL, OP-TEE console reads/writes
 # trace messages from/to the debug terminal of the semihosting host computer.
