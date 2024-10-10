@@ -964,10 +964,7 @@ static int stm32_clk_configure_clk(struct clk_stm32_priv *priv __maybe_unused,
 	if (stm32_mux_set_parent(mux, sel))
 		return -1;
 
-	if (enable)
-		stm32_gate_enable(gate);
-	else
-		stm32_gate_disable(gate);
+	stm32_gate_set_init_state(gate, enable);
 
 	return 0;
 }
