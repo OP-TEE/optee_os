@@ -11,6 +11,7 @@
 #include <drivers/rstctrl.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
+#include <drivers/stm32_remoteproc.h>
 #include <drivers/stm32_vrefbuf.h>
 #include <drivers/stm32mp1_pmic.h>
 #include <drivers/stm32mp1_pwr.h>
@@ -538,8 +539,12 @@ int32_t plat_scmi_rd_autonomous(unsigned int channel_id, unsigned int scmi_id,
 	assert(rd->rstctrl);
 
 #ifdef CFG_STM32MP15
+	/* Reset cycle on MCU hold boot is not supported */
 	if (rd->reset_id == MCU_HOLD_BOOT_R)
 		return SCMI_NOT_SUPPORTED;
+	/* Remoteproc driver may handle all MCU reset controllers */
+	if (rd->reset_id == MCU_R && stm32_rproc_is_secure(STM32_M4_RPROC_ID))
+		return SCMI_DENIED;
 #endif
 
 	/* Supports only reset with context loss */
@@ -569,6 +574,13 @@ int32_t plat_scmi_rd_set_state(unsigned int channel_id, unsigned int scmi_id,
 	if (!rd->rstctrl || !stm32mp_nsec_can_access_reset(rd->reset_id))
 		return SCMI_DENIED;
 	assert(rd->rstctrl);
+
+#ifdef CFG_STM32MP15
+	/* Remoteproc driver may handle all MCU reset controllers */
+	if ((rd->reset_id == MCU_R || rd->reset_id == MCU_HOLD_BOOT_R) &&
+	    stm32_rproc_is_secure(STM32_M4_RPROC_ID))
+		return SCMI_DENIED;
+#endif
 
 	if (assert_not_deassert) {
 		FMSG("SCMI reset %u set", scmi_id);
