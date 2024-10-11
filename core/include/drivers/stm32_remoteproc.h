@@ -74,4 +74,14 @@ TEE_Result stm32_rproc_stop(uint32_t rproc_id);
  */
 TEE_Result stm32_rproc_clean_up_memories(uint32_t rproc_id);
 
+#ifdef CFG_STM32MP_REMOTEPROC
+/* Return true is secure loading of remoteproc firmware is enabled */
+bool stm32_rproc_is_secure(uint32_t rproc_id);
+#else
+static inline bool stm32_rproc_is_secure(uint32_t rproc_id __unused)
+{
+	return false;
+}
+#endif
+
 #endif /* __DRIVERS_STM32_REMOTEPROC_H */

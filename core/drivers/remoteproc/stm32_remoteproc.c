@@ -39,6 +39,7 @@ struct stm32_rproc_mem {
  * @regions:	memory regions used
  * @mcu_rst:	remote processor reset control
  * @hold_boot:	remote processor hold boot control
+ * @ns_loading: True if supports non-secure firmware loading, false otherwise
  */
 struct stm32_rproc_instance {
 	const struct stm32_rproc_compat_data *cdata;
@@ -47,6 +48,7 @@ struct stm32_rproc_instance {
 	struct stm32_rproc_mem *regions;
 	struct rstctrl *mcu_rst;
 	struct rstctrl *hold_boot;
+	bool ns_loading;
 };
 
 /**
@@ -70,6 +72,16 @@ void *stm32_rproc_get(uint32_t rproc_id)
 			break;
 
 	return rproc;
+}
+
+bool stm32_rproc_is_secure(uint32_t rproc_id)
+{
+	struct stm32_rproc_instance *rproc = stm32_rproc_get(rproc_id);
+
+	if (rproc)
+		return !rproc->cdata->ns_loading;
+
+	return false;
 }
 
 TEE_Result stm32_rproc_start(uint32_t rproc_id)
@@ -400,6 +412,7 @@ err:
 
 static const struct stm32_rproc_compat_data stm32_rproc_m4_compat = {
 	.rproc_id = STM32_M4_RPROC_ID,
+	.ns_loading = false,
 };
 
 static const struct dt_device_match stm32_rproc_match_table[] = {
