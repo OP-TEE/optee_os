@@ -79,6 +79,23 @@ sam_rstline *find_or_allocate_rstline(unsigned int reset_id,
 	return sam_rstline;
 }
 
+static TEE_Result sam_rstctrl_dt_get(struct dt_pargs *args, void *data,
+				     struct rstctrl **out_rstctrl)
+{
+	struct sam_rstline *sam_rstline = NULL;
+
+	if (args->args_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	sam_rstline = find_or_allocate_rstline(args->args[0], data);
+	if (!sam_rstline)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*out_rstctrl = &sam_rstline->rstctrl;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result reset_assert(struct rstctrl *rstctrl,
 			       unsigned int to_us __unused)
 {
@@ -156,23 +173,25 @@ void sam_rstc_usb_por(unsigned char id, bool enable)
 			     AT91_RSTC_GRSTR_USB(id));
 }
 
-/* Non-null reference for compat data */
-static const uint8_t rstc_always_secure;
-
 static TEE_Result atmel_rstc_probe(const void *fdt, int node,
 				   const void *compat_data)
 
 {
+	struct sam_reset_data *pdata = (struct sam_reset_data *)compat_data;
 	size_t size = 0;
 
 	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (compat_data != &rstc_always_secure)
+	if (pdata && pdata->rstc_always_secure)
 		matrix_configure_periph_secure(AT91C_ID_SYS);
 
 	if (dt_map_dev(fdt, node, &rstc_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
+
+	if (pdata)
+		return rstctrl_register_provider(fdt, node, sam_rstctrl_dt_get,
+						 pdata);
 
 	return TEE_SUCCESS;
 }
@@ -181,14 +200,14 @@ static const struct dt_device_match atmel_rstc_match_table[] = {
 	{ .compatible = "atmel,sama5d3-rstc" },
 	{
 		.compatible = "microchip,sama7g5-rstc",
-		.compat_data = &rstc_always_secure,
+		.compat_data = &sama7_reset_data,
 	},
 	{ }
 };
 
 DEFINE_DT_DRIVER(atmel_rstc_dt_driver) = {
 	.name = "atmel_rstc",
-	.type = DT_DRIVER_NOTYPE,
+	.type = DT_DRIVER_RSTCTRL,
 	.match_table = atmel_rstc_match_table,
 	.probe = atmel_rstc_probe,
 };
