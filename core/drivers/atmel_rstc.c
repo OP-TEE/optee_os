@@ -4,11 +4,13 @@
  */
 
 #include <drivers/atmel_rstc.h>
+#include <drivers/rstctrl.h>
 #include <io.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <matrix.h>
 #include <platform_config.h>
+#include <sys/queue.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -22,6 +24,47 @@
 #define AT91_RSTC_GRSTR_USB(x)	SHIFT_U32(1, 4 + (x))
 
 static vaddr_t rstc_base;
+
+struct sam_rstline {
+	unsigned int reset_id;
+	struct rstctrl rstctrl;
+	SLIST_ENTRY(sam_rstline) link;
+};
+
+static struct sam_rstline *to_sam_rstline(struct rstctrl *ptr)
+{
+	assert(ptr);
+
+	return container_of(ptr, struct sam_rstline, rstctrl);
+}
+
+static TEE_Result reset_assert(struct rstctrl *rstctrl,
+			       unsigned int to_us __unused)
+{
+	unsigned int id = to_sam_rstline(rstctrl)->reset_id;
+
+	io_setbits32(rstc_base + RESET_OFFSET(id), BIT(RESET_BIT_POS(id)));
+	dsb();
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result reset_deassert(struct rstctrl *rstctrl,
+				 unsigned int to_us __unused)
+{
+	unsigned int id = to_sam_rstline(rstctrl)->reset_id;
+
+	io_clrbits32(rstc_base + RESET_OFFSET(id), BIT(RESET_BIT_POS(id)));
+	dsb();
+
+	return TEE_SUCCESS;
+}
+
+static const struct rstctrl_ops sama7_rstc_ops = {
+	.assert_level = reset_assert,
+	.deassert_level = reset_deassert,
+};
+DECLARE_KEEP_PAGER(sama7_rstc_ops);
 
 bool atmel_rstc_available(void)
 {
