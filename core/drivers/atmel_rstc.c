@@ -10,6 +10,7 @@
 #include <kernel/dt_driver.h>
 #include <matrix.h>
 #include <platform_config.h>
+#include <stdbool.h>
 #include <sys/queue.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
@@ -25,6 +26,11 @@
 
 static vaddr_t rstc_base;
 
+struct sam_reset_data {
+	bool rstc_always_secure;
+	const struct rstctrl_ops *ops;
+};
+
 struct sam_rstline {
 	unsigned int reset_id;
 	struct rstctrl rstctrl;
@@ -39,6 +45,37 @@ static struct sam_rstline *to_sam_rstline(struct rstctrl *ptr)
 	assert(ptr);
 
 	return container_of(ptr, struct sam_rstline, rstctrl);
+}
+
+static struct sam_rstline *find_rstline(unsigned int reset_id)
+{
+	struct sam_rstline *sam_rstline = NULL;
+
+	SLIST_FOREACH(sam_rstline, &sam_rst_list, link)
+		if (sam_rstline->reset_id == reset_id)
+			break;
+
+	return sam_rstline;
+}
+
+static struct
+sam_rstline *find_or_allocate_rstline(unsigned int reset_id,
+				      const struct sam_reset_data *pdata)
+{
+	struct sam_rstline *sam_rstline = find_rstline(reset_id);
+
+	if (sam_rstline)
+		return sam_rstline;
+
+	sam_rstline = calloc(1, sizeof(*sam_rstline));
+	if (sam_rstline) {
+		sam_rstline->reset_id = reset_id;
+		sam_rstline->rstctrl.ops = pdata->ops;
+
+		SLIST_INSERT_HEAD(&sam_rst_list, sam_rstline, link);
+	}
+
+	return sam_rstline;
 }
 
 static TEE_Result reset_assert(struct rstctrl *rstctrl,
@@ -68,6 +105,22 @@ static const struct rstctrl_ops sama7_rstc_ops = {
 	.deassert_level = reset_deassert,
 };
 DECLARE_KEEP_PAGER(sama7_rstc_ops);
+
+static const struct sam_reset_data sama7_reset_data = {
+	.rstc_always_secure = true,
+	.ops = &sama7_rstc_ops
+};
+DECLARE_KEEP_PAGER(sama7_reset_data);
+
+struct rstctrl *sam_get_rstctrl(unsigned int reset_id)
+{
+	struct sam_rstline *rstline = NULL;
+
+	rstline = find_or_allocate_rstline(reset_id, &sama7_reset_data);
+	assert(rstline);
+
+	return &rstline->rstctrl;
+}
 
 bool atmel_rstc_available(void)
 {
