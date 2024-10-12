@@ -7,6 +7,13 @@
 
 #include <compiler.h>
 #include <stdbool.h>
+#include <util.h>
+
+#define RESET_ID_MASK		GENMASK_32(8, 5)
+#define RESET_ID_SHIFT		U(5)
+#define RESET_BIT_POS_MASK	GENMASK_32(4, 0)
+#define RESET_OFFSET(id)	(((id) & RESET_ID_MASK) >> RESET_ID_SHIFT)
+#define RESET_BIT_POS(id)	((id) & RESET_BIT_POS_MASK)
 
 #if defined(CFG_ATMEL_RSTC)
 bool atmel_rstc_available(void);
