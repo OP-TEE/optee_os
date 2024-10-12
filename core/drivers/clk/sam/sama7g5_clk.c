@@ -750,9 +750,9 @@ static struct {
 	const char *parent;
 	uint8_t id;
 } sama7_utmick[] = {
-	{ .name = "utmi1", .parent = "utmick", .id = 0, },
-	{ .name = "utmi2", .parent = "utmi1", .id = 1, },
-	{ .name = "utmi3", .parent = "utmi1", .id = 2, },
+	{ .name = "utmi1ck", .parent = "utmick", .id = 0, },
+	{ .name = "utmi2ck", .parent = "utmi1ck", .id = 1, },
+	{ .name = "utmi3ck", .parent = "utmi1ck", .id = 2, },
 };
 
 /* Generic clock description */
@@ -1455,7 +1455,7 @@ static TEE_Result pmc_setup_sama7g5(const void *fdt, int nodeoffset,
 	for (i = 0; i < ARRAY_SIZE(sama7_utmick); i++) {
 		if (strcmp("utmick", sama7_utmick[i].parent) == 0)
 			parent = clk;
-		else if (strcmp("utmi1", sama7_utmick[i].parent) == 0)
+		else if (strcmp("utmi1ck", sama7_utmick[i].parent) == 0)
 			parent = sama7g5_pmc->chws[PMC_UTMI1].clk;
 		else
 			panic();
