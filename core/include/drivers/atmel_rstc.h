@@ -6,6 +6,7 @@
 #define __DRIVERS_ATMEL_RSTC_H
 
 #include <compiler.h>
+#include <drivers/rstctrl.h>
 #include <stdbool.h>
 
 #define RESET_ID_MASK		GENMASK_32(31, 5)
@@ -19,6 +20,7 @@ bool atmel_rstc_available(void);
 
 void __noreturn atmel_rstc_reset(void);
 void sam_rstc_usb_por(unsigned char id, bool enable);
+struct rstctrl *sam_get_rstctrl(unsigned int reset_id);
 #else
 static inline bool atmel_rstc_available(void)
 {
@@ -28,6 +30,7 @@ static inline bool atmel_rstc_available(void)
 static inline void atmel_rstc_reset(void) {}
 static inline void sam_rstc_usb_por(unsigned char id __unused,
 				    bool enable __unused) {}
+struct rstctrl *sam_get_rstctrl(unsigned int reset_id) { return NULL; }
 #endif
 
 #endif /* __DRIVERS_ATMEL_RSTC_H */
