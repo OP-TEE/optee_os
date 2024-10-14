@@ -16,7 +16,6 @@
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
-#include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -26,7 +25,7 @@
 #include <util.h>
 
 #define IS_PAGE_ALIGNED(addr)		(((addr) & SMALL_PAGE_MASK) == 0)
-#define filter_mask(_width)		GENMASK_32(((_width) - U(1)), U(0))
+#define FILTER_MASK(_width)		GENMASK_32(((_width) - U(1)), U(0))
 
 /*
  * struct stm32mp_tzc_region - Define a TZC400 region configuration
@@ -76,14 +75,12 @@ struct stm32mp_tzc_driver_data {
  * @ddata: Device configuration data read from the hardware
  * @reg: Array of regions configured in the controller
  * @nb_reg_used: Number of cells in @reg
- * @lock: Concurrent access protection
  */
 struct tzc_device {
 	struct stm32mp_tzc_platdata pdata;
 	struct stm32mp_tzc_driver_data ddata;
 	struct tzc_region_config *reg;
 	uint32_t nb_reg_used;
-	unsigned int lock;
 };
 
 /*
@@ -179,34 +176,25 @@ static TEE_Result stm32mp_tzc_region_append(struct tzc_device *tzc_dev,
 {
 	TEE_Result res = TEE_SUCCESS;
 	unsigned int index = 0;
-	uint32_t exceptions = 0;
-
-	exceptions = may_spin_lock(&tzc_dev->lock);
 	index = tzc_dev->nb_reg_used;
 
 	if (index >= tzc_dev->ddata.nb_regions ||
-	    region_cfg->base < tzc_dev->pdata.mem_base ||
-	    region_cfg->top > tzc_dev->pdata.mem_base +
-	    (tzc_dev->pdata.mem_size - 1)) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto end;
-	}
+	    !core_is_buffer_inside(region_cfg->base,
+				   region_cfg->top + 1 - region_cfg->base,
+				   tzc_dev->pdata.mem_base,
+				   tzc_dev->pdata.mem_size))
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = tzc_region_check_overlap(tzc_dev, region_cfg);
 	if (res)
-		goto end;
+		return res;
 
-	memcpy(&tzc_dev->reg[index], region_cfg,
-	       sizeof(struct tzc_region_config));
-
-	tzc_configure_region(index + 1, region_cfg);
-
+	tzc_dev->reg[tzc_dev->nb_reg_used] = *region_cfg;
 	tzc_dev->nb_reg_used++;
 
-end:
-	may_spin_unlock(&tzc_dev->lock, exceptions);
+	tzc_configure_region(tzc_dev->nb_reg_used, region_cfg);
 
-	return res;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result
@@ -287,7 +275,7 @@ static void stm32mp_tzc_cfg_boot_region(struct tzc_device *tzc_dev)
 		TEE_Result res = TEE_ERROR_GENERIC;
 
 		boot_region[idx].filters =
-			filter_mask(tzc_dev->ddata.nb_filters);
+			FILTER_MASK(tzc_dev->ddata.nb_filters);
 
 		res = stm32mp_tzc_region_append(tzc_dev, &boot_region[idx]);
 		if (res) {
@@ -347,7 +335,7 @@ static TEE_Result add_node_memory_regions(struct tzc_device *tzc_dev,
 
 		region_cfg.base = region_base;
 		region_cfg.top = region_base + region_size - 1;
-		region_cfg.filters = filter_mask(tzc_dev->ddata.nb_filters);
+		region_cfg.filters = FILTER_MASK(tzc_dev->ddata.nb_filters);
 
 		prop = fdt_getprop(fdt, pnode, "st,protreg", &len);
 		if (!prop || (unsigned int)len != (2 * sizeof(uint32_t)))
@@ -521,7 +509,7 @@ static TEE_Result stm32mp1_tzc_probe(const void *fdt, int node,
 				  tzc_dev->pdata.mem_size - 1;
 	nsec_region->region.sec_attr = TZC_REGION_S_NONE;
 	nsec_region->region.ns_device_access = TZC_REGION_NSEC_ALL_ACCESS_RDWR;
-	nsec_region->region.filters = filter_mask(tzc_dev->ddata.nb_filters);
+	nsec_region->region.filters = FILTER_MASK(tzc_dev->ddata.nb_filters);
 
 	SLIST_INSERT_HEAD(&nsec_region_list, nsec_region, link);
 
