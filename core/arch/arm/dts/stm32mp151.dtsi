@@ -1637,6 +1637,14 @@
 			};
 		};
 
+		tzc400: tzc@5c006000 {
+			compatible = "st,stm32mp1-tzc";
+			reg = <0x5c006000 0x1000>;
+			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&rcc TZC1>, <&rcc TZC2>;
+			st,mem-map = <0xc0000000 0x40000000>;
+		};
+
 		etzpc: etzpc@5c007000 {
 			compatible = "st,stm32-etzpc";
 			reg = <0x5C007000 0x400>;
