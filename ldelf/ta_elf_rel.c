@@ -198,6 +198,9 @@ static TEE_Result resolve_sym_helper(const char *name, vaddr_t *val,
 		uint32_t *bucket = &hashtab[2];
 		uint32_t *chain = &bucket[nbuckets];
 
+		if (!nbuckets)
+			return TEE_ERROR_ITEM_NOT_FOUND;
+
 		hash = elf_hash(name);
 
 		for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
