@@ -85,6 +85,32 @@
 #define FIREWALL_DDR_BASE	0xff534000
 #define FIREWALL_DDR_SIZE	SIZE_K(16)
 
+#elif defined(PLATFORM_FLAVOR_rk3588)
+
+#define GIC_BASE		0xfe600000
+#define GIC_SIZE		SIZE_K(64)
+#define GICC_BASE		0
+#define GICD_BASE		GIC_BASE
+#define GICR_BASE		(GIC_BASE + 0x80000)
+
+#define UART0_BASE		0xfd890000
+#define UART0_SIZE		SIZE_K(64)
+
+#define UART1_BASE		0xfeb40000
+#define UART1_SIZE		SIZE_K(64)
+
+#define UART2_BASE		0xfeb50000
+#define UART2_SIZE		SIZE_K(64)
+
+#define UART3_BASE		0xfeb60000
+#define UART3_SIZE		SIZE_K(64)
+
+#define SGRF_BASE		0xfd58c000
+#define SGRF_SIZE		SIZE_K(64)
+
+#define FIREWALL_DDR_BASE	0xfe030000
+#define FIREWALL_DDR_SIZE	SIZE_K(32)
+
 #else
 #error "Unknown platform flavor"
 #endif
