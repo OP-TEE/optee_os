@@ -355,6 +355,7 @@ jobs:
           make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001 RUST_ENABLE=n
           make -j$(nproc) check CFG_PAN=y
           make -j$(nproc) check CFG_WITH_PAGER=y
+          make -j$(nproc) check CFG_ULIBS_SHARED=y
 
   QEMUv8_clang_check:
     name: make check (QEMUv8, Clang)
@@ -394,6 +395,7 @@ jobs:
           cd ${TOP}/build
 
           make -j$(nproc) check
+          make -j$(nproc) check CFG_ULIBS_SHARED=y
 
   QEMUv8_Xen_check:
     name: make check (QEMUv8, Xen)
