@@ -174,6 +174,12 @@ libdir = core/lib/scmi-server
 include mk/lib.mk
 endif
 
+ifeq ($(CFG_QCBOR),y)
+libname = qcbor
+libdir = core/lib/qcbor
+include mk/lib.mk
+endif
+
 #
 # Do main source
 #
