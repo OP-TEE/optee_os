@@ -46,8 +46,8 @@ FUNC thread_std_abi_entry , :
 	/* Save return value */
 	mv	s0, a0
 
-	/* Disable all interrupts */
-	csrc	CSR_XSTATUS, CSR_XSTATUS_IE
+	/* Mask all maskable exceptions before switching to temporary stack */
+	csrw	CSR_XIE, x0
 
 	/* Switch to temporary stack */
 	jal	thread_get_tmp_sp
