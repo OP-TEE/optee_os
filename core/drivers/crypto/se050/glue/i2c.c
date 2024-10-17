@@ -47,7 +47,8 @@ int glue_i2c_write(uint8_t *buffer, int len)
 
 int glue_i2c_init(void)
 {
-	if (transfer == rpc_io_i2c_transfer)
+	if (transfer == rpc_io_i2c_transfer ||
+	    IS_ENABLED(CFG_CORE_SE05X_I2C_TRAMPOLINE_ONLY))
 		return 0;
 
 	transfer = native_i2c_transfer;
