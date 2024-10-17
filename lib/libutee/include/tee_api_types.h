@@ -190,7 +190,7 @@ typedef uint32_t TEE_BigInt;
 
 typedef uint32_t TEE_BigIntFMM;
 
-typedef uint32_t TEE_BigIntFMMContext __aligned(__alignof__(void *));
+typedef uint32_t TEE_BigIntFMMContext;
 
 /* Tee Secure Element APIs */
 
