@@ -488,9 +488,6 @@ void *get_secure_dt(void)
 
 #if defined(CFG_EMBED_DTB)
 #ifdef CFG_DT_CACHED_NODE_INFO
-/* Reference to the FDT for which node information are cached */
-static const void *cached_node_info_fdt;
-
 /*
  * struct cached_node - Cached information of a DT node
  *
@@ -510,17 +507,25 @@ struct cached_node {
 
 /*
  * struct dt_node_cache - Reference to cached information of DT nodes
+ *
  * @array: Array of the cached node
  * @count: Number of initialized cells in @array
- * @alloced_array
+ * @alloced_count: Number of allocated cells in @array
+ * @fdt: Reference to the FDT for which node information are cached
  */
 struct dt_node_cache {
 	struct cached_node *array;
 	size_t count;
 	size_t alloced_count;
+	const void *fdt;
 };
 
-static struct dt_node_cache dt_node_cache;
+static struct dt_node_cache *dt_node_cache;
+
+static bool fdt_node_info_are_cached(const void *fdt)
+{
+	return dt_node_cache && dt_node_cache->fdt == fdt;
+}
 
 static struct cached_node *find_cached_parent_node(const void *fdt,
 						   int node_offset)
@@ -528,12 +533,12 @@ static struct cached_node *find_cached_parent_node(const void *fdt,
 	struct cached_node *cell = NULL;
 	size_t n = 0;
 
-	if (!cached_node_info_fdt || fdt != cached_node_info_fdt)
+	if (!fdt_node_info_are_cached(fdt))
 		return NULL;
 
-	for (n = 0; n < dt_node_cache.count; n++)
-		if (dt_node_cache.array[n].node_offset == node_offset)
-			cell = dt_node_cache.array + n;
+	for (n = 0; n < dt_node_cache->count; n++)
+		if (dt_node_cache->array[n].node_offset == node_offset)
+			cell = dt_node_cache->array + n;
 
 	return cell;
 }
@@ -585,12 +590,12 @@ int fdt_find_cached_node_phandle(const void *fdt, uint32_t phandle,
 	struct cached_node *cell = NULL;
 	size_t n = 0;
 
-	if (!cached_node_info_fdt || fdt != cached_node_info_fdt)
+	if (!fdt_node_info_are_cached(fdt))
 		return -FDT_ERR_NOTFOUND;
 
-	for (n = 0; n < dt_node_cache.count; n++)
-		if (dt_node_cache.array[n].phandle == phandle)
-			cell = dt_node_cache.array + n;
+	for (n = 0; n < dt_node_cache->count; n++)
+		if (dt_node_cache->array[n].phandle == phandle)
+			cell = dt_node_cache->array + n;
 
 	if (!cell)
 		return -FDT_ERR_NOTFOUND;
@@ -600,49 +605,54 @@ int fdt_find_cached_node_phandle(const void *fdt, uint32_t phandle,
 	return 0;
 }
 
-static TEE_Result grow_cached_node_array(void)
+static TEE_Result realloc_cached_node_array(void)
 {
-	if (dt_node_cache.count + 1 > dt_node_cache.alloced_count) {
-		/* Allocate by chunk of 64 cells for efficiency */
-		size_t new_count = dt_node_cache.alloced_count + 64;
+	assert(dt_node_cache);
+
+	if (dt_node_cache->count + 1 > dt_node_cache->alloced_count) {
+		/*
+		 * Allocate by chunk of 64 cells. It looks a fair tradeoff
+		 * between execution efficiency and heap consumption.
+		 */
+		size_t new_count = dt_node_cache->alloced_count + 64;
 		struct cached_node *new = NULL;
 
-		new = realloc(dt_node_cache.array,
-			      sizeof(*dt_node_cache.array) * new_count);
+		new = realloc(dt_node_cache->array,
+			      sizeof(*dt_node_cache->array) * new_count);
 		if (!new)
 			return TEE_ERROR_OUT_OF_MEMORY;
 
-		dt_node_cache.array = new;
-		dt_node_cache.alloced_count = new_count;
+		dt_node_cache->array = new;
+		dt_node_cache->alloced_count = new_count;
 	}
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result add_cached_node(const void *fdt, int parent_offset,
+static TEE_Result add_cached_node(int parent_offset,
 				  int node_offset, int address_cells,
 				  int size_cells)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	res = grow_cached_node_array();
+	res = realloc_cached_node_array();
 	if (res)
 		return res;
 
-	dt_node_cache.array[dt_node_cache.count] = (struct cached_node){
+	dt_node_cache->array[dt_node_cache->count] = (struct cached_node){
 		.node_offset = node_offset,
 		.parent_offset = parent_offset,
 		.address_cells = address_cells,
 		.size_cells = size_cells,
-		.phandle = fdt_get_phandle(fdt, node_offset),
+		.phandle = fdt_get_phandle(dt_node_cache->fdt, node_offset),
 	};
 
-	dt_node_cache.count++;
+	dt_node_cache->count++;
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result add_cached_node_subtree(const void *fdt, int node_offset)
+static TEE_Result add_cached_node_subtree(int node_offset)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const fdt32_t *cuint = NULL;
@@ -650,21 +660,23 @@ static TEE_Result add_cached_node_subtree(const void *fdt, int node_offset)
 	int8_t addr_cells = -1;
 	int8_t size_cells = -1;
 
-	cuint = fdt_getprop(fdt, node_offset, "#address-cells", NULL);
+	cuint = fdt_getprop(dt_node_cache->fdt, node_offset, "#address-cells",
+			    NULL);
 	if (cuint)
 		addr_cells = (int)fdt32_to_cpu(*cuint);
 
-	cuint = fdt_getprop(fdt, node_offset, "#size-cells", NULL);
+	cuint = fdt_getprop(dt_node_cache->fdt, node_offset, "#size-cells",
+			    NULL);
 	if (cuint)
 		size_cells = (int)fdt32_to_cpu(*cuint);
 
-	fdt_for_each_subnode(subnode_offset, fdt, node_offset) {
-		res = add_cached_node(fdt, node_offset, subnode_offset,
-				      addr_cells, size_cells);
+	fdt_for_each_subnode(subnode_offset, dt_node_cache->fdt, node_offset) {
+		res = add_cached_node(node_offset, subnode_offset, addr_cells,
+				      size_cells);
 		if (res)
 			return res;
 
-		res = add_cached_node_subtree(fdt, subnode_offset);
+		res = add_cached_node_subtree(subnode_offset);
 		if (res)
 			return res;
 	}
@@ -674,12 +686,11 @@ static TEE_Result add_cached_node_subtree(const void *fdt, int node_offset)
 
 static TEE_Result release_node_cache_info(void)
 {
-	free(dt_node_cache.array);
-	dt_node_cache.array = NULL;
-	dt_node_cache.count = 0;
-	dt_node_cache.alloced_count = 0;
-
-	cached_node_info_fdt = NULL;
+	if (dt_node_cache) {
+		free(dt_node_cache->array);
+		free(dt_node_cache);
+		dt_node_cache = NULL;
+	}
 
 	return TEE_SUCCESS;
 }
@@ -690,12 +701,19 @@ static void init_node_cache_info(const void *fdt)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	res = add_cached_node_subtree(fdt, 0);
+	assert(!dt_node_cache);
+
+	dt_node_cache = calloc(1, sizeof(*dt_node_cache));
+	if (dt_node_cache) {
+		dt_node_cache->fdt = fdt;
+		res = add_cached_node_subtree(0);
+	} else {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+	}
+
 	if (res) {
 		EMSG("Error %#"PRIx32", disable DT cached info", res);
 		release_node_cache_info();
-	} else {
-		cached_node_info_fdt = fdt;
 	}
 }
 #else
