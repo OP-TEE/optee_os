@@ -902,9 +902,11 @@ static void stm32_enable_oscillator_msi(struct clk_stm32_priv *priv,
 	if (!osci->freq)
 		return;
 
-	if (clk_stm32_osc_msi_set_rate(priv, osci->freq) != TEE_SUCCESS)
+	if (clk_stm32_osc_msi_set_rate(priv, osci->freq) != TEE_SUCCESS) {
 		EMSG("invalid rate %ld Hz for MSI ! (4000000 or 16000000 only)",
 		     osci->freq);
+		panic();
+	}
 
 	/* Enable clock and wait ready bit */
 	if (stm32_gate_rdy_enable(osc_data->gate_id))
@@ -929,8 +931,8 @@ stm32_clk_oscillators_wait_lse_ready(struct clk_stm32_priv *priv __unused,
 	struct stm32_osci_dt_cfg *osci = &pdata->osci[OSC_LSE];
 	int ret = 0;
 
-	if (osci->freq)
-		ret = stm32_gate_wait_ready(osc_data->gate_id, true);
+	if (osci->freq && stm32_gate_wait_ready(osc_data->gate_id, true))
+		ret = -1;
 
 	return ret;
 }
@@ -1453,7 +1455,11 @@ static int clk_stm32_pll_set_mux(struct clk_stm32_priv *priv __unused,
 	int mux = (src & MUX_ID_MASK) >> MUX_ID_SHIFT;
 	int sel = (src & MUX_SEL_MASK) >> MUX_SEL_SHIFT;
 
-	return stm32_mux_set_parent(mux, sel);
+	if (stm32_mux_set_parent(mux, sel))
+		return -1;
+	else
+		return 0;
+
 }
 
 static void clk_stm32_pll1_init(struct clk_stm32_priv *priv,
@@ -1503,7 +1509,8 @@ static void clk_stm32_pll_init(struct clk_stm32_priv *priv, int pll_idx,
 	 * a configuration on the fly.
 	 */
 
-	stm32_gate_rdy_disable(pll->gate_id);
+	if (stm32_gate_rdy_disable(pll->gate_id))
+		panic();
 
 	if (clk_stm32_pll_set_mux(priv, pll_conf->src))
 		panic();
@@ -1516,7 +1523,8 @@ static void clk_stm32_pll_init(struct clk_stm32_priv *priv, int pll_idx,
 		spread_spectrum = true;
 	}
 
-	stm32_gate_rdy_enable(pll->gate_id);
+	if (stm32_gate_rdy_enable(pll->gate_id))
+		panic();
 
 	if (spread_spectrum)
 		io_clrbits32(pllxcfgr1, RCC_PLLxCFGR1_SSMODRST);
@@ -1711,7 +1719,10 @@ static int stm32_clk_configure_mux(struct clk_stm32_priv *priv __unused,
 	int mux = (data & MUX_ID_MASK) >> MUX_ID_SHIFT;
 	int sel = (data & MUX_SEL_MASK) >> MUX_SEL_SHIFT;
 
-	return stm32_mux_set_parent(mux, sel);
+	if (stm32_mux_set_parent(mux, sel))
+		return -1;
+	else
+		return 0;
 }
 
 static int stm32_clk_configure_by_addr_val(struct clk_stm32_priv *priv,
