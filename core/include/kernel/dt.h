@@ -175,6 +175,17 @@ paddr_t fdt_reg_base_address(const void *fdt, int offs);
 size_t fdt_reg_size(const void *fdt, int offs);
 
 /*
+ * Read the base address and/or reg size for the "reg" property of the
+ * specified node.
+ * @fdt: Reference to the Device Tree
+ * @offs: Offset to the node to read "reg" property from
+ * @base: Pointer to the output base address value, or NULL
+ * @size: Pointer to the output size value, or NULL
+ * Returns 0 on success and a negative FDT error value in case of failure
+ */
+int fdt_reg_info(const void *fdt, int offs, paddr_t *base, size_t *size);
+
+/*
  * Read the status and secure-status properties into a bitfield.
  * Return -1 on failure, DT_STATUS_DISABLED if the node is disabled,
  * otherwise return a combination of DT_STATUS_OK_NSEC and DT_STATUS_OK_SEC.
@@ -352,6 +363,12 @@ static inline size_t fdt_reg_size(const void *fdt __unused,
 	return (size_t)-1;
 }
 
+static inline int fdt_reg_info(const void *fdt __unused, int offs __unused,
+			       paddr_t *base __unused, size_t *size __unused)
+{
+	return -1;
+}
+
 static inline int fdt_get_status(const void *fdt __unused, int offs __unused)
 {
 	return -1;
@@ -489,4 +506,58 @@ static inline void *get_manifest_dt(void)
 }
 
 #endif /* !CFG_DT */
+
+#ifdef CFG_DT_CACHED_NODE_INFO
+/*
+ * Find the offset of a parent node in the parent node cache
+ * @fdt: FDT to work on
+ * @node_offset: Offset of the node we look for its parent
+ * @parent_offset: Output parent node offset upon success
+ * @return 0 on success and -1 on failure
+ */
+int fdt_find_cached_parent_node(const void *fdt, int node_offset,
+				int *parent_offset);
+
+/*
+ * Find the address/size cells value of a parent node in the parent node cache
+ * @fdt: FDT to work on
+ * @node_offset: Offset of the node we look for its parent
+ * @address_cells: Pointer to output #address-cells value upon success or NULL
+ * @size_cells: Pointer to output #size-cells value upon success or NULL
+ * @return 0 on success and -FDT_ERR_NOTFOUND on failure
+ */
+int fdt_find_cached_parent_reg_cells(const void *fdt, int node_offset,
+				     int *address_cells, int *size_cells);
+/*
+ * Find the node offset from its phandle in the phandle cache
+ * @fdt: FDT to work on
+ * @phandle: Node phandle
+ * @node_offset: Pointer to output node offset upon success
+ * @return 0 on success and -FDT_ERR_NOTFOUND on failure
+ */
+int fdt_find_cached_node_phandle(const void *fdt, uint32_t phandle,
+				 int *node_offset);
+#else
+static inline int fdt_find_cached_parent_node(const void *fdt __unused,
+					      int node_offset __unused,
+					      int *parent_offset __unused)
+{
+	return -1;
+}
+
+static inline int fdt_find_cached_parent_reg_cells(const void *fdt __unused,
+						   int node_offset __unused,
+						   int *address_cells __unused,
+						   int *size_cells __unused)
+{
+	return -1;
+}
+
+static inline int fdt_find_cached_node_phandle(const void *fdt __unused,
+					       uint32_t phandle __unused,
+					       int *node_offset __unused)
+{
+	return -1;
+}
+#endif /* CFG_DT_CACHED_NODE_INFO */
 #endif /* __KERNEL_DT_H */

@@ -523,6 +523,13 @@ endif
 # editing of the supplied DTB.
 CFG_DTB_MAX_SIZE ?= 0x10000
 
+# CFG_DT_CACHED_NODE_INFO, when enabled, parses the embedded DT at boot
+# time and caches some information to speed up retrieve of DT node data,
+# more specifically those for which libfdt parses the full DTB to find
+# the target node information.
+CFG_DT_CACHED_NODE_INFO ?= $(CFG_EMBED_DTB)
+$(eval $(call cfg-depends-all,CFG_DT_CACHED_NODE_INFO,CFG_EMBED_DTB))
+
 # Maximum size of the init info data passed to Secure Partitions.
 CFG_SP_INIT_INFO_MAX_SIZE ?= 0x1000
 
