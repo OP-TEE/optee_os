@@ -610,12 +610,11 @@ static TEE_Result realloc_cached_node_array(void)
 	assert(dt_node_cache);
 
 	if (dt_node_cache->count + 1 > dt_node_cache->alloced_count) {
-		/*
-		 * Allocate by chunk of 64 cells. It looks a fair tradeoff
-		 * between execution efficiency and heap consumption.
-		 */
-		size_t new_count = dt_node_cache->alloced_count + 64;
+		size_t new_count = dt_node_cache->alloced_count * 2;
 		struct cached_node *new = NULL;
+
+		if (!new_count)
+			new_count = 4;
 
 		new = realloc(dt_node_cache->array,
 			      sizeof(*dt_node_cache->array) * new_count);
