@@ -162,7 +162,7 @@ sss_status_t se050_enable_scp03(sss_se05x_session_t *session)
 		if (status != kStatus_SSS_Success)
 			continue;
 
-		if (session->subsystem)
+		if (session && session->subsystem)
 			sss_se05x_session_close(session);
 
 		if (!se050_core_early_init(&keys)) {
