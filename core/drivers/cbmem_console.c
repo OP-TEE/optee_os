@@ -157,8 +157,8 @@ bool cbmem_console_init_from_dt(void *fdt)
 	if (offset < 0)
 		return false;
 
-	cb_addr = fdt_reg_base_address(fdt, offset);
-	cb_size = fdt_reg_size(fdt, offset);
+	if (fdt_reg_info(fdt, offset, &cb_addr, &cb_size))
+		return false;
 
 	cbmem_console_base = get_cbmem_console_from_coreboot_table(cb_addr,
 								   cb_size);
