@@ -374,6 +374,57 @@
 	>;
 };
 
+&tfa_bl31 {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_SEC, RIF_UNUSED, RIF_CFEN, RIF_CID1_BF, RIF_CID1_BF, RIF_CID1_BF)>;
+};
+
+&hpdma_lli {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_NSEC, RIF_PRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&bsec_mirror {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_SEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&cm33_sram1 {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_NSEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&cm33_sram2 {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_NSEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&cm33_retram {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_SEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&ddr_param {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_SEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&risab1 {
+	memory-region = <&tfa_bl31>;
+};
+
+&risab2 {
+	memory-region = <&hpdma_lli>;
+};
+
+&risab3 {
+	st,srwiad;
+	memory-region = <&bsec_mirror>, <&cm33_sram1>;
+};
+
+&risab4 {
+	st,srwiad;
+	memory-region = <&cm33_sram2>;
+};
+
+&risab5 {
+	st,srwiad;
+	memory-region = <&cm33_retram>, <&ddr_param>;
+};
+
 &mm_ospi1 {
 	st,protreg = <RISAFPROT(RISAF_REG_ID(1), RIF_CID1_BF | RIF_CID2_BF, RIF_CID1_BF | RIF_CID2_BF, 0, RIF_NSEC, RIF_ENC_DIS, RIF_BREN_EN)>;
 };
