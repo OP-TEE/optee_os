@@ -122,7 +122,7 @@ jobs:
           _make CFG_SECURE_DATA_PATH=y
           _make CFG_REE_FS_TA_BUFFERED=y
           _make CFG_WITH_USER_TA=n
-          _make CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
+          _make CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT,VERAISON_ATTESTATION}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
           _make PLATFORM=vexpress-qemu_armv8a
           _make PLATFORM=vexpress-qemu_armv8a COMPILER=clang
           _make PLATFORM=vexpress-qemu_armv8a CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 CFG_DEBUG_INFO=n
@@ -135,7 +135,7 @@ jobs:
           _make PLATFORM=vexpress-qemu_armv8a CFG_TRANSFER_LIST=y CFG_MAP_EXT_DT_SECURE=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL2_SPMC=y CFG_CORE_PHYS_RELOCATABLE=y CFG_TZDRAM_START=0x0d304000 CFG_TZDRAM_SIZE=0x00cfc000
-          _make PLATFORM=vexpress-qemu_armv8a CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT,VERAISON_ATTESTATION}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y CFG_NS_VIRTUALIZATION=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CRYPTO_WITH_CE=y CFG_CRYPTOLIB_NAME=mbedtls CFG_CRYPTOLIB_DIR=lib/libmbedtls
           dd if=/dev/urandom of=BL32_AP_MM.fd bs=2621440 count=1 && _make PLATFORM=vexpress-qemu_armv8a CFG_STMM_PATH=BL32_AP_MM.fd CFG_RPMB_FS=y CFG_CORE_HEAP_SIZE=524288 CFG_TEE_RAM_VA_SIZE=0x00400000
