@@ -511,7 +511,7 @@ static TEE_Result mobj_init(void)
 		mobj_tee_ram_rw = mobj_phys_init(TEE_RAM_START,
 						 VCORE_UNPG_RW_PA +
 						 VCORE_UNPG_RW_SZ -
-						 TEE_RAM_START,
+						 VCORE_START_VA,
 						 TEE_MATTR_MEM_TYPE_CACHED,
 						 CORE_MEM_TEE_RAM,
 						 MEM_AREA_TEE_RAM_RW_DATA);
