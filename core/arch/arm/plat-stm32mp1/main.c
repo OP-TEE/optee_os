@@ -86,17 +86,16 @@ void plat_console_init(void)
 	/* Early console initialization before MMU setup */
 	struct uart {
 		paddr_t pa;
-		bool secure;
 	} uarts[] = {
 		[0] = { .pa = 0 },
-		[1] = { .pa = USART1_BASE, .secure = true, },
-		[2] = { .pa = USART2_BASE, .secure = false, },
-		[3] = { .pa = USART3_BASE, .secure = false, },
-		[4] = { .pa = UART4_BASE, .secure = false, },
-		[5] = { .pa = UART5_BASE, .secure = false, },
-		[6] = { .pa = USART6_BASE, .secure = false, },
-		[7] = { .pa = UART7_BASE, .secure = false, },
-		[8] = { .pa = UART8_BASE, .secure = false, },
+		[1] = { .pa = USART1_BASE },
+		[2] = { .pa = USART2_BASE },
+		[3] = { .pa = USART3_BASE },
+		[4] = { .pa = UART4_BASE },
+		[5] = { .pa = UART5_BASE },
+		[6] = { .pa = USART6_BASE },
+		[7] = { .pa = UART7_BASE },
+		[8] = { .pa = UART8_BASE },
 	};
 
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(uarts) > CFG_STM32_EARLY_CONSOLE_UART);
@@ -107,7 +106,6 @@ void plat_console_init(void)
 	/* No clock yet bound to the UART console */
 	console_data.clock = NULL;
 
-	console_data.secure = uarts[CFG_STM32_EARLY_CONSOLE_UART].secure;
 	stm32_uart_init(&console_data, uarts[CFG_STM32_EARLY_CONSOLE_UART].pa);
 
 	register_serial_console(&console_data.chip);
@@ -144,7 +142,7 @@ static TEE_Result init_console_from_dt(void)
 	console_flush();
 	console_data = *pd;
 	register_serial_console(&console_data.chip);
-	IMSG("DTB enables console (%ssecure)", pd->secure ? "" : "non-");
+	IMSG("DTB enables console");
 	free(pd);
 
 	return TEE_SUCCESS;
