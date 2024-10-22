@@ -1296,8 +1296,6 @@ static TEE_Result stm32_cryp_probe(const void *fdt, int node,
 	if (!cryp_pdata.base.va)
 		panic();
 
-	stm32mp_register_secure_periph_iomem(cryp_pdata.base.pa);
-
 	if (clk_enable(cryp_pdata.clock))
 		panic();
 
