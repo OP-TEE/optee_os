@@ -536,7 +536,6 @@ int32_t plat_scmi_rd_autonomous(unsigned int channel_id, unsigned int scmi_id,
 
 	if (!rd->rstctrl || !stm32mp_nsec_can_access_reset(rd->reset_id))
 		return SCMI_DENIED;
-	assert(rd->rstctrl);
 
 #ifdef CFG_STM32MP15
 	/* Reset cycle on MCU hold boot is not supported */
@@ -573,7 +572,6 @@ int32_t plat_scmi_rd_set_state(unsigned int channel_id, unsigned int scmi_id,
 
 	if (!rd->rstctrl || !stm32mp_nsec_can_access_reset(rd->reset_id))
 		return SCMI_DENIED;
-	assert(rd->rstctrl);
 
 #ifdef CFG_STM32MP15
 	/* Remoteproc driver may handle all MCU reset controllers */
