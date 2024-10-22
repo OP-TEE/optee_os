@@ -9,12 +9,16 @@
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/pinctrl.h>
+#include <drivers/stm32_bsec.h>
 #include <drivers/stm32_etzpc.h>
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32_iwdg.h>
 #include <drivers/stm32_tamp.h>
 #include <drivers/stm32_uart.h>
 #include <drivers/stm32mp_dt_bindings.h>
+#ifdef CFG_STM32MP15
+#include <drivers/stm32mp1_rcc.h>
+#endif
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
@@ -327,6 +331,7 @@ service_init_late(init_stm32mp1_drivers);
 static TEE_Result init_late_stm32mp1_drivers(void)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t __maybe_unused state = 0;
 
 	/* Set access permission to TAM backup registers */
 	if (IS_ENABLED(CFG_STM32_TAMP)) {
@@ -343,6 +348,14 @@ static TEE_Result init_late_stm32mp1_drivers(void)
 		if (res)
 			panic();
 	}
+
+#ifdef CFG_STM32MP15
+	/* Device in Secure Closed state require RCC secure hardening */
+	if (stm32_bsec_get_state(&state))
+		panic();
+	if (state == BSEC_STATE_SEC_CLOSED && !stm32_rcc_is_secure())
+		panic("Closed device mandates secure RCC");
+#endif
 
 	return TEE_SUCCESS;
 }
