@@ -16,7 +16,6 @@
 struct stm32_uart_pdata {
 	struct io_pa_va base;
 	struct serial_chip chip;
-	bool secure;
 	struct clk *clock;
 	struct pinctrl_state *pinctrl;
 	struct pinctrl_state *pinctrl_sleep;
