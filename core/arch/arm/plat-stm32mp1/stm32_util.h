@@ -126,51 +126,6 @@ static inline int decr_refcnt(unsigned int *refcnt)
 	return decr_shrefcnt(refcnt, true);
 }
 
-/*
- * Shared peripherals and resources registration
- *
- * Resources listed in enum stm32mp_shres assigned at run-time to the
- * non-secure world, to the secure world or shared by both worlds.
- * In the later case, there must exist a secure service in OP-TEE
- * for the non-secure world to access the resource.
- *
- * Resources may be a peripheral, a bus, a clock or a memory.
- *
- * Shared resources driver API functions allows drivers to register the
- * resource as secure, non-secure or shared and to get the resource
- * assignation state.
- */
-#define STM32MP1_SHRES_GPIOZ(i)		(STM32MP1_SHRES_GPIOZ_0 + i)
-
-enum stm32mp_shres {
-	STM32MP1_SHRES_GPIOZ_0 = 0,
-	STM32MP1_SHRES_GPIOZ_1,
-	STM32MP1_SHRES_GPIOZ_2,
-	STM32MP1_SHRES_GPIOZ_3,
-	STM32MP1_SHRES_GPIOZ_4,
-	STM32MP1_SHRES_GPIOZ_5,
-	STM32MP1_SHRES_GPIOZ_6,
-	STM32MP1_SHRES_GPIOZ_7,
-	STM32MP1_SHRES_IWDG1,
-	STM32MP1_SHRES_USART1,
-	STM32MP1_SHRES_SPI6,
-	STM32MP1_SHRES_I2C4,
-	STM32MP1_SHRES_RNG1,
-	STM32MP1_SHRES_HASH1,
-	STM32MP1_SHRES_CRYP1,
-	STM32MP1_SHRES_I2C6,
-	STM32MP1_SHRES_RTC,
-	STM32MP1_SHRES_MCU,
-	STM32MP1_SHRES_PLL3,
-	STM32MP1_SHRES_MDMA,
-	STM32MP1_SHRES_SRAM1,
-	STM32MP1_SHRES_SRAM2,
-	STM32MP1_SHRES_SRAM3,
-	STM32MP1_SHRES_SRAM4,
-
-	STM32MP1_SHRES_COUNT
-};
-
 bool stm32mp_allow_probe_shared_device(const void *fdt, int node);
 
 #if defined(CFG_STM32MP15) && defined(CFG_WITH_PAGER)
@@ -194,53 +149,4 @@ static inline bool stm32mp1_ram_intersect_pager_ram(paddr_t base __unused,
 	return false;
 }
 #endif /*CFG_STM32MP15 && CFG_WITH_PAGER*/
-
-#ifdef CFG_STM32MP1_SHARED_RESOURCES
-/* Register resource @id as a secure peripheral */
-void stm32mp_register_secure_periph(enum stm32mp_shres id);
-
-/* Register resource @id as a non-secure peripheral */
-void stm32mp_register_non_secure_periph(enum stm32mp_shres id);
-
-/*
- * Register resource identified by @base as a secure peripheral
- * @base: IOMEM physical base address of the resource
- */
-void stm32mp_register_secure_periph_iomem(vaddr_t base);
-
-/*
- * Register resource identified by @base as a non-secure peripheral
- * @base: IOMEM physical base address of the resource
- */
-void stm32mp_register_non_secure_periph_iomem(vaddr_t base);
-
-/* Return true if and only if resource @id is registered as secure */
-bool stm32mp_periph_is_secure(enum stm32mp_shres id);
-
-#else /* CFG_STM32MP1_SHARED_RESOURCES */
-
-static inline void stm32mp_register_secure_periph(enum stm32mp_shres id
-						  __unused)
-{
-}
-
-static inline void stm32mp_register_non_secure_periph(enum stm32mp_shres id
-						      __unused)
-{
-}
-
-static inline void stm32mp_register_secure_periph_iomem(vaddr_t base __unused)
-{
-}
-
-static inline void stm32mp_register_non_secure_periph_iomem(vaddr_t base
-							    __unused)
-{
-}
-
-static inline bool stm32mp_periph_is_secure(enum stm32mp_shres id __unused)
-{
-	return true;
-}
-#endif /* CFG_STM32MP1_SHARED_RESOURCES */
 #endif /*__STM32_UTIL_H__*/
