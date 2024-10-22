@@ -12,10 +12,13 @@
 
 #include <assert.h>
 #include <drivers/clk_dt.h>
-#include <drivers/stm32_etzpc.h>
 #include <drivers/firewall.h>
 #include <drivers/firewall_device.h>
+#include <drivers/stm32_etzpc.h>
 #include <drivers/stm32mp_dt_bindings.h>
+#ifdef CFG_STM32MP15
+#include <drivers/stm32mp1_rcc.h>
+#endif
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>
@@ -153,6 +156,44 @@ static enum etzpc_decprot_attributes etzpc_binding2decprot(uint32_t mode)
 	}
 }
 
+static void
+sanitize_decprot_config(uint32_t decprot_id __maybe_unused,
+			enum etzpc_decprot_attributes attr __maybe_unused)
+{
+#ifdef CFG_STM32MP15
+	/*
+	 * STM32MP15: check dependency on RCC TZEN/MCKPROT configuration
+	 * when a ETZPC resource is secured or isolated for Cortex-M
+	 * coprocessor.
+	 */
+	switch (attr) {
+	case DECPROT_S_RW:
+	case DECPROT_NS_R_S_W:
+		if (!stm32_rcc_is_secure()) {
+			IMSG("WARNING: RCC tzen:0, insecure ETZPC hardening %"PRIu32":%u",
+			     decprot_id, attr);
+			if (!IS_ENABLED(CFG_INSECURE))
+				panic();
+		}
+		break;
+	case DECPROT_MCU_ISOLATION:
+		if (!stm32_rcc_is_secure() || !stm32_rcc_is_mckprot()) {
+			IMSG("WARNING: RCC tzen:%u mckprot:%u, insecure ETZPC hardening %"PRIu32":%u",
+			     stm32_rcc_is_secure(), stm32_rcc_is_mckprot(),
+			     decprot_id, attr);
+			if (!IS_ENABLED(CFG_INSECURE))
+				panic();
+		}
+		break;
+	case DECPROT_NS_RW:
+		break;
+	default:
+		assert(0);
+		break;
+	}
+#endif
+}
+
 static void etzpc_configure_decprot(uint32_t decprot_id,
 				    enum etzpc_decprot_attributes attr)
 {
@@ -165,6 +206,8 @@ static void etzpc_configure_decprot(uint32_t decprot_id,
 	assert(valid_decprot_id(decprot_id));
 
 	FMSG("ID : %"PRIu32", config %i", decprot_id, attr);
+
+	sanitize_decprot_config(decprot_id, attr);
 
 	exceptions = etzpc_lock();
 
