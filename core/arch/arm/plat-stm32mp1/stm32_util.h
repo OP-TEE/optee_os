@@ -250,9 +250,6 @@ bool stm32mp_gpio_bank_is_secure(unsigned int bank);
 /* Return true if and only if GPIO bank @bank is registered as non-secure */
 bool stm32mp_gpio_bank_is_non_secure(unsigned int bank);
 
-/* Register parent clocks of @clock (ID used in clock DT bindings) as secure */
-void stm32mp_register_clock_parents_secure(unsigned long clock_id);
-
 /* Register number of pins in the GPIOZ bank */
 void stm32mp_register_gpioz_pin_count(size_t count);
 
@@ -310,11 +307,6 @@ static inline bool stm32mp_gpio_bank_is_secure(unsigned int bank __unused)
 static inline bool stm32mp_gpio_bank_is_non_secure(unsigned int bank __unused)
 {
 	return false;
-}
-
-static inline void stm32mp_register_clock_parents_secure(unsigned long clock_id
-							 __unused)
-{
 }
 
 static inline void stm32mp_register_gpioz_pin_count(size_t count __unused)
