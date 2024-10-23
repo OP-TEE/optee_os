@@ -48,16 +48,6 @@ struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id);
 
 extern const struct clk_ops stm32mp1_clk_ops;
 
-#ifdef CFG_STM32MP1_SHARED_RESOURCES
-/* Return true if and only if @reset_id relates to a non-secure peripheral */
-bool stm32mp_nsec_can_access_reset(unsigned int reset_id);
-#else /* CFG_STM32MP1_SHARED_RESOURCES */
-static inline bool stm32mp_nsec_can_access_reset(unsigned int reset_id __unused)
-{
-	return true;
-}
-#endif /* CFG_STM32MP1_SHARED_RESOURCES */
-
 /* Return rstctrl instance related to RCC reset controller DT binding ID */
 struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id);
 
