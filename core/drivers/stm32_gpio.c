@@ -15,6 +15,7 @@
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32_rif.h>
 #include <dt-bindings/gpio/stm32mp_gpio.h>
+#include <dt-bindings/pinctrl/stm32-pinfunc.h>
 #include <io.h>
 #include <kernel/dt.h>
 #include <kernel/boot.h>
@@ -127,6 +128,7 @@
  * @pupd: One of GPIO_PUPD_*
  * @od: One of GPIO_OD_*
  * @af: Alternate function numerical ID between 0 and 15
+ * @nsec: Hint on expected secure state of the pin: 0 if secure, 1 otherwise
  */
 struct gpio_cfg {
 	uint16_t mode:		2;
@@ -135,6 +137,7 @@ struct gpio_cfg {
 	uint16_t pupd:		2;
 	uint16_t od:		1;
 	uint16_t af:		4;
+	uint16_t nsec:		1;
 };
 
 /*
@@ -616,8 +619,10 @@ static void set_gpio_cfg(uint32_t bank_id, uint32_t pin, struct gpio_cfg *cfg)
 
 /* Count pins described in the DT node and get related data if possible */
 static int get_pinctrl_from_fdt(const void *fdt, int node,
+				int consumer_node __maybe_unused,
 				struct stm32_pinctrl *pinctrl, size_t count)
 {
+	struct stm32_gpio_bank *bank_ref = NULL;
 	const fdt32_t *cuint = NULL;
 	const fdt32_t *slewrate = NULL;
 	int len = 0;
@@ -625,6 +630,7 @@ static int get_pinctrl_from_fdt(const void *fdt, int node,
 	uint32_t speed = GPIO_OSPEED_LOW;
 	uint32_t pull = GPIO_PUPD_NO_PULL;
 	size_t found = 0;
+	bool do_panic = false;
 
 	cuint = fdt_getprop(fdt, node, "pinmux", &len);
 	if (!cuint)
@@ -647,6 +653,7 @@ static int get_pinctrl_from_fdt(const void *fdt, int node,
 		uint32_t alternate = 0;
 		uint32_t odata = 0;
 		bool opendrain = false;
+		bool pin_non_secure = true;
 
 		pincfg = fdt32_to_cpu(*cuint);
 		cuint++;
@@ -656,6 +663,8 @@ static int get_pinctrl_from_fdt(const void *fdt, int node,
 		pin = (pincfg & DT_GPIO_PIN_MASK) >> DT_GPIO_PIN_SHIFT;
 
 		mode = pincfg & DT_GPIO_MODE_MASK;
+
+		pin_non_secure = pincfg & STM32_PIN_NSEC;
 
 		switch (mode) {
 		case 0:
@@ -717,10 +726,23 @@ static int get_pinctrl_from_fdt(const void *fdt, int node,
 			ref->cfg.pupd = pull;
 			ref->cfg.od = odata;
 			ref->cfg.af = alternate;
+			ref->cfg.nsec = pin_non_secure;
+
+			bank_ref = stm32_gpio_get_bank(bank);
+
+			if (pin >= bank_ref->ngpios) {
+				EMSG("node %s requests pin %c%u that does not exist",
+				     fdt_get_name(fdt, consumer_node, NULL),
+				     bank + 'A', pin);
+				do_panic = true;
+			}
 		}
 
 		found++;
 	}
+
+	if (do_panic)
+		panic();
 
 	return (int)found;
 }
@@ -1377,10 +1399,35 @@ static TEE_Result stm32_pinctrl_conf_apply(struct pinconf *conf)
 
 	for (n = 0; n < pin_count; n++) {
 		bank = stm32_gpio_get_bank(p[n].bank);
+
+		if (!pin_is_accessible(bank, p[n].pin)) {
+			EMSG("Apply pinctrl for pin %c%u that cannot be accessed",
+			     p[n].bank + 'A', p[n].pin);
+			error = true;
+			continue;
+		}
+
 		res = acquire_rif_semaphore_if_needed(bank, p[n].pin);
 		if (res) {
 			EMSG("Failed to acquire GPIO %c%u semaphore",
 			     bank->bank_id + 'A', p[n].pin);
+			error = true;
+			continue;
+		}
+
+		if (p[n].cfg.nsec == !pin_is_secure(bank, p[n].pin))
+			continue;
+
+		if (IS_ENABLED(CFG_INSECURE)) {
+			IMSG("WARNING: apply pinctrl for %ssecure pin %c%u that is %ssecure",
+			     p[n].cfg.nsec ? "non-" : "",
+			     p[n].bank + 'A', p[n].pin,
+			     pin_is_secure(bank, p[n].pin) ? "" : "non-");
+		} else {
+			EMSG("Apply pinctrl for %ssecure pin %c%u that is %ssecure",
+			     p[n].cfg.nsec ? "non-" : "",
+			     p[n].bank + 'A', p[n].pin,
+			     pin_is_secure(bank, p[n].pin) ? "" : "non-");
 			error = true;
 		}
 	}
@@ -1515,7 +1562,9 @@ static TEE_Result stm32_pinctrl_dt_get(struct dt_pargs *pargs,
 	fdt_for_each_subnode(pinmux_node, fdt, pinctrl_node) {
 		int found = 0;
 
-		found = get_pinctrl_from_fdt(fdt, pinmux_node, pinctrl + count,
+		found = get_pinctrl_from_fdt(fdt, pinmux_node,
+					     pargs->consumer_node,
+					     pinctrl + count,
 					     pin_count - count);
 		if (found <= 0 && found > ((int)pin_count - count)) {
 			/* We can't recover from an error here so let's panic */
