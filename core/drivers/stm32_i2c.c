@@ -819,9 +819,6 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 
 	i2c_config_analog_filter(hi2c, init_data->analog_filter);
 
-	if (IS_ENABLED(CFG_STM32MP13))
-		stm32_pinctrl_set_secure_cfg(hi2c->pinctrl, true);
-
 	clk_disable(hi2c->clock);
 
 	if (hi2c->pinctrl && pinctrl_apply_state(hi2c->pinctrl))
@@ -1585,9 +1582,6 @@ void stm32_i2c_resume(struct i2c_handle_s *hi2c)
 	}
 
 	restore_cfg(hi2c, &hi2c->sec_cfg);
-
-	if (IS_ENABLED(CFG_STM32MP13))
-		stm32_pinctrl_set_secure_cfg(hi2c->pinctrl, true);
 
 	hi2c->i2c_state = I2C_STATE_READY;
 }
