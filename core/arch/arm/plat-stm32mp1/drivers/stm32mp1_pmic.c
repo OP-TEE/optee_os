@@ -288,40 +288,6 @@ const char *stm32mp_pmic_get_cpu_supply_name(void)
 	return cpu_supply_name;
 }
 
-/* Preallocate not that much regu references */
-static char *nsec_access_regu_name[PMIC_REGU_COUNT];
-
-bool stm32mp_nsec_can_access_pmic_regu(const char *name)
-{
-	size_t n = 0;
-
-	for (n = 0; n < ARRAY_SIZE(nsec_access_regu_name); n++)
-		if (nsec_access_regu_name[n] &&
-		    !strcmp(nsec_access_regu_name[n], name))
-			return true;
-
-	return false;
-}
-
-static void register_nsec_regu(const char *name_ref)
-{
-	size_t n = 0;
-
-	assert(!stm32mp_nsec_can_access_pmic_regu(name_ref));
-
-	for (n = 0; n < ARRAY_SIZE(nsec_access_regu_name); n++) {
-		if (!nsec_access_regu_name[n]) {
-			nsec_access_regu_name[n] = strdup(name_ref);
-
-			if (!nsec_access_regu_name[n])
-				panic();
-			break;
-		}
-	}
-
-	assert(stm32mp_nsec_can_access_pmic_regu(name_ref));
-}
-
 static TEE_Result pmic_set_state(struct regulator *regulator, bool enable)
 {
 	struct pmic_regulator_data *priv = regulator->priv;
@@ -630,9 +596,6 @@ static void parse_regulator_fdt_nodes(const void *fdt, int pmic_node)
 		regu_name = fdt_get_name(fdt, regu_node, NULL);
 
 		assert(stpmic1_regulator_is_valid(regu_name));
-
-		if (status & DT_STATUS_OK_NSEC)
-			register_nsec_regu(regu_name);
 
 		for (n = 0; n < ARRAY_SIZE(regu_lp_state); n++)
 			dt_get_regu_low_power_config(fdt, regu_name, regu_node,
