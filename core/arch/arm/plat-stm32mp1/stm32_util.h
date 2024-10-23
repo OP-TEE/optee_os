@@ -235,45 +235,8 @@ void stm32mp_register_secure_periph_iomem(vaddr_t base);
  */
 void stm32mp_register_non_secure_periph_iomem(vaddr_t base);
 
-/*
- * Register GPIO resource as a secure peripheral
- * @bank: Bank of the target GPIO
- * @pin: Bit position of the target GPIO in the bank
- */
-void stm32mp_register_secure_gpio(unsigned int bank, unsigned int pin);
-
-/*
- * Register GPIO resource as a non-secure peripheral
- * @bank: Bank of the target GPIO
- * @pin: Bit position of the target GPIO in the bank
- */
-void stm32mp_register_non_secure_gpio(unsigned int bank, unsigned int pin);
-
-/*
- * Register pin resource of a pin control state as a secure peripheral
- * @bank: Bank of the target GPIO
- * @pin: Bit position of the target GPIO in the bank
- */
-void stm32mp_register_secure_pinctrl(struct pinctrl_state *pinctrl);
-
-/*
- * Register pin resource of a pin control state as a non-secure peripheral
- * @bank: Bank of the target GPIO
- * @pin: Bit position of the target GPIO in the bank
- */
-void stm32mp_register_non_secure_pinctrl(struct pinctrl_state *pinctrl);
-
 /* Return true if and only if resource @id is registered as secure */
 bool stm32mp_periph_is_secure(enum stm32mp_shres id);
-
-/* Return true if and only if GPIO bank @bank is registered as secure */
-bool stm32mp_gpio_bank_is_secure(unsigned int bank);
-
-/* Return true if and only if GPIO bank @bank is registered as non-secure */
-bool stm32mp_gpio_bank_is_non_secure(unsigned int bank);
-
-/* Register number of pins in the GPIOZ bank */
-void stm32mp_register_gpioz_pin_count(size_t count);
 
 #else /* CFG_STM32MP1_SHARED_RESOURCES */
 
@@ -296,43 +259,9 @@ static inline void stm32mp_register_non_secure_periph_iomem(vaddr_t base
 {
 }
 
-static inline void stm32mp_register_secure_gpio(unsigned int bank __unused,
-						unsigned int pin __unused)
-{
-}
-
-static inline void stm32mp_register_non_secure_gpio(unsigned int bank __unused,
-						    unsigned int pin __unused)
-{
-}
-
-static inline void
-stm32mp_register_secure_pinctrl(struct pinctrl_state *pinctrl __unused)
-{
-}
-
-static inline void
-stm32mp_register_non_secure_pinctrl(struct pinctrl_state *pinctrl __unused)
-{
-}
-
 static inline bool stm32mp_periph_is_secure(enum stm32mp_shres id __unused)
 {
 	return true;
-}
-
-static inline bool stm32mp_gpio_bank_is_secure(unsigned int bank __unused)
-{
-	return true;
-}
-
-static inline bool stm32mp_gpio_bank_is_non_secure(unsigned int bank __unused)
-{
-	return false;
-}
-
-static inline void stm32mp_register_gpioz_pin_count(size_t count __unused)
-{
 }
 #endif /* CFG_STM32MP1_SHARED_RESOURCES */
 #endif /*__STM32_UTIL_H__*/
