@@ -1266,9 +1266,6 @@ static TEE_Result dt_stm32_gpio_bank(const void *fdt, int node,
 		bank->base = io_pa_or_va_nsec(&pa_va, blen);
 	}
 
-	if (compat->gpioz)
-		stm32mp_register_gpioz_pin_count(bank->ngpios);
-
 	*out_bank = bank;
 
 	return TEE_SUCCESS;
