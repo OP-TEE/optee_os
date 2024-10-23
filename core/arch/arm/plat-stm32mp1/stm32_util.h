@@ -46,17 +46,6 @@ void may_spin_unlock(unsigned int *lock, uint32_t exceptions);
 /* Helper from platform RCC clock driver */
 struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id);
 
-#ifdef CFG_STM32MP1_SHARED_RESOURCES
-/* Return true if @clock_id is shared by secure and non-secure worlds */
-bool stm32mp_nsec_can_access_clock(unsigned long clock_id);
-#else /* CFG_STM32MP1_SHARED_RESOURCES */
-static inline bool stm32mp_nsec_can_access_clock(unsigned long clock_id
-						 __unused)
-{
-	return true;
-}
-#endif /* CFG_STM32MP1_SHARED_RESOURCES */
-
 extern const struct clk_ops stm32mp1_clk_ops;
 
 #ifdef CFG_STM32MP1_SHARED_RESOURCES
