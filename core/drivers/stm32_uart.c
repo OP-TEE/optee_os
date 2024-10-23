@@ -113,9 +113,6 @@ static void register_secure_uart(struct stm32_uart_pdata *pd __maybe_unused)
 {
 #ifndef CFG_STM32MP25
 	stm32mp_register_secure_periph_iomem(pd->base.pa);
-	stm32mp_register_secure_pinctrl(pd->pinctrl);
-	if (pd->pinctrl_sleep)
-		stm32mp_register_secure_pinctrl(pd->pinctrl_sleep);
 #endif
 }
 
@@ -123,9 +120,6 @@ static void register_non_secure_uart(struct stm32_uart_pdata *pd __maybe_unused)
 {
 #ifndef CFG_STM32MP25
 	stm32mp_register_non_secure_periph_iomem(pd->base.pa);
-	stm32mp_register_non_secure_pinctrl(pd->pinctrl);
-	if (pd->pinctrl_sleep)
-		stm32mp_register_non_secure_pinctrl(pd->pinctrl_sleep);
 #endif
 
 }
