@@ -59,16 +59,6 @@ static inline bool stm32mp_nsec_can_access_clock(unsigned long clock_id
 
 extern const struct clk_ops stm32mp1_clk_ops;
 
-#if defined(CFG_STPMIC1)
-/* Return true if non-secure world can manipulate regulator @pmic_regu_name */
-bool stm32mp_nsec_can_access_pmic_regu(const char *pmic_regu_name);
-#else
-static inline bool stm32mp_nsec_can_access_pmic_regu(const char *name __unused)
-{
-	return false;
-}
-#endif
-
 #ifdef CFG_STM32MP1_SHARED_RESOURCES
 /* Return true if and only if @reset_id relates to a non-secure peripheral */
 bool stm32mp_nsec_can_access_reset(unsigned int reset_id);
