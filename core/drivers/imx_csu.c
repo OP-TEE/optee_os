@@ -72,11 +72,12 @@ const struct csu_setting csu_setting_imx7ds[] = {
 	{(-1), 0},
 };
 
-/* Set all masters to non-secure except the Cortex-A7 */
+/* Set all masters to non-secure except the Cortex-A cores */
+const struct csu_sa_setting csu_sa_imx6 = { 0x15554554, 0x2aaa8aaa };
 const struct csu_sa_setting csu_sa_imx6ul = { 0x10554550, 0x20aa8aa2 };
 const struct csu_sa_setting csu_sa_imx7ds = { 0x15554554, 0x2aaa8aaa };
 
-const struct csu_config csu_imx6 = { NULL, csu_setting_imx6 };
+const struct csu_config csu_imx6 = { &csu_sa_imx6, csu_setting_imx6 };
 const struct csu_config csu_imx6ul = { &csu_sa_imx6ul, csu_setting_imx6ul };
 const struct csu_config csu_imx6ull = { NULL, csu_setting_imx6ull };
 const struct csu_config csu_imx6sl = { NULL, csu_setting_imx6sl };
