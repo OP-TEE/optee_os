@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 /* ==========================================================================
  * err_to_str.c -- strings names for errors
  *

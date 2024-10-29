@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 /* ==========================================================================
  * ieee754.h -- Conversion between half, double & single-precision floats
  *
