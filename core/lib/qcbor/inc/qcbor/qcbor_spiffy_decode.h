@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 /* ==========================================================================
  * qcbor_spiffy_decode.h -- higher-level easier-to-use CBOR decoding.
  *
