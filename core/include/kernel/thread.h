@@ -244,7 +244,9 @@ bool thread_is_in_normal_mode(void);
 bool thread_is_from_abort_mode(void);
 
 /**
- * Allocates data for payload buffers.
+ * Allocates data for payload buffers shared with a non-secure user space
+ * application. Ensure consistency with the enumeration
+ * THREAD_SHM_TYPE_APPLICATION.
  *
  * @size:	size in bytes of payload buffer
  *
@@ -260,7 +262,8 @@ struct mobj *thread_rpc_alloc_payload(size_t size);
 void thread_rpc_free_payload(struct mobj *mobj);
 
 /**
- * Allocate data for payload buffers only shared with the non-secure kernel
+ * Allocate data for payload buffers shared with the non-secure kernel.
+ * Ensure consistency with the enumeration THREAD_SHM_TYPE_KERNEL_PRIVATE.
  *
  * @size:	size in bytes of payload buffer
  *
@@ -333,8 +336,9 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 		struct thread_param *params);
 
 /**
- * Allocate data for payload buffers.
- * Buffer is exported to user mode applications.
+ * Allocate data for payload buffers shared with both user space applications
+ * and the non-secure kernel. Ensure consistency with the enumeration
+ * THREAD_SHM_TYPE_GLOBAL.
  *
  * @size:	size in bytes of payload buffer
  *
