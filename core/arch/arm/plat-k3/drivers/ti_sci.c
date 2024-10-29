@@ -68,7 +68,6 @@ static int ti_sci_setup_xfer(uint16_t msg_type, uint32_t msg_flags,
 	}
 
 	hdr = (struct ti_sci_msg_hdr *)tx_buf;
-	hdr->seq = ++message_sequence;
 	hdr->type = msg_type;
 	hdr->host = OPTEE_HOST_ID;
 	hdr->flags = msg_flags | TI_SCI_FLAG_REQ_ACK_ON_PROCESSED;
@@ -136,9 +135,13 @@ static inline int ti_sci_get_response(struct ti_sci_xfer *xfer)
 static inline int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 {
 	struct k3_sec_proxy_msg *msg = &xfer->tx_message;
+	struct ti_sci_msg_hdr *hdr = NULL;
 	int ret = 0;
 
 	mutex_lock(&ti_sci_mutex_lock);
+
+	hdr = (struct ti_sci_msg_hdr *)msg->buf;
+	hdr->seq = ++message_sequence;
 
 	/* Send the message */
 	ret = k3_sec_proxy_send(msg);
