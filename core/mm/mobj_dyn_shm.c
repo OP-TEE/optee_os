@@ -366,14 +366,17 @@ static struct mobj_reg_shm *reg_shm_find_unlocked(uint64_t cookie)
 
 struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie)
 {
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
+	struct mobj_reg_shm *r = NULL;
+	uint32_t exceptions = 0;
+	struct mobj *m = NULL;
 
+	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	r = reg_shm_find_unlocked(cookie);
+	if (r)
+		m = mobj_get(&r->mobj);
 	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
-	if (!r)
-		return NULL;
 
-	return mobj_get(&r->mobj);
+	return m;
 }
 
 TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie)
