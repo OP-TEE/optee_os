@@ -79,12 +79,6 @@
 #endif
 #define RTC_BASE			0x5c004000
 #define SPI6_BASE			0x5c001000
-#ifdef CFG_STM32MP15
-#define SRAM1_BASE			0x30000000
-#define SRAM2_BASE			0x30020000
-#define SRAM3_BASE			0x30040000
-#define SRAM4_BASE			0x30050000
-#endif
 #define SYSCFG_BASE			0x50020000
 #ifdef CFG_STM32MP13
 #define SYSRAM_BASE			0x2ffe0000
@@ -235,6 +229,10 @@
 #endif
 
 #ifdef CFG_STM32MP15
+#define SRAM1_BASE			0x30000000
+#define SRAM2_BASE			0x30020000
+#define SRAM3_BASE			0x30040000
+#define SRAM4_BASE			0x30050000
 /* Alternate SRAM base address possibly used by remoteproc firmware */
 #define SRAM1_ALT_BASE			0x10000000
 #define SRAM2_ALT_BASE			0x10020000
@@ -245,6 +243,19 @@
 #define SRAM2_SIZE			0x20000
 #define SRAM3_SIZE			0x10000
 #define SRAM4_SIZE			0x10000
+
+#define RETRAM_BASE			0x38000000
+#define RETRAM_SIZE			0x10000
+#endif
+
+#ifdef CFG_STM32MP13
+/* SRAM layout*/
+#define SRAM1_BASE			0x30000000
+#define SRAM1_SIZE			0x4000
+#define SRAM2_BASE			0x30004000
+#define SRAM2_SIZE			0x2000
+#define SRAM3_BASE			0x30006000
+#define SRAM3_SIZE			0x2000
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/
