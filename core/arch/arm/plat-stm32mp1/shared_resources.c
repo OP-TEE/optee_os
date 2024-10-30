@@ -627,11 +627,6 @@ static void rcc_secure_configuration(void)
 		else
 			panic();
 	}
-
-	if (!need_mckprot && mckprot) {
-		DMSG("Disable RCC MCKPROT");
-		stm32_rcc_set_mckprot(false);
-	}
 }
 
 static void set_gpio_secure_configuration(void)
