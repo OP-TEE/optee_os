@@ -167,8 +167,8 @@ sanitize_decprot_config(uint32_t decprot_id __maybe_unused,
 	 * coprocessor.
 	 */
 	switch (attr) {
-	case DECPROT_S_RW:
-	case DECPROT_NS_R_S_W:
+	case ETZPC_DECPROT_S_RW:
+	case ETZPC_DECPROT_NS_R_S_W:
 		if (!stm32_rcc_is_secure()) {
 			IMSG("WARNING: RCC tzen:0, insecure ETZPC hardening %"PRIu32":%s",
 			     decprot_id, etzpc_decprot_strings[attr]);
@@ -176,7 +176,7 @@ sanitize_decprot_config(uint32_t decprot_id __maybe_unused,
 				panic();
 		}
 		break;
-	case DECPROT_MCU_ISOLATION:
+	case ETZPC_DECPROT_MCU_ISOLATION:
 		if (!stm32_rcc_is_secure() || !stm32_rcc_is_mckprot()) {
 			IMSG("WARNING: RCC tzen:%u mckprot:%u, insecure ETZPC hardening %"PRIu32":%s",
 			     stm32_rcc_is_secure(), stm32_rcc_is_mckprot(),
@@ -185,7 +185,7 @@ sanitize_decprot_config(uint32_t decprot_id __maybe_unused,
 				panic();
 		}
 		break;
-	case DECPROT_NS_RW:
+	case ETZPC_DECPROT_NS_RW:
 		break;
 	default:
 		assert(0);
