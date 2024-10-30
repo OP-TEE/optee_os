@@ -1539,6 +1539,12 @@ static TEE_Result stm32mp1_clock_provider_probe(const void *fdt, int offs,
 	else
 		enable_rcc_tzen();
 
+	/*
+	 * Default disable MCKPROT, it may be enabled later from
+	 * STM32 remoteproc driver.
+	 */
+	stm32_rcc_set_mckprot(false);
+
 	res = stm32mp1_clk_fdt_init(fdt, offs);
 	if (res) {
 		EMSG("Failed to initialize clocks from DT: %#"PRIx32, res);
