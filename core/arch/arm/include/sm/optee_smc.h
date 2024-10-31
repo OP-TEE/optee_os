@@ -320,6 +320,8 @@
 #define OPTEE_SMC_SEC_CAP_RPMB_PROBE		BIT(7)
 /* Secure world supports protected memory */
 #define OPTEE_SMC_SEC_CAP_PROTMEM		BIT(8)
+/* Secure world supports dynamic protected memory */
+#define OPTEE_SMC_SEC_CAP_DYNAMIC_PROTMEM	BIT(9)
 
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	U(9)
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \
