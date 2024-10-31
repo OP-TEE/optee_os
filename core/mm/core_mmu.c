@@ -602,6 +602,17 @@ static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
 		is_sdp_mem = pbuf_is_special_mem(pbuf, len, phys_sdp_mem_begin,
 						 phys_sdp_mem_end);
 
+	if (!is_sdp_mem) {
+		struct mobj *m = mobj_protmem_get_by_pa(pbuf, len);
+
+		if (!m)
+			m = mobj_ffa_protmem_get_by_pa(pbuf, len);
+		if (m) {
+			mobj_put(m);
+			is_sdp_mem = true;
+		}
+	}
+
 	return is_sdp_mem;
 }
 

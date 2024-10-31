@@ -36,7 +36,8 @@
 #include <util.h>
 
 #if defined(CFG_CORE_SEL1_SPMC)
-struct mem_share_state {
+struct mem_op_state {
+	bool mem_share;
 	struct mobj_ffa *mf;
 	unsigned int page_count;
 	unsigned int region_count;
@@ -44,7 +45,7 @@ struct mem_share_state {
 };
 
 struct mem_frag_state {
-	struct mem_share_state share;
+	struct mem_op_state op;
 	tee_mm_entry_t *mm;
 	unsigned int frag_offset;
 	SLIST_ENTRY(mem_frag_state) link;
@@ -822,6 +823,8 @@ static void handle_blocking_call(struct thread_smc_1_2_regs *args)
 			sec_caps |= OPTEE_FFA_SEC_CAP_ASYNC_NOTIF;
 		if (IS_ENABLED(CFG_RPMB_ANNOUNCE_PROBE_CAP))
 			sec_caps |= OPTEE_FFA_SEC_CAP_RPMB_PROBE;
+		if (IS_ENABLED(CFG_CORE_DYN_PROTMEM))
+			sec_caps |= OPTEE_FFA_SEC_CAP_PROTMEM;
 		spmc_set_args(args, direct_resp_fid,
 			      swap_src_dst(args->a1), 0, 0,
 			      THREAD_RPC_MAX_NUM_PARAMS, sec_caps);
@@ -837,6 +840,12 @@ static void handle_blocking_call(struct thread_smc_1_2_regs *args)
 						      FFA_SRC(args->a1)),
 			      0, 0);
 		break;
+#ifdef CFG_CORE_DYN_PROTMEM
+	case OPTEE_FFA_RELEASE_PROTMEM:
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
+			      handle_unregister_shm(args->a4, args->a5), 0, 0);
+		break;
+#endif
 	default:
 		EMSG("Unhandled blocking service ID %#"PRIx32,
 		     (uint32_t)args->a3);
@@ -1037,17 +1046,19 @@ static int get_acc_perms(vaddr_t mem_acc_base, unsigned int mem_access_size,
 	return FFA_INVALID_PARAMETERS;
 }
 
-static int mem_share_init(struct ffa_mem_transaction_x *mem_trans, void *buf,
-			  size_t blen, unsigned int *page_count,
-			  unsigned int *region_count, size_t *addr_range_offs)
+static int mem_op_init(bool mem_share, struct ffa_mem_transaction_x *mem_trans,
+		       void *buf, size_t blen, unsigned int *page_count,
+		       unsigned int *region_count, size_t *addr_range_offs)
 {
-	const uint16_t exp_mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
 	const uint8_t exp_mem_acc_perm = FFA_MEM_ACC_RW;
 	struct ffa_mem_region *region_descr = NULL;
 	unsigned int region_descr_offs = 0;
+	uint16_t exp_mem_reg_attr = 0;
 	uint8_t mem_acc_perm = 0;
 	size_t n = 0;
 
+	if (mem_share)
+		exp_mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
 	if (mem_trans->mem_reg_attr != exp_mem_reg_attr)
 		return FFA_INVALID_PARAMETERS;
 
@@ -1076,8 +1087,7 @@ static int mem_share_init(struct ffa_mem_transaction_x *mem_trans, void *buf,
 	return 0;
 }
 
-static int add_mem_share_helper(struct mem_share_state *s, void *buf,
-				size_t flen)
+static int add_mem_op_helper(struct mem_op_state *s, void *buf, size_t flen)
 {
 	unsigned int region_count = flen / sizeof(struct ffa_address_range);
 	struct ffa_address_range *arange = NULL;
@@ -1109,15 +1119,15 @@ static int add_mem_share_helper(struct mem_share_state *s, void *buf,
 	return 0;
 }
 
-static int add_mem_share_frag(struct mem_frag_state *s, void *buf, size_t flen)
+static int add_mem_op_frag(struct mem_frag_state *s, void *buf, size_t flen)
 {
 	int rc = 0;
 
-	rc = add_mem_share_helper(&s->share, buf, flen);
+	rc = add_mem_op_helper(&s->op, buf, flen);
 	if (rc >= 0) {
 		if (!ADD_OVERFLOW(s->frag_offset, rc, &s->frag_offset)) {
 			/* We're not at the end of the descriptor yet */
-			if (s->share.region_count)
+			if (s->op.region_count)
 				return s->frag_offset;
 
 			/* We're done */
@@ -1128,17 +1138,20 @@ static int add_mem_share_frag(struct mem_frag_state *s, void *buf, size_t flen)
 	}
 
 	SLIST_REMOVE(&frag_state_head, s, mem_frag_state, link);
-	if (rc < 0)
-		mobj_ffa_sel1_spmc_delete(s->share.mf);
-	else
-		mobj_ffa_push_to_inactive(s->share.mf);
+	if (rc < 0) {
+		mobj_ffa_sel1_spmc_delete(s->op.mf);
+	} else {
+		if (mobj_ffa_push_to_inactive(s->op.mf)) {
+			rc = FFA_INVALID_PARAMETERS;
+			mobj_ffa_sel1_spmc_delete(s->op.mf);
+		}
+	}
 	free(s);
 
 	return rc;
 }
 
-static bool is_sp_share(struct ffa_mem_transaction_x *mem_trans,
-			void *buf)
+static bool is_sp_op(struct ffa_mem_transaction_x *mem_trans, void *buf)
 {
 	struct ffa_mem_access_perm *perm = NULL;
 	struct ffa_mem_access *mem_acc = NULL;
@@ -1160,33 +1173,36 @@ static bool is_sp_share(struct ffa_mem_transaction_x *mem_trans,
 	return READ_ONCE(perm->endpoint_id) != optee_core_lsp.sp_id;
 }
 
-static int add_mem_share(struct ffa_mem_transaction_x *mem_trans,
-			 tee_mm_entry_t *mm, void *buf, size_t blen,
-			 size_t flen, uint64_t *global_handle)
+static int add_mem_op(bool mem_share, struct ffa_mem_transaction_x *mem_trans,
+		      tee_mm_entry_t *mm, void *buf, size_t blen, size_t flen,
+		      uint64_t *global_handle)
 {
 	int rc = 0;
-	struct mem_share_state share = { };
+	struct mem_op_state op = { .mem_share = mem_share, };
 	size_t addr_range_offs = 0;
 	uint64_t cookie = OPTEE_MSG_FMEM_INVALID_GLOBAL_ID;
+	enum mobj_use_case use_case = MOBJ_USE_CASE_NS_SHM;
 	size_t n = 0;
 
-	rc = mem_share_init(mem_trans, buf, flen, &share.page_count,
-			    &share.region_count, &addr_range_offs);
+	rc = mem_op_init(mem_share, mem_trans, buf, flen, &op.page_count,
+			 &op.region_count, &addr_range_offs);
 	if (rc)
 		return rc;
 
-	if (!share.page_count || !share.region_count)
+	if (!op.page_count || !op.region_count)
 		return FFA_INVALID_PARAMETERS;
 
-	if (MUL_OVERFLOW(share.region_count,
+	if (MUL_OVERFLOW(op.region_count,
 			 sizeof(struct ffa_address_range), &n) ||
 	    ADD_OVERFLOW(n, addr_range_offs, &n) || n > blen)
 		return FFA_INVALID_PARAMETERS;
 
 	if (mem_trans->global_handle)
 		cookie = mem_trans->global_handle;
-	share.mf = mobj_ffa_sel1_spmc_new(cookie, share.page_count);
-	if (!share.mf)
+	if (!mem_share)
+		use_case = mem_trans->tag;
+	op.mf = mobj_ffa_sel1_spmc_new(cookie, op.page_count, use_case);
+	if (!op.mf)
 		return FFA_NO_MEMORY;
 
 	if (flen != blen) {
@@ -1196,22 +1212,22 @@ static int add_mem_share(struct ffa_mem_transaction_x *mem_trans,
 			rc = FFA_NO_MEMORY;
 			goto err;
 		}
-		s->share = share;
+		s->op = op;
 		s->mm = mm;
 		s->frag_offset = addr_range_offs;
 
 		SLIST_INSERT_HEAD(&frag_state_head, s, link);
-		rc = add_mem_share_frag(s, (char *)buf + addr_range_offs,
-					flen - addr_range_offs);
+		rc = add_mem_op_frag(s, (char *)buf + addr_range_offs,
+				     flen - addr_range_offs);
 
 		if (rc >= 0)
-			*global_handle = mobj_ffa_get_cookie(share.mf);
+			*global_handle = mobj_ffa_get_cookie(op.mf);
 
 		return rc;
 	}
 
-	rc = add_mem_share_helper(&share, (char *)buf + addr_range_offs,
-				  flen - addr_range_offs);
+	rc = add_mem_op_helper(&op, (char *)buf + addr_range_offs,
+			       flen - addr_range_offs);
 	if (rc) {
 		/*
 		 * Number of consumed bytes may be returned instead of 0 for
@@ -1221,17 +1237,21 @@ static int add_mem_share(struct ffa_mem_transaction_x *mem_trans,
 		goto err;
 	}
 
-	*global_handle = mobj_ffa_push_to_inactive(share.mf);
+	if (mobj_ffa_push_to_inactive(op.mf)) {
+		rc = FFA_INVALID_PARAMETERS;
+		goto err;
+	}
+	*global_handle = mobj_ffa_get_cookie(op.mf);
 
 	return 0;
 err:
-	mobj_ffa_sel1_spmc_delete(share.mf);
+	mobj_ffa_sel1_spmc_delete(op.mf);
 	return rc;
 }
 
-static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
-				 unsigned int page_count,
-				 uint64_t *global_handle, struct ffa_rxtx *rxtx)
+static int handle_mem_op_tmem(bool share_mem, paddr_t pbuf, size_t blen,
+			      size_t flen, unsigned int page_count,
+			      uint64_t *global_handle, struct ffa_rxtx *rxtx)
 {
 	struct ffa_mem_transaction_x mem_trans = { };
 	int rc = 0;
@@ -1268,7 +1288,11 @@ static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
 	if (rc)
 		goto unlock;
 
-	if (is_sp_share(&mem_trans, buf)) {
+	if (is_sp_op(&mem_trans, buf)) {
+		if (!share_mem) {
+			rc = FFA_DENIED;
+			goto unlock;
+		}
 		rc = spmc_sp_add_share(&mem_trans, buf, blen, flen,
 				       global_handle, NULL);
 		goto unlock;
@@ -1280,7 +1304,8 @@ static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
 		goto unlock;
 	}
 
-	rc = add_mem_share(&mem_trans, mm, buf, blen, flen, global_handle);
+	rc = add_mem_op(share_mem, &mem_trans, mm, buf, blen, flen,
+			global_handle);
 
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
@@ -1296,9 +1321,8 @@ out:
 	return rc;
 }
 
-static int handle_mem_share_rxbuf(size_t blen, size_t flen,
-				  uint64_t *global_handle,
-				  struct ffa_rxtx *rxtx)
+static int handle_mem_op_rxbuf(bool share_mem, size_t blen, size_t flen,
+			       uint64_t *global_handle, struct ffa_rxtx *rxtx)
 {
 	struct ffa_mem_transaction_x mem_trans = { };
 	int rc = FFA_DENIED;
@@ -1312,7 +1336,11 @@ static int handle_mem_share_rxbuf(size_t blen, size_t flen,
 				       &mem_trans);
 	if (rc)
 		goto out;
-	if (is_sp_share(&mem_trans, rxtx->rx)) {
+	if (is_sp_op(&mem_trans, rxtx->rx)) {
+		if (!share_mem) {
+			rc = FFA_DENIED;
+			goto out;
+		}
 		rc = spmc_sp_add_share(&mem_trans, rxtx, blen, flen,
 				       global_handle, NULL);
 		goto out;
@@ -1322,8 +1350,8 @@ static int handle_mem_share_rxbuf(size_t blen, size_t flen,
 	    virt_set_guest(mem_trans.sender_id))
 		goto out;
 
-	rc = add_mem_share(&mem_trans, NULL, rxtx->rx, blen, flen,
-			   global_handle);
+	rc = add_mem_op(share_mem, &mem_trans, NULL, rxtx->rx, blen, flen,
+			global_handle);
 
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
@@ -1334,8 +1362,8 @@ out:
 	return rc;
 }
 
-static void handle_mem_share(struct thread_smc_1_2_regs *args,
-			     struct ffa_rxtx *rxtx)
+static void handle_mem_op(struct thread_smc_1_2_regs *args,
+			  struct ffa_rxtx *rxtx)
 {
 	uint32_t tot_len = args->a1;
 	uint32_t frag_len = args->a2;
@@ -1346,6 +1374,7 @@ static void handle_mem_share(struct thread_smc_1_2_regs *args,
 	uint32_t ret_w3 = 0;
 	uint32_t ret_fid = FFA_ERROR;
 	uint64_t global_handle = 0;
+	bool share_mem = false;
 	int rc = 0;
 
 	/* Check that the MBZs are indeed 0 */
@@ -1357,8 +1386,13 @@ static void handle_mem_share(struct thread_smc_1_2_regs *args,
 		goto out;
 
 	/* Check for 32-bit calling convention */
-	if (args->a0 == FFA_MEM_SHARE_32)
+	if (!OPTEE_SMC_IS_64(args->a0))
 		addr &= UINT32_MAX;
+
+	if (args->a0 == FFA_MEM_SHARE_32 || args->a0 == FFA_MEM_SHARE_64)
+		share_mem = true;
+	else
+		share_mem = false;
 
 	if (!addr) {
 		/*
@@ -1367,11 +1401,11 @@ static void handle_mem_share(struct thread_smc_1_2_regs *args,
 		 */
 		if (page_count)
 			goto out;
-		rc = handle_mem_share_rxbuf(tot_len, frag_len, &global_handle,
-					    rxtx);
+		rc = handle_mem_op_rxbuf(share_mem, tot_len, frag_len,
+					 &global_handle, rxtx);
 	} else {
-		rc = handle_mem_share_tmem(addr, tot_len, frag_len, page_count,
-					   &global_handle, rxtx);
+		rc = handle_mem_op_tmem(share_mem, addr, tot_len, frag_len,
+					page_count, &global_handle, rxtx);
 	}
 	if (rc < 0) {
 		ret_w2 = rc;
@@ -1392,7 +1426,7 @@ static struct mem_frag_state *get_frag_state(uint64_t global_handle)
 	struct mem_frag_state *s = NULL;
 
 	SLIST_FOREACH(s, &frag_state_head, link)
-		if (mobj_ffa_get_cookie(s->share.mf) == global_handle)
+		if (mobj_ffa_get_cookie(s->op.mf) == global_handle)
 			return s;
 
 	return NULL;
@@ -1442,7 +1476,7 @@ static void handle_mem_frag_tx(struct thread_smc_1_2_regs *args,
 			rc = FFA_INVALID_PARAMETERS;
 			goto out;
 		}
-		page_count = s->share.page_count;
+		page_count = s->op.page_count;
 		buf = (void *)tee_mm_get_smem(mm);
 	} else {
 		if (flen > rxtx->size) {
@@ -1452,7 +1486,7 @@ static void handle_mem_frag_tx(struct thread_smc_1_2_regs *args,
 		buf = rxtx->rx;
 	}
 
-	rc = add_mem_share_frag(s, buf, flen);
+	rc = add_mem_op_frag(s, buf, flen);
 out:
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
@@ -1952,7 +1986,11 @@ void thread_spmc_msg_recv(struct thread_smc_1_2_regs *args)
 	case FFA_MEM_SHARE_64:
 #endif
 	case FFA_MEM_SHARE_32:
-		handle_mem_share(args, &my_rxtx);
+#ifdef ARM64
+	case FFA_MEM_LEND_64:
+#endif
+	case FFA_MEM_LEND_32:
+		handle_mem_op(args, &my_rxtx);
 		break;
 	case FFA_MEM_RECLAIM:
 		if (!IS_ENABLED(CFG_SECURE_PARTITION) ||
@@ -2362,6 +2400,36 @@ static uint16_t ffa_spm_id_get(void)
 	return args.a2;
 }
 
+#ifdef CFG_CORE_DYN_PROTMEM
+TEE_Result thread_spmc_get_protmem_config(enum mobj_use_case use_case,
+					  void *buf, size_t *buf_sz,
+					  size_t *min_mem_sz,
+					  size_t *min_mem_align)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct ffa_mem_access_perm mem_acc_list[] = {
+		{
+			.endpoint_id = optee_core_lsp.sp_id,
+			.perm = FFA_MEM_ACC_RW,
+		},
+	};
+
+	res = plat_get_protmem_config(use_case, min_mem_sz, min_mem_align);
+	if (res)
+		return res;
+
+	if (!buf || *buf_sz < sizeof(mem_acc_list)) {
+		*buf_sz = sizeof(mem_acc_list);
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	memcpy(buf, mem_acc_list, sizeof(mem_acc_list));
+	*buf_sz = sizeof(mem_acc_list);
+
+	return TEE_SUCCESS;
+}
+#endif /*CFG_CORE_DYN_PROTMEM*/
+
 static TEE_Result check_desc(struct spmc_lsp_desc *d)
 {
 	uint32_t accept_props = FFA_PART_PROP_DIRECT_REQ_RECV |
@@ -2544,9 +2612,9 @@ static uint32_t get_ffa_version(uint32_t my_version)
 	return args.a0;
 }
 
-static void *spmc_retrieve_req(uint64_t cookie,
-			       struct ffa_mem_transaction_x *trans)
+static void *spmc_retrieve_req(struct ffa_mem_transaction_x *trans)
 {
+	uint64_t cookie __maybe_unused = trans->global_handle;
 	struct ffa_mem_access *acc_descr_array = NULL;
 	struct ffa_mem_access_perm *perm_descr = NULL;
 	struct thread_smc_args args = {
@@ -2562,11 +2630,11 @@ static void *spmc_retrieve_req(uint64_t cookie,
 
 		size = sizeof(*trans_descr) + 1 * sizeof(struct ffa_mem_access);
 		memset(trans_descr, 0, size);
-		trans_descr->sender_id = thread_get_tsd()->rpc_target_info;
-		trans_descr->mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
-		trans_descr->global_handle = cookie;
-		trans_descr->flags = FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE |
-				     FFA_MEMORY_REGION_FLAG_ANY_ALIGNMENT;
+		trans_descr->sender_id = trans->sender_id;
+		trans_descr->mem_reg_attr = trans->mem_reg_attr;
+		trans_descr->global_handle = trans->global_handle;
+		trans_descr->tag = trans->tag;
+		trans_descr->flags = trans->flags;
 		trans_descr->mem_access_count = 1;
 		acc_descr_array = trans_descr->mem_access_array;
 	} else {
@@ -2574,11 +2642,11 @@ static void *spmc_retrieve_req(uint64_t cookie,
 
 		size = sizeof(*trans_descr) + 1 * sizeof(struct ffa_mem_access);
 		memset(trans_descr, 0, size);
-		trans_descr->sender_id = thread_get_tsd()->rpc_target_info;
-		trans_descr->mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
-		trans_descr->global_handle = cookie;
-		trans_descr->flags = FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE |
-				     FFA_MEMORY_REGION_FLAG_ANY_ALIGNMENT;
+		trans_descr->sender_id = trans->sender_id;
+		trans_descr->mem_reg_attr = trans->mem_reg_attr;
+		trans_descr->global_handle = trans->global_handle;
+		trans_descr->tag = trans->tag;
+		trans_descr->flags = trans->flags;
 		trans_descr->mem_access_count = 1;
 		trans_descr->mem_access_offs = sizeof(*trans_descr);
 		trans_descr->mem_access_size = sizeof(struct ffa_mem_access);
@@ -2653,10 +2721,11 @@ static int set_pages(struct ffa_address_range *regions,
 	return 0;
 }
 
-struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie)
+struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
+						   enum mobj_use_case use_case)
 {
 	struct mobj_ffa *ret = NULL;
-	struct ffa_mem_transaction_x retrieve_desc = { };
+	struct ffa_mem_transaction_x retrieve_desc = { .tag = use_case};
 	struct ffa_mem_access *descr_array = NULL;
 	struct ffa_mem_region *descr = NULL;
 	struct mobj_ffa *mf = NULL;
@@ -2667,11 +2736,20 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie)
 		.a0 = FFA_RX_RELEASE
 	};
 
+	if (use_case == MOBJ_USE_CASE_NS_SHM)
+		retrieve_desc.flags = FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE;
+	else
+		retrieve_desc.flags = FFA_MEMORY_REGION_TRANSACTION_TYPE_LEND;
+	retrieve_desc.flags |= FFA_MEMORY_REGION_FLAG_ANY_ALIGNMENT;
+	retrieve_desc.global_handle = cookie;
+	retrieve_desc.sender_id = thread_get_tsd()->rpc_target_info;
+	retrieve_desc.mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
+
 	/*
 	 * OP-TEE is only supporting a single mem_region while the
 	 * specification allows for more than one.
 	 */
-	buf = spmc_retrieve_req(cookie, &retrieve_desc);
+	buf = spmc_retrieve_req(&retrieve_desc);
 	if (!buf) {
 		EMSG("Failed to retrieve cookie from rx buffer %#"PRIx64,
 		     cookie);
@@ -2683,7 +2761,7 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie)
 	descr = (struct ffa_mem_region *)((vaddr_t)buf + offs);
 
 	num_pages = READ_ONCE(descr->total_page_count);
-	mf = mobj_ffa_spmc_new(cookie, num_pages);
+	mf = mobj_ffa_spmc_new(cookie, num_pages, use_case);
 	if (!mf)
 		goto out;
 

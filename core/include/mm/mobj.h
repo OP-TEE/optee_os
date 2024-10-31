@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2016-2017, 2022 Linaro Limited
+ * Copyright (c) 2016-2024 Linaro Limited
  */
 
 #ifndef __MM_MOBJ_H
@@ -16,6 +16,12 @@
 #include <types_ext.h>
 
 #include <optee_msg.h>
+
+enum mobj_use_case {
+	MOBJ_USE_CASE_NS_SHM,
+	MOBJ_USE_CASE_SEC_VIDEO_PLAY,
+	MOBJ_USE_CASE_TRUSED_UI,
+};
 
 struct mobj {
 	const struct mobj_ops *ops;
@@ -237,18 +243,26 @@ TEE_Result mobj_ffa_unregister_by_cookie(uint64_t cookie);
 /* Functions for SPMC */
 #ifdef CFG_CORE_SEL1_SPMC
 struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
-					unsigned int num_pages);
+					unsigned int num_pages,
+					enum mobj_use_case use_case);
 void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mobj);
 TEE_Result mobj_ffa_sel1_spmc_reclaim(uint64_t cookie);
 #else
-struct mobj_ffa *mobj_ffa_spmc_new(uint64_t cookie, unsigned int num_pages);
+struct mobj_ffa *mobj_ffa_spmc_new(uint64_t cookie, unsigned int num_pages,
+				   enum mobj_use_case use_case);
 void mobj_ffa_spmc_delete(struct mobj_ffa *mobj);
 #endif
 
 uint64_t mobj_ffa_get_cookie(struct mobj_ffa *mobj);
 TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mobj, unsigned int *idx,
 				 paddr_t pa, unsigned int num_pages);
-uint64_t mobj_ffa_push_to_inactive(struct mobj_ffa *mobj);
+TEE_Result mobj_ffa_push_to_inactive(struct mobj_ffa *mobj);
+
+#ifdef CFG_CORE_DYN_PROTMEM
+TEE_Result mobj_ffa_assign_protmem(uint64_t cookie,
+				   enum mobj_use_case use_case);
+struct mobj *mobj_ffa_protmem_get_by_pa(paddr_t pa, paddr_size_t size);
+#endif
 
 #elif defined(CFG_CORE_DYN_SHM)
 /* reg_shm represents TEE shared memory */
@@ -286,6 +300,14 @@ void mobj_reg_shm_unguard(struct mobj *mobj);
  */
 struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 				   paddr_t page_offset, uint64_t cookie);
+
+#if defined(CFG_CORE_DYN_PROTMEM)
+struct mobj *mobj_protmem_alloc(paddr_t pa, paddr_size_t size, uint64_t cookie,
+				enum mobj_use_case use_case);
+TEE_Result mobj_protmem_release_by_cookie(uint64_t cookie);
+struct mobj *mobj_protmem_get_by_pa(paddr_t pa, paddr_size_t size);
+#endif /*CFG_CORE_DYN_PROTMEM*/
+
 #endif /*CFG_CORE_DYN_SHM*/
 
 #if !defined(CFG_CORE_DYN_SHM)
@@ -298,6 +320,52 @@ static inline struct mobj *mobj_mapped_shm_alloc(paddr_t *pages __unused,
 }
 
 static inline struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie __unused)
+{
+	return NULL;
+}
+#endif
+
+#if !defined(CFG_CORE_DYN_PROTMEM) || defined(CFG_CORE_FFA)
+static inline struct mobj *
+mobj_protmem_alloc(paddr_t pa __unused, paddr_size_t size __unused,
+		   uint64_t cookie __unused,
+		   enum mobj_use_case use_case __unused)
+{
+	return NULL;
+}
+
+static inline TEE_Result
+mobj_protmem_release_by_cookie(uint64_t cookie __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline struct mobj *mobj_protmem_get_by_pa(paddr_t pa __unused,
+						  paddr_size_t size __unused)
+{
+	return NULL;
+}
+#endif
+
+#if !defined(CFG_CORE_DYN_PROTMEM) || !defined(CFG_CORE_FFA)
+static inline struct mobj *
+mobj_ffa_protmem_get_by_pa(paddr_t pa __unused, paddr_size_t size __unused)
+{
+	return NULL;
+}
+
+static inline TEE_Result
+mobj_ffa_assign_protmem(uint64_t cookie __unused,
+			enum mobj_use_case use_case __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif
+
+#if !defined(CFG_CORE_FFA)
+static inline struct mobj *
+mobj_ffa_get_by_cookie(uint64_t cookie __unused,
+		       unsigned int internal_offs __unused)
 {
 	return NULL;
 }
@@ -316,5 +384,53 @@ static inline bool mobj_is_paged(struct mobj *mobj __unused)
 
 struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file,
 				  uint32_t mem_type);
+
+#ifdef CFG_CORE_DYN_PROTMEM
+/*
+ * plat_get_protmem_config() - Platform specific config for a protected memory
+ *                             use-case
+ * @use_case:      Identifies the protected memory use-case
+ * @min_mem_sz:    out value for minumim memory size
+ * @min_mem_align: out value for minimum alignment
+ *
+ * The function is not supposed to be called with MOBJ_USE_CASE_NS_SHM as
+ * @use_case, but any other defined enum value is up to the platform.
+ *
+ * returns TEE_Result value
+ */
+TEE_Result plat_get_protmem_config(enum mobj_use_case use_case,
+				   size_t *min_mem_sz, size_t *min_mem_align);
+
+/*
+ * plat_set_protmem_range() - Platform specific change of memory protection
+ * @use_case: Identifies the protected memory use-case
+ * @pa:       Start physical address
+ * @sz:       Size of the memory range
+ *
+ * The @use_case defines how the supplied memory range should be protected.
+ * The function can be called with MOBJ_USE_CASE_NS_SHM as @use_case to
+ * restore the non-protected state.
+ *
+ * returns TEE_Result value
+ */
+
+TEE_Result plat_set_protmem_range(enum mobj_use_case use_case, paddr_t pa,
+				  paddr_size_t sz);
+#else
+static inline TEE_Result
+plat_get_protmem_config(enum mobj_use_case use_case __unused,
+			size_t *min_mem_sz __unused,
+			size_t *min_mem_align __unused)
+{
+	return TEE_ERROR_BAD_PARAMETERS;
+}
+
+static inline TEE_Result
+plat_set_protmem_range(enum mobj_use_case use_case __unused,
+		       paddr_t pa __unused, paddr_size_t sz __unused)
+{
+	return TEE_ERROR_BAD_PARAMETERS;
+}
+#endif
 
 #endif /*__MM_MOBJ_H*/

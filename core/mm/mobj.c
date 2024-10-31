@@ -524,3 +524,43 @@ static TEE_Result mobj_init(void)
 }
 
 driver_init_late(mobj_init);
+
+#if defined(CFG_CORE_DYN_PROTMEM)
+#if defined(CFG_INSECURE)
+/*
+ * This function requires CFG_INSECURE=y since it's stubbed and could cause
+ * a silent security error.
+ */
+TEE_Result __weak plat_set_protmem_range(enum mobj_use_case use_case __unused,
+					 paddr_t pa __unused,
+					 paddr_size_t sz __unused)
+{
+	static bool once;
+
+	if (!once) {
+		IMSG("WARNING (insecure configuration): platform does not support to dynamically protected memory");
+		once = true;
+	}
+
+	return TEE_SUCCESS;
+}
+#endif /*defined(CFG_INSECURE)*/
+
+TEE_Result __weak plat_get_protmem_config(enum mobj_use_case use_case,
+					  size_t *min_mem_sz,
+					  size_t *min_mem_align)
+{
+	if (use_case != MOBJ_USE_CASE_SEC_VIDEO_PLAY)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * This memory is only shared with OP-TEE and TAs, a dummy
+	 * configuration for now. This will be configured by platform
+	 * specific function.
+	 */
+	*min_mem_sz = SIZE_1M;
+	*min_mem_align = SMALL_PAGE_SIZE;
+
+	return TEE_SUCCESS;
+}
+#endif /*defined(CFG_CORE_DYN_PROTMEM)*/
