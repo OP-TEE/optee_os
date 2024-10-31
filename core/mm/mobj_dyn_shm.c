@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2016-2024, Linaro Limited
  */
 
 #include <assert.h>
@@ -11,6 +11,7 @@
 #include <kernel/panic.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
+#include <kernel/tee_misc.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <mm/tee_pager.h>
@@ -41,6 +42,19 @@ struct mobj_reg_shm {
 	paddr_t pages[];
 };
 
+/*
+ * struct mobj_protmem - describes protected memory lent by normal world
+ */
+struct mobj_protmem {
+	struct mobj mobj;
+	SLIST_ENTRY(mobj_protmem) next;
+	uint64_t cookie;
+	paddr_t pa;
+	enum mobj_use_case use_case;
+	bool releasing;
+	bool release_frees;
+};
+
 static size_t mobj_reg_shm_size(size_t nr_pages)
 {
 	size_t s = 0;
@@ -57,6 +71,10 @@ static SLIST_HEAD(reg_shm_head, mobj_reg_shm) reg_shm_list =
 
 static unsigned int reg_shm_slist_lock = SPINLOCK_UNLOCK;
 static unsigned int reg_shm_map_lock = SPINLOCK_UNLOCK;
+
+/* Access is serialized with reg_shm_slist_lock */
+static SLIST_HEAD(protmem_head, mobj_protmem) protmem_list =
+	SLIST_HEAD_INITIALIZER(protmem_head);
 
 static struct mobj_reg_shm *to_mobj_reg_shm(struct mobj *mobj);
 
@@ -297,10 +315,38 @@ static struct mobj_reg_shm *to_mobj_reg_shm(struct mobj *mobj)
 	return container_of(mobj, struct mobj_reg_shm, mobj);
 }
 
+static TEE_Result check_reg_shm_conflict(struct mobj_reg_shm *r, paddr_t pa,
+					 paddr_size_t size)
+{
+	size_t n = 0;
+
+	for (n = 0; n < r->mobj.size / SMALL_PAGE_SIZE; n++)
+		if (core_is_buffer_intersect(pa, size, r->pages[n],
+					     SMALL_PAGE_SIZE))
+			return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result check_protmem_conflict(struct mobj_reg_shm *r)
+{
+	struct mobj_protmem *m = NULL;
+	TEE_Result res = TEE_SUCCESS;
+
+	SLIST_FOREACH(m, &protmem_list, next) {
+		res = check_reg_shm_conflict(r, m->pa, m->mobj.size);
+		if (res)
+			break;
+	}
+
+	return res;
+}
+
 struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 				paddr_t page_offset, uint64_t cookie)
 {
 	struct mobj_reg_shm *mobj_reg_shm = NULL;
+	TEE_Result res = TEE_SUCCESS;
 	size_t i = 0;
 	uint32_t exceptions = 0;
 	size_t s = 0;
@@ -336,8 +382,13 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 	}
 
 	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-	SLIST_INSERT_HEAD(&reg_shm_list, mobj_reg_shm, next);
+	res = check_protmem_conflict(mobj_reg_shm);
+	if (!res)
+		SLIST_INSERT_HEAD(&reg_shm_list, mobj_reg_shm, next);
 	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+	if (res)
+		goto err;
 
 	return &mobj_reg_shm->mobj;
 err:
@@ -364,16 +415,35 @@ static struct mobj_reg_shm *reg_shm_find_unlocked(uint64_t cookie)
 	return NULL;
 }
 
+static struct mobj_protmem *protmem_find_unlocked(uint64_t cookie)
+{
+	struct mobj_protmem *m = NULL;
+
+	SLIST_FOREACH(m, &protmem_list, next)
+		if (m->cookie == cookie)
+			return m;
+
+	return NULL;
+}
+
 struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie)
 {
-	struct mobj_reg_shm *r = NULL;
+	struct mobj_reg_shm *rs = NULL;
+	struct mobj_protmem *rm = NULL;
 	uint32_t exceptions = 0;
 	struct mobj *m = NULL;
 
 	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-	r = reg_shm_find_unlocked(cookie);
-	if (r)
-		m = mobj_get(&r->mobj);
+	rs = reg_shm_find_unlocked(cookie);
+	if (rs) {
+		m = mobj_get(&rs->mobj);
+		goto out;
+	}
+	rm = protmem_find_unlocked(cookie);
+	if (rm)
+		m = mobj_get(&rm->mobj);
+
+out:
 	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
 
 	return m;
@@ -473,3 +543,281 @@ static TEE_Result mobj_mapped_shm_init(void)
 }
 
 preinit(mobj_mapped_shm_init);
+
+#ifdef CFG_CORE_DYN_PROTMEM
+static struct mobj_protmem *to_mobj_protmem(struct mobj *mobj);
+
+static TEE_Result check_reg_shm_list_conflict(paddr_t pa, paddr_size_t size)
+{
+	struct mobj_reg_shm *r = NULL;
+	TEE_Result res = TEE_SUCCESS;
+
+	SLIST_FOREACH(r, &reg_shm_list, next) {
+		res = check_reg_shm_conflict(r, pa, size);
+		if (res)
+			break;
+	}
+
+	return res;
+}
+
+static TEE_Result protect_mem(struct mobj_protmem *m)
+{
+	if ((m->pa | m->mobj.size) & SMALL_PAGE_MASK)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	DMSG("use_case %d pa %#"PRIxPA", size %#zx",
+	     m->use_case, m->pa, m->mobj.size);
+
+	return plat_set_protmem_range(m->use_case, m->pa, m->mobj.size);
+}
+
+static TEE_Result restore_mem(struct mobj_protmem *m)
+{
+	DMSG("use_case %d pa %#"PRIxPA", size %#zx",
+	     m->use_case, m->pa, m->mobj.size);
+
+	return plat_set_protmem_range(MOBJ_USE_CASE_NS_SHM, m->pa,
+				      m->mobj.size);
+}
+
+static TEE_Result mobj_protmem_get_pa(struct mobj *mobj, size_t offs,
+				      size_t granule, paddr_t *pa)
+{
+	struct mobj_protmem *m = to_mobj_protmem(mobj);
+	paddr_t p = 0;
+
+	if (!pa)
+		return TEE_ERROR_GENERIC;
+
+	if (offs >= mobj->size)
+		return TEE_ERROR_GENERIC;
+
+	p = m->pa + offs;
+	if (granule) {
+		if (granule != SMALL_PAGE_SIZE)
+			return TEE_ERROR_GENERIC;
+		p &= ~(granule - 1);
+	}
+	*pa = p;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result mobj_protmem_get_mem_type(struct mobj *mobj __unused,
+					    uint32_t *mt)
+{
+	if (!mt)
+		return TEE_ERROR_GENERIC;
+
+	*mt = TEE_MATTR_MEM_TYPE_CACHED;
+
+	return TEE_SUCCESS;
+}
+
+static bool mobj_protmem_matches(struct mobj *mobj __unused,
+				 enum buf_is_attr attr)
+{
+	return attr == CORE_MEM_SEC || attr == CORE_MEM_SDP_MEM;
+}
+
+static void protmem_free_helper(struct mobj_protmem *mobj_protmem)
+{
+	uint32_t exceptions = 0;
+
+	exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
+	SLIST_REMOVE(&protmem_list, mobj_protmem, mobj_protmem, next);
+	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
+
+	restore_mem(mobj_protmem);
+	free(mobj_protmem);
+}
+
+static void mobj_protmem_free(struct mobj *mobj)
+{
+	struct mobj_protmem *r = to_mobj_protmem(mobj);
+	uint32_t exceptions = 0;
+
+	if (!r->releasing) {
+		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+		protmem_free_helper(r);
+		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+	} else {
+		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+		r->release_frees = true;
+		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+		mutex_lock(&shm_mu);
+		if (shm_release_waiters)
+			condvar_broadcast(&shm_cv);
+		mutex_unlock(&shm_mu);
+	}
+}
+
+static uint64_t mobj_protmem_get_cookie(struct mobj *mobj)
+{
+	return to_mobj_protmem(mobj)->cookie;
+}
+
+static TEE_Result mobj_protmem_inc_map(struct mobj *mobj __maybe_unused)
+{
+	assert(to_mobj_protmem(mobj));
+	return TEE_ERROR_BAD_PARAMETERS;
+}
+
+static TEE_Result mobj_protmem_dec_map(struct mobj *mobj __maybe_unused)
+{
+	assert(to_mobj_protmem(mobj));
+	return TEE_ERROR_BAD_PARAMETERS;
+}
+
+const struct mobj_ops mobj_protmem_ops
+	__relrodata_unpaged("mobj_protmem_ops") = {
+	.get_pa = mobj_protmem_get_pa,
+	.get_mem_type = mobj_protmem_get_mem_type,
+	.matches = mobj_protmem_matches,
+	.free = mobj_protmem_free,
+	.get_cookie = mobj_protmem_get_cookie,
+	.inc_map = mobj_protmem_inc_map,
+	.dec_map = mobj_protmem_dec_map,
+};
+
+static struct mobj_protmem *to_mobj_protmem(struct mobj *mobj)
+{
+	assert(mobj->ops == &mobj_protmem_ops);
+	return container_of(mobj, struct mobj_protmem, mobj);
+}
+
+struct mobj *mobj_protmem_alloc(paddr_t pa, paddr_size_t size, uint64_t cookie,
+				enum mobj_use_case use_case)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct mobj_protmem *m = NULL;
+	uint32_t exceptions = 0;
+
+	if (use_case == MOBJ_USE_CASE_NS_SHM ||
+	    !core_pbuf_is(CORE_MEM_NON_SEC, pa, size))
+		return NULL;
+
+	m = calloc(1, sizeof(*m));
+	if (!m)
+		return NULL;
+
+	m->mobj.ops = &mobj_protmem_ops;
+	m->use_case = use_case;
+	m->mobj.size = size;
+	m->mobj.phys_granule = SMALL_PAGE_SIZE;
+	refcount_set(&m->mobj.refc, 1);
+	m->cookie = cookie;
+	m->pa = pa;
+
+	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	res = check_reg_shm_list_conflict(pa, size);
+	if (res)
+		goto out;
+
+	res = protect_mem(m);
+	if (res)
+		goto out;
+	SLIST_INSERT_HEAD(&protmem_list, m, next);
+out:
+	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+	if (res) {
+		free(m);
+		return NULL;
+	}
+
+	return &m->mobj;
+}
+
+TEE_Result mobj_protmem_release_by_cookie(uint64_t cookie)
+{
+	uint32_t exceptions = 0;
+	struct mobj_protmem *rm = NULL;
+
+	/*
+	 * Try to find m and see can be released by this function, if so
+	 * call mobj_put(). Otherwise this function is called either by
+	 * wrong cookie and perhaps a second time, regardless return
+	 * TEE_ERROR_BAD_PARAMETERS.
+	 */
+	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	rm = protmem_find_unlocked(cookie);
+	if (!rm || rm->releasing)
+		rm = NULL;
+	else
+		rm->releasing = true;
+
+	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+	if (!rm)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mobj_put(&rm->mobj);
+
+	/*
+	 * We've established that this function can release the cookie.
+	 * Now we wait until mobj_reg_shm_free() is called by the last
+	 * mobj_put() needed to free this mobj. Note that the call to
+	 * mobj_put() above could very well be that call.
+	 *
+	 * Once mobj_reg_shm_free() is called it will set r->release_frees
+	 * to true and we can free the mobj here.
+	 */
+	mutex_lock(&shm_mu);
+	shm_release_waiters++;
+	assert(shm_release_waiters);
+
+	while (true) {
+		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+		if (rm->release_frees) {
+			protmem_free_helper(rm);
+			rm = NULL;
+		}
+		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+		if (!rm)
+			break;
+		condvar_wait(&shm_cv, &shm_mu);
+	}
+
+	assert(shm_release_waiters);
+	shm_release_waiters--;
+	mutex_unlock(&shm_mu);
+
+	return TEE_SUCCESS;
+}
+
+static struct mobj_protmem *protmem_find_by_pa_unlocked(paddr_t pa,
+							paddr_size_t sz)
+{
+	struct mobj_protmem *m = NULL;
+
+	if (!sz)
+		sz = 1;
+
+	SLIST_FOREACH(m, &protmem_list, next)
+		if (core_is_buffer_inside(pa, sz, m->pa, m->mobj.size))
+			return m;
+
+	return NULL;
+}
+
+struct mobj *mobj_protmem_get_by_pa(paddr_t pa, paddr_size_t size)
+{
+	struct mobj_protmem *rm = NULL;
+	struct mobj *mobj = NULL;
+	uint32_t exceptions = 0;
+
+	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+
+	rm = protmem_find_by_pa_unlocked(pa, size);
+	if (rm && !rm->releasing)
+		mobj = mobj_get(&rm->mobj);
+
+	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+	return mobj;
+}
+#endif /*CFG_CORE_DYN_PROTMEM*/
