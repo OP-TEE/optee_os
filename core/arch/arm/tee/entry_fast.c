@@ -26,7 +26,7 @@ static void tee_entry_get_shm_config(struct thread_smc_args *args)
 }
 #endif
 
-#ifdef CFG_SECURE_DATA_PATH
+#if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_CORE_DYN_RSTMEM)
 static void tee_entry_get_sdp_config(struct thread_smc_args *args)
 {
 #if defined(CFG_TEE_SDP_MEM_BASE)
@@ -135,8 +135,12 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 	IMSG("Asynchronous notifications are %sabled",
 	     IS_ENABLED(CFG_CORE_ASYNC_NOTIF) ? "en" : "dis");
 
-	if (IS_ENABLED(CFG_SECURE_DATA_PATH))
-		args->a1 |= OPTEE_SMC_SEC_CAP_SDP;
+	if (IS_ENABLED(CFG_SECURE_DATA_PATH)) {
+		if (IS_ENABLED(CFG_CORE_DYN_RSTMEM))
+			args->a1 |= OPTEE_SMC_SEC_CAP_DYNAMIC_RSTMEM;
+		else
+			args->a1 |= OPTEE_SMC_SEC_CAP_SDP;
+	}
 
 	args->a1 |= OPTEE_SMC_SEC_CAP_RPC_ARG;
 	args->a3 = THREAD_RPC_MAX_NUM_PARAMS;
@@ -284,7 +288,7 @@ void __tee_entry_fast(struct thread_smc_args *args)
 		tee_entry_get_shm_config(args);
 		break;
 #endif
-#ifdef CFG_SECURE_DATA_PATH
+#if defined(CFG_SECURE_DATA_PATH) && !defined(CFG_CORE_DYN_RSTMEM)
 	case OPTEE_SMC_GET_SDP_CONFIG:
 		tee_entry_get_sdp_config(args);
 		break;

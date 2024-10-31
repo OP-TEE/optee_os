@@ -13,6 +13,7 @@
 #include <kernel/notif.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
+#include <kernel/thread_spmc.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -97,9 +98,10 @@ static TEE_Result set_fmem_param(const struct optee_msg_param_fmem *fmem,
 static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 				 uint32_t attr, struct param_mem *mem)
 {
-	struct mobj __maybe_unused **mobj;
+	struct mobj __maybe_unused **mobj = NULL;
 	paddr_t pa = READ_ONCE(tmem->buf_ptr);
 	size_t sz = READ_ONCE(tmem->size);
+	struct mobj *rmobj = NULL;
 
 	/*
 	 * Handle NULL memory reference
@@ -136,6 +138,14 @@ static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 		if (param_mem_from_mobj(mem, *mobj, pa, sz))
 			return TEE_SUCCESS;
 #endif
+	rmobj = mobj_rstmem_get_by_pa(pa, sz);
+	if (rmobj) {
+		bool rc = param_mem_from_mobj(mem, rmobj, pa, sz);
+
+		mobj_put(rmobj);
+		if (rc)
+			return TEE_SUCCESS;
+	}
 
 	return TEE_ERROR_BAD_PARAMETERS;
 }
@@ -515,6 +525,153 @@ static void unregister_shm(struct optee_msg_arg *arg, uint32_t num_params)
 #endif /*CFG_CORE_DYN_SHM*/
 #endif
 
+static void __maybe_unused lend_rstmem(struct optee_msg_arg *arg,
+				       uint32_t num_params)
+{
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	struct optee_msg_param_tmem *tmem = NULL;
+	struct mobj *mobj = NULL;
+	uint64_t use_case = 0;
+	uint64_t cookie = 0;
+	paddr_size_t sz = 0;
+	paddr_t pa = 0;
+
+	if (num_params != 2 ||
+	    READ_ONCE(arg->params[0].attr) != OPTEE_MSG_ATTR_TYPE_VALUE_INPUT ||
+	    READ_ONCE(arg->params[1].attr) != OPTEE_MSG_ATTR_TYPE_TMEM_INPUT)
+		goto out;
+
+	use_case = READ_ONCE(arg->params[0].u.value.a);
+	tmem = &arg->params[1].u.tmem;
+	cookie = READ_ONCE(tmem->shm_ref);
+	pa = READ_ONCE(tmem->buf_ptr);
+	sz = READ_ONCE(tmem->size);
+
+	switch (use_case) {
+	case MOBJ_USE_CASE_SEC_VIDEO_PLAY:
+	case MOBJ_USE_CASE_TRUSED_UI:
+		break;
+	default:
+		goto out;
+	}
+	mobj = mobj_rstmem_alloc(pa, sz, cookie, use_case);
+	if (mobj)
+		res = TEE_SUCCESS;
+out:
+	arg->ret = res;
+}
+
+static void __maybe_unused assign_rstmem(struct optee_msg_arg *arg,
+					 uint32_t num_params)
+{
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	uint64_t use_case = 0;
+	uint64_t cookie = 0;
+
+	if (num_params != 1 ||
+	    READ_ONCE(arg->params[0].attr) != OPTEE_MSG_ATTR_TYPE_VALUE_INPUT)
+		goto out;
+
+	cookie = READ_ONCE(arg->params[0].u.value.a);
+	use_case = READ_ONCE(arg->params[0].u.value.b);
+	res = mobj_ffa_assign_rstmem(cookie, use_case);
+out:
+	arg->ret = res;
+}
+
+static void __maybe_unused reclaim_rstmem(struct optee_msg_arg *arg,
+					  uint32_t num_params)
+{
+	if (num_params == 1 &&
+	    READ_ONCE(arg->params[0].attr) == OPTEE_MSG_ATTR_TYPE_RMEM_INPUT) {
+		uint64_t cookie = READ_ONCE(arg->params[0].u.rmem.shm_ref);
+		TEE_Result res = mobj_rstmem_release_by_cookie(cookie);
+
+		if (res)
+			EMSG("Can't find mapping with cookie %#"PRIx64,
+			     cookie);
+		arg->ret = res;
+	} else {
+		arg->ret = TEE_ERROR_BAD_PARAMETERS;
+		arg->ret_origin = TEE_ORIGIN_TEE;
+	}
+}
+
+static void __maybe_unused get_rstmem_config(struct optee_msg_arg *arg,
+					     uint32_t num_params)
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INOUT,
+					  TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	uint64_t saved_attr[TEE_NUM_PARAMS] = { 0 };
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	struct tee_ta_param param = { 0 };
+	size_t min_mem_align = 0;
+	size_t min_mem_sz = 0;
+	uint64_t use_case = 0;
+	void *buf = NULL;
+	size_t sz = 0;
+
+	arg->ret_origin = TEE_ORIGIN_TEE;
+
+	if (num_params != 2)
+		goto out;
+	res = copy_in_params(arg->params, num_params, &param, saved_attr);
+	if (res)
+		goto out;
+	if (param.types != exp_pt) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out_cleanup;
+	}
+
+	use_case = param.u[0].val.a;
+	sz = param.u[1].mem.size;
+	if (param.u[1].mem.mobj) {
+		res = mobj_inc_map(param.u[1].mem.mobj);
+		if (res)
+			goto out_cleanup;
+		buf = mobj_get_va(param.u[1].mem.mobj, param.u[1].mem.offs, sz);
+		if (!buf) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out_dec_map;
+		}
+	}
+
+	if (IS_ENABLED(CFG_CORE_FFA)) {
+		res = thread_spmc_get_rstmem_config(use_case, buf, &sz,
+						    &min_mem_sz,
+						    &min_mem_align);
+	} else {
+		if (IS_ENABLED(CFG_CORE_DYN_RSTMEM) &&
+		    use_case == OPTEE_MSG_RSTMEM_SECURE_VIDEO_PLAY) {
+			/*
+			 * Only shared with OP-TEE and TAs, a dummy
+			 * configuration for now.  This might later be
+			 * configured.
+			 */
+			min_mem_sz = SIZE_1M;
+			min_mem_align = SMALL_PAGE_SIZE;
+			res = TEE_SUCCESS;
+		} else {
+			res = TEE_ERROR_BAD_PARAMETERS;
+		}
+	}
+	if (!res || res == TEE_ERROR_SHORT_BUFFER) {
+		param.u[1].mem.size = sz;
+		param.u[0].val.a = min_mem_sz;
+		param.u[0].val.b = min_mem_align;
+	}
+	copy_out_param(&param, num_params, arg->params, saved_attr);
+
+out_dec_map:
+	mobj_dec_map(param.u[1].mem.mobj);
+out_cleanup:
+	cleanup_shm_refs(saved_attr, &param, num_params);
+out:
+	arg->ret = res;
+}
+
 void nsec_sessions_list_head(struct tee_ta_session_head **open_sessions)
 {
 	*open_sessions = &tee_open_sessions;
@@ -549,8 +706,7 @@ TEE_Result __tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 	case OPTEE_MSG_CMD_CANCEL:
 		entry_cancel(arg, num_params);
 		break;
-#ifndef CFG_CORE_FFA
-#ifdef CFG_CORE_DYN_SHM
+#if defined(CFG_CORE_DYN_SHM) && !defined(CFG_CORE_FFA)
 	case OPTEE_MSG_CMD_REGISTER_SHM:
 		register_shm(arg, num_params);
 		break;
@@ -558,8 +714,6 @@ TEE_Result __tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 		unregister_shm(arg, num_params);
 		break;
 #endif
-#endif
-
 	case OPTEE_MSG_CMD_DO_BOTTOM_HALF:
 		if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
 			notif_deliver_event(NOTIF_EVENT_DO_BOTTOM_HALF);
@@ -572,7 +726,23 @@ TEE_Result __tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 		else
 			goto err;
 		break;
-
+#ifdef CFG_CORE_DYN_RSTMEM
+	case OPTEE_MSG_CMD_GET_RSTMEM_CONFIG:
+		get_rstmem_config(arg, num_params);
+		break;
+#ifdef CFG_CORE_FFA
+	case OPTEE_MSG_CMD_ASSIGN_RSTMEM:
+		assign_rstmem(arg, num_params);
+		break;
+#else
+	case OPTEE_MSG_CMD_LEND_RSTMEM:
+		lend_rstmem(arg, num_params);
+		break;
+	case OPTEE_MSG_CMD_RECLAIM_RSTMEM:
+		reclaim_rstmem(arg, num_params);
+		break;
+#endif /*!CFG_CORE_FFA*/
+#endif /*CFG_CORE_DYN_RSTMEM*/
 	default:
 err:
 		EMSG("Unknown cmd 0x%x", arg->cmd);

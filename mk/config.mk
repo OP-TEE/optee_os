@@ -1263,3 +1263,8 @@ CFG_CORE_UNSAFE_MODEXP ?= n
 # when enabled, makes MBedTLS library for TAs use 'unsafe' modular
 # exponentiation algorithm.
 CFG_TA_MEBDTLS_UNSAFE_MODEXP ?= n
+
+# CFG_CORE_DYN_RSTMEM, enables dynamic restricted memory lending from
+# normal world.
+CFG_CORE_DYN_RSTMEM ?= n
+$(eval $(call cfg-depends-all,CFG_CORE_DYN_RSTMEM,CFG_CORE_DYN_SHM,CFG_SECURE_DATA_PATH))

@@ -153,6 +153,8 @@
 
 /* Share memory transaction */
 #define FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE SHIFT_U32(1, 3)
+/* Lend memory transaction */
+#define FFA_MEMORY_REGION_TRANSACTION_TYPE_LEND SHIFT_U32(2, 3)
 /* Relayer must choose the alignment boundary */
 #define FFA_MEMORY_REGION_FLAG_ANY_ALIGNMENT	0
 
