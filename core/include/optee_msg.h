@@ -297,6 +297,18 @@ struct optee_msg_arg {
 #define OPTEE_MSG_FUNCID_GET_OS_REVISION	U(0x0001)
 
 /*
+ * Values used in OPTEE_MSG_CMD_LEND_RSTMEM below
+ * OPTEE_MSG_RSTMEM_RESERVED		Reserved
+ * OPTEE_MSG_RSTMEM_SECURE_VIDEO_PLAY	Secure Video Playback
+ * OPTEE_MSG_RSTMEM_TRUSTED_UI		Trused UI
+ * OPTEE_MSG_RSTMEM_SECURE_VIDEO_RECORD	Secure Video Recording
+ */
+#define OPTEE_MSG_RSTMEM_RESERVED		U(0)
+#define OPTEE_MSG_RSTMEM_SECURE_VIDEO_PLAY	U(1)
+#define OPTEE_MSG_RSTMEM_TRUSTED_UI		U(2)
+#define OPTEE_MSG_RSTMEM_SECURE_VIDEO_RECORD	U(3)
+
+/*
  * Do a secure call with struct optee_msg_arg as argument
  * The OPTEE_MSG_CMD_* below defines what goes in struct optee_msg_arg::cmd
  *
@@ -337,15 +349,62 @@ struct optee_msg_arg {
  * OPTEE_MSG_CMD_STOP_ASYNC_NOTIF informs secure world that from now is
  * normal world unable to process asynchronous notifications. Typically
  * used when the driver is shut down.
+ *
+ * OPTEE_MSG_CMD_LEND_RSTMEM lends restricted memory. The passed normal
+ * physical memory is restricted from normal world access. The memory
+ * should be unmapped prior to this call since it becomes inaccessible
+ * during the request.
+ * Parameters are passed as:
+ * [in] param[0].attr			OPTEE_MSG_ATTR_TYPE_VALUE_INPUT
+ * [in] param[0].u.value.a		OPTEE_MSG_RSTMEM_* defined above
+ * [in] param[1].attr			OPTEE_MSG_ATTR_TYPE_TMEM_INPUT
+ * [in] param[1].u.tmem.buf_ptr		physical address
+ * [in] param[1].u.tmem.size		size
+ * [in] param[1].u.tmem.shm_ref		holds restricted memory reference
+ *
+ * OPTEE_MSG_CMD_RECLAIM_RSTMEM reclaims a previously lent restricted
+ * memory reference. The physical memory is accessible by the normal world
+ * after this function has return and can be mapped again. The information
+ * is passed as:
+ * [in] param[0].attr			OPTEE_MSG_ATTR_TYPE_VALUE_INPUT
+ * [in] param[0].u.value.a		holds restricted memory cookie
+ *
+ * OPTEE_MSG_CMD_GET_RSTMEM_CONFIG get configuration for a specific
+ * restricted memory use case. Parameters are passed as:
+ * [in] param[0].attr			OPTEE_MSG_ATTR_TYPE_VALUE_INOUT
+ * [in] param[0].value.a		OPTEE_MSG_RSTMEM_*
+ * [in] param[1].attr			OPTEE_MSG_ATTR_TYPE_{R,F}MEM_OUTPUT
+ * [in] param[1].u.{r,f}mem		Buffer or NULL
+ * [in] param[1].u.{r,f}mem.size	Provided size of buffer or 0 for query
+ * output for the restricted use case:
+ * [out] param[0].value.a		Minimal size of SDP memory
+ * [out] param[0].value.b		Required alignment of size and start of
+ *					restricted memory
+ * [out] param[1].{r,f}mem.size		Size of output data
+ * [out] param[1].{r,f}mem		If non-NULL, contains an array of
+ *					uint16_t holding endpoints that
+ *					must be included when lending
+ *					memory for this use case
+ *
+ * OPTEE_MSG_CMD_ASSIGN_RSTMEM assigns use-case to restricted memory
+ * previously lent using the FFA_LEND framework ABI. Parameters are passed
+ * as:
+ * [in] param[0].attr			OPTEE_MSG_ATTR_TYPE_VALUE_INPUT
+ * [in] param[0].u.value.a		holds restricted memory cookie
+ * [in] param[0].u.value.b		OPTEE_MSG_RSTMEM_* defined above
  */
-#define OPTEE_MSG_CMD_OPEN_SESSION	U(0)
-#define OPTEE_MSG_CMD_INVOKE_COMMAND	U(1)
-#define OPTEE_MSG_CMD_CLOSE_SESSION	U(2)
-#define OPTEE_MSG_CMD_CANCEL		U(3)
-#define OPTEE_MSG_CMD_REGISTER_SHM	U(4)
-#define OPTEE_MSG_CMD_UNREGISTER_SHM	U(5)
-#define OPTEE_MSG_CMD_DO_BOTTOM_HALF	U(6)
-#define OPTEE_MSG_CMD_STOP_ASYNC_NOTIF	U(7)
-#define OPTEE_MSG_FUNCID_CALL_WITH_ARG	U(0x0004)
+#define OPTEE_MSG_CMD_OPEN_SESSION		U(0)
+#define OPTEE_MSG_CMD_INVOKE_COMMAND		U(1)
+#define OPTEE_MSG_CMD_CLOSE_SESSION		U(2)
+#define OPTEE_MSG_CMD_CANCEL			U(3)
+#define OPTEE_MSG_CMD_REGISTER_SHM		U(4)
+#define OPTEE_MSG_CMD_UNREGISTER_SHM		U(5)
+#define OPTEE_MSG_CMD_DO_BOTTOM_HALF		U(6)
+#define OPTEE_MSG_CMD_STOP_ASYNC_NOTIF		U(7)
+#define OPTEE_MSG_CMD_LEND_RSTMEM		U(8)
+#define OPTEE_MSG_CMD_RECLAIM_RSTMEM		U(9)
+#define OPTEE_MSG_CMD_GET_RSTMEM_CONFIG		U(10)
+#define OPTEE_MSG_CMD_ASSIGN_RSTMEM		U(11)
+#define OPTEE_MSG_FUNCID_CALL_WITH_ARG		U(0x0004)
 
 #endif /* __OPTEE_MSG_H */
