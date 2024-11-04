@@ -20,6 +20,7 @@ include core/arch/arm/cpu/cortex-a7.mk
 $(call force,CFG_SAMA7G5,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_TZC400,y)
+$(call force,CFG_MICROCHIP_PIT,y)
 else
 include core/arch/arm/cpu/cortex-a5.mk
 $(call force,CFG_SAMA5D2,y)
