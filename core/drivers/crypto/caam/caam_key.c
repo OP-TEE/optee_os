@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  */
 #include <assert.h>
 #include <caam_desc_helper.h>
@@ -57,8 +57,9 @@
  * makes it non-volatile and can be re-created when the chip powers up again.
  */
 #define KEY_BLOB_MODIFIER_SIZE 16
-static const uint8_t key_blob_modifier[KEY_BLOB_MODIFIER_SIZE] =
-	"NXP_OPTEE_BLOB";
+#define KEY_BLOB_MODIFIER "NXP_KEY_MODIFIER"
+static_assert(sizeof(KEY_BLOB_MODIFIER) >= KEY_BLOB_MODIFIER_SIZE);
+static uint8_t *key_blob_modifier;
 
 /*
  * Serialized CAAM key structure format.
@@ -379,6 +380,8 @@ enum caam_status caam_key_operation_blob(const struct caamkey *in_key,
 
 	KEY_DUMPDESC(desc);
 
+	cache_operation(TEE_CACHECLEAN, key_blob_modifier,
+			KEY_BLOB_MODIFIER_SIZE);
 	caam_key_cache_op(TEE_CACHECLEAN, in_key);
 	caam_key_cache_op(TEE_CACHECLEAN, out_key);
 
@@ -742,6 +745,12 @@ enum caam_status caam_key_init(void)
 		return CAAM_FAILURE;
 
 	assert(alloc_size <= CFG_CORE_BIGNUM_MAX_BITS);
+
+	key_blob_modifier = caam_calloc_align(KEY_BLOB_MODIFIER_SIZE);
+	if (!key_blob_modifier)
+		return CAAM_FAILURE;
+
+	memcpy(key_blob_modifier, KEY_BLOB_MODIFIER, KEY_BLOB_MODIFIER_SIZE);
 
 	KEY_TRACE("Max serialized key size %zu", alloc_size);
 
