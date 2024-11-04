@@ -17,6 +17,10 @@ END_FUNC __get_core_pos
 /* size_t get_core_pos_mpidr(uint32_t mpidr); */
 /* Let platforms override this if needed */
 WEAK_FUNC get_core_pos_mpidr , :
+#if CFG_CORE_SEL2_SPMC
+	mov	x1, #MPIDR_VCPU_MASK
+	and	x0, x0, x1
+#else /* CFG_CORE_SEL2_SPMC */
 	/*
 	 * Shift MPIDR value if it's not already shifted.
 	 * Using logical shift ensures AFF0 to be filled with zeroes.
@@ -47,6 +51,7 @@ WEAK_FUNC get_core_pos_mpidr , :
 	ubfx	x2, x3, #MPIDR_AFF2_SHIFT, #MPIDR_AFFINITY_BITS
 	add	x1, x1, x2, LSL #(CFG_CORE_CLUSTER_SHIFT)
 	add	x0, x0, x1, LSL #(CFG_CORE_THREAD_SHIFT)
+#endif
 #endif
 
 	ret

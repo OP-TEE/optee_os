@@ -76,6 +76,9 @@
 #define MPIDR_AARCH32_AFF_MASK	(MPIDR_AFF0_MASK | MPIDR_AFF1_MASK | \
 				 MPIDR_AFF2_MASK)
 
+/* MPIDR definitions for VCPU */
+#define MPIDR_VCPU_MASK		ULL(0xffffff)
+
 /* ID_ISAR5 Cryptography Extension masks */
 #define ID_ISAR5_AES		GENMASK_32(7, 4)
 #define ID_ISAR5_SHA1		GENMASK_32(11, 8)
