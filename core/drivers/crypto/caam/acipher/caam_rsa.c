@@ -344,27 +344,27 @@ static TEE_Result do_allocate_keypair(struct rsa_keypair *key,
 	if (!key->n)
 		goto err_alloc_keypair;
 
-	/* Allocate the prime number p of size (size_bits / 2) */
+	/* Allocate the prime number p */
 	key->p = crypto_bignum_allocate(CFG_CORE_BIGNUM_MAX_BITS);
 	if (!key->p)
 		goto err_alloc_keypair;
 
-	/* Allocate the prime number q of size (size_bits / 2) */
+	/* Allocate the prime number q */
 	key->q = crypto_bignum_allocate(CFG_CORE_BIGNUM_MAX_BITS);
 	if (!key->q)
 		goto err_alloc_keypair;
 
-	/* Allocate dp (size_bits / 2) [d mod (p-1)] */
+	/* Allocate dp [d mod (p-1)] */
 	key->dp = crypto_bignum_allocate(CFG_CORE_BIGNUM_MAX_BITS);
 	if (!key->dp)
 		goto err_alloc_keypair;
 
-	/* Allocate dq (size_bits / 2) [d mod (q-1)] */
+	/* Allocate dq [d mod (q-1)] */
 	key->dq = crypto_bignum_allocate(CFG_CORE_BIGNUM_MAX_BITS);
 	if (!key->dq)
 		goto err_alloc_keypair;
 
-	/* Allocate qp (size_bits / 2) [1/q mod p] */
+	/* Allocate qp [1/q mod p] */
 	key->qp = crypto_bignum_allocate(CFG_CORE_BIGNUM_MAX_BITS);
 	if (!key->qp)
 		goto err_alloc_keypair;
@@ -429,7 +429,7 @@ static void do_free_publickey(struct rsa_public_key *key)
  * Output the RSA keypair format 3 additional fields in bignumber object
  *
  * @key        [out] Keypair
- * @key_size   Key size in bits
+ * @genkey     Key pair in local format
  */
 static TEE_Result gen_keypair_get_f3(struct rsa_keypair *key,
 				     struct caam_rsa_keypair *genkey)
@@ -463,7 +463,7 @@ static TEE_Result gen_keypair_get_f3(struct rsa_keypair *key,
  * Output the RSA keypair format 2 additional fields in big number object
  *
  * @key        [out] Keypair
- * @key_size   Key size in bits
+ * @genkey     Key pair in local format
  */
 static TEE_Result gen_keypair_get_f2(struct rsa_keypair *key,
 				     struct caam_rsa_keypair *genkey)
@@ -1547,7 +1547,7 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 	caam_desc_add_word(desc, operation);
 
 	if (operation == RSA_DECRYPT(PKCS_V1_5)) {
-		/* Get the PPKCS1 v1.5 Message length generated */
+		/* Get the PKCS1 v1.5 Message length generated */
 		caam_desc_add_word(desc,
 				   ST_NOIMM_OFF(CLASS_DECO, REG_MATH0, 4, 4));
 		caam_desc_add_ptr(desc, size_msg.paddr);
