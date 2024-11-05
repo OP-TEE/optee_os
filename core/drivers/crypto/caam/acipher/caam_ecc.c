@@ -89,7 +89,7 @@ static enum caam_status do_keypub_conv(struct caam_ecc_keypair *outkey,
 
 /*
  * Convert Crypto ECC Key to local ECC Keypair Key
- * Don't convert the exponent e not used in decrytion
+ * Don't convert the exponent e not used in decryption
  *
  * @outkey    [out] Output keypair in local format
  * @inkey     Input key in TEE Crypto format
@@ -142,6 +142,7 @@ static enum caam_ecc_curve get_caam_curve(uint32_t tee_curve)
  * Allocate a ECC keypair
  *
  * @key        Keypair
+ * @type       Type of ECC key
  * @size_bits  Key size in bits
  */
 static TEE_Result do_allocate_keypair(struct ecc_keypair *key,
@@ -192,6 +193,7 @@ err:
  * Allocate an ECC Public Key
  *
  * @key        Public Key
+ * @type       Type of ECC key
  * @size_bits  Key size in bits
  */
 static TEE_Result do_allocate_publickey(struct ecc_public_key *key,
@@ -299,7 +301,7 @@ static TEE_Result do_gen_keypair(struct ecc_keypair *key, size_t key_size)
 		goto out;
 	}
 
-	/* Build the descriptor using Predifined ECC curve */
+	/* Build the descriptor using Predefined ECC curve */
 	caam_desc_init(desc);
 	caam_desc_add_word(desc, DESC_HEADER(0));
 	caam_desc_add_word(desc, PDB_PKGEN_PD1 | PDB_ECC_ECDSEL(curve));
@@ -527,7 +529,7 @@ static TEE_Result do_sign(struct drvcrypt_sign_data *sdata)
 
 	caam_dmaobj_cache_push(&sign_c);
 
-	/* Build the descriptor using Predifined ECC curve */
+	/* Build the descriptor using Predefined ECC curve */
 	caam_desc_init(desc);
 	caam_desc_add_word(desc, DESC_HEADER(0));
 	caam_desc_add_word(desc, PDB_PKSIGN_PD1 | PDB_ECC_ECDSEL(curve) |
@@ -710,7 +712,7 @@ static TEE_Result do_verify(struct drvcrypt_sign_data *sdata)
 		goto out;
 	}
 
-	/* Build the descriptor using Predifined ECC curve */
+	/* Build the descriptor using Predefined ECC curve */
 	caam_desc_init(desc);
 	caam_desc_add_word(desc, DESC_HEADER(0));
 	caam_desc_add_word(desc, PDB_PKVERIFY_PD1 | PDB_ECC_ECDSEL(curve) |
@@ -830,7 +832,7 @@ static TEE_Result do_shared_secret(struct drvcrypt_secret_data *sdata)
 
 	caam_dmaobj_cache_push(&secret);
 
-	/* Build the descriptor using Predifined ECC curve */
+	/* Build the descriptor using Predefined ECC curve */
 	caam_desc_init(desc);
 	caam_desc_add_word(desc, DESC_HEADER(0));
 	caam_desc_add_word(desc, PDB_SHARED_SECRET_PD1 | PDB_ECC_ECDSEL(curve) |
