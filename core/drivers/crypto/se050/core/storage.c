@@ -71,21 +71,21 @@ TEE_Result crypto_storage_obj_del(struct tee_obj *o)
 		return TEE_SUCCESS;
 
 	status = sss_se05x_key_object_init(&k_object, se050_kstore);
-	if (status != kStatus_SSS_Success) {
-		ret = TEE_ERROR_BAD_STATE;
-		goto out;
-	}
+	if (status != kStatus_SSS_Success)
+		return TEE_ERROR_BAD_STATE;
 
 	status = sss_se05x_key_object_get_handle(&k_object, val);
 	if (status != kStatus_SSS_Success) {
-		EMSG("se05x: can not communicate with the secure element");
+		if (IS_ENABLED(CFG_CORE_SE05X_BLOCK_OBJ_DEL_ON_ERROR))
+			EMSG("se05x: key not found in secure element");
 		ret = TEE_ERROR_BAD_STATE;
 		goto out;
 	}
 
 	status = sss_se05x_key_store_erase_key(se050_kstore, &k_object);
 	if (status != kStatus_SSS_Success) {
-		EMSG("se05x: can not communicate with the secure element");
+		if (IS_ENABLED(CFG_CORE_SE05X_BLOCK_OBJ_DEL_ON_ERROR))
+			EMSG("se05x: key can't be removed from secure element");
 		ret = TEE_ERROR_BAD_STATE;
 		goto out;
 	}
