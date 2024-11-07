@@ -1213,6 +1213,22 @@ $(eval $(call cfg-depends-all,CFG_WIDEVINE_HUK,CFG_DT))
 CFG_WIDEVINE_PTA ?= n
 $(eval $(call cfg-depends-all,CFG_WIDEVINE_PTA,CFG_DT CFG_WIDEVINE_HUK))
 
+# When enabled, CFG_VERAISON_ATTESTATION_PTA embeds remote attestation PTA
+# service. Note: This is an experimental feature and should be used
+# with caution in production environments.
+CFG_VERAISON_ATTESTATION_PTA ?= n
+ifeq ($(CFG_VERAISON_ATTESTATION_PTA),y)
+$(call force,CFG_QCBOR,y)
+endif
+
+# When enabled, CFG_VERAISON_ATTESTATION_PTA_TEST_KEY embeds a test key.
+# Note: CFG_VERAISON_ATTESTATION_PTA_TEST_KEY must be enabled for
+# CFG_VERAISON_ATTESTATION_PTA to work.
+CFG_VERAISON_ATTESTATION_PTA_TEST_KEY ?= y
+ifneq ($(CFG_VERAISON_ATTESTATION_PTA_TEST_KEY),y)
+$(error "CFG_VERAISON_ATTESTATION_PTA_TEST_KEY must be enabled")
+endif
+
 # CFG_SEMIHOSTING_CONSOLE, when enabled, embeds a semihosting console driver.
 # When CFG_SEMIHOSTING_CONSOLE_FILE=NULL, OP-TEE console reads/writes
 # trace messages from/to the debug terminal of the semihosting host computer.
