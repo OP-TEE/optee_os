@@ -15,6 +15,11 @@
  * the conflicting defines has the same meaning in that environment.
  * Surrounding the troublesome defines with #ifndef should be enough.
  */
+
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
+
 #define __deprecated	__attribute__((deprecated))
 #ifndef __packed
 #define __packed	__attribute__((packed))
@@ -24,9 +29,15 @@
 #ifndef __noreturn
 #define __noreturn	__attribute__((__noreturn__))
 #endif
+
 #ifndef __no_stack_protector
+#if __has_attribute(no_stack_protector)
 #define __no_stack_protector __attribute__((no_stack_protector))
+#else
+#define __no_stack_protector
 #endif
+#endif
+
 #define __pure		__attribute__((pure))
 #define __aligned(x)	__attribute__((aligned(x)))
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
