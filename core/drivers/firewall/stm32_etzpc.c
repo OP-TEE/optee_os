@@ -170,17 +170,17 @@ sanitize_decprot_config(uint32_t decprot_id __maybe_unused,
 	case DECPROT_S_RW:
 	case DECPROT_NS_R_S_W:
 		if (!stm32_rcc_is_secure()) {
-			IMSG("WARNING: RCC tzen:0, insecure ETZPC hardening %"PRIu32":%u",
-			     decprot_id, attr);
+			IMSG("WARNING: RCC tzen:0, insecure ETZPC hardening %"PRIu32":%s",
+			     decprot_id, etzpc_decprot_strings[attr]);
 			if (!IS_ENABLED(CFG_INSECURE))
 				panic();
 		}
 		break;
 	case DECPROT_MCU_ISOLATION:
 		if (!stm32_rcc_is_secure() || !stm32_rcc_is_mckprot()) {
-			IMSG("WARNING: RCC tzen:%u mckprot:%u, insecure ETZPC hardening %"PRIu32":%u",
+			IMSG("WARNING: RCC tzen:%u mckprot:%u, insecure ETZPC hardening %"PRIu32":%s",
 			     stm32_rcc_is_secure(), stm32_rcc_is_mckprot(),
-			     decprot_id, attr);
+			     decprot_id, etzpc_decprot_strings[attr]);
 			if (!IS_ENABLED(CFG_INSECURE))
 				panic();
 		}
