@@ -75,8 +75,6 @@
 
 #define FMC_RIF_CONTROLLERS		U(6)
 
-#define FMC_NB_MAX_CID_SUPPORTED	U(7)
-
 #define FMC_NSEC_PER_SEC		UL(1000000000)
 
 struct fmc_pdata {
@@ -87,6 +85,7 @@ struct fmc_pdata {
 	unsigned int nb_controller;
 	vaddr_t base;
 	uint32_t clk_period_ns;
+	bool is_tdcid;
 	bool cclken;
 };
 
@@ -97,10 +96,48 @@ static bool fmc_controller_is_secure(uint8_t controller)
 	return io_read32(fmc_d->base + _FMC_SECCFGR) & BIT(controller);
 }
 
+static TEE_Result handle_available_semaphores(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t cidcfgr = 0;
+	unsigned int i = 0;
+
+	for (i = 0; i < FMC_RIF_CONTROLLERS; i++) {
+		if (!(BIT(i) & fmc_d->conf_data->access_mask[0]))
+			continue;
+
+		cidcfgr = io_read32(fmc_d->base + _FMC_CIDCFGR(i));
+
+		if (!stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1))
+			continue;
+
+		if (!(io_read32(fmc_d->base + _FMC_SECCFGR) & BIT(i))) {
+			res = stm32_rif_release_semaphore(fmc_d->base +
+							  _FMC_SEMCR(i),
+							  MAX_CID_SUPPORTED);
+			if (res) {
+				EMSG("Cannot release semaphore for resource %u",
+				     i);
+				return res;
+			}
+		} else {
+			res = stm32_rif_acquire_semaphore(fmc_d->base +
+							  _FMC_SEMCR(i),
+							  MAX_CID_SUPPORTED);
+			if (res) {
+				EMSG("Cannot acquire semaphore for resource %u",
+				     i);
+				return res;
+			}
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result apply_rif_config(void)
 {
 	TEE_Result res = TEE_ERROR_ACCESS_DENIED;
-	uint32_t cidcfgr = 0;
 	unsigned int i = 0;
 
 	if (!fmc_d->conf_data)
@@ -110,36 +147,23 @@ static TEE_Result apply_rif_config(void)
 	if (res)
 		panic("Cannot access FMC clock");
 
-	for (i = 0; i < FMC_RIF_CONTROLLERS; i++) {
-		if (!(BIT(i) & fmc_d->conf_data->access_mask[0]))
-			continue;
-
-		/*
-		 * Whatever the TDCID state, try to clear the configurable part
-		 * of the CIDCFGR register.
-		 * If TDCID, register will be cleared, if not, the clear will
-		 * be ignored.
-		 * When TDCID, OP-TEE should be the one to set the CID filtering
-		 * configuration. Clearing previous configuration prevents
-		 * undesired events during the only legitimate configuration.
-		 */
-		io_clrbits32(fmc_d->base + _FMC_CIDCFGR(i),
-			     _FMC_CIDCFGR_CONF_MASK);
-
-		cidcfgr = io_read32(fmc_d->base + _FMC_CIDCFGR(i));
-
-		/* Check if the controller is in semaphore mode */
-		if (!stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1))
-			continue;
-
-		/* If not TDCID, we want to acquire semaphores assigned to us */
-		res = stm32_rif_acquire_semaphore(fmc_d->base + _FMC_SEMCR(i),
-						  FMC_NB_MAX_CID_SUPPORTED);
-		if (res) {
-			EMSG("Couldn't acquire semaphore for controller %u", i);
-			clk_disable(fmc_d->fmc_clock);
-			return res;
+	if (fmc_d->is_tdcid) {
+		for (i = 0; i < FMC_RIF_CONTROLLERS; i++) {
+			if (!(BIT(i) & fmc_d->conf_data->access_mask[0]))
+				continue;
+			/*
+			 * When TDCID, OP-TEE should be the one to set the CID
+			 * filtering configuration. Clearing previous
+			 * configuration prevents undesired events during the
+			 * only legitimate configuration.
+			 */
+			io_clrbits32(fmc_d->base + _FMC_CIDCFGR(i),
+				     _FMC_CIDCFGR_CONF_MASK);
 		}
+	} else {
+		res = handle_available_semaphores();
+		if (res)
+			panic();
 	}
 
 	/* Security and privilege RIF configuration */
@@ -148,6 +172,9 @@ static TEE_Result apply_rif_config(void)
 	io_clrsetbits32(fmc_d->base + _FMC_SECCFGR, _FMC_SECCFGR_MASK,
 			fmc_d->conf_data->sec_conf[0]);
 
+	if (!fmc_d->is_tdcid)
+		goto out;
+
 	for (i = 0; i < FMC_RIF_CONTROLLERS; i++) {
 		if (!(BIT(i) & fmc_d->conf_data->access_mask[0]))
 			continue;
@@ -155,42 +182,19 @@ static TEE_Result apply_rif_config(void)
 		io_clrsetbits32(fmc_d->base + _FMC_CIDCFGR(i),
 				_FMC_CIDCFGR_CONF_MASK,
 				fmc_d->conf_data->cid_confs[i]);
-
-		cidcfgr = io_read32(fmc_d->base + _FMC_CIDCFGR(i));
-
-		/*
-		 * Take semaphore if the resource is in semaphore mode
-		 * and secured
-		 */
-		if (!stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1) ||
-		    !(io_read32(fmc_d->base + _FMC_SECCFGR) & BIT(i))) {
-			res =
-			stm32_rif_release_semaphore(fmc_d->base + _FMC_SEMCR(i),
-						    FMC_NB_MAX_CID_SUPPORTED);
-			if (res) {
-				EMSG("Couldn't release semaphore for res%u", i);
-				clk_disable(fmc_d->fmc_clock);
-				return res;
-			}
-		} else {
-			res =
-			stm32_rif_acquire_semaphore(fmc_d->base + _FMC_SEMCR(i),
-						    FMC_NB_MAX_CID_SUPPORTED);
-			if (res) {
-				EMSG("Couldn't acquire semaphore for res%u", i);
-				clk_disable(fmc_d->fmc_clock);
-				return res;
-			}
-		}
 	}
 
 	/*
 	 * Lock RIF configuration if configured. This cannot be undone until
 	 * next reset.
 	 */
-	io_clrsetbits32(fmc_d->base + _FMC_RCFGLOCKR, _FMC_RCFGLOCKR_MASK,
-			fmc_d->conf_data->lock_conf[0]);
+	io_setbits32(fmc_d->base + _FMC_RCFGLOCKR,
+		     fmc_d->conf_data->lock_conf[0]);
 
+	res = handle_available_semaphores();
+	if (res)
+		panic();
+out:
 	if (IS_ENABLED(CFG_TEE_CORE_DEBUG)) {
 		/* Check that RIF config are applied, panic otherwise */
 		if ((io_read32(fmc_d->base + _FMC_PRIVCFGR) &
@@ -328,8 +332,7 @@ static TEE_Result __maybe_unused check_fmc_rif_conf(void)
 		 * Check if a controller is shared with incorrect CID
 		 * (!= RIF_CID1)
 		 */
-		res = stm32_rif_check_access(cidcfgr, semcr,
-					     FMC_NB_MAX_CID_SUPPORTED,
+		res = stm32_rif_check_access(cidcfgr, semcr, MAX_CID_SUPPORTED,
 					     RIF_CID1);
 		if (res)
 			break;
@@ -356,8 +359,7 @@ static void configure_fmc(void)
 	 * If OP-TEE doesn't have access to the controller 0,
 	 * then we don't want to try to enable the FMC.
 	 */
-	if (stm32_rif_check_access(cidcfgr, semcr,
-				   FMC_NB_MAX_CID_SUPPORTED, RIF_CID1))
+	if (stm32_rif_check_access(cidcfgr, semcr, MAX_CID_SUPPORTED, RIF_CID1))
 		goto end;
 
 	/* Check controller 0 access */
@@ -368,7 +370,7 @@ static void configure_fmc(void)
 
 	if (cidcfgr & _CIDCFGR_SEMEN &&
 	    stm32_rif_acquire_semaphore(fmc_d->base + _FMC_SEMCR(0),
-					FMC_NB_MAX_CID_SUPPORTED))
+					MAX_CID_SUPPORTED))
 		panic("Couldn't acquire controller 0 semaphore");
 
 	if (fmc_d->pinctrl_d && pinctrl_apply_state(fmc_d->pinctrl_d))
@@ -464,6 +466,12 @@ static TEE_Result fmc_probe(const void *fdt, int node,
 	fmc_d = calloc(1, sizeof(*fmc_d));
 	if (!fmc_d)
 		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = stm32_rifsc_check_tdcid(&fmc_d->is_tdcid);
+	if (res) {
+		free(fmc_d);
+		return res;
+	}
 
 	res = parse_dt(fdt, node);
 	if (res)
