@@ -76,7 +76,7 @@
 
 struct hpdma_pdata {
 	struct clk *hpdma_clock;
-	struct rif_conf_data conf_data;
+	struct rif_conf_data *conf_data;
 	unsigned int nb_channels;
 	vaddr_t base;
 
@@ -93,8 +93,11 @@ static TEE_Result apply_rif_config(struct hpdma_pdata *hpdma_d, bool is_tdcid)
 	uint32_t cidcfgr = 0;
 	unsigned int i = 0;
 
+	if (!hpdma_d->conf_data)
+		return TEE_SUCCESS;
+
 	for (i = 0; i < HPDMA_RIF_CHANNELS; i++) {
-		if (!(BIT(i) & hpdma_d->conf_data.access_mask[0]))
+		if (!(BIT(i) & hpdma_d->conf_data->access_mask[0]))
 			continue;
 		/*
 		 * When TDCID, OP-TEE should be the one to set the CID filtering
@@ -123,23 +126,23 @@ static TEE_Result apply_rif_config(struct hpdma_pdata *hpdma_d, bool is_tdcid)
 
 	/* Security and privilege RIF configuration */
 	io_clrsetbits32(hpdma_d->base + _HPDMA_PRIVCFGR, _HPDMA_PRIVCFGR_MASK &
-			hpdma_d->conf_data.access_mask[0],
-			hpdma_d->conf_data.priv_conf[0]);
+			hpdma_d->conf_data->access_mask[0],
+			hpdma_d->conf_data->priv_conf[0]);
 	io_clrsetbits32(hpdma_d->base + _HPDMA_SECCFGR, _HPDMA_SECCFGR_MASK &
-			hpdma_d->conf_data.access_mask[0],
-			hpdma_d->conf_data.sec_conf[0]);
+			hpdma_d->conf_data->access_mask[0],
+			hpdma_d->conf_data->sec_conf[0]);
 
 	/* Skip CID/semaphore configuration if not in TDCID state. */
 	if (!is_tdcid)
 		goto end;
 
 	for (i = 0; i < HPDMA_RIF_CHANNELS; i++) {
-		if (!(BIT(i) & hpdma_d->conf_data.access_mask[0]))
+		if (!(BIT(i) & hpdma_d->conf_data->access_mask[0]))
 			continue;
 
 		io_clrsetbits32(hpdma_d->base + _HPDMA_CIDCFGR(i),
 				_HPDMA_CIDCFGR_CONF_MASK,
-				hpdma_d->conf_data.cid_confs[i]);
+				hpdma_d->conf_data->cid_confs[i]);
 
 		cidcfgr = io_read32(hpdma_d->base + _HPDMA_CIDCFGR(i));
 
@@ -174,19 +177,19 @@ static TEE_Result apply_rif_config(struct hpdma_pdata *hpdma_d, bool is_tdcid)
 	 * next reset.
 	 */
 	io_clrsetbits32(hpdma_d->base + _HPDMA_RCFGLOCKR, _HPDMA_RCFGLOCKR_MASK,
-			hpdma_d->conf_data.lock_conf[0]);
+			hpdma_d->conf_data->lock_conf[0]);
 
 end:
 	if (IS_ENABLED(CFG_TEE_CORE_DEBUG)) {
 		/* Check that RIF config are applied, panic otherwise */
 		if ((io_read32(hpdma_d->base + _HPDMA_PRIVCFGR) &
-		     hpdma_d->conf_data.access_mask[0]) !=
-		    hpdma_d->conf_data.priv_conf[0])
+		     hpdma_d->conf_data->access_mask[0]) !=
+		    hpdma_d->conf_data->priv_conf[0])
 			panic("HPDMA channel priv conf is incorrect");
 
 		if ((io_read32(hpdma_d->base + _HPDMA_SECCFGR) &
-		     hpdma_d->conf_data.access_mask[0]) !=
-		    hpdma_d->conf_data.sec_conf[0])
+		     hpdma_d->conf_data->access_mask[0]) !=
+		    hpdma_d->conf_data->sec_conf[0])
 			panic("HPDMA channel sec conf is incorrect");
 	}
 
@@ -216,24 +219,31 @@ static TEE_Result parse_dt(const void *fdt, int node,
 		return res;
 
 	cuint = fdt_getprop(fdt, node, "st,protreg", &lenp);
-	if (!cuint)
-		panic("No RIF configuration available");
+	if (!cuint) {
+		DMSG("No RIF configuration available");
+		return TEE_SUCCESS;
+	}
+
+	hpdma_d->conf_data = calloc(1, sizeof(*hpdma_d->conf_data));
+	if (!hpdma_d->conf_data)
+		panic();
 
 	hpdma_d->nb_channels = (unsigned int)(lenp / sizeof(uint32_t));
 	assert(hpdma_d->nb_channels <= HPDMA_RIF_CHANNELS);
 
-	hpdma_d->conf_data.cid_confs = calloc(HPDMA_RIF_CHANNELS,
-					      sizeof(uint32_t));
-	hpdma_d->conf_data.sec_conf = calloc(1, sizeof(uint32_t));
-	hpdma_d->conf_data.priv_conf = calloc(1, sizeof(uint32_t));
-	hpdma_d->conf_data.access_mask = calloc(1, sizeof(uint32_t));
-	hpdma_d->conf_data.lock_conf = calloc(1, sizeof(uint32_t));
-	assert(hpdma_d->conf_data.cid_confs && hpdma_d->conf_data.sec_conf &&
-	       hpdma_d->conf_data.priv_conf && hpdma_d->conf_data.access_mask &&
-	       hpdma_d->conf_data.lock_conf);
+	hpdma_d->conf_data->cid_confs = calloc(HPDMA_RIF_CHANNELS,
+					       sizeof(uint32_t));
+	hpdma_d->conf_data->sec_conf = calloc(1, sizeof(uint32_t));
+	hpdma_d->conf_data->priv_conf = calloc(1, sizeof(uint32_t));
+	hpdma_d->conf_data->access_mask = calloc(1, sizeof(uint32_t));
+	hpdma_d->conf_data->lock_conf = calloc(1, sizeof(uint32_t));
+	if (!hpdma_d->conf_data->cid_confs || !hpdma_d->conf_data->sec_conf ||
+	    !hpdma_d->conf_data->priv_conf ||
+	    !hpdma_d->conf_data->access_mask || !hpdma_d->conf_data->lock_conf)
+		panic("Missing memory capacity for HPDMA RIF configuration");
 
 	for (i = 0; i < hpdma_d->nb_channels; i++)
-		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), &hpdma_d->conf_data,
+		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), hpdma_d->conf_data,
 				    HPDMA_RIF_CHANNELS);
 
 	return TEE_SUCCESS;
@@ -250,17 +260,17 @@ static void stm32_hpdma_pm_suspend(struct hpdma_pdata *hpdma)
 	size_t i = 0;
 
 	for (i = 0; i < HPDMA_RIF_CHANNELS; i++)
-		hpdma->conf_data.cid_confs[i] = io_read32(hpdma->base +
+		hpdma->conf_data->cid_confs[i] = io_read32(hpdma->base +
 							  _HPDMA_CIDCFGR(i)) &
 						_HPDMA_CIDCFGR_CONF_MASK;
 
-	hpdma->conf_data.priv_conf[0] = io_read32(hpdma->base +
+	hpdma->conf_data->priv_conf[0] = io_read32(hpdma->base +
 						  _HPDMA_PRIVCFGR) &
 					_HPDMA_PRIVCFGR_MASK;
-	hpdma->conf_data.sec_conf[0] = io_read32(hpdma->base +
+	hpdma->conf_data->sec_conf[0] = io_read32(hpdma->base +
 						 _HPDMA_SECCFGR) &
 				       _HPDMA_SECCFGR_MASK;
-	hpdma->conf_data.lock_conf[0] = io_read32(hpdma->base +
+	hpdma->conf_data->lock_conf[0] = io_read32(hpdma->base +
 						  _HPDMA_RCFGLOCKR) &
 					_HPDMA_RCFGLOCKR_MASK;
 
@@ -268,7 +278,8 @@ static void stm32_hpdma_pm_suspend(struct hpdma_pdata *hpdma)
 	 * The access mask is modified to restore the conf for all
 	 * resources.
 	 */
-	hpdma->conf_data.access_mask[0] = GENMASK_32(HPDMA_RIF_CHANNELS - 1, 0);
+	hpdma->conf_data->access_mask[0] = GENMASK_32(HPDMA_RIF_CHANNELS - 1,
+						      0);
 }
 
 static TEE_Result
