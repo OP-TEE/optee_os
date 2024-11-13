@@ -32,6 +32,30 @@
 	};
 };
 
+&hpdma1 {
+	status = "okay";
+};
+
+&hpdma2 {
+	status = "okay";
+};
+
+&hpdma3 {
+	status = "okay";
+};
+
+&hsem {
+	status = "okay";
+};
+
+&ipcc1 {
+	status = "okay";
+};
+
+&ipcc2 {
+	status = "okay";
+};
+
 &risaf2 {
 	status = "okay";
 };
