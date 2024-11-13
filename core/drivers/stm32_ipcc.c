@@ -33,6 +33,7 @@
 /*
  * CIDCFGR register bitfields
  */
+#define IPCC_CIDCFGR_CFEN		BIT(0)
 #define IPCC_CIDCFGR_SCID_MASK		GENMASK_32(6, 4)
 #define IPCC_CIDCFGR_CONF_MASK		(_CIDCFGR_CFEN |	 \
 					 IPCC_CIDCFGR_SCID_MASK)
@@ -57,8 +58,6 @@
  */
 #define IPCC_NB_MAX_RIF_CHAN		U(16)
 
-#define IPCC_NB_MAX_CID_SUPPORTED	U(7)
-
 struct ipcc_pdata {
 	/*
 	 * An IPCC has nb_channels_cfg channel configuration for its
@@ -68,6 +67,7 @@ struct ipcc_pdata {
 	struct clk *ipcc_clock;
 	vaddr_t base;
 	struct rif_conf_data *conf_data;
+	bool is_tdcid;
 
 	STAILQ_ENTRY(ipcc_pdata) link;
 };
@@ -76,12 +76,16 @@ static STAILQ_HEAD(, ipcc_pdata) ipcc_list =
 		STAILQ_HEAD_INITIALIZER(ipcc_list);
 
 /* This function expects IPCC bus clock is enabled */
-static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
+static void apply_rif_config(struct ipcc_pdata *ipcc_d)
 {
+	bool proc1_cidfilt = false;
+	bool proc2_cidfilt = false;
 	uint32_t priv_proc_1 = 0;
 	uint32_t priv_proc_2 = 0;
 	uint32_t sec_proc_1 = 0;
 	uint32_t sec_proc_2 = 0;
+	unsigned int cid1 = 0;
+	unsigned int cid2 = 0;
 	unsigned int i = 0;
 	bool is_cid_configured = false;
 
@@ -101,7 +105,7 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 	 * configuration. Clearing previous configuration prevents
 	 * undesired events during the only legitimate configuration.
 	 */
-	if (is_tdcid) {
+	if (ipcc_d->is_tdcid) {
 		/* IPCC Processor 1 */
 		io_clrbits32(ipcc_d->base + IPCC_C1CIDCFGR,
 			     IPCC_CIDCFGR_CONF_MASK);
@@ -111,11 +115,21 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 			     IPCC_CIDCFGR_CONF_MASK);
 	}
 
+	cid1 = io_read32(ipcc_d->base + IPCC_C1CIDCFGR) &
+	       IPCC_CIDCFGR_SCID_MASK;
+	cid2 = io_read32(ipcc_d->base + IPCC_C2CIDCFGR) &
+	       IPCC_CIDCFGR_SCID_MASK;
+
+	proc1_cidfilt = io_read32(ipcc_d->base + IPCC_C1CIDCFGR) &
+		       IPCC_CIDCFGR_CFEN;
+	proc2_cidfilt = io_read32(ipcc_d->base + IPCC_C2CIDCFGR) &
+		       IPCC_CIDCFGR_CFEN;
+
 	/* Split the sec and priv configuration for IPCC processor 1 and 2 */
 	sec_proc_1 = ipcc_d->conf_data->sec_conf[0] &
 		     GENMASK_32(IPCC_NB_MAX_RIF_CHAN - 1, 0);
 	priv_proc_1 = ipcc_d->conf_data->priv_conf[0] &
-		     GENMASK_32(IPCC_NB_MAX_RIF_CHAN - 1, 0);
+		      GENMASK_32(IPCC_NB_MAX_RIF_CHAN - 1, 0);
 
 	sec_proc_2 = (ipcc_d->conf_data->sec_conf[0] &
 		      GENMASK_32((IPCC_NB_MAX_RIF_CHAN * 2) - 1,
@@ -127,14 +141,18 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 		      IPCC_NB_MAX_RIF_CHAN;
 
 	/* Security and privilege RIF configuration */
-	io_clrsetbits32(ipcc_d->base + IPCC_C1PRIVCFGR, IPCC_PRIVCFGR_MASK,
-			priv_proc_1);
-	io_clrsetbits32(ipcc_d->base + IPCC_C2PRIVCFGR, IPCC_PRIVCFGR_MASK,
-			priv_proc_2);
-	io_clrsetbits32(ipcc_d->base + IPCC_C1SECCFGR, IPCC_SECCFGR_MASK,
-			sec_proc_1);
-	io_clrsetbits32(ipcc_d->base + IPCC_C2SECCFGR, IPCC_SECCFGR_MASK,
-			sec_proc_2);
+	if (!proc1_cidfilt || cid1 == RIF_CID1) {
+		io_clrsetbits32(ipcc_d->base + IPCC_C1PRIVCFGR,
+				IPCC_PRIVCFGR_MASK, priv_proc_1);
+		io_clrsetbits32(ipcc_d->base + IPCC_C1SECCFGR,
+				IPCC_SECCFGR_MASK, sec_proc_1);
+	}
+	if (!proc2_cidfilt || cid2 == RIF_CID1) {
+		io_clrsetbits32(ipcc_d->base + IPCC_C2PRIVCFGR,
+				IPCC_PRIVCFGR_MASK, priv_proc_2);
+		io_clrsetbits32(ipcc_d->base + IPCC_C2SECCFGR,
+				IPCC_SECCFGR_MASK, sec_proc_2);
+	}
 
 	/*
 	 * Evaluate RIF CID filtering configuration before setting it.
@@ -149,7 +167,7 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 		if (!is_cid_configured &&
 		    (BIT(0) & ipcc_d->conf_data->cid_confs[i])) {
 			is_cid_configured = true;
-			if (i == IPCC_NB_MAX_RIF_CHAN - 1)
+			if (i > 0)
 				panic("Inconsistent IPCC CID filtering RIF configuration");
 		}
 
@@ -159,7 +177,7 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 	}
 
 	/* IPCC processor 1 CID filtering configuration */
-	if (!is_tdcid)
+	if (!ipcc_d->is_tdcid)
 		return;
 
 	io_clrsetbits32(ipcc_d->base + IPCC_C1CIDCFGR,
@@ -179,7 +197,7 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 		if (!is_cid_configured &&
 		    (BIT(0) & ipcc_d->conf_data->cid_confs[i])) {
 			is_cid_configured = true;
-			if (i == (IPCC_NB_MAX_RIF_CHAN * 2) - 1)
+			if (i > IPCC_NB_MAX_RIF_CHAN)
 				panic("Inconsistent IPCC CID filtering RIF configuration");
 		}
 
@@ -196,7 +214,7 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 
 static void stm32_ipcc_pm_resume(struct ipcc_pdata *ipcc)
 {
-	apply_rif_config(ipcc, true);
+	apply_rif_config(ipcc);
 }
 
 static void stm32_ipcc_pm_suspend(struct ipcc_pdata *ipcc __unused)
@@ -214,12 +232,8 @@ stm32_ipcc_pm(enum pm_op op, unsigned int pm_hint,
 {
 	struct ipcc_pdata *ipcc = pm_handle->handle;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	bool is_tdcid = false;
 
-	if (stm32_rifsc_check_tdcid(&is_tdcid))
-		panic();
-
-	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT) || !is_tdcid)
+	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT) || !ipcc->is_tdcid)
 		return TEE_SUCCESS;
 
 	res = clk_enable(ipcc->ipcc_clock);
@@ -292,15 +306,14 @@ static TEE_Result stm32_ipcc_probe(const void *fdt, int node,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct ipcc_pdata *ipcc_d = NULL;
-	bool is_tdcid = false;
-
-	res = stm32_rifsc_check_tdcid(&is_tdcid);
-	if (res)
-		return res;
 
 	ipcc_d = calloc(1, sizeof(*ipcc_d));
 	if (!ipcc_d)
 		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = stm32_rifsc_check_tdcid(&ipcc_d->is_tdcid);
+	if (res)
+		goto err;
 
 	res = parse_dt(fdt, node, ipcc_d);
 	if (res)
@@ -310,7 +323,7 @@ static TEE_Result stm32_ipcc_probe(const void *fdt, int node,
 	if (res)
 		panic("Cannot access IPCC clock");
 
-	apply_rif_config(ipcc_d, is_tdcid);
+	apply_rif_config(ipcc_d);
 
 	clk_disable(ipcc_d->ipcc_clock);
 
@@ -318,7 +331,7 @@ static TEE_Result stm32_ipcc_probe(const void *fdt, int node,
 
 	register_pm_core_service_cb(stm32_ipcc_pm, ipcc_d, "stm32-ipcc");
 
-	return res;
+	return TEE_SUCCESS;
 
 err:
 	/* Free all allocated resources */
