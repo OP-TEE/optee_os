@@ -109,6 +109,9 @@ static int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 		goto unlock;
 	}
 
+	FMSG("Sending %"PRIx16" with seq %"PRIu8" host %"PRIu8,
+	     txhdr->type, txhdr->seq, txhdr->host);
+
 	/* Get the response */
 	for (; retry > 0; retry--) {
 		/* Receive the response */
@@ -134,7 +137,11 @@ static int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 	if (!(rxhdr->flags & TI_SCI_FLAG_RESP_GENERIC_ACK)) {
 		DMSG("Message not acknowledged");
 		ret = TEE_ERROR_ACCESS_DENIED;
+		goto unlock;
 	}
+
+	FMSG("Receive %"PRIx16" with seq %"PRIu8" host %"PRIu8,
+	     rxhdr->type, rxhdr->seq, rxhdr->host);
 
 unlock:
 	mutex_unlock(&ti_sci_mutex_lock);
