@@ -20,8 +20,6 @@
 #include "ti_sci.h"
 #include "ti_sci_protocol.h"
 
-static uint8_t message_sequence;
-static struct mutex ti_sci_mutex_lock = MUTEX_INITIALIZER;
 
 /**
  * struct ti_sci_xfer - Structure representing a message flow
@@ -82,80 +80,60 @@ static int ti_sci_setup_xfer(uint16_t msg_type, uint32_t msg_flags,
 }
 
 /**
- * ti_sci_get_response() - Receive response from mailbox channel
- *
- * @xfer:	Transfer to initiate and wait for response
- *
- * Return: 0 if all goes well, else appropriate error message
- */
-static inline int ti_sci_get_response(struct ti_sci_xfer *xfer)
-{
-	struct k3_sec_proxy_msg *msg = &xfer->rx_message;
-	struct ti_sci_msg_hdr *hdr = NULL;
-	unsigned int retry = 5;
-	int ret = 0;
-
-	for (; retry > 0; retry--) {
-		/* Receive the response */
-		ret = k3_sec_proxy_recv(msg);
-		if (ret) {
-			EMSG("Message receive failed (%d)", ret);
-			return ret;
-		}
-
-		/* msg is updated by Secure Proxy driver */
-		hdr = (struct ti_sci_msg_hdr *)msg->buf;
-
-		/* Sanity check for message response */
-		if (hdr->seq == message_sequence)
-			break;
-
-		IMSG("Message with sequence ID %u is not expected", hdr->seq);
-	}
-	if (!retry) {
-		EMSG("Timed out waiting for message");
-		return TEE_ERROR_BUSY;
-	}
-
-	if (!(hdr->flags & TI_SCI_FLAG_RESP_GENERIC_ACK)) {
-		DMSG("Message not acknowledged");
-		return TEE_ERROR_ACCESS_DENIED;
-	}
-
-	return 0;
-}
-
-/**
  * ti_sci_do_xfer() - Do one transfer
  *
  * @xfer: Transfer to initiate and wait for response
  *
  * Return: 0 if all goes well, else appropriate error message
  */
-static inline int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
+static int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 {
-	struct k3_sec_proxy_msg *msg = &xfer->tx_message;
-	struct ti_sci_msg_hdr *hdr = NULL;
+	struct k3_sec_proxy_msg *txmsg = &xfer->tx_message;
+	struct k3_sec_proxy_msg *rxmsg = &xfer->rx_message;
+	struct ti_sci_msg_hdr *txhdr = (struct ti_sci_msg_hdr *)txmsg->buf;
+	struct ti_sci_msg_hdr *rxhdr = (struct ti_sci_msg_hdr *)rxmsg->buf;
+	static uint8_t message_sequence;
+	static struct mutex ti_sci_mutex_lock = MUTEX_INITIALIZER;
+	unsigned int retry = 5;
 	int ret = 0;
 
 	mutex_lock(&ti_sci_mutex_lock);
 
-	hdr = (struct ti_sci_msg_hdr *)msg->buf;
-	hdr->seq = ++message_sequence;
+	message_sequence++;
+	txhdr->seq = message_sequence;
 
 	/* Send the message */
-	ret = k3_sec_proxy_send(msg);
+	ret = k3_sec_proxy_send(txmsg);
 	if (ret) {
 		EMSG("Message sending failed (%d)", ret);
 		goto unlock;
 	}
 
 	/* Get the response */
-	ret = ti_sci_get_response(xfer);
-	if (ret) {
-		if ((TEE_Result)ret != TEE_ERROR_ACCESS_DENIED)
-			EMSG("Failed to get response (%d)", ret);
+	for (; retry > 0; retry--) {
+		/* Receive the response */
+		ret = k3_sec_proxy_recv(rxmsg);
+		if (ret) {
+			EMSG("Message receive failed (%d)", ret);
+			goto unlock;
+		}
+
+		/* Sanity check for message response */
+		if (rxhdr->seq == message_sequence)
+			break;
+
+		IMSG("Message with sequence ID %"PRIu8" is not expected",
+		     rxhdr->seq);
+	}
+	if (!retry) {
+		EMSG("Timed out waiting for message");
+		ret = TEE_ERROR_BUSY;
 		goto unlock;
+	}
+
+	if (!(rxhdr->flags & TI_SCI_FLAG_RESP_GENERIC_ACK)) {
+		DMSG("Message not acknowledged");
+		ret = TEE_ERROR_ACCESS_DENIED;
 	}
 
 unlock:
