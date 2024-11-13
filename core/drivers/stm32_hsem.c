@@ -209,7 +209,6 @@ static TEE_Result parse_dt(const void *fdt, int node)
 
 	for (i = 0; i < hsem_d->nb_channels; i++)
 		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), &hsem_d->conf_data,
-				    HSEM_NB_MAX_CID_SUPPORTED,
 				    HSEM_RIF_RESOURCES);
 
 	cuint = fdt_getprop(fdt, node, "st,proccid", &lenp);
@@ -227,7 +226,8 @@ static TEE_Result parse_dt(const void *fdt, int node)
 		unsigned int pos = fdt32_to_cpu(cuint[i * 2]) - 1;
 		unsigned int cid_value = fdt32_to_cpu(cuint[(i * 2) + 1]);
 
-		hsem_d->rif_proc_conf[pos] = SHIFT_U32(cid_value, SCID_SHIFT);
+		hsem_d->rif_proc_conf[pos] = SHIFT_U32(cid_value,
+						       _CIDCFGR_SCID_SHIFT);
 	}
 
 	return TEE_SUCCESS;

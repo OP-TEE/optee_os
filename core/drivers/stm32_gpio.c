@@ -898,7 +898,7 @@ static void stm32_parse_gpio_rif_conf(struct stm32_gpio_bank *bank,
 
 	for (i = 0; i < nb_rif_conf; i++)
 		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), bank->rif_cfg,
-				    GPIO_MAX_CID_SUPPORTED, bank->ngpios);
+				    bank->ngpios);
 }
 
 /* Get GPIO bank information from the DT */

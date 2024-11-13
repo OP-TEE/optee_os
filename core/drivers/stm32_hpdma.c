@@ -234,7 +234,6 @@ static TEE_Result parse_dt(const void *fdt, int node,
 
 	for (i = 0; i < hpdma_d->nb_channels; i++)
 		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), &hpdma_d->conf_data,
-				    HPDMA_NB_MAX_CID_SUPPORTED,
 				    HPDMA_RIF_CHANNELS);
 
 	return TEE_SUCCESS;
