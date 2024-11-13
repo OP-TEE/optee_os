@@ -86,42 +86,73 @@ struct hpdma_pdata {
 static SLIST_HEAD(, hpdma_pdata) hpdma_list =
 		SLIST_HEAD_INITIALIZER(hpdma_list);
 
+static TEE_Result handle_available_semaphores(struct hpdma_pdata *hpdma_d)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t cidcfgr = 0;
+	unsigned int i = 0;
+
+	for (i = 0; i < HPDMA_RIF_CHANNELS; i++) {
+		if (!(BIT(i) & hpdma_d->conf_data->access_mask[0]))
+			continue;
+
+		cidcfgr = io_read32(hpdma_d->base + _HPDMA_CIDCFGR(i));
+
+		if (!stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1))
+			continue;
+
+		if (!(io_read32(hpdma_d->base + _HPDMA_SECCFGR) & BIT(i))) {
+			res =
+			stm32_rif_release_semaphore(hpdma_d->base +
+						    _HPDMA_SEMCR(i),
+						    HPDMA_NB_MAX_CID_SUPPORTED);
+			if (res) {
+				EMSG("Cannot release semaphore for resource %u",
+				     i);
+				return res;
+			}
+		} else {
+			res =
+			stm32_rif_acquire_semaphore(hpdma_d->base +
+						    _HPDMA_SEMCR(i),
+						    HPDMA_NB_MAX_CID_SUPPORTED);
+			if (res) {
+				EMSG("Cannot acquire semaphore for resource %u",
+				     i);
+				return res;
+			}
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
 /* This function expects HPDMA bus clock is enabled */
 static TEE_Result apply_rif_config(struct hpdma_pdata *hpdma_d, bool is_tdcid)
 {
 	TEE_Result res = TEE_ERROR_ACCESS_DENIED;
-	uint32_t cidcfgr = 0;
 	unsigned int i = 0;
 
 	if (!hpdma_d->conf_data)
 		return TEE_SUCCESS;
 
-	for (i = 0; i < HPDMA_RIF_CHANNELS; i++) {
-		if (!(BIT(i) & hpdma_d->conf_data->access_mask[0]))
-			continue;
-		/*
-		 * When TDCID, OP-TEE should be the one to set the CID filtering
-		 * configuration. Clearing previous configuration prevents
-		 * undesired events during the only legitimate configuration.
-		 */
-		if (is_tdcid)
+	if (is_tdcid) {
+		for (i = 0; i < HPDMA_RIF_CHANNELS; i++) {
+			if (!(BIT(i) & hpdma_d->conf_data->access_mask[0]))
+				continue;
+			/*
+			 * When TDCID, OP-TEE should be the one to set the CID
+			 * filtering configuration. Clearing previous
+			 * configuration prevents undesired events during the
+			 * only legitimate configuration.
+			 */
 			io_clrbits32(hpdma_d->base + _HPDMA_CIDCFGR(i),
 				     _HPDMA_CIDCFGR_CONF_MASK);
-
-		cidcfgr = io_read32(hpdma_d->base + _HPDMA_CIDCFGR(i));
-
-		/* Check if the channel is in semaphore mode */
-		if (!stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1))
-			continue;
-
-		/* If not TDCID, we want to acquire semaphores assigned to us */
-		res = stm32_rif_acquire_semaphore(hpdma_d->base +
-						  _HPDMA_SEMCR(i),
-						  HPDMA_NB_MAX_CID_SUPPORTED);
-		if (res) {
-			EMSG("Couldn't acquire semaphore for channel %u", i);
-			return res;
 		}
+	} else {
+		res = handle_available_semaphores(hpdma_d);
+		if (res)
+			panic();
 	}
 
 	/* Security and privilege RIF configuration */
@@ -143,41 +174,18 @@ static TEE_Result apply_rif_config(struct hpdma_pdata *hpdma_d, bool is_tdcid)
 		io_clrsetbits32(hpdma_d->base + _HPDMA_CIDCFGR(i),
 				_HPDMA_CIDCFGR_CONF_MASK,
 				hpdma_d->conf_data->cid_confs[i]);
-
-		cidcfgr = io_read32(hpdma_d->base + _HPDMA_CIDCFGR(i));
-
-		/*
-		 * Take semaphore if the resource is in semaphore
-		 * mode and secured.
-		 */
-		if (!stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1) ||
-		    !(io_read32(hpdma_d->base + _HPDMA_SECCFGR) & BIT(i))) {
-			res =
-			stm32_rif_release_semaphore(hpdma_d->base +
-						    _HPDMA_SEMCR(i),
-						    HPDMA_NB_MAX_CID_SUPPORTED);
-			if (res) {
-				EMSG("Couldn't release semaphore for res%u", i);
-				return TEE_ERROR_ACCESS_DENIED;
-			}
-		} else {
-			res =
-			stm32_rif_acquire_semaphore(hpdma_d->base +
-						    _HPDMA_SEMCR(i),
-						    HPDMA_NB_MAX_CID_SUPPORTED);
-			if (res) {
-				EMSG("Couldn't acquire semaphore for res%u", i);
-				return TEE_ERROR_ACCESS_DENIED;
-			}
-		}
 	}
 
 	/*
 	 * Lock RIF configuration if configured. This cannot be undone until
 	 * next reset.
 	 */
-	io_clrsetbits32(hpdma_d->base + _HPDMA_RCFGLOCKR, _HPDMA_RCFGLOCKR_MASK,
-			hpdma_d->conf_data->lock_conf[0]);
+	io_setbits32(hpdma_d->base + _HPDMA_RCFGLOCKR,
+		     hpdma_d->conf_data->lock_conf[0]);
+
+	res = handle_available_semaphores(hpdma_d);
+	if (res)
+		panic();
 
 end:
 	if (IS_ENABLED(CFG_TEE_CORE_DEBUG)) {
