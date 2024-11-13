@@ -720,7 +720,7 @@ TEE_Result stm32_rifsc_check_tdcid(bool *tdcid_state)
 		return TEE_ERROR_DEFER_DRIVER_INIT;
 
 	if (((io_read32(rifsc_pdata.base + _RIFSC_RIMC_CR) &
-	     _RIFSC_RIMC_CR_TDCID_MASK)) == (RIF_CID1 << SCID_SHIFT))
+	     _RIFSC_RIMC_CR_TDCID_MASK)) == (RIF_CID1 << _CIDCFGR_SCID_SHIFT))
 		*tdcid_state = true;
 	else
 		*tdcid_state = false;

@@ -30,7 +30,8 @@ static uint32_t get_scid_mask(unsigned int nb_cid_supp)
 	/* SCID bitfield highend can't be > SCID_SHIFT + MAX_CID_BITFIELD */
 	assert(msb_nb_cid_supp <= MAX_CID_BITFIELD);
 
-	return GENMASK_32(SCID_SHIFT + msb_nb_cid_supp - 1, SCID_SHIFT);
+	return GENMASK_32(_CIDCFGR_SCID_SHIFT + msb_nb_cid_supp - 1,
+			  _CIDCFGR_SCID_SHIFT);
 }
 
 TEE_Result stm32_rif_check_access(uint32_t cidcfgr,
@@ -48,7 +49,8 @@ TEE_Result stm32_rif_check_access(uint32_t cidcfgr,
 
 	if (stm32_rif_semaphore_enabled_and_ok(cidcfgr, cid_to_check)) {
 		if (!(semcr & _SEMCR_MUTEX) ||
-		    ((semcr & scid_mask) >> SCID_SHIFT) == cid_to_check) {
+		    ((semcr & scid_mask) >> _CIDCFGR_SCID_SHIFT) ==
+		    cid_to_check) {
 			return TEE_SUCCESS;
 		}
 	}
@@ -56,21 +58,11 @@ TEE_Result stm32_rif_check_access(uint32_t cidcfgr,
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
-void stm32_rif_parse_cfg(uint32_t rif_conf,
-			 struct rif_conf_data *conf_data,
-			 unsigned int nb_cid_supp,
+void stm32_rif_parse_cfg(uint32_t rif_conf, struct rif_conf_data *conf_data,
 			 unsigned int nb_channel)
 {
-	uint32_t scid_mask = get_scid_mask(nb_cid_supp);
-	uint32_t cidcfdg_conf_mask = 0;
 	uint32_t channel_id = 0;
-	uint32_t semwl_mask = 0;
 	unsigned int conf_index = 0;
-
-	semwl_mask = GENMASK_32(SEMWL_SHIFT + nb_cid_supp - 1, SEMWL_SHIFT);
-
-	cidcfdg_conf_mask = scid_mask | semwl_mask | _CIDCFGR_CFEN |
-			    _CIDCFGR_SEMEN;
 
 	/* Shift corresponding to the desired resources */
 	channel_id = RIF_CHANNEL_ID(rif_conf);
@@ -81,19 +73,20 @@ void stm32_rif_parse_cfg(uint32_t rif_conf,
 	conf_index = channel_id / 32;
 
 	/* Privilege configuration */
-	if (rif_conf & RIFPROT_PRIV)
+	if (rif_conf & BIT(RIF_PRIV_SHIFT))
 		conf_data->priv_conf[conf_index] |= BIT(channel_id);
 
 	/* Security RIF configuration */
-	if (rif_conf & RIFPROT_SEC)
+	if (rif_conf & BIT(RIF_SEC_SHIFT))
 		conf_data->sec_conf[conf_index] |= BIT(channel_id);
 
 	/* RIF configuration lock */
-	if (rif_conf & RIFPROT_LOCK && conf_data->lock_conf)
+	if (rif_conf & BIT(RIF_LOCK_SHIFT) && conf_data->lock_conf)
 		conf_data->lock_conf[conf_index] |= BIT(channel_id);
 
 	/* CID configuration */
-	conf_data->cid_confs[channel_id] = rif_conf & cidcfdg_conf_mask;
+	conf_data->cid_confs[channel_id] = (rif_conf & RIF_PERx_CID_MASK) >>
+					   RIF_PERx_CID_SHIFT;
 
 	/* Store that this RIF resource is to be configured */
 	conf_data->access_mask[conf_index] |= BIT(channel_id);
@@ -113,7 +106,7 @@ TEE_Result stm32_rif_acquire_semaphore(vaddr_t addr, unsigned int nb_cid_supp)
 
 	/* Check that the Cortex-A has the semaphore */
 	if (stm32_rif_semaphore_is_available(addr) ||
-	    ((io_read32(addr) & scid_mask) >> SCID_SHIFT) != RIF_CID1)
+	    ((io_read32(addr) & scid_mask) >> _CIDCFGR_SCID_SHIFT) != RIF_CID1)
 		return TEE_ERROR_ACCESS_DENIED;
 
 	return TEE_SUCCESS;
@@ -131,7 +124,7 @@ TEE_Result stm32_rif_release_semaphore(vaddr_t addr, unsigned int nb_cid_supp)
 
 	/* Check that current compartment no more owns the semaphore */
 	if (!stm32_rif_semaphore_is_available(addr) &&
-	    ((io_read32(addr) & scid_mask) >> SCID_SHIFT) == RIF_CID1)
+	    ((io_read32(addr) & scid_mask) >> _CIDCFGR_SCID_SHIFT) == RIF_CID1)
 		return TEE_ERROR_ACCESS_DENIED;
 
 	return TEE_SUCCESS;

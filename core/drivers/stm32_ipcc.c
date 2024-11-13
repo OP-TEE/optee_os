@@ -272,7 +272,6 @@ static TEE_Result parse_dt(const void *fdt, int node, struct ipcc_pdata *ipcc_d)
 
 	for (i = 0; i < ipcc_d->nb_channels_cfg; i++)
 		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), &ipcc_d->conf_data,
-				    IPCC_NB_MAX_CID_SUPPORTED,
 				    IPCC_NB_MAX_RIF_CHAN * 2);
 
 	return TEE_SUCCESS;

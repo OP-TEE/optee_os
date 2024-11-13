@@ -15,8 +15,10 @@
  * CIDCFGR register
  */
 #define _CIDCFGR_CFEN			BIT(0)
+#define _CIDCFGR_SCID_SHIFT		U(4)
 #define _CIDCFGR_SEMEN			BIT(1)
-#define _CIDCFGR_SEMWL(x)		BIT(SEMWL_SHIFT + (x))
+#define _CIDCFGR_SEMWL_SHIFT		U(16)
+#define _CIDCFGR_SEMWL(x)		BIT(_CIDCFGR_SEMWL_SHIFT + (x))
 
 /*
  * SEMCR register
@@ -30,16 +32,7 @@
  */
 #define MAX_CID_SUPPORTED		U(8)
 
-#define SCID_SHIFT			U(4)
-#define SEMWL_SHIFT			U(16)
-#define RIF_ID_SHIFT			U(24)
-
-#define RIF_ID_MASK			GENMASK_32(31, 24)
-#define RIF_CHANNEL_ID(x)		((RIF_ID_MASK & (x)) >> RIF_ID_SHIFT)
-
-#define RIFPROT_SEC			BIT(8)
-#define RIFPROT_PRIV			BIT(9)
-#define RIFPROT_LOCK			BIT(10)
+#define RIF_CHANNEL_ID(x)		(RIF_PER_ID_MASK & (x))
 
 /**
  * struct rif_conf_data - Structure containing RIF configuration data
@@ -76,7 +69,8 @@ struct rif_conf_data {
 static inline bool stm32_rif_scid_ok(uint32_t cidcfgr, uint32_t scid_m,
 				     uint32_t cid_to_check)
 {
-	return (cidcfgr & scid_m) == SHIFT_U32(cid_to_check, SCID_SHIFT) &&
+	return (cidcfgr & scid_m) ==
+	       SHIFT_U32(cid_to_check, _CIDCFGR_SCID_SHIFT) &&
 	       !(cidcfgr & _CIDCFGR_SEMEN);
 }
 
@@ -130,12 +124,10 @@ TEE_Result stm32_rif_check_access(uint32_t cidcfgr,
  *
  * @rif_conf: Configuration read in the device tree
  * @conf_data: Buffer containing the RIF configuration to apply for a peripheral
- * @nb_cid_supp: Number of supported CID for the peripheral
  * @nb_channel: Number of channels for the peripheral
  */
 void stm32_rif_parse_cfg(uint32_t rif_conf,
 			 struct rif_conf_data *conf_data,
-			 unsigned int nb_cid_supp,
 			 unsigned int nb_channel);
 
 /**
@@ -205,7 +197,6 @@ stm32_rif_check_access(uint32_t cidcfgr __unused,
 static inline void
 stm32_rif_parse_cfg(uint32_t rif_conf __unused,
 		    struct rif_conf_data *conf_data __unused,
-		    unsigned int nb_cid_supp __unused,
 		    unsigned int nb_channel __unused)
 {
 }

@@ -263,7 +263,6 @@ static TEE_Result parse_dt(const void *fdt, int node)
 		rif_conf = fdt32_to_cpu(cuint[i]);
 
 		stm32_rif_parse_cfg(rif_conf, &fmc_d->conf_data,
-				    FMC_NB_MAX_CID_SUPPORTED,
 				    FMC_RIF_CONTROLLERS);
 	}
 
