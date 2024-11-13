@@ -248,8 +248,10 @@ static TEE_Result stm32_hsem_probe(const void *fdt, int node,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = parse_dt(fdt, node);
-	if (res)
+	if (res) {
+		free(hsem_d);
 		return res;
+	}
 
 	res = clk_enable(hsem_d->hsem_clock);
 	if (res)
