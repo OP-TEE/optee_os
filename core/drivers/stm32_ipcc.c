@@ -67,7 +67,7 @@ struct ipcc_pdata {
 	unsigned int nb_channels_cfg;
 	struct clk *ipcc_clock;
 	vaddr_t base;
-	struct rif_conf_data conf_data;
+	struct rif_conf_data *conf_data;
 
 	STAILQ_ENTRY(ipcc_pdata) link;
 };
@@ -84,6 +84,9 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 	uint32_t sec_proc_2 = 0;
 	unsigned int i = 0;
 	bool is_cid_configured = false;
+
+	if (!ipcc_d->conf_data)
+		return;
 
 	/*
 	 * Check that the number of channel supported by hardware
@@ -109,16 +112,16 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 	}
 
 	/* Split the sec and priv configuration for IPCC processor 1 and 2 */
-	sec_proc_1 = ipcc_d->conf_data.sec_conf[0] &
+	sec_proc_1 = ipcc_d->conf_data->sec_conf[0] &
 		     GENMASK_32(IPCC_NB_MAX_RIF_CHAN - 1, 0);
-	priv_proc_1 = ipcc_d->conf_data.priv_conf[0] &
+	priv_proc_1 = ipcc_d->conf_data->priv_conf[0] &
 		     GENMASK_32(IPCC_NB_MAX_RIF_CHAN - 1, 0);
 
-	sec_proc_2 = (ipcc_d->conf_data.sec_conf[0] &
+	sec_proc_2 = (ipcc_d->conf_data->sec_conf[0] &
 		      GENMASK_32((IPCC_NB_MAX_RIF_CHAN * 2) - 1,
 				 IPCC_NB_MAX_RIF_CHAN)) >>
 		     IPCC_NB_MAX_RIF_CHAN;
-	priv_proc_2 = (ipcc_d->conf_data.priv_conf[0] &
+	priv_proc_2 = (ipcc_d->conf_data->priv_conf[0] &
 		       GENMASK_32((IPCC_NB_MAX_RIF_CHAN * 2) - 1,
 				  IPCC_NB_MAX_RIF_CHAN)) >>
 		      IPCC_NB_MAX_RIF_CHAN;
@@ -140,18 +143,18 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 	 * channels of this processor. This is a configuration check.
 	 */
 	for (i = 0; i < IPCC_NB_MAX_RIF_CHAN; i++) {
-		if (!(BIT(i) & ipcc_d->conf_data.access_mask[0]))
+		if (!(BIT(i) & ipcc_d->conf_data->access_mask[0]))
 			continue;
 
 		if (!is_cid_configured &&
-		    (BIT(0) & ipcc_d->conf_data.cid_confs[i])) {
+		    (BIT(0) & ipcc_d->conf_data->cid_confs[i])) {
 			is_cid_configured = true;
 			if (i == IPCC_NB_MAX_RIF_CHAN - 1)
 				panic("Inconsistent IPCC CID filtering RIF configuration");
 		}
 
 		if (is_cid_configured &&
-		    !(BIT(0) & ipcc_d->conf_data.cid_confs[i]))
+		    !(BIT(0) & ipcc_d->conf_data->cid_confs[i]))
 			panic("Inconsistent IPCC CID filtering RIF configuration");
 	}
 
@@ -161,7 +164,7 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 
 	io_clrsetbits32(ipcc_d->base + IPCC_C1CIDCFGR,
 			IPCC_CIDCFGR_CONF_MASK,
-			ipcc_d->conf_data.cid_confs[0]);
+			ipcc_d->conf_data->cid_confs[0]);
 
 	/*
 	 * Reset this field to evaluate CID filtering configuration
@@ -170,25 +173,25 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d, bool is_tdcid)
 	is_cid_configured = false;
 
 	for (i = IPCC_NB_MAX_RIF_CHAN; i < IPCC_NB_MAX_RIF_CHAN * 2; i++) {
-		if (!(BIT(i) & ipcc_d->conf_data.access_mask[0]))
+		if (!(BIT(i) & ipcc_d->conf_data->access_mask[0]))
 			continue;
 
 		if (!is_cid_configured &&
-		    (BIT(0) & ipcc_d->conf_data.cid_confs[i])) {
+		    (BIT(0) & ipcc_d->conf_data->cid_confs[i])) {
 			is_cid_configured = true;
 			if (i == (IPCC_NB_MAX_RIF_CHAN * 2) - 1)
 				panic("Inconsistent IPCC CID filtering RIF configuration");
 		}
 
 		if (is_cid_configured &&
-		    !(BIT(0) & ipcc_d->conf_data.cid_confs[i]))
+		    !(BIT(0) & ipcc_d->conf_data->cid_confs[i]))
 			panic("Inconsistent IPCC CID filtering RIF configuration");
 	}
 
 	/* IPCC Processor 2 CID filtering configuration */
 	io_clrsetbits32(ipcc_d->base + IPCC_C2CIDCFGR,
 			IPCC_CIDCFGR_CONF_MASK,
-			ipcc_d->conf_data.cid_confs[IPCC_NB_MAX_RIF_CHAN]);
+			ipcc_d->conf_data->cid_confs[IPCC_NB_MAX_RIF_CHAN]);
 }
 
 static void stm32_ipcc_pm_resume(struct ipcc_pdata *ipcc)
@@ -235,12 +238,12 @@ stm32_ipcc_pm(enum pm_op op, unsigned int pm_hint,
 
 static TEE_Result parse_dt(const void *fdt, int node, struct ipcc_pdata *ipcc_d)
 {
-	int lenp = 0;
-	unsigned int i = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	const fdt32_t *cuint = NULL;
 	struct dt_node_info info = { };
+	const fdt32_t *cuint = NULL;
 	struct io_pa_va addr = { };
+	unsigned int i = 0;
+	int lenp = 0;
 
 	fdt_fill_device_info(fdt, &info, node);
 	assert(info.reg != DT_INFO_INVALID_REG &&
@@ -256,22 +259,29 @@ static TEE_Result parse_dt(const void *fdt, int node, struct ipcc_pdata *ipcc_d)
 		return res;
 
 	cuint = fdt_getprop(fdt, node, "st,protreg", &lenp);
-	if (!cuint)
-		panic("No RIF configuration available");
+	if (!cuint) {
+		DMSG("No RIF configuration available");
+		return TEE_SUCCESS;
+	}
+
+	ipcc_d->conf_data = calloc(1, sizeof(*ipcc_d->conf_data));
+	if (!ipcc_d->conf_data)
+		panic();
 
 	ipcc_d->nb_channels_cfg = (unsigned int)(lenp / sizeof(uint32_t));
 	assert(ipcc_d->nb_channels_cfg <= (IPCC_NB_MAX_RIF_CHAN * 2));
 
-	ipcc_d->conf_data.cid_confs = calloc(IPCC_NB_MAX_RIF_CHAN * 2,
-					     sizeof(uint32_t));
-	ipcc_d->conf_data.sec_conf = calloc(1, sizeof(uint32_t));
-	ipcc_d->conf_data.priv_conf = calloc(1, sizeof(uint32_t));
-	ipcc_d->conf_data.access_mask = calloc(1, sizeof(uint32_t));
-	assert(ipcc_d->conf_data.cid_confs && ipcc_d->conf_data.sec_conf &&
-	       ipcc_d->conf_data.priv_conf && ipcc_d->conf_data.access_mask);
+	ipcc_d->conf_data->cid_confs = calloc(IPCC_NB_MAX_RIF_CHAN * 2,
+					      sizeof(uint32_t));
+	ipcc_d->conf_data->sec_conf = calloc(1, sizeof(uint32_t));
+	ipcc_d->conf_data->priv_conf = calloc(1, sizeof(uint32_t));
+	ipcc_d->conf_data->access_mask = calloc(1, sizeof(uint32_t));
+	if (!ipcc_d->conf_data->cid_confs || !ipcc_d->conf_data->sec_conf ||
+	    !ipcc_d->conf_data->priv_conf || !ipcc_d->conf_data->access_mask)
+		panic("Missing memory capacity for ipcc RIF configuration");
 
 	for (i = 0; i < ipcc_d->nb_channels_cfg; i++)
-		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), &ipcc_d->conf_data,
+		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), ipcc_d->conf_data,
 				    IPCC_NB_MAX_RIF_CHAN * 2);
 
 	return TEE_SUCCESS;
@@ -312,10 +322,13 @@ static TEE_Result stm32_ipcc_probe(const void *fdt, int node,
 
 err:
 	/* Free all allocated resources */
-	free(ipcc_d->conf_data.access_mask);
-	free(ipcc_d->conf_data.cid_confs);
-	free(ipcc_d->conf_data.priv_conf);
-	free(ipcc_d->conf_data.sec_conf);
+	if (ipcc_d->conf_data) {
+		free(ipcc_d->conf_data->access_mask);
+		free(ipcc_d->conf_data->cid_confs);
+		free(ipcc_d->conf_data->priv_conf);
+		free(ipcc_d->conf_data->sec_conf);
+	}
+	free(ipcc_d->conf_data);
 	free(ipcc_d);
 
 	return res;
