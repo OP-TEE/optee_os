@@ -49,7 +49,7 @@ static TEE_Result caam_ae_ccm_init_ctx(struct caam_ae_ctx *caam_ctx,
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	enum caam_status retstatus = CAAM_FAILURE;
-	struct caambuf aad = {};
+	struct caambuf aad = { };
 	uint8_t *b0 = NULL;
 	uint8_t *ctr0 = NULL;
 	size_t q = 0;
@@ -99,9 +99,10 @@ static TEE_Result caam_ae_ccm_init_ctx(struct caam_ae_ctx *caam_ctx,
 	 * A.2.1 Formatting of the Control Information and the Nonce
 	 * Payload length (i.e. Q) is store in big-endian fashion.
 	 */
-	for (i = AES_CCM_MAX_NONCE_LEN; i >= dinit->nonce.length + 1; i--,
-	     payload_len >>= 8)
+	for (i = AES_CCM_MAX_NONCE_LEN; i >= dinit->nonce.length + 1; i--) {
 		b0[i] = payload_len & 0xFF;
+		payload_len >>= 8;
+	}
 
 	/* Add AAD size to Adata */
 	if (caam_ctx->aad_length > 0) {
@@ -193,7 +194,7 @@ TEE_Result caam_ae_final_ccm(struct drvcrypt_authenc_final *dfinal)
 
 	if (caam_ctx->tag_length) {
 		if (dfinal->tag.length < caam_ctx->tag_length)
-			return TEE_ERROR_SHORT_BUFFER;
+			return TEE_ERROR_BAD_PARAMETERS;
 
 		if (caam_ctx->encrypt) {
 			encrypted_tag = caam_ctx->ctx.data +
@@ -209,7 +210,7 @@ TEE_Result caam_ae_final_ccm(struct drvcrypt_authenc_final *dfinal)
 			mod_op.a.data = encrypted_tag;
 			mod_op.a.length = caam_ctx->tag_length;
 			mod_op.b.data = encrypted_tag +
-					(2 * AES_CCM_MAX_TAG_LEN);
+					2 * AES_CCM_MAX_TAG_LEN;
 			mod_op.b.length = caam_ctx->tag_length;
 			mod_op.result.data = encrypted_tag;
 			mod_op.result.length = caam_ctx->tag_length;
