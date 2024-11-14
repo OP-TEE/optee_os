@@ -277,6 +277,7 @@
 			reg = <0x5c00a000 0x400>;
 			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc RTCAPB>;
+			st,backup-zones = <10 5 17>;
 		};
 
 		pinctrl: pin-controller@50002000 {
