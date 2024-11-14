@@ -14,7 +14,6 @@
 #include <drivers/stm32_etzpc.h>
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32_iwdg.h>
-#include <drivers/stm32_tamp.h>
 #include <drivers/stm32_uart.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #ifdef CFG_STM32MP15
@@ -387,24 +386,7 @@ static void configure_sysram(struct dt_driver_provider *fw_provider)
 
 static TEE_Result init_late_stm32mp1_drivers(void)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t __maybe_unused state = 0;
-
-	/* Set access permission to TAM backup registers */
-	if (IS_ENABLED(CFG_STM32_TAMP)) {
-		struct stm32_bkpregs_conf conf = {
-			.nb_zone1_regs = TAMP_BKP_REGISTER_ZONE1_COUNT,
-			.nb_zone2_regs = TAMP_BKP_REGISTER_ZONE2_COUNT,
-		};
-
-		res = stm32_tamp_set_secure_bkpregs(&conf);
-		if (res == TEE_ERROR_DEFER_DRIVER_INIT) {
-			/* TAMP driver was not probed if disabled in the DT */
-			res = TEE_SUCCESS;
-		}
-		if (res)
-			panic();
-	}
 
 	/* Configure SYSRAM and SRAMx secure hardening */
 	if (IS_ENABLED(CFG_STM32_ETZPC)) {
