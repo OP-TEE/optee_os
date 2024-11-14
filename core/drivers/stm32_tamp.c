@@ -6,7 +6,6 @@
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/stm32_rif.h>
-#include <drivers/stm32_tamp.h>
 #include <io.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
@@ -153,7 +152,7 @@ struct stm32_tamp_compat {
 };
 
 /*
- * struct stm32_bkpregs_conf_new - Backup registers zone bounds
+ * struct stm32_bkpregs_conf - Backup registers zone bounds
  * @zone1_end - Number of backup registers in zone 1
  * @zone2_end - Number of backup registers in zone 2 + zone 1
  * @rif_offsets - RIF offsets used for CID compartments
@@ -181,7 +180,7 @@ struct stm32_tamp_compat {
  * When RIF is supported, each zone can be subdivided to restrain accesses to
  * some CIDs.
  */
-struct stm32_bkpregs_conf_new {
+struct stm32_bkpregs_conf {
 	uint32_t zone1_end;
 	uint32_t zone2_end;
 	uint32_t *rif_offsets;
@@ -200,7 +199,7 @@ struct stm32_bkpregs_conf_new {
  */
 struct stm32_tamp_platdata {
 	struct io_pa_va base;
-	struct stm32_bkpregs_conf_new bkpregs_conf;
+	struct stm32_bkpregs_conf bkpregs_conf;
 	struct stm32_tamp_compat *compat;
 	struct rif_conf_data *conf_data;
 	struct clk *clock;
@@ -306,7 +305,7 @@ static void apply_rif_config(void)
 
 static TEE_Result stm32_tamp_apply_bkpr_rif_conf(void)
 {
-	struct stm32_bkpregs_conf_new *bkpregs_conf =
+	struct stm32_bkpregs_conf *bkpregs_conf =
 			&stm32_tamp_dev->pdata.bkpregs_conf;
 	vaddr_t base = io_pa_or_va(&stm32_tamp_dev->pdata.base, 1);
 	unsigned int i = 0;
@@ -361,23 +360,18 @@ static TEE_Result stm32_tamp_apply_bkpr_rif_conf(void)
 	return TEE_SUCCESS;
 }
 
-TEE_Result stm32_tamp_set_secure_bkpregs(struct stm32_bkpregs_conf *bkr_conf)
+static TEE_Result stm32_tamp_set_secure_bkpregs(void)
 {
-	struct stm32_tamp_instance *tamp = stm32_tamp_dev;
+	struct stm32_bkpregs_conf *bkpregs_conf =
+		&stm32_tamp_dev->pdata.bkpregs_conf;
 	vaddr_t base = 0;
 	uint32_t first_z2 = 0;
 	uint32_t first_z3 = 0;
 
-	if (!tamp)
-		return TEE_ERROR_DEFER_DRIVER_INIT;
-
-	if (!bkr_conf)
-		return TEE_ERROR_BAD_PARAMETERS;
-
 	base = io_pa_or_va(&stm32_tamp_dev->pdata.base, 1);
 
-	first_z2 = bkr_conf->nb_zone1_regs;
-	first_z3 = bkr_conf->nb_zone1_regs + bkr_conf->nb_zone2_regs;
+	first_z2 = bkpregs_conf->zone1_end;
+	first_z3 = bkpregs_conf->zone2_end;
 
 	if ((first_z2 > (stm32_tamp_dev->hwconf1 & _TAMP_HWCFGR1_BKPREG)) ||
 	    (first_z3 > (stm32_tamp_dev->hwconf1 & _TAMP_HWCFGR1_BKPREG)))
@@ -440,11 +434,11 @@ static void stm32_tamp_set_privilege(uint32_t mode)
 				mode & _TAMP_PRIVCFGR_MASK);
 }
 
-static void parse_bkpregs_dt_conf(const void *fdt, int node,
-				  struct stm32_tamp_platdata *pdata)
+static void parse_bkpregs_dt_conf(const void *fdt, int node)
 {
-	const fdt32_t *cuint = NULL;
+	struct stm32_tamp_platdata *pdata = &stm32_tamp_dev->pdata;
 	unsigned int bkpregs_count = 0;
+	const fdt32_t *cuint = NULL;
 	int lenp = 0;
 
 	cuint = fdt_getprop(fdt, node, "st,backup-zones", &lenp);
@@ -459,7 +453,7 @@ static void parse_bkpregs_dt_conf(const void *fdt, int node,
 	 * in subzones that have CID filtering. Zones/Subzones can be empty and
 	 * are contiguous.
 	 */
-	if (!(stm32_tamp_dev->pdata.compat->tags & TAMP_HAS_RIF_SUPPORT)) {
+	if (!(pdata->compat->tags & TAMP_HAS_RIF_SUPPORT)) {
 		/* 3 zones, 2 offsets to apply */
 		if (lenp != sizeof(uint32_t) * TAMP_NB_BKPR_ZONES)
 			panic("Incorrect bkpregs configuration");
@@ -557,7 +551,7 @@ static TEE_Result stm32_tamp_parse_fdt(const void *fdt, int node,
 	if (res)
 		return res;
 
-	parse_bkpregs_dt_conf(fdt, node, pdata);
+	parse_bkpregs_dt_conf(fdt, node);
 
 	if (pdata->compat->tags & TAMP_HAS_RIF_SUPPORT) {
 		const fdt32_t *cuint = NULL;
@@ -657,6 +651,13 @@ static TEE_Result stm32_tamp_probe(const void *fdt, int node,
 		stm32_tamp_set_privilege(_TAMP_PRIVCFG_TAMPPRIV |
 					 _TAMP_PRIVCFG_BKPRWPRIV |
 					 _TAMP_PRIVCFG_BKPWPRIV);
+	}
+
+	if (!(stm32_tamp_dev->pdata.compat->tags & TAMP_HAS_RIF_SUPPORT) ||
+	    stm32_tamp_dev->pdata.is_tdcid) {
+		res = stm32_tamp_set_secure_bkpregs();
+		if (res)
+			goto err_clk;
 	}
 
 	return TEE_SUCCESS;
