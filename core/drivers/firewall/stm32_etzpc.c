@@ -359,6 +359,28 @@ static TEE_Result etzpc_pm(enum pm_op op, unsigned int pm_hint __unused,
 }
 DECLARE_KEEP_PAGER(etzpc_pm);
 
+static TEE_Result stm32_etzpc_check_access(struct firewall_query *firewall)
+{
+	enum etzpc_decprot_attributes attr_req = ETZPC_DECPROT_MAX;
+	uint32_t id = 0;
+
+	if (!firewall || firewall->arg_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	id = firewall->args[0] & ETZPC_ID_MASK;
+	attr_req = etzpc_binding2decprot((firewall->args[0] &
+					  ETZPC_MODE_MASK) >> ETZPC_MODE_SHIFT);
+
+	if (id < etzpc_device->ddata.num_per_sec) {
+		if (etzpc_get_decprot(id) == attr_req)
+			return TEE_SUCCESS;
+		else
+			return TEE_ERROR_ACCESS_DENIED;
+	} else {
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+}
+
 static TEE_Result stm32_etzpc_acquire_access(struct firewall_query *firewall)
 {
 	enum etzpc_decprot_attributes attr = ETZPC_DECPROT_MCU_ISOLATION;
@@ -837,6 +859,7 @@ static TEE_Result init_etzpc_from_dt(const void *fdt, int node)
 static const struct firewall_controller_ops firewall_ops = {
 	.set_conf = stm32_etzpc_configure,
 	.set_memory_conf = stm32_etzpc_configure_memory,
+	.check_access = stm32_etzpc_check_access,
 	.acquire_access = stm32_etzpc_acquire_access,
 	.acquire_memory_access = stm32_etzpc_acquire_memory_access,
 };
