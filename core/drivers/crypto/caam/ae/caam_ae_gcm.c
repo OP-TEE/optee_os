@@ -71,7 +71,7 @@ static bool caam_ae_do_block_gcm(struct caam_ae_ctx *caam_ctx, bool encrypt,
 	 * then patch up the message and AAD lengths, and carry on as normal.
 	 */
 	uint32_t *desc = NULL;
-	struct gcm_caam_ctx_layout ctx = {};
+	struct gcm_caam_ctx_layout ctx = { };
 	size_t input_length = 0;
 	uint32_t processed_blocks = 0;
 	uint32_t counter_value = 0;
@@ -115,10 +115,9 @@ static bool caam_ae_do_block_gcm(struct caam_ae_ctx *caam_ctx, bool encrypt,
 		return false;
 
 	memcpy(&ctx, caam_ctx->ctx.data, sizeof(struct gcm_caam_ctx_layout));
-	processed_blocks = TEE_U32_BSWAP(ctx.yi[3]);
+	processed_blocks = TEE_U32_FROM_BIG_ENDIAN(ctx.yi[3]);
 	input_length = src->orig.length;
-	counter_value = processed_blocks +
-		       ((input_length + 15) >> 4); /* roundup input_length */
+	counter_value = processed_blocks + ROUNDUP_DIV(input_length, 16);
 
 	/* check for overflow */
 	if (counter_value >= processed_blocks)
@@ -126,9 +125,9 @@ static bool caam_ae_do_block_gcm(struct caam_ae_ctx *caam_ctx, bool encrypt,
 
 	assert(dst);
 
-	yi_1s_complement = (UINT32_MAX - processed_blocks) << 4;
+	yi_1s_complement = SHIFT_U32(UINT32_MAX - processed_blocks, 4);
 	if ((yi_1s_complement + TEE_AES_BLOCK_SIZE) > input_length)
-		corrupted_block_size = (input_length - yi_1s_complement);
+		corrupted_block_size = input_length - yi_1s_complement;
 	else
 		corrupted_block_size = TEE_AES_BLOCK_SIZE;
 	remaining_len = input_length - (yi_1s_complement +
@@ -144,8 +143,8 @@ static bool caam_ae_do_block_gcm(struct caam_ae_ctx *caam_ctx, bool encrypt,
 	caam_desc_add_word(desc, CIPHER_UPDATE(caam_ctx->alg->type, encrypt));
 
 	caam_desc_add_word(desc, FIFO_LD_SEQ(MSG, 0) | FIFO_STORE_EXT |
-					 CMD_CLASS(CLASS_1) |
-					 FIFO_LOAD_ACTION(LAST_C1));
+			   CMD_CLASS(CLASS_1) |
+			   FIFO_LOAD_ACTION(LAST_C1));
 	caam_desc_add_word(desc, yi_1s_complement);
 
 	caam_desc_add_word(desc, FIFO_ST_SEQ(MSG_DATA, 0) | FIFO_STORE_EXT);
@@ -169,8 +168,8 @@ static bool caam_ae_do_block_gcm(struct caam_ae_ctx *caam_ctx, bool encrypt,
 	 */
 	caam_desc_add_word(desc, LD_IMM(CLASS_NO, REG_CLEAR_WRITTEN, 4));
 	caam_desc_add_word(desc, CLR_WR_RST_C1_MDE | CLR_WR_RST_C1_DSZ |
-					 CLR_WR_RST_C1_CHA | CLR_WR_RST_C1_DNE |
-					 CLR_WR_RST_C2_CTX);
+				 CLR_WR_RST_C1_CHA | CLR_WR_RST_C1_DNE |
+				 CLR_WR_RST_C2_CTX);
 
 	/*
 	 * Encrypt that one block (creating a bad hash value)
@@ -182,8 +181,8 @@ static bool caam_ae_do_block_gcm(struct caam_ae_ctx *caam_ctx, bool encrypt,
 		/* seqfifold: class1 msg-last1 len=corrupted_Block_Size */
 		caam_desc_add_word(desc,
 				   FIFO_LD_SEQ(MSG, corrupted_block_size) |
-					   CMD_CLASS(CLASS_1) |
-					   FIFO_LOAD_ACTION(LAST_C1));
+				   CMD_CLASS(CLASS_1) |
+				   FIFO_LOAD_ACTION(LAST_C1));
 
 		/* move: ofifo -> class2-ctx+0, len=corrupted_Block_Size wait */
 		caam_desc_add_word(desc, MOVE_WAIT(OFIFO, C2_CTX_REG, 0,
@@ -196,9 +195,9 @@ static bool caam_ae_do_block_gcm(struct caam_ae_ctx *caam_ctx, bool encrypt,
 		/* seqfifold: both msg-last2-last1 len=corrupted_Block_Size */
 		caam_desc_add_word(desc,
 				   FIFO_LD_SEQ(MSG, corrupted_block_size) |
-					   CMD_CLASS(CLASS_DECO) |
-					   FIFO_LOAD_ACTION(LAST_C1) |
-					   FIFO_LOAD_ACTION(LAST_C2));
+				   CMD_CLASS(CLASS_DECO) |
+				   FIFO_LOAD_ACTION(LAST_C1) |
+				   FIFO_LOAD_ACTION(LAST_C2));
 
 		/*
 		 * move: class2-alnblk -> class2-ctx+0,
@@ -206,7 +205,7 @@ static bool caam_ae_do_block_gcm(struct caam_ae_ctx *caam_ctx, bool encrypt,
 		 */
 		caam_desc_add_word(desc, MOVE(DECO_ALIGN, C2_CTX_REG, 0,
 					      corrupted_block_size) |
-					      MOVE_AUX(0x2));
+					 MOVE_AUX(0x2));
 
 		/* seqfifostr: msg len=vseqoutsz */
 		caam_desc_add_word(desc,
@@ -230,7 +229,7 @@ static bool caam_ae_do_block_gcm(struct caam_ae_ctx *caam_ctx, bool encrypt,
 	 */
 	caam_desc_add_word(desc, LD_IMM(CLASS_NO, REG_CLEAR_WRITTEN, 4));
 	caam_desc_add_word(desc, CLR_WR_RST_C1_MDE | CLR_WR_RST_C1_DSZ |
-					 CLR_WR_RST_C1_CHA | CLR_WR_RST_C1_DNE);
+				 CLR_WR_RST_C1_CHA | CLR_WR_RST_C1_DNE);
 
 	/*
 	 * Save current AAD len
@@ -274,7 +273,7 @@ static bool caam_ae_do_block_gcm(struct caam_ae_ctx *caam_ctx, bool encrypt,
 	 */
 	caam_desc_add_word(desc, LD_IMM(CLASS_NO, REG_CLEAR_WRITTEN, 4));
 	caam_desc_add_word(desc, CLR_WR_RST_C1_MDE | CLR_WR_RST_C1_DSZ |
-					 CLR_WR_RST_C1_CHA | CLR_WR_RST_C1_DNE);
+				 CLR_WR_RST_C1_CHA | CLR_WR_RST_C1_DNE);
 
 	if (final)
 		caam_desc_add_word(desc,
@@ -282,10 +281,11 @@ static bool caam_ae_do_block_gcm(struct caam_ae_ctx *caam_ctx, bool encrypt,
 	else
 		caam_desc_add_word(desc,
 				   CIPHER_UPDATE(caam_ctx->alg->type, encrypt));
+
 	/* ptr incremented by max. 7 */
 	caam_desc_add_word(desc, FIFO_LD_SEQ(MSG, 0) | FIFO_STORE_EXT |
-					 CMD_CLASS(CLASS_1) |
-					 FIFO_LOAD_ACTION(LAST_C1));
+				 CMD_CLASS(CLASS_1) |
+				 FIFO_LOAD_ACTION(LAST_C1));
 	caam_desc_add_word(desc, remaining_len);
 
 	caam_desc_add_word(desc, FIFO_ST_SEQ(MSG_DATA, 0) | FIFO_STORE_EXT);
@@ -305,9 +305,8 @@ TEE_Result caam_ae_initialize_gcm(struct drvcrypt_authenc_init *dinit)
 	caam_ctx = dinit->ctx;
 
 	if (dinit->nonce.data && dinit->nonce.length) {
-		retstatus = caam_cpy_buf_src(&caam_ctx->nonce,
-					     dinit->nonce.data,
-					     dinit->nonce.length);
+		retstatus = caam_cpy_buf(&caam_ctx->nonce, dinit->nonce.data,
+					 dinit->nonce.length);
 		AE_TRACE("Copy Nonce returned 0x%" PRIx32, retstatus);
 		if (retstatus)
 			return caam_status_to_tee_result(retstatus);
@@ -337,7 +336,7 @@ TEE_Result caam_ae_final_gcm(struct drvcrypt_authenc_final *dfinal)
 
 	if (caam_ctx->tag_length) {
 		if (dfinal->tag.length < caam_ctx->tag_length)
-			return TEE_ERROR_SHORT_BUFFER;
+			return TEE_ERROR_BAD_PARAMETERS;
 
 		if (caam_ctx->encrypt) {
 			memcpy(dfinal->tag.data, caam_ctx->ctx.data,

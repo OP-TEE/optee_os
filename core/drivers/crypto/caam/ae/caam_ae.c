@@ -60,7 +60,7 @@ static const struct cipheralg *get_cipheralgo(uint32_t algo)
 	unsigned int algo_md = TEE_ALG_GET_CHAIN_MODE(algo);
 	const struct cipheralg *ca = NULL;
 
-	AE_TRACE("Algo id:%" PRId32 " md:%" PRId32, algo_id, algo_md);
+	AE_TRACE("Algo id:%u md:%u", algo_id, algo_md);
 
 	switch (algo_id) {
 	case TEE_MAIN_ALGO_AES:
@@ -130,11 +130,9 @@ err:
  */
 static void caam_ae_free(void *ctx)
 {
-	struct caam_ae_ctx *caam_ctx = NULL;
+	struct caam_ae_ctx *caam_ctx = ctx;
 
 	assert(ctx);
-
-	caam_ctx = (struct caam_ae_ctx *)ctx;
 
 	caam_free_desc(&caam_ctx->descriptor);
 	caam_free_buf(&caam_ctx->key);
@@ -162,7 +160,7 @@ static TEE_Result caam_ae_initialize(struct drvcrypt_authenc_init *dinit)
 	if (dinit->aad_len >= AAD_LENGTH_OVERFLOW)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	caam_ctx = (struct caam_ae_ctx *)dinit->ctx;
+	caam_ctx = dinit->ctx;
 	if (!caam_ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -172,9 +170,9 @@ static TEE_Result caam_ae_initialize(struct drvcrypt_authenc_init *dinit)
 	caam_ctx->tag_length = dinit->tag_len;
 
 	if (dinit->key.data && dinit->key.length) {
-		retstatus = caam_cpy_buf_src(&caam_ctx->key, dinit->key.data,
-					     dinit->key.length);
-		AE_TRACE("Copy key returned 0x%" PRIx32, retstatus);
+		retstatus = caam_cpy_buf(&caam_ctx->key, dinit->key.data,
+					 dinit->key.length);
+		AE_TRACE("Copy key returned %d", retstatus);
 		if (retstatus) {
 			ret = caam_status_to_tee_result(retstatus);
 			goto err;
@@ -206,17 +204,17 @@ caam_ae_update_aad(struct drvcrypt_authenc_update_aad *dupdate)
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	enum caam_status retstatus = CAAM_FAILURE;
 	struct caam_ae_ctx *caam_ctx = NULL;
-	struct caambuf aad = {};
+	struct caambuf aad = { };
 
 	assert(dupdate);
 
-	caam_ctx = (struct caam_ae_ctx *)dupdate->ctx;
+	caam_ctx = dupdate->ctx;
 	if (!caam_ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (dupdate->aad.data) {
-		retstatus = caam_cpy_buf_src(&aad, dupdate->aad.data,
-					     dupdate->aad.length);
+		retstatus = caam_cpy_buf(&aad, dupdate->aad.data,
+					 dupdate->aad.length);
 		if (retstatus) {
 			ret = caam_status_to_tee_result(retstatus);
 			goto out;
@@ -252,7 +250,7 @@ caam_ae_update_payload(struct drvcrypt_authenc_update_payload *dupdate)
 
 	assert(dupdate);
 
-	caam_ctx = (struct caam_ae_ctx *)dupdate->ctx;
+	caam_ctx = dupdate->ctx;
 	if (!caam_ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -272,7 +270,7 @@ static TEE_Result caam_ae_final(struct drvcrypt_authenc_final *dfinal)
 
 	assert(dfinal);
 
-	caam_ctx = (struct caam_ae_ctx *)dfinal->ctx;
+	caam_ctx = dfinal->ctx;
 	if (!caam_ctx)
 		return ret;
 
@@ -330,30 +328,36 @@ static void caam_ae_copy_state(void *dst_ctx, void *src_ctx)
 	dst->blockbuf.filled = 0;
 
 	if (src->blockbuf.filled) {
-		struct caambuf srcdata = { .data = src->blockbuf.buf.data,
-					   .length = src->blockbuf.filled };
+		struct caambuf srcdata = {
+			.data = src->blockbuf.buf.data,
+			.length = src->blockbuf.filled
+		};
+
 		caam_cpy_block_src(&dst->blockbuf, &srcdata, 0);
 	}
 
 	if (src->buf_aad.filled) {
-		struct caambuf srcdata = { .data = src->buf_aad.buf.data,
-					   .length = src->buf_aad.filled };
+		struct caambuf srcdata = {
+			.data = src->buf_aad.buf.data,
+			.length = src->buf_aad.filled
+		};
+
 		caam_cpy_block_src(&dst->buf_aad, &srcdata, 0);
 	}
 
 	if (src->key.length)
-		caam_cpy_buf_src(&dst->key, src->key.data, src->key.length);
+		caam_cpy_buf(&dst->key, src->key.data, src->key.length);
 
 	if (src->ctx.length)
-		caam_cpy_buf_src(&dst->ctx, src->ctx.data, src->ctx.length);
+		caam_cpy_buf(&dst->ctx, src->ctx.data, src->ctx.length);
 
 	if (src->initial_ctx.length)
-		caam_cpy_buf_src(&dst->initial_ctx, src->initial_ctx.data,
-				 src->initial_ctx.length);
+		caam_cpy_buf(&dst->initial_ctx, src->initial_ctx.data,
+			     src->initial_ctx.length);
 
 	if (src->nonce.length)
-		caam_cpy_buf_src(&dst->nonce, src->nonce.data,
-				 src->nonce.length);
+		caam_cpy_buf(&dst->nonce, src->nonce.data,
+			     src->nonce.length);
 }
 
 /*
@@ -477,7 +481,7 @@ static enum caam_status caam_ae_do_oneshot(struct caam_ae_ctx *caam_ctx,
 					   struct caamdmaobj *aad)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
-	struct caam_jobctx jobctx = {};
+	struct caam_jobctx jobctx = { };
 	uint32_t *desc = NULL;
 
 	assert(caam_ctx);
@@ -567,7 +571,7 @@ static enum caam_status caam_ae_do_init(struct caam_ae_ctx *caam_ctx,
 					bool encrypt, struct caamdmaobj *aad)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
-	struct caam_jobctx jobctx = {};
+	struct caam_jobctx jobctx = { };
 	uint32_t *desc = NULL;
 
 	assert(caam_ctx);
@@ -650,7 +654,7 @@ static enum caam_status caam_ae_do_block(struct caam_ae_ctx *caam_ctx,
 					 struct caamdmaobj *dst, bool final)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
-	struct caam_jobctx jobctx = {};
+	struct caam_jobctx jobctx = { };
 	uint32_t *desc = NULL;
 
 	assert(caam_ctx);
@@ -723,11 +727,11 @@ TEE_Result caam_ae_do_update(struct caam_ae_ctx *caam_ctx,
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	enum caam_status retstatus = CAAM_FAILURE;
-	struct caamdmaobj caam_src = {};
-	struct caamdmaobj caam_dst = {};
-	struct caamdmaobj caam_aad = {};
+	struct caamdmaobj caam_src = { };
+	struct caamdmaobj caam_dst = { };
+	struct caamdmaobj caam_aad = { };
 	struct caamdmaobj *caam_aad_ptr = NULL;
-	struct caamblock trash_bck = {};
+	struct caamblock trash_bck = { };
 	size_t full_size = 0;
 	size_t size_topost = 0;
 	size_t size_todo = 0;
