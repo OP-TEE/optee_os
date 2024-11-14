@@ -78,13 +78,17 @@ struct mobj_ffa {
 	struct mobj mobj;
 	SLIST_ENTRY(mobj_ffa) link;
 	uint64_t cookie;
-	tee_mm_entry_t *mm;
-	struct refcount mapcount;
 	unsigned int inactive_refs;
-	uint16_t page_offset;
 #ifdef CFG_CORE_SEL1_SPMC
 	bool registered_by_cookie;
 #endif
+};
+
+struct mobj_ffa_shm {
+	struct mobj_ffa mf;
+	tee_mm_entry_t *mm;
+	struct refcount mapcount;
+	uint16_t page_offset;
 	paddr_t pages[];
 };
 
@@ -112,12 +116,17 @@ static struct mobj_ffa_head shm_inactive_head =
 
 static unsigned int shm_lock = SPINLOCK_UNLOCK;
 
-static const struct mobj_ops mobj_ffa_ops;
+static const struct mobj_ops mobj_ffa_shm_ops;
 
-static struct mobj_ffa *to_mobj_ffa(struct mobj *mobj)
+static bool __maybe_unused is_mobj_ffa_shm(struct mobj *mobj)
 {
-	assert(mobj->ops == &mobj_ffa_ops);
-	return container_of(mobj, struct mobj_ffa, mobj);
+	return mobj->ops == &mobj_ffa_shm_ops;
+}
+
+static struct mobj_ffa_shm *to_mobj_ffa_shm(struct mobj *mobj)
+{
+	assert(is_mobj_ffa_shm(mobj));
+	return container_of(mobj, struct mobj_ffa_shm, mf.mobj);
 }
 
 static size_t shm_size(size_t num_pages)
@@ -126,14 +135,14 @@ static size_t shm_size(size_t num_pages)
 
 	if (MUL_OVERFLOW(sizeof(paddr_t), num_pages, &s))
 		return 0;
-	if (ADD_OVERFLOW(sizeof(struct mobj_ffa), s, &s))
+	if (ADD_OVERFLOW(sizeof(struct mobj_ffa_shm), s, &s))
 		return 0;
 	return s;
 }
 
-static struct mobj_ffa *ffa_new(unsigned int num_pages)
+static struct mobj_ffa_shm *ffa_shm_new(unsigned int num_pages)
 {
-	struct mobj_ffa *mf = NULL;
+	struct mobj_ffa_shm *m = NULL;
 	size_t s = 0;
 
 	if (!num_pages)
@@ -142,24 +151,24 @@ static struct mobj_ffa *ffa_new(unsigned int num_pages)
 	s = shm_size(num_pages);
 	if (!s)
 		return NULL;
-	mf = calloc(1, s);
-	if (!mf)
+	m = calloc(1, s);
+	if (!m)
 		return NULL;
 
-	mf->mobj.ops = &mobj_ffa_ops;
-	mf->mobj.size = num_pages * SMALL_PAGE_SIZE;
-	mf->mobj.phys_granule = SMALL_PAGE_SIZE;
-	refcount_set(&mf->mobj.refc, 0);
-	mf->inactive_refs = 0;
+	m->mf.mobj.ops = &mobj_ffa_shm_ops;
+	m->mf.mobj.size = num_pages * SMALL_PAGE_SIZE;
+	m->mf.mobj.phys_granule = SMALL_PAGE_SIZE;
+	refcount_set(&m->mf.mobj.refc, 0);
+	m->mf.inactive_refs = 0;
 
-	return mf;
+	return m;
 }
 
 #ifdef CFG_CORE_SEL1_SPMC
 struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
 					unsigned int num_pages)
 {
-	struct mobj_ffa *mf = NULL;
+	struct mobj_ffa_shm *m = NULL;
 	bitstr_t *shm_bits = NULL;
 	uint32_t exceptions = 0;
 	int i = 0;
@@ -171,16 +180,16 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
 			return NULL;
 	}
 
-	mf = ffa_new(num_pages);
-	if (!mf) {
+	m = ffa_shm_new(num_pages);
+	if (!m) {
 		if (cookie != OPTEE_MSG_FMEM_INVALID_GLOBAL_ID)
 			virt_remove_cookie(cookie);
 		return NULL;
 	}
 
 	if (cookie != OPTEE_MSG_FMEM_INVALID_GLOBAL_ID) {
-		mf->cookie = cookie;
-		return mf;
+		m->mf.cookie = cookie;
+		return &m->mf;
 	}
 
 	shm_bits = get_shm_bits();
@@ -188,23 +197,23 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
 	bit_ffc(shm_bits, SPMC_CORE_SEL1_MAX_SHM_COUNT, &i);
 	if (i != -1) {
 		bit_set(shm_bits, i);
-		mf->cookie = i;
-		mf->cookie |= FFA_MEMORY_HANDLE_NON_SECURE_BIT;
+		m->mf.cookie = i;
+		m->mf.cookie |= FFA_MEMORY_HANDLE_NON_SECURE_BIT;
 		/*
 		 * Encode the partition ID into the handle so we know which
 		 * partition to switch to when reclaiming a handle.
 		 */
-		mf->cookie |= SHIFT_U64(virt_get_current_guest_id(),
-					FFA_MEMORY_HANDLE_PRTN_SHIFT);
+		m->mf.cookie |= SHIFT_U64(virt_get_current_guest_id(),
+					  FFA_MEMORY_HANDLE_PRTN_SHIFT);
 	}
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 
 	if (i == -1) {
-		free(mf);
+		free(m);
 		return NULL;
 	}
 
-	return mf;
+	return &m->mf;
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
 
@@ -268,6 +277,7 @@ static struct mobj_ffa *find_in_list(struct mobj_ffa_head *head,
 #if defined(CFG_CORE_SEL1_SPMC)
 void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mf)
 {
+	struct mobj_ffa_shm *m = NULL;
 
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION) ||
 	    !(mf->cookie & FFA_MEMORY_HANDLE_HYPERVISOR_BIT)) {
@@ -288,32 +298,34 @@ void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mf)
 		cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 	}
 
-	assert(!mf->mm);
-	free(mf);
+	m = to_mobj_ffa_shm(&mf->mobj);
+	assert(!m->mm);
+	free(m);
 }
 #else /* !defined(CFG_CORE_SEL1_SPMC) */
 struct mobj_ffa *mobj_ffa_spmc_new(uint64_t cookie, unsigned int num_pages)
 {
-	struct mobj_ffa *mf = NULL;
+	struct mobj_ffa_shm *m = NULL;
 
 	assert(cookie != OPTEE_MSG_FMEM_INVALID_GLOBAL_ID);
-	mf = ffa_new(num_pages);
-	if (mf)
-		mf->cookie = cookie;
-	return mf;
+	m = ffa_shm_new(num_pages);
+	if (m)
+		m->mf.cookie = cookie;
+	return &m->mf;
 }
 
 void mobj_ffa_spmc_delete(struct mobj_ffa *mf)
 {
-	free(mf);
+	free(to_mobj_ffa_shm(&mf->mobj));
 }
 #endif /* !defined(CFG_CORE_SEL1_SPMC) */
 
 TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mf, unsigned int *idx,
 				 paddr_t pa, unsigned int num_pages)
 {
-	unsigned int n = 0;
+	struct mobj_ffa_shm *mfs = to_mobj_ffa_shm(&mf->mobj);
 	size_t tot_page_count = get_page_count(mf);
+	unsigned int n = 0;
 
 	if (ADD_OVERFLOW(*idx, num_pages, &n) || n > tot_page_count)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -323,7 +335,7 @@ TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mf, unsigned int *idx,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	for (n = 0; n < num_pages; n++)
-		mf->pages[n + *idx] = pa + n * SMALL_PAGE_SIZE;
+		mfs->pages[n + *idx] = pa + n * SMALL_PAGE_SIZE;
 
 	(*idx) += n;
 	return TEE_SUCCESS;
@@ -348,13 +360,13 @@ uint64_t mobj_ffa_push_to_inactive(struct mobj_ffa *mf)
 	return mf->cookie;
 }
 
-static void unmap_helper(struct mobj_ffa *mf)
+static void unmap_helper(struct mobj_ffa_shm *m)
 {
-	if (mf->mm) {
-		core_mmu_unmap_pages(tee_mm_get_smem(mf->mm),
-				     get_page_count(mf));
-		tee_mm_free(mf->mm);
-		mf->mm = NULL;
+	if (m->mm) {
+		core_mmu_unmap_pages(tee_mm_get_smem(m->mm),
+				     get_page_count(&m->mf));
+		tee_mm_free(m->mm);
+		m->mm = NULL;
 	}
 }
 
@@ -475,21 +487,25 @@ out:
 struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 				    unsigned int internal_offs)
 {
+	struct mobj_ffa_shm *mfs = NULL;
 	struct mobj_ffa *mf = NULL;
 	uint32_t exceptions = 0;
+	uint16_t offs = 0;
 
 	if (internal_offs >= SMALL_PAGE_SIZE)
 		return NULL;
 	exceptions = cpu_spin_lock_xsave(&shm_lock);
 	mf = find_in_list(&shm_head, cmp_cookie, cookie);
 	if (mf) {
-		if (mf->page_offset == internal_offs) {
+		mfs = to_mobj_ffa_shm(&mf->mobj);
+		offs = mfs->page_offset;
+		if (offs == internal_offs) {
 			if (!refcount_inc(&mf->mobj.refc)) {
 				/*
 				 * If refcount is 0 some other thread has
 				 * called mobj_put() on this reached 0 and
-				 * before ffa_inactivate() got the lock we
-				 * found it. Let's reinitialize it.
+				 * before ffa_shm_inactivate() got the lock
+				 * we found it. Let's reinitialize it.
 				 */
 				refcount_set(&mf->mobj.refc, 1);
 				mf->inactive_refs++;
@@ -499,7 +515,7 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 			     mf->inactive_refs);
 		} else {
 			EMSG("cookie %#"PRIx64" mismatching internal_offs got %#"PRIx16" expected %#x",
-			     cookie, mf->page_offset, internal_offs);
+			     cookie, offs, internal_offs);
 			mf = NULL;
 		}
 	} else {
@@ -523,8 +539,9 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 #endif
 			assert(refcount_val(&mf->mobj.refc) == 0);
 			refcount_set(&mf->mobj.refc, 1);
-			refcount_set(&mf->mapcount, 0);
 			mf->inactive_refs++;
+			mfs = to_mobj_ffa_shm(&mf->mobj);
+			refcount_set(&mfs->mapcount, 0);
 
 			/*
 			 * mf->page_offset is offset into the first page.
@@ -539,10 +556,10 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 			 * mf->page_offset and then assigning a new from
 			 * internal_offset.
 			 */
-			mf->mobj.size += mf->page_offset;
+			mf->mobj.size += mfs->page_offset;
 			assert(!(mf->mobj.size & SMALL_PAGE_MASK));
 			mf->mobj.size -= internal_offs;
-			mf->page_offset = internal_offs;
+			mfs->page_offset = internal_offs;
 
 			SLIST_INSERT_HEAD(&shm_head, mf, link);
 		}
@@ -558,10 +575,10 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 	return &mf->mobj;
 }
 
-static TEE_Result ffa_get_pa(struct mobj *mobj, size_t offset,
-			     size_t granule, paddr_t *pa)
+static TEE_Result ffa_shm_get_pa(struct mobj *mobj, size_t offset,
+				 size_t granule, paddr_t *pa)
 {
-	struct mobj_ffa *mf = to_mobj_ffa(mobj);
+	struct mobj_ffa_shm *m = to_mobj_ffa_shm(mobj);
 	size_t full_offset = 0;
 	paddr_t p = 0;
 
@@ -571,14 +588,14 @@ static TEE_Result ffa_get_pa(struct mobj *mobj, size_t offset,
 	if (offset >= mobj->size)
 		return TEE_ERROR_GENERIC;
 
-	full_offset = offset + mf->page_offset;
+	full_offset = offset + m->page_offset;
 	switch (granule) {
 	case 0:
-		p = mf->pages[full_offset / SMALL_PAGE_SIZE] +
+		p = m->pages[full_offset / SMALL_PAGE_SIZE] +
 		    (full_offset & SMALL_PAGE_MASK);
 		break;
 	case SMALL_PAGE_SIZE:
-		p = mf->pages[full_offset / SMALL_PAGE_SIZE];
+		p = m->pages[full_offset / SMALL_PAGE_SIZE];
 		break;
 	default:
 		return TEE_ERROR_GENERIC;
@@ -588,27 +605,27 @@ static TEE_Result ffa_get_pa(struct mobj *mobj, size_t offset,
 	return TEE_SUCCESS;
 }
 
-static size_t ffa_get_phys_offs(struct mobj *mobj,
-				size_t granule __maybe_unused)
+static size_t ffa_shm_get_phys_offs(struct mobj *mobj,
+				    size_t granule __maybe_unused)
 {
 	assert(granule >= mobj->phys_granule);
 
-	return to_mobj_ffa(mobj)->page_offset;
+	return to_mobj_ffa_shm(mobj)->page_offset;
 }
 
-static void *ffa_get_va(struct mobj *mobj, size_t offset, size_t len)
+static void *ffa_shm_get_va(struct mobj *mobj, size_t offset, size_t len)
 {
-	struct mobj_ffa *mf = to_mobj_ffa(mobj);
+	struct mobj_ffa_shm *m = to_mobj_ffa_shm(mobj);
 
-	if (!mf->mm || !mobj_check_offset_and_len(mobj, offset, len))
+	if (!m->mm || !mobj_check_offset_and_len(mobj, offset, len))
 		return NULL;
 
-	return (void *)(tee_mm_get_smem(mf->mm) + offset + mf->page_offset);
+	return (void *)(tee_mm_get_smem(m->mm) + offset + m->page_offset);
 }
 
-static void ffa_inactivate(struct mobj *mobj)
+static void ffa_shm_inactivate(struct mobj *mobj)
 {
-	struct mobj_ffa *mf = to_mobj_ffa(mobj);
+	struct mobj_ffa_shm *m = to_mobj_ffa_shm(mobj);
 	uint32_t exceptions = 0;
 
 	exceptions = cpu_spin_lock_xsave(&shm_lock);
@@ -618,7 +635,7 @@ static void ffa_inactivate(struct mobj *mobj)
 	 * the lock.
 	 */
 	if (refcount_val(&mobj->refc)) {
-		DMSG("cookie %#"PRIx64" was resurrected", mf->cookie);
+		DMSG("cookie %#"PRIx64" was resurrected", m->mf.cookie);
 		goto out;
 	}
 
@@ -633,18 +650,18 @@ static void ffa_inactivate(struct mobj *mobj)
 	 * that the mobj can't be freed until it reaches 0.
 	 * At this point the mobj is in the inactive list.
 	 */
-	if (pop_from_list(&shm_head, cmp_ptr, (vaddr_t)mf)) {
-		unmap_helper(mf);
-		SLIST_INSERT_HEAD(&shm_inactive_head, mf, link);
+	if (pop_from_list(&shm_head, cmp_ptr, (vaddr_t)&m->mf)) {
+		unmap_helper(m);
+		SLIST_INSERT_HEAD(&shm_inactive_head, &m->mf, link);
 	}
 out:
-	if (!mf->inactive_refs)
+	if (!m->mf.inactive_refs)
 		panic();
-	mf->inactive_refs--;
+	m->mf.inactive_refs--;
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 }
 
-static TEE_Result ffa_get_mem_type(struct mobj *mobj __unused, uint32_t *mt)
+static TEE_Result ffa_shm_get_mem_type(struct mobj *mobj __unused, uint32_t *mt)
 {
 	if (!mt)
 		return TEE_ERROR_GENERIC;
@@ -654,32 +671,33 @@ static TEE_Result ffa_get_mem_type(struct mobj *mobj __unused, uint32_t *mt)
 	return TEE_SUCCESS;
 }
 
-static bool ffa_matches(struct mobj *mobj __maybe_unused, enum buf_is_attr attr)
+static bool ffa_shm_matches(struct mobj *mobj __maybe_unused,
+			    enum buf_is_attr attr)
 {
-	assert(mobj->ops == &mobj_ffa_ops);
+	assert(is_mobj_ffa_shm(mobj));
 
 	return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_REG_SHM;
 }
 
-static uint64_t ffa_get_cookie(struct mobj *mobj)
+static uint64_t ffa_shm_get_cookie(struct mobj *mobj)
 {
-	return to_mobj_ffa(mobj)->cookie;
+	return to_mobj_ffa_shm(mobj)->mf.cookie;
 }
 
-static TEE_Result ffa_inc_map(struct mobj *mobj)
+static TEE_Result ffa_shm_inc_map(struct mobj *mobj)
 {
+	struct mobj_ffa_shm *m = to_mobj_ffa_shm(mobj);
 	TEE_Result res = TEE_SUCCESS;
-	struct mobj_ffa *mf = to_mobj_ffa(mobj);
 	uint32_t exceptions = 0;
 	size_t sz = 0;
 
 	while (true) {
-		if (refcount_inc(&mf->mapcount))
+		if (refcount_inc(&m->mapcount))
 			return TEE_SUCCESS;
 
 		exceptions = cpu_spin_lock_xsave(&shm_lock);
 
-		if (!refcount_val(&mf->mapcount))
+		if (!refcount_val(&m->mapcount))
 			break; /* continue to reinitialize */
 		/*
 		 * If another thread beat us to initialize mapcount,
@@ -692,42 +710,42 @@ static TEE_Result ffa_inc_map(struct mobj *mobj)
 	 * If we have beated another thread calling ffa_dec_map()
 	 * to get the lock we need only to reinitialize mapcount to 1.
 	 */
-	if (!mf->mm) {
-		sz = ROUNDUP(mobj->size + mf->page_offset, SMALL_PAGE_SIZE);
-		mf->mm = tee_mm_alloc(&core_virt_shm_pool, sz);
-		if (!mf->mm) {
+	if (!m->mm) {
+		sz = ROUNDUP(mobj->size + m->page_offset, SMALL_PAGE_SIZE);
+		m->mm = tee_mm_alloc(&core_virt_shm_pool, sz);
+		if (!m->mm) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
 		}
 
-		res = core_mmu_map_pages(tee_mm_get_smem(mf->mm), mf->pages,
+		res = core_mmu_map_pages(tee_mm_get_smem(m->mm), m->pages,
 					 sz / SMALL_PAGE_SIZE,
 					 MEM_AREA_NSEC_SHM);
 		if (res) {
-			tee_mm_free(mf->mm);
-			mf->mm = NULL;
+			tee_mm_free(m->mm);
+			m->mm = NULL;
 			goto out;
 		}
 	}
 
-	refcount_set(&mf->mapcount, 1);
+	refcount_set(&m->mapcount, 1);
 out:
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 
 	return res;
 }
 
-static TEE_Result ffa_dec_map(struct mobj *mobj)
+static TEE_Result ffa_shm_dec_map(struct mobj *mobj)
 {
-	struct mobj_ffa *mf = to_mobj_ffa(mobj);
+	struct mobj_ffa_shm *m = to_mobj_ffa_shm(mobj);
 	uint32_t exceptions = 0;
 
-	if (!refcount_dec(&mf->mapcount))
+	if (!refcount_dec(&m->mapcount))
 		return TEE_SUCCESS;
 
 	exceptions = cpu_spin_lock_xsave(&shm_lock);
-	if (!refcount_val(&mf->mapcount))
-		unmap_helper(mf);
+	if (!refcount_val(&m->mapcount))
+		unmap_helper(m);
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 
 	return TEE_SUCCESS;
@@ -752,16 +770,16 @@ static TEE_Result mapped_shm_init(void)
 	return TEE_SUCCESS;
 }
 
-static const struct mobj_ops mobj_ffa_ops = {
-	.get_pa = ffa_get_pa,
-	.get_phys_offs = ffa_get_phys_offs,
-	.get_va = ffa_get_va,
-	.get_mem_type = ffa_get_mem_type,
-	.matches = ffa_matches,
-	.free = ffa_inactivate,
-	.get_cookie = ffa_get_cookie,
-	.inc_map = ffa_inc_map,
-	.dec_map = ffa_dec_map,
+static const struct mobj_ops mobj_ffa_shm_ops = {
+	.get_pa = ffa_shm_get_pa,
+	.get_phys_offs = ffa_shm_get_phys_offs,
+	.get_va = ffa_shm_get_va,
+	.get_mem_type = ffa_shm_get_mem_type,
+	.matches = ffa_shm_matches,
+	.free = ffa_shm_inactivate,
+	.get_cookie = ffa_shm_get_cookie,
+	.inc_map = ffa_shm_inc_map,
+	.dec_map = ffa_shm_dec_map,
 };
 
 preinit(mapped_shm_init);
