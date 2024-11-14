@@ -403,6 +403,17 @@
 			};
 		};
 
+		tamp: tamp@46010000 {
+			compatible = "st,stm32mp25-tamp";
+			reg = <0x46010000 0x400>;
+			clocks = <&rcc CK_BUS_RTC>;
+			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			st,backup-zones = <24 24 24 24 12 12 8>;
+		};
+
 		pinctrl_z: pinctrl-z@46200000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
