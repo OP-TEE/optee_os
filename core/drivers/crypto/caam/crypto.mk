@@ -153,6 +153,11 @@ CFG_CAAM_JR_DISABLE_NODE ?= y
 # 48 * 8 (Black blob overhead in bytes) = 4576 bits
 CFG_CORE_BIGNUM_MAX_BITS ?= 4576
 
+# CAAM RNG Prediction Resistance
+# When this flag is y, the CAAM RNG is reseeded on every random number request.
+# In this case the performance is drastically reduced.
+CFG_CAAM_RNG_RUNTIME_PR ?= n
+
 # Enable CAAM non-crypto drivers
 $(foreach drv, $(caam-drivers), $(eval CFG_NXP_CAAM_$(drv)_DRV ?= y))
 
