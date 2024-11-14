@@ -83,7 +83,7 @@ struct fmc_pdata {
 	struct clk *fmc_clock;
 	struct pinctrl_state *pinctrl_d;
 	struct pinctrl_state *pinctrl_s;
-	struct rif_conf_data conf_data;
+	struct rif_conf_data *conf_data;
 	unsigned int nb_controller;
 	vaddr_t base;
 	uint32_t clk_period_ns;
@@ -103,12 +103,15 @@ static TEE_Result apply_rif_config(void)
 	uint32_t cidcfgr = 0;
 	unsigned int i = 0;
 
+	if (!fmc_d->conf_data)
+		return TEE_SUCCESS;
+
 	res = clk_enable(fmc_d->fmc_clock);
 	if (res)
 		panic("Cannot access FMC clock");
 
 	for (i = 0; i < FMC_RIF_CONTROLLERS; i++) {
-		if (!(BIT(i) & fmc_d->conf_data.access_mask[0]))
+		if (!(BIT(i) & fmc_d->conf_data->access_mask[0]))
 			continue;
 
 		/*
@@ -141,17 +144,17 @@ static TEE_Result apply_rif_config(void)
 
 	/* Security and privilege RIF configuration */
 	io_clrsetbits32(fmc_d->base + _FMC_PRIVCFGR, _FMC_PRIVCFGR_MASK,
-			fmc_d->conf_data.priv_conf[0]);
+			fmc_d->conf_data->priv_conf[0]);
 	io_clrsetbits32(fmc_d->base + _FMC_SECCFGR, _FMC_SECCFGR_MASK,
-			fmc_d->conf_data.sec_conf[0]);
+			fmc_d->conf_data->sec_conf[0]);
 
 	for (i = 0; i < FMC_RIF_CONTROLLERS; i++) {
-		if (!(BIT(i) & fmc_d->conf_data.access_mask[0]))
+		if (!(BIT(i) & fmc_d->conf_data->access_mask[0]))
 			continue;
 
 		io_clrsetbits32(fmc_d->base + _FMC_CIDCFGR(i),
 				_FMC_CIDCFGR_CONF_MASK,
-				fmc_d->conf_data.cid_confs[i]);
+				fmc_d->conf_data->cid_confs[i]);
 
 		cidcfgr = io_read32(fmc_d->base + _FMC_CIDCFGR(i));
 
@@ -186,20 +189,20 @@ static TEE_Result apply_rif_config(void)
 	 * next reset.
 	 */
 	io_clrsetbits32(fmc_d->base + _FMC_RCFGLOCKR, _FMC_RCFGLOCKR_MASK,
-			fmc_d->conf_data.lock_conf[0]);
+			fmc_d->conf_data->lock_conf[0]);
 
 	if (IS_ENABLED(CFG_TEE_CORE_DEBUG)) {
 		/* Check that RIF config are applied, panic otherwise */
 		if ((io_read32(fmc_d->base + _FMC_PRIVCFGR) &
-		     fmc_d->conf_data.access_mask[0]) !=
-		    fmc_d->conf_data.priv_conf[0]) {
+		     fmc_d->conf_data->access_mask[0]) !=
+		    fmc_d->conf_data->priv_conf[0]) {
 			EMSG("FMC controller priv conf is incorrect");
 			panic();
 		}
 
 		if ((io_read32(fmc_d->base + _FMC_SECCFGR) &
-		     fmc_d->conf_data.access_mask[0]) !=
-		    fmc_d->conf_data.sec_conf[0]) {
+		     fmc_d->conf_data->access_mask[0]) !=
+		    fmc_d->conf_data->sec_conf[0]) {
 			EMSG("FMC controller sec conf is incorrect");
 			panic();
 		}
@@ -214,13 +217,12 @@ static TEE_Result apply_rif_config(void)
 static TEE_Result parse_dt(const void *fdt, int node)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	uint32_t rif_conf = 0;
-	unsigned int i = 0;
-	int lenp = 0;
-	const fdt32_t *cuint = NULL;
 	struct dt_node_info info = { };
+	const fdt32_t *cuint = NULL;
 	struct io_pa_va addr = { };
+	unsigned int i = 0;
 	int ctrl_node = 0;
+	int lenp = 0;
 
 	fdt_fill_device_info(fdt, &info, node);
 	assert(info.reg != DT_INFO_INVALID_REG &&
@@ -244,28 +246,33 @@ static TEE_Result parse_dt(const void *fdt, int node)
 		return res;
 
 	cuint = fdt_getprop(fdt, node, "st,protreg", &lenp);
-	if (!cuint)
-		panic("No RIF configuration available");
+	if (!cuint) {
+		DMSG("No RIF configuration available");
+		goto skip_rif;
+	}
+
+	fmc_d->conf_data = calloc(1, sizeof(*fmc_d->conf_data));
+	if (!fmc_d->conf_data)
+		panic();
 
 	fmc_d->nb_controller = (unsigned int)(lenp / sizeof(uint32_t));
 	assert(fmc_d->nb_controller <= FMC_RIF_CONTROLLERS);
 
-	fmc_d->conf_data.cid_confs = calloc(FMC_RIF_CONTROLLERS,
-					    sizeof(uint32_t));
-	fmc_d->conf_data.sec_conf = calloc(1, sizeof(uint32_t));
-	fmc_d->conf_data.priv_conf = calloc(1, sizeof(uint32_t));
-	fmc_d->conf_data.lock_conf = calloc(1, sizeof(uint32_t));
-	fmc_d->conf_data.access_mask = calloc(1, sizeof(uint32_t));
-	assert(fmc_d->conf_data.cid_confs && fmc_d->conf_data.sec_conf &&
-	       fmc_d->conf_data.priv_conf && fmc_d->conf_data.access_mask);
+	fmc_d->conf_data->cid_confs = calloc(FMC_RIF_CONTROLLERS,
+					     sizeof(uint32_t));
+	fmc_d->conf_data->sec_conf = calloc(1, sizeof(uint32_t));
+	fmc_d->conf_data->priv_conf = calloc(1, sizeof(uint32_t));
+	fmc_d->conf_data->lock_conf = calloc(1, sizeof(uint32_t));
+	fmc_d->conf_data->access_mask = calloc(1, sizeof(uint32_t));
+	if (!fmc_d->conf_data->cid_confs || !fmc_d->conf_data->sec_conf ||
+	    !fmc_d->conf_data->priv_conf || !fmc_d->conf_data->access_mask)
+		panic("Missing memory capacity for FMC RIF configuration");
 
-	for (i = 0; i < fmc_d->nb_controller; i++) {
-		rif_conf = fdt32_to_cpu(cuint[i]);
-
-		stm32_rif_parse_cfg(rif_conf, &fmc_d->conf_data,
+	for (i = 0; i < fmc_d->nb_controller; i++)
+		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), fmc_d->conf_data,
 				    FMC_RIF_CONTROLLERS);
-	}
 
+skip_rif:
 	fdt_for_each_subnode(ctrl_node, fdt, node) {
 		int status = fdt_get_status(fdt, ctrl_node);
 		uint32_t bank = 0;
@@ -419,17 +426,17 @@ static void fmc_suspend(void)
 		panic();
 
 	for (i = 0; i < FMC_RIF_CONTROLLERS; i++)
-		fmc_d->conf_data.cid_confs[i] =
+		fmc_d->conf_data->cid_confs[i] =
 			io_read32(fmc_d->base + _FMC_CIDCFGR(i)) &
 			_FMC_CIDCFGR_CONF_MASK;
 
-	fmc_d->conf_data.priv_conf[0] =
+	fmc_d->conf_data->priv_conf[0] =
 		io_read32(fmc_d->base + _FMC_PRIVCFGR) & _FMC_PRIVCFGR_MASK;
-	fmc_d->conf_data.sec_conf[0] =
+	fmc_d->conf_data->sec_conf[0] =
 		io_read32(fmc_d->base + _FMC_SECCFGR) & _FMC_SECCFGR_MASK;
-	fmc_d->conf_data.lock_conf[0] =
+	fmc_d->conf_data->lock_conf[0] =
 		io_read32(fmc_d->base + _FMC_RCFGLOCKR) & _FMC_RCFGLOCKR_MASK;
-	fmc_d->conf_data.access_mask[0] =
+	fmc_d->conf_data->access_mask[0] =
 		GENMASK_32(FMC_RIF_CONTROLLERS - 1, 0);
 
 	clk_disable(fmc_d->fmc_clock);
@@ -469,10 +476,13 @@ static TEE_Result fmc_probe(const void *fdt, int node,
 	return TEE_SUCCESS;
 err:
 	/* Free all allocated resources */
-	free(fmc_d->conf_data.cid_confs);
-	free(fmc_d->conf_data.sec_conf);
-	free(fmc_d->conf_data.priv_conf);
-	free(fmc_d->conf_data.access_mask);
+	if (fmc_d->conf_data) {
+		free(fmc_d->conf_data->access_mask);
+		free(fmc_d->conf_data->cid_confs);
+		free(fmc_d->conf_data->priv_conf);
+		free(fmc_d->conf_data->sec_conf);
+	}
+	free(fmc_d->conf_data);
 	free(fmc_d);
 
 	return res;
