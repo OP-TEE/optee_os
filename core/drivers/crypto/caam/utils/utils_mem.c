@@ -231,8 +231,8 @@ end_cpy:
 	return ret;
 }
 
-enum caam_status caam_cpy_buf_src(struct caambuf *dst, uint8_t *src_data,
-				  size_t src_length)
+enum caam_status caam_cpy_buf(struct caambuf *dst, uint8_t *src_data,
+			      size_t src_length)
 {
 	enum caam_status ret = CAAM_FAILURE;
 
@@ -250,6 +250,8 @@ enum caam_status caam_cpy_buf_src(struct caambuf *dst, uint8_t *src_data,
 			return ret;
 		}
 	}
+
+	assert(dst->length == src_length);
 
 	/* Do the copy */
 	memcpy(dst->data, src_data, dst->length);

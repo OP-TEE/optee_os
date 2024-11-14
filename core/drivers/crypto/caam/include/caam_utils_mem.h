@@ -105,15 +105,14 @@ enum caam_status caam_cpy_block_src(struct caamblock *block,
 				    struct caambuf *src, size_t offset);
 
 /*
- * Copy source data into the buffer. Allocate buffer if
- * it's not already allocated.
+ * Copy data into the buffer. Allocate buffer if it's not already allocated.
  *
  * @dst         [out] Destination data to allocate and fill
  * @src_data    Source to copy
  * @src_length  Length to copy
  */
-enum caam_status caam_cpy_buf_src(struct caambuf *dst, uint8_t *src_data,
-				  size_t src_length);
+enum caam_status caam_cpy_buf(struct caambuf *dst, uint8_t *src_data,
+			      size_t src_length);
 
 /*
  * Return the number of Physical Areas used by the buffer @buf.

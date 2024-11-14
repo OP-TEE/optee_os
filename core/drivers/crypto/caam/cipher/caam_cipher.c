@@ -358,20 +358,19 @@ void caam_cipher_copy_state(void *dst_ctx, void *src_ctx)
 	}
 
 	if (src->key1.length)
-		caam_cpy_buf_src(&dst->key1, src->key1.data, src->key1.length);
+		caam_cpy_buf(&dst->key1, src->key1.data, src->key1.length);
 
 	if (src->key2.length)
-		caam_cpy_buf_src(&dst->key2, src->key2.data, src->key2.length);
+		caam_cpy_buf(&dst->key2, src->key2.data, src->key2.length);
 
 	if (src->ctx.length) {
 		cache_operation(TEE_CACHEINVALIDATE, src->ctx.data,
 				src->ctx.length);
-		caam_cpy_buf_src(&dst->ctx, src->ctx.data, src->ctx.length);
+		caam_cpy_buf(&dst->ctx, src->ctx.data, src->ctx.length);
 	}
 
 	if (src->tweak.length)
-		caam_cpy_buf_src(&dst->tweak, src->tweak.data,
-				 src->tweak.length);
+		caam_cpy_buf(&dst->tweak, src->tweak.data, src->tweak.length);
 }
 
 TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
@@ -400,9 +399,8 @@ TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 		}
 
 		/* Copy the key 1 */
-		retstatus = caam_cpy_buf_src(&cipherdata->key1,
-					     dinit->key1.data,
-					     dinit->key1.length);
+		retstatus = caam_cpy_buf(&cipherdata->key1, dinit->key1.data,
+					 dinit->key1.length);
 		CIPHER_TRACE("Copy Key 1 returned 0x%" PRIx32, retstatus);
 
 		if (retstatus != CAAM_NO_ERROR) {
@@ -422,9 +420,8 @@ TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 		}
 
 		/* Copy the key 2 */
-		retstatus = caam_cpy_buf_src(&cipherdata->key2,
-					     dinit->key2.data,
-					     dinit->key2.length);
+		retstatus = caam_cpy_buf(&cipherdata->key2, dinit->key2.data,
+					 dinit->key2.length);
 		CIPHER_TRACE("Copy Key 2 returned 0x%" PRIx32, retstatus);
 
 		if (retstatus != CAAM_NO_ERROR) {
@@ -448,8 +445,8 @@ TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 			     alg->size_ctx);
 
 		/* Copy the IV into the context register */
-		retstatus = caam_cpy_buf_src(&cipherdata->ctx, dinit->iv.data,
-					     dinit->iv.length);
+		retstatus = caam_cpy_buf(&cipherdata->ctx, dinit->iv.data,
+					 dinit->iv.length);
 		CIPHER_TRACE("Copy IV returned 0x%" PRIx32, retstatus);
 
 		if (retstatus != CAAM_NO_ERROR) {
@@ -467,9 +464,9 @@ TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 			}
 
 			/* Copy the tweak */
-			retstatus = caam_cpy_buf_src(&cipherdata->tweak,
-						     dinit->iv.data,
-						     dinit->iv.length);
+			retstatus = caam_cpy_buf(&cipherdata->tweak,
+						 dinit->iv.data,
+						 dinit->iv.length);
 			CIPHER_TRACE("Copy Tweak returned 0x%" PRIx32,
 				     retstatus);
 
