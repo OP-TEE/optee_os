@@ -14,40 +14,64 @@
 
 /*
  * Cipher Algorithm definition
+ * @type:		Algo type for operation
+ * @size_block:		Computing block size
+ * @size_ctx:		CAAM Context Register size
+ * @ctx_offset:		CAAM Context Register offset
+ * @def_key:		Define accepted key size
+ * @initialize:		Initialize function
+ * @final:		Final function
  */
 struct cipheralg {
-	uint32_t type; /* Algo type for operation */
-	uint8_t size_block; /* Computing block size */
-	uint8_t size_ctx; /* CAAM Context Register size */
-	uint8_t ctx_offset; /* CAAM Context Register offset */
-	struct caamdefkey def_key; /* Define accepted key size */
+	uint32_t type;
+	uint8_t size_block;
+	uint8_t size_ctx;
+	uint8_t ctx_offset;
+	struct caamdefkey def_key;
 
 	TEE_Result (*initialize)(struct drvcrypt_authenc_init *dinit);
 	TEE_Result (*final)(struct drvcrypt_authenc_final *dfinal);
 };
 
+/*
+ * CAAM Authenticated Encryption Context
+ *
+ * @descriptor:		Job descriptor
+ * @tag_length:		Hash tag length
+ * @aad_length:		Additional data length
+ * @payload_length:	Data length
+ * @encrypt:		Encrypt direction
+ * @key:		Cipher key
+ * @initial_ctx:	Initial CCM context
+ * @ctx:		Saved context for multi-part update
+ * @nonce:		Initial GCM Nonce value
+ * @buf_add:		Additional Data buffer if needed
+ * @blockbuf:		Temporary Block buffer
+ * @do_block:		Block Encryption operation function
+ * @alg:		Reference to the algo constants
+ */
 struct caam_ae_ctx {
-	uint32_t *descriptor;       /* Job descriptor */
+	uint32_t *descriptor;
 
-	size_t tag_length;          /* Hash tag length */
-	size_t aad_length;          /* Additional data length */
-	size_t payload_length;      /* Data length */
+	size_t tag_length;
+	size_t aad_length;
+	size_t payload_length;
 
-	bool encrypt;               /* Encrypt direction */
+	bool encrypt;
 
-	struct caambuf key;         /* Cipher key */
-	struct caambuf initial_ctx; /* Initial CCM context */
-	struct caambuf ctx;         /* Saved context for multi-part update */
-	struct caambuf nonce;       /* Initial GCM Nonce value */
+	struct caambuf key;
+	struct caambuf initial_ctx;
+	struct caambuf ctx;
+	struct caambuf nonce;
 
-	struct caamblock buf_aad;   /* Additional Data buffer if needed */
-	struct caamblock blockbuf;  /* Temporary Block buffer */
+	struct caamblock buf_aad;
+	struct caamblock blockbuf;
 
 	bool (*do_block)(struct caam_ae_ctx *caam_ctx, bool encrypt,
 			 struct caamdmaobj *src, struct caamdmaobj *dst,
 			 bool final);
 
-	const struct cipheralg *alg; /* Reference to the algo constants */
+	const struct cipheralg *alg;
 };
 
 /*
