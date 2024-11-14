@@ -58,7 +58,6 @@
 #define HSEM_NB_SEM_GROUPS		U(4)
 #define HSEM_NB_SEM_PER_GROUP		U(4)
 
-#define HSEM_NB_MAX_CID_SUPPORTED	U(7)
 #define HSEM_RIF_RESOURCES		U(16)
 
 struct hsem_pdata {
@@ -75,7 +74,6 @@ static void apply_rif_config(bool is_tdcid)
 {
 	unsigned int i = 0;
 	unsigned int j = 0;
-	uint32_t prev_cid_value = 0;
 
 	/*
 	 * When TDCID, OP-TEE should be the one to set the CID filtering
@@ -125,47 +123,46 @@ static void apply_rif_config(bool is_tdcid)
 	 * configuration.
 	 */
 	for (i = 0; i < HSEM_NB_SEM_GROUPS; i++) {
-		unsigned int hsem_idx = i * HSEM_NB_SEM_PER_GROUP;
-		unsigned int hsem_cid = 0;
-		unsigned int known_cid_idx = 0;
-
-		prev_cid_value = hsem_d->conf_data.cid_confs[hsem_idx];
-
-		/* If CID filtering is disabled, do nothing */
-		if (!(prev_cid_value & _CIDCFGR_CFEN))
-			continue;
-
-		/*
-		 * Check if configured CID corresponds to a processor's
-		 * CID in HSEM_CnCIDCFGR.
-		 */
-		for (j = 0; j < HSEM_NB_PROC; j++) {
-			uint32_t proc_cid = hsem_d->rif_proc_conf[j];
-
-			hsem_cid = (prev_cid_value & HSEM_CnCIDCFGR_SCID_MASK);
-			DMSG("hsem_cid %u", hsem_cid);
-			DMSG("proc_cid %u", proc_cid);
-			if (proc_cid == hsem_cid) {
-				known_cid_idx = BIT(j +
-					HSEM_GpCIDCFGR_SEM_WLIST_SHIFT);
-				break;
-			}
-		}
-		if (!known_cid_idx)
-			panic("Unknown HSEM processor CID");
+		unsigned int grp_idx = i * HSEM_NB_SEM_PER_GROUP;
+		uint32_t group_cid_value = hsem_d->conf_data.cid_confs[grp_idx];
+		unsigned int sem_wlist_c = 0;
+		bool cid_found = false;
 
 		/*
 		 * HSEM resources in the same group must have the same CID
 		 * filtering configuration. Else it is inconsistent.
 		 */
 		for (j = 0; j < HSEM_NB_SEM_PER_GROUP; j++)
-			if (hsem_d->conf_data.cid_confs[j + hsem_idx] !=
-			    prev_cid_value)
+			if (hsem_d->conf_data.cid_confs[j + grp_idx] !=
+			    group_cid_value)
 				panic("Inconsistent HSEM RIF group config");
+
+		/* If CID filtering is disabled, do nothing */
+		if (!(group_cid_value & _CIDCFGR_CFEN))
+			continue;
+
+		/*
+		 * Check if configured CIDs correspond to a processor's
+		 * CID in HSEM_CnCIDCFGR registers.
+		 */
+		for (j = 0; j < HSEM_NB_PROC; j++) {
+			uint32_t proc_cid = hsem_d->rif_proc_conf[j] >>
+					    _CIDCFGR_SCID_SHIFT;
+
+			assert(proc_cid <= MAX_CID_SUPPORTED);
+			if (BIT(proc_cid + _CIDCFGR_SEMWL_SHIFT) &
+			    group_cid_value) {
+				sem_wlist_c |=
+					BIT(j + HSEM_GpCIDCFGR_SEM_WLIST_SHIFT);
+				cid_found = true;
+			}
+		}
+		if (!cid_found)
+			panic("Unknown HSEM processor CID");
 
 		io_clrsetbits32(hsem_d->base + HSEM_GpCIDCFGR(i),
 				HSEM_GpCIDCFGR_CONF_MASK,
-				_CIDCFGR_CFEN | known_cid_idx);
+				_CIDCFGR_CFEN | sem_wlist_c);
 	}
 }
 
