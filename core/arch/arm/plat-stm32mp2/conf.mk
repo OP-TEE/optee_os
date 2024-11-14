@@ -66,6 +66,7 @@ CFG_STM32_RISAB ?= y
 CFG_STM32_RISAF ?= y
 CFG_STM32_RNG ?= y
 CFG_STM32_SERC ?= y
+CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
 
 # Default enable some test facitilites
