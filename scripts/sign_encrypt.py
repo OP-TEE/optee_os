@@ -245,7 +245,7 @@ def get_args():
     arg_add_dig(parser_digest)
 
     parser_stitch = subparsers.add_parser(
-        'stitch', aliases=['stitch-ta'], prog=parser.prog + ' stich',
+        'stitch', aliases=['stitch-ta'], prog=parser.prog + ' stitch',
         help='Generate loadable signed and encrypted TA binary image file' +
         ' from TA raw image and its signature')
     parser_stitch.set_defaults(func=command_stitch)
