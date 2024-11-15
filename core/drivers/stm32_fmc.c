@@ -315,8 +315,10 @@ static TEE_Result __maybe_unused check_fmc_rif_conf(void)
 	if (res)
 		panic("Cannot access FMC clock");
 
-	if (fmc_controller_is_secure(0))
+	if (fmc_controller_is_secure(0)) {
+		res = TEE_SUCCESS;
 		goto end;
+	}
 
 	for (i = 1; i < fmc_d->nb_controller; i++) {
 		uint32_t cidcfgr = io_read32(fmc_d->base + _FMC_CIDCFGR(i));
@@ -411,7 +413,7 @@ static void fmc_setup(void)
 		panic("Failed to apply rif_config");
 
 	/* Sanity check for FMC RIF config */
-	assert(check_fmc_rif_conf());
+	assert(!check_fmc_rif_conf());
 
 	configure_fmc();
 }
