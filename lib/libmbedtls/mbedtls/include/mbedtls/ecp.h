@@ -62,8 +62,7 @@
     defined(MBEDTLS_ECP_DP_BP512R1_ENABLED) || \
     defined(MBEDTLS_ECP_DP_SECP192K1_ENABLED) || \
     defined(MBEDTLS_ECP_DP_SECP224K1_ENABLED) || \
-    defined(MBEDTLS_ECP_DP_SECP256K1_ENABLED) || \
-    defined(MBEDTLS_ECP_DP_SM2_ENABLED)
+    defined(MBEDTLS_ECP_DP_SECP256K1_ENABLED)
 #define MBEDTLS_ECP_SHORT_WEIERSTRASS_ENABLED
 #endif
 #if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED) || \
@@ -115,7 +114,6 @@ typedef enum {
     MBEDTLS_ECP_DP_SECP224K1,      /*!< Domain parameters for 224-bit "Koblitz" curve. */
     MBEDTLS_ECP_DP_SECP256K1,      /*!< Domain parameters for 256-bit "Koblitz" curve. */
     MBEDTLS_ECP_DP_CURVE448,       /*!< Domain parameters for Curve448. */
-    MBEDTLS_ECP_DP_SM2,            /*!< Domain parameters for SM2. */
 } mbedtls_ecp_group_id;
 
 /**
@@ -218,7 +216,7 @@ mbedtls_ecp_point;
  * range of <code>0..2^(2*pbits)-1</code>, and transforms it in-place to an integer
  * which is congruent mod \p P to the given MPI, and is close enough to \p pbits
  * in size, so that it may be efficiently brought in the 0..P-1 range by a few
- * additions or subtractions. Therefore, it is only an approximative modular
+ * additions or subtractions. Therefore, it is only an approximate modular
  * reduction. It must return 0 on success and non-zero on failure.
  *
  * \note        Alternative implementations of the ECP module must obey the

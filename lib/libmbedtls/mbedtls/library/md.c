@@ -41,7 +41,7 @@
 #include "mbedtls/sha512.h"
 #include "mbedtls/sha3.h"
 
-#if defined(MBEDTLS_PSA_CRYPTO_C)
+#if defined(MBEDTLS_PSA_CRYPTO_CLIENT)
 #include <psa/crypto.h>
 #include "md_psa.h"
 #include "psa_util_internal.h"
@@ -403,9 +403,6 @@ int mbedtls_md_clone(mbedtls_md_context_t *dst,
             return MBEDTLS_ERR_MD_BAD_INPUT_DATA;
     }
 
-    if (dst->hmac_ctx != NULL && src->hmac_ctx != NULL)
-        memcpy(dst->hmac_ctx, src->hmac_ctx, 2 * src->md_info->block_size);
-
     return 0;
 }
 
@@ -764,13 +761,13 @@ mbedtls_md_type_t mbedtls_md_get_type(const mbedtls_md_info_t *md_info)
     return md_info->type;
 }
 
-#if defined(MBEDTLS_PSA_CRYPTO_C)
+#if defined(MBEDTLS_PSA_CRYPTO_CLIENT)
 int mbedtls_md_error_from_psa(psa_status_t status)
 {
     return PSA_TO_MBEDTLS_ERR_LIST(status, psa_to_md_errors,
                                    psa_generic_status_to_mbedtls);
 }
-#endif /* MBEDTLS_PSA_CRYPTO_C */
+#endif /* MBEDTLS_PSA_CRYPTO_CLIENT */
 
 
 /************************************************************************
