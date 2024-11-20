@@ -607,14 +607,14 @@ const void *TEE_GetInstanceData(void)
 	return tee_api_instance_data;
 }
 
-void *TEE_MemMove(void *dest, const void *src, size_t size)
+void TEE_MemMove(void *dest, const void *src, size_t size)
 {
-	return memmove(dest, src, size);
+	memmove(dest, src, size);
 }
 
-void *__GP11_TEE_MemMove(void *dest, const void *src, uint32_t size)
+void __GP11_TEE_MemMove(void *dest, const void *src, uint32_t size)
 {
-	return TEE_MemMove(dest, src, size);
+	TEE_MemMove(dest, src, size);
 }
 
 int32_t TEE_MemCompare(const void *buffer1, const void *buffer2, size_t size)
