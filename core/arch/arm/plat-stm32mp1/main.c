@@ -620,3 +620,134 @@ bool stm32mp1_ram_intersect_pager_ram(paddr_t base, size_t size)
 					CFG_TZSRAM_SIZE);
 }
 #endif
+
+static TEE_Result get_chip_dev_id(uint32_t *dev_id)
+{
+	*dev_id = stm32mp_syscfg_get_chip_dev_id();
+	return TEE_SUCCESS;
+}
+
+static TEE_Result get_part_number(uint32_t *part_nb)
+{
+	static uint32_t part_number;
+	uint32_t dev_id = 0;
+	uint32_t otp = 0;
+	size_t bit_len = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	assert(part_nb);
+
+	if (part_number) {
+		*part_nb = part_number;
+		return TEE_SUCCESS;
+	}
+
+	res = get_chip_dev_id(&dev_id);
+	if (res)
+		return res;
+
+	res = stm32_bsec_find_otp_in_nvmem_layout("part_number_otp",
+						  &otp, NULL, &bit_len);
+	if (res)
+		return res;
+
+	res = stm32_bsec_read_otp(&part_number, otp);
+	if (res)
+		return res;
+
+	assert(bit_len < 16);
+	part_number = (part_number & GENMASK_32(bit_len, 0)) |
+		      SHIFT_U32(dev_id, 16);
+
+	*part_nb = part_number;
+
+	return TEE_SUCCESS;
+}
+
+bool stm32mp_supports_cpu_opp(uint32_t opp_id)
+{
+	uint32_t part_number = 0;
+	uint32_t id = 0;
+
+	if (get_part_number(&part_number)) {
+		DMSG("Cannot get part number");
+		panic();
+	}
+
+	switch (part_number) {
+	case STM32MP135F_PART_NB:
+	case STM32MP135D_PART_NB:
+	case STM32MP133F_PART_NB:
+	case STM32MP133D_PART_NB:
+	case STM32MP131F_PART_NB:
+	case STM32MP131D_PART_NB:
+	case STM32MP157F_PART_NB:
+	case STM32MP157D_PART_NB:
+	case STM32MP153F_PART_NB:
+	case STM32MP153D_PART_NB:
+	case STM32MP151F_PART_NB:
+	case STM32MP151D_PART_NB:
+		id = BIT(1);
+		break;
+	default:
+		id = BIT(0);
+		break;
+	}
+
+	return opp_id & id;
+}
+
+bool stm32mp_supports_hw_cryp(void)
+{
+	uint32_t part_number = 0;
+
+	if (!IS_ENABLED(CFG_STM32_CRYP))
+		return false;
+
+	if (get_part_number(&part_number)) {
+		DMSG("Cannot get part number");
+		panic();
+	}
+
+	switch (part_number) {
+	case STM32MP135F_PART_NB:
+	case STM32MP135C_PART_NB:
+	case STM32MP133F_PART_NB:
+	case STM32MP133C_PART_NB:
+	case STM32MP131F_PART_NB:
+	case STM32MP131C_PART_NB:
+		return true;
+	case STM32MP157F_PART_NB:
+	case STM32MP157C_PART_NB:
+	case STM32MP153F_PART_NB:
+	case STM32MP153C_PART_NB:
+	case STM32MP151F_PART_NB:
+	case STM32MP151C_PART_NB:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool stm32mp_supports_second_core(void)
+{
+	uint32_t part_number = 0;
+
+	if (CFG_TEE_CORE_NB_CORE == 1)
+		return false;
+
+	if (get_part_number(&part_number)) {
+		DMSG("Cannot get part number");
+		panic();
+	}
+
+	switch (part_number) {
+	case STM32MP151F_PART_NB:
+	case STM32MP151D_PART_NB:
+	case STM32MP151C_PART_NB:
+	case STM32MP151A_PART_NB:
+		return false;
+	default:
+		return true;
+	}
+}
