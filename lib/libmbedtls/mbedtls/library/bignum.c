@@ -1843,7 +1843,12 @@ int mbedtls_mpi_exp_mod(mbedtls_mpi *X, const mbedtls_mpi *A,
                         const mbedtls_mpi *E, const mbedtls_mpi *N,
                         mbedtls_mpi *prec_RR)
 {
+#if (defined(__KERNEL__) && defined(CFG_CORE_UNSAFE_MODEXP)) || \
+    (!defined(__KERNEL__) && defined(CFG_TA_MEBDTLS_UNSAFE_MODEXP))
+    return mbedtls_mpi_exp_mod_unsafe(X, A, E, N, prec_RR);
+#else
     return mbedtls_mpi_exp_mod_optionally_safe(X, A, E, MBEDTLS_MPI_IS_SECRET, N, prec_RR);
+#endif
 }
 
 
