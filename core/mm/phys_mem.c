@@ -32,7 +32,9 @@ static tee_mm_pool_t *init_pool(paddr_t b, paddr_size_t sz, uint32_t flags)
 	if (!pool)
 		panic();
 
-	tee_mm_init(pool, b, sz, CORE_MMU_USER_CODE_SHIFT, flags);
+	if (!tee_mm_init(pool, b, sz, CORE_MMU_USER_CODE_SHIFT, flags))
+		panic();
+
 	return pool;
 }
 
