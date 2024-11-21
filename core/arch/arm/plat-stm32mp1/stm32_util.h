@@ -9,9 +9,26 @@
 #include <assert.h>
 #include <drivers/clk.h>
 #include <kernel/panic.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
+
+/* Crypto HW support */
+bool stm32mp_supports_hw_cryp(void);
+
+/*  Second core support */
+bool stm32mp_supports_second_core(void);
+
+/* Get device ID from SYSCFG registers */
+uint32_t stm32mp_syscfg_get_chip_dev_id(void);
+
+/*
+ * OPP service support per hardware constraints
+ * @opp_id: OPP support identifier read from DT property opp-hw-support
+ * Return true if hardware supports the OPP, return false otherwise
+ */
+bool stm32mp_supports_cpu_opp(uint32_t opp_id);
 
 /* Backup registers and RAM utils */
 vaddr_t stm32mp_bkpreg(unsigned int idx);
