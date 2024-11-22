@@ -118,9 +118,8 @@ static vaddr_t get_base(void)
  * Indeed, when SEIS is set and SECS is cleared it means RNG performed
  * the reset automatically (auto-reset).
  * 2. If SECS was set in step 1 (no auto-reset) wait for CONDRST
- * to be cleared in the RNG_CR register, then confirm that SEIS is
- * cleared in the RNG_SR register. Otherwise just clear SEIS bit in
- * the RNG_SR register.
+ * to be cleared in the RNG_CR register. Otherwise just clear SEIS bit
+ * in the RNG_SR register.
  * 3. If SECS was set in step 1 (no auto-reset) wait for SECS to be
  * cleared by RNG. The random number generation is now back to normal.
  */
@@ -157,10 +156,6 @@ static void conceal_seed_error_cond_reset(void)
 			/* Wait subsystem reset cycle completes */
 			return;
 		}
-
-		/* Check SEIS is cleared (step 2.) */
-		if (io_read32(rng_base + RNG_SR) & RNG_SR_SEIS)
-			panic();
 
 		/* Wait SECS is cleared (step 3.) */
 		if (io_read32(rng_base + RNG_SR) & RNG_SR_SECS) {
