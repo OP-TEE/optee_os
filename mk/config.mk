@@ -1252,3 +1252,14 @@ CFG_SEMIHOSTING ?= n
 # writes trace messages via FFA interface to the SPM (Secure Partition Manager)
 # like hafnium.
 CFG_FFA_CONSOLE ?= n
+
+# CFG_CORE_UNSAFE_MODEXP, when enabled, makes modular exponentiation on TEE
+# core use 'unsafe' algorithm having better performance. To resist against
+# timing attacks, 'safe' one is designed to take constant-time that is
+# generally much slower.
+CFG_CORE_UNSAFE_MODEXP ?= n
+
+# CFG_TA_MBEDTLS_UNSAFE_MODEXP, similar to CFG_CORE_UNSAFE_MODEXP,
+# when enabled, makes MBedTLS library for TAs use 'unsafe' modular
+# exponentiation algorithm.
+CFG_TA_MEBDTLS_UNSAFE_MODEXP ?= n
