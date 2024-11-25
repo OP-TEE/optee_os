@@ -70,6 +70,10 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vddcpu>;
+};
+
 &etzpc {
 	st,decprot =
 		<DECPROT(STM32MP1_ETZPC_ADC1_ID, DECPROT_NS_RW, DECPROT_UNLOCK)>,
@@ -379,6 +383,12 @@
 			frac = <0xAAA>;
 		};
 
+		pll1_vco_1800Mhz: pll1-vco-1800Mhz {
+			src = <CLK_PLL12_HSE>;
+			divmn = <1 74>;
+			frac = <0>;
+		};
+
 		pll1_vco_1300Mhz: pll1-vco-1300Mhz {
 			src = <CLK_PLL12_HSE>;
 			divmn = <2 80>;
@@ -417,6 +427,11 @@
 
 		pll1_cfg2: pll1_cfg2 {
 			st,pll_vco = <&pll1_vco_2000Mhz>;
+			st,pll_div_pqr = <0 1 1>;
+		};
+
+		pll1_cfg3: pll1_cfg3 {
+			st,pll_vco = <&pll1_vco_1800Mhz>;
 			st,pll_div_pqr = <0 1 1>;
 		};
 	};
@@ -462,7 +477,6 @@
 	st,clk_opp {
 		/* CK_MPU clock config for MP13 */
 		st,ck_mpu {
-
 			cfg_1 {
 				hz = <650000000>;
 				st,clksrc = <CLK_MPU_PLL1P>;
@@ -473,6 +487,12 @@
 				hz = <1000000000>;
 				st,clksrc = <CLK_MPU_PLL1P>;
 				st,pll = <&pll1_cfg2>;
+			};
+
+			cfg_3 {
+				hz = <900000000>;
+				st,clksrc = <CLK_MPU_PLL1P>;
+				st,pll = <&pll1_cfg3>;
 			};
 		};
 	};
