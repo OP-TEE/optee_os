@@ -408,4 +408,104 @@ int32_t plat_scmi_voltd_get_config(unsigned int channel_id,
 int32_t plat_scmi_voltd_set_config(unsigned int channel_id,
 				   unsigned int scmi_id, uint32_t config);
 
+/* Handlers for SCMI Performance Domain Management protocol services */
+
+/*
+ * Return number of performance domains for the channel
+ * @channel_id: SCMI channel ID
+ * Return number of performance domains for the channel
+ */
+size_t plat_scmi_perf_count(unsigned int channel_id);
+
+/*
+ * Return statistics on performance domains for the channel
+ * @channel_id: SCMI channel ID
+ * @stats_len: Output byte size of the statistics buffer or zero
+ * Return pointer to SCMI server statistics buffer for the channel or NULL
+ */
+void *plat_scmi_perf_statistics_buf(unsigned int channel_id, size_t *stats_len);
+
+/*
+ * Get performance domain string ID (aka name)
+ * @channel_id: SCMI channel ID
+ * @domain_id: SCMI performance domain ID
+ * Return pointer to name or NULL
+ */
+const char *plat_scmi_perf_domain_name(unsigned int channel_id,
+				       unsigned int domain_id);
+
+/*
+ * Get performance domain sustained frequency
+ * @channel_id: SCMI channel ID
+ * @domain_id: SCMI performance domain ID
+ * @freq: Frequency value in KHz
+ * Return an SCMI compliant error code
+ */
+int32_t plat_scmi_perf_sustained_freq(unsigned int channel_id,
+				      unsigned int domain_id,
+				      unsigned int *freq);
+
+/*
+ * Get performance domain possible levels as an array of unsigned int
+ *
+ * @channel_id: SCMI channel ID
+ * @domain_id: SCMI performance domain ID
+ * @start_index: Level index to start from
+ * @elt: If NULL, function returns, else output level array
+ * @nb_elts: Array size of @levels
+ * Return an SCMI compliant error code
+ */
+int32_t plat_scmi_perf_levels_array(unsigned int channel_id,
+				    unsigned int domain_id, size_t start_index,
+				    unsigned int *elt, size_t *nb_elts);
+
+/*
+ * Get latency is microseconds for transition to target performance level.
+ * A default (weak) implementation output cost value of 0.
+ *
+ * @channel_id: SCMI channel ID
+ * @domain_id: SCMI performance domain ID
+ * @level: Target performance level
+ * @latency: Output latency value (microsecond) for the target level
+ * Return a compliant SCMI error code
+ */
+int32_t plat_scmi_perf_level_latency(unsigned int channel_id,
+				     unsigned int domain_id,
+				     unsigned int level,
+				     unsigned int *latency);
+
+/*
+ * Get power cost value related to target performance level.
+ * A default (weak) implementation output latency of 0.
+ *
+ * @channel_id: SCMI channel ID
+ * @domain_id: SCMI performance domain ID
+ * @level: Target performance level
+ * @power_cost: Output power cost for the performance level
+ * Return a compliant SCMI error code
+ */
+int32_t plat_scmi_perf_level_power_cost(unsigned int channel_id,
+					unsigned int domain_id,
+					unsigned int level,
+					unsigned int *power_cost);
+
+/*
+ * Get current performance level of the domain
+ * @channel_id: SCMI channel ID
+ * @domain_id: SCMI performance domain ID
+ * @level: Output performance level
+ * Return a compliant SCMI error code
+ */
+int32_t plat_scmi_perf_level_get(unsigned int channel_id,
+				 unsigned int domain_id, unsigned int *level);
+
+/*
+ * Request change of performance level for the domain
+ * @channel_id: SCMI channel ID
+ * @domain_id: SCMI performance domain ID
+ * @level: Target performance level
+ * Return a compliant SCMI error code
+ */
+int32_t plat_scmi_perf_level_set(unsigned int channel_id,
+				 unsigned int domain_id, unsigned int level);
 #endif /* __DRIVERS_SCMI_MSG_H */
