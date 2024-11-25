@@ -26,6 +26,8 @@
 			clocks = <&rcc CK_MPU>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
+			nvmem-cells = <&part_number_otp>;
+			nvmem-cell-names = "part_number";
 		};
 	};
 
@@ -36,6 +38,7 @@
 		opp-650000000 {
 			opp-hz = /bits/ 64 <650000000>;
 			opp-microvolt = <1250000>;
+			opp-supported-hw = <0x3>;
 			st,opp-default;
 		};
 
@@ -43,6 +46,7 @@
 		opp-900000000 {
 			opp-hz = /bits/ 64 <900000000>;
 			opp-microvolt = <1350000>;
+			opp-supported-hw = <0x2>;
 			st,opp-default;
 		};
 
@@ -50,6 +54,7 @@
 		opp-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <1350000>;
+			opp-supported-hw = <0x2>;
 		};
 	};
 
