@@ -141,7 +141,7 @@
  * optee_msg_arg has reserved space for the number of RPC parameters as
  * returned by OPTEE_SMC_EXCHANGE_CAPABILITIES.
  *
- * When calling these functions normal world has a few responsibilities:
+ * When calling these functions, normal world has a few responsibilities:
  * 1. It must be able to handle eventual RPCs
  * 2. Non-secure interrupts should not be masked
  * 3. If asynchronous notifications has been negotiated successfully, then
@@ -217,7 +217,7 @@
  * Have config return register usage:
  * a0	OPTEE_SMC_RETURN_OK
  * a1	Physical address of start of SHM
- * a2	Size of of SHM
+ * a2	Size of SHM
  * a3	Cache settings of memory, as defined by the
  *	OPTEE_SMC_SHM_* values above
  * a4-7	Preserved
@@ -290,7 +290,7 @@
  *		  as the second MSG arg struct for
  *		  OPTEE_SMC_CALL_WITH_ARG
  *	Bit[31:8]: Reserved (MBZ)
- * a3-7	Preserved
+ * a4-7	Preserved
  *
  * Error return register usage:
  * a0	OPTEE_SMC_RETURN_ENOTAVAIL, can't use the capabilities from normal world
@@ -532,7 +532,7 @@
  * a0	OPTEE_SMC_RETURN_OK
  * a1	value
  * a2	Bit[0]: OPTEE_SMC_ASYNC_NOTIF_VALUE_VALID if the value in a1 is
- *		valid, else 0 if no values were pending
+ *		valid, else 0 if no values where pending
  * a2	Bit[1]: OPTEE_SMC_ASYNC_NOTIF_VALUE_PENDING if another value is
  *		pending, else 0.
  *	Bit[31:2]: MBZ
