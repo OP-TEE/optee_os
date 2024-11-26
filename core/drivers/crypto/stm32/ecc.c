@@ -9,8 +9,8 @@
 #include <string.h>
 #include <tee_api_types.h>
 
-#include "stm32_pka.h"
 #include "common.h"
+#include "stm32_pka.h"
 
 static TEE_Result algo_to_pka_cid(uint32_t algo,
 				  enum stm32_pka_curve_id *cid)
@@ -77,7 +77,7 @@ static TEE_Result stm32_gen_keypair(struct ecc_keypair *key, size_t size_bits)
 	if (!key)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	DMSG("Using PKA");
+	FMSG("Using PKA");
 	res = curve_to_pka_cid(key->curve, &cid);
 	if (res)
 		return res;
@@ -279,7 +279,7 @@ static TEE_Result stm32_verify(struct drvcrypt_sign_data *sdata)
 	if (!sdata)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	DMSG("Using PKA");
+	FMSG("Using PKA");
 	return verify(sdata->algo,
 		      sdata->key,
 		      sdata->message.data,
@@ -299,7 +299,7 @@ static TEE_Result stm32_alloc_keypair(struct ecc_keypair *s, uint32_t type,
 	    type != TEE_TYPE_ECDH_KEYPAIR)
 		return TEE_ERROR_NOT_IMPLEMENTED;
 
-	DMSG("Using PKA");
+	FMSG("Using PKA");
 	memset(s, 0, sizeof(*s));
 
 	s->d = crypto_bignum_allocate(PKA_MAX_ECC_LEN);
@@ -417,7 +417,7 @@ static TEE_Result shared_secret(struct ecc_keypair *private_key,
 	pk.y.val = calloc(1, pk.y.size);
 	if (!pk.y.val) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto free_pk_x_val;
+		goto out;
 	}
 
 	crypto_bignum_bn2bin(public_key->y, pk.y.val);
@@ -426,7 +426,7 @@ static TEE_Result shared_secret(struct ecc_keypair *private_key,
 	d.val = calloc(1, d.size);
 	if (!d.val) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto free_pk_y_val;
+		goto out;
 	}
 
 	crypto_bignum_bn2bin(private_key->d, d.val);
@@ -436,14 +436,14 @@ static TEE_Result shared_secret(struct ecc_keypair *private_key,
 	result.x.val = calloc(1, result.x.size);
 	if (!result.x.val) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto free_d_val;
+		goto out;
 	}
 
 	result.y.size = bytes;
 	result.y.val = calloc(1, result.y.size);
 	if (!result.y.val) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto free_result_x_val;
+		goto out;
 	}
 
 	/*
@@ -467,13 +467,9 @@ static TEE_Result shared_secret(struct ecc_keypair *private_key,
 	*secret_len = result.x.size;
 out:
 	free(result.y.val);
-free_result_x_val:
 	free(result.x.val);
-free_d_val:
 	free(d.val);
-free_pk_y_val:
 	free(pk.y.val);
-free_pk_x_val:
 	free(pk.x.val);
 
 	return res;
@@ -484,7 +480,7 @@ static TEE_Result stm32_shared_secret(struct drvcrypt_secret_data *sdata)
 	if (!sdata)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	DMSG("Using PKA");
+	FMSG("Using PKA");
 	return shared_secret(sdata->key_priv,
 			     sdata->key_pub,
 			     sdata->secret.data,

@@ -29,7 +29,7 @@
  *  _nbw are in number of PKA_word (PKA_word = u64)
  */
 
-#define INT8_LEN			8U
+#define INT8_LEN			U(8)
 #define INT64_LEN			(INT8_LEN * sizeof(uint64_t))
 #define WORD_SIZE			(sizeof(uint64_t))
 #define OP_NBW_FROM_LEN(len)		(ROUNDUP_DIV(len, INT64_LEN) + 1)
@@ -47,13 +47,13 @@
 
 /* PKA control register fields */
 #define _PKA_CR_MODE_MASK		GENMASK_32(13, 8)
-#define _PKA_CR_MODE_SHIFT		U(8)
-#define _PKA_CR_MODE_ADD		U(0x9)
 #define _PKA_CR_MODE_R2MODN		U(0x01)
-#define _PKA_CR_MODE_POINT_CHECK	U(0x28)
+#define _PKA_CR_MODE_SHIFT		U(0x08)
+#define _PKA_CR_MODE_ADD		U(0x09)
 #define _PKA_CR_MODE_ECC_KP		U(0x20)
 #define _PKA_CR_MODE_ECDSA_SIGN		U(0x24)
 #define _PKA_CR_MODE_ECDSA_VERIF	U(0x26)
+#define _PKA_CR_MODE_POINT_CHECK	U(0x28)
 #define _PKA_CR_START			BIT(1)
 #define _PKA_CR_EN			BIT(0)
 
@@ -163,12 +163,12 @@
 #define PKA_RESET_DELAY			U(20)
 
 enum pka_op {
-	sign,
-	verif,
-	scalar_mul,
-	on_curve,
+	SIGN,
+	VERIF,
+	SCALAR_MUL,
+	ON_CURVE,
 
-	pka_op_last
+	PKA_OP_LAST
 };
 
 enum pka_ram_index {
@@ -185,8 +185,8 @@ enum pka_ram_index {
 	PKA_RAM_INDEX_LAST
 };
 
-static uint32_t pka_ram[pka_op_last][PKA_RAM_INDEX_LAST] = {
-	[sign] = {
+static const uint32_t pka_ram[PKA_OP_LAST][PKA_RAM_INDEX_LAST] = {
+	[SIGN] = {
 		[N_LEN]    = _PKA_RAM_SIGN_N_LEN,
 		[P_LEN]    = _PKA_RAM_SIGN_P_LEN,
 		[A_SIGN]   = _PKA_RAM_SIGN_A_SIGN,
@@ -197,18 +197,18 @@ static uint32_t pka_ram[pka_op_last][PKA_RAM_INDEX_LAST] = {
 		[GPOINT_X] = _PKA_RAM_SIGN_XG,
 		[GPOINT_Y] = _PKA_RAM_SIGN_YG
 	},
-	[verif] = {
+	[VERIF] = {
 		[N_LEN]    = _PKA_RAM_VERIF_N_LEN,
 		[P_LEN]    = _PKA_RAM_VERIF_P_LEN,
 		[A_SIGN]   = _PKA_RAM_VERIF_A_SIGN,
 		[COEFF_A]  = _PKA_RAM_VERIF_A,
-		[COEFF_B]  = 0U,
+		[COEFF_B]  = 0,
 		[PRIME_N]  = _PKA_RAM_VERIF_PRIME_N,
 		[VAL_P]    = _PKA_RAM_VERIF_P,
 		[GPOINT_X] = _PKA_RAM_VERIF_XG,
 		[GPOINT_Y] = _PKA_RAM_VERIF_YG
 	},
-	[scalar_mul] = {
+	[SCALAR_MUL] = {
 		[N_LEN]    = _PKA_RAM_KP_N_LEN,
 		[P_LEN]    = _PKA_RAM_KP_P_LEN,
 		[A_SIGN]   = _PKA_RAM_KP_A_SIGN,
@@ -219,7 +219,7 @@ static uint32_t pka_ram[pka_op_last][PKA_RAM_INDEX_LAST] = {
 		[GPOINT_X] = 0,
 		[GPOINT_Y] = 0,
 	},
-	[on_curve] = {
+	[ON_CURVE] = {
 		[N_LEN]    = _PKA_RAM_ONCURVE_N_LEN,
 		[P_LEN]    = 0,
 		[A_SIGN]   = _PKA_RAM_ONCURVE_A_SIGN,
@@ -232,15 +232,26 @@ static uint32_t pka_ram[pka_op_last][PKA_RAM_INDEX_LAST] = {
 	},
 };
 
+/* struct curve_parameters - EC curve parameneters for PKA
+ * @a_sign: Sign of coefficient A: 0 positive, 1 negative
+ * @a: Curve coefficient |a|
+ * @b: Curve coefficient b
+ * @p: Curve modulus value
+ * @p_len: Modulus bit len
+ * @g: Curve base G point
+ * @n: Curve prime order n
+ * @n_len: Curve prime order bit size
+ */
+
 struct curve_parameters {
-	uint32_t a_sign;          /* 0 positive, 1 negative */
-	struct stm32_pka_bn a;    /* Curve coefficient |a| */
-	struct stm32_pka_bn b;    /* Curve coefficient b */
-	struct stm32_pka_bn p;    /* Curve modulus value */
-	uint32_t p_len;           /* We also need the p len in bits */
-	struct stm32_pka_point g; /* Curve base G point */
-	struct stm32_pka_bn n;    /* Curve prime order n */
-	uint32_t n_len;           /* We also need the n len in bits */
+	uint32_t a_sign;
+	struct stm32_pka_bn a;
+	struct stm32_pka_bn b;
+	struct stm32_pka_bn p;
+	uint32_t p_len;
+	struct stm32_pka_point g;
+	struct stm32_pka_bn n;
+	uint32_t n_len;
 };
 
 static const struct curve_parameters curve_def[] = {
@@ -606,16 +617,14 @@ static struct stm32_pka_platdata {
 
 static struct mutex pka_lock = MUTEX_INITIALIZER;
 
-static TEE_Result pka_wait_bit(const vaddr_t base, const uint32_t bit)
+static TEE_Result pka_wait_bit(const vaddr_t base, const uint32_t bit_mask)
 {
-	uint64_t timeout = timeout_init_us(PKA_TIMEOUT_US);
+	int32_t value = 0;
 
-	while ((io_read32(base + _PKA_SR) & bit) != bit)
-		if (timeout_elapsed(timeout))
-			break;
-
-	if ((io_read32(base + _PKA_SR) & bit) != bit) {
-		DMSG("timeout waiting 0x%"PRIx32, bit);
+	if (IO_READ32_POLL_TIMEOUT(base + _PKA_SR, value,
+				   (value & bit_mask) == bit_mask, 0,
+				   PKA_TIMEOUT_US)) {
+		DMSG("timeout waiting 0x%"PRIx32, bit_mask);
 		return TEE_ERROR_BUSY;
 	}
 
@@ -631,7 +640,7 @@ static TEE_Result pka_enable(const vaddr_t base, const uint32_t mode)
 {
 	/* Set mode and disable interrupts */
 	io_clrsetbits32(base + _PKA_CR, _PKA_IT_MASK | _PKA_CR_MODE_MASK,
-			_PKA_CR_MODE_MASK & (mode << _PKA_CR_MODE_SHIFT));
+			SHIFT_U32(mode, _PKA_CR_MODE_SHIFT));
 
 	io_setbits32(base + _PKA_CR, _PKA_CR_EN);
 
@@ -652,24 +661,23 @@ static TEE_Result stm32_pka_process(const vaddr_t base)
 
 /**
  * @brief  Read ECC operand from PKA RAM.
- * @note  PKA expects to read u64 word, each u64 are: the least significant bit
- *        is bit 0; the most significant bit is bit 63.
- *        We read eo_nbw (ECC operand Size) u64, value that depends on the
- *        chosen prime modulus length in bits.
+ * @note  PKA read u64 words, for each u64 LSB is bit 0, MSB is bit 63.
+ *        We read @eo_nbw (ECC operand Size) u64. The value of @eo_nbw depends
+ *        on the chosen prime modulus length in bits.
  *        First less significant u64 is read from low address.
  *        Most significant u64 from higher address.
- *        And at last address we expect to read a u64(0x0).
- * @note This function doesn't only manage endianness (as bswap64 do), but also
- *       complete most significant incomplete u64 with 0 (if data is not a u64
- *       multiple), and check last u64 is 0.
- * @param addr: PKA_RAM address to read from to the buffer 'data'.
+ *        Last u64 is expect to be equal to 0x0.
+ * @note This function manage endianness (as bswap64 do) and also padding
+ *       incomplete u64 with 0 (if data is not a u64 multiple).
+ * @param addr: PKA_RAM address to read from to the buffer @data.
  * @param data[out]: will be a BYTE list with most significant bytes first.
- * @param data_size[in/out]: [in]data size,
- *                           [out]]nb of bytes in data.
+ * @param data_size[in/out]: [in] @data size,
+ *                           [out] nb of bytes in data.
  * @param eo_nbw: is ECC Operand size in 64bits word (including the extra 0)
  *                (note it depends on the prime modulus length, not the data
  *                size).
  * @retval TEE_SUCCESS if OK.
+ *         TEE_ERROR_SECURITY if the last u64 word is not 0.
  *         TEE_ERROR_BAD_PARAMETERS if data_size and eo_nbw are inconsistent,
  *         i.e. data doesn't fit in defined eo_nbw, or eo_nbw bigger than
  *         hardware limit, or if [in]data_size is too small to get the data.
@@ -686,8 +694,8 @@ static TEE_Result read_eo_data(const vaddr_t addr, uint8_t *data,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* Fill value */
-	for (word_index = 0U; word_index < eo_nbw - 1; word_index++) {
-		unsigned int i = 0U; /* Index in the tmp U64 word */
+	for (word_index = U(0); word_index < eo_nbw - 1; word_index++) {
+		unsigned int i = U(0); /* Index in the tmp U64 word */
 
 		tmp = io_read64(addr + word_index * sizeof(tmp));
 
@@ -741,13 +749,14 @@ static TEE_Result write_eo_data(const vaddr_t addr, const uint8_t *data,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* Fill value */
-	for (word_index = 0U; word_index < eo_nbw; word_index++) {
-		uint64_t tmp = 0ULL;
-		unsigned int i = 0U; /* Index in the tmp U64 word */
+	for (word_index = U(0); word_index < eo_nbw; word_index++) {
+		uint64_t tmp = ULL(0);
+		/* Index in the tmp U64 word */
+		unsigned int i = U(0);
 
 		/* Stop if end of tmp or end of data */
 		while ((i < sizeof(tmp)) && (data_index >= 0)) {
-			tmp |= (uint64_t)(data[data_index]) << (INT8_LEN * i);
+			tmp |= SHIFT_U64(data[data_index], (INT8_LEN * i));
 			i++; /* Move byte index in current (u64)tmp */
 			data_index--; /* Move to next most significant byte */
 		}
@@ -766,7 +775,8 @@ static unsigned int get_ecc_op_nbword(const enum stm32_pka_curve_id cid)
 	return OP_NBW_FROM_LEN(curve_def[cid].n_len);
 }
 
-static TEE_Result stm32_pka_configure_curve(const vaddr_t base, const int op,
+static TEE_Result stm32_pka_configure_curve(const vaddr_t base,
+					    const enum pka_op op,
 					    const enum stm32_pka_curve_id cid)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -831,13 +841,12 @@ static TEE_Result stm32_pka_configure_curve(const vaddr_t base, const int op,
  */
 static bool is_zero(const struct stm32_pka_bn *d)
 {
-	unsigned int i = 0U;
+	unsigned int i = U(0);
 
-	if (!d)
-		return true;
+	assert(d);
 
-	for (i = 0U; i < d->size; i++)
-		if (d->val[i] != 0U)
+	for (i = U(0); i < d->size; i++)
+		if (d->val[i] != U(0))
 			return false;
 
 	return true;
@@ -855,18 +864,14 @@ static bool is_smaller(const struct stm32_pka_bn *a,
 	unsigned int i = MAX(a->size, b->size) + 1;
 
 	do {
-		uint8_t _a = 0;
-		uint8_t _b = 0;
+		uint8_t _a = U(0);
+		uint8_t _b = U(0);
 
 		i--;
-		if (a->size < i)
-			_a = 0U;
-		else
+		if (a->size >= i)
 			_a = a->val[a->size - i];
 
-		if (b->size < i)
-			_b = 0U;
-		else
+		if (b->size >= i)
 			_b = b->val[b->size - i];
 
 		if (_a < _b)
@@ -875,7 +880,7 @@ static bool is_smaller(const struct stm32_pka_bn *a,
 		if (_a > _b)
 			return false;
 
-	} while (i != 1U);
+	} while (i != U(1));
 
 	return false;
 }
@@ -903,7 +908,7 @@ static TEE_Result stm32_pka_compute_r2modn_ret(const vaddr_t base,
 
 	sr = io_read32(base + _PKA_SR);
 	if ((sr & (_PKA_IT_OPERR | _PKA_IT_ADDRERR | _PKA_IT_RAMERR)) != 0) {
-		IMSG("Detected error(s): %s%s%s",
+		EMSG("Detected error(s): %s%s%s",
 		     (sr & _PKA_IT_OPERR) ? "Operation " : "",
 		     (sr & _PKA_IT_ADDRERR) ? "Address " : "",
 		     (sr & _PKA_IT_RAMERR) ? "RAM" : "");
@@ -928,7 +933,7 @@ TEE_Result stm32_pka_compute_montgomery(const struct stm32_pka_bn *n,
 	mutex_lock(pka_pdata.lock);
 
 	if ((io_read32(base + _PKA_SR) & _PKA_SR_BUSY) == _PKA_SR_BUSY) {
-		FMSG("busy");
+		EMSG("PKA is busy");
 		res = TEE_ERROR_BUSY;
 		goto out;
 	}
@@ -946,14 +951,14 @@ TEE_Result stm32_pka_compute_montgomery(const struct stm32_pka_bn *n,
 	/* Set mode to Montgomery parameter computation */
 	res = pka_enable(base, _PKA_CR_MODE_R2MODN);
 	if (res) {
-		IMSG("Set mode pka error %"PRIx32, res);
+		EMSG("Set mode pka error %"PRIx32, res);
 		goto out;
 	}
 
 	/* Start processing and wait end */
 	res = stm32_pka_process(base);
 	if (res) {
-		IMSG("process error %"PRIx32, res);
+		EMSG("process error %"PRIx32, res);
 		goto out;
 	}
 
@@ -1004,7 +1009,7 @@ static TEE_Result stm32_pka_is_point_on_curve_ret(const vaddr_t base)
 
 	sr = io_read32(base + _PKA_SR);
 	if ((sr & (_PKA_IT_OPERR | _PKA_IT_ADDRERR | _PKA_IT_RAMERR)) != 0) {
-		IMSG("Detected error(s): %s%s%s",
+		EMSG("Detected error(s): %s%s%s",
 		     (sr & _PKA_IT_OPERR) ? "Operation " : "",
 		     (sr & _PKA_IT_ADDRERR) ? "Address " : "",
 		     (sr & _PKA_IT_RAMERR) ? "RAM" : "");
@@ -1033,19 +1038,19 @@ TEE_Result stm32_pka_is_point_on_curve(const struct stm32_pka_point *p,
 
 	res = stm32_pka_is_point_on_param(p, cid);
 	if (res) {
-		FMSG("check param error %"PRIx32, res);
+		EMSG("check param error %"PRIx32, res);
 		goto out;
 	}
 
 	if ((io_read32(base + _PKA_SR) & _PKA_SR_BUSY) == _PKA_SR_BUSY) {
-		FMSG("busy");
+		EMSG("PKA is busy");
 		res = TEE_ERROR_BUSY;
 		goto out;
 	}
 
 	/* Fill PKA RAM */
 	/*    With curve id values */
-	res = stm32_pka_configure_curve(base, on_curve, cid);
+	res = stm32_pka_configure_curve(base, ON_CURVE, cid);
 	if (res)
 		goto out;
 
@@ -1115,14 +1120,14 @@ static TEE_Result stm32_pka_ecdsa_verif_param(const struct stm32_pka_bn *sig_r,
 
 	/* Signature check */
 	/* Check 0 < r < n */
-	if (!is_smaller(sig_r, &curve_def[cid].n) && is_zero(sig_r)) {
-		EMSG("0 < r < n inval");
+	if (!is_smaller(sig_r, &curve_def[cid].n) || is_zero(sig_r)) {
+		EMSG("0 < r < n invalid");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	/* Check 0 < s < n */
-	if (!is_smaller(sig_s, &curve_def[cid].n) && is_zero(sig_s)) {
-		EMSG("0 < s < n inval");
+	if (!is_smaller(sig_s, &curve_def[cid].n) || is_zero(sig_s)) {
+		EMSG("0 < s < n invalid");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -1136,7 +1141,7 @@ static TEE_Result stm32_pka_ecdsa_verif_ret(const vaddr_t base)
 
 	sr = io_read32(base + _PKA_SR);
 	if ((sr & (_PKA_IT_OPERR | _PKA_IT_ADDRERR | _PKA_IT_RAMERR)) != 0) {
-		IMSG("Detected error(s): %s%s%s",
+		EMSG("Detected error(s): %s%s%s",
 		     (sr & _PKA_IT_OPERR) ? "Operation " : "",
 		     (sr & _PKA_IT_ADDRERR) ? "Address " : "",
 		     (sr & _PKA_IT_RAMERR) ? "RAM" : "");
@@ -1171,19 +1176,19 @@ TEE_Result stm32_pka_ecdsa_verif(const void *hash, unsigned int hash_size,
 
 	res = stm32_pka_ecdsa_verif_param(sig_r, sig_s, pk, cid);
 	if (res) {
-		FMSG("check param error %"PRIx32, res);
+		EMSG("check param error %"PRIx32, res);
 		goto out;
 	}
 
 	if ((io_read32(base + _PKA_SR) & _PKA_SR_BUSY) == _PKA_SR_BUSY) {
-		FMSG("busy");
+		EMSG("PKA is busy");
 		res = TEE_ERROR_BUSY;
 		goto out;
 	}
 
 	/* Fill PKA RAM */
 	/*    With curve id values */
-	res = stm32_pka_configure_curve(base, verif, cid);
+	res = stm32_pka_configure_curve(base, VERIF, cid);
 	if (res)
 		goto out;
 
@@ -1273,7 +1278,7 @@ static TEE_Result stm32_pka_ecdsa_sign_ret(const vaddr_t base,
 
 	sr = io_read32(base + _PKA_SR);
 	if ((sr & (_PKA_IT_OPERR | _PKA_IT_ADDRERR | _PKA_IT_RAMERR)) != 0) {
-		IMSG("Detected error(s): %s%s%s",
+		EMSG("Detected error(s): %s%s%s",
 		     (sr & _PKA_IT_OPERR) ? "Operation " : "",
 		     (sr & _PKA_IT_ADDRERR) ? "Address " : "",
 		     (sr & _PKA_IT_RAMERR) ? "RAM" : "");
@@ -1330,19 +1335,19 @@ TEE_Result stm32_pka_ecdsa_sign(const void *hash, unsigned int hash_size,
 
 	res = stm32_pka_ecdsa_sign_param(k);
 	if (res) {
-		FMSG("check param error %"PRIx32, res);
+		EMSG("check param error %"PRIx32, res);
 		goto out;
 	}
 
 	if ((io_read32(base + _PKA_SR) & _PKA_SR_BUSY) == _PKA_SR_BUSY) {
-		FMSG("busy");
+		EMSG("PKA is busy");
 		res = TEE_ERROR_BUSY;
 		goto out;
 	}
 
 	/* Fill PKA RAM */
 	/*    With curve id values */
-	res = stm32_pka_configure_curve(base, sign, cid);
+	res = stm32_pka_configure_curve(base, SIGN, cid);
 	if (res)
 		goto out;
 
@@ -1431,7 +1436,7 @@ static TEE_Result stm32_pka_ecc_kp_ret(const vaddr_t base,
 
 	sr = io_read32(base + _PKA_SR);
 	if ((sr & (_PKA_IT_OPERR | _PKA_IT_ADDRERR | _PKA_IT_RAMERR)) != 0) {
-		IMSG("Detected error(s): %s%s%s",
+		EMSG("Detected error(s): %s%s%s",
 		     (sr & _PKA_IT_OPERR) ? "Operation " : "",
 		     (sr & _PKA_IT_ADDRERR) ? "Address " : "",
 		     (sr & _PKA_IT_RAMERR) ? "RAM" : "");
@@ -1469,19 +1474,19 @@ TEE_Result stm32_pka_ecc_scalar_mul(const struct stm32_pka_bn *k,
 
 	res = stm32_pka_ecc_sc_mul_param(k, p, cid);
 	if (res) {
-		FMSG("check param error %"PRIx32, res);
+		EMSG("check param error %"PRIx32, res);
 		goto out;
 	}
 
 	if ((io_read32(base + _PKA_SR) & _PKA_SR_BUSY) == _PKA_SR_BUSY) {
-		FMSG("busy");
+		EMSG("PKA is busy");
 		res = TEE_ERROR_BUSY;
 		goto out;
 	}
 
 	/* Fill PKA RAM */
 	/*    With curve id values */
-	res = stm32_pka_configure_curve(base, scalar_mul, cid);
+	res = stm32_pka_configure_curve(base, SCALAR_MUL, cid);
 	if (res)
 		goto out;
 

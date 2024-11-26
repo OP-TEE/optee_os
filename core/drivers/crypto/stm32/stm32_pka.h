@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2021, STMicroelectronics - All Rights Reserved
+ * Copyright (c) 2021-2024, STMicroelectronics - All Rights Reserved
  */
 
 #ifndef STM32_PKA_H
