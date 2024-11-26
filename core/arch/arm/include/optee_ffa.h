@@ -87,7 +87,7 @@
  * w7:	  Not used (MBZ)
  */
 /*
- * Secure world supports using an offset into the argument shared memory
+ * Secure world supports giving an offset into the argument shared memory
  * object, see also OPTEE_FFA_YIELDING_CALL_WITH_ARG
  */
 #define OPTEE_FFA_SEC_CAP_ARG_OFFSET	BIT(0)
@@ -114,7 +114,7 @@
 #define OPTEE_FFA_UNREGISTER_SHM	OPTEE_FFA_BLOCKING_CALL(3)
 
 /*
- * Inform OP-TEE that normal world is able to receive asynchronous
+ * Inform OP-TEE that the normal world is able to receive asynchronous
  * notifications.
  *
  * Call register usage:
