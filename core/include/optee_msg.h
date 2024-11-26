@@ -10,8 +10,12 @@
 #include <util.h>
 
 /*
- * This file defines the OP-TEE message protocol used to communicate
+ * This file defines the OP-TEE message protocol (ABI) used to communicate
  * with an instance of OP-TEE running in secure world.
+ *
+ * This file is divided into two sections.
+ * 1. Formatting of messages.
+ * 2. Requests from normal world
  */
 
 /*****************************************************************************
@@ -165,9 +169,10 @@ struct optee_msg_param_value {
  * @rmem:	parameter by registered memory reference
  * @fmem:	parameter by FF-A registered memory reference
  * @value:	parameter by opaque value
+ * @octets:	parameter by octet string
  *
  * @attr & OPTEE_MSG_ATTR_TYPE_MASK indicates if tmem, rmem or value is used in
- * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value,
+ * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value or octets,
  * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates @tmem and
  * OPTEE_MSG_ATTR_TYPE_RMEM_* or the alias PTEE_MSG_ATTR_TYPE_FMEM_* indicates
  * @rmem or @fmem depending on the conduit.
@@ -180,6 +185,7 @@ struct optee_msg_param {
 		struct optee_msg_param_rmem rmem;
 		struct optee_msg_param_fmem fmem;
 		struct optee_msg_param_value value;
+		uint8_t octets[24];
 	} u;
 };
 
@@ -318,7 +324,7 @@ struct optee_msg_arg {
  * [in] param[0].u.tmem.size		size (of first fragment)
  * [in] param[0].u.tmem.shm_ref		holds shared memory reference
  *
- * OPTEE_MSG_CMD_UNREGISTER_SHM unregisteres a previously registered shared
+ * OPTEE_MSG_CMD_UNREGISTER_SHM unregisters a previously registered shared
  * memory reference. The information is passed as:
  * [in] param[0].attr			OPTEE_MSG_ATTR_TYPE_RMEM_INPUT
  * [in] param[0].u.rmem.shm_ref		holds shared memory reference
