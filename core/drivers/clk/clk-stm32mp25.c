@@ -6,12 +6,15 @@
 #include <assert.h>
 #include <config.h>
 #include <drivers/clk_dt.h>
+#include <drivers/stm32_rif.h>
 #include <drivers/stm32_shared_io.h>
 #include <drivers/stm32mp25_rcc.h>
 #include <drivers/stm32mp_dt_bindings.h>
+#include <initcall.h>
 #include <io.h>
 #include <kernel/dt.h>
 #include <kernel/panic.h>
+#include <kernel/pm.h>
 #include <libfdt.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -23,6 +26,12 @@
 #include "clk-stm32-core.h"
 
 #define MAX_OPP			CFG_STM32MP_OPP_COUNT
+
+#define RCC_SECCFGR(x)		(U(0x0) + U(0x4) * (x))
+#define RCC_PRIVCFGR(x)		(U(0x10) + U(0x4) * (x))
+#define RCC_RCFGLOCKR(x)	(U(0x20) + U(0x4) * (x))
+#define RCC_CIDCFGR(x)		(U(0x030) + U(0x08) * (x))
+#define RCC_SEMCR(x)		(U(0x034) + U(0x08) * (x))
 
 #define TIMEOUT_US_100MS	U(100000)
 #define TIMEOUT_US_200MS	U(200000)
@@ -54,6 +63,25 @@
 #define RCC_0_MHZ	UL(0)
 #define RCC_4_MHZ	UL(4000000)
 #define RCC_16_MHZ	UL(16000000)
+
+/* CIDCFGR register bitfields */
+#define RCC_CIDCFGR_SEMWL_MASK		GENMASK_32(23, 16)
+#define RCC_CIDCFGR_SCID_MASK		GENMASK_32(6, 4)
+#define RCC_CIDCFGR_CONF_MASK		(_CIDCFGR_CFEN |	\
+					 _CIDCFGR_SEMEN |	\
+					 RCC_CIDCFGR_SCID_MASK |\
+					 RCC_CIDCFGR_SEMWL_MASK)
+
+/* SECCFGR register bitfields */
+#define RCC_SECCFGR_EN			BIT(0)
+
+/* SEMCR register bitfields */
+#define RCC_SEMCR_SCID_MASK		GENMASK_32(6, 4)
+#define RCC_SEMCR_SCID_SHIFT		U(4)
+
+/* RIF miscellaneous */
+#define RCC_NB_RIF_RES			U(114)
+#define RCC_NB_CONFS			ROUNDUP_DIV(RCC_NB_RIF_RES, 32)
 
 enum pll_cfg {
 	FBDIV,
@@ -104,6 +132,8 @@ struct stm32_clk_platdata {
 	uint32_t npll;
 	struct stm32_pll_dt_cfg *pll;
 	struct stm32_clk_opp_dt_cfg *opp;
+	struct rif_conf_data conf_data;
+	unsigned int nb_res;
 	uint32_t nbusclk;
 	uint32_t *busclk;
 	uint32_t nkernelclk;
@@ -1198,6 +1228,9 @@ static int stm32_clk_parse_fdt_all_opp(const void *fdt, int node,
 static int stm32_clk_parse_fdt(const void *fdt, int node,
 			       struct stm32_clk_platdata *pdata)
 {
+	const fdt32_t *cuint = NULL;
+	unsigned int i = 0;
+	int lenp = 0;
 	int err = 0;
 
 	err = stm32_clk_parse_fdt_all_oscillator(fdt, node, pdata);
@@ -1236,6 +1269,33 @@ static int stm32_clk_parse_fdt(const void *fdt, int node,
 		pdata->safe_rst = true;
 
 	pdata->rcc_base = stm32_rcc_base();
+
+	cuint = fdt_getprop(fdt, node, "st,protreg", &lenp);
+	if (lenp < 0) {
+		if (lenp != -FDT_ERR_NOTFOUND)
+			return lenp;
+
+		lenp = 0;
+		DMSG("No RIF configuration available");
+	}
+
+	pdata->nb_res = (unsigned int)(lenp / sizeof(uint32_t));
+
+	assert(pdata->nb_res <= RCC_NB_RIF_RES);
+
+	pdata->conf_data.cid_confs = calloc(RCC_NB_RIF_RES, sizeof(uint32_t));
+	pdata->conf_data.sec_conf = calloc(RCC_NB_CONFS, sizeof(uint32_t));
+	pdata->conf_data.priv_conf = calloc(RCC_NB_CONFS, sizeof(uint32_t));
+	pdata->conf_data.lock_conf = calloc(RCC_NB_CONFS, sizeof(uint32_t));
+	pdata->conf_data.access_mask = calloc(RCC_NB_CONFS, sizeof(uint32_t));
+	if (!pdata->conf_data.cid_confs || !pdata->conf_data.sec_conf ||
+	    !pdata->conf_data.priv_conf || !pdata->conf_data.access_mask ||
+	    !pdata->conf_data.lock_conf)
+		panic("Missing memory capacity for RCC RIF configuration");
+
+	for (i = 0; i < pdata->nb_res; i++)
+		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), &pdata->conf_data,
+				    RCC_NB_RIF_RES);
 
 	return 0;
 }
@@ -3426,6 +3486,193 @@ static struct clk_stm32_priv stm32mp25_clock_data = {
 	.clk_refs		= stm32mp25_clk_provided,
 	.is_critical		= clk_stm32_clock_is_critical,
 };
+
+static TEE_Result handle_available_semaphores(void)
+{
+	struct stm32_clk_platdata *pdata = &stm32mp25_clock_pdata;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	unsigned int index = 0;
+	uint32_t cidcfgr = 0;
+	unsigned int i = 0;
+
+	for (i = 0; i < RCC_NB_RIF_RES; i++) {
+		vaddr_t reg_offset = pdata->rcc_base + RCC_SEMCR(i);
+
+		index = i / 32;
+
+		if (!(BIT(i % 32) & pdata->conf_data.access_mask[index]))
+			continue;
+
+		cidcfgr = io_read32(pdata->rcc_base + RCC_CIDCFGR(i));
+
+		if (!stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1))
+			continue;
+
+		if (!(io_read32(pdata->rcc_base + RCC_SECCFGR(index)) &
+		      BIT(i % 32))) {
+			res = stm32_rif_release_semaphore(reg_offset,
+							  MAX_CID_SUPPORTED);
+			if (res) {
+				EMSG("Cannot release semaphore for res %u", i);
+				return res;
+			}
+		} else {
+			res = stm32_rif_acquire_semaphore(reg_offset,
+							  MAX_CID_SUPPORTED);
+			if (res) {
+				EMSG("Cannot acquire semaphore for res %u", i);
+				return res;
+			}
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result apply_rcc_rif_config(bool is_tdcid)
+{
+	TEE_Result res = TEE_ERROR_ACCESS_DENIED;
+	struct stm32_clk_platdata *pdata = &stm32mp25_clock_pdata;
+	unsigned int i = 0;
+	unsigned int index = 0;
+
+	if (is_tdcid) {
+		/*
+		 * When TDCID, OP-TEE should be the one to set the CID
+		 * filtering configuration. Clearing previous configuration
+		 * prevents undesired events during the only legitimate
+		 * configuration.
+		 */
+		for (i = 0; i < RCC_NB_RIF_RES; i++) {
+			if (BIT(i % 32) & pdata->conf_data.access_mask[i / 32])
+				io_clrbits32(pdata->rcc_base + RCC_CIDCFGR(i),
+					     RCC_CIDCFGR_CONF_MASK);
+		}
+	} else {
+		res = handle_available_semaphores();
+		if (res)
+			panic();
+	}
+
+	/* Security and privilege RIF configuration */
+	for (index = 0; index < RCC_NB_CONFS; index++) {
+		io_clrsetbits32(pdata->rcc_base + RCC_PRIVCFGR(index),
+				pdata->conf_data.access_mask[index],
+				pdata->conf_data.priv_conf[index]);
+		io_clrsetbits32(pdata->rcc_base + RCC_SECCFGR(index),
+				pdata->conf_data.access_mask[index],
+				pdata->conf_data.sec_conf[index]);
+	}
+
+	if (!is_tdcid)
+		goto end;
+
+	for (i = 0; i < RCC_NB_RIF_RES; i++) {
+		if (BIT(i % 32) & pdata->conf_data.access_mask[i / 32])
+			io_clrsetbits32(pdata->rcc_base + RCC_CIDCFGR(i),
+					RCC_CIDCFGR_CONF_MASK,
+					pdata->conf_data.cid_confs[i]);
+	}
+
+	for (index = 0; index < RCC_NB_CONFS; index++)
+		io_setbits32(pdata->rcc_base + RCC_RCFGLOCKR(index),
+			     pdata->conf_data.lock_conf[index]);
+
+	res = handle_available_semaphores();
+	if (res)
+		panic();
+end:
+	if (IS_ENABLED(CFG_TEE_CORE_DEBUG)) {
+		for (index = 0; index < RCC_NB_CONFS; index++) {
+			/* Check that RIF config are applied, panic otherwise */
+			if ((io_read32(pdata->rcc_base + RCC_PRIVCFGR(index)) &
+			     pdata->conf_data.access_mask[index]) !=
+			    pdata->conf_data.priv_conf[index])
+				panic("rcc resource prv conf is incorrect");
+
+			if ((io_read32(pdata->rcc_base + RCC_SECCFGR(index)) &
+			     pdata->conf_data.access_mask[index]) !=
+			    pdata->conf_data.sec_conf[index])
+				panic("rcc resource sec conf is incorrect");
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_rcc_rif_pm_suspend(void)
+{
+	struct stm32_clk_platdata *pdata = &stm32mp25_clock_pdata;
+	unsigned int i = 0;
+
+	if (!pdata->nb_res)
+		return TEE_SUCCESS;
+
+	for (i = 0; i < RCC_NB_RIF_RES; i++)
+		pdata->conf_data.cid_confs[i] = io_read32(pdata->rcc_base +
+							  RCC_CIDCFGR(i));
+
+	for (i = 0; i < RCC_NB_CONFS; i++) {
+		pdata->conf_data.priv_conf[i] = io_read32(pdata->rcc_base +
+							  RCC_PRIVCFGR(i));
+		pdata->conf_data.sec_conf[i] = io_read32(pdata->rcc_base +
+							 RCC_SECCFGR(i));
+		pdata->conf_data.lock_conf[i] = io_read32(pdata->rcc_base +
+							  RCC_RCFGLOCKR(i));
+		pdata->conf_data.access_mask[i] = GENMASK_32(31, 0);
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_rcc_rif_pm(enum pm_op op, unsigned int pm_hint,
+				   const struct pm_callback_handle *h __unused)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	bool is_tdcid = false;
+
+	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT))
+		return TEE_SUCCESS;
+
+	res = stm32_rifsc_check_tdcid(&is_tdcid);
+	if (res)
+		return res;
+
+	if (op == PM_OP_RESUME) {
+		if (is_tdcid)
+			res = apply_rcc_rif_config(true);
+		else
+			res = handle_available_semaphores();
+	} else {
+		if (!is_tdcid)
+			return TEE_SUCCESS;
+
+		res = stm32_rcc_rif_pm_suspend();
+	}
+
+	return res;
+}
+
+static TEE_Result rcc_rif_config(void)
+{
+	TEE_Result res = TEE_ERROR_ACCESS_DENIED;
+	bool is_tdcid = false;
+
+	/* Not expected to fail at this stage */
+	res = stm32_rifsc_check_tdcid(&is_tdcid);
+	if (res)
+		panic();
+
+	res = apply_rcc_rif_config(is_tdcid);
+	if (res)
+		panic();
+
+	register_pm_core_service_cb(stm32_rcc_rif_pm, NULL, "stm32-rcc-rif");
+
+	return TEE_SUCCESS;
+}
+
+driver_init_late(rcc_rif_config);
 
 static TEE_Result stm32mp2_clk_probe(const void *fdt, int node,
 				     const void *compat_data __unused)
