@@ -356,6 +356,7 @@ jobs:
           make -j$(nproc) check CFG_PAN=y
           make -j$(nproc) check CFG_WITH_PAGER=y
           make -j$(nproc) check CFG_ULIBS_SHARED=y
+          make -j$(nproc) arm-tf-clean SPMC_AT_EL=3 && make -j$(nproc) check SPMC_AT_EL=3
 
   QEMUv8_clang_check:
     name: make check (QEMUv8, Clang)
