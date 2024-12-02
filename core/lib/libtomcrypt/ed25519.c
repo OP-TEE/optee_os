@@ -89,6 +89,11 @@ TEE_Result crypto_acipher_ed25519_sign(struct ed25519_keypair *key,
 	if (!key || !sig_len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (*sig_len < UL(64)) {
+		*sig_len = UL(64);
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+
 	siglen = *sig_len;
 
 	memcpy(private_key.priv, key->priv, sizeof(private_key.priv));
@@ -119,6 +124,11 @@ TEE_Result crypto_acipher_ed25519ctx_sign(struct ed25519_keypair *key,
 
 	if (!key || !sig_len)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (*sig_len < UL(64)) {
+		*sig_len = UL(64);
+		return TEE_ERROR_SHORT_BUFFER;
+	}
 
 	siglen = *sig_len;
 
