@@ -729,7 +729,7 @@ static void fill_boot_info_1_0(vaddr_t buf, const void *fdt)
 	info->nvp[0].size = fdt_totalsize(fdt);
 }
 
-static void fill_boot_info_1_1(vaddr_t buf, const void *fdt)
+static void fill_boot_info_1_1(vaddr_t buf, const void *fdt, uint32_t vers)
 {
 	size_t desc_offs = ROUNDUP(sizeof(struct ffa_boot_info_header_1_1), 8);
 	struct ffa_boot_info_header_1_1 *header =
@@ -738,7 +738,7 @@ static void fill_boot_info_1_1(vaddr_t buf, const void *fdt)
 		(struct ffa_boot_info_1_1 *)(buf + desc_offs);
 
 	header->signature = FFA_BOOT_INFO_SIGNATURE;
-	header->version = FFA_BOOT_INFO_VERSION;
+	header->version = vers;
 	header->blob_size = desc_offs + sizeof(struct ffa_boot_info_1_1);
 	header->desc_size = sizeof(struct ffa_boot_info_1_1);
 	header->desc_count = 1;
@@ -785,7 +785,8 @@ static TEE_Result create_and_map_boot_info(struct sp_ctx *ctx, const void *fdt,
 		fill_boot_info_1_0(*va, fdt);
 		break;
 	case MAKE_FFA_VERSION(1, 1):
-		fill_boot_info_1_1(*va, fdt);
+	case MAKE_FFA_VERSION(1, 2):
+		fill_boot_info_1_1(*va, fdt, sp_ffa_version);
 		break;
 	default:
 		EMSG("Unknown FF-A version: %#"PRIx32, sp_ffa_version);
