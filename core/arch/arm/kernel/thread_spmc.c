@@ -160,18 +160,32 @@ static void set_simple_ret_val(struct thread_smc_1_2_regs *args, int ffa_ret)
 
 uint32_t spmc_exchange_version(uint32_t vers, struct ffa_rxtx *rxtx)
 {
+	uint32_t major_vers = (vers >> FFA_VERSION_MAJOR_SHIFT) &
+			      FFA_VERSION_MAJOR_MASK;
+	uint32_t minor_vers = vers & FFA_VERSION_MINOR_MASK;
+	uint32_t my_vers = MAKE_FFA_VERSION(FFA_VERSION_MAJOR,
+					    FFA_VERSION_MINOR);
+
 	/*
 	 * No locking, if the caller does concurrent calls to this it's
 	 * only making a mess for itself. We must be able to renegotiate
 	 * the FF-A version in order to support differing versions between
 	 * the loader and the driver.
+	 *
+	 * Callers should use the version requested if we return a matching
+	 * major version and a matching or larger minor version. The caller
+	 * should downgrade to our minor version if our minor version is
+	 * smaller. Regardless, always return our version as recommended by
+	 * the specification.
 	 */
-	if (vers < FFA_VERSION_1_1)
-		rxtx->ffa_vers = FFA_VERSION_1_0;
-	else
-		rxtx->ffa_vers = FFA_VERSION_1_1;
+	if (major_vers == FFA_VERSION_MAJOR) {
+		if (minor_vers > FFA_VERSION_MINOR)
+			rxtx->ffa_vers = my_vers;
+		else
+			rxtx->ffa_vers = vers;
+	}
 
-	return rxtx->ffa_vers;
+	return my_vers;
 }
 
 static bool is_ffa_success(uint32_t fid)
