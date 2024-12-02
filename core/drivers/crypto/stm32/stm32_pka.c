@@ -1545,13 +1545,8 @@ static TEE_Result stm32_pka_parse_fdt(struct stm32_pka_platdata *pdata,
 				      const void *fdt, int node)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct dt_node_info info = { };
-
-	fdt_fill_device_info(fdt, &info, node);
-
-	if (info.reg_size == DT_INFO_INVALID_REG_SIZE ||
-	    info.reg == DT_INFO_INVALID_REG)
-		return TEE_ERROR_BAD_PARAMETERS;
+	size_t reg_size = 0;
+	paddr_t reg = 0;
 
 	res = rstctrl_dt_get_by_index(fdt, node, 0, &pdata->reset);
 	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
@@ -1565,8 +1560,10 @@ static TEE_Result stm32_pka_parse_fdt(struct stm32_pka_platdata *pdata,
 	if (res)
 		return res;
 
-	pdata->base = (vaddr_t)phys_to_virt(info.reg, MEM_AREA_IO_SEC,
-					    info.reg_size);
+	if (fdt_reg_info(fdt, node, &reg, &reg_size))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	pdata->base = (vaddr_t)phys_to_virt(reg, MEM_AREA_IO_SEC, reg_size);
 	if (!pdata->base)
 		panic();
 
