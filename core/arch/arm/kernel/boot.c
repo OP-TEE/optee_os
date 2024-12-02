@@ -1288,7 +1288,8 @@ static void *get_fdt_from_boot_info(struct ffa_boot_info_header_1_1 *hdr)
 		EMSG("Bad boot info signature %#"PRIx32, hdr->signature);
 		panic();
 	}
-	if (hdr->version != FFA_BOOT_INFO_VERSION) {
+	if (hdr->version != FFA_BOOT_INFO_VERSION_1_1 &&
+	    hdr->version != FFA_BOOT_INFO_VERSION_1_2) {
 		EMSG("Bad boot info version %#"PRIx32, hdr->version);
 		panic();
 	}

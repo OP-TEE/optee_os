@@ -857,7 +857,7 @@ static bool spm_handle_scall(struct thread_scall_regs *regs)
 	switch (*a0) {
 	case FFA_VERSION:
 		DMSG("Received FFA version");
-		*a0 = MAKE_FFA_VERSION(FFA_VERSION_MAJOR, FFA_VERSION_MINOR);
+		*a0 = FFA_VERSION_1_2;
 		return true;
 	case __FFA_MSG_SEND_DIRECT_RESP:
 		DMSG("Received FFA direct response");

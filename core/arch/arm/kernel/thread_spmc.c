@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2020-2023, Linaro Limited.
+ * Copyright (c) 2020-2025, Linaro Limited.
  * Copyright (c) 2019-2024, Arm Limited. All rights reserved.
  */
 
@@ -8,6 +8,7 @@
 #include <ffa.h>
 #include <initcall.h>
 #include <io.h>
+#include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <kernel/notif.h>
 #include <kernel/panic.h>
@@ -19,6 +20,7 @@
 #include <kernel/thread_private.h>
 #include <kernel/thread_spmc.h>
 #include <kernel/virtualization.h>
+#include <libfdt.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <optee_ffa.h>
@@ -160,18 +162,44 @@ static void set_simple_ret_val(struct thread_smc_1_2_regs *args, int ffa_ret)
 
 uint32_t spmc_exchange_version(uint32_t vers, struct ffa_rxtx *rxtx)
 {
+	uint32_t major_vers = FFA_GET_MAJOR_VERSION(vers);
+	uint32_t minor_vers = FFA_GET_MINOR_VERSION(vers);
+	uint32_t my_vers = FFA_VERSION_1_2;
+	uint32_t my_major_vers = 0;
+	uint32_t my_minor_vers = 0;
+
+	/*
+	 * Holding back the FF-A version if we use Xen or S-EL0 SPs.
+	 * - Xen doesn't handle negotiating with version 1.2.
+	 * - S-EL0 SPs are limited to x0-x7 for normal world requests.
+	 * We'll remove this when the obstacles are cleared.
+	 */
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		my_vers = FFA_VERSION_1_1;
+
+	my_major_vers = FFA_GET_MAJOR_VERSION(my_vers);
+	my_minor_vers = FFA_GET_MINOR_VERSION(my_vers);
+
 	/*
 	 * No locking, if the caller does concurrent calls to this it's
 	 * only making a mess for itself. We must be able to renegotiate
 	 * the FF-A version in order to support differing versions between
 	 * the loader and the driver.
+	 *
+	 * Callers should use the version requested if we return a matching
+	 * major version and a matching or larger minor version. The caller
+	 * should downgrade to our minor version if our minor version is
+	 * smaller. Regardless, always return our version as recommended by
+	 * the specification.
 	 */
-	if (vers < FFA_VERSION_1_1)
-		rxtx->ffa_vers = FFA_VERSION_1_0;
-	else
-		rxtx->ffa_vers = FFA_VERSION_1_1;
+	if (major_vers == my_major_vers) {
+		if (minor_vers > my_minor_vers)
+			rxtx->ffa_vers = my_vers;
+		else
+			rxtx->ffa_vers = vers;
+	}
 
-	return rxtx->ffa_vers;
+	return my_vers;
 }
 
 static bool is_ffa_success(uint32_t fid)
@@ -2566,28 +2594,52 @@ out:
 	return ret;
 }
 
+static uint32_t get_ffa_version_from_manifest(void *fdt)
+{
+	int ret = 0;
+	uint32_t vers = 0;
+
+	ret = fdt_node_check_compatible(fdt, 0, "arm,ffa-manifest-1.0");
+	if (ret < 0) {
+		EMSG("Invalid FF-A manifest at %p: error %d", fdt, ret);
+		panic();
+	}
+
+	ret = fdt_read_uint32(fdt, 0, "ffa-version", &vers);
+	if (ret < 0) {
+		EMSG("Can't read \"ffa-version\" from FF-A manifest at %p: error %d",
+		     fdt, ret);
+		panic();
+	}
+
+	return vers;
+}
+
 static TEE_Result spmc_init(void)
 {
-	unsigned int major = 0;
-	unsigned int minor __maybe_unused = 0;
 	uint32_t my_vers = 0;
 	uint32_t vers = 0;
 
-	my_vers = MAKE_FFA_VERSION(FFA_VERSION_MAJOR, FFA_VERSION_MINOR);
+	my_vers = get_ffa_version_from_manifest(get_manifest_dt());
+	if (my_vers < FFA_VERSION_1_0 || my_vers > FFA_VERSION_1_2) {
+		EMSG("Unsupported version %"PRIu32".%"PRIu32" from manifest",
+		     FFA_GET_MAJOR_VERSION(my_vers),
+		     FFA_GET_MINOR_VERSION(my_vers));
+		panic();
+	}
 	vers = get_ffa_version(my_vers);
-	major = (vers >> FFA_VERSION_MAJOR_SHIFT) & FFA_VERSION_MAJOR_MASK;
-	minor = (vers >> FFA_VERSION_MINOR_SHIFT) & FFA_VERSION_MINOR_MASK;
-	DMSG("SPMC reported version %u.%u", major, minor);
-	if (major != FFA_VERSION_MAJOR) {
-		EMSG("Incompatible major version %u, expected %u",
-		     major, FFA_VERSION_MAJOR);
+	DMSG("SPMC reported version %"PRIu32".%"PRIu32,
+	     FFA_GET_MAJOR_VERSION(vers), FFA_GET_MINOR_VERSION(vers));
+	if (FFA_GET_MAJOR_VERSION(vers) != FFA_GET_MAJOR_VERSION(my_vers)) {
+		EMSG("Incompatible major version %"PRIu32", expected %"PRIu32"",
+		     FFA_GET_MAJOR_VERSION(vers),
+		     FFA_GET_MAJOR_VERSION(my_vers));
 		panic();
 	}
 	if (vers < my_vers)
 		my_vers = vers;
-	DMSG("Using version %u.%u",
-	     (my_vers >> FFA_VERSION_MAJOR_SHIFT) & FFA_VERSION_MAJOR_MASK,
-	     (my_vers >> FFA_VERSION_MINOR_SHIFT) & FFA_VERSION_MINOR_MASK);
+	DMSG("Using version %"PRIu32".%"PRIu32"",
+	     FFA_GET_MAJOR_VERSION(my_vers), FFA_GET_MINOR_VERSION(my_vers));
 	my_rxtx.ffa_vers = my_vers;
 
 	spmc_rxtx_map(&my_rxtx);
