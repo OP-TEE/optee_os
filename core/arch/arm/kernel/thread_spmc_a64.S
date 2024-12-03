@@ -46,6 +46,17 @@ LOCAL_FUNC ffa_msg_send_direct_resp , :
 	ldr	w0, [sp, #THREAD_CORE_LOCAL_DIRECT_RESP_FID]
 	msr	spsel, #0
 	mov	x2, #FFA_PARAM_MBZ			/* RES MBZ */
+	/* x8-x17 are SBZ */
+	mov	x8, #FFA_PARAM_MBZ
+	mov	x9, #FFA_PARAM_MBZ
+	mov	x10, #FFA_PARAM_MBZ
+	mov	x11, #FFA_PARAM_MBZ
+	mov	x12, #FFA_PARAM_MBZ
+	mov	x13, #FFA_PARAM_MBZ
+	mov	x14, #FFA_PARAM_MBZ
+	mov	x15, #FFA_PARAM_MBZ
+	mov	x16, #FFA_PARAM_MBZ
+	mov	x17, #FFA_PARAM_MBZ
 
 .ffa_msg_loop:
 	/*
@@ -56,17 +67,17 @@ LOCAL_FUNC ffa_msg_send_direct_resp , :
 	smc	#0
 	msr	daifset, #DAIFBIT_NATIVE_INTR
 
-	/* Store the parameters as struct thread_smc_args on stack */
-	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
-	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
+	/* Store the parameters as struct thread_smc_1_2_regs on stack */
+	sub	sp, sp, #THREAD_SMC_1_2_REGS_SIZE
+	store_xregs sp, 0, 0, 17
 	mov	x0, sp
 
 	/* parse and handle message */
 	bl	thread_spmc_msg_recv
 
 	/* Load struct thread_smc_args into registers */
-	load_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
-	add	sp, sp, #THREAD_SMC_ARGS_SIZE
+	load_xregs sp, 0, 0, 17
+	add	sp, sp, #THREAD_SMC_1_2_REGS_SIZE
 	b	.ffa_msg_loop
 END_FUNC ffa_msg_send_direct_resp
 
@@ -94,30 +105,31 @@ END_FUNC thread_std_smc_entry
 #ifdef CFG_SECURE_PARTITION
 /* void spmc_sp_thread_entry(args) */
 FUNC spmc_sp_thread_entry , :
-	/* Store the parameters as struct thread_smc_args on stack */
-	sub     sp, sp, #THREAD_SMC_ARGS_SIZE
-	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
+	/* Store the parameter registers x0-x17 on the thread stack */
+	sub     sp, sp, #THREAD_SMC_1_2_REGS_SIZE
+	store_xregs sp, 0, 0, 17
 	mov     x0, sp
 	mov     x1, #0 /* Pass NULL pointer for caller_sp, coming from NW */
 	bl      spmc_sp_msg_handler
-	load_xregs sp, THREAD_SMC_ARGS_X0, 20, 27
 
 	/* Mask all maskable exceptions before switching to temporary stack */
 	msr     daifset, #DAIFBIT_ALL
 	bl      thread_get_tmp_sp
+
+	/*
+	 * Copy the result registers x0-x17 from the thread stack into the
+	 * tmp stack.
+	 */
+	load_xregs sp, 0, 2, 19
 	mov     sp, x0
+	sub     sp, sp, #THREAD_SMC_1_2_REGS_SIZE
+	store_xregs sp, 0, 2, 19
 
 	bl      thread_state_free
 
-	/* Restore the FF-A arguments before the SMC instruction. */
-	mov     w0, w20
-	mov     w1, w21
-	mov     w2, w22
-	mov     w3, w23
-	mov     w4, w24
-	mov     w5, w25
-	mov     w6, w26
-	mov     w7, w27
+	/* Load the FF-A result before the SMC instruction. */
+	load_xregs sp, 0, 0, 17
+	add	sp, sp, #THREAD_SMC_1_2_REGS_SIZE
 	b .ffa_msg_loop
 END_FUNC spmc_sp_thread_entry
 #endif
