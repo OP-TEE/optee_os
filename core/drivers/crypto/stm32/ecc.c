@@ -6,6 +6,7 @@
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
 #include <initcall.h>
+#include <stdlib_ext.h>
 #include <string.h>
 #include <tee_api_types.h>
 
@@ -107,7 +108,7 @@ static TEE_Result stm32_gen_keypair(struct ecc_keypair *key, size_t size_bits)
 	pk.x.val = calloc(1, bytes);
 	pk.x.size = bytes;
 	if (!pk.x.val) {
-		free(d.val);
+		free_wipe(d.val);
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -115,7 +116,7 @@ static TEE_Result stm32_gen_keypair(struct ecc_keypair *key, size_t size_bits)
 	pk.y.size = bytes;
 	if (!pk.y.val) {
 		free(pk.x.val);
-		free(d.val);
+		free_wipe(d.val);
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -134,9 +135,9 @@ static TEE_Result stm32_gen_keypair(struct ecc_keypair *key, size_t size_bits)
 	res = crypto_bignum_bin2bn(pk.y.val, pk.y.size, key->y);
 
 out:
-	free(pk.y.val);
-	free(pk.x.val);
-	free(d.val);
+	free_wipe(pk.y.val);
+	free_wipe(pk.x.val);
+	free_wipe(d.val);
 
 	return res;
 }
@@ -147,7 +148,7 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	enum stm32_pka_curve_id cid_from_algo = PKA_LAST_CID;
-	enum stm32_pka_curve_id cid = -1;
+	enum stm32_pka_curve_id cid = PKA_LAST_CID;
 	struct stm32_pka_bn d = { };
 	struct stm32_pka_bn k = { };
 	struct stm32_pka_bn sig_r = { };
@@ -198,7 +199,7 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 	res = stm32_pka_ecdsa_sign(msg, msg_size, &sig_r, &sig_s, &d, &k, cid);
 
 out:
-	free(k.val);
+	free_wipe(k.val);
 	free(d.val);
 
 	return res;
@@ -466,9 +467,9 @@ static TEE_Result shared_secret(struct ecc_keypair *private_key,
 	memcpy(secret, result.x.val, result.x.size);
 	*secret_len = result.x.size;
 out:
-	free(result.y.val);
-	free(result.x.val);
-	free(d.val);
+	free_wipe(result.y.val);
+	free_wipe(result.x.val);
+	free_wipe(d.val);
 	free(pk.y.val);
 	free(pk.x.val);
 
