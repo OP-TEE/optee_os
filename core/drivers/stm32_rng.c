@@ -64,6 +64,8 @@
 
 #define RNG_CONFIG_MASK		(RNG_CR_CED | RNG_CR_CLKDIV)
 
+#define DT_RNG_MAX_NIST_CONFIG	U(3)
+
 struct stm32_rng_driver_data {
 	unsigned long max_noise_clk_freq;
 	unsigned long nb_clock;
@@ -588,6 +590,8 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dt_node_info dt_rng = { };
+	const fdt32_t *cuint = NULL;
+	int len = 0;
 	uint32_t entropy_mask = stm32_rng_get_entropy_mask();
 
 	fdt_fill_device_info(fdt, &dt_rng, node);
@@ -622,10 +626,42 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 	if (fdt_getprop(fdt, node, "clock-error-detect", NULL))
 		stm32_rng->clock_error = true;
 
-	stm32_rng->rng_config = stm32_rng->ddata->cr;
+	cuint = fdt_getprop(fdt, node, "st,rng-cfg", &len);
+	if (cuint && len > 0 &&
+	    (uint32_t)len <= DT_RNG_MAX_NIST_CONFIG * sizeof(uint32_t)) {
+		uint32_t i = 0;
+		uint32_t rng_cr_config1 = stm32_rng->ddata->cr_config1_mask;
+		uint32_t cr_shift_mask[DT_RNG_MAX_NIST_CONFIG] = {
+			rng_cr_config1,
+			RNG_CR_CONFIG2,
+			RNG_CR_CONFIG3,
+		};
+
+		stm32_rng->rng_config = 0;
+
+		for (i = 0U; i < (uint32_t)len / sizeof(uint32_t); i++) {
+			stm32_rng->rng_config = set_field_u32(
+							stm32_rng->rng_config,
+							cr_shift_mask[i],
+							fdt32_to_cpu(*cuint));
+			cuint++;
+		}
+	} else {
+		stm32_rng->rng_config = stm32_rng->ddata->cr;
+	}
+
+	if (fdt_getprop(fdt, node, "st,rng-cfg-nist-custom", NULL))
+		stm32_rng->rng_config |= RNG_CR_NISTC;
+
 	if (stm32_rng->rng_config & ~entropy_mask)
 		panic("Incorrect entropy source configuration");
-	stm32_rng->health_test_conf = stm32_rng->ddata->htcr;
+
+	cuint = fdt_getprop(fdt, node, "st,rng-htcfg", NULL);
+	if (cuint)
+		stm32_rng->health_test_conf = fdt32_to_cpu(*cuint);
+	else
+		stm32_rng->health_test_conf = stm32_rng->ddata->htcr;
+
 	stm32_rng->noise_ctrl_conf = stm32_rng->ddata->nscr;
 	if (stm32_rng->noise_ctrl_conf & ~RNG_NSCR_MASK)
 		panic("Incorrect noise source control configuration");
