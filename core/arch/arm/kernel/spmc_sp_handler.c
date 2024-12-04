@@ -1225,22 +1225,22 @@ static void spmc_handle_version(struct thread_smc_1_2_regs *args,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void handle_console_log(struct thread_smc_1_2_regs *args)
+static void handle_console_log(uint32_t ffa_vers,
+			       struct thread_smc_1_2_regs *args)
 {
 	uint32_t ret_fid = FFA_ERROR;
 	uint32_t ret_val = FFA_INVALID_PARAMETERS;
 	size_t char_count = args->a1 & FFA_CONSOLE_LOG_CHAR_COUNT_MASK;
-	const void *reg_list[] = {
-		&args->a2, &args->a3, &args->a4,
-		&args->a5, &args->a6, &args->a7
-	};
 	char buffer[FFA_CONSOLE_LOG_64_MAX_MSG_LEN + 1] = { 0 };
 	size_t max_length = 0;
 	size_t reg_size = 0;
 	size_t n = 0;
 
 	if (args->a0 == FFA_CONSOLE_LOG_64) {
-		max_length = FFA_CONSOLE_LOG_64_MAX_MSG_LEN;
+		if (ffa_vers >= FFA_VERSION_1_2)
+			max_length = FFA_CONSOLE_LOG_64_MAX_MSG_LEN;
+		else
+			max_length = FFA_CONSOLE_LOG_64_V1_1_MAX_MSG_LEN;
 		reg_size = sizeof(uint64_t);
 	} else {
 		max_length = FFA_CONSOLE_LOG_32_MAX_MSG_LEN;
@@ -1250,9 +1250,11 @@ static void handle_console_log(struct thread_smc_1_2_regs *args)
 	if (char_count < 1 || char_count > max_length)
 		goto out;
 
-	for (n = 0; n < char_count; n += reg_size)
-		memcpy(buffer + n, reg_list[n / reg_size],
+	for (n = 0; n < char_count; n += reg_size) {
+		/* + 2 since we're starting from W2/X2 */
+		memcpy(buffer + n, &args->a[2 + n / reg_size],
 		       MIN(char_count - n, reg_size));
+	}
 
 	buffer[char_count] = '\0';
 
@@ -1392,7 +1394,7 @@ void spmc_sp_msg_handler(struct thread_smc_1_2_regs *args,
 		case FFA_CONSOLE_LOG_64:
 #endif
 		case FFA_CONSOLE_LOG_32:
-			handle_console_log(args);
+			handle_console_log(caller_sp->rxtx.ffa_vers, args);
 			sp_enter(args, caller_sp);
 			break;
 
