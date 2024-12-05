@@ -10,6 +10,7 @@
 #include <ffa.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+#include <mm/mobj.h>
 
 /* The FF-A ID of Secure World components should be between these limits */
 #define FFA_SWD_ID_MIN	0x8000
@@ -71,8 +72,14 @@ thread_spmc_set_async_notif_intid(int intid __unused)
 {
 	panic();
 }
-struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie);
+
+struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
+						   enum mobj_use_case use_case);
 void thread_spmc_relinquish(uint64_t memory_region_handle);
 #endif
+
+TEE_Result thread_spmc_get_rstmem_config(uint64_t use_case, void *buf,
+					 size_t *buf_sz, size_t *min_mem_sz,
+					 size_t *min_mem_align);
 
 #endif /* __KERNEL_THREAD_SPMC_H */
