@@ -400,6 +400,36 @@ static struct stm32_gpio_bank *stm32_gpio_get_bank(unsigned int bank_id)
 }
 
 #if defined(CFG_STM32_RIF)
+static bool pin_is_accessible(struct stm32_gpio_bank *bank, unsigned int pin)
+{
+	bool accessible = false;
+	uint32_t cidcfgr = 0;
+
+	if (!bank->rif_cfg)
+		return true;
+
+	if (clk_enable(bank->clock))
+		panic();
+
+	cidcfgr = io_read32(bank->base + GPIO_CIDCFGR(pin));
+
+	if (!(cidcfgr & _CIDCFGR_CFEN)) {
+		/* Resource can be accessed when CID filtering is disabled */
+		accessible = true;
+	} else if (stm32_rif_scid_ok(cidcfgr, GPIO_CIDCFGR_SCID_MASK,
+				     RIF_CID1)) {
+		/* Resource can be accessed if CID1 is statically allowed */
+		accessible = true;
+	} else if (stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1)) {
+		/* CID1 is allowed to request the semaphore */
+		accessible = true;
+	}
+
+	clk_disable(bank->clock);
+
+	return accessible;
+}
+
 static TEE_Result acquire_rif_semaphore_if_needed(struct stm32_gpio_bank *bank,
 						  unsigned int pin)
 {
@@ -461,6 +491,12 @@ static void release_rif_semaphore_if_acquired(struct stm32_gpio_bank *bank,
 	clk_disable(bank->clock);
 }
 #else
+static bool pin_is_accessible(struct stm32_gpio_bank *bank __unused,
+			      unsigned int pin __unused)
+{
+	return true;
+}
+
 static TEE_Result
 acquire_rif_semaphore_if_needed(struct stm32_gpio_bank *bank __unused,
 				unsigned int pin __unused)
@@ -474,6 +510,22 @@ release_rif_semaphore_if_acquired(struct stm32_gpio_bank *bank __unused,
 {
 }
 #endif /*CFG_STM32_RIF*/
+
+static bool pin_is_secure(struct stm32_gpio_bank *bank, unsigned int pin)
+{
+	bool secure = false;
+
+	if (bank->rif_cfg || bank->sec_support) {
+		if (clk_enable(bank->clock))
+			panic();
+
+		secure = io_read32(bank->base + GPIO_SECR_OFFSET) & BIT(pin);
+
+		clk_disable(bank->clock);
+	}
+
+	return secure;
+}
 
 /* Save to output @cfg the current GPIO (@bank_id/@pin) configuration */
 static void get_gpio_cfg(uint32_t bank_id, uint32_t pin, struct gpio_cfg *cfg)
@@ -707,6 +759,7 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 	struct gpio *gpio = NULL;
 	unsigned int shift_1b = 0;
 	unsigned int shift_2b = 0;
+	bool gpio_secure = true;
 	uint32_t exceptions = 0;
 	uint32_t otype = 0;
 	uint32_t pupd = 0;
@@ -725,6 +778,9 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 		return TEE_ERROR_GENERIC;
 	}
 
+	if (gpio->dt_flags & GPIO_STM32_NSEC)
+		gpio_secure = false;
+
 	state = calloc(1, sizeof(*state));
 	if (!state) {
 		free(gpio);
@@ -735,13 +791,17 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 		if (reg_state->gpio_pinctrl.bank == bank->bank_id &&
 		    reg_state->gpio_pinctrl.pin == gpio->pin) {
 			EMSG("node %s: GPIO %c%u is used by another device",
-			     fdt_get_name(pargs->fdt, pargs->consumer_node,
-					  NULL),
-			     bank->bank_id + 'A', gpio->pin);
+			     consumer_name, bank->bank_id + 'A', gpio->pin);
 			free(state);
 			free(gpio);
 			return TEE_ERROR_GENERIC;
 		}
+	}
+
+	if (!pin_is_accessible(bank, gpio->pin)) {
+		EMSG("node %s requests pin on GPIO %c%u which access is denied",
+		     consumer_name, bank->bank_id + 'A', gpio->pin);
+		panic();
 	}
 
 	res = acquire_rif_semaphore_if_needed(bank, gpio->pin);
@@ -749,6 +809,22 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 		EMSG("Failed to acquire GPIO %c%u semaphore for node %s",
 		     bank->bank_id + 'A', gpio->pin, consumer_name);
 		return res;
+	}
+
+	if (gpio_secure && !(bank->rif_cfg || bank->sec_support)) {
+		EMSG("node %s requests secure GPIO %c%u that cannot be secured",
+		     consumer_name, bank->bank_id + 'A', gpio->pin);
+		panic();
+	}
+
+	if (gpio_secure != pin_is_secure(bank, gpio->pin)) {
+		IMSG("WARNING: node %s requests %s GPIO %c%u but pin is %s. Check st,protreg in GPIO bank node %s",
+		     consumer_name, gpio_secure ? "secure" : "non-secure",
+		     bank->bank_id + 'A', gpio->pin,
+		     pin_is_secure(bank, gpio->pin) ? "secure" : "non-secure",
+		     fdt_get_name(pargs->fdt, pargs->phandle_node, NULL));
+		if (!IS_ENABLED(CFG_INSECURE))
+			panic();
 	}
 
 	state->gpio_pinctrl.pin = gpio->pin;
