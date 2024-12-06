@@ -85,6 +85,66 @@ static TEE_Result set_opp_voltage(unsigned int opp)
 	return regulator_set_voltage(cpu_opp.regul, cpu_opp.dvfs[opp].volt_uv);
 }
 
+/*
+ * This function returns true if the given OPP voltage can be managed.
+ * If the exact voltage value is not supported by the regulator,
+ * the function may adjust the input parameter volt_uv to a higher
+ * supported value and still return true.
+ */
+static bool opp_voltage_is_supported(struct regulator *regul, uint32_t *volt_uv)
+{
+	int target_volt_uv = 0;
+	int new_volt_uv = 0;
+	int min_uv = 0;
+	int max_uv = 0;
+	struct regulator_voltages_desc *desc = NULL;
+	const int *levels = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	assert(*volt_uv < INT_MAX);
+	target_volt_uv = (int)*volt_uv;
+
+	res = regulator_supported_voltages(regul, &desc, &levels);
+	if (res) {
+		regulator_get_range(regul, &min_uv, &max_uv);
+		if (target_volt_uv > max_uv)
+			return false;
+		if (target_volt_uv < min_uv)
+			*volt_uv = min_uv;
+		return true;
+	}
+
+	if (desc->type == VOLTAGE_TYPE_FULL_LIST) {
+		unsigned int i = 0;
+
+		for (i = 0 ; i < desc->num_levels; i++) {
+			if (levels[i] >= target_volt_uv) {
+				new_volt_uv = levels[i];
+				break;
+			}
+		}
+		if (new_volt_uv == 0)
+			return false;
+
+	} else if (desc->type == VOLTAGE_TYPE_INCREMENT) {
+		int min = levels[0];
+		int max = levels[1];
+		int step = levels[2];
+
+		if (new_volt_uv > max)
+			return false;
+
+		new_volt_uv = min +
+			      DIV_ROUND_UP(target_volt_uv - min, step) * step;
+	} else {
+		return false;
+	}
+
+	*volt_uv = new_volt_uv;
+
+	return true;
+}
+
 static TEE_Result set_clock_then_voltage(unsigned int opp)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -280,6 +340,14 @@ static TEE_Result stm32_cpu_opp_get_dt_subnode(const void *fdt, int node)
 		}
 
 		volt_uv = fdt32_to_cpu(*cuint32);
+
+		/* skip OPP when voltage is not supported */
+		if (!opp_voltage_is_supported(cpu_opp.regul, &volt_uv)) {
+			DMSG("Skip volt OPP %"PRIu64"kHz/%"PRIu32"uV",
+			     freq_khz, volt_uv);
+			cpu_opp.opp_count--;
+			continue;
+		}
 
 		if (i == cpu_opp.opp_count) {
 			EMSG("Too many OPP defined in node %s",
