@@ -344,14 +344,11 @@ static TEE_Result stm32_iwdg_register(struct stm32_iwdg_device *iwdg)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	if (IS_ENABLED(CFG_WDT_SM_HANDLER)) {
-		/* Expose watchdog runtime service only to secure IWDG */
-		iwdg->wdt_chip.ops = &stm32_iwdg_ops;
+	iwdg->wdt_chip.ops = &stm32_iwdg_ops;
 
-		res = watchdog_register(&iwdg->wdt_chip);
-		if (res)
-			return res;
-	}
+	res = watchdog_register(&iwdg->wdt_chip);
+	if (res)
+		return res;
 
 	SLIST_INSERT_HEAD(&iwdg_dev_list, iwdg, link);
 
@@ -364,14 +361,11 @@ static TEE_Result stm32_iwdg_probe(const void *fdt, int node,
 	struct stm32_iwdg_device *iwdg = NULL;
 	TEE_Result res = TEE_SUCCESS;
 
-	/*
-	 * Do not consider IWDG instances assigned to non-secure world.
-	 * For compatibility with legacy IWDG compatible nodes, consider nodes
-	 * with status="okay" and secure-status="disabled" as IWDG assigned to
-	 * non-secure world.
-	 */
-	if (!(fdt_get_status(fdt, node) & DT_STATUS_OK_SEC))
+	if (!IS_ENABLED(CFG_WDT_SM_HANDLER)) {
+		IMSG("CFG_WDT_SM_HANDLER disabled: skip STM32 IWDG node %s",
+		     fdt_get_name(fdt, node, NULL));
 		return TEE_SUCCESS;
+	}
 
 	iwdg = calloc(1, sizeof(*iwdg));
 	if (!iwdg)
