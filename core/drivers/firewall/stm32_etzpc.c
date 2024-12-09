@@ -362,7 +362,6 @@ DECLARE_KEEP_PAGER(etzpc_pm);
 static TEE_Result stm32_etzpc_check_access(struct firewall_query *firewall)
 {
 	enum etzpc_decprot_attributes attr_req = ETZPC_DECPROT_MAX;
-	enum etzpc_decprot_attributes attr = ETZPC_DECPROT_MAX;
 	uint32_t id = 0;
 
 	if (!firewall || firewall->arg_count != 1)
@@ -373,9 +372,7 @@ static TEE_Result stm32_etzpc_check_access(struct firewall_query *firewall)
 					  ETZPC_MODE_MASK) >> ETZPC_MODE_SHIFT);
 
 	if (id < etzpc_device->ddata.num_per_sec) {
-		attr = etzpc_get_decprot(id);
-
-		if (attr == attr_req)
+		if (etzpc_get_decprot(id) == attr_req)
 			return TEE_SUCCESS;
 		else
 			return TEE_ERROR_ACCESS_DENIED;
