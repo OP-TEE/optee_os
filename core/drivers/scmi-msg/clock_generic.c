@@ -82,16 +82,20 @@ int32_t plat_scmi_clock_rates_array(unsigned int channel_id,
 				    unsigned long *rates,
 				    size_t *nb_elts)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
 	struct scmi_clk *clk = NULL;
 
 	clk = clk_scmi_get_by_id(channel_id, scmi_id);
 	if (!clk)
 		return SCMI_DENIED;
 
-	if (clk_get_rates_array(clk->clk, start_index, rates, nb_elts))
+	res = clk_get_rates_array(clk->clk, start_index, rates, nb_elts);
+	if (res == TEE_SUCCESS)
+		return SCMI_SUCCESS;
+	else if (res == TEE_ERROR_NOT_SUPPORTED)
+		return SCMI_NOT_SUPPORTED;
+	else
 		return SCMI_GENERIC_ERROR;
-
-	return SCMI_SUCCESS;
 }
 
 unsigned long plat_scmi_clock_get_rate(unsigned int channel_id,
