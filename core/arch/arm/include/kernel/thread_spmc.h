@@ -45,15 +45,19 @@ struct ffa_rxtx {
 	bool tx_is_mine;
 };
 
-void spmc_handle_spm_id_get(struct thread_smc_args *args);
-void spmc_handle_rxtx_map(struct thread_smc_args *args, struct ffa_rxtx *buf);
-void spmc_handle_rxtx_unmap(struct thread_smc_args *args, struct ffa_rxtx *buf);
-void spmc_handle_rx_release(struct thread_smc_args *args, struct ffa_rxtx *buf);
+void spmc_handle_spm_id_get(struct thread_smc_1_2_regs *args);
+void spmc_handle_rxtx_map(struct thread_smc_1_2_regs *args,
+			  struct ffa_rxtx *buf);
+void spmc_handle_rxtx_unmap(struct thread_smc_1_2_regs *args,
+			    struct ffa_rxtx *buf);
+void spmc_handle_rx_release(struct thread_smc_1_2_regs *args,
+			    struct ffa_rxtx *buf);
 uint32_t spmc_exchange_version(uint32_t vers, struct ffa_rxtx *rxtx);
 
-void spmc_set_args(struct thread_smc_args *args, uint32_t fid, uint32_t src_dst,
-		   uint32_t w2, uint32_t w3, uint32_t w4, uint32_t w5);
-void spmc_handle_partition_info_get(struct thread_smc_args *args,
+void spmc_set_args(struct thread_smc_1_2_regs *args, uint32_t fid,
+		   uint32_t src_dst, uint32_t w2, uint32_t w3, uint32_t w4,
+		   uint32_t w5);
+void spmc_handle_partition_info_get(struct thread_smc_1_2_regs *args,
 				    struct ffa_rxtx *rxtx);
 TEE_Result spmc_fill_partition_entry(uint32_t ffa_vers, void *buf, size_t blen,
 				     size_t idx, uint16_t endpoint_id,

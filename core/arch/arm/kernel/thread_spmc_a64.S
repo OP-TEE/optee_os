@@ -56,17 +56,17 @@ LOCAL_FUNC ffa_msg_send_direct_resp , :
 	smc	#0
 	msr	daifset, #DAIFBIT_NATIVE_INTR
 
-	/* Store the parameters as struct thread_smc_args on stack */
-	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
-	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
+	/* Store the parameters as struct thread_smc_1_2_regs on stack */
+	sub	sp, sp, #THREAD_SMC_1_2_REGS_SIZE
+	store_xregs sp, 0, 0, 17
 	mov	x0, sp
 
 	/* parse and handle message */
 	bl	thread_spmc_msg_recv
 
 	/* Load struct thread_smc_args into registers */
-	load_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
-	add	sp, sp, #THREAD_SMC_ARGS_SIZE
+	load_xregs sp, 0, 0, 17
+	add	sp, sp, #THREAD_SMC_1_2_REGS_SIZE
 	b	.ffa_msg_loop
 END_FUNC ffa_msg_send_direct_resp
 
