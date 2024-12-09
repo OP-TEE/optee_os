@@ -76,7 +76,6 @@
  * @flags - Property flags for the IWDG instance
  * @timeout - Watchdog elaspure timeout
  * @wdt_chip - Wathcdog chip instance
- * @link - Link in registered watchdog instance list
  */
 struct stm32_iwdg_device {
 	struct io_pa_va base;
@@ -85,11 +84,7 @@ struct stm32_iwdg_device {
 	uint32_t flags;
 	unsigned long timeout;
 	struct wdt_chip wdt_chip;
-	SLIST_ENTRY(stm32_iwdg_device) link;
 };
-
-static SLIST_HEAD(iwdg_dev_list_head, stm32_iwdg_device) iwdg_dev_list =
-	SLIST_HEAD_INITIALIZER(iwdg_dev_list_head);
 
 static vaddr_t get_base(struct stm32_iwdg_device *iwdg)
 {
@@ -340,21 +335,6 @@ static TEE_Result stm32_iwdg_setup(struct stm32_iwdg_device *iwdg,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result stm32_iwdg_register(struct stm32_iwdg_device *iwdg)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-
-	iwdg->wdt_chip.ops = &stm32_iwdg_ops;
-
-	res = watchdog_register(&iwdg->wdt_chip);
-	if (res)
-		return res;
-
-	SLIST_INSERT_HEAD(&iwdg_dev_list, iwdg, link);
-
-	return TEE_SUCCESS;
-}
-
 static TEE_Result stm32_iwdg_probe(const void *fdt, int node,
 				   const void *compat_data __unused)
 {
@@ -367,16 +347,16 @@ static TEE_Result stm32_iwdg_probe(const void *fdt, int node,
 
 	res = stm32_iwdg_setup(iwdg, fdt, node);
 	if (res)
-		goto err;
+		goto out;
 
-	res = stm32_iwdg_register(iwdg);
+	iwdg->wdt_chip.ops = &stm32_iwdg_ops;
+
+	res = watchdog_register(&iwdg->wdt_chip);
+
+out:
 	if (res)
-		goto err;
+		free(iwdg);
 
-	return TEE_SUCCESS;
-
-err:
-	free(iwdg);
 	return res;
 }
 
