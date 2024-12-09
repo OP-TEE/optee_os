@@ -62,7 +62,7 @@ struct sam9x60_div {
 		uint32_t __timeout = 0; \
 		uint32_t _c = 0; \
 		\
-		while (__timeout++ < 500) { \
+		while (__timeout++ < 1000) { \
 			_c = io_read32((_base) + AT91_PMC_PLL_ISR0) & \
 				BIT(_id); \
 			if (_c) \
