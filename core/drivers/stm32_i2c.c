@@ -297,6 +297,9 @@ struct i2c_request {
 	unsigned int timeout_ms;
 };
 
+/* Place holder for STM32MP15 non-secure I2C bus compat data */
+static const int non_secure_bus;
+
 static vaddr_t get_base(struct i2c_handle_s *hi2c)
 {
 	return io_pa_or_va_secure(&hi2c->base, hi2c->reg_size);
@@ -1626,8 +1629,6 @@ static TEE_Result stm32_get_i2c_dev(struct dt_pargs *args, void *data,
 
 	return TEE_SUCCESS;
 }
-
-static const int non_secure_bus;
 
 static TEE_Result stm32_i2c_probe(const void *fdt, int node,
 				  const void *compat_data)
