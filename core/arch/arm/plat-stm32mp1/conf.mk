@@ -270,6 +270,7 @@ $(eval $(call cfg-depends-all,CFG_STM32_RSTCTRL,CFG_DRIVERS_RSTCTRL))
 CFG_WDT ?= $(CFG_STM32_IWDG)
 CFG_WDT_SM_HANDLER ?= $(CFG_WDT)
 CFG_WDT_SM_HANDLER_ID ?= 0xbc000000
+$(eval $(call cfg-depends-all,CFG_STM32_IWDG,CFG_WDT_SM_HANDLER CFG_WDT))
 
 # Platform specific configuration
 CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y
