@@ -7,6 +7,7 @@
 #include <confine_array_index.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/firewall_device.h>
 #include <drivers/regulator.h>
 #include <drivers/rstctrl.h>
 #include <drivers/scmi-msg.h>
@@ -36,15 +37,20 @@
 #define SCMI_RD_NAME_SIZE	16
 #define SCMI_VOLTD_NAME_SIZE	16
 
+#define ETZPC_ID_ALWAYS_ACCESSIBLE	(STM32MP1_ETZPC_MAX_ID + 1)
+#define ETZPC_ID_NEVER_ACCESSIBLE	(STM32MP1_ETZPC_MAX_ID + 2)
+
 /*
  * struct stm32_scmi_clk - Data for the exposed clock
  * @clock_id: Clock identifier in RCC clock driver
+ * @etzpc_id: ETZPC ID of the peripheral related to the clock
  * @name: Clock string ID exposed to channel
  * @enabled: State of the SCMI clock
  */
 struct stm32_scmi_clk {
 	unsigned long clock_id;
 	struct clk *clk;
+	unsigned int etzpc_id;
 	const char *name;
 	bool enabled;
 };
@@ -52,11 +58,13 @@ struct stm32_scmi_clk {
 /*
  * struct stm32_scmi_rd - Data for the exposed reset controller
  * @reset_id: Reset identifier in RCC reset driver
+ * @etzpc_id: ETZPC ID of the peripheral related to the reset controller
  * @name: Reset string ID exposed to channel
  * @rstctrl: Reset controller device
  */
 struct stm32_scmi_rd {
 	unsigned long reset_id;
+	unsigned int etzpc_id;
 	const char *name;
 	struct rstctrl *rstctrl;
 };
@@ -99,16 +107,37 @@ register_phys_mem(MEM_AREA_IO_NSEC, CFG_STM32MP1_SCMI_SHM_BASE,
 #endif
 #endif /*CFG_STM32MP1_SCMI_SHM_BASE*/
 
+/* SCMI clock always accessible */
 #define CLOCK_CELL(_scmi_id, _id, _name, _init_enabled) \
 	[(_scmi_id)] = { \
 		.clock_id = (_id), \
+		.etzpc_id = ETZPC_ID_ALWAYS_ACCESSIBLE, \
 		.name = (_name), \
 		.enabled = (_init_enabled), \
 	}
 
+/* SCMI clock accessible upon DECPROT ID assigned to non-secure */
+#define CLOCK_CELL_DECPROT(_scmi_id, _id, _name, _init_enabled, _etzpc_id) \
+	[(_scmi_id)] = { \
+		.clock_id = (_id), \
+		.etzpc_id = (_etzpc_id), \
+		.name = (_name), \
+		.enabled = (_init_enabled), \
+	}
+
+/* SCMI reset domain always accessible */
 #define RESET_CELL(_scmi_id, _id, _name) \
 	[(_scmi_id)] = { \
 		.reset_id = (_id), \
+		.etzpc_id = ETZPC_ID_ALWAYS_ACCESSIBLE, \
+		.name = (_name), \
+	}
+
+/* SCMI reset domain accessible upon DECPROT ID assigned to non-secure */
+#define RESET_CELL_DECPROT(_scmi_id, _id, _name, _etzpc_id) \
+	[(_scmi_id)] = { \
+		.reset_id = (_id), \
+		.etzpc_id = (_etzpc_id), \
 		.name = (_name), \
 	}
 
@@ -179,38 +208,56 @@ static struct stm32_scmi_clk stm32_scmi_clock[] = {
 	CLOCK_CELL(CK_SCMI_MPU, CK_MPU, "ck_mpu", true),
 	CLOCK_CELL(CK_SCMI_AXI, CK_AXI, "ck_axi", true),
 	CLOCK_CELL(CK_SCMI_BSEC, BSEC, "bsec", true),
-	CLOCK_CELL(CK_SCMI_CRYP1, CRYP1, "cryp1", false),
+	CLOCK_CELL_DECPROT(CK_SCMI_CRYP1, CRYP1, "cryp1", false,
+			   STM32MP1_ETZPC_CRYP1_ID),
 	CLOCK_CELL(CK_SCMI_GPIOZ, GPIOZ, "gpioz", false),
-	CLOCK_CELL(CK_SCMI_HASH1, HASH1, "hash1", false),
-	CLOCK_CELL(CK_SCMI_I2C4, I2C4_K, "i2c4_k", false),
-	CLOCK_CELL(CK_SCMI_I2C6, I2C6_K, "i2c6_k", false),
-	CLOCK_CELL(CK_SCMI_IWDG1, IWDG1, "iwdg1", false),
-	CLOCK_CELL(CK_SCMI_RNG1, RNG1_K, "rng1_k", true),
+	CLOCK_CELL_DECPROT(CK_SCMI_HASH1, HASH1, "hash1", false,
+			   STM32MP1_ETZPC_HASH1_ID),
+	CLOCK_CELL_DECPROT(CK_SCMI_I2C4, I2C4_K, "i2c4_k", false,
+			   STM32MP1_ETZPC_I2C4_ID),
+	CLOCK_CELL_DECPROT(CK_SCMI_I2C6, I2C6_K, "i2c6_k", false,
+			   STM32MP1_ETZPC_I2C6_ID),
+	CLOCK_CELL_DECPROT(CK_SCMI_IWDG1, IWDG1, "iwdg1", false,
+			   STM32MP1_ETZPC_IWDG1_ID),
+	CLOCK_CELL_DECPROT(CK_SCMI_RNG1, RNG1_K, "rng1_k", true,
+			   STM32MP1_ETZPC_RNG1_ID),
 	CLOCK_CELL(CK_SCMI_RTC, RTC, "ck_rtc", true),
 	CLOCK_CELL(CK_SCMI_RTCAPB, RTCAPB, "rtcapb", true),
-	CLOCK_CELL(CK_SCMI_SPI6, SPI6_K, "spi6_k", false),
-	CLOCK_CELL(CK_SCMI_USART1, USART1_K, "usart1_k", false),
+	CLOCK_CELL_DECPROT(CK_SCMI_SPI6, SPI6_K, "spi6_k", false,
+			   STM32MP1_ETZPC_SPI6_ID),
+	CLOCK_CELL_DECPROT(CK_SCMI_USART1, USART1_K, "usart1_k", false,
+			   STM32MP1_ETZPC_USART1_ID),
 };
 #endif
 
 #ifdef CFG_STM32MP13
 static struct stm32_scmi_rd stm32_scmi_reset_domain[] = {
-	RESET_CELL(RST_SCMI_LTDC, LTDC_R, "ltdc"),
+	RESET_CELL_DECPROT(RST_SCMI_LTDC, LTDC_R, "ltdc",
+			   STM32MP1_ETZPC_LTDC_ID),
 	RESET_CELL(RST_SCMI_MDMA, MDMA_R, "mdma"),
 };
 #endif
 
 #ifdef CFG_STM32MP15
 static struct stm32_scmi_rd stm32_scmi_reset_domain[] = {
-	RESET_CELL(RST_SCMI_SPI6, SPI6_R, "spi6"),
-	RESET_CELL(RST_SCMI_I2C4, I2C4_R, "i2c4"),
-	RESET_CELL(RST_SCMI_I2C6, I2C6_R, "i2c6"),
-	RESET_CELL(RST_SCMI_USART1, USART1_R, "usart1"),
-	RESET_CELL(RST_SCMI_STGEN, STGEN_R, "stgen"),
-	RESET_CELL(RST_SCMI_GPIOZ, GPIOZ_R, "gpioz"),
-	RESET_CELL(RST_SCMI_CRYP1, CRYP1_R, "cryp1"),
-	RESET_CELL(RST_SCMI_HASH1, HASH1_R, "hash1"),
-	RESET_CELL(RST_SCMI_RNG1, RNG1_R, "rng1"),
+	RESET_CELL_DECPROT(RST_SCMI_SPI6, SPI6_R, "spi6",
+			   STM32MP1_ETZPC_SPI6_ID),
+	RESET_CELL_DECPROT(RST_SCMI_I2C4, I2C4_R, "i2c4",
+			   STM32MP1_ETZPC_I2C4_ID),
+	RESET_CELL_DECPROT(RST_SCMI_I2C6, I2C6_R, "i2c6",
+			   STM32MP1_ETZPC_I2C6_ID),
+	RESET_CELL_DECPROT(RST_SCMI_USART1, USART1_R, "usart1",
+			   STM32MP1_ETZPC_USART1_ID),
+	RESET_CELL_DECPROT(RST_SCMI_STGEN, STGEN_R, "stgen",
+			   STM32MP1_ETZPC_STGENC_ID),
+	RESET_CELL_DECPROT(RST_SCMI_GPIOZ, GPIOZ_R, "gpioz",
+			   ETZPC_ID_NEVER_ACCESSIBLE),
+	RESET_CELL_DECPROT(RST_SCMI_CRYP1, CRYP1_R, "cryp1",
+			   STM32MP1_ETZPC_CRYP1_ID),
+	RESET_CELL_DECPROT(RST_SCMI_HASH1, HASH1_R, "hash1",
+			   STM32MP1_ETZPC_HASH1_ID),
+	RESET_CELL_DECPROT(RST_SCMI_RNG1, RNG1_R, "rng1",
+			   STM32MP1_ETZPC_RNG1_ID),
 	RESET_CELL(RST_SCMI_MDMA, MDMA_R, "mdma"),
 	RESET_CELL(RST_SCMI_MCU, MCU_R, "mcu"),
 	RESET_CELL(RST_SCMI_MCU_HOLD_BOOT, MCU_HOLD_BOOT_R, "mcu_hold_boot"),
@@ -374,6 +421,41 @@ const uint8_t *plat_scmi_protocol_list(unsigned int channel_id __unused)
 	return plat_protocol_list;
 }
 
+static bool nsec_can_access_resource(unsigned int etzpc_id)
+{
+	static struct firewall_controller *etzpc_fw_ctrl;
+	uint32_t query_arg = DECPROT(etzpc_id, DECPROT_NS_RW, DECPROT_UNLOCK);
+	struct firewall_query query = {
+		.arg_count = 1,
+		.args = &query_arg,
+		.ctrl = etzpc_fw_ctrl,
+	};
+
+	if (etzpc_id == ETZPC_ID_NEVER_ACCESSIBLE)
+		return false;
+	if (etzpc_id == ETZPC_ID_ALWAYS_ACCESSIBLE)
+		return true;
+
+	if (!etzpc_fw_ctrl) {
+		struct dt_driver_provider *prov = NULL;
+		int node = 0;
+
+		node = fdt_node_offset_by_compatible(get_embedded_dt(), -1,
+						     "st,stm32-etzpc");
+		if (node < 0)
+			panic();
+
+		prov = dt_driver_get_provider_by_node(node, DT_DRIVER_FIREWALL);
+		if (!prov)
+			panic();
+
+		etzpc_fw_ctrl = dt_driver_provider_priv_data(prov);
+		query.ctrl = etzpc_fw_ctrl;
+	}
+
+	return firewall_check_access(&query) == TEE_SUCCESS;
+}
+
 /*
  * Platform SCMI clocks
  */
@@ -407,7 +489,7 @@ const char *plat_scmi_clock_get_name(unsigned int channel_id,
 {
 	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
 
-	if (!clock || !stm32mp_nsec_can_access_clock(clock->clock_id))
+	if (!clock || !nsec_can_access_resource(clock->etzpc_id))
 		return NULL;
 
 	return clock->name;
@@ -422,7 +504,7 @@ int32_t plat_scmi_clock_rates_array(unsigned int channel_id,
 	if (!clock)
 		return SCMI_NOT_FOUND;
 
-	if (!stm32mp_nsec_can_access_clock(clock->clock_id))
+	if (!nsec_can_access_resource(clock->etzpc_id))
 		return SCMI_DENIED;
 
 	/* Exposed clocks are currently fixed rate clocks */
@@ -444,7 +526,7 @@ unsigned long plat_scmi_clock_get_rate(unsigned int channel_id,
 {
 	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
 
-	if (!clock || !stm32mp_nsec_can_access_clock(clock->clock_id))
+	if (!clock || !nsec_can_access_resource(clock->etzpc_id))
 		return 0;
 
 	return clk_get_rate(clock->clk);
@@ -454,7 +536,7 @@ int32_t plat_scmi_clock_get_state(unsigned int channel_id, unsigned int scmi_id)
 {
 	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
 
-	if (!clock || !stm32mp_nsec_can_access_clock(clock->clock_id))
+	if (!clock || !nsec_can_access_resource(clock->etzpc_id))
 		return 0;
 
 	return (int32_t)clock->enabled;
@@ -468,7 +550,7 @@ int32_t plat_scmi_clock_set_state(unsigned int channel_id, unsigned int scmi_id,
 	if (!clock)
 		return SCMI_NOT_FOUND;
 
-	if (!stm32mp_nsec_can_access_clock(clock->clock_id))
+	if (!nsec_can_access_resource(clock->etzpc_id))
 		return SCMI_DENIED;
 
 	if (enable_not_disable) {
@@ -534,7 +616,7 @@ int32_t plat_scmi_rd_autonomous(unsigned int channel_id, unsigned int scmi_id,
 	if (!rd)
 		return SCMI_NOT_FOUND;
 
-	if (!rd->rstctrl || !stm32mp_nsec_can_access_reset(rd->reset_id))
+	if (!rd->rstctrl || !nsec_can_access_resource(rd->etzpc_id))
 		return SCMI_DENIED;
 
 #ifdef CFG_STM32MP15
@@ -570,7 +652,7 @@ int32_t plat_scmi_rd_set_state(unsigned int channel_id, unsigned int scmi_id,
 	if (!rd)
 		return SCMI_NOT_FOUND;
 
-	if (!rd->rstctrl || !stm32mp_nsec_can_access_reset(rd->reset_id))
+	if (!rd->rstctrl || !nsec_can_access_resource(rd->etzpc_id))
 		return SCMI_DENIED;
 
 #ifdef CFG_STM32MP15
@@ -874,7 +956,7 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 
 			/* Sync SCMI clocks with their targeted initial state */
 			if (clk->enabled &&
-			    stm32mp_nsec_can_access_clock(clk->clock_id))
+			    nsec_can_access_resource(clk->etzpc_id))
 				clk_enable(clk->clk);
 		}
 
@@ -885,9 +967,6 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 			if (!rd->name ||
 			    strlen(rd->name) >= SCMI_RD_NAME_SIZE)
 				panic("SCMI reset domain name invalid");
-
-			if (stm32mp_nsec_can_access_clock(rd->reset_id))
-				continue;
 
 			rstctrl = stm32mp_rcc_reset_id_to_rstctrl(rd->reset_id);
 			assert(rstctrl);
