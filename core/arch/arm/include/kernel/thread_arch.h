@@ -104,6 +104,23 @@ struct thread_smc_args {
 	uint32_t a6;	/* Not used */
 	uint32_t a7;	/* Hypervisor Client ID */
 };
+
+struct thread_smc_1_2_regs {
+	union {
+		struct {
+			uint32_t a0;
+			uint32_t a1;
+			uint32_t a2;
+			uint32_t a3;
+			uint32_t a4;
+			uint32_t a5;
+			uint32_t a6;
+			uint32_t a7;
+		};
+		uint32_t a[8];
+		struct thread_smc_args arg11;
+	};
+};
 #endif /*ARM32*/
 #ifdef ARM64
 struct thread_smc_args {
@@ -115,6 +132,33 @@ struct thread_smc_args {
 	uint64_t a5;	/* Not used */
 	uint64_t a6;	/* Not used */
 	uint64_t a7;	/* Hypervisor Client ID */
+};
+
+struct thread_smc_1_2_regs {
+	union {
+		struct {
+			uint64_t a0;
+			uint64_t a1;
+			uint64_t a2;
+			uint64_t a3;
+			uint64_t a4;
+			uint64_t a5;
+			uint64_t a6;
+			uint64_t a7;
+			uint64_t a8;
+			uint64_t a9;
+			uint64_t a10;
+			uint64_t a11;
+			uint64_t a12;
+			uint64_t a13;
+			uint64_t a14;
+			uint64_t a15;
+			uint64_t a16;
+			uint64_t a17;
+		};
+		uint64_t a[18];
+		struct thread_smc_args arg11;
+	};
 };
 #endif /*ARM64*/
 
