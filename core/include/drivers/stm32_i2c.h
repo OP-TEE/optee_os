@@ -32,7 +32,6 @@
 /*
  * struct stm32_i2c_init_s - STM32 I2C configuration data
  *
- * @dt_status: non-secure/secure status read from DT
  * @pbase: I2C interface base address
  * @reg_size: I2C interface register map size
  * @clock: I2C bus/interface clock
@@ -50,7 +49,6 @@
  * @digital_filter_coef: filter coef (below STM32_I2C_DIGITAL_FILTER_MAX)
  */
 struct stm32_i2c_init_s {
-	unsigned int dt_status;
 	paddr_t pbase;
 	size_t reg_size;
 	struct clk *clock;
@@ -106,7 +104,6 @@ struct i2c_cfg {
  * I2C bus device
  * @base: I2C SoC registers base address
  * @reg_size: I2C SoC registers address map size
- * @dt_status: non-secure/secure status read from DT
  * @clock: clock ID
  * @i2c_state: Driver state ID I2C_STATE_*
  * @i2c_err: Last error code I2C_ERROR_*
@@ -120,7 +117,6 @@ struct i2c_cfg {
 struct i2c_handle_s {
 	struct io_pa_va base;
 	size_t reg_size;
-	unsigned int dt_status;
 	struct clk *clock;
 	enum i2c_state_e i2c_state;
 	uint32_t i2c_err;
@@ -130,6 +126,7 @@ struct i2c_handle_s {
 	struct pinctrl_state *pinctrl;
 	struct pinctrl_state *pinctrl_sleep;
 	struct mutex_pm_aware mu;
+	bool i2c_secure;
 };
 
 /*
@@ -278,7 +275,7 @@ void stm32_i2c_resume(struct i2c_handle_s *hi2c);
  */
 static inline bool i2c_is_secure(struct i2c_handle_s *hi2c)
 {
-	return hi2c->dt_status == DT_STATUS_OK_SEC;
+	return hi2c->i2c_secure;
 }
 
 #endif /* __DRIVERS_STM32_I2C_H*/
