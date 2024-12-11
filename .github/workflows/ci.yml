@@ -335,6 +335,7 @@ jobs:
         run: |
           # make check task
           set -e -v
+          export MEASURED_BOOT_FTPM=n
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
@@ -377,6 +378,7 @@ jobs:
         run: |
           # make check task
           set -e -v
+          export MEASURED_BOOT_FTPM=n
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
@@ -417,6 +419,7 @@ jobs:
         run: |
           # make check task
           set -e -v
+          export MEASURED_BOOT_FTPM=n
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
@@ -457,6 +460,7 @@ jobs:
         run: |
           # make check task
           set -e -v
+          export MEASURED_BOOT_FTPM=n
           export LC_ALL=C
           export CFG_TEE_CORE_LOG_LEVEL=0
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
@@ -493,6 +497,7 @@ jobs:
         run: |
           # make check task
           set -e -v
+          export MEASURED_BOOT_FTPM=n
           export LC_ALL=C
           export CFG_TEE_CORE_LOG_LEVEL=0
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
@@ -529,6 +534,7 @@ jobs:
         run: |
           # make check task
           set -e -v
+          export MEASURED_BOOT_FTPM=n
           export LC_ALL=C
           export CFG_TEE_CORE_LOG_LEVEL=0
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
@@ -565,6 +571,7 @@ jobs:
         run: |
           # make check task
           set -e -v
+          export MEASURED_BOOT_FTPM=n
           export LC_ALL=C
           # The BTI-enabled toolchain is aarch64-unknown-linux-uclibc-gcc in /usr/local/bin
           export PATH=/usr/local/bin:$PATH
