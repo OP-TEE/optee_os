@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2018-2021, 2024 NXP
  *
  * Brief   Memory management utilities.
  *         Primitive to allocate, free memory.
@@ -12,6 +12,7 @@
 #include <io.h>
 #include <kernel/cache_helpers.h>
 #include <mm/core_memprot.h>
+#include <tee/cache.h>
 #include <string.h>
 
 #define MEM_TYPE_NORMAL 0      /* Normal allocation */
@@ -228,6 +229,37 @@ enum caam_status caam_cpy_block_src(struct caamblock *block,
 
 end_cpy:
 	return ret;
+}
+
+enum caam_status caam_cpy_buf(struct caambuf *dst, uint8_t *src_data,
+			      size_t src_length)
+{
+	enum caam_status ret = CAAM_FAILURE;
+
+	if (!src_data || !dst)
+		return CAAM_FAILURE;
+
+	if (!src_length)
+		return CAAM_NO_ERROR;
+
+	if (!dst->data) {
+		/* Allocate the destination buffer */
+		ret = caam_alloc_align_buf(dst, src_length);
+		if (ret != CAAM_NO_ERROR) {
+			MEM_TRACE("Allocation buffer error");
+			return ret;
+		}
+	}
+
+	assert(dst->length == src_length);
+
+	/* Do the copy */
+	memcpy(dst->data, src_data, dst->length);
+
+	/* Push data to physical memory */
+	cache_operation(TEE_CACHECLEAN, dst->data, dst->length);
+
+	return CAAM_NO_ERROR;
 }
 
 int caam_mem_get_pa_area(struct caambuf *buf, struct caambuf **out_pabufs)

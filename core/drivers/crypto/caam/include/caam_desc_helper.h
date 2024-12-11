@@ -33,6 +33,8 @@ void caam_desc_add_dmaobj(uint32_t *desc, struct caamdmaobj *data,
 	caam_desc_add_dmaobj(desc, data, ST_NOIMM(cla, src, 0))
 #define caam_desc_fifo_store(desc, data, src)                                  \
 	caam_desc_add_dmaobj(desc, data, FIFO_ST(CLASS_NO, src, 0))
+#define caam_desc_seq_in(desc, data)                                           \
+	caam_desc_add_dmaobj(desc, data, SEQ_IN_PTR(0))
 #define caam_desc_seq_out(desc, data)                                          \
 	caam_desc_add_dmaobj(desc, data, SEQ_OUT_PTR(0))
 
@@ -201,6 +203,13 @@ static inline void dump_desc(uint32_t *desc)
 #define FIFO_LD_IMM(cla, dst, act, len)                                        \
 	(CMD_FIFO_LOAD_TYPE | CMD_IMM | CMD_CLASS(cla) |                       \
 	 FIFO_LOAD_INPUT(dst) | FIFO_LOAD_ACTION(act) | FIFO_LOAD_LENGTH(len))
+
+/*
+ * SEQ FIFO Load from register src of length len
+ */
+#define FIFO_LD_SEQ(src, len)                                                  \
+	(CMD_SEQ_FIFO_LOAD_TYPE | FIFO_LOAD_INPUT(src) |                       \
+	 FIFO_LOAD_LENGTH(len))
 
 /*
  * Store value of length len from register src of class cla
