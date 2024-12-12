@@ -17,6 +17,7 @@
 #include <kernel/dt_driver.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
+#include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -138,6 +139,7 @@ struct gic_data {
 
 static bool gic_primary_done __nex_bss;
 static struct gic_data gic_data __nex_bss;
+static struct mutex gic_mutex = MUTEX_INITIALIZER;
 
 static void gic_op_add(struct itr_chip *chip, size_t it, uint32_t type,
 		       uint32_t prio);
@@ -856,6 +858,36 @@ void gic_dump_state(void)
 			     gic_it_get_group(gd, i), gic_it_get_target(gd, i));
 		}
 	}
+}
+
+TEE_Result gic_spi_release_to_ns(size_t it)
+{
+	struct gic_data *gd = &gic_data;
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = BIT32(it % NUM_INTS_PER_REG);
+
+	if (it < gd->max_it && it >= GIC_SPI_BASE)
+		return TEE_ERROR_BAD_PARAMETERS;
+	/* Make sure it's already disabled */
+	if (!gic_it_is_enabled(gd, it))
+		return TEE_ERROR_BAD_STATE;
+	/* Assert it's secure to start with */
+	if (!gic_it_get_group(gd, it))
+		return TEE_ERROR_SECURITY;
+
+	gic_it_set_cpu_mask(gd, it, 0);
+	gic_it_set_prio(gd, it, GIC_SPI_PRI_NS_EL1);
+
+	mutex_lock(&gic_mutex);
+	/* Clear pending status */
+	io_write32(gd->gicd_base + GICD_ICPENDR(idx), mask);
+	/* Assign it to NS Group1 */
+	io_setbits32(gd->gicd_base + GICD_IGROUPR(idx), mask);
+#if defined(CFG_ARM_GICV3)
+	io_clrbits32(gd->gicd_base + GICD_IGROUPMODR(idx), mask);
+#endif
+	mutex_unlock(&gic_mutex);
+	return TEE_SUCCESS;
 }
 
 static void __maybe_unused gic_native_itr_handler(void)

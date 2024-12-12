@@ -31,6 +31,8 @@
 #define GIC_SGI_SEC_BASE	8
 /* Max ID for secure SGIs */
 #define GIC_SGI_SEC_MAX		15
+/* Default IRQ priority for SPIs in Non-Sec EL1 */
+#define GIC_SPI_PRI_NS_EL1	0x50
 
 /*
  * The two gic_init() and gic_init_v3() functions initializes the struct
@@ -56,4 +58,11 @@ void gic_init_per_cpu(void);
 
 /* Print GIC state to console */
 void gic_dump_state(void);
+
+/*
+ * Reassign one of the SPIs to normal world and set its priority to
+ * GIC_SPI_PRI_NS_EL1. Ensure that the interrupt is disabled when this
+ * function is called.
+ */
+TEE_Result gic_spi_release_to_ns(size_t it);
 #endif /*__DRIVERS_GIC_H*/
