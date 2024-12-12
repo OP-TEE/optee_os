@@ -62,15 +62,23 @@ unsigned long default_nsec_shm_size __nex_bss;
 unsigned long default_nsec_shm_paddr __nex_bss;
 #endif
 
+#ifdef CFG_BOOT_MEM
+static struct memory_map static_memory_map __nex_bss;
+#else
 static struct tee_mmap_region static_mmap_regions[CFG_MMAP_REGIONS
 #if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PHYS_RELOCATABLE)
 						+ 1
 #endif
-						+ 1] __nex_bss;
+						+ 4] __nex_bss;
 static struct memory_map static_memory_map __nex_data = {
 	.map = static_mmap_regions,
 	.alloc_count = ARRAY_SIZE(static_mmap_regions),
 };
+#endif
+void (*memory_map_realloc_func)(struct memory_map *mem_map) __nex_bss;
+
+/* Offset of the first TEE RAM mapping from start of secure RAM */
+static size_t tee_ram_initial_offs __nex_bss;
 
 /* Define the platform's memory layout. */
 struct memaccess_area {
@@ -123,11 +131,43 @@ static void mmu_unlock(uint32_t exceptions)
 	cpu_spin_unlock_xrestore(&mmu_spinlock, exceptions);
 }
 
+static void heap_realloc_memory_map(struct memory_map *mem_map)
+{
+	struct tee_mmap_region *m = NULL;
+	struct tee_mmap_region *old = mem_map->map;
+	size_t old_sz = sizeof(*old) * mem_map->alloc_count;
+	size_t sz = old_sz + sizeof(*m);
+
+	assert(nex_malloc_buffer_is_within_alloced(old, old_sz));
+	m = nex_realloc(old, sz);
+	if (!m)
+		panic();
+	mem_map->map = m;
+	mem_map->alloc_count++;
+}
+
+static void boot_mem_realloc_memory_map(struct memory_map *mem_map)
+{
+	struct tee_mmap_region *m = NULL;
+	struct tee_mmap_region *old = mem_map->map;
+	size_t old_sz = sizeof(*old) * mem_map->alloc_count;
+	size_t sz = old_sz * 2;
+
+	m = boot_mem_alloc_tmp(sz, alignof(*m));
+	memcpy(m, old, old_sz);
+	mem_map->map = m;
+	mem_map->alloc_count *= 2;
+}
+
 static void grow_mem_map(struct memory_map *mem_map)
 {
 	if (mem_map->count == mem_map->alloc_count) {
-		EMSG("Out of entries (%zu) in mem_map", mem_map->alloc_count);
-		panic();
+		if (!memory_map_realloc_func) {
+			EMSG("Out of entries (%zu) in mem_map",
+			     mem_map->alloc_count);
+			panic();
+		}
+		memory_map_realloc_func(mem_map);
 	}
 	mem_map->count++;
 }
@@ -154,40 +194,6 @@ void core_mmu_set_secure_memory(paddr_t base, size_t size)
 	DMSG("Physical secure memory base %#"PRIxPA" size %#zx", base, size);
 	secure_only[0].paddr = base;
 	secure_only[0].size = size;
-}
-
-void core_mmu_get_ta_range(paddr_t *base, size_t *size)
-{
-	paddr_t b = 0;
-	size_t s = 0;
-
-	static_assert(!(TEE_RAM_VA_SIZE % SMALL_PAGE_SIZE));
-#ifdef TA_RAM_START
-	b = TA_RAM_START;
-	s = TA_RAM_SIZE;
-#else
-	static_assert(ARRAY_SIZE(secure_only) <= 2);
-	if (ARRAY_SIZE(secure_only) == 1) {
-		vaddr_t load_offs = 0;
-
-		assert(core_mmu_tee_load_pa >= secure_only[0].paddr);
-		load_offs = core_mmu_tee_load_pa - secure_only[0].paddr;
-
-		assert(secure_only[0].size >
-		       load_offs + TEE_RAM_VA_SIZE + TEE_SDP_TEST_MEM_SIZE);
-		b = secure_only[0].paddr + load_offs + TEE_RAM_VA_SIZE;
-		s = secure_only[0].size - load_offs - TEE_RAM_VA_SIZE -
-		    TEE_SDP_TEST_MEM_SIZE;
-	} else {
-		assert(secure_only[1].size > TEE_SDP_TEST_MEM_SIZE);
-		b = secure_only[1].paddr;
-		s = secure_only[1].size - TEE_SDP_TEST_MEM_SIZE;
-	}
-#endif
-	if (base)
-		*base = b;
-	if (size)
-		*size = s;
 }
 
 static struct memory_map *get_memory_map(void)
@@ -826,8 +832,6 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | tagged;
 	case MEM_AREA_TEE_COHERENT:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRWX | noncache;
-	case MEM_AREA_TA_RAM:
-		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | tagged;
 	case MEM_AREA_NSEC_SHM:
 	case MEM_AREA_NEX_NSEC_SHM:
 		return attr | TEE_MATTR_PRW | cached;
@@ -852,8 +856,9 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_RAM_NSEC:
 		return attr | TEE_MATTR_PRW | cached;
 	case MEM_AREA_RAM_SEC:
-	case MEM_AREA_SEC_RAM_OVERALL:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
+	case MEM_AREA_SEC_RAM_OVERALL:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | tagged;
 	case MEM_AREA_ROM_SEC:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PR | cached;
 	case MEM_AREA_RES_VASPACE:
@@ -907,14 +912,12 @@ static void dump_mmap_table(struct memory_map *mem_map)
 	size_t n = 0;
 
 	for (n = 0; n < mem_map->count; n++) {
-		struct tee_mmap_region *map = mem_map->map + n;
-		vaddr_t __maybe_unused vstart;
+		struct tee_mmap_region *map __maybe_unused = mem_map->map + n;
 
-		vstart = map->va + ((vaddr_t)map->pa & (map->region_size - 1));
 		DMSG("type %-12s va 0x%08" PRIxVA "..0x%08" PRIxVA
 		     " pa 0x%08" PRIxPA "..0x%08" PRIxPA " size 0x%08zx (%s)",
-		     teecore_memtype_name(map->type), vstart,
-		     vstart + map->size - 1, map->pa,
+		     teecore_memtype_name(map->type), map->va,
+		     map->va + map->size - 1, map->pa,
 		     (paddr_t)(map->pa + map->size - 1), map->size,
 		     map->region_size == SMALL_PAGE_SIZE ? "smallpg" : "pgdir");
 	}
@@ -1074,13 +1077,24 @@ static void collect_mem_ranges(struct memory_map *mem_map)
 {
 	const struct core_mmu_phys_mem *mem = NULL;
 	vaddr_t ram_start = secure_only[0].paddr;
+	size_t n = 0;
 
 #define ADD_PHYS_MEM(_type, _addr, _size) \
 		add_phys_mem(mem_map, #_addr, (_type), (_addr), (_size))
 
 	if (IS_ENABLED(CFG_CORE_RWDATA_NOEXEC)) {
-		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RO, ram_start,
+		paddr_t next_pa = 0;
+
+		/*
+		 * Read-only and read-execute physical memory areas must
+		 * not be mapped by MEM_AREA_SEC_RAM_OVERALL, but all the
+		 * read/write should.
+		 */
+		ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, ram_start,
 			     VCORE_UNPG_RX_PA - ram_start);
+		assert(VCORE_UNPG_RX_PA >= ram_start);
+		tee_ram_initial_offs = VCORE_UNPG_RX_PA - ram_start;
+		DMSG("tee_ram_initial_offs %#zx", tee_ram_initial_offs);
 		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA,
 			     VCORE_UNPG_RX_SZ);
 		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA,
@@ -1089,37 +1103,63 @@ static void collect_mem_ranges(struct memory_map *mem_map)
 		if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 			ADD_PHYS_MEM(MEM_AREA_NEX_RAM_RO, VCORE_UNPG_RW_PA,
 				     VCORE_UNPG_RW_SZ);
+			ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, VCORE_UNPG_RW_PA,
+				     VCORE_UNPG_RW_SZ);
+
 			ADD_PHYS_MEM(MEM_AREA_NEX_RAM_RW, VCORE_NEX_RW_PA,
 				     VCORE_NEX_RW_SZ);
+			ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, VCORE_NEX_RW_PA,
+				     VCORE_NEX_RW_SZ);
+
+			ADD_PHYS_MEM(MEM_AREA_NEX_RAM_RW, VCORE_FREE_PA,
+				     VCORE_FREE_SZ);
+			ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, VCORE_FREE_PA,
+				     VCORE_FREE_SZ);
+			next_pa = VCORE_FREE_PA + VCORE_FREE_SZ;
 		} else {
 			ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RW, VCORE_UNPG_RW_PA,
 				     VCORE_UNPG_RW_SZ);
+			ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, VCORE_UNPG_RW_PA,
+				     VCORE_UNPG_RW_SZ);
+
+			ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RW, VCORE_FREE_PA,
+				     VCORE_FREE_SZ);
+			ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, VCORE_FREE_PA,
+				     VCORE_FREE_SZ);
+			next_pa = VCORE_FREE_PA + VCORE_FREE_SZ;
 		}
 
 		if (IS_ENABLED(CFG_WITH_PAGER)) {
+			paddr_t pa = 0;
+			size_t sz = 0;
+
 			ADD_PHYS_MEM(MEM_AREA_INIT_RAM_RX, VCORE_INIT_RX_PA,
 				     VCORE_INIT_RX_SZ);
 			ADD_PHYS_MEM(MEM_AREA_INIT_RAM_RO, VCORE_INIT_RO_PA,
 				     VCORE_INIT_RO_SZ);
+			/*
+			 * Core init mapping shall cover up to end of the
+			 * physical RAM.  This is required since the hash
+			 * table is appended to the binary data after the
+			 * firmware build sequence.
+			 */
+			pa = VCORE_INIT_RO_PA + VCORE_INIT_RO_SZ;
+			sz = TEE_RAM_START + TEE_RAM_PH_SIZE - pa;
+			ADD_PHYS_MEM(MEM_AREA_TEE_RAM, pa, sz);
+		} else {
+			ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, next_pa,
+				     secure_only[0].paddr +
+				     secure_only[0].size - next_pa);
 		}
 	} else {
 		ADD_PHYS_MEM(MEM_AREA_TEE_RAM, TEE_RAM_START, TEE_RAM_PH_SIZE);
+		ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, secure_only[n].paddr,
+			     secure_only[0].size);
 	}
 
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
-		ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, TRUSTED_DRAM_BASE,
-			     TRUSTED_DRAM_SIZE);
-	} else {
-		/*
-		 * Every guest will have own TA RAM if virtualization
-		 * support is enabled.
-		 */
-		paddr_t ta_base = 0;
-		size_t ta_size = 0;
-
-		core_mmu_get_ta_range(&ta_base, &ta_size);
-		ADD_PHYS_MEM(MEM_AREA_TA_RAM, ta_base, ta_size);
-	}
+	for (n = 1; n < ARRAY_SIZE(secure_only); n++)
+		ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, secure_only[n].paddr,
+			     secure_only[n].size);
 
 	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS) &&
 	    IS_ENABLED(CFG_WITH_PAGER)) {
@@ -1163,15 +1203,13 @@ static void assign_mem_granularity(struct memory_map *mem_map)
 	for  (n = 0; n < mem_map->count; n++) {
 		paddr_t mask = mem_map->map[n].pa | mem_map->map[n].size;
 
-		if (!(mask & CORE_MMU_PGDIR_MASK))
-			mem_map->map[n].region_size = CORE_MMU_PGDIR_SIZE;
-		else if (!(mask & SMALL_PAGE_MASK))
-			mem_map->map[n].region_size = SMALL_PAGE_SIZE;
-		else
+		if (mask & SMALL_PAGE_MASK)
 			panic("Impossible memory alignment");
 
 		if (map_is_tee_ram(mem_map->map + n))
 			mem_map->map[n].region_size = SMALL_PAGE_SIZE;
+		else
+			mem_map->map[n].region_size = CORE_MMU_PGDIR_SIZE;
 	}
 }
 
@@ -1215,7 +1253,7 @@ static bool assign_mem_va_dir(vaddr_t tee_ram_va, struct memory_map *mem_map,
 	 * since it handles virtual memory which covers the part of the ELF
 	 * that cannot fit directly into memory.
 	 */
-	va = tee_ram_va;
+	va = tee_ram_va + tee_ram_initial_offs;
 	for (n = 0; n < mem_map->count; n++) {
 		map = mem_map->map + n;
 		if (map_is_tee_ram(map) ||
@@ -1481,15 +1519,14 @@ static void check_mem_map(struct memory_map *mem_map)
 			if (!pbuf_is_inside(secure_only, m->pa, m->size))
 				panic("TEE_RAM can't fit in secure_only");
 			break;
-		case MEM_AREA_TA_RAM:
+		case MEM_AREA_SEC_RAM_OVERALL:
 			if (!pbuf_is_inside(secure_only, m->pa, m->size))
-				panic("TA_RAM can't fit in secure_only");
+				panic("SEC_RAM_OVERALL can't fit in secure_only");
 			break;
 		case MEM_AREA_NSEC_SHM:
 			if (!pbuf_is_inside(nsec_shared, m->pa, m->size))
 				panic("NS_SHM can't fit in nsec_shared");
 			break;
-		case MEM_AREA_SEC_RAM_OVERALL:
 		case MEM_AREA_TEE_COHERENT:
 		case MEM_AREA_TEE_ASAN:
 		case MEM_AREA_IO_SEC:
@@ -1542,7 +1579,16 @@ void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 
 	check_sec_nsec_mem_config();
 
-	mem_map = static_memory_map;
+	if (IS_ENABLED(CFG_BOOT_MEM)) {
+		mem_map.alloc_count = CFG_MMAP_REGIONS;
+		mem_map.map = boot_mem_alloc_tmp(mem_map.alloc_count *
+							sizeof(*mem_map.map),
+						 alignof(*mem_map.map));
+		memory_map_realloc_func = boot_mem_realloc_memory_map;
+	} else {
+		mem_map = static_memory_map;
+	}
+
 	static_memory_map = (struct memory_map){
 		.map = &tmp_mmap_region,
 		.alloc_count = 1,
@@ -1569,6 +1615,25 @@ void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 	core_init_mmu_regs(cfg);
 	cfg->map_offset = offs;
 	static_memory_map = mem_map;
+	boot_mem_add_reloc(&static_memory_map.map);
+}
+
+void core_mmu_save_mem_map(void)
+{
+	if (IS_ENABLED(CFG_BOOT_MEM)) {
+		size_t alloc_count = static_memory_map.count + 5;
+		size_t elem_sz = sizeof(*static_memory_map.map);
+		void *p = NULL;
+
+		p = nex_calloc(alloc_count, elem_sz);
+		if (!p)
+			panic();
+		memcpy(p, static_memory_map.map,
+		       static_memory_map.count * elem_sz);
+		static_memory_map.map = p;
+		static_memory_map.alloc_count = alloc_count;
+		memory_map_realloc_func = heap_realloc_memory_map;
+	}
 }
 
 bool core_mmu_mattr_is_ok(uint32_t mattr)
@@ -1597,8 +1662,6 @@ bool core_mmu_mattr_is_ok(uint32_t mattr)
  */
 bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 {
-	paddr_t ta_base = 0;
-	size_t ta_size = 0;
 	struct tee_mmap_region *map;
 
 	/* Empty buffers complies with anything */
@@ -1614,9 +1677,6 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 	case CORE_MEM_TEE_RAM:
 		return core_is_buffer_inside(pbuf, len, TEE_RAM_START,
 							TEE_RAM_PH_SIZE);
-	case CORE_MEM_TA_RAM:
-		core_mmu_get_ta_range(&ta_base, &ta_size);
-		return core_is_buffer_inside(pbuf, len, ta_base, ta_size);
 #ifdef CFG_CORE_RESERVED_SHM
 	case CORE_MEM_NSEC_SHM:
 		return core_is_buffer_inside(pbuf, len, TEE_SHMEM_START,
@@ -1831,7 +1891,7 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 
 static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
 			     size_t size_left, paddr_t block_size,
-			     struct tee_mmap_region *mm __maybe_unused)
+			     struct tee_mmap_region *mm)
 {
 	/* VA and PA are aligned to block size at current level */
 	if ((vaddr | paddr) & (block_size - 1))
@@ -1839,6 +1899,13 @@ static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
 
 	/* Remainder fits into block at current level */
 	if (size_left < block_size)
+		return false;
+
+	/*
+	 * The required block size of the region is compatible with the
+	 * block size of the current level.
+	 */
+	if (mm->region_size < block_size)
 		return false;
 
 #ifdef CFG_WITH_PAGER
@@ -2058,6 +2125,12 @@ TEE_Result core_mmu_map_contiguous_pages(vaddr_t vstart, paddr_t pstart,
 	return TEE_SUCCESS;
 }
 
+static bool mem_range_is_in_vcore_free(vaddr_t vstart, size_t num_pages)
+{
+	return core_is_buffer_inside(vstart, num_pages * SMALL_PAGE_SIZE,
+				     VCORE_FREE_PA, VCORE_FREE_SZ);
+}
+
 void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 {
 	struct core_mmu_table_info tbl_info;
@@ -2072,7 +2145,8 @@ void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 	if (!mm || !va_is_in_map(mm, vstart + num_pages * SMALL_PAGE_SIZE - 1))
 		panic("VA does not belong to any known mm region");
 
-	if (!core_mmu_is_dynamic_vaspace(mm))
+	if (!core_mmu_is_dynamic_vaspace(mm) &&
+	    !mem_range_is_in_vcore_free(vstart, num_pages))
 		panic("Trying to unmap static region");
 
 	for (i = 0; i < num_pages; i++, vstart += SMALL_PAGE_SIZE) {
@@ -2516,20 +2590,6 @@ bool is_nexus(const void *va)
 }
 #endif
 
-void core_mmu_init_virtualization(void)
-{
-	paddr_t b1 = 0;
-	paddr_size_t s1 = 0;
-
-	static_assert(ARRAY_SIZE(secure_only) <= 2);
-	if (ARRAY_SIZE(secure_only) == 2) {
-		b1 = secure_only[1].paddr;
-		s1 = secure_only[1].size;
-	}
-	virt_init_memory(&static_memory_map, secure_only[0].paddr,
-			 secure_only[0].size, b1, s1);
-}
-
 vaddr_t io_pa_or_va(struct io_pa_va *p, size_t len)
 {
 	assert(p->pa);
@@ -2599,24 +2659,72 @@ static TEE_Result teecore_init_pub_ram(void)
 early_init(teecore_init_pub_ram);
 #endif /*CFG_CORE_RESERVED_SHM*/
 
+static void __maybe_unused carve_out_core_mem(paddr_t pa, paddr_t end_pa)
+{
+	tee_mm_entry_t *mm __maybe_unused = NULL;
+
+	DMSG("%#"PRIxPA" .. %#"PRIxPA, pa, end_pa);
+	mm = phys_mem_alloc2(pa, end_pa - pa);
+	assert(mm);
+}
+
 void core_mmu_init_phys_mem(void)
 {
-	vaddr_t s = 0;
-	vaddr_t e = 0;
-	paddr_t ps = 0;
-	size_t size = 0;
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		paddr_t b1 = 0;
+		paddr_size_t s1 = 0;
 
-	/*
-	 * Get virtual addr/size of RAM where TA are loaded/executedNSec
-	 * shared mem allocated from teecore.
-	 */
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
-		virt_get_ta_ram(&s, &e);
-	else
-		core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
+		static_assert(ARRAY_SIZE(secure_only) <= 2);
 
-	ps = virt_to_phys((void *)s);
-	size = e - s;
+		if (ARRAY_SIZE(secure_only) == 2) {
+			b1 = secure_only[1].paddr;
+			s1 = secure_only[1].size;
+		}
+		virt_init_memory(&static_memory_map, secure_only[0].paddr,
+				 secure_only[0].size, b1, s1);
+	} else {
+#ifdef CFG_WITH_PAGER
+		/*
+		 * The pager uses all core memory so there's no need to add
+		 * it to the pool.
+		 */
+		static_assert(ARRAY_SIZE(secure_only) == 2);
+		phys_mem_init(0, 0, secure_only[1].paddr, secure_only[1].size);
+#else /*!CFG_WITH_PAGER*/
+		size_t align = BIT(CORE_MMU_USER_CODE_SHIFT);
+		paddr_t end_pa = 0;
+		size_t size = 0;
+		paddr_t ps = 0;
+		paddr_t pa = 0;
 
-	phys_mem_init(0, 0, ps, size);
+		static_assert(ARRAY_SIZE(secure_only) <= 2);
+		if (ARRAY_SIZE(secure_only) == 2) {
+			ps = secure_only[1].paddr;
+			size = secure_only[1].size;
+		}
+		phys_mem_init(secure_only[0].paddr, secure_only[0].size,
+			      ps, size);
+
+		/*
+		 * The VCORE macros are relocatable so we need to translate
+		 * the addresses now that the MMU is enabled.
+		 */
+		end_pa = vaddr_to_phys(ROUNDUP(VCORE_FREE_END_PA,
+					       align) - 1) + 1;
+		/* Carve out the part used by OP-TEE core */
+		carve_out_core_mem(vaddr_to_phys(VCORE_UNPG_RX_PA), end_pa);
+		if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS)) {
+			pa = vaddr_to_phys(ROUNDUP(ASAN_MAP_PA, align));
+			carve_out_core_mem(pa, pa + ASAN_MAP_SZ);
+		}
+
+		/* Carve out test SDP memory */
+#ifdef TEE_SDP_TEST_MEM_BASE
+		if (TEE_SDP_TEST_MEM_SIZE) {
+			pa = vaddr_to_phys(TEE_SDP_TEST_MEM_BASE);
+			carve_out_core_mem(pa, pa + TEE_SDP_TEST_MEM_SIZE);
+		}
+#endif
+#endif /*!CFG_WITH_PAGER*/
+	}
 }

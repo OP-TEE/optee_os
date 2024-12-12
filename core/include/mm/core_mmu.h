@@ -68,7 +68,6 @@
  * MEM_AREA_TEE_COHERENT: teecore coherent RAM (secure, reserved to TEE)
  * MEM_AREA_TEE_ASAN: core address sanitizer RAM (secure, reserved to TEE)
  * MEM_AREA_IDENTITY_MAP_RX: core identity mapped r/o executable memory (secure)
- * MEM_AREA_TA_RAM:   Secure RAM where teecore loads/exec TA instances.
  * MEM_AREA_NSEC_SHM: NonSecure shared RAM between NSec and TEE.
  * MEM_AREA_NEX_NSEC_SHM: nexus non-secure shared RAM between NSec and TEE.
  * MEM_AREA_RAM_NSEC: NonSecure RAM storing data
@@ -98,7 +97,6 @@ enum teecore_memtypes {
 	MEM_AREA_TEE_COHERENT,
 	MEM_AREA_TEE_ASAN,
 	MEM_AREA_IDENTITY_MAP_RX,
-	MEM_AREA_TA_RAM,
 	MEM_AREA_NSEC_SHM,
 	MEM_AREA_NEX_NSEC_SHM,
 	MEM_AREA_RAM_NSEC,
@@ -133,7 +131,6 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_TEE_ASAN] = "TEE_ASAN",
 		[MEM_AREA_IDENTITY_MAP_RX] = "IDENTITY_MAP_RX",
 		[MEM_AREA_TEE_COHERENT] = "TEE_COHERENT",
-		[MEM_AREA_TA_RAM] = "TA_RAM",
 		[MEM_AREA_NSEC_SHM] = "NSEC_SHM",
 		[MEM_AREA_NEX_NSEC_SHM] = "NEX_NSEC_SHM",
 		[MEM_AREA_RAM_NSEC] = "RAM_NSEC",
@@ -298,6 +295,11 @@ extern const unsigned long core_mmu_tee_load_pa;
 
 void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg);
 void core_init_mmu_regs(struct core_mmu_config *cfg);
+/*
+ * Copy static memory map from temporary boot_mem to heap when CFG_BOOT_MEM
+ * is enabled.
+ */
+void core_mmu_save_mem_map(void);
 
 /* Arch specific function to help optimizing 1 MMU xlat table */
 bool core_mmu_prefer_tee_ram_at_top(paddr_t paddr);
@@ -648,8 +650,6 @@ void core_mmu_set_default_prtn(void);
 void core_mmu_set_default_prtn_tbl(void);
 #endif
 
-void core_mmu_init_virtualization(void);
-
 /* Initialize physical memory pool */
 void core_mmu_init_phys_mem(void);
 
@@ -694,13 +694,6 @@ void core_mmu_set_secure_memory(paddr_t base, size_t size);
  * configuration.
  */
 void core_mmu_get_secure_memory(paddr_t *base, paddr_size_t *size);
-
-/*
- * core_mmu_get_ta_range() - get physical memory range reserved for TAs
- * @base: [out] range base address ref or NULL
- * @size: [out] range size ref or NULL
- */
-void core_mmu_get_ta_range(paddr_t *base, size_t *size);
 
 #endif /*__ASSEMBLER__*/
 

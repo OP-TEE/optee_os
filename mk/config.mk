@@ -1263,3 +1263,10 @@ CFG_CORE_UNSAFE_MODEXP ?= n
 # when enabled, makes MBedTLS library for TAs use 'unsafe' modular
 # exponentiation algorithm.
 CFG_TA_MEBDTLS_UNSAFE_MODEXP ?= n
+
+# CFG_BOOT_MEM, when enabled, adds stack like memory allocation during boot.
+ifeq ($(ARCH),arm)
+$(call force,CFG_BOOT_MEM,y)
+else
+CFG_BOOT_MEM ?= n
+endif

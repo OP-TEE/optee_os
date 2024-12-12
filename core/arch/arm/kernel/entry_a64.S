@@ -200,7 +200,7 @@ FUNC _start , :
 	/* Copy backwards (as memmove) in case we're overlapping */
 	add	x0, x0, x2		/* __init_start + len */
 	add	x1, x1, x2		/* __data_end + len */
-	adr	x3, cached_mem_end
+	adr_l	x3, boot_cached_mem_end
 	str	x0, [x3]
 	adr	x2, __init_start
 copy_init:
@@ -212,23 +212,30 @@ copy_init:
 	/*
 	 * The binary is built as:
 	 * [Core, rodata and data] : In correct location
-	 * [struct boot_embdata + data] : Should be moved to __end, first
-	 * uint32_t tells the length of the struct + data
+	 * [struct boot_embdata + data] : Should be moved to right before
+	 * __vcore_free_end, the first uint32_t tells the length of the
+	 * struct + data
 	 */
-	adr_l	x0, __end		/* dst */
 	adr_l	x1, __data_end		/* src */
 	ldr	w2, [x1]		/* struct boot_embdata::total_len */
-	/* Copy backwards (as memmove) in case we're overlapping */
-	add	x0, x0, x2
-	add	x1, x1, x2
-	adr	x3, cached_mem_end
+	/* dst */
+	adr_l	x0, __vcore_free_end
+	sub	x0, x0, x2
+	/* round down to beginning of page */
+	bic	x0, x0, #(SMALL_PAGE_SIZE - 1)
+	adr_l	x3, boot_embdata_ptr
 	str	x0, [x3]
-	adr_l	x2, __end
+
+	/* Copy backwards (as memmove) in case we're overlapping */
+	add	x1, x1, x2
+	add	x2, x0, x2
+	adr_l	x3, boot_cached_mem_end
+	str	x2, [x3]
 
 copy_init:
 	ldp	x3, x4, [x1, #-16]!
-	stp	x3, x4, [x0, #-16]!
-	cmp	x0, x2
+	stp	x3, x4, [x2, #-16]!
+	cmp	x2, x0
 	b.gt	copy_init
 #endif
 
@@ -289,7 +296,8 @@ clear_nex_bss:
 	 * entries used by for instance ARM Trusted Firmware.
 	 */
 	adr_l	x0, __text_start
-	ldr	x1, cached_mem_end
+	adr_l	x1, boot_cached_mem_end
+	ldr	x1, [x1]
 	sub	x1, x1, x0
 	bl	dcache_cleaninv_range
 
@@ -302,6 +310,22 @@ clear_nex_bss:
 	mov	x3, x22
 	mov	x4, xzr
 	bl	boot_save_args
+
+#ifdef CFG_WITH_PAGER
+	adr_l	x0, __init_end	/* pointer to boot_embdata */
+	ldr	w1, [x0]	/* struct boot_embdata::total_len */
+	add	x0, x0, x1
+	add	x0, x0, #0xfff	/* round up */
+	bic	x0, x0, #0xfff  /* to next page */
+	mov_imm x1, (TEE_RAM_PH_SIZE + TEE_RAM_START)
+	mov	x2, x1
+#else
+	adr_l	x0, __vcore_free_start
+	adr_l	x1, boot_embdata_ptr
+	ldr	x1, [x1]
+	adr_l	x2, __vcore_free_end;
+#endif
+	bl	boot_mem_init
 
 #ifdef CFG_MEMTAG
 	/*
@@ -333,10 +357,10 @@ clear_nex_bss:
 	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	cbz	x0, 1f
 	/*
-	 * Update cached_mem_end address with load offset since it was
+	 * Update boot_cached_mem_end address with load offset since it was
 	 * calculated before relocation.
 	 */
-	adr	x5, cached_mem_end
+	adr_l	x5, boot_cached_mem_end
 	ldr	x6, [x5]
 	add	x6, x6, x0
 	str	x6, [x5]
@@ -348,6 +372,9 @@ clear_nex_bss:
 	bl	__get_core_pos
 	bl	enable_mmu
 #ifdef CFG_CORE_ASLR
+	adr_l	x0, boot_mmu_config
+	ldr	x0, [x0, #CORE_MMU_CONFIG_MAP_OFFSET]
+	bl	boot_mem_relocate
 	/*
 	 * Reinitialize console, since register_serial_console() has
 	 * previously registered a PA and with ASLR the VA is different
@@ -427,7 +454,8 @@ clear_nex_bss:
 	 * D-cache before exiting to normal world.
 	 */
 	adr_l	x0, __text_start
-	ldr	x1, cached_mem_end
+	adr_l	x1, boot_cached_mem_end
+	ldr	x1, [x1]
 	sub	x1, x1, x0
 	bl	dcache_cleaninv_range
 
@@ -468,11 +496,13 @@ clear_nex_bss:
 END_FUNC _start
 DECLARE_KEEP_INIT _start
 
+#ifndef CFG_WITH_PAGER
 	.section .identity_map.data
 	.balign	8
-LOCAL_DATA cached_mem_end , :
+LOCAL_DATA boot_embdata_ptr , :
 	.skip	8
-END_DATA cached_mem_end
+END_DATA boot_embdata_ptr
+#endif
 
 #if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PHYS_RELOCATABLE)
 LOCAL_FUNC relocate , :
@@ -483,7 +513,8 @@ LOCAL_FUNC relocate , :
 #ifdef CFG_WITH_PAGER
 	adr_l	x6, __init_end
 #else
-	adr_l	x6, __end
+	adr_l	x6, boot_embdata_ptr
+	ldr	x6, [x6]
 #endif
 	ldp	w2, w3, [x6, #BOOT_EMBDATA_RELOC_OFFSET]
 

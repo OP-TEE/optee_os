@@ -28,7 +28,6 @@ enum buf_is_attr {
 	CORE_MEM_NON_SEC,
 	CORE_MEM_SEC,
 	CORE_MEM_TEE_RAM,
-	CORE_MEM_TA_RAM,
 	CORE_MEM_SDP_MEM,
 	CORE_MEM_REG_SHM,
 };
@@ -89,6 +88,11 @@ void *phys_to_virt_io(paddr_t pa, size_t len);
  * Returns 0 on failure or a valid physical address on success.
  */
 paddr_t virt_to_phys(void *va);
+
+static inline paddr_t vaddr_to_phys(vaddr_t va)
+{
+	return virt_to_phys((void *)va);
+}
 
 /*
  * Return runtime usable address, irrespective of whether

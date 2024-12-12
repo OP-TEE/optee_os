@@ -80,6 +80,12 @@ uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 DECLARE_KEEP_PAGER(sem_cpu_sync);
 #endif
 
+/*
+ * Must not be in .bss since it's initialized and used from assembly before
+ * .bss is cleared.
+ */
+vaddr_t boot_cached_mem_end __nex_data = 1;
+
 static unsigned long boot_arg_fdt __nex_bss;
 static unsigned long boot_arg_nsec_entry __nex_bss;
 static unsigned long boot_arg_pageable_part __nex_bss;
@@ -381,12 +387,8 @@ static TEE_Result mmap_clear_memtag(struct tee_mmap_region *map,
 				    void *ptr __unused)
 {
 	switch (map->type) {
-	case MEM_AREA_TEE_RAM:
-	case MEM_AREA_TEE_RAM_RW:
 	case MEM_AREA_NEX_RAM_RO:
-	case MEM_AREA_NEX_RAM_RW:
-	case MEM_AREA_TEE_ASAN:
-	case MEM_AREA_TA_RAM:
+	case MEM_AREA_SEC_RAM_OVERALL:
 		DMSG("Clearing tags for VA %#"PRIxVA"..%#"PRIxVA,
 		     map->va, map->va + map->size - 1);
 		memtag_set_tags((void *)map->va, map->size, 0);
@@ -496,7 +498,7 @@ static struct fobj *ro_paged_alloc(tee_mm_entry_t *mm, void *hashes,
 #endif
 }
 
-static void init_runtime(unsigned long pageable_part)
+static void init_pager_runtime(unsigned long pageable_part)
 {
 	size_t n;
 	size_t init_size = (size_t)(__init_end - __init_start);
@@ -521,12 +523,6 @@ static void init_runtime(unsigned long pageable_part)
 
 	tmp_hashes = __init_end + embdata->hashes_offset;
 
-	init_asan();
-
-	/* Add heap2 first as heap1 may be too small as initial bget pool */
-	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
-	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
-
 	/*
 	 * This needs to be initialized early to support address lookup
 	 * in MEM_AREA_TEE_RAM
@@ -540,17 +536,17 @@ static void init_runtime(unsigned long pageable_part)
 	asan_memcpy_unchecked(hashes, tmp_hashes, hash_size);
 
 	/*
-	 * Need physical memory pool initialized to be able to allocate
-	 * secure physical memory below.
+	 * The pager is about the be enabled below, eventual temporary boot
+	 * memory allocation must be removed now.
 	 */
-	core_mmu_init_phys_mem();
+	boot_mem_release_tmp_alloc();
 
 	carve_out_asan_mem();
 
 	mm = nex_phys_mem_ta_alloc(pageable_size);
 	assert(mm);
-	paged_store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM,
-				   pageable_size);
+	paged_store = phys_to_virt(tee_mm_get_smem(mm),
+				   MEM_AREA_SEC_RAM_OVERALL, pageable_size);
 	/*
 	 * Load pageable part in the dedicated allocated area:
 	 * - Move pageable non-init part into pageable area. Note bootloader
@@ -652,27 +648,9 @@ static void init_runtime(unsigned long pageable_part)
 
 	print_pager_pool_size();
 }
-#else
-
-static void init_runtime(unsigned long pageable_part __unused)
+#else /*!CFG_WITH_PAGER*/
+static void init_pager_runtime(unsigned long pageable_part __unused)
 {
-	init_asan();
-
-	/*
-	 * By default whole OP-TEE uses malloc, so we need to initialize
-	 * it early. But, when virtualization is enabled, malloc is used
-	 * only by TEE runtime, so malloc should be initialized later, for
-	 * every virtual partition separately. Core code uses nex_malloc
-	 * instead.
-	 */
-#ifdef CFG_NS_VIRTUALIZATION
-	nex_malloc_add_pool(__nex_heap_start, __nex_heap_end -
-					      __nex_heap_start);
-#else
-	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
-#endif
-
-	IMSG_RAW("\n");
 }
 #endif
 
@@ -889,10 +867,6 @@ static void update_external_dt(void)
 
 void init_tee_runtime(void)
 {
-#ifndef CFG_WITH_PAGER
-	/* Pager initializes TA RAM early */
-	core_mmu_init_phys_mem();
-#endif
 	/*
 	 * With virtualization we call this function when creating the
 	 * OP-TEE partition instead.
@@ -923,6 +897,8 @@ void init_tee_runtime(void)
 
 static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 {
+	vaddr_t va = 0;
+
 	thread_init_core_local_stacks();
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -938,14 +914,50 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 	if (IS_ENABLED(CFG_CRYPTO_WITH_CE))
 		check_crypto_extensions();
 
+	init_asan();
+
 	/*
-	 * Pager: init_runtime() calls thread_kernel_enable_vfp() so we must
-	 * set a current thread right now to avoid a chicken-and-egg problem
-	 * (thread_init_boot_thread() sets the current thread but needs
-	 * things set by init_runtime()).
+	 * By default whole OP-TEE uses malloc, so we need to initialize
+	 * it early. But, when virtualization is enabled, malloc is used
+	 * only by TEE runtime, so malloc should be initialized later, for
+	 * every virtual partition separately. Core code uses nex_malloc
+	 * instead.
 	 */
-	thread_get_core_local()->curr_thread = 0;
-	init_runtime(pageable_part);
+#ifdef CFG_WITH_PAGER
+	/* Add heap2 first as heap1 may be too small as initial bget pool */
+	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
+#endif
+#ifdef CFG_NS_VIRTUALIZATION
+	nex_malloc_add_pool(__nex_heap_start, __nex_heap_end -
+					      __nex_heap_start);
+#else
+	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
+#endif
+	IMSG_RAW("\n");
+
+	core_mmu_save_mem_map();
+	core_mmu_init_phys_mem();
+	va = boot_mem_release_unused();
+	if (!IS_ENABLED(CFG_WITH_PAGER)) {
+		/*
+		 * We must update boot_cached_mem_end to reflect the memory
+		 * just unmapped by boot_mem_release_unused().
+		 */
+		assert(va && va <= boot_cached_mem_end);
+		boot_cached_mem_end = va;
+	}
+
+	if (IS_ENABLED(CFG_WITH_PAGER)) {
+		/*
+		 * Pager: init_runtime() calls thread_kernel_enable_vfp()
+		 * so we must set a current thread right now to avoid a
+		 * chicken-and-egg problem (thread_init_boot_thread() sets
+		 * the current thread but needs things set by
+		 * init_runtime()).
+		 */
+		thread_get_core_local()->curr_thread = 0;
+		init_pager_runtime(pageable_part);
+	}
 
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		/*
@@ -1011,6 +1023,10 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
 	     (unsigned long)boot_mmu_config.map_offset, VCORE_START_VA);
 #endif
+#ifdef CFG_NS_VIRTUALIZATION
+	DMSG("NS-virtualization enabled, supporting %u guests",
+	     CFG_VIRT_GUEST_COUNT);
+#endif
 	if (IS_ENABLED(CFG_MEMTAG))
 		DMSG("Memory tagging %s",
 		     memtag_is_enabled() ?  "enabled" : "disabled");
@@ -1026,12 +1042,8 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 
 	boot_primary_init_intc();
 	init_vfp_nsec();
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
-		IMSG("Initializing virtualization support");
-		core_mmu_init_virtualization();
-	} else {
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		init_tee_runtime();
-	}
 }
 
 /*
@@ -1040,6 +1052,9 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
  */
 void __weak boot_init_primary_final(void)
 {
+	if (!IS_ENABLED(CFG_WITH_PAGER))
+		boot_mem_release_tmp_alloc();
+
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		call_driver_initcalls();
 	call_finalcalls();
