@@ -414,6 +414,14 @@
 			};
 		};
 
+		rtc: rtc@46000000 {
+			compatible = "st,stm32mp25-rtc";
+			reg = <0x46000000 0x400>;
+			clocks = <&rcc CK_BUS_RTC>, <&rcc RTC_CK>;
+			clock-names = "pclk", "rtc_ck";
+			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		tamp: tamp@46010000 {
 			compatible = "st,stm32mp25-tamp";
 			reg = <0x46010000 0x400>;
