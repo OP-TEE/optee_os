@@ -426,3 +426,8 @@ endif
 
 # Allow probing of unsafe peripherals. Firewall config will not be checked
 CFG_STM32_ALLOW_UNSAFE_PROBE ?= n
+
+# Enable RTC
+ifeq ($(CFG_STM32_RTC),y)
+$(call force,CFG_DRIVERS_RTC,y)
+endif
