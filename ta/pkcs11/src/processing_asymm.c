@@ -899,14 +899,16 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 						    tee_attrs, tee_attrs_count,
 						    in_buf, in_size,
 						    temp_buf, &temp_size);
-			if (!res && temp_size != sz) {
-				EMSG("CMK_RSA_X509: signature size %zu != %zu",
-				     temp_size, sz);
-				rc = PKCS11_CKR_DATA_INVALID;
-				break;
-			}
 			if (!res) {
-				TEE_MemMove(out_buf, temp_buf, sz);
+				/*
+				 * Raw RSA decryption may remove some
+				 * leading nul bytes as done by rsadorep()
+				 * (lib/libtomcrypt/rsa.c). Restore them to
+				 * reach target signature size.
+				 */
+				TEE_MemFill(out_buf, 0, sz - temp_size);
+				TEE_MemMove((uint8_t *)out_buf + sz - temp_size,
+					    temp_buf, temp_size);
 				TEE_MemFill(temp_buf, 0xa5, sz);
 			}
 			output_data = true;
