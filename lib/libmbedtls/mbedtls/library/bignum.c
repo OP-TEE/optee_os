@@ -1756,7 +1756,8 @@ static int mbedtls_mpi_exp_mod_optionally_safe(mbedtls_mpi *X, const mbedtls_mpi
      * Allocate working memory for mbedtls_mpi_core_exp_mod()
      */
     size_t T_limbs = mbedtls_mpi_core_exp_mod_working_limbs(N->n, E->n);
-    mbedtls_mpi_uint *T = (mbedtls_mpi_uint *) mbedtls_calloc(T_limbs, sizeof(mbedtls_mpi_uint));
+    mbedtls_mpi_uint *T = mempool_calloc(mbedtls_mpi_mempool, T_limbs,
+                                         sizeof(mbedtls_mpi_uint));
     if (T == NULL) {
         return MBEDTLS_ERR_MPI_ALLOC_FAILED;
     }
@@ -1830,7 +1831,8 @@ static int mbedtls_mpi_exp_mod_optionally_safe(mbedtls_mpi *X, const mbedtls_mpi
 
 cleanup:
 
-    mbedtls_mpi_zeroize_and_free(T, T_limbs);
+    mbedtls_mpi_zeroize(T, T_limbs);
+    mempool_free(mbedtls_mpi_mempool, T);
 
     if (prec_RR == NULL || prec_RR->p == NULL) {
         mbedtls_mpi_free(&RR);
