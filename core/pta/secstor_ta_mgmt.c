@@ -44,7 +44,7 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 	struct tee_tadb_ta_write *ta;
 	void *hash_ctx = NULL;
 	size_t offs;
-	const size_t buf_size = 2 * 4096;
+	const size_t buf_size = 1024;
 	void *buf;
 	struct tee_tadb_property property;
 	struct shdr_bootstrap_ta bs_ta;
