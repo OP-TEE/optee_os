@@ -352,7 +352,8 @@ jobs:
           make -j$(nproc) check
           make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
           # Rust is disabled because signature_verification-rs hangs with this OP-TEE configuration
-          make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001 RUST_ENABLE=n
+          # fTPM is disabled because it takes too long to probe with this OP-TEE configuration
+          make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001 RUST_ENABLE=n MEASURED_BOOT_FTPM=n
           make -j$(nproc) check CFG_WITH_PAGER=y
 
   QEMUv8_check2:
