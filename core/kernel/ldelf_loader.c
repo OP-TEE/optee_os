@@ -31,7 +31,7 @@ static const bool is_32bit;
 static TEE_Result alloc_and_map_fobj(struct user_mode_ctx *uctx, size_t sz,
 				     uint32_t prot, uint32_t flags, vaddr_t *va)
 {
-	size_t num_pgs = ROUNDUP(sz, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
+	size_t num_pgs = ROUNDUP_DIV(sz, SMALL_PAGE_SIZE);
 	struct fobj *fobj = fobj_ta_mem_alloc(num_pgs);
 	struct mobj *mobj = mobj_with_fobj_alloc(fobj, NULL,
 						 TEE_MATTR_MEM_TYPE_TAGGED);

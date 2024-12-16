@@ -69,7 +69,7 @@ struct mobj *sp_mem_new_mobj(uint64_t pages, uint32_t mem_type, bool is_secure)
 
 static size_t get_page_count(struct mobj_sp *ms)
 {
-	return ROUNDUP(ms->mobj.size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
+	return ROUNDUP_DIV(ms->mobj.size, SMALL_PAGE_SIZE);
 }
 
 /* Add some physical pages to the mobj object. */
