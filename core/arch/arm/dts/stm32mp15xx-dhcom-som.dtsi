@@ -257,6 +257,7 @@
 };
 
 &i2c4 {
+	compatible = "st,stm32mp15-i2c-non-secure";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pins_a>;
 	i2c-scl-rising-time-ns = <185>;

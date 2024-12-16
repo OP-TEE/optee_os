@@ -77,8 +77,7 @@ static void init_pmic_state(const void *fdt, int pmic_node)
 
 static bool dt_pmic_is_secure(void)
 {
-	return stm32mp_with_pmic() &&
-	       i2c_handle->dt_status == DT_STATUS_OK_SEC;
+	return stm32mp_with_pmic() && i2c_is_secure(i2c_handle);
 }
 
 static void priv_dt_properties(const void *fdt, int regu_node,
