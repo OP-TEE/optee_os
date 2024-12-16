@@ -101,7 +101,7 @@ enum pkcs11_rc pkcs2tee_validate_rsa_pss(struct active_processing *proc,
 	if ((modulus_size % 8) == 1)
 		k = modulus_size / 8;
 	else
-		k = ROUNDUP(modulus_size, 8) / 8;
+		k = ROUNDUP_DIV(modulus_size, 8);
 
 	if (rsa_pss_ctx->salt_len > (k - 2 - hash_size))
 		return PKCS11_CKR_KEY_SIZE_RANGE;

@@ -146,8 +146,7 @@ static ltc_mp_digit get_digit(void *a, int n)
 
 static int get_digit_count(void *a)
 {
-	return ROUNDUP(mbedtls_mpi_size(a), sizeof(mbedtls_mpi_uint)) /
-	       sizeof(mbedtls_mpi_uint);
+	return ROUNDUP_DIV(mbedtls_mpi_size(a), sizeof(mbedtls_mpi_uint));
 }
 
 static int compare(void *a, void *b)

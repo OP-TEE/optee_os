@@ -378,8 +378,8 @@ static TEE_Result rwp_init(void)
 	assert(ta_size && !(ta_size & SMALL_PAGE_SIZE));
 
 	num_pool_pages = ta_size / SMALL_PAGE_SIZE;
-	num_fobj_pages = ROUNDUP(num_pool_pages * sizeof(*rwp_state_base),
-				 SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
+	num_fobj_pages = ROUNDUP_DIV(num_pool_pages * sizeof(*rwp_state_base),
+				     SMALL_PAGE_SIZE);
 
 	/*
 	 * Each page in the pool needs a struct rwp_state.

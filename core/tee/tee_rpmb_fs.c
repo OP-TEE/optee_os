@@ -1321,8 +1321,7 @@ static TEE_Result tee_rpmb_read(uint32_t addr, uint8_t *data,
 		/* Overflow */
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
-	blkcnt =
-	    ROUNDUP(len + byte_offset, RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
+	blkcnt = ROUNDUP_DIV(len + byte_offset, RPMB_DATA_SIZE);
 	res = tee_rpmb_init();
 	if (res != TEE_SUCCESS)
 		return res;
@@ -1532,8 +1531,7 @@ static TEE_Result tee_rpmb_write_blk(uint16_t blk_idx,
 static bool tee_rpmb_write_is_atomic(uint32_t addr, uint32_t len)
 {
 	uint8_t byte_offset = addr % RPMB_DATA_SIZE;
-	uint16_t blkcnt = ROUNDUP(len + byte_offset,
-				  RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
+	uint16_t blkcnt = ROUNDUP_DIV(len + byte_offset, RPMB_DATA_SIZE);
 
 	return (blkcnt <= rpmb_ctx->rel_wr_blkcnt);
 }
@@ -1559,8 +1557,7 @@ static TEE_Result tee_rpmb_write(uint32_t addr,
 	blk_idx = addr / RPMB_DATA_SIZE;
 	byte_offset = addr % RPMB_DATA_SIZE;
 
-	blkcnt =
-	    ROUNDUP(len + byte_offset, RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
+	blkcnt = ROUNDUP_DIV(len + byte_offset, RPMB_DATA_SIZE);
 
 	if (byte_offset == 0 && (len % RPMB_DATA_SIZE) == 0) {
 		res = tee_rpmb_write_blk(blk_idx, data, blkcnt, fek, uuid);
