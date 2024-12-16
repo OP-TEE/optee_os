@@ -44,6 +44,7 @@ srcs-$(CFG_STM32_IWDG) += stm32_iwdg.c
 srcs-$(CFG_STM32_IPCC) += stm32_ipcc.c
 srcs-$(CFG_STM32_I2C) += stm32_i2c.c
 srcs-$(CFG_STM32_RNG) += stm32_rng.c
+srcs-$(CFG_STM32_RTC) += stm32_rtc.c
 srcs-$(CFG_STM32_SHARED_IO) += stm32_shared_io.c
 srcs-$(CFG_STM32_TAMP) += stm32_tamp.c
 srcs-$(CFG_STM32_UART) += stm32_uart.c
