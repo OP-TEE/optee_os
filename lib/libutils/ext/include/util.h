@@ -49,10 +49,14 @@
 #endif
 
 #ifndef __ASSEMBLER__
-/* Round up the even multiple of size, size has to be a multiple of 2 */
+/* Round up the even multiple of size, size has to be a power of 2 */
 #define ROUNDUP(v, size) (((v) + ((__typeof__(v))(size) - 1)) & \
 			  ~((__typeof__(v))(size) - 1))
 
+/*
+ * Round up the even multiple of size and return if result overflow
+ * output value range. Size has to be a power of 2.
+ */
 #define ROUNDUP_OVERFLOW(v, size, res) (__extension__({ \
 	typeof(*(res)) __roundup_tmp = 0; \
 	typeof(v) __roundup_mask = (typeof(v))(size) - 1; \
@@ -63,7 +67,7 @@
 
 /*
  * Rounds up to the nearest multiple of y and then divides by y. Safe
- * against overflow, y has to be a multiple of 2.
+ * against overflow, y has to be a power of 2.
  *
  * This macro is intended to be used to convert from "number of bytes" to
  * "number of pages" or similar units. Example:
@@ -76,7 +80,7 @@
 	(__roundup_x / (y)) + (__roundup_x & __roundup_mask ? 1 : 0); \
 }))
 
-/* Round down the even multiple of size, size has to be a multiple of 2 */
+/* Round down the even multiple of size, size has to be a power of 2 */
 #define ROUNDDOWN(v, size) ((v) & ~((__typeof__(v))(size) - 1))
 
 /*
