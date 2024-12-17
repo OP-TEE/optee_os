@@ -329,7 +329,7 @@ static unsigned long stm32_div_get_rate(int div_id, unsigned long prate)
 	if (!div)
 		return prate;
 
-	return ROUNDUP_DIV((uint64_t)prate, div);
+	return ROUNDUP2_DIV((uint64_t)prate, div);
 }
 
 TEE_Result stm32_div_set_rate(int div_id, unsigned long rate,

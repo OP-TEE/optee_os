@@ -1288,7 +1288,7 @@ static bool assign_mem_va_dir(vaddr_t tee_ram_va, struct memory_map *mem_map,
 
 			if (SUB_OVERFLOW(va, map->size, &va))
 				return false;
-			va = ROUNDDOWN(va, map->region_size);
+			va = ROUNDDOWN2(va, map->region_size);
 			/*
 			 * Make sure that va is aligned with pa for
 			 * efficient pgdir mapping. Basically pa &
@@ -1320,7 +1320,7 @@ static bool assign_mem_va_dir(vaddr_t tee_ram_va, struct memory_map *mem_map,
 					return false;
 			}
 
-			if (ROUNDUP_OVERFLOW(va, map->region_size, &va))
+			if (ROUNDUP2_OVERFLOW(va, map->region_size, &va))
 				return false;
 			/*
 			 * Make sure that va is aligned with pa for
@@ -2224,8 +2224,8 @@ TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,
 	i = map - static_memory_map.map;
 
 	/* Check that we have a full match */
-	p = ROUNDDOWN(pa, granule);
-	l = ROUNDUP(len + pa - p, granule);
+	p = ROUNDDOWN2(pa, granule);
+	l = ROUNDUP2(len + pa - p, granule);
 	if (map->pa != p || map->size != l)
 		return TEE_ERROR_GENERIC;
 
@@ -2301,8 +2301,8 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 		return NULL;
 
 	granule = BIT64(tbl_info.shift);
-	p = ROUNDDOWN(addr, granule);
-	l = ROUNDUP(len + addr - p, granule);
+	p = ROUNDDOWN2(addr, granule);
+	l = ROUNDUP2(len + addr - p, granule);
 
 	/* Ban overflowing virtual addresses */
 	if (map->size < l)
@@ -2709,12 +2709,12 @@ void core_mmu_init_phys_mem(void)
 		 * The VCORE macros are relocatable so we need to translate
 		 * the addresses now that the MMU is enabled.
 		 */
-		end_pa = vaddr_to_phys(ROUNDUP(VCORE_FREE_END_PA,
-					       align) - 1) + 1;
+		end_pa = vaddr_to_phys(ROUNDUP2(VCORE_FREE_END_PA,
+						align) - 1) + 1;
 		/* Carve out the part used by OP-TEE core */
 		carve_out_core_mem(vaddr_to_phys(VCORE_UNPG_RX_PA), end_pa);
 		if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS)) {
-			pa = vaddr_to_phys(ROUNDUP(ASAN_MAP_PA, align));
+			pa = vaddr_to_phys(ROUNDUP2(ASAN_MAP_PA, align));
 			carve_out_core_mem(pa, pa + ASAN_MAP_SZ);
 		}
 

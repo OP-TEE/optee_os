@@ -1115,8 +1115,8 @@ static TEE_Result tee_buffer_update(
 	/* If we can feed from buffer */
 	if ((op->buffer_offs > 0) &&
 	    ((op->buffer_offs + slen) >= (buffer_size + buffer_left))) {
-		l = ROUNDUP(op->buffer_offs + slen - buffer_size,
-				op->block_size);
+		l = ROUNDUP2(op->buffer_offs + slen - buffer_size,
+			     op->block_size);
 		l = MIN(op->buffer_offs, l);
 		/*
 		 * If we're buffering only a single block, process it
@@ -1146,9 +1146,9 @@ static TEE_Result tee_buffer_update(
 	if (slen >= (buffer_size + buffer_left)) {
 		/* Buffer is empty, feed as much as possible from src */
 		if (op->buffer_two_blocks)
-			l = ROUNDUP(slen - buffer_size, op->block_size);
+			l = ROUNDUP2(slen - buffer_size, op->block_size);
 		else
-			l = ROUNDUP(slen - buffer_size + 1, op->block_size);
+			l = ROUNDUP2(slen - buffer_size + 1, op->block_size);
 
 		tmp_dlen = dlen;
 		res = update_func(op->state, src, l, dst, &tmp_dlen);
@@ -1216,7 +1216,7 @@ TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, const void *srcData,
 		    operation->block_size * 2) {
 			req_dlen = operation->buffer_offs + srcLen -
 				   operation->block_size * 2;
-			req_dlen = ROUNDUP(req_dlen, operation->block_size);
+			req_dlen = ROUNDUP2(req_dlen, operation->block_size);
 		} else {
 			req_dlen = 0;
 		}
@@ -1694,8 +1694,8 @@ static TEE_Result ae_update_helper(TEE_OperationHandle operation,
 	 * can't restore sync with this API.
 	 */
 	if (operation->block_size > 1) {
-		req_dlen = ROUNDDOWN(operation->buffer_offs + slen,
-				     operation->block_size);
+		req_dlen = ROUNDDOWN2(operation->buffer_offs + slen,
+				      operation->block_size);
 	} else {
 		req_dlen = slen;
 	}
