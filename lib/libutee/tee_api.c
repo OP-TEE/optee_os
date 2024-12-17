@@ -133,7 +133,7 @@ static TEE_Result map_tmp_param(struct utee_params *up, void **tmp_buf,
 			if (b && s &&
 			    !TEE_CheckMemoryAccessRights(flags, b, s)) {
 				is_tmp_mem[n] = true;
-				tbl += ROUNDUP(s, tmp_align);
+				tbl += ROUNDUP2(s, tmp_align);
 			}
 			break;
 		default:
@@ -159,7 +159,7 @@ static TEE_Result map_tmp_param(struct utee_params *up, void **tmp_buf,
 			s = up->vals[n * 2 + 1];
 			b = (void *)(vaddr_t)up->vals[n * 2];
 			tmp_va[n] = tb;
-			tb += ROUNDUP(s, tmp_align);
+			tb += ROUNDUP2(s, tmp_align);
 			up->vals[n * 2] = (vaddr_t)tmp_va[n];
 			if (TEE_PARAM_TYPE_GET(up->types, n) !=
 			    TEE_PARAM_TYPE_MEMREF_OUTPUT)

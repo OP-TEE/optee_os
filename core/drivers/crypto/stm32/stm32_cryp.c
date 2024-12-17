@@ -1122,7 +1122,7 @@ TEE_Result stm32_cryp_update(struct stm32_cryp_context *ctx, bool last_block,
 	 */
 	if (last_block && algo_mode_is_ecb_cbc(ctx->cr) &&
 	    is_encrypt(ctx->cr) &&
-	    (ROUNDDOWN(data_size, ctx->block_u32 * sizeof(uint32_t)) !=
+	    (ROUNDDOWN2(data_size, ctx->block_u32 * sizeof(uint32_t)) !=
 	     data_size)) {
 		if (data_size < ctx->block_u32 * sizeof(uint32_t) * 2) {
 			/*

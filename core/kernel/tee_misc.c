@@ -126,7 +126,7 @@ void *alloc_cache_aligned(size_t size)
 	uint32_t cacheline_size = 0;
 
 	cacheline_size = cache_get_max_line_size();
-	if (ROUNDUP_OVERFLOW(size, cacheline_size, &alloc_size))
+	if (ROUNDUP2_OVERFLOW(size, cacheline_size, &alloc_size))
 		return NULL;
 
 	ptr = memalign(cacheline_size, alloc_size);
