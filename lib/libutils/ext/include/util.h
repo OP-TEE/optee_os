@@ -144,7 +144,7 @@
 	}))
 
 /*
- * Round up the result of x / y to the nearest upper integer if result is not 
+ * Round up the result of x / y to the nearest upper integer if result is not
  * already an integer.
  */
 #define DIV_ROUND_UP(x, y) (((x) + (y) - 1) / (y))
