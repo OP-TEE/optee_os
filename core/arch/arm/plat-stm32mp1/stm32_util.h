@@ -8,8 +8,6 @@
 
 #include <assert.h>
 #include <drivers/clk.h>
-#include <drivers/pinctrl.h>
-#include <drivers/stm32_bsec.h>
 #include <kernel/panic.h>
 #include <stdint.h>
 #include <tee_api_types.h>
