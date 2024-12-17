@@ -13,6 +13,7 @@
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
