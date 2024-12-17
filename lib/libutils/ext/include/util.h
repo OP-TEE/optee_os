@@ -156,11 +156,11 @@
 	(__extension__ ({ __typeof__(x) _x = (x); \
 	  __typeof__(y) _y = (y); \
 	  (_x + (_y / 2)) / _y; }))
-#else
+#else /* __ASSEMBLER__ */
 #define ROUNDUP(x, y)			((((x) + (y) - 1) / (y)) * (y))
-#define ROUNDDOWN(x, y)		(((x) / (y)) * (y))
+#define ROUNDDOWN(x, y)			(((x) / (y)) * (y))
 #define UDIV_ROUND_NEAREST(x, y)	(((x) + ((y) / 2)) / (y))
-#endif
+#endif /* __ASSEMBLER__ */
 
 /* x has to be of an unsigned type */
 #define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
