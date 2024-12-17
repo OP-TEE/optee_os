@@ -386,7 +386,7 @@ static TEE_Result check_buffer_alignment(struct priv_dmaobj *priv,
 		}
 
 		va_start = (vaddr_t)entry->origbuf.data;
-		va_start_align = ROUNDUP(va_start, cacheline_size);
+		va_start_align = ROUNDUP2(va_start, cacheline_size);
 
 		if (va_start_align != va_start) {
 			DMAOBJ_TRACE("Start 0x%" PRIxVA " vs align 0x%" PRIxVA,
@@ -443,13 +443,13 @@ static TEE_Result check_buffer_alignment(struct priv_dmaobj *priv,
 		}
 
 		va_end = (vaddr_t)entry->origbuf.data + entry->origbuf.length;
-		va_end_align = ROUNDUP(va_end, cacheline_size);
+		va_end_align = ROUNDUP2(va_end, cacheline_size);
 
 		if (va_end != va_end_align) {
 			DMAOBJ_TRACE("End 0x%" PRIxVA " vs align 0x%" PRIxVA,
 				     va_end, va_end_align);
 
-			va_end_align = ROUNDDOWN(va_end, cacheline_size);
+			va_end_align = ROUNDDOWN2(va_end, cacheline_size);
 			remlen = entry->origbuf.length - va_end_align;
 
 			if (remlen <= cacheline_size) {
@@ -1296,7 +1296,7 @@ TEE_Result caam_dmaobj_sgtbuf_build(struct caamdmaobj *obj, size_t *length,
 	max_length = *length;
 	if (priv->dmabuf.allocated && max_length > priv->dmabuf.allocated &&
 	    priv->dmabuf.allocated > align)
-		max_length = ROUNDDOWN(priv->dmabuf.allocated, align);
+		max_length = ROUNDDOWN2(priv->dmabuf.allocated, align);
 
 	DMAOBJ_TRACE("Prepare SGT/Buffer to do %zu of %zu", max_length,
 		     *length);

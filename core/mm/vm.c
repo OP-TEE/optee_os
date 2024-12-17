@@ -1178,7 +1178,7 @@ static TEE_Result tee_mmu_user_va2pa_attr(const struct user_mode_ctx *uctx,
 			assert(!granule || IS_POWER_OF_TWO(granule));
 
 			offset = region->offset +
-				 ROUNDDOWN((vaddr_t)ua - region->va, granule);
+				 ROUNDDOWN2((vaddr_t)ua - region->va, granule);
 
 			res = mobj_get_pa(region->mobj, offset, granule, &p);
 			if (res != TEE_SUCCESS)
@@ -1270,7 +1270,7 @@ TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,
 	   !vm_buf_is_inside_um_private(uctx, (void *)uaddr, len))
 		return TEE_ERROR_ACCESS_DENIED;
 
-	for (a = ROUNDDOWN(uaddr, addr_incr); a < end_addr; a += addr_incr) {
+	for (a = ROUNDDOWN2(uaddr, addr_incr); a < end_addr; a += addr_incr) {
 		uint32_t attr;
 		TEE_Result res;
 
