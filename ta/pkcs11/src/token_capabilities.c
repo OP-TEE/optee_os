@@ -462,8 +462,8 @@ void mechanism_supported_key_sizes_bytes(uint32_t proc_id,
 	case PKCS11_CKM_ECDSA_SHA512:
 	case PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN:
 		/* Size is in bits -> convert to bytes and ceil */
-		*min_key_size = ROUNDUP(*min_key_size, 8) / 8;
-		*max_key_size = ROUNDUP(*max_key_size, 8) / 8;
+		*min_key_size = ROUNDUP_DIV(*min_key_size, 8);
+		*max_key_size = ROUNDUP_DIV(*max_key_size, 8);
 		break;
 	default:
 		/* Size is already in bytes */

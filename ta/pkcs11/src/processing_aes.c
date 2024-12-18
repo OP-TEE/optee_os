@@ -492,7 +492,7 @@ enum pkcs11_rc tee_init_gcm_operation(struct pkcs11_session *session,
 	if (rc)
 		goto out;
 
-	tag_len = ROUNDUP(tag_bitlen, 8) / 8;
+	tag_len = ROUNDUP_DIV(tag_bitlen, 8);
 
 	/* As per pkcs#11 mechanism specification */
 	if (tag_bitlen > 128 || !iv_len || iv_len > 256) {

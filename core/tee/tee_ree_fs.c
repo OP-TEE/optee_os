@@ -284,8 +284,8 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 		size_t sz;
 
 		res = get_offs_size(TEE_FS_HTREE_TYPE_BLOCK,
-				    ROUNDUP(new_file_len, BLOCK_SIZE) /
-					BLOCK_SIZE, 1, &offs, &sz);
+				    ROUNDUP_DIV(new_file_len, BLOCK_SIZE), 1,
+				    &offs, &sz);
 		if (res != TEE_SUCCESS)
 			return res;
 
