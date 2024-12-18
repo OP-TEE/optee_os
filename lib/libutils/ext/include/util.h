@@ -55,16 +55,49 @@
 			  ~((__typeof__(v))(size) - 1))
 
 /*
- * Round up the even multiple of size and return if result overflow
- * output value range. Size has to be a power of 2.
+ * ROUNDUP_OVERFLOW(v, size, res)
+ *
+ * @v: Input value to round
+ * @size: Rounding operand
+ * @res: Pointer where boolean overflow status (0/false or 1/true) is stored
+ * @return: boolean overflow status of the resulting rounded value
+ *
+ * Round up value @v to the even multiple of @size and return if result
+ * overflows the output value range pointed by @res. The rounded value is
+ * stored in the memory address pointed by @res.
  */
-#define ROUNDUP_OVERFLOW(v, size, res) (__extension__({ \
-	typeof(*(res)) __roundup_tmp = 0; \
-	typeof(v) __roundup_mask = (typeof(v))(size) - 1; \
-	\
-	ADD_OVERFLOW((v), __roundup_mask, &__roundup_tmp) ? 1 : \
-		((void)(*(res) = __roundup_tmp & ~__roundup_mask), 0); \
-}))
+#define ROUNDUP_OVERFLOW(v, size, res) \
+	(__extension__({ \
+		typeof(v) __roundup_mod = 0; \
+		typeof(v) __roundup_add = 0; \
+		\
+		__roundup_mod = (v) % (typeof(v))(size); \
+		if (__roundup_mod) \
+			__roundup_add = (typeof(v))(size) - __roundup_mod; \
+		ADD_OVERFLOW((v), __roundup_add, (res)); \
+	}))
+
+/*
+ * ROUNDUP2_OVERFLOW(v, size, res)
+ *
+ * @v: Input value to round
+ * @size: Rounding operand, must be a power of 2
+ * @res: Pointer where boolean overflow status (0/false or 1/true) is stored
+ * @return: boolean overflow status of the resulting rounded value
+ *
+ * Round up value @v to the even multiple of @size and return if result
+ * overflows the output value range pointed by @res. The rounded value is
+ * stored in the memory address pointed by @res.
+ */
+#define ROUNDUP2_OVERFLOW(v, size, res) \
+	(__extension__({ \
+		typeof(*(res)) __roundup_tmp = 0; \
+		typeof(v) __roundup_mask = (typeof(v))(size) - 1; \
+		\
+		assert(IS_POWER_OF_TWO(size)); \
+		ADD_OVERFLOW((v), __roundup_mask, &__roundup_tmp) ? 1 : \
+			((void)(*(res) = __roundup_tmp & ~__roundup_mask), 0); \
+	}))
 
 /*
  * ROUNDUP2_DIV(x, y)
