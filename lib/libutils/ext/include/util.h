@@ -50,9 +50,18 @@
 #endif
 
 #ifndef __ASSEMBLER__
+/* Round up the even multiple of size */
+#define ROUNDUP(x, y) \
+	((((x) + (__typeof__(x))(y) - 1) / (__typeof__(x))(y)) * \
+	 (__typeof__(x))(y))
+
 /* Round up the even multiple of size, size has to be a power of 2 */
-#define ROUNDUP(v, size) (((v) + ((__typeof__(v))(size) - 1)) & \
-			  ~((__typeof__(v))(size) - 1))
+#define ROUNDUP2(v, size) \
+	(__extension__({ \
+		assert(IS_POWER_OF_TWO(size)); \
+		(((v) + ((__typeof__(v))(size) - 1)) & \
+		 ~((__typeof__(v))(size) - 1)); \
+	}))
 
 /*
  * ROUNDUP_OVERFLOW(v, size, res)
