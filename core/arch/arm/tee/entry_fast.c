@@ -171,12 +171,7 @@ static void tee_entry_get_thread_count(struct thread_smc_args *args)
 static void tee_entry_vm_created(struct thread_smc_args *args)
 {
 	uint16_t guest_id = args->a1;
-
-	if(guest_id == HYP_CLNT_ID){
-		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
-		return;
-	}
-
+	
 	/* Only hypervisor can issue this request */
 	if (args->a7 != HYP_CLNT_ID) {
 		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
