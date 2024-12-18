@@ -291,7 +291,11 @@ void __tee_entry_fast(struct thread_smc_args *args)
 
 	case OPTEE_SMC_ENABLE_ASYNC_NOTIF:
 		if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF)) {
-			notif_deliver_atomic_event(NOTIF_EVENT_STARTED, 0);
+			if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+				notif_deliver_atomic_event(NOTIF_EVENT_STARTED, args->a7);
+			} else {
+				notif_deliver_atomic_event(NOTIF_EVENT_STARTED, 0);
+			}
 			args->a0 = OPTEE_SMC_RETURN_OK;
 		} else {
 			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
