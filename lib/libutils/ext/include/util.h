@@ -135,8 +135,15 @@
  */
 #define ROUNDUP_DIV(x, y) (ROUNDUP((x), (y)) / (__typeof__(x))(y))
 
+/* Round down the even multiple of size */
+#define ROUNDDOWN(x, y)		(((x) / (__typeof__(x))(y)) * (__typeof__(x))(y))
+
 /* Round down the even multiple of size, size has to be a power of 2 */
-#define ROUNDDOWN(v, size) ((v) & ~((__typeof__(v))(size) - 1))
+#define ROUNDDOWN2(v, size) \
+	(__extension__({ \
+		assert(IS_POWER_OF_TWO(size)); \
+		((v) & ~((__typeof__(v))(size) - 1)); \
+	}))
 
 /*
  * Round up the result of x / y to the nearest upper integer if result is not 
