@@ -67,6 +67,28 @@
 }))
 
 /*
+ * ROUNDUP2_OVERFLOW(v, size, res)
+ *
+ * @v: Input value to round
+ * @size: Rouding operand, must be a power of 2
+ * @res: Pointer where boolean overflow status (0/false or 1/true) is stored
+ * @return: boolean overflow status of the resulting rounded value
+ *
+ * Round up value @v to the even multiple of @size and return if result
+ * overflows the output value range pointed by @res. The rounded value is
+ * stored in the memory address pointed by @res.
+ */
+#define ROUNDUP2_OVERFLOW(v, size, res) \
+	(__extension__({ \
+		typeof(*(res)) __roundup_tmp = 0; \
+		typeof(v) __roundup_mask = (typeof(v))(size) - 1; \
+		\
+		assert(IS_POWER_OF_TWO(size)); \
+		ADD_OVERFLOW((v), __roundup_mask, &__roundup_tmp) ? 1 : \
+			((void)(*(res) = __roundup_tmp & ~__roundup_mask), 0); \
+	}))
+
+/*
  * ROUNDUP_DIV(x, y)
  * ROUNDUP2_DIV(x, y)
  *
