@@ -238,6 +238,7 @@ CFG_STM32_I2C ?= y
 CFG_STM32_IWDG ?= y
 CFG_STM32_RNG ?= y
 CFG_STM32_RSTCTRL ?= y
+CFG_STM32_RTC ?= y
 CFG_STM32_SAES ?= y
 CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
@@ -425,3 +426,8 @@ endif
 
 # Allow probing of unsafe peripherals. Firewall config will not be checked
 CFG_STM32_ALLOW_UNSAFE_PROBE ?= n
+
+# Enable RTC
+ifeq ($(CFG_STM32_RTC),y)
+$(call force,CFG_DRIVERS_RTC,y)
+endif
