@@ -142,6 +142,7 @@ void caam_desc_add_dmaobj(uint32_t *desc, struct caamdmaobj *data,
 		op_length = KEY_LENGTH(data->sgtbuf.length);
 		break;
 
+	case CMD_SEQ_IN_TYPE:
 	case CMD_SEQ_OUT_TYPE:
 		op_length = SEQ_LENGTH(data->sgtbuf.length);
 		op_ext_length = SEQ_EXT;
