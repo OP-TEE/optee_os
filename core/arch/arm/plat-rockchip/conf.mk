@@ -74,6 +74,29 @@ CFG_EARLY_CONSOLE_BAUDRATE ?= 1500000
 CFG_EARLY_CONSOLE_CLK_IN_HZ ?= 24000000
 endif
 
+ifeq ($(PLATFORM_FLAVOR),rk3566)
+include core/arch/arm/cpu/cortex-armv8-0.mk
+arm32-platform-cpuarch  := cortex-a55
+
+$(call force,CFG_TEE_CORE_NB_CORE,4)
+# cortex-a55 sopports GICv3 or GICv4. There is no support for GICv4 in OP-TEE,
+# so use GICv3:
+$(call force,CFG_ARM_GICV3,y)
+
+CFG_TZDRAM_START ?= 0x08400000
+CFG_TZDRAM_SIZE  ?= 0x02000000
+CFG_SHMEM_START  ?= 0x0A400000
+CFG_SHMEM_SIZE   ?= 0x00400000
+
+CFG_EARLY_CONSOLE ?= y
+CFG_EARLY_CONSOLE_BASE ?= UART2_BASE
+CFG_EARLY_CONSOLE_SIZE ?= UART2_SIZE
+CFG_EARLY_CONSOLE_BAUDRATE ?= 1500000
+CFG_EARLY_CONSOLE_CLK_IN_HZ ?= 24000000
+
+CFG_WITH_ARM_TRUSTED_FW ?= y
+endif
+
 ifeq ($(platform-flavor-armv8),1)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)

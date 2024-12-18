@@ -67,6 +67,34 @@
 #define SGRF_BASE		(MMIO_BASE + 0x07330000)
 #define SGRF_SIZE		SIZE_K(64)
 
+#elif defined(PLATFORM_FLAVOR_rk3566)
+
+/* This information is from Technical Reference Manual for RK3568, which is said
+ * to be very close in configuration to RK3566. RTM for RK3566 has net been
+ * found. */
+
+#define MMIO_BASE		0xF0000000
+
+#define UART0_BASE		(MMIO_BASE + 0x0DD50000)
+#define UART0_SIZE		SIZE_K(64)
+
+#define UART1_BASE		(MMIO_BASE + 0x0E650000)
+#define UART1_SIZE		SIZE_K(64)
+
+#define UART2_BASE		(MMIO_BASE + 0x0E660000)
+#define UART2_SIZE		SIZE_K(64)
+
+#define UART3_BASE		(MMIO_BASE + 0x0E670000)
+#define UART3_SIZE		SIZE_K(64)
+
+#define SGRF_BASE		(MMIO_BASE + 0x0DC60000)
+#define SGRF_SIZE		SIZE_K(64)
+
+#define GIC_BASE		(MMIO_BASE + 0x0d400000)
+#define GIC_SIZE		SIZE_M(4)
+#define GICD_BASE		(GIC_BASE)
+#define GICR_BASE		(GIC_BASE + 0x60000)
+
 #elif defined(PLATFORM_FLAVOR_px30)
 
 #define GIC_BASE		0xff130000
