@@ -65,7 +65,9 @@ CFG_STM32_RIFSC ?= y
 CFG_STM32_RISAB ?= y
 CFG_STM32_RISAF ?= y
 CFG_STM32_RNG ?= y
+CFG_STM32_RTC ?= y
 CFG_STM32_SERC ?= y
+CFG_STM32_STGEN ?= y
 CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
 
@@ -108,4 +110,9 @@ endif
 CFG_DRIVERS_FIREWALL ?= y
 ifeq ($(call cfg-one-enabled, CFG_STM32_RISAB CFG_STM32_RIFSC),y)
 $(call force,CFG_DRIVERS_FIREWALL,y)
+endif
+
+# Enable RTC
+ifeq ($(CFG_STM32_RTC),y)
+$(call force,CFG_DRIVERS_RTC,y)
 endif
