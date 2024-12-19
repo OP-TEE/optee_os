@@ -111,7 +111,6 @@
 	}))
 
 /*
- * ROUNDUP_DIV(x, y)
  * ROUNDUP2_DIV(x, y)
  *
  * Rounds up to the nearest multiple of y and then divides by y. Safe
@@ -119,10 +118,9 @@
  *
  * This macro is intended to be used to convert from "number of bytes" to
  * "number of pages" or similar units. Example:
- * num_pages = ROUNDUP_DIV(num_bytes, SMALL_PAGE_SIZE);
- *
+ * num_pages = ROUNDUP_DIV2(num_bytes, SMALL_PAGE_SIZE);
  */
-#define ROUNDUP_DIV(x, y) \
+#define ROUNDUP2_DIV(x, y) \
 	(__extension__({ \
 		typeof(x) __roundup_x = (x); \
 		typeof(y) __roundup_mask = (typeof(x))(y) - 1; \
@@ -131,7 +129,13 @@
 		(__roundup_x / (y)) + (__roundup_x & __roundup_mask ? 1 : 0); \
 	}))
 
-#define ROUNDUP2_DIV	ROUNDUP_DIV
+/*
+ * ROUNDUP_DIV(x, y)
+ *
+ * Rounds up to the nearest multiple of y and then divides by y. Safe
+ * against overflow.
+ */
+#define ROUNDUP_DIV(x, y) (ROUNDUP((x), (y)) / (__typeof__(x))(y))
 
 /* Round down the even multiple of size */
 #define ROUNDDOWN(x, y)		(((x) / (__typeof__(x))(y)) * (__typeof__(x))(y))
