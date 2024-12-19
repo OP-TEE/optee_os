@@ -305,7 +305,7 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 	uint32_t exceptions = 0;
 
 	if (guest_id == HYP_CLNT_ID)
-		return OPTEE_SMC_RETURN_ENOTAVAIL;
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	prtn = nex_calloc(1, sizeof(*prtn));
 	if (!prtn)
