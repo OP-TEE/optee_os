@@ -188,7 +188,40 @@ static inline void reg_pair_from_64(uint64_t val, uint32_t *reg0,
 	*reg1 = low32_from_64(val);
 }
 
-/* Get and set bit fields  */
+/*
+ * Functions to get and set bit fields in a 32/64-bit bitfield.
+ *
+ * These helper functions allow setting and extracting specific bits in
+ * a bitfield @reg according to a given mask @mask. The mask
+ * specifies which bits in the bitfield should be updated or extracted.
+ * These functions exist in both 32-bit and 64-bit versions.
+ *
+ * set_field_u32()
+ * set_field_u64() - Modifies specific bits in a bitfield by clearing
+ *		     the bits specified by the mask and then setting
+ *		     these bits to the new value @val.
+ * @reg:  The original 32-bit or 64-bit bitfield value.
+ * @mask: A bitmask indicating which bits in the bitfield should be
+ *	  updated.
+ * @val:  The new value to be loaded into the bitfield, left shifted
+ * 	  according to @mask rightmost non-zero bit position.
+ * Returns the updated bitfield value with the specified bits set to
+ * the new value.
+ *
+ * E.g. set_bitfield_u32(0x123456, 0xf0ff00, 0xabcd) returns 0xa2cd56.
+ *
+ * get_field_u32()
+ * get_field_u64() - Extracts the value of specific bits in a bitfield
+ *		     by isolating the bits specified by the mask and
+ *		     then shifting them to the rightmost position.
+ * @reg:  The original 32-bit or 64-bit bitfield value.
+ * @mask: A bitmask indicating which bits in the bitfield should be
+ *	  extracted.
+ * Returns the value of the bits specified by the mask, shifted to the
+ * @mask rightmost non-zero bit position.
+ *
+ * E.g. get_bitfield_u32(0x123456, 0xf0ff00) returns 0x1034.
+ */
 static inline uint32_t get_field_u32(uint32_t reg, uint32_t mask)
 {
 	return (reg & mask) / (mask & ~(mask - 1));
