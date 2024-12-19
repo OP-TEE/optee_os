@@ -755,7 +755,7 @@ static void fill_boot_info_1_1(vaddr_t buf, const void *fdt)
 }
 
 static TEE_Result create_and_map_boot_info(struct sp_ctx *ctx, const void *fdt,
-					   struct thread_smc_args *args,
+					   struct thread_smc_1_2_regs *args,
 					   vaddr_t *va, size_t *mapped_size,
 					   uint32_t sp_ffa_version)
 {
@@ -1618,7 +1618,7 @@ static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 static TEE_Result sp_first_run(struct sp_session *sess)
 {
 	TEE_Result res = TEE_SUCCESS;
-	struct thread_smc_args args = { };
+	struct thread_smc_1_2_regs args = { };
 	struct sp_ctx *ctx = NULL;
 	vaddr_t boot_info_va = 0;
 	size_t boot_info_size = 0;
@@ -1688,7 +1688,7 @@ out:
 	return res;
 }
 
-TEE_Result sp_enter(struct thread_smc_args *args, struct sp_session *sp)
+TEE_Result sp_enter(struct thread_smc_1_2_regs *args, struct sp_session *sp)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_ctx *ctx = to_sp_ctx(sp->ts_sess.ctx);
