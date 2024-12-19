@@ -6,12 +6,13 @@
 #include <assert.h>
 #include <drivers/rtc.h>
 
-/* Time fields shift values to fit date in a 32bit word */
-#define RTC_CMP_YEAR_SHIFT	U(26)
-#define RTC_CMP_MONTH_SHIFT	U(22)
-#define RTC_CMP_DAY_SHIFT	U(17)
-#define RTC_CMP_HOUR_SHIFT	U(12)
-#define RTC_CMP_MINUTES_SHIFT	U(6)
+/* Time fields shift values to fit date in a 64bits word */
+#define RTC_CMP_YEAR_SHIFT	U(36)
+#define RTC_CMP_MONTH_SHIFT	U(32)
+#define RTC_CMP_DAY_SHIFT	U(27)
+#define RTC_CMP_HOUR_SHIFT	U(22)
+#define RTC_CMP_MINUTES_SHIFT	U(16)
+#define RTC_CMP_SECONDS_SHIFT	U(10)
 
 struct rtc *rtc_device;
 
@@ -42,16 +43,15 @@ int rtc_timecmp(struct optee_rtc_time *a, struct optee_rtc_time *b)
 	       SHIFT_U64(a->tm_mday, RTC_CMP_DAY_SHIFT) +
 	       SHIFT_U64(a->tm_hour, RTC_CMP_HOUR_SHIFT) +
 	       SHIFT_U64(a->tm_min, RTC_CMP_MINUTES_SHIFT) +
-	       a->tm_sec;
+	       SHIFT_U64(a->tm_sec, RTC_CMP_SECONDS_SHIFT) +
+	       a->tm_ms;
 	tm_b = SHIFT_U64(b->tm_year, RTC_CMP_YEAR_SHIFT) +
 	       SHIFT_U64(b->tm_mon, RTC_CMP_MONTH_SHIFT) +
 	       SHIFT_U64(b->tm_mday, RTC_CMP_DAY_SHIFT) +
 	       SHIFT_U64(b->tm_hour, RTC_CMP_HOUR_SHIFT) +
 	       SHIFT_U64(b->tm_min, RTC_CMP_MINUTES_SHIFT) +
-	       b->tm_sec;
-
-	if (tm_a == tm_b)
-		return CMP_TRILEAN(a->tm_subs, b->tm_subs);
+	       SHIFT_U64(b->tm_sec, RTC_CMP_SECONDS_SHIFT) +
+	       b->tm_ms;
 
 	return CMP_TRILEAN(tm_a, tm_b);
 }

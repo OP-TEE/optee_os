@@ -12,8 +12,6 @@
 /* The RTC allows to set/get offset for correction */
 #define RTC_CORRECTION_FEATURE	BIT(0)
 
-struct rtc_subs;
-
 /*
  * struct optee_rtc_time - Time capture
  *
@@ -24,7 +22,7 @@ struct rtc_subs;
  * @tm_hour: Hour of the capture
  * @tm_min: Minute of the capture
  * @tm_sec: Second of the capture
- * @tm_subs: Subsecond information of the capture. Implementation dependent
+ * @tm_subs: Millisecond of the capture
  */
 struct optee_rtc_time {
 	uint32_t tm_year;
@@ -34,7 +32,7 @@ struct optee_rtc_time {
 	uint32_t tm_hour;
 	uint32_t tm_min;
 	uint32_t tm_sec;
-	uint32_t tm_subs;
+	uint32_t tm_ms;
 };
 
 struct rtc {
@@ -143,19 +141,19 @@ static inline TEE_Result rtc_set_offset(long offset)
 
 static inline void rtc_register(struct rtc *rtc __unused) {}
 
-static inline bool rtc_is_a_leap_year(uint32_t year __unused)
+static inline bool __noreturn rtc_is_a_leap_year(uint32_t year __unused)
 {
 	panic();
 }
 
-static inline uint8_t rtc_get_month_days(uint32_t month __unused,
-					 uint32_t year __unused)
+static inline uint8_t __noreturn rtc_get_month_days(uint32_t month __unused,
+						    uint32_t year __unused)
 {
 	panic();
 }
 
-static inline int rtc_timecmp(struct optee_rtc_time *a __unused,
-			      struct optee_rtc_time *b __unused)
+static inline int __noreturn rtc_timecmp(struct optee_rtc_time *a __unused,
+					 struct optee_rtc_time *b __unused)
 {
 	panic();
 }
