@@ -9,6 +9,7 @@
 #include <inttypes.h>
 
 #ifndef __ASSEMBLER__
+#include <assert.h>
 #include <stddef.h>
 #endif
 
@@ -49,38 +50,105 @@
 #endif
 
 #ifndef __ASSEMBLER__
-/* Round up the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDUP(v, size) (((v) + ((__typeof__(v))(size) - 1)) & \
-			  ~((__typeof__(v))(size) - 1))
+/* Round up the even multiple of size */
+#define ROUNDUP(x, y) \
+	((((x) + (__typeof__(x))(y) - 1) / (__typeof__(x))(y)) * \
+	 (__typeof__(x))(y))
 
-#define ROUNDUP_OVERFLOW(v, size, res) (__extension__({ \
-	typeof(*(res)) __roundup_tmp = 0; \
-	typeof(v) __roundup_mask = (typeof(v))(size) - 1; \
-	\
-	ADD_OVERFLOW((v), __roundup_mask, &__roundup_tmp) ? 1 : \
-		((void)(*(res) = __roundup_tmp & ~__roundup_mask), 0); \
-}))
+/* Round up the even multiple of size, size has to be a power of 2 */
+#define ROUNDUP2(v, size) \
+	(__extension__({ \
+		assert(IS_POWER_OF_TWO(size)); \
+		(((v) + ((__typeof__(v))(size) - 1)) & \
+		 ~((__typeof__(v))(size) - 1)); \
+	}))
 
 /*
+ * ROUNDUP_OVERFLOW(v, size, res)
+ *
+ * @v: Input value to round
+ * @size: Rounding operand
+ * @res: Pointer where boolean overflow status (0/false or 1/true) is stored
+ * @return: boolean overflow status of the resulting rounded value
+ *
+ * Round up value @v to the even multiple of @size and return if result
+ * overflows the output value range pointed by @res. The rounded value is
+ * stored in the memory address pointed by @res.
+ */
+#define ROUNDUP_OVERFLOW(v, size, res) \
+	(__extension__({ \
+		typeof(*(res)) __roundup_tmp = 0; \
+		typeof(v) __roundup_mod = 0; \
+		typeof(v) __roundup_add = 0; \
+		\
+		__roundup_mod = (v) % (typeof(v))(size); \
+		if (__roundup_mod) \
+			__roundup_add = (typeof(v))(size) - __roundup_mod; \
+		ADD_OVERFLOW((v), __roundup_add, &__roundup_tmp) ? 1 : \
+			((void)(*(res) = __roundup_tmp), 0); \
+	}))
+
+/*
+ * ROUNDUP2_OVERFLOW(v, size, res)
+ *
+ * @v: Input value to round
+ * @size: Rouding operand, must be a power of 2
+ * @res: Pointer where boolean overflow status (0/false or 1/true) is stored
+ * @return: boolean overflow status of the resulting rounded value
+ *
+ * Round up value @v to the even multiple of @size and return if result
+ * overflows the output value range pointed by @res. The rounded value is
+ * stored in the memory address pointed by @res.
+ */
+#define ROUNDUP2_OVERFLOW(v, size, res) \
+	(__extension__({ \
+		typeof(*(res)) __roundup_tmp = 0; \
+		typeof(v) __roundup_mask = (typeof(v))(size) - 1; \
+		\
+		assert(IS_POWER_OF_TWO(size)); \
+		ADD_OVERFLOW((v), __roundup_mask, &__roundup_tmp) ? 1 : \
+			((void)(*(res) = __roundup_tmp & ~__roundup_mask), 0); \
+	}))
+
+/*
+ * ROUNDUP2_DIV(x, y)
+ *
  * Rounds up to the nearest multiple of y and then divides by y. Safe
- * against overflow, y has to be a multiple of 2.
+ * against overflow, y has to be a power of 2.
  *
  * This macro is intended to be used to convert from "number of bytes" to
  * "number of pages" or similar units. Example:
- * num_pages = ROUNDUP_DIV(num_bytes, SMALL_PAGE_SIZE);
+ * num_pages = ROUNDUP_DIV2(num_bytes, SMALL_PAGE_SIZE);
  */
-#define ROUNDUP_DIV(x, y) (__extension__({ \
-	typeof(x) __roundup_x = (x); \
-	typeof(y) __roundup_mask = (typeof(x))(y) - 1; \
-	\
-	(__roundup_x / (y)) + (__roundup_x & __roundup_mask ? 1 : 0); \
-}))
-
-/* Round down the even multiple of size, size has to be a multiple of 2 */
-#define ROUNDDOWN(v, size) ((v) & ~((__typeof__(v))(size) - 1))
+#define ROUNDUP2_DIV(x, y) \
+	(__extension__({ \
+		typeof(x) __roundup_x = (x); \
+		typeof(y) __roundup_mask = (typeof(x))(y) - 1; \
+		\
+		assert(IS_POWER_OF_TWO(y)); \
+		(__roundup_x / (y)) + (__roundup_x & __roundup_mask ? 1 : 0); \
+	}))
 
 /*
- * Round up the result of x / y to the nearest upper integer if result is not 
+ * ROUNDUP_DIV(x, y)
+ *
+ * Rounds up to the nearest multiple of y and then divides by y. Safe
+ * against overflow.
+ */
+#define ROUNDUP_DIV(x, y) (ROUNDUP((x), (y)) / (__typeof__(x))(y))
+
+/* Round down the even multiple of size */
+#define ROUNDDOWN(x, y)		(((x) / (__typeof__(x))(y)) * (__typeof__(x))(y))
+
+/* Round down the even multiple of size, size has to be a power of 2 */
+#define ROUNDDOWN2(v, size) \
+	(__extension__({ \
+		assert(IS_POWER_OF_TWO(size)); \
+		((v) & ~((__typeof__(v))(size) - 1)); \
+	}))
+
+/*
+ * Round up the result of x / y to the nearest upper integer if result is not
  * already an integer.
  */
 #define DIV_ROUND_UP(x, y) (((x) + (y) - 1) / (y))
@@ -90,11 +158,11 @@
 	(__extension__ ({ __typeof__(x) _x = (x); \
 	  __typeof__(y) _y = (y); \
 	  (_x + (_y / 2)) / _y; }))
-#else
+#else /* __ASSEMBLER__ */
 #define ROUNDUP(x, y)			((((x) + (y) - 1) / (y)) * (y))
-#define ROUNDDOWN(x, y)		(((x) / (y)) * (y))
+#define ROUNDDOWN(x, y)			(((x) / (y)) * (y))
 #define UDIV_ROUND_NEAREST(x, y)	(((x) + ((y) / 2)) / (y))
-#endif
+#endif /* __ASSEMBLER__ */
 
 /* x has to be of an unsigned type */
 #define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))

@@ -45,9 +45,9 @@ bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_size_t size,
 	if (pool == NULL)
 		return false;
 
-	lo = ROUNDUP(lo, 1 << shift);
+	lo = ROUNDUP2(lo, 1 << shift);
 	rounded = lo - initial_lo;
-	size = ROUNDDOWN(size - rounded, 1 << shift);
+	size = ROUNDDOWN2(size - rounded, 1 << shift);
 
 	assert(((uint64_t)size >> shift) < (uint64_t)UINT32_MAX);
 

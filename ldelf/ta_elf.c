@@ -962,10 +962,10 @@ static void parse_property_segment(struct ta_elf *elf)
 	    !IS_POWER_OF_TWO(align))
 		return;
 
-	desc_offset = ROUNDUP(sizeof(*note) + sizeof(ELF_NOTE_GNU), align);
+	desc_offset = ROUNDUP2(sizeof(*note) + sizeof(ELF_NOTE_GNU), align);
 
 	if (desc_offset > elf->prop_memsz ||
-	    ROUNDUP(desc_offset + note->n_descsz, align) > elf->prop_memsz)
+	    ROUNDUP2(desc_offset + note->n_descsz, align) > elf->prop_memsz)
 		return;
 
 	desc = (char *)(va + desc_offset);
@@ -992,7 +992,7 @@ static void parse_property_segment(struct ta_elf *elf)
 			}
 		}
 
-		prop_offset += ROUNDUP(sizeof(*prop) + prop->pr_datasz, align);
+		prop_offset += ROUNDUP2(sizeof(*prop) + prop->pr_datasz, align);
 	} while (prop_offset < note->n_descsz);
 }
 
