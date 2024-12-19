@@ -67,7 +67,7 @@
  * ROUNDUP_OVERFLOW(v, size, res)
  *
  * @v: Input value to round
- * @size: Rouding operand
+ * @size: Rounding operand
  * @res: Pointer where boolean overflow status (0/false or 1/true) is stored
  * @return: boolean overflow status of the resulting rounded value
  *
