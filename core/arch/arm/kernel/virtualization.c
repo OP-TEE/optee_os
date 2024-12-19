@@ -304,6 +304,9 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t exceptions = 0;
 
+	if (guest_id == HYP_CLNT_ID)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	prtn = nex_calloc(1, sizeof(*prtn));
 	if (!prtn)
 		return TEE_ERROR_OUT_OF_MEMORY;
