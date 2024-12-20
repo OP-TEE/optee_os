@@ -49,6 +49,11 @@ $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 CFG_TZDRAM_START   ?= 0x1800000
 CFG_TZDRAM_SIZE    ?= 0x8000000
 
+# Console selection
+# 0 : UART0[pl011, pl011_0] (default)
+# 1 : UART1[pl011_1]
+CFG_CONSOLE_UART ?= 0
+
 ifeq ($(CFG_ARM64_core),y)
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,43)
