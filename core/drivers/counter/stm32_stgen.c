@@ -12,6 +12,7 @@
 #include <keep.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/pm.h>
 #include <kernel/thread.h>
 #include <libfdt.h>
@@ -25,16 +26,24 @@
 #define STGENC_CNTCVU				U(0xC)
 #define STGENC_CNTFID0				U(0x20)
 
+/* STGENC_CNTCR register */
+#define STGENC_CNTCR_EN				BIT(0)
+
 /*
  * SMC function ID for STM32MP/TF-A monitor to set CNTFRQ to STGEN frequency.
  * No arguments.
  */
 #define STM32_SIP_SMC_STGEN_SET_RATE		0x82000000
 
-struct stm32_stgen_compat_data {
-	bool intermediate_clock_parent;
-};
-
+/*
+ * struct stgen_pdata - STGEN instance
+ * @stgen_clock: STGEN subsystem clock
+ * @stgen_bus: STGEN interface bus clock
+ * @calendar: RTC calendar data at suspend time
+ * @cnt_h: STGEN high counter value at suspend time
+ * @cnt_l: STGEN low counter value at suspend time
+ * @base: STGEN IOMEM base address
+ */
 struct stgen_pdata {
 	struct clk *stgen_clock;
 	struct clk *bus_clock;
@@ -76,7 +85,7 @@ static TEE_Result stm32mp_stgen_smc_config(void)
 	thread_smccc(&stgen_conf_args);
 
 	if (stgen_conf_args.a0) {
-		EMSG("STGEN configuration failed, error code: %llu",
+		EMSG("STGEN configuration failed, error code: %#llx",
 		     (unsigned long long)stgen_conf_args.a0);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -92,7 +101,7 @@ static void stm32_stgen_pm_suspend(void)
 	 * Disable STGEN counter. At this point, it should be stopped by
 	 * software.
 	 */
-	io_clrbits32(stgen_d.base + STGENC_CNTCR, BIT(0));
+	io_clrbits32(stgen_d.base + STGENC_CNTCR, STGENC_CNTCR_EN);
 
 	/* Save current time from the RTC */
 	res = rtc_get_time(stgen_d.calendar);
@@ -104,31 +113,31 @@ static void stm32_stgen_pm_suspend(void)
 			 &stgen_d.cnt_h, &stgen_d.cnt_l);
 
 	/* Re-enable STGEN as generic timer can be used later */
-	io_setbits32(stgen_d.base + STGENC_CNTCR, BIT(0));
+	io_setbits32(stgen_d.base + STGENC_CNTCR, STGENC_CNTCR_EN);
 }
 
 static void stm32_stgen_pm_resume(void)
 {
 	uint64_t counter_val = reg_pair_to_64(stgen_d.cnt_h, stgen_d.cnt_l);
 	unsigned long clock_src_rate = clk_get_rate(stgen_d.stgen_clock);
-	struct optee_rtc_time *cur_calendar = NULL;
+	struct optee_rtc_time cur_calendar = { };
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint64_t nb_pm_count_ticks = 0;
 
 	/* STGEN clocks are already restored by the clock driver */
-	io_clrbits32(stgen_d.base + STGENC_CNTCR, BIT(0));
+	io_clrbits32(stgen_d.base + STGENC_CNTCR, STGENC_CNTCR_EN);
 
 	/* Read the current time from the RTC to update system counter */
-	res = rtc_get_time(cur_calendar);
+	res = rtc_get_time(&cur_calendar);
 	if (res)
 		panic("Could not get RTC calendar at resume");
 
-	nb_pm_count_ticks = stm32_rtc_diff_calendar_tick(cur_calendar,
+	nb_pm_count_ticks = stm32_rtc_diff_calendar_tick(&cur_calendar,
 							 stgen_d.calendar,
 							 clock_src_rate);
 
 	DMSG("Time spent in low-power: %"PRIu64"ms",
-	     (nb_pm_count_ticks * 1000U) / clock_src_rate);
+	     (nb_pm_count_ticks * 1000) / clock_src_rate);
 
 	/* Update the counter value with the number of pm ticks */
 	if (ADD_OVERFLOW(counter_val, nb_pm_count_ticks, &counter_val))
@@ -144,7 +153,7 @@ static void stm32_stgen_pm_resume(void)
 	if (IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW))
 		stm32mp_stgen_smc_config();
 
-	io_setbits32(stgen_d.base + STGENC_CNTCR, BIT(0));
+	io_setbits32(stgen_d.base + STGENC_CNTCR, STGENC_CNTCR_EN);
 }
 
 static TEE_Result
@@ -169,7 +178,6 @@ static TEE_Result parse_dt(const void *fdt, int node)
 		panic();
 
 	stgen_d.base = io_pa_or_va_secure(&base, reg_size);
-
 	assert(stgen_d.base != 0);
 
 	res = clk_dt_get_by_name(fdt, node, "bus", &stgen_d.bus_clock);
@@ -217,7 +225,7 @@ static TEE_Result stgen_probe(const void *fdt, int node,
 	 * Disable STGEN counter. At cold boot, we accept the counter delta
 	 * due to STGEN reconfiguration
 	 */
-	io_clrbits32(stgen_d.base + STGENC_CNTCR, BIT(0));
+	io_clrbits32(stgen_d.base + STGENC_CNTCR, STGENC_CNTCR_EN);
 
 	/*
 	 * Flexgen for stgen_clock is skip during RCC probe.
@@ -241,9 +249,11 @@ static TEE_Result stgen_probe(const void *fdt, int node,
 	if (IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW))
 		stm32mp_stgen_smc_config();
 
-	io_setbits32(stgen_d.base + STGENC_CNTCR, BIT(0));
+	io_setbits32(stgen_d.base + STGENC_CNTCR, STGENC_CNTCR_EN);
 
-	register_pm_core_service_cb(stm32_stgen_pm, NULL, "stm32-stgen");
+	if (IS_ENABLED(CFG_STM32_RTC))
+		register_pm_core_service_cb(stm32_stgen_pm, NULL,
+					    "stm32-stgen");
 
 	return TEE_SUCCESS;
 }
