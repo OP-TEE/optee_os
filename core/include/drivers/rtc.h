@@ -12,14 +12,27 @@
 /* The RTC allows to set/get offset for correction */
 #define RTC_CORRECTION_FEATURE	BIT(0)
 
+/*
+ * struct optee_rtc_time - Time capture
+ *
+ * @tm_year: Year of the capture
+ * @tm_mon: Month of the capture
+ * @tm_mday: Month day of the capture
+ * @tm_wday: Week day of the capture
+ * @tm_hour: Hour of the capture
+ * @tm_min: Minute of the capture
+ * @tm_sec: Second of the capture
+ * @tm_subs: Millisecond of the capture
+ */
 struct optee_rtc_time {
 	uint32_t tm_year;
 	uint32_t tm_mon;
 	uint32_t tm_mday;
+	uint32_t tm_wday;
 	uint32_t tm_hour;
 	uint32_t tm_min;
 	uint32_t tm_sec;
-	uint32_t tm_wday;
+	uint32_t tm_ms;
 };
 
 struct rtc {
@@ -48,6 +61,34 @@ extern struct rtc *rtc_device;
 
 /* Register a RTC device as the system RTC */
 void rtc_register(struct rtc *rtc);
+
+/**
+ * rtc_is_a_leap_year() - Check if a year is a leap year
+ * @year:	The year to check
+ *
+ * Return:	true if the year is a leap year, false otherwise
+ */
+bool rtc_is_a_leap_year(uint32_t year);
+
+/**
+ * rtc_get_month_days() - Get the number of days in a month
+ * @month:	The month to know the number of days
+ * @year:	The year of the month
+ *
+ * Return:	Number of days in the month
+ */
+uint8_t rtc_get_month_days(uint32_t month, uint32_t year);
+
+/**
+ * rtc_timecmp() - Compare two RTC time structures
+ * @a:		First RTC time
+ * @b:		Second RTC time
+ *
+ * Return a negative value if a < b
+ * Return 0 if a == b
+ * Return a positive value if a > b
+ */
+int rtc_timecmp(struct optee_rtc_time *a, struct optee_rtc_time *b);
 
 static inline TEE_Result rtc_get_info(uint64_t *features,
 				      struct optee_rtc_time *range_min,
@@ -99,6 +140,23 @@ static inline TEE_Result rtc_set_offset(long offset)
 #else
 
 static inline void rtc_register(struct rtc *rtc __unused) {}
+
+static inline bool __noreturn rtc_is_a_leap_year(uint32_t year __unused)
+{
+	panic();
+}
+
+static inline uint8_t __noreturn rtc_get_month_days(uint32_t month __unused,
+						    uint32_t year __unused)
+{
+	panic();
+}
+
+static inline int __noreturn rtc_timecmp(struct optee_rtc_time *a __unused,
+					 struct optee_rtc_time *b __unused)
+{
+	panic();
+}
 
 static inline TEE_Result rtc_get_info(uint64_t *features __unused,
 				      struct optee_rtc_time *range_min __unused,
