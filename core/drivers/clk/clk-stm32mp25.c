@@ -2434,22 +2434,21 @@ static TEE_Result clk_stm32_flexgen_enable(struct clk *clk)
 	 * flexgen configuration.
 	 */
 	if (channel == FLEX_STGEN) {
-		struct clk *stgen_src = NULL;
 		unsigned int clk_src = U(0);
 		unsigned int pdiv = U(0);
 		unsigned int fdiv = U(0);
 
 		ret = flexclkgen_search_config(channel, &clk_src, &pdiv, &fdiv);
 		if (ret) {
-			EMSG("Error %#x when getting STGEN flexgen conf", ret);
+			EMSG("Error %#"PRIx32" when getting STGEN flexgen conf",
+			     ret);
 			return ret;
 		}
 
 		flexclkgen_config_channel(channel, clk_src, pdiv, fdiv);
 
 		/* Update parent */
-		stgen_src = clk_get_parent_by_index(clk, clk_src);
-		clk->parent = stgen_src;
+		clk->parent = clk_get_parent_by_index(clk, clk_src);
 	}
 
 	io_setbits32(rcc_base + RCC_FINDIV0CFGR + (0x4 * channel),
