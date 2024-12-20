@@ -10,6 +10,7 @@
 #include <drivers/stm32_rtc.h>
 #include <io.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/panic.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -146,6 +147,17 @@ struct rtc_compat {
 	bool has_rif_support;
 };
 
+/*
+ * struct rtc_device - RTC device data
+ * @base: RTC IOMEM base address
+ * @compat: RTC compatible data
+ * @pclk: RTC bus clock
+ * @rtc_ck: RTC kernel clock
+ * @conf_data: RTC RIF configuration data, when supported
+ * @nb_res: Number of protectible RTC resources
+ * @flags: RTC driver flags
+ * @is_secured: True if the RTC is fully secured
+ */
 struct rtc_device {
 	struct io_pa_va base;
 	struct rtc_compat compat;
@@ -187,72 +199,15 @@ static bool stm32_rtc_get_bypshad(void)
 	return io_read32(get_base() + RTC_CR) & RTC_CR_BYPSHAD;
 }
 
-/* Fill the RTC timestamp structure from a given RTC time-in-day value */
-static void stm32_rtc_fill_time(struct optee_rtc_time *tm)
-{
-	bool bypshad = stm32_rtc_get_bypshad();
-	vaddr_t base = get_base();
-	uint32_t ssr = 0;
-	uint32_t dr = 0;
-	uint32_t tr = 0;
-
-	if (!bypshad) {
-		uint64_t to = 0;
-
-		/* Wait calendar registers are ready */
-		io_clrbits32(base + RTC_ICSR, RTC_ICSR_RSF);
-
-		to = timeout_init_us(TIMEOUT_US_RTC_SHADOW);
-		while (!(io_read32(base + RTC_ICSR) & RTC_ICSR_RSF))
-			if (timeout_elapsed(to))
-				break;
-
-		if (!(io_read32(base + RTC_ICSR) & RTC_ICSR_RSF))
-			panic();
-	}
-
-	ssr = io_read32(base + RTC_SSR);
-	dr = io_read32(base  + RTC_DR);
-	tr = io_read32(base  + RTC_TR);
-
-	tm->tm_hour = ((tr & RTC_TR_HT_MASK) >> RTC_TR_HT_SHIFT) * 10 +
-		      ((tr & RTC_TR_HU_MASK) >> RTC_TR_HU_SHIFT);
-
-	if (tr & RTC_TR_PM)
-		tm->tm_hour += 12;
-
-	tm->tm_min = ((tr & RTC_TR_MNT_MASK) >> RTC_TR_MNT_SHIFT) * 10 +
-		     ((tr & RTC_TR_MNU_MASK) >> RTC_TR_MNU_SHIFT);
-	tm->tm_sec = ((tr & RTC_TR_ST_MASK) >> RTC_TR_ST_SHIFT) * 10 +
-		     (tr & RTC_TR_SU_MASK);
-
-	tm->tm_wday = ((dr & RTC_DR_WDU_MASK) >> RTC_DR_WDU_SHIFT);
-
-	tm->tm_mday = ((dr & RTC_DR_DT_MASK) >> RTC_DR_DT_SHIFT) * 10 +
-		      (dr & RTC_DR_DU_MASK);
-
-	tm->tm_mon = ((dr & RTC_DR_MT_MASK) >> RTC_DR_MT_SHIFT) * 10 +
-		     ((dr & RTC_DR_MU_MASK) >> RTC_DR_MU_SHIFT);
-
-	tm->tm_year = ((dr & RTC_DR_YT_MASK) >> RTC_DR_YT_SHIFT) * 10 +
-		      ((dr & RTC_DR_YU_MASK) >> RTC_DR_YU_SHIFT) + 2000;
-
-	tm->tm_subs = ssr;
-}
-
 /*
  * Get the subsecond value.
- *
- * Subsecond is a counter that grows from 0 to stm32_rtc_get_subsecond_scale()
- * every second.
  */
-static uint32_t stm32_rtc_get_subsecond(struct optee_rtc_time *tm)
+static uint32_t stm32_rtc_get_subsecond(uint32_t ssr)
 {
 	uint32_t prediv_s = io_read32(get_base() + RTC_PRER) &
 			    RTC_PRER_PREDIV_S_MASK;
-	uint32_t ss = tm->tm_subs & RTC_SSR_SS_MASK;
 
-	return prediv_s - ss;
+	return prediv_s - ssr;
 }
 
 /*
@@ -266,20 +221,65 @@ static uint32_t stm32_rtc_get_subsecond_scale(void)
 	return (io_read32(get_base() + RTC_PRER) & RTC_PRER_PREDIV_S_MASK) + 1;
 }
 
-/* Return relative difference of ticks count between two RTC calendar */
-static unsigned long long
-stm32_rtc_diff_subs_tick(struct optee_rtc_time *cur, struct optee_rtc_time *ref,
-			 unsigned long long tick_rate)
-{
-	return ((stm32_rtc_get_subsecond(cur) - stm32_rtc_get_subsecond(ref)) *
-		tick_rate) / stm32_rtc_get_subsecond_scale();
-}
-
 /* Return relative difference in milliseconds on subsecond */
 static unsigned long long stm32_rtc_diff_subs_ms(struct optee_rtc_time *cur,
 						 struct optee_rtc_time *ref)
 {
-	return stm32_rtc_diff_subs_tick(cur, ref, MS_PER_SEC);
+	if (cur->tm_ms >= ref->tm_ms)
+		return cur->tm_ms - ref->tm_ms;
+	else
+		return ref->tm_ms - cur->tm_ms;
+}
+
+/* Fill the RTC timestamp structure from a given RTC time-in-day value */
+static void stm32_rtc_fill_time(struct optee_rtc_time *tm)
+{
+	vaddr_t base = get_base();
+	uint32_t ssr = 0;
+	uint32_t dr = 0;
+	uint32_t tr = 0;
+
+	if (!stm32_rtc_get_bypshad()) {
+		uint32_t icsr = 0;
+
+		/* Wait calendar registers are ready */
+		io_clrbits32(base + RTC_ICSR, RTC_ICSR_RSF);
+
+		if (IO_READ32_POLL_TIMEOUT(base + RTC_ICSR, icsr,
+					   icsr & RTC_ICSR_RSF, 0,
+					   TIMEOUT_US_RTC_SHADOW))
+			panic();
+	}
+
+	ssr = io_read32(base + RTC_SSR);
+	tr = io_read32(base + RTC_TR);
+	dr = io_read32(base + RTC_DR);
+
+	tm->tm_hour = ((tr & RTC_TR_HT_MASK) >> RTC_TR_HT_SHIFT) * 10 +
+		      ((tr & RTC_TR_HU_MASK) >> RTC_TR_HU_SHIFT);
+
+	if (tr & RTC_TR_PM)
+		tm->tm_hour += 12;
+
+	tm->tm_ms = (stm32_rtc_get_subsecond(ssr) * MS_PER_SEC) /
+		    stm32_rtc_get_subsecond_scale();
+
+	tm->tm_sec = ((tr & RTC_TR_ST_MASK) >> RTC_TR_ST_SHIFT) * 10 +
+		     (tr & RTC_TR_SU_MASK);
+
+	tm->tm_min = ((tr & RTC_TR_MNT_MASK) >> RTC_TR_MNT_SHIFT) * 10 +
+		     ((tr & RTC_TR_MNU_MASK) >> RTC_TR_MNU_SHIFT);
+
+	tm->tm_wday = (dr & RTC_DR_WDU_MASK) >> RTC_DR_WDU_SHIFT;
+
+	tm->tm_mday = ((dr & RTC_DR_DT_MASK) >> RTC_DR_DT_SHIFT) * 10 +
+		      (dr & RTC_DR_DU_MASK);
+
+	tm->tm_mon = ((dr & RTC_DR_MT_MASK) >> RTC_DR_MT_SHIFT) * 10 +
+		     ((dr & RTC_DR_MU_MASK) >> RTC_DR_MU_SHIFT);
+
+	tm->tm_year = ((dr & RTC_DR_YT_MASK) >> RTC_DR_YT_SHIFT) * 10 +
+		      ((dr & RTC_DR_YU_MASK) >> RTC_DR_YU_SHIFT) + 2000;
 }
 
 /* Return difference in milliseconds on seconds-in-day fraction */
@@ -321,11 +321,11 @@ static unsigned long long stm32_rtc_diff_date_ms(struct optee_rtc_time *current,
 				ref->tm_mday + current->tm_mday;
 
 	/* Get the number of entire months, and compute the related days */
-	if (current->tm_mon > (ref->tm_mon + 1))
+	if (current->tm_mon > ref->tm_mon)
 		for (m = ref->tm_mon + 1; m < current->tm_mon && m < 12; m++)
 			diff_in_days += month_len[m - 1];
 
-	if (current->tm_mon < (ref->tm_mon - 1)) {
+	if (current->tm_mon < ref->tm_mon) {
 		for (m = 1; m < current->tm_mon && m < 12; m++)
 			diff_in_days += month_len[m - 1];
 
@@ -367,44 +367,34 @@ static unsigned long long stm32_rtc_diff_date_ms(struct optee_rtc_time *current,
 	return (24 * 60 * 60 * 1000) * (signed long long)diff_in_days;
 }
 
-/*
- * Return time diff in milliseconds between current and reference time
- * System will panic if stm32_rtc_calendar "cur" is older than "ref".
- */
 unsigned long long stm32_rtc_diff_calendar_ms(struct optee_rtc_time *cur,
 					      struct optee_rtc_time *ref)
 {
-	signed long long diff_in_ms = 0;
+	unsigned long long diff_in_ms = 0;
 	struct optee_rtc_time curr_t = { };
 	struct optee_rtc_time ref_t = { };
 
-	if (rtc_timecmp(cur, ref) != 1)
-		panic();
+	if (rtc_timecmp(cur, ref) <= 0)
+		return ULLONG_MAX;
 
 	diff_in_ms += stm32_rtc_diff_subs_ms(cur, ref);
 	diff_in_ms += stm32_rtc_diff_time_ms(&curr_t, &ref_t);
 	diff_in_ms += stm32_rtc_diff_date_ms(&curr_t, &ref_t);
 
-	if (diff_in_ms < 0)
-		panic("Negative time difference is not allowed");
-
 	return (unsigned long long)diff_in_ms;
 }
 
-/*
- * Return time diff in tick count between current and reference time
- * System will panic if stm32_rtc_calendar "cur" is older than "ref".
- */
 unsigned long long stm32_rtc_diff_calendar_tick(struct optee_rtc_time *cur,
 						struct optee_rtc_time *ref,
 						unsigned long long tick_rate)
 {
 	signed long long diff_in_tick = 0;
 
-	if (rtc_timecmp(cur, ref) != 1)
+	if (rtc_timecmp(cur, ref) <= 0)
 		panic();
 
-	diff_in_tick += stm32_rtc_diff_subs_tick(cur, ref, tick_rate);
+	diff_in_tick += stm32_rtc_diff_subs_ms(cur, ref) *
+			tick_rate / MS_PER_SEC;
 	diff_in_tick += stm32_rtc_diff_time_ms(cur, ref) *
 			tick_rate / MS_PER_SEC;
 	diff_in_tick += stm32_rtc_diff_date_ms(cur, ref) *
@@ -479,8 +469,8 @@ static void apply_rif_config(bool is_tdcid)
 	}
 
 	/* Shift some values to align with the register */
-	shifted_values = (seccfgr & RTC_SECCFGR_VALUES_TO_SHIFT) <<
-			 RTC_SECCFGR_SHIFT;
+	shifted_values = SHIFT_U32(seccfgr & RTC_SECCFGR_VALUES_TO_SHIFT,
+				   RTC_SECCFGR_SHIFT);
 	seccfgr = (seccfgr & RTC_SECCFGR_VALUES) + shifted_values;
 
 	io_clrsetbits32(base + RTC_SECCFGR,
@@ -498,8 +488,8 @@ static void apply_rif_config(bool is_tdcid)
 	}
 
 	/* Shift some values to align with the register */
-	shifted_values = (privcfgr & RTC_PRIVCFGR_VALUES_TO_SHIFT) <<
-			 RTC_PRIVCFGR_SHIFT;
+	shifted_values = SHIFT_U32(privcfgr & RTC_PRIVCFGR_VALUES_TO_SHIFT,
+				   RTC_PRIVCFGR_SHIFT);
 	privcfgr = (privcfgr & RTC_PRIVCFGR_VALUES) + shifted_values;
 
 	io_clrsetbits32(base + RTC_PRIVCFGR,
@@ -541,11 +531,11 @@ static TEE_Result parse_dt(const void *fdt, int node)
 		return res;
 
 	res = clk_dt_get_by_name(fdt, node, "rtc_ck", &rtc_dev.rtc_ck);
-	if (!rtc_dev.rtc_ck)
+	if (res)
 		return res;
 
 	if (!rtc_dev.compat.has_rif_support)
-		return res;
+		return TEE_SUCCESS;
 
 	cuint = fdt_getprop(fdt, node, "st,protreg", &lenp);
 	if (!cuint) {
@@ -632,7 +622,7 @@ static TEE_Result stm32_rtc_get_time(struct rtc *rtc __unused,
 	 * - day at 1
 	 * - weekday at Monday = 1
 	 * Here, we convert these information into something understandable
-	 * by the Linux kernel.
+	 * by OP-TEE.
 	 */
 	tm->tm_mon -= 1;
 	tm->tm_wday %= 7;
@@ -654,29 +644,30 @@ static TEE_Result stm32_rtc_set_time(struct rtc *rtc, struct optee_rtc_time *tm)
 	 * - day at 1
 	 * - weekday at Monday = 1
 	 * Here, we convert these information from something understandable
-	 * by the Linux kernel.
+	 * by OP-TEE.
 	 */
 	tm->tm_year -= rtc->range_min.tm_year;
 	tm->tm_mon += 1;
-	tm->tm_wday = (!tm->tm_wday) ? 7 : tm->tm_wday;
+	if (!tm->tm_wday)
+		tm->tm_wday = 7;
 
 	if (tm->tm_mon > 12)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	tr = ((tm->tm_sec % 10) & RTC_TR_SU_MASK) |
-	     (((tm->tm_sec / 10) << RTC_TR_ST_SHIFT) & RTC_TR_ST_MASK) |
-	     (((tm->tm_min % 10) << RTC_TR_MNU_SHIFT) & RTC_TR_MNU_MASK) |
-	     (((tm->tm_min / 10) << RTC_TR_MNT_SHIFT) & RTC_TR_MNT_MASK) |
-	     (((tm->tm_hour % 10) << RTC_TR_HU_SHIFT) & RTC_TR_HU_MASK) |
-	     (((tm->tm_hour / 10) << RTC_TR_HT_SHIFT) & RTC_TR_HT_MASK);
+	     (SHIFT_U32(tm->tm_sec / 10, RTC_TR_ST_SHIFT) & RTC_TR_ST_MASK) |
+	     (SHIFT_U32(tm->tm_min % 10, RTC_TR_MNU_SHIFT) & RTC_TR_MNU_MASK) |
+	     (SHIFT_U32(tm->tm_min / 10, RTC_TR_MNT_SHIFT) & RTC_TR_MNT_MASK) |
+	     (SHIFT_U32(tm->tm_hour % 10, RTC_TR_HU_SHIFT) & RTC_TR_HU_MASK) |
+	     (SHIFT_U32(tm->tm_hour / 10, RTC_TR_HT_SHIFT) & RTC_TR_HT_MASK);
 
 	dr = ((tm->tm_mday % 10) & RTC_DR_DU_MASK) |
-	     (((tm->tm_mday / 10) << RTC_DR_DT_SHIFT) & RTC_DR_DT_MASK) |
-	     (((tm->tm_mon % 10) << RTC_DR_MU_SHIFT) & RTC_DR_MU_MASK) |
-	     (((tm->tm_mon / 10) << RTC_DR_MT_SHIFT) & RTC_DR_MT_MASK) |
-	     ((tm->tm_wday << RTC_DR_WDU_SHIFT) & RTC_DR_WDU_MASK) |
-	     (((tm->tm_year % 10) << RTC_DR_YU_SHIFT) & RTC_DR_YU_MASK) |
-	     (((tm->tm_year / 10) << RTC_DR_YT_SHIFT) & RTC_DR_YT_MASK);
+	     (SHIFT_U32(tm->tm_mday / 10, RTC_DR_DT_SHIFT) & RTC_DR_DT_MASK) |
+	     (SHIFT_U32(tm->tm_mon % 10, RTC_DR_MU_SHIFT) & RTC_DR_MU_MASK) |
+	     (SHIFT_U32(tm->tm_mon / 10, RTC_DR_MT_SHIFT) & RTC_DR_MT_MASK) |
+	     (SHIFT_U32(tm->tm_wday, RTC_DR_WDU_SHIFT) & RTC_DR_WDU_MASK) |
+	     (SHIFT_U32(tm->tm_year % 10, RTC_DR_YU_SHIFT) & RTC_DR_YU_MASK) |
+	     (SHIFT_U32(tm->tm_year / 10, RTC_DR_YT_SHIFT) & RTC_DR_YT_MASK);
 
 	stm32_rtc_write_unprotect();
 

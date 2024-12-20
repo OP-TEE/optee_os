@@ -7,8 +7,6 @@
 #define __DRIVERS_STM32_RTC_H
 
 #include <drivers/rtc.h>
-#include <stdbool.h>
-#include <tee_api_types.h>
 
 #if defined(CFG_STM32_RTC)
 /*
@@ -30,19 +28,15 @@ static inline unsigned long long
 stm32_rtc_diff_calendar_ms(struct optee_rtc_time *cur __unused,
 			   struct optee_rtc_time *ref __unused)
 {
-	panic();
+	return ULLONG_MAX;
 }
 
-/*
- * Return time diff in tick count between current and reference time
- * System will panic if stm32_rtc_calendar "cur" is older than "ref".
- */
 static inline unsigned long long
 stm32_rtc_diff_calendar_tick(struct optee_rtc_time *cur __unused,
 			     struct optee_rtc_time *ref __unused,
 			     unsigned long long tick_rate __unused)
 {
-	panic();
+	return ULLONG_MAX;
 }
 #endif /* defined(CFG_STM32_RTC) */
 #endif /* __DRIVERS_STM32_RTC_H */
