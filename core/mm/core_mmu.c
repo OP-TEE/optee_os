@@ -2542,10 +2542,19 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m, size_t len)
 		va = NULL;
 		break;
 	default:
+		if ( m == MEM_AREA_IO_SEC )
+			IMSG("Getting virtual address for physical address %lx", pa);
 		va = map_pa2va(find_map_by_type_and_pa(m, pa, len), pa, len);
+		if ( m ==  MEM_AREA_IO_SEC)
+			IMSG("The virtual address is %lx", pa);
 	}
-	if (m != MEM_AREA_SEC_RAM_OVERALL)
+	if (m != MEM_AREA_SEC_RAM_OVERALL){
+		if ( m == MEM_AREA_IO_SEC )
+			IMSG("Checking virtual address...");
 		check_va_matches_pa(pa, va);
+	}
+	if ( m == MEM_AREA_IO_SEC )
+		IMSG("Returning virtual address...");
 	return va;
 }
 
@@ -2566,9 +2575,12 @@ void *phys_to_virt_io(paddr_t pa, size_t len)
 
 vaddr_t core_mmu_get_va(paddr_t pa, enum teecore_memtypes type, size_t len)
 {
-	if (cpu_mmu_enabled())
+	if (cpu_mmu_enabled()){
+		IMSG("MMU is enabled, returning virtal address...");
 		return (vaddr_t)phys_to_virt(pa, type, len);
+	}
 
+	IMSG("MMU is not enbaled, returning real address");
 	return (vaddr_t)pa;
 }
 
