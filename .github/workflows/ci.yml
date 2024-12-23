@@ -270,6 +270,7 @@ jobs:
           _make PLATFORM=nuvoton
           _make PLATFORM=d06
           _make PLATFORM=d06 CFG_HISILICON_ACC_V3=y
+          _make PLATFORM=telechips-tcc805x
 
           export ARCH=riscv
           unset CROSS_COMPILE32

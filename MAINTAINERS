@@ -330,6 +330,13 @@ R:	Neal Liu <neal_liu@aspeedtech.com> [@Neal-liu]
 S:	Maintained
 F:	core/arch/arm/plat-aspeed/
 
+Telechips TCC805x
+R:	Sungmin Han <sungminhan@telechips.com> [@meeneemaru]
+R:	GY Hwang <gy.hwang@telechips.com> [@hwang-telechips]
+S:	Maintained
+F:	core/arch/arm/plat-telechips/
+F:	core/drivers/openedges_omc.c
+
 RISC-V
 R:	Marouene Boubakri <marouene.boubakri@nxp.com> [@maroueneboubakri]
 S:	Maintained
