@@ -1568,7 +1568,11 @@ void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 	vaddr_t start = ROUNDDOWN((vaddr_t)__vcore_nex_rw_start,
 				  SMALL_PAGE_SIZE);
 #endif
+#ifdef CFG_DYN_CONFIG
+	vaddr_t len = ROUNDUP(VCORE_FREE_END_PA, SMALL_PAGE_SIZE) - start;
+#else
 	vaddr_t len = ROUNDUP((vaddr_t)__nozi_end, SMALL_PAGE_SIZE) - start;
+#endif
 	struct tee_mmap_region tmp_mmap_region = { };
 	struct memory_map mem_map = { };
 	unsigned long offs = 0;
@@ -2501,6 +2505,7 @@ static void *phys_to_virt_tee_ram(paddr_t pa, size_t len)
 static void *phys_to_virt_tee_ram(paddr_t pa, size_t len)
 {
 	struct tee_mmap_region *mmap = NULL;
+	void *va = NULL;
 
 	mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM, pa, len);
 	if (!mmap)
@@ -2517,7 +2522,22 @@ static void *phys_to_virt_tee_ram(paddr_t pa, size_t len)
 	 * Note that MEM_AREA_INIT_RAM_RO and MEM_AREA_INIT_RAM_RX are only
 	 * used with pager and not needed here.
 	 */
-	return map_pa2va(mmap, pa, len);
+	va = map_pa2va(mmap, pa, len);
+
+	if (va && mmap->type == MEM_AREA_TEE_RAM_RW) {
+		/*
+		 * Parts of the "unused" memory area covered by
+		 * MEM_AREA_TEE_RAM_RW can be unmaped, but map_pa2va()
+		 * doesn't check for holes in the map. Now that we have a
+		 * possible virtual address, check that it's mapped.
+		 */
+		paddr_t p = 0;
+
+		if (!arch_va2pa_helper(va, &p))
+			va = NULL;
+	}
+
+	return va;
 }
 #endif
 
