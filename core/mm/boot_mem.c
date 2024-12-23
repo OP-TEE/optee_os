@@ -44,6 +44,7 @@ struct boot_mem_padding {
  * @mem_start: Boot memory free space start address
  * @mem_end: Boot memory free space end address
  * @reloc: Boot memory pointers requiring relocation
+ * @padding: Linked list of unused memory between allocated blocks
  */
 struct boot_mem_desc {
 	vaddr_t orig_mem_start;
