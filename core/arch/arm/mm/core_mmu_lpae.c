@@ -251,11 +251,11 @@ typedef uint16_t l1_idx_t;
  * restore EL1 mappings on exception from EL0.
  *
  * Each CPU core is assign a unique set of base translation tables as:
- * core0: table0: entry0 (maps both EL1 and EL0)
+ * core0: table0: entry0 (table0 maps both EL1 and EL0)
  *                entry1
  *                entry2
  *                entry3
- * core0: table1: entry (maps only EL0)
+ * core0: table1: entry0 (table1 maps only EL0)
  *                entry1
  *                entry2
  *                entry3
