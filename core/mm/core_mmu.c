@@ -524,6 +524,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 		case MEM_AREA_SHM_VASPACE:
 		case MEM_AREA_TS_VASPACE:
 		case MEM_AREA_PAGER_VASPACE:
+		case MEM_AREA_TRANSFER_LIST:
 			break;
 		default:
 			check_phys_mem_is_outside(m, num_elems,
