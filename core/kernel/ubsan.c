@@ -63,6 +63,11 @@ struct nonnull_arg_data {
 	struct source_location loc;
 };
 
+struct invalid_builtin_data {
+	struct source_location loc;
+	unsigned char kind;
+};
+
 /*
  * When compiling with -fsanitize=undefined the compiler expects functions
  * with the following signatures. The functions are never called directly,
@@ -99,6 +104,7 @@ void __ubsan_handle_nonnull_arg(struct nonnull_arg_data *data
 				, size_t arg_no
 #endif
 			       );
+void __ubsan_handle_invalid_builtin(struct invalid_builtin_data *data);
 
 static void print_loc(const char *func, struct source_location *loc)
 {
@@ -235,6 +241,13 @@ void __ubsan_handle_nonnull_arg(struct nonnull_arg_data *data
 				, size_t arg_no __unused
 #endif
 			       )
+{
+	print_loc(__func__, &data->loc);
+	if (ubsan_panic)
+		panic();
+}
+
+void __ubsan_handle_invalid_builtin(struct invalid_builtin_data *data)
 {
 	print_loc(__func__, &data->loc);
 	if (ubsan_panic)
