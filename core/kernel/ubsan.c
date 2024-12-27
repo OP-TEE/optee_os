@@ -84,7 +84,7 @@ void __ubsan_handle_divrem_overflow(void *data_, void *lhs, void *rhs);
 void __ubsan_handle_pointer_overflow(void *data_, void *lhs, void *rhs);
 void __ubsan_handle_shift_out_of_bounds(void *data_, void *lhs, void *rhs);
 void __ubsan_handle_out_of_bounds(void *data_, void *idx);
-void __ubsan_handle_unreachable(struct unreachable_data *data);
+void __ubsan_handle_builtin_unreachable(void *data_);
 void __ubsan_handle_missing_return(void *data_);
 void __ubsan_handle_vla_bound_not_positive(void *data_, void *bound);
 void __ubsan_handle_load_invalid_value(void *data_, void *val);
@@ -196,11 +196,11 @@ void __ubsan_handle_out_of_bounds(void *data_, void *idx __unused)
 		panic();
 }
 
-void __ubsan_handle_unreachable(struct unreachable_data *data)
+void __ubsan_handle_builtin_unreachable(void *data_)
 {
+	struct unreachable_data *data = data_;
 	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+	panic();
 }
 
 void __noreturn __ubsan_handle_missing_return(void *data_)
