@@ -95,7 +95,10 @@ void __ubsan_handle_nonnull_arg(void *data_
 			       );
 void __ubsan_handle_invalid_builtin(void *data_);
 
-static void print_loc(const char *func, struct source_location *loc)
+static bool ubsan_panic = true;
+
+static void ubsan_handle_error(const char *func, struct source_location *loc,
+			       bool should_panic)
 {
 	const char *f = func;
 	const char func_prefix[] = "__ubsan_handle";
@@ -105,125 +108,114 @@ static void print_loc(const char *func, struct source_location *loc)
 
 	EMSG_RAW("Undefined behavior %s at %s:%" PRIu32 " col %" PRIu32,
 		 f, loc->file_name, loc->line, loc->column);
+
+	if (should_panic)
+		panic();
 }
-
-
-static volatile bool ubsan_panic = true;
 
 void __ubsan_handle_type_mismatch(struct type_mismatch_data *data,
 				  unsigned long ptr __unused)
 {
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_type_mismatch_v1(void *data_, void *ptr __unused)
 {
 	struct type_mismatch_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_add_overflow(void *data_, void *lhs __unused,
 				 void *rhs __unused)
 {
 	struct overflow_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_sub_overflow(void *data_, void *lhs __unused,
 				 void *rhs __unused)
 {
 	struct overflow_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_mul_overflow(void *data_, void *lhs __unused,
 				 void *rhs __unused)
 {
 	struct overflow_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_negate_overflow(void *data_, void *old_val __unused)
 {
 	struct overflow_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_divrem_overflow(void *data_, void *lhs __unused,
 				    void *rhs __unused)
 {
 	struct overflow_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_pointer_overflow(void *data_, void *lhs __unused,
 				     void *rhs __unused)
 {
 	struct overflow_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_shift_out_of_bounds(void *data_, void *lhs __unused,
 					void *rhs __unused)
 {
 	struct shift_out_of_bounds_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_out_of_bounds(void *data_, void *idx __unused)
 {
 	struct out_of_bounds_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_builtin_unreachable(void *data_)
 {
 	struct unreachable_data *data = data_;
-	print_loc(__func__, &data->loc);
+
+	ubsan_handle_error(__func__, &data->loc, false);
 	panic();
 }
 
 void __noreturn __ubsan_handle_missing_return(void *data_)
 {
 	struct unreachable_data *data = data_;
-	print_loc(__func__, &data->loc);
+
+	ubsan_handle_error(__func__, &data->loc, false);
 	panic();
 }
 
 void __ubsan_handle_vla_bound_not_positive(void *data_, void *bound __unused)
 {
 	struct vla_bound_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_load_invalid_value(void *data_, void *val __unused)
 {
 	struct invalid_value_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_nonnull_arg(void *data_
@@ -233,15 +225,13 @@ void __ubsan_handle_nonnull_arg(void *data_
 			       )
 {
 	struct nonnull_arg_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_invalid_builtin(void *data_)
 {
 	struct invalid_builtin_data *data = data_;
-	print_loc(__func__, &data->loc);
-	if (ubsan_panic)
-		panic();
+
+	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
