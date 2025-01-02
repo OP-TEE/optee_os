@@ -282,7 +282,11 @@ static void stm32_rtc_fill_time(struct optee_rtc_time *tm)
 		      ((dr & RTC_DR_YU_MASK) >> RTC_DR_YU_SHIFT) + 2000;
 }
 
-/* Return difference in milliseconds on seconds-in-day fraction */
+/*
+ * Here, we assume that ref is prior to current
+ *
+ * Return difference in milliseconds on seconds-in-day fraction
+ */
 static unsigned long long stm32_rtc_diff_time_ms(struct optee_rtc_time *current,
 						 struct optee_rtc_time *ref)
 {
