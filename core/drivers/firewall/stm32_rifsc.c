@@ -372,7 +372,6 @@ static TEE_Result stm32_risup_cfg(struct rifsc_platdata *pdata,
 	uintptr_t cidcfgr_offset = _OFFSET_PERX_CIDCFGR * risup->id;
 	struct rifsc_driver_data *drv_data = pdata->drv_data;
 	uint32_t shift = risup->id % _PERIPH_IDS_PER_REG;
-	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!risup || risup->id >= drv_data->nb_risup)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -400,34 +399,6 @@ static TEE_Result stm32_risup_cfg(struct rifsc_platdata *pdata,
 			io_setbits32_stm32shregs(pdata->base +
 						 _RIFSC_RISC_RCFGLOCKR0 +
 						 offset, BIT(shift));
-		}
-	}
-
-	/* Take semaphore if the resource is in semaphore mode and secured */
-	if (stm32_rif_semaphore_enabled_and_ok(risup->cid_attr, RIF_CID1)) {
-		if (!(io_read32(pdata->base + _RIFSC_RISC_SECCFGR0 + offset) &
-		      BIT(shift))) {
-			res =
-			stm32_rif_release_semaphore(pdata->base +
-						    _RIFSC_RISC_PER0_SEMCR +
-						    cidcfgr_offset,
-						    MAX_CID_SUPPORTED);
-			if (res) {
-				EMSG("Couldn't release semaphore for resource %"PRIu32,
-				     risup->id);
-				return TEE_ERROR_ACCESS_DENIED;
-			}
-		} else {
-			res =
-			stm32_rif_acquire_semaphore(pdata->base +
-						    _RIFSC_RISC_PER0_SEMCR +
-						    cidcfgr_offset,
-						    MAX_CID_SUPPORTED);
-			if (res) {
-				EMSG("Couldn't acquire semaphore for resource %"PRIu32,
-				     risup->id);
-				return TEE_ERROR_ACCESS_DENIED;
-			}
 		}
 	}
 
