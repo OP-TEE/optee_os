@@ -6,6 +6,7 @@
 #ifndef __DRIVERS_RTC_H
 #define __DRIVERS_RTC_H
 
+#include <kernel/panic.h>
 #include <tee_api_types.h>
 #include <util.h>
 
