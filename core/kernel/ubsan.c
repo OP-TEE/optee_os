@@ -97,7 +97,8 @@ void __ubsan_handle_invalid_builtin(void *data_);
 
 static volatile bool ubsan_panic = true;
 
-static void ubsan_handle_error(const char *func, struct source_location *loc, bool should_panic)
+static void ubsan_handle_error(const char *func, struct source_location *loc,
+			       bool should_panic)
 {
 	const char *f = func;
 	const char func_prefix[] = "__ubsan_handle";
@@ -121,6 +122,7 @@ void __ubsan_handle_type_mismatch(struct type_mismatch_data *data,
 void __ubsan_handle_type_mismatch_v1(void *data_, void *ptr __unused)
 {
 	struct type_mismatch_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
@@ -128,6 +130,7 @@ void __ubsan_handle_add_overflow(void *data_, void *lhs __unused,
 				 void *rhs __unused)
 {
 	struct overflow_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
@@ -135,6 +138,7 @@ void __ubsan_handle_sub_overflow(void *data_, void *lhs __unused,
 				 void *rhs __unused)
 {
 	struct overflow_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
@@ -142,12 +146,14 @@ void __ubsan_handle_mul_overflow(void *data_, void *lhs __unused,
 				 void *rhs __unused)
 {
 	struct overflow_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_negate_overflow(void *data_, void *old_val __unused)
 {
 	struct overflow_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
@@ -155,6 +161,7 @@ void __ubsan_handle_divrem_overflow(void *data_, void *lhs __unused,
 				    void *rhs __unused)
 {
 	struct overflow_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
@@ -162,6 +169,7 @@ void __ubsan_handle_pointer_overflow(void *data_, void *lhs __unused,
 				     void *rhs __unused)
 {
 	struct overflow_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
@@ -169,18 +177,21 @@ void __ubsan_handle_shift_out_of_bounds(void *data_, void *lhs __unused,
 					void *rhs __unused)
 {
 	struct shift_out_of_bounds_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_out_of_bounds(void *data_, void *idx __unused)
 {
 	struct out_of_bounds_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_builtin_unreachable(void *data_)
 {
 	struct unreachable_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, false);
 	panic();
 }
@@ -188,6 +199,7 @@ void __ubsan_handle_builtin_unreachable(void *data_)
 void __noreturn __ubsan_handle_missing_return(void *data_)
 {
 	struct unreachable_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, false);
 	panic();
 }
@@ -195,12 +207,14 @@ void __noreturn __ubsan_handle_missing_return(void *data_)
 void __ubsan_handle_vla_bound_not_positive(void *data_, void *bound __unused)
 {
 	struct vla_bound_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_load_invalid_value(void *data_, void *val __unused)
 {
 	struct invalid_value_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
@@ -211,11 +225,13 @@ void __ubsan_handle_nonnull_arg(void *data_
 			       )
 {
 	struct nonnull_arg_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
 void __ubsan_handle_invalid_builtin(void *data_)
 {
 	struct invalid_builtin_data *data = data_;
+
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
