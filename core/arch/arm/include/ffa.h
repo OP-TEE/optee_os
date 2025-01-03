@@ -38,6 +38,7 @@
 
 #define FFA_VERSION_1_0			MAKE_FFA_VERSION(1, 0)
 #define FFA_VERSION_1_1			MAKE_FFA_VERSION(1, 1)
+#define FFA_VERSION_1_2			MAKE_FFA_VERSION(1, 2)
 
 /* Function IDs */
 #define FFA_ERROR			U(0x84000060)
