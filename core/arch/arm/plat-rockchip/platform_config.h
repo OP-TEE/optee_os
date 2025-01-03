@@ -112,6 +112,9 @@
 #define FIREWALL_DSU_BASE	0xfe010000
 #define FIREWALL_DSU_SIZE	SIZE_K(32)
 
+#define TRNG_S_BASE		0xfe398000
+#define TRNG_S_SIZE		SIZE_K(32)
+
 #else
 #error "Unknown platform flavor"
 #endif
