@@ -748,7 +748,7 @@ static TEE_Result rsassa_pss_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	 * if (modBits - 1) is not divisible by 8, one more byte is needed
 	 */
 	modBits--;
-	EM.length = ROUNDUP(modBits, 8) / 8;
+	EM.length = ROUNDUP_DIV(modBits, 8);
 
 	if (EM.length < ssa_data->digest_size + ssa_data->salt_len + 2)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -823,7 +823,7 @@ static TEE_Result rsassa_pss_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	 * if (modBits - 1) is not divisible by 8, one more byte is needed
 	 */
 	modBits--;
-	EM.length = ROUNDUP(modBits, 8) / 8;
+	EM.length = ROUNDUP_DIV(modBits, 8);
 
 	if (EM.length < ssa_data->digest_size + ssa_data->salt_len + 2)
 		return TEE_ERROR_BAD_PARAMETERS;

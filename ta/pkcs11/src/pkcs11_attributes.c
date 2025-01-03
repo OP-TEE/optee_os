@@ -1824,7 +1824,7 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 					       &key_length);
 			if (rc)
 				return PKCS11_CKR_TEMPLATE_INCONSISTENT;
-			key_length = ROUNDUP(key_length, 8) / 8;
+			key_length = ROUNDUP_DIV(key_length, 8);
 			break;
 		case PKCS11_CKK_EC:
 		case PKCS11_CKK_EC_EDWARDS:

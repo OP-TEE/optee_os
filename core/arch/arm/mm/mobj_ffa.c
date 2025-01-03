@@ -210,7 +210,7 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
 
 static size_t get_page_count(struct mobj_ffa *mf)
 {
-	return ROUNDUP(mf->mobj.size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
+	return ROUNDUP_DIV(mf->mobj.size, SMALL_PAGE_SIZE);
 }
 
 static bool cmp_cookie(struct mobj_ffa *mf, uint64_t cookie)

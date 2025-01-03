@@ -264,8 +264,7 @@ static paddr_t core_mmu_get_ul1_ttb_pa(struct mmu_partition *prtn)
 
 static void *core_mmu_alloc_l2(struct mmu_partition *prtn, size_t size)
 {
-	uint32_t to_alloc = ROUNDUP(size, NUM_L2_ENTRIES * SMALL_PAGE_SIZE) /
-		(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
+	uint32_t to_alloc = ROUNDUP_DIV(size, NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
 
 	DMSG("L2 table used: %d/%d", prtn->tables_used + to_alloc,
 	     MAX_XLAT_TABLES);

@@ -299,8 +299,7 @@ TEE_Result dcp_cmac(struct dcp_cipher_init *init, uint8_t *input,
 		goto out;
 
 	/* Get number of block */
-	nb_blocks = ROUNDUP(input_size, DCP_AES128_BLOCK_SIZE) /
-		    DCP_AES128_BLOCK_SIZE;
+	nb_blocks = ROUNDUP_DIV(input_size, DCP_AES128_BLOCK_SIZE);
 
 	block_complete = nb_blocks && !(input_size % DCP_AES128_BLOCK_SIZE);
 	if (nb_blocks == 0)
