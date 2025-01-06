@@ -13,8 +13,8 @@
 			 { 0xa4, 0x9c, 0xbb, 0xd8, 0x27, 0xae, 0x86, 0xee } }
 
 /* PKCS11 trusted application version information */
-#define PKCS11_TA_VERSION_MAJOR			0
-#define PKCS11_TA_VERSION_MINOR			1
+#define PKCS11_TA_VERSION_MAJOR			1
+#define PKCS11_TA_VERSION_MINOR			0
 #define PKCS11_TA_VERSION_PATCH			0
 
 /* Attribute specific values */
