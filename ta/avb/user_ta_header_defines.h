@@ -14,4 +14,8 @@
 #define TA_STACK_SIZE			(16 * 1024)
 #define TA_DATA_SIZE			(16 * 1024)
 
+#define TA_VERSION			"1.0"
+
+#define TA_DESCRIPTION			"Android Verfied Boot"
+
 #endif /*__USER_TA_HEADER_DEFINES_H*/
