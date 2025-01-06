@@ -245,6 +245,7 @@ jobs:
           _make PLATFORM=poplar CFG_ARM64_core=y
           _make PLATFORM=rockchip-rk322x
           _make PLATFORM=rockchip-rk3399
+          _make PLATFORM=rockchip-rk3588
           _make PLATFORM=sam
           _make PLATFORM=sam-sama5d2_xplained
           _make PLATFORM=sam-sama5d27_som1_ek
