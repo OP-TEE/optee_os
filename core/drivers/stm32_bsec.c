@@ -516,6 +516,11 @@ uint32_t stm32_bsec_read_debug_conf(void)
 	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DEN_ALL_MSK;
 }
 
+bool stm32_bsec_self_hosted_debug_is_enabled(void)
+{
+	return stm32_bsec_read_debug_conf() & BSEC_DENR_DBGSWEN;
+}
+
 static TEE_Result set_bsec_lock(uint32_t otp_id, size_t lock_offset)
 {
 	uint32_t bank = otp_bank_offset(otp_id);
