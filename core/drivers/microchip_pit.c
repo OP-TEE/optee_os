@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
-#include <dt_driver.h>
+#include <kernel/dt_driver.h>
 #include <string.h>
 
 #define MCHP_PIT64B_FREQ		UL(5000000)	/* 5 MHz */
