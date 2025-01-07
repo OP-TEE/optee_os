@@ -32,13 +32,14 @@ static TEE_Result microchip_pit_probe(const void *fdt, int node,
 	if (res)
 		panic();
 
-	do {
+	while (1) {
 		parent = clk_get_parent_by_index(gclk, i++);
-		if (!memcmp("syspll", clk_get_name(parent), sizeof("syspll")))
+		if (!parent)
+			panic();
+		if (!memcmp("syspll", clk_get_name(parent),
+			    sizeof("syspll") - 1))
 			break;
-	} while (parent);
-	if (!parent)
-		panic();
+	}
 
 	res = clk_set_parent(gclk, parent);
 	if (res)
