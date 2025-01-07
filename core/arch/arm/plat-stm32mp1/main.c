@@ -170,7 +170,7 @@ TEE_Result stm32mp1_dbgmcu_get_chip_dev_id(uint32_t *chip_dev_id)
 
 	assert(chip_dev_id);
 
-	if (stm32_bsec_read_debug_conf() & BSEC_DBGSWGEN)
+	if (stm32_bsec_self_hosted_debug_is_enabled())
 		id = io_read32(stm32_dbgmcu_base() + DBGMCU_IDC) &
 		     DBGMCU_IDC_DEV_ID_MASK;
 
