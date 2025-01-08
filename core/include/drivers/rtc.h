@@ -161,6 +161,14 @@ static inline TEE_Result rtc_set_time(struct optee_rtc_time *tm)
 	if (!rtc_device || !rtc_device->ops->set_time)
 		return TEE_ERROR_NOT_SUPPORTED;
 
+	if (tm->tm_mon >= 12 ||
+	    tm->tm_mday > rtc_get_month_days(tm->tm_mon, tm->tm_year) ||
+	    tm->tm_wday >= 7 || tm->tm_hour >= 24 || tm->tm_min >= 60 ||
+	    tm->tm_sec >= 60 || tm->tm_ms >= 1000 ||
+	    rtc_timecmp(tm, &rtc_device->range_min) < 0 ||
+	    rtc_timecmp(tm, &rtc_device->range_max) > 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	return rtc_device->ops->set_time(rtc_device, tm);
 }
 
