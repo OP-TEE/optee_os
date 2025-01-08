@@ -18,6 +18,18 @@
 #define MS_PER_HOUR		(60 * MS_PER_MIN)
 #define MS_PER_DAY		(24 * MS_PER_HOUR)
 
+#define RTC_TIME(year, mon, mday, wday, hour, min, sec, ms)		\
+	{								\
+		.tm_year = (year),					\
+		.tm_mon = (mon),					\
+		.tm_mday = (mday),					\
+		.tm_wday = (wday),					\
+		.tm_hour = (hour),					\
+		.tm_min = (min),					\
+		.tm_sec = (sec),					\
+		.tm_ms = (ms),						\
+	}
+
 /*
  * struct optee_rtc_time - Time in Gregorian calendar
  *
