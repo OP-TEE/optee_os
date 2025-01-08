@@ -111,10 +111,11 @@ struct sam_pmc_clk {
 	unsigned int scmi_id;
 	unsigned int pmc_type;
 	unsigned int pmc_id;
+	struct clk_range output_range;
 };
 
 #ifdef CFG_SAMA7G5
-static const struct sam_pmc_clk pmc_clks[] = {
+static struct sam_pmc_clk pmc_clks[] = {
 	{
 		.scmi_id = AT91_SCMI_CLK_CORE_MCK,
 		.pmc_type = PMC_TYPE_CORE,
@@ -614,7 +615,7 @@ static const struct sam_pmc_clk pmc_clks[] = {
 	},
 };
 #else
-static const struct sam_pmc_clk pmc_clks[] = {
+static struct sam_pmc_clk pmc_clks[] = {
 	{
 		.scmi_id = AT91_SCMI_CLK_CORE_MCK,
 		.pmc_type = PMC_TYPE_CORE,
@@ -1114,6 +1115,45 @@ size_t plat_scmi_rd_count(unsigned int channel_id)
 		return 0;
 
 	return resource->rd_count;
+}
+
+void sam_set_clock_range(unsigned int pmc_type, unsigned int pmc_id,
+			 const struct clk_range *range)
+{
+	struct sam_pmc_clk *p = NULL;
+
+	for (p = pmc_clks; p < pmc_clks + ARRAY_SIZE(pmc_clks); p++) {
+		if (pmc_type == p->pmc_type && pmc_id == p->pmc_id) {
+			p->output_range.min = range->min;
+			p->output_range.max = range->max;
+			return;
+		}
+	}
+}
+
+int32_t plat_scmi_clock_rates_by_step(unsigned int channel_id,
+				      unsigned int scmi_id,
+				      unsigned long *steps)
+{
+	const struct sam_pmc_clk *p = NULL;
+	int32_t res = SCMI_NOT_SUPPORTED;
+
+	if (channel_id)
+		return res;
+
+	for (p = pmc_clks; p < pmc_clks + ARRAY_SIZE(pmc_clks); p++) {
+		if (scmi_id == p->scmi_id) {
+			if (p->output_range.max) {
+				steps[0] = p->output_range.min;
+				steps[1] = p->output_range.max;
+				steps[2] = 1;
+				res = SCMI_SUCCESS;
+			}
+			break;
+		}
+	}
+
+	return res;
 }
 
 /*
