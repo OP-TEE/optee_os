@@ -414,6 +414,16 @@ static struct sam_pmc_clk pmc_clks[] = {
 		.pmc_id = ID_PDMC1
 	},
 	{
+		.scmi_id = AT91_SCMI_CLK_GCK_PDMC0_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_PDMC0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_PDMC1_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_PDMC1
+	},
+	{
 		.scmi_id = AT91_SCMI_CLK_PERIPH_SECURAM_CLK,
 		.pmc_type = PMC_TYPE_PERIPHERAL,
 		.pmc_id = ID_SECURAM
