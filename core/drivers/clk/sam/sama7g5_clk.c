@@ -1576,6 +1576,21 @@ static TEE_Result pmc_setup_sama7g5(const void *fdt, int nodeoffset,
 	if (res)
 		panic();
 
+	res = clk_set_rate(pll_frac_clk[PLL_ID_AUDIO], 983040000);
+	if (res)
+		panic();
+
+	res = clk_set_rate(pll_div_clk[PLL_ID_AUDIO], 196608000);
+	if (res)
+		panic();
+
+	clk = pmc_clk_get_by_name(sama7g5_pmc->ghws, sama7g5_pmc->ngck,
+				  "pdmc0_gclk");
+	assert(clk);
+	res = clk_set_parent(clk, pll_div_clk[PLL_ID_AUDIO]);
+	if (res)
+		panic();
+
 	res = clk_dt_register_clk_provider(fdt, nodeoffset, clk_dt_pmc_get,
 					   sama7g5_pmc);
 	if (res)
