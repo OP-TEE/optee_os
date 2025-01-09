@@ -1221,7 +1221,8 @@ static TEE_Result tee_rpmb_init(void)
 		}
 		res = rpmb_probe_reset();
 		if (res) {
-			if (res != TEE_ERROR_NOT_SUPPORTED)
+			if (res != TEE_ERROR_NOT_SUPPORTED &&
+			    res != TEE_ERROR_NOT_IMPLEMENTED)
 				return res;
 			return legacy_rpmb_init();
 		}
@@ -1248,7 +1249,8 @@ next:
 
 	res = rpmb_probe_reset();
 	if (res) {
-		if (res != TEE_ERROR_NOT_SUPPORTED)
+		if (res != TEE_ERROR_NOT_SUPPORTED &&
+		    res != TEE_ERROR_NOT_IMPLEMENTED)
 			return res;
 		return legacy_rpmb_init();
 	}
