@@ -15,6 +15,7 @@
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mm.h>
@@ -69,13 +70,61 @@ void init_sec_mon(unsigned long nsec_entry __maybe_unused)
 #ifdef CFG_RISCV_S_MODE
 static void start_secondary_cores(void)
 {
-	size_t i = 0;
-	size_t pos = get_core_pos();
+	uint32_t curr_hartid = thread_get_core_local()->hart_id;
+	uint32_t hartids[CFG_TEE_CORE_NB_CORE] = { };
+	const void *fdt = get_external_dt();
+	int offset = 0, cpu_offset = 0;
+	int len = 0, i = 0, rc = 0;
+	const fdt32_t *reg = NULL;
+	uint32_t hartid = 0;
 
-	for (i = 0; i < CFG_TEE_CORE_NB_CORE; i++)
-		if (i != pos && IS_ENABLED(CFG_RISCV_SBI) &&
-		    sbi_hsm_hart_start(i, start_addr, i))
-			EMSG("Error starting secondary hart %zu", i);
+	/* The primary CPU is always indexed by 0 */
+	assert(get_core_pos() == 0);
+
+	offset = fdt_path_offset(fdt, "/cpus");
+	if (offset < 0)
+		panic("Failed to find /cpus node in the device tree");
+
+	fdt_for_each_subnode(cpu_offset, fdt, offset) {
+		/*
+		 * Assume all TEE cores are enabled. The "reg"
+		 * property in the CPU node indicates the hart ID.
+		 */
+		if (!fdt_node_is_enabled(fdt, cpu_offset))
+			continue;
+
+		reg = fdt_getprop(fdt, cpu_offset, "reg", &len);
+		if (!reg) {
+			EMSG("CPU node does not have 'reg' property");
+			continue;
+		}
+
+		hartids[i++] = fdt32_to_cpu(*reg);
+	}
+
+	for (i = 0; i < CFG_TEE_CORE_NB_CORE; i++) {
+		hartid = hartids[i];
+
+		if (hartid == curr_hartid)
+			continue;
+
+		rc = sbi_hsm_hart_get_status(hartid);
+		/*
+		 * Skip if the hartid is not an assigned hart
+		 * of the trusted domain, or its HSM state is
+		 * not stopped.
+		 */
+		if (rc < 0 || rc != SBI_HSM_STATE_STOPPED)
+			continue;
+
+		DMSG("Bringing up secondary hart%u", hartid);
+
+		rc = sbi_hsm_hart_start(hartid, start_addr, 0 /* unused */);
+		if (rc) {
+			EMSG("Error starting secondary hart%u", hartid);
+			panic();
+		}
+	}
 }
 #endif
 
@@ -146,6 +195,11 @@ void boot_init_primary_early(void)
 void boot_init_primary_late(unsigned long fdt,
 			    unsigned long tos_fw_config __unused)
 {
+	size_t pos = get_core_pos();
+
+	/* The primary CPU is always indexed by 0 */
+	assert(pos == 0);
+
 	init_external_dt(fdt, CFG_DTB_MAX_SIZE);
 	discover_nsec_memory();
 	update_external_dt();
@@ -155,17 +209,21 @@ void boot_init_primary_late(unsigned long fdt,
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
 		IMSG("WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html");
 	}
-	IMSG("Primary CPU initializing");
+	IMSG("Primary CPU0 (hart%u) initializing",
+	     thread_get_hartid_by_hartindex(pos));
 	boot_primary_init_intc();
 	init_tee_runtime();
 }
 
 void __weak boot_init_primary_final(void)
 {
+	size_t pos = get_core_pos();
+
 	boot_mem_release_tmp_alloc();
 
 	call_driver_initcalls();
-	IMSG("Primary CPU initialized");
+	IMSG("Primary CPU0 (hart%u) initialized",
+	     thread_get_hartid_by_hartindex(pos));
 
 #ifdef CFG_RISCV_S_MODE
 	start_secondary_cores();
@@ -178,7 +236,8 @@ static void init_secondary_helper(unsigned long nsec_entry)
 {
 	size_t pos = get_core_pos();
 
-	IMSG("Secondary CPU %zu initializing", pos);
+	IMSG("Secondary CPU%zu (hart%u) initializing",
+	     pos, thread_get_hartid_by_hartindex(pos));
 
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -192,8 +251,8 @@ static void init_secondary_helper(unsigned long nsec_entry)
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
 	boot_secondary_init_intc();
-
-	IMSG("Secondary CPU %zu initialized", pos);
+	IMSG("Secondary CPU%zu (hart%u) initialized",
+	     pos, thread_get_hartid_by_hartindex(pos));
 }
 
 void boot_init_secondary(unsigned long nsec_entry __unused)

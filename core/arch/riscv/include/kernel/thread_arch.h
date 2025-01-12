@@ -34,6 +34,7 @@ struct thread_pauth_keys {
 struct thread_core_local {
 	unsigned long x[4];
 	uint32_t hart_id;
+	uint32_t hart_index;
 	vaddr_t tmp_stack_va_end;
 	short int curr_thread;
 	uint32_t flags;
@@ -197,6 +198,7 @@ static inline void thread_user_clear_vfp(struct user_mode_ctx *uctx __unused)
 #endif
 
 vaddr_t thread_get_saved_thread_sp(void);
+uint32_t thread_get_hartid_by_hartindex(uint32_t hartidx);
 
 static inline void thread_get_user_kcode(struct mobj **mobj, size_t *offset,
 					 vaddr_t *va, size_t *sz)
