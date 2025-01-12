@@ -29,7 +29,6 @@
 #define PADDR_INVALID               ULONG_MAX
 
 paddr_t start_addr;
-unsigned long boot_args[4];
 
 uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 

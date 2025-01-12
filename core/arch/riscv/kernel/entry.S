@@ -127,17 +127,6 @@
 #define flush_cpu_semaphores
 #endif
 
-.macro bootargs_entry
-	/*
-	 * Save boot arguments
-	 */
-	la	t0, boot_args
-	/* Save boot hart */
-	STR	a0, REGOFF(0)(t0)
-	/* Save FDT address */
-	STR	a1, REGOFF(1)(t0)
-.endm
-
 FUNC _start , :
 	/*
 	 * Register usage:
@@ -172,9 +161,6 @@ END_FUNC _start
 
 LOCAL_FUNC reset_primary , : , .identity_map
 UNWIND(	.cantunwind)
-
-	bootargs_entry
-
 	/*
 	 * Zero bss
 	 */
