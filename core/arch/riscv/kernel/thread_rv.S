@@ -34,7 +34,7 @@
 
 /* size_t __get_core_pos(void); */
 FUNC __get_core_pos , : , .identity_map
-	lw	a0, THREAD_CORE_LOCAL_HART_ID(tp)
+	lw	a0, THREAD_CORE_LOCAL_HART_INDEX(tp)
 	ret
 END_FUNC __get_core_pos
 

@@ -15,6 +15,7 @@
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mm.h>
@@ -31,6 +32,7 @@
 paddr_t start_addr;
 
 uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
+uint32_t hartids[CFG_TEE_CORE_NB_CORE];
 
 #if defined(CFG_DT)
 static int mark_tddram_as_reserved(struct dt_descriptor *dt)
@@ -69,13 +71,38 @@ void init_sec_mon(unsigned long nsec_entry __maybe_unused)
 #ifdef CFG_RISCV_S_MODE
 static void start_secondary_cores(void)
 {
-	size_t i = 0;
-	size_t pos = get_core_pos();
+	uint32_t curr_hartid = thread_get_core_local()->hart_id;
+	enum sbi_hsm_hart_state status = 0;
+	uint32_t hartid = 0;
+	int rc = 0;
+	int i = 0;
 
-	for (i = 0; i < CFG_TEE_CORE_NB_CORE; i++)
-		if (i != pos && IS_ENABLED(CFG_RISCV_SBI) &&
-		    sbi_hsm_hart_start(i, start_addr, i))
-			EMSG("Error starting secondary hart %zu", i);
+	/* The primary CPU is always indexed by 0 */
+	assert(get_core_pos() == 0);
+
+	for (i = 0; i < CFG_TEE_CORE_NB_CORE; i++) {
+		hartid = hartids[i];
+
+		if (hartid == curr_hartid)
+			continue;
+
+		rc = sbi_hsm_hart_get_status(hartid, &status);
+		/*
+		 * Skip if the hartid is not an assigned hart
+		 * of the trusted domain, or its HSM state is
+		 * not stopped.
+		 */
+		if (rc || status != SBI_HSM_STATE_STOPPED)
+			continue;
+
+		DMSG("Bringing up secondary hart%"PRIu32, hartid);
+
+		rc = sbi_hsm_hart_start(hartid, start_addr, 0 /* unused */);
+		if (rc) {
+			EMSG("Error starting secondary hart%"PRIu32, hartid);
+			panic();
+		}
+	}
 }
 #endif
 
@@ -132,6 +159,43 @@ __weak void boot_primary_init_intc(void)
 }
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
+__weak void boot_primary_init_core_ids(void)
+{
+#ifdef CFG_DT
+	const void *fdt = get_external_dt();
+	const fdt32_t *reg = NULL;
+	int cpu_offset = 0;
+	int offset = 0;
+	int len = 0;
+	int i = 0;
+
+	offset = fdt_path_offset(fdt, "/cpus");
+	if (offset < 0)
+		panic("Failed to find /cpus node in the device tree");
+
+	fdt_for_each_subnode(cpu_offset, fdt, offset) {
+		/*
+		 * Assume all TEE cores are enabled. The "reg"
+		 * property in the CPU node indicates the hart ID.
+		 */
+		if (fdt_get_status(fdt, cpu_offset) == DT_STATUS_DISABLED)
+			continue;
+
+		reg = fdt_getprop(fdt, cpu_offset, "reg", &len);
+		if (!reg) {
+			EMSG("CPU node does not have 'reg' property");
+			continue;
+		}
+
+		assert(i < CFG_TEE_CORE_NB_CORE);
+		hartids[i++] = fdt32_to_cpu(*reg);
+	}
+
+	assert(i == CFG_TEE_CORE_NB_CORE);
+#endif
+}
+
+/* May be overridden in plat-$(PLATFORM)/main.c */
 __weak void boot_secondary_init_intc(void)
 {
 }
@@ -146,6 +210,11 @@ void boot_init_primary_early(void)
 void boot_init_primary_late(unsigned long fdt,
 			    unsigned long tos_fw_config __unused)
 {
+	size_t pos = get_core_pos();
+
+	/* The primary CPU is always indexed by 0 */
+	assert(pos == 0);
+
 	init_external_dt(fdt, CFG_DTB_MAX_SIZE);
 	discover_nsec_memory();
 	update_external_dt();
@@ -155,18 +224,23 @@ void boot_init_primary_late(unsigned long fdt,
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
 		IMSG("WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html");
 	}
-	IMSG("Primary CPU initializing");
+	IMSG("Primary CPU0 (hart%"PRIu32") initializing",
+	     thread_get_hartid_by_hartindex(pos));
 	boot_primary_init_intc();
+	boot_primary_init_core_ids();
 	init_tee_runtime();
 }
 
 void __weak boot_init_primary_final(void)
 {
+	size_t pos = get_core_pos();
+
 	boot_mem_release_tmp_alloc();
 
 	call_driver_initcalls();
 	call_finalcalls();
-	IMSG("Primary CPU initialized");
+	IMSG("Primary CPU0 (hart%"PRIu32") initialized",
+	     thread_get_hartid_by_hartindex(pos));
 
 #ifdef CFG_RISCV_S_MODE
 	start_secondary_cores();
@@ -177,7 +251,8 @@ static void init_secondary_helper(unsigned long nsec_entry)
 {
 	size_t pos = get_core_pos();
 
-	IMSG("Secondary CPU %zu initializing", pos);
+	IMSG("Secondary CPU%zu (hart%"PRIu32") initializing",
+	     pos, thread_get_hartid_by_hartindex(pos));
 
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -192,7 +267,8 @@ static void init_secondary_helper(unsigned long nsec_entry)
 	init_sec_mon(nsec_entry);
 	boot_secondary_init_intc();
 
-	IMSG("Secondary CPU %zu initialized", pos);
+	IMSG("Secondary CPU%zu (hart%"PRIu32") initialized",
+	     pos, thread_get_hartid_by_hartindex(pos));
 }
 
 void boot_init_secondary(unsigned long nsec_entry __unused)
