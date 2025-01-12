@@ -26,22 +26,15 @@
 	/*
 	 * Setup sp to point to the top of the tmp stack for the current CPU:
 	 * sp is assigned:
-	 * stack_tmp + (hartid + 1) * stack_tmp_stride - STACK_TMP_GUARD
+	 * stack_tmp + (hart_index + 1) * stack_tmp_stride - STACK_TMP_GUARD
 	 */
 .macro set_sp
 	/* Unsupported CPU, park it before it breaks something */
 	li	t1, CFG_TEE_CORE_NB_CORE
-	csrr	t0, CSR_XSCRATCH
+	csrr	t0, CSR_XSCRATCH /* t0: hart_index */
 	bge	t0, t1, unhandled_cpu
 	addi	t0, t0, 1
 	lw	t1, stack_tmp_stride
-	/*
-	 * t0 = (hartid + 1)
-	 * t1 = value of stack_tmp_stride
-	 * value of stack_tmp_rel = stack_tmp - stack_tmp_rel - STACK_TMP_GUARD
-	 * sp = stack_tmp + (hartid + 1) * stack_tmp_stride - STACK_TMP_GUARD
-	 *    = stack_tmp_rel + (value of stack_tmp_rel) + (t0 * t1)
-	 */
 	mul	t1, t0, t1
 	la	t2, stack_tmp_rel
 	lw	t0, 0(t2)
@@ -62,17 +55,18 @@
 .endm
 
 .macro set_tp
-	csrr	a0, CSR_XSCRATCH
+	csrr	a3, CSR_XSCRATCH /* a3: hart_index */
 	li	a1, THREAD_CORE_LOCAL_SIZE
 	la	tp, thread_core_local
-	mul	a2, a1, a0
+	mul	a2, a1, a3
 	add	tp, tp, a2
 	sw	a0, THREAD_CORE_LOCAL_HART_ID(tp)
+	sw	a3, THREAD_CORE_LOCAL_HART_INDEX(tp)
 .endm
 
 .macro set_satp
 	/*
-	 * a0 = hartid
+	 * a0 = hart_index
 	 * a1 = address of boot_mmu_config.satp[0]
 	 * a2 = size of CSR SATP
 	 *
@@ -133,7 +127,6 @@ FUNC _start , :
 	 * a0	- if non-NULL holds the hart ID
 	 * a1	- if non-NULL holds the system DTB address
 	 *
-	 * CSR_XSCRATCH - saved a0
 	 * s1 - saved a1
 	 */
 .option push
@@ -143,17 +136,19 @@ FUNC _start , :
 #ifdef CFG_RISCV_M_MODE
 	csrr	a0, CSR_MHARTID
 #endif
-	csrw	CSR_XSCRATCH, a0
+
 #if defined(CFG_DT_ADDR)
 	li	s1, CFG_DT_ADDR
 #else
 	mv	s1, a1		/* Save device tree address into s1 */
 #endif
-
 	/* Only first hart who wins lottery runs the primary boot sequence. */
 	la	a3, hart_lottery
 	li	a2, 1
 	amoadd.w a3, a2, (a3)
+	/* a3 read from hart_lottery also represents the hart_index */
+	csrw	CSR_XSCRATCH, a3
+
 	bnez	a3, reset_secondary
 	jal	reset_primary
 	j	.
