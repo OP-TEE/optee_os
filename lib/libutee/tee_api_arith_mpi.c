@@ -864,8 +864,10 @@ void TEE_BigIntComputeExtendedGcd(TEE_BigInt *gcd, TEE_BigInt *u,
 		mpi_u.s *= s1;
 		mpi_v.s *= s2;
 
-		MPI_CHECK(copy_mpi_to_bigint(&mpi_u, u));
-		MPI_CHECK(copy_mpi_to_bigint(&mpi_v, v));
+		if (u)
+			MPI_CHECK(copy_mpi_to_bigint(&mpi_u, u));
+		if (v)
+			MPI_CHECK(copy_mpi_to_bigint(&mpi_v, v));
 		mbedtls_mpi_free(&mpi_u);
 		mbedtls_mpi_free(&mpi_v);
 	}
