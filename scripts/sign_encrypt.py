@@ -598,7 +598,7 @@ class BinaryImage:
 
                 if enc_algo not in enc_tee_alg.values():
                     raise Exception('Unrecognized encrypt algorithm: 0x{:08x}'
-                                    .format(enc_value))
+                                    .format(enc_algo))
 
                 flags_name = 'Unkown'
                 if flags in enc_key_type.values():
@@ -617,10 +617,12 @@ class BinaryImage:
                 print('  tag_size:   {} (bytes)'.format(tag_len))
                 if tag_len != TAG_SIZE:
                     raise Exception("Unexpected tag len: {}".format(tag_len))
-                tag = self.inf[-tag_len:]
+                tag = self.inf[offs:offs+tag_len]
                 print('  tag:        {}'
                       .format(binascii.hexlify(tag).decode('ascii')))
-                ciphertext = self.inf[offs:-tag_len]
+                offs += tag_len
+
+                ciphertext = self.inf[offs:]
                 print(' TA offset:  {} (0x{:x}) bytes'.format(offs, offs))
                 print(' TA size:    {} (0x{:x}) bytes'
                       .format(len(ciphertext), len(ciphertext)))
@@ -628,7 +630,6 @@ class BinaryImage:
                     raise Exception("Unexpected ciphertext size: ",
                                     "got {}, expected {}"
                                     .format(len(ciphertext), img_size))
-                offs += tag_len
             else:
                 img = self.inf[offs:]
                 print(' TA offset:  {} (0x{:x}) bytes'.format(offs, offs))
