@@ -266,6 +266,7 @@ def get_args():
     arg_add_uuid(parser_verify)
     arg_add_in(parser_verify)
     arg_add_key(parser_verify)
+    arg_add_enc_key(parser_verify)
 
     parser_display = subparsers.add_parser(
         'display', prog=parser.prog + ' display',
@@ -505,9 +506,9 @@ class BinaryImage:
                 offs += EHDR_SIZE
                 [enc_algo, flags, nonce_len,
                  tag_len] = struct.unpack('<IIHH', self.ehdr)
-                if enc_value not in enc_tee_alg.values():
+                if enc_algo not in enc_tee_alg.values():
                     raise Exception('Unrecognized encrypt algorithm: 0x{:08x}'
-                                    .format(enc_value))
+                                    .format(enc_algo))
                 if nonce_len != 12:
                     raise Exception("Unexpected nonce len: {}"
                                     .format(nonce_len))
@@ -516,8 +517,10 @@ class BinaryImage:
 
                 if tag_len != 16:
                     raise Exception("Unexpected tag len: {}".format(tag_len))
-                self.tag = self.inf[-tag_len:]
-                self.ciphertext = self.inf[offs:-tag_len]
+                self.tag = self.inf[offs:offs + tag_len]
+                offs += tag_len
+
+                self.ciphertext = self.inf[offs:]
                 if len(self.ciphertext) != img_size:
                     raise Exception("Unexpected ciphertext size: ",
                                     "got {}, expected {}"
@@ -718,11 +721,11 @@ class BinaryImage:
             else:
                 raise Exception("Unsupported image type: {}".format(img_type))
 
-    def decrypt_ta(enc_key):
+    def decrypt_ta(self, enc_key):
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
         cipher = AESGCM(bytes.fromhex(enc_key))
-        self.img = cipher.decrypt(self.nonce, self.ciphertext, None)
+        self.img = cipher.decrypt(self.nonce, self.ciphertext + self.tag, None)
 
     def __get_padding(self):
         from cryptography.hazmat.primitives.asymmetric import padding
@@ -912,7 +915,7 @@ def command_verify(args):
                                             next_uuid))
             if hasattr(image, 'ciphertext'):
                 if args.enc_key is None:
-                    logger.error('--enc_key needed to decrypt TA')
+                    logger.error('--enc-key needed to decrypt TA')
                     sys.exit(1)
                 image.decrypt_ta(args.enc_key)
             image.verify_signature()
