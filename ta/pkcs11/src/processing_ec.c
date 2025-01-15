@@ -439,51 +439,51 @@ enum pkcs11_rc pkcs2tee_algo_ecdsa(uint32_t *tee_id,
 {
 
 	switch (proc_params->id) {
-		case PKCS11_CKM_ECDSA:
+	case PKCS11_CKM_ECDSA:
 		/*
 		 * In case of ECDSA signing without hashing.
 		 */
-			switch (get_object_key_bit_size(obj)) {
-				case 192:
-					*tee_id = TEE_ALG_ECDSA_P192;
-					break;
-				case 224:
-					*tee_id = TEE_ALG_ECDSA_P224;
-					break;
-				case 256:
-					*tee_id = TEE_ALG_ECDSA_P256;
-					break;
-				case 384:
-					*tee_id = TEE_ALG_ECDSA_P384;
-					break;
-				case 521:
-					*tee_id = TEE_ALG_ECDSA_P521;
-					break;
-				default:
-					TEE_Panic(0);
-					break;
-			}
+		switch (get_object_key_bit_size(obj)) {
+		case 192:
+			*tee_id = TEE_ALG_ECDSA_P192;
 			break;
-		/*
-		 * In CASE OF ECDSA signing with Hash
-		 */
-		case PKCS11_CKM_ECDSA_SHA1:
-			*tee_id = TEE_ALG_ECDSA_SHA1;
+		case 224:
+			*tee_id = TEE_ALG_ECDSA_P224;
 			break;
-		case PKCS11_CKM_ECDSA_SHA224:
-			*tee_id = TEE_ALG_ECDSA_SHA224;
+		case 256:
+			*tee_id = TEE_ALG_ECDSA_P256;
 			break;
-		case PKCS11_CKM_ECDSA_SHA256:
-			*tee_id = TEE_ALG_ECDSA_SHA256;
+		case 384:
+			*tee_id = TEE_ALG_ECDSA_P384;
 			break;
-		case PKCS11_CKM_ECDSA_SHA384:
-			*tee_id = TEE_ALG_ECDSA_SHA384;
-			break;
-		case PKCS11_CKM_ECDSA_SHA512:
-			*tee_id = TEE_ALG_ECDSA_SHA512;
+		case 521:
+			*tee_id = TEE_ALG_ECDSA_P521;
 			break;
 		default:
-			return PKCS11_CKR_GENERAL_ERROR;
+			TEE_Panic(0);
+			break;
+		}
+		break;
+	/*
+	 * In CASE OF ECDSA signing with Hash
+	 */
+	case PKCS11_CKM_ECDSA_SHA1:
+		*tee_id = TEE_ALG_ECDSA_SHA1;
+		break;
+	case PKCS11_CKM_ECDSA_SHA224:
+		*tee_id = TEE_ALG_ECDSA_SHA224;
+		break;
+	case PKCS11_CKM_ECDSA_SHA256:
+		*tee_id = TEE_ALG_ECDSA_SHA256;
+		break;
+	case PKCS11_CKM_ECDSA_SHA384:
+		*tee_id = TEE_ALG_ECDSA_SHA384;
+		break;
+	case PKCS11_CKM_ECDSA_SHA512:
+		*tee_id = TEE_ALG_ECDSA_SHA512;
+		break;
+	default:
+		return PKCS11_CKR_GENERAL_ERROR;
     }
 
 	return PKCS11_CKR_OK;
