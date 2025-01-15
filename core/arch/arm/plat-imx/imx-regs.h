@@ -47,6 +47,8 @@
 #include <registers/imx93.h>
 #elif defined(CFG_MX95)
 #include <registers/imx95.h>
+#elif defined(CFG_MX943)
+#include <registers/imx943.h>
 #else
 #error "CFG_MX* not defined"
 #endif
