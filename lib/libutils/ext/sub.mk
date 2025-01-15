@@ -12,10 +12,9 @@ srcs-y += fault_mitigation.c
 srcs-y += qsort_helpers.c
 srcs-y += array.c
 srcs-y += base64.c
-ifeq ($(CFG_CORE_SANITIZE_UNDEFINED),y)
-srcs-y += ubsan.c
+srcs-$(call cfg-one-enabled,CFG_TA_SANITIZE_UNDEFINED \
+			    CFG_CORE_SANITIZE_UNDEFINED) += ubsan.c
 cflags-remove-ubsan.c-y += -fsanitize=undefined
-endif
 ifneq (,$(filter ta_%,$(sm)))
 srcs-y += pthread_stubs.c
 endif

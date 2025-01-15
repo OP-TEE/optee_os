@@ -46,6 +46,7 @@ ta-mk-file-export-vars-$(sm) += CFG_TA_BGET_TEST
 ta-mk-file-export-vars-$(sm) += CFG_ATTESTATION_PTA
 ta-mk-file-export-vars-$(sm) += CFG_MEMTAG
 ta-mk-file-export-vars-$(sm) += CFG_TA_LIBGCC
+ta-mk-file-export-vars-$(sm) += CFG_TA_SANITIZE_UNDEFINED
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
@@ -57,6 +58,9 @@ aflags$(sm)	:= $(platform-aflags) $($(sm)-platform-aflags)
 # compiled, these flags are not propagated to the TA
 cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
+ifeq ($(CFG_TA_SANITIZE_UNDEFINED),y)
+cflags$(sm) += -fsanitize=undefined
+endif
 
 ifeq ($(ta-target),ta_arm32)
 arm32-user-sysreg-txt = lib/libutee/arch/arm/arm32_user_sysreg.txt

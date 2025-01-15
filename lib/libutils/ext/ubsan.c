@@ -13,7 +13,7 @@
 #elif defined(__LDELF__)
 # include <ldelf_syscalls.h>
 #else
-# error "Unexpected build for ubsan"
+# include <utee_syscalls.h>
 #endif
 
 struct source_location {
@@ -29,7 +29,7 @@ static void __noreturn ubsan_panic(void)
 #elif defined(__LDELF__)
 	_ldelf_panic(2);
 #else
-# error "Unexpected build for ubsan"
+	_utee_panic(TEE_ERROR_GENERIC);
 #endif
 	/*
 	 * _ldelf_panic and _utee_panic are not marked as noreturn,
