@@ -29,6 +29,10 @@ cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm)	+= -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)
 cppflags$(sm)	+= -D__LDELF__
 
+ifeq ($(CFG_CORE_SANITIZE_UNDEFINED),y)
+cflags$(sm)	+= -fsanitize=undefined
+endif
+
 # Use same compiler as for core
 CROSS_COMPILE_$(sm)	:= $(CROSS_COMPILE_core)
 COMPILER_$(sm)		:= $(COMPILER_core)
