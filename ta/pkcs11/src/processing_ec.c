@@ -857,9 +857,6 @@ size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op)
 {
 	TEE_OperationInfo info = { };
 
-	if (!op)
-		return 0;
-
 	TEE_GetOperationInfo(op, &info);
 
 	/*
