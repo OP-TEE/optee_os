@@ -28,6 +28,7 @@
 #define SOC_MX93	0xC1
 #define SOC_MX95        0x1C1
 #define SOC_MX91        0xCB
+#define SOC_MX943       0xC2
 
 #ifndef __ASSEMBLER__
 bool soc_is_imx6(void);
