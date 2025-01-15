@@ -79,6 +79,10 @@ ifeq ($(CFG_TA_MCOUNT),y)
 cppflags$(sm) += -pg
 endif
 
+ifeq ($(CFG_TA_SANITIZE_UNDEFINED),y)
+cflags$(sm) += -fsanitize=undefined
+endif
+
 libdirs += $(ta-dev-kit-dir$(sm))/lib
 libnames += utils
 libdeps += $(ta-dev-kit-dir$(sm))/lib/libutils.a

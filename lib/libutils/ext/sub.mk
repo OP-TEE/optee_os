@@ -15,6 +15,9 @@ srcs-y += base64.c
 ifneq (,$(filter $(sm)-$(CFG_CORE_SANITIZE_UNDEFINED),core-y ldelf-y))
 build-ubsan := y
 endif
+ifeq (,$(filter $(sm),core ldelf))
+build-ubsan := $(CFG_TA_SANITIZE_UNDEFINED)
+endif
 srcs-$(build-ubsan) += ubsan.c
 cflags-remove-ubsan.c-y += -fsanitize=undefined
 ifneq (,$(filter ta_%,$(sm)))
