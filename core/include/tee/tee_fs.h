@@ -6,6 +6,8 @@
 #ifndef __TEE_TEE_FS_H
 #define __TEE_TEE_FS_H
 
+#include <pta_stats.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <tee_api_defines_extensions.h>
@@ -62,6 +64,9 @@ TEE_Result tee_rpmb_fs_raw_open(const char *fname, bool create,
 				struct tee_file_handle **fh);
 TEE_Result tee_rpmb_reinit(void);
 
+/* Ger RPMB memory allocation statistics */
+TEE_Result rpmb_mem_stats(struct pta_stats_alloc *stats, bool reset);
+
 /**
  * Weak function which can be overridden by platforms to indicate that the RPMB
  * key is ready to be written. Defaults to true, platforms can return false to
@@ -70,6 +75,12 @@ TEE_Result tee_rpmb_reinit(void);
 bool plat_rpmb_key_is_ready(void);
 #else
 static inline TEE_Result tee_rpmb_reinit(void)
+{
+	return TEE_ERROR_STORAGE_NOT_AVAILABLE;
+}
+
+static inline TEE_Result rpmb_mem_stats(struct pta_stats_alloc *stats __unused,
+					bool reset __unused)
 {
 	return TEE_ERROR_STORAGE_NOT_AVAILABLE;
 }
