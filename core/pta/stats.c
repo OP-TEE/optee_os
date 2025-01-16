@@ -77,14 +77,17 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 				sizeof(stats->desc));
 			break;
 
-#ifdef CFG_NS_VIRTUALIZATION
 		case ALLOC_ID_NEXUS_HEAP:
+#ifdef CFG_NS_VIRTUALIZATION
 			nex_malloc_get_stats(stats);
 			strlcpy(stats->desc, "KHeap", sizeof(stats->desc));
 			if (p[0].value.b)
 				nex_malloc_reset_stats();
-			break;
+#else
+			strlcpy(stats->desc, "KHeap (disabled)",
+				sizeof(stats->desc));
 #endif
+			break;
 		case ALLOC_ID_RPMB:
 			if (rpmb_mem_stats(stats, p[0].value.b))
 				strlcpy(stats->desc,
