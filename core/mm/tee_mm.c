@@ -51,12 +51,14 @@ bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_size_t size,
 
 	assert(((uint64_t)size >> shift) < (uint64_t)UINT32_MAX);
 
-	pool->lo = lo;
-	pool->size = size;
-	pool->shift = shift;
-	pool->flags = flags;
-	pool->entry = pcalloc(pool, 1, sizeof(tee_mm_entry_t));
+	*pool = (tee_mm_pool_t){
+		.lo = lo,
+		.size = size,
+		.shift = shift,
+		.flags = flags,
+	};
 
+	pool->entry = pcalloc(pool, 1, sizeof(tee_mm_entry_t));
 	if (pool->entry == NULL)
 		return false;
 
