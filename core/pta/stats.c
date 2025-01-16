@@ -69,6 +69,8 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 
 		case ALLOC_ID_PUBLIC_DDR:
 			EMSG("public DDR not managed by secure side anymore");
+			strlcpy(stats->desc, "Public DDR (deprecated)",
+				sizeof(stats->desc));
 			break;
 
 		case ALLOC_ID_TA_RAM:
