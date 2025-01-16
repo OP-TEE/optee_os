@@ -2938,8 +2938,8 @@ static TEE_Result rpmb_fs_dir_populate(const char *path,
 		res = TEE_ERROR_ITEM_NOT_FOUND; /* No directories were found. */
 
 out:
-	mutex_unlock(&rpmb_mutex);
 	fat_entry_dir_deinit();
+	mutex_unlock(&rpmb_mutex);
 	if (res)
 		rpmb_fs_dir_free(dir);
 
