@@ -762,14 +762,23 @@ void *realloc(void *ptr, size_t size)
 
 #else /* ENABLE_MDBG */
 
+static void *mem_alloc(uint32_t flags, void *ptr, size_t alignment,
+		       size_t nmemb, size_t size)
+{
+	struct malloc_ctx *ctx = &malloc_ctx;
+	uint32_t exceptions = 0;
+	void *p = NULL;
+
+	exceptions = malloc_lock(ctx);
+	p = raw_mem_alloc(flags, ptr, 0, 0, alignment, nmemb, size, ctx);
+	malloc_unlock(ctx, exceptions);
+
+	return p;
+}
+
 void *malloc(size_t size)
 {
-	void *p;
-	uint32_t exceptions = malloc_lock(&malloc_ctx);
-
-	p = raw_malloc(0, 0, size, &malloc_ctx);
-	malloc_unlock(&malloc_ctx, exceptions);
-	return p;
+	return mem_alloc(MAF_NULL, NULL, 1, 1, size);
 }
 
 static void free_helper(void *ptr, bool wipe)
@@ -782,38 +791,21 @@ static void free_helper(void *ptr, bool wipe)
 
 void *calloc(size_t nmemb, size_t size)
 {
-	void *p;
-	uint32_t exceptions = malloc_lock(&malloc_ctx);
-
-	p = raw_calloc(0, 0, nmemb, size, &malloc_ctx);
-	malloc_unlock(&malloc_ctx, exceptions);
-	return p;
+	return mem_alloc(MAF_ZERO_INIT, NULL, 1, nmemb, size);
 }
 
-static void *realloc_unlocked(struct malloc_ctx *ctx, void *ptr,
-			      size_t size)
-{
-	return raw_realloc(ptr, 0, 0, size, ctx);
-}
+/* For use in raw_malloc_add_pool() below */
+#define realloc_unlocked(ctx, ptr, size) \
+	raw_mem_alloc(MAF_NULL, ptr, 0, 0, 1, 1, size, ctx)
 
 void *realloc(void *ptr, size_t size)
 {
-	void *p;
-	uint32_t exceptions = malloc_lock(&malloc_ctx);
-
-	p = realloc_unlocked(&malloc_ctx, ptr, size);
-	malloc_unlock(&malloc_ctx, exceptions);
-	return p;
+	return mem_alloc(MAF_NULL, ptr, 1, 1, size);
 }
 
 void *memalign(size_t alignment, size_t size)
 {
-	void *p;
-	uint32_t exceptions = malloc_lock(&malloc_ctx);
-
-	p = raw_memalign(0, 0, alignment, size, &malloc_ctx);
-	malloc_unlock(&malloc_ctx, exceptions);
-	return p;
+	return mem_alloc(MAF_NULL, NULL, alignment, 1, size);
 }
 
 #if __STDC_VERSION__ >= 201112L
@@ -822,7 +814,7 @@ void *aligned_alloc(size_t alignment, size_t size)
 	if (size % alignment)
 		return NULL;
 
-	return memalign(alignment, size);
+	return mem_alloc(MAF_NULL, NULL, alignment, 1, size);
 }
 #endif /* __STDC_VERSION__ */
 
