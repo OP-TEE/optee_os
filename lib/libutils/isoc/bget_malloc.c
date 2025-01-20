@@ -613,7 +613,7 @@ static void *mem_alloc(uint32_t flags, void *ptr, size_t alignment,
 	return p;
 }
 
-static void mem_free(void *ptr, bool wipe, uint32_t flags)
+void free_flags(uint32_t flags, void *ptr)
 {
 	struct malloc_ctx *ctx = get_ctx(flags);
 	uint32_t exceptions = 0;
@@ -630,7 +630,7 @@ static void mem_free(void *ptr, bool wipe, uint32_t flags)
 		ptr = hdr;
 	}
 
-	raw_free(ptr, ctx, wipe);
+	raw_free(ptr, ctx, flags & MAF_FREE_WIPE);
 
 	malloc_unlock(ctx, exceptions);
 }
@@ -707,6 +707,12 @@ void *malloc(size_t size)
 	return mem_alloc(MAF_NULL, NULL, 1, 1, size, __FILE__, __LINE__);
 }
 
+#undef malloc_flags
+void *malloc_flags(uint32_t flags, void *ptr, size_t alignment, size_t size)
+{
+	return mem_alloc(flags, ptr, alignment, 1, size, __FILE__, __LINE__);
+}
+
 #undef calloc
 void *calloc(size_t nmemb, size_t size)
 {
@@ -741,12 +747,12 @@ void *aligned_alloc(size_t alignment, size_t size)
 
 void free(void *ptr)
 {
-	mem_free(ptr, false, MAF_NULL);
+	free_flags(MAF_NULL, ptr);
 }
 
 void free_wipe(void *ptr)
 {
-	mem_free(ptr, true, MAF_NULL);
+	free_flags(MAF_FREE_WIPE, ptr);
 }
 
 static void gen_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
@@ -939,7 +945,7 @@ void nex_mdbg_check(int bufdump)
 
 void nex_free(void *ptr)
 {
-	mem_free(ptr, false, MAF_NEX);
+	free_flags(MAF_NEX, ptr);
 }
 
 void nex_malloc_add_pool(void *buf, size_t len)
