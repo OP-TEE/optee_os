@@ -762,10 +762,19 @@ void *realloc(void *ptr, size_t size)
 
 #else /* ENABLE_MDBG */
 
+static struct malloc_ctx *get_ctx(uint32_t flags __maybe_unused)
+{
+#ifdef CFG_NS_VIRTUALIZATION
+	if (flags & MAF_NEX)
+		return &nex_malloc_ctx;
+#endif
+	return &malloc_ctx;
+}
+
 static void *mem_alloc(uint32_t flags, void *ptr, size_t alignment,
 		       size_t nmemb, size_t size)
 {
-	struct malloc_ctx *ctx = &malloc_ctx;
+	struct malloc_ctx *ctx = get_ctx(flags);
 	uint32_t exceptions = 0;
 	void *p = NULL;
 
@@ -996,42 +1005,22 @@ bool malloc_buffer_overlaps_heap(void *buf, size_t len)
 
 void *nex_malloc(size_t size)
 {
-	void *p;
-	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
-
-	p = raw_malloc(0, 0, size, &nex_malloc_ctx);
-	malloc_unlock(&nex_malloc_ctx, exceptions);
-	return p;
+	return mem_alloc(MAF_NEX, NULL, 1, 1, size);
 }
 
 void *nex_calloc(size_t nmemb, size_t size)
 {
-	void *p;
-	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
-
-	p = raw_calloc(0, 0, nmemb, size, &nex_malloc_ctx);
-	malloc_unlock(&nex_malloc_ctx, exceptions);
-	return p;
+	return mem_alloc(MAF_NEX | MAF_ZERO_INIT, NULL, 1, nmemb, size);
 }
 
 void *nex_realloc(void *ptr, size_t size)
 {
-	void *p;
-	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
-
-	p = realloc_unlocked(&nex_malloc_ctx, ptr, size);
-	malloc_unlock(&nex_malloc_ctx, exceptions);
-	return p;
+	return mem_alloc(MAF_NEX, ptr, 1, 1, size);
 }
 
 void *nex_memalign(size_t alignment, size_t size)
 {
-	void *p;
-	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
-
-	p = raw_memalign(0, 0, alignment, size, &nex_malloc_ctx);
-	malloc_unlock(&nex_malloc_ctx, exceptions);
-	return p;
+	return mem_alloc(MAF_NEX, NULL, alignment, 1, size);
 }
 
 void nex_free(void *ptr)
