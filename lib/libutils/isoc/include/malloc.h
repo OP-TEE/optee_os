@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015-2025, Linaro Limited.
  */
 #ifndef __MALLOC_H
 #define __MALLOC_H
 
+#include <malloc_flags.h>
 #include <pta_stats.h>
 #include <stddef.h>
 #include <types_ext.h>
