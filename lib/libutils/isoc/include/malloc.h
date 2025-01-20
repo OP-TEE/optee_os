@@ -17,11 +17,15 @@
  */
 #define MALLOC_INITIAL_POOL_MIN_SIZE	1024
 
+#define MALLOC_DEFAULT_ALIGNMENT	(sizeof(long) * 2)
+
 void *malloc(size_t size);
+void *malloc_flags(uint32_t flags, void *ptr, size_t alignment, size_t size);
 void *calloc(size_t nmemb, size_t size);
 void *realloc(void *ptr, size_t size);
 void *memalign(size_t alignment, size_t size);
 void free(void *ptr);
+void free_flags(uint32_t flags, void *ptr);
 
 #if __STDC_VERSION__ >= 201112L
 void *aligned_alloc(size_t alignment, size_t size);
@@ -35,6 +39,8 @@ void mdbg_check(int bufdump);
 
 #define malloc(size)		__mdbg_alloc(MAF_NULL, NULL, 1, 1, \
 					     (size), __FILE__, __LINE__)
+#define malloc_flags(flags, ptr, align, size)	\
+	__mdbg_alloc((flags), (ptr), (align), 1, (size), __FILE__, __LINE__)
 #define calloc(nmemb, size)	__mdbg_alloc(MAF_ZERO_INIT, NULL, 1, (nmemb), \
 					     (size), __FILE__, __LINE__)
 #define realloc(ptr, size)	__mdbg_alloc(MAF_NULL, (ptr), 1, 1, \
