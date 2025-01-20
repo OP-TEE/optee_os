@@ -502,16 +502,14 @@ void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 			     pl_size, ctx);
 }
 
-#ifdef ENABLE_MDBG
-
 struct mdbg_hdr {
 	const char *fname;
 	uint16_t line;
-	uint32_t pl_size;
-	uint32_t magic;
-#if defined(ARM64)
+#ifdef __LP64__
 	uint64_t pad;
 #endif
+	uint32_t pl_size;
+	uint32_t magic;
 };
 
 #define MDBG_HEADER_MAGIC	0xadadadad
@@ -548,128 +546,119 @@ static void mdbg_update_hdr(struct mdbg_hdr *hdr, const char *fname,
 	*footer = MDBG_FOOTER_MAGIC;
 }
 
-static void *gen_mdbg_malloc(struct malloc_ctx *ctx, const char *fname,
-			     int lineno, size_t size)
-{
-	struct mdbg_hdr *hdr;
-	uint32_t exceptions = malloc_lock(ctx);
-
-	/*
-	 * Check struct mdbg_hdr works with BGET_HDR_QUANTUM.
-	 */
-	COMPILE_TIME_ASSERT((sizeof(struct mdbg_hdr) % BGET_HDR_QUANTUM) == 0);
-
-	hdr = raw_malloc(sizeof(struct mdbg_hdr),
-			 mdbg_get_ftr_size(size), size, ctx);
-	if (hdr) {
-		mdbg_update_hdr(hdr, fname, lineno, size);
-		hdr++;
-	}
-
-	malloc_unlock(ctx, exceptions);
-	return hdr;
-}
-
 static void assert_header(struct mdbg_hdr *hdr __maybe_unused)
 {
 	assert(hdr->magic == MDBG_HEADER_MAGIC);
 	assert(*mdbg_get_footer(hdr) == MDBG_FOOTER_MAGIC);
 }
 
-static void gen_mdbg_free(struct malloc_ctx *ctx, void *ptr, bool wipe)
+static void *mem_alloc_unlocked(uint32_t flags, void *ptr, size_t alignment,
+				size_t nmemb, size_t size, const char *fname,
+				int lineno, struct malloc_ctx *ctx)
 {
-	struct mdbg_hdr *hdr = ptr;
+	struct mdbg_hdr *hdr = NULL;
+	size_t ftr_size = 0;
+	size_t hdr_size = 0;
 
-	if (hdr) {
+	/*
+	 * Check struct mdbg_hdr works with BGET_HDR_QUANTUM.
+	 */
+	static_assert((sizeof(struct mdbg_hdr) % BGET_HDR_QUANTUM) == 0);
+
+	if (IS_ENABLED2(ENABLE_MDBG)) {
+		if (ptr) {
+			hdr = ptr;
+			hdr--;
+			assert_header(hdr);
+		}
+		ftr_size = mdbg_get_ftr_size(nmemb * size);
+		hdr_size = sizeof(struct mdbg_hdr);
+		ptr = hdr;
+	}
+
+	ptr = raw_mem_alloc(flags, ptr, hdr_size, ftr_size, alignment, nmemb,
+			    size, ctx);
+
+	if (IS_ENABLED2(ENABLE_MDBG) && ptr) {
+		hdr = ptr;
+		mdbg_update_hdr(hdr, fname, lineno, nmemb * size);
+		hdr++;
+		ptr = hdr;
+	}
+
+	return ptr;
+}
+
+static struct malloc_ctx *get_ctx(uint32_t flags __maybe_unused)
+{
+#ifdef CFG_NS_VIRTUALIZATION
+	if (flags & MAF_NEX)
+		return &nex_malloc_ctx;
+#endif
+	return &malloc_ctx;
+}
+
+static void *mem_alloc(uint32_t flags, void *ptr, size_t alignment,
+		       size_t nmemb, size_t size, const char *fname, int lineno)
+{
+	struct malloc_ctx *ctx = get_ctx(flags);
+	uint32_t exceptions = 0;
+	void *p = NULL;
+
+	exceptions = malloc_lock(ctx);
+	p = mem_alloc_unlocked(flags, ptr, alignment, nmemb, size, fname,
+			       lineno, ctx);
+	malloc_unlock(ctx, exceptions);
+
+	return p;
+}
+
+static void mem_free(void *ptr, bool wipe, uint32_t flags)
+{
+	struct malloc_ctx *ctx = get_ctx(flags);
+	uint32_t exceptions = 0;
+
+	exceptions = malloc_lock(ctx);
+
+	if (IS_ENABLED2(ENABLE_MDBG) && ptr) {
+		struct mdbg_hdr *hdr = ptr;
+
 		hdr--;
 		assert_header(hdr);
 		hdr->magic = 0;
 		*mdbg_get_footer(hdr) = 0;
-		raw_free(hdr, ctx, wipe);
+		ptr = hdr;
 	}
-}
 
-static void free_helper(void *ptr, bool wipe)
-{
-	uint32_t exceptions = malloc_lock(&malloc_ctx);
+	raw_free(ptr, ctx, wipe);
 
-	gen_mdbg_free(&malloc_ctx, ptr, wipe);
-	malloc_unlock(&malloc_ctx, exceptions);
-}
-
-static void *gen_mdbg_calloc(struct malloc_ctx *ctx, const char *fname, int lineno,
-		      size_t nmemb, size_t size)
-{
-	struct mdbg_hdr *hdr;
-	uint32_t exceptions = malloc_lock(ctx);
-
-	hdr = raw_calloc(sizeof(struct mdbg_hdr),
-			  mdbg_get_ftr_size(nmemb * size), nmemb, size,
-			  ctx);
-	if (hdr) {
-		mdbg_update_hdr(hdr, fname, lineno, nmemb * size);
-		hdr++;
-	}
 	malloc_unlock(ctx, exceptions);
-	return hdr;
 }
-
-static void *gen_mdbg_realloc_unlocked(struct malloc_ctx *ctx, const char *fname,
-				       int lineno, void *ptr, size_t size)
-{
-	struct mdbg_hdr *hdr = ptr;
-
-	if (hdr) {
-		hdr--;
-		assert_header(hdr);
-	}
-	hdr = raw_realloc(hdr, sizeof(struct mdbg_hdr),
-			   mdbg_get_ftr_size(size), size, ctx);
-	if (hdr) {
-		mdbg_update_hdr(hdr, fname, lineno, size);
-		hdr++;
-	}
-	return hdr;
-}
-
-static void *gen_mdbg_realloc(struct malloc_ctx *ctx, const char *fname,
-			      int lineno, void *ptr, size_t size)
-{
-	void *p;
-	uint32_t exceptions = malloc_lock(ctx);
-
-	p = gen_mdbg_realloc_unlocked(ctx, fname, lineno, ptr, size);
-	malloc_unlock(ctx, exceptions);
-	return p;
-}
-
-#define realloc_unlocked(ctx, ptr, size)					\
-		gen_mdbg_realloc_unlocked(ctx, __FILE__, __LINE__, (ptr), (size))
-
-static void *gen_mdbg_memalign(struct malloc_ctx *ctx, const char *fname,
-			       int lineno, size_t alignment, size_t size)
-{
-	struct mdbg_hdr *hdr;
-	uint32_t exceptions = malloc_lock(ctx);
-
-	hdr = raw_memalign(sizeof(struct mdbg_hdr), mdbg_get_ftr_size(size),
-			   alignment, size, ctx);
-	if (hdr) {
-		mdbg_update_hdr(hdr, fname, lineno, size);
-		hdr++;
-	}
-	malloc_unlock(ctx, exceptions);
-	return hdr;
-}
-
 
 static void *get_payload_start_size(void *raw_buf, size_t *size)
 {
-	struct mdbg_hdr *hdr = raw_buf;
+	if (IS_ENABLED2(ENABLE_MDBG)) {
+		struct mdbg_hdr *hdr = raw_buf;
 
-	assert(bget_buf_size(hdr) >= hdr->pl_size);
-	*size = hdr->pl_size;
-	return hdr + 1;
+		assert(bget_buf_size(hdr) >= hdr->pl_size);
+		*size = hdr->pl_size;
+		return hdr + 1;
+	}
+
+	*size = bget_buf_size(raw_buf);
+	return raw_buf;
+}
+
+/* For use in raw_malloc_add_pool() below */
+#define realloc_unlocked(ctx, ptr, size)                                      \
+	mem_alloc_unlocked(MAF_NULL, (ptr), 1, 1, (size), __FILE__, __LINE__, \
+			   (ctx))
+
+#ifdef ENABLE_MDBG
+void *__mdbg_alloc(uint32_t flags, void *ptr, size_t alignment, size_t nmemb,
+		   size_t size, const char *fname, int lineno)
+{
+	return mem_alloc(flags, ptr, alignment, nmemb, size, fname, lineno);
 }
 
 static void gen_mdbg_check(struct malloc_ctx *ctx, int bufdump)
@@ -699,150 +688,65 @@ static void gen_mdbg_check(struct malloc_ctx *ctx, int bufdump)
 	malloc_unlock(ctx, exceptions);
 }
 
-void *mdbg_malloc(const char *fname, int lineno, size_t size)
-{
-	return gen_mdbg_malloc(&malloc_ctx, fname, lineno, size);
-}
-
-void *mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size)
-{
-	return gen_mdbg_calloc(&malloc_ctx, fname, lineno, nmemb, size);
-}
-
-void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size)
-{
-	return gen_mdbg_realloc(&malloc_ctx, fname, lineno, ptr, size);
-}
-
-void *mdbg_memalign(const char *fname, int lineno, size_t alignment,
-		    size_t size)
-{
-	return gen_mdbg_memalign(&malloc_ctx, fname, lineno, alignment, size);
-}
-
-#if __STDC_VERSION__ >= 201112L
-void *mdbg_aligned_alloc(const char *fname, int lineno, size_t alignment,
-			 size_t size)
-{
-	if (size % alignment)
-		return NULL;
-
-	return gen_mdbg_memalign(&malloc_ctx, fname, lineno, alignment, size);
-}
-#endif /* __STDC_VERSION__ */
-
 void mdbg_check(int bufdump)
 {
 	gen_mdbg_check(&malloc_ctx, bufdump);
 }
+#endif
 
 /*
- * Since malloc debug is enabled, malloc() and friends are redirected by macros
- * to mdbg_malloc() etc.
+ * If malloc debug is enabled, malloc() and friends are redirected by macros
+ * to __mdbg_alloc() etc.
  * We still want to export the standard entry points in case they are referenced
  * by the application, either directly or via external libraries.
  */
+
 #undef malloc
 void *malloc(size_t size)
 {
-	return mdbg_malloc(__FILE__, __LINE__, size);
+	return mem_alloc(MAF_NULL, NULL, 1, 1, size, __FILE__, __LINE__);
 }
 
 #undef calloc
 void *calloc(size_t nmemb, size_t size)
 {
-	return mdbg_calloc(__FILE__, __LINE__, nmemb, size);
+	return mem_alloc(MAF_ZERO_INIT, NULL, 1, nmemb, size, __FILE__,
+			 __LINE__);
 }
 
 #undef realloc
 void *realloc(void *ptr, size_t size)
 {
-	return mdbg_realloc(__FILE__, __LINE__, ptr, size);
+	return mem_alloc(MAF_NULL, ptr, 1, 1, size, __FILE__, __LINE__);
 }
 
-#else /* ENABLE_MDBG */
-
-static struct malloc_ctx *get_ctx(uint32_t flags __maybe_unused)
-{
-#ifdef CFG_NS_VIRTUALIZATION
-	if (flags & MAF_NEX)
-		return &nex_malloc_ctx;
-#endif
-	return &malloc_ctx;
-}
-
-static void *mem_alloc(uint32_t flags, void *ptr, size_t alignment,
-		       size_t nmemb, size_t size)
-{
-	struct malloc_ctx *ctx = get_ctx(flags);
-	uint32_t exceptions = 0;
-	void *p = NULL;
-
-	exceptions = malloc_lock(ctx);
-	p = raw_mem_alloc(flags, ptr, 0, 0, alignment, nmemb, size, ctx);
-	malloc_unlock(ctx, exceptions);
-
-	return p;
-}
-
-void *malloc(size_t size)
-{
-	return mem_alloc(MAF_NULL, NULL, 1, 1, size);
-}
-
-static void free_helper(void *ptr, bool wipe)
-{
-	uint32_t exceptions = malloc_lock(&malloc_ctx);
-
-	raw_free(ptr, &malloc_ctx, wipe);
-	malloc_unlock(&malloc_ctx, exceptions);
-}
-
-void *calloc(size_t nmemb, size_t size)
-{
-	return mem_alloc(MAF_ZERO_INIT, NULL, 1, nmemb, size);
-}
-
-/* For use in raw_malloc_add_pool() below */
-#define realloc_unlocked(ctx, ptr, size) \
-	raw_mem_alloc(MAF_NULL, ptr, 0, 0, 1, 1, size, ctx)
-
-void *realloc(void *ptr, size_t size)
-{
-	return mem_alloc(MAF_NULL, ptr, 1, 1, size);
-}
-
+#undef memalign
 void *memalign(size_t alignment, size_t size)
 {
-	return mem_alloc(MAF_NULL, NULL, alignment, 1, size);
+	return mem_alloc(MAF_NULL, NULL, alignment, 1, size, __FILE__,
+			 __LINE__);
 }
 
 #if __STDC_VERSION__ >= 201112L
+#undef aligned_alloc
 void *aligned_alloc(size_t alignment, size_t size)
 {
 	if (size % alignment)
 		return NULL;
 
-	return mem_alloc(MAF_NULL, NULL, alignment, 1, size);
+	return mem_alloc(MAF_NULL, NULL, alignment, 1, size, __FILE__,
+			 __LINE__);
 }
 #endif /* __STDC_VERSION__ */
 
-static void *get_payload_start_size(void *ptr, size_t *size)
-{
-	*size = bget_buf_size(ptr);
-	return ptr;
-}
-
-#endif
-
 void free(void *ptr)
 {
-	free_helper(ptr, false);
+	mem_free(ptr, false, MAF_NULL);
 }
 
 void free_wipe(void *ptr)
 {
-	free_helper(ptr, true);
+	mem_free(ptr, true, MAF_NULL);
 }
 
 static void gen_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
@@ -1005,69 +909,38 @@ bool malloc_buffer_overlaps_heap(void *buf, size_t len)
 
 void *nex_malloc(size_t size)
 {
-	return mem_alloc(MAF_NEX, NULL, 1, 1, size);
+	return mem_alloc(MAF_NEX, NULL, 1, 1, size, __FILE__, __LINE__);
 }
 
 void *nex_calloc(size_t nmemb, size_t size)
 {
-	return mem_alloc(MAF_NEX | MAF_ZERO_INIT, NULL, 1, nmemb, size);
+	return mem_alloc(MAF_NEX | MAF_ZERO_INIT, NULL, 1, nmemb, size,
+			 __FILE__, __LINE__);
 }
 
 void *nex_realloc(void *ptr, size_t size)
 {
-	return mem_alloc(MAF_NEX, ptr, 1, 1, size);
+	return mem_alloc(MAF_NEX, ptr, 1, 1, size, __FILE__, __LINE__);
 }
 
 void *nex_memalign(size_t alignment, size_t size)
 {
-	return mem_alloc(MAF_NEX, NULL, alignment, 1, size);
-}
-
-void nex_free(void *ptr)
-{
-	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
-
-	raw_free(ptr, &nex_malloc_ctx, false /* !wipe */);
-	malloc_unlock(&nex_malloc_ctx, exceptions);
+	return mem_alloc(MAF_NEX, NULL, alignment, 1, size, __FILE__, __LINE__);
 }
 
 #else  /* ENABLE_MDBG */
-
-void *nex_mdbg_malloc(const char *fname, int lineno, size_t size)
-{
-	return gen_mdbg_malloc(&nex_malloc_ctx, fname, lineno, size);
-}
-
-void *nex_mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size)
-{
-	return gen_mdbg_calloc(&nex_malloc_ctx, fname, lineno, nmemb, size);
-}
-
-void *nex_mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size)
-{
-	return gen_mdbg_realloc(&nex_malloc_ctx, fname, lineno, ptr, size);
-}
-
-void *nex_mdbg_memalign(const char *fname, int lineno, size_t alignment,
-		size_t size)
-{
-	return gen_mdbg_memalign(&nex_malloc_ctx, fname, lineno, alignment, size);
-}
 
 void nex_mdbg_check(int bufdump)
 {
 	gen_mdbg_check(&nex_malloc_ctx, bufdump);
 }
 
+#endif	/* ENABLE_MDBG */
+
 void nex_free(void *ptr)
 {
-	uint32_t exceptions = malloc_lock(&nex_malloc_ctx);
-
-	gen_mdbg_free(&nex_malloc_ctx, ptr, false /* !wipe */);
-	malloc_unlock(&nex_malloc_ctx, exceptions);
+	mem_free(ptr, false, MAF_NEX);
 }
-
-#endif	/* ENABLE_MDBG */
 
 void nex_malloc_add_pool(void *buf, size_t len)
 {
