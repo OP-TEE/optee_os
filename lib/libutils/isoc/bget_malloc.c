@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2022, Linaro Limited.
+ * Copyright (c) 2015-2025, Linaro Limited.
  */
 
 #define PROTOTYPES
@@ -418,38 +418,66 @@ static bool bpool_foreach(struct malloc_ctx *ctx,
 	for (bpool_foreach_iterator_init((ctx),(iterator));   \
 	     bpool_foreach((ctx),(iterator), (bp));)
 
-void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
-		   size_t pl_size, struct malloc_ctx *ctx)
+static void *raw_mem_alloc(uint32_t flags, void *ptr, size_t hdr_size,
+			   size_t ftr_size, size_t alignment, size_t pl_nmemb,
+			   size_t pl_size, struct malloc_ctx *ctx)
 {
-	void *ptr = NULL;
-	bufsize s;
+	void *p = NULL;
+	bufsize s = 0;
+
+	raw_malloc_validate_pools(ctx);
 
 	if (!alignment || !IS_POWER_OF_TWO(alignment))
 		return NULL;
 
-	raw_malloc_validate_pools(ctx);
-
-	/* Compute total size, excluding the header */
-	if (ADD_OVERFLOW(pl_size, ftr_size, &s))
+	/* Compute total size, excluding hdr_size */
+	if (MUL_OVERFLOW(pl_nmemb, pl_size, &s))
+		goto out;
+	if (ADD_OVERFLOW(s, ftr_size, &s))
 		goto out;
 
 	/* BGET doesn't like 0 sized allocations */
 	if (!s)
 		s++;
 
-	ptr = bget(alignment, hdr_size, s, &ctx->poolset);
+	if ((flags & MAF_ZERO_INIT) && !ptr)
+		p = bgetz(alignment, hdr_size, s, &ctx->poolset);
+	else
+		p = bget(alignment, hdr_size, s, &ctx->poolset);
+
+	if (p && ptr) {
+		void *old_ptr = maybe_untag_buf(ptr);
+		bufsize old_sz = bget_buf_size(old_ptr);
+		bufsize new_sz = s + hdr_size;
+
+		if (old_sz < new_sz) {
+			memcpy_unchecked(p, old_ptr, old_sz);
+			/* User space reallocations are always zeroed */
+			if (!IS_ENABLED2(__KERNEL__) || (flags & MAF_ZERO_INIT))
+				memset_unchecked((uint8_t *)p + old_sz, 0,
+						 new_sz - old_sz);
+		} else {
+			memcpy_unchecked(p, old_ptr, new_sz);
+		}
+
+		brel(old_ptr, &ctx->poolset, false /*!wipe*/);
+	}
 out:
-	return raw_malloc_return_hook(ptr, hdr_size, pl_size, ctx);
+	return raw_malloc_return_hook(p, hdr_size, pl_nmemb * pl_size, ctx);
+}
+
+void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
+		   size_t pl_size, struct malloc_ctx *ctx)
+{
+	return raw_mem_alloc(MAF_NULL, NULL, hdr_size, ftr_size, alignment, 1,
+			     pl_size, ctx);
 }
 
 void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size,
 		 struct malloc_ctx *ctx)
 {
-	/*
-	 * Note that we're feeding SizeQ as alignment, this is the smallest
-	 * alignment that bget() can use.
-	 */
-	return raw_memalign(hdr_size, ftr_size, SizeQ, pl_size, ctx);
+	return raw_mem_alloc(MAF_NULL, NULL, hdr_size, ftr_size, 1, 1,
+			     pl_size, ctx);
 }
 
 void raw_free(void *ptr, struct malloc_ctx *ctx, bool wipe)
@@ -463,64 +491,15 @@ void raw_free(void *ptr, struct malloc_ctx *ctx, bool wipe)
 void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 		 size_t pl_size, struct malloc_ctx *ctx)
 {
-	void *ptr = NULL;
-	bufsize s;
-
-	raw_malloc_validate_pools(ctx);
-
-	/* Compute total size, excluding hdr_size */
-	if (MUL_OVERFLOW(pl_nmemb, pl_size, &s))
-		goto out;
-	if (ADD_OVERFLOW(s, ftr_size, &s))
-		goto out;
-
-	/* BGET doesn't like 0 sized allocations */
-	if (!s)
-		s++;
-
-	ptr = bgetz(0, hdr_size, s, &ctx->poolset);
-out:
-	return raw_malloc_return_hook(ptr, hdr_size, pl_nmemb * pl_size, ctx);
+	return raw_mem_alloc(MAF_ZERO_INIT, NULL, hdr_size, ftr_size, 1,
+			     pl_nmemb, pl_size, ctx);
 }
 
 void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 		  size_t pl_size, struct malloc_ctx *ctx)
 {
-	void *p = NULL;
-	bufsize s;
-
-	/* Compute total size */
-	if (ADD_OVERFLOW(pl_size, hdr_size, &s))
-		goto out;
-	if (ADD_OVERFLOW(s, ftr_size, &s))
-		goto out;
-
-	raw_malloc_validate_pools(ctx);
-
-	/* BGET doesn't like 0 sized allocations */
-	if (!s)
-		s++;
-
-	p = bget(0, 0, s, &ctx->poolset);
-
-	if (p && ptr) {
-		void *old_ptr = maybe_untag_buf(ptr);
-		bufsize old_sz = bget_buf_size(old_ptr);
-
-		if (old_sz < s) {
-			memcpy_unchecked(p, old_ptr, old_sz);
-#ifndef __KERNEL__
-			/* User space reallocations are always zeroed */
-			memset_unchecked((uint8_t *)p + old_sz, 0, s - old_sz);
-#endif
-		} else {
-			memcpy_unchecked(p, old_ptr, s);
-		}
-
-		brel(old_ptr, &ctx->poolset, false /*!wipe*/);
-	}
-out:
-	return raw_malloc_return_hook(p, hdr_size, pl_size, ctx);
+	return raw_mem_alloc(MAF_NULL, ptr, hdr_size, ftr_size, 1, 1,
+			     pl_size, ctx);
 }
 
 #ifdef ENABLE_MDBG
