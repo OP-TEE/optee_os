@@ -127,11 +127,20 @@ static inline uint32_t __tee_alg_get_main_alg(uint32_t algo)
  */
 static inline uint32_t __tee_alg_get_digest_hash(uint32_t algo)
 {
-	if (algo == TEE_ALG_SM2_DSA_SM3)
-		return TEE_MAIN_HASH_SM3;
+	/* Hash algo ID is stored in algo ID bits [15:12] */
+	uint32_t main_algo = (algo >> 12) & 0xF;
 
-	/* Bits [15:12] */
-	return (algo >> 12) & 0xF;
+	switch (algo) {
+	case TEE_ALG_SM2_DSA_SM3:
+	case TEE_ALG_ECDSA_SHA1:
+	case TEE_ALG_ECDSA_SHA224:
+	case TEE_ALG_ECDSA_SHA256:
+	case TEE_ALG_ECDSA_SHA384:
+	case TEE_ALG_ECDSA_SHA512:
+		return main_algo + 1;
+	default:
+		return main_algo;
+	}
 }
 
 #define TEE_ALG_GET_DIGEST_HASH(algo) __tee_alg_get_digest_hash(algo)
