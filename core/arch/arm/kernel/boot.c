@@ -1009,8 +1009,24 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 		struct transfer_list_entry *tl_e = NULL;
 
 		tl_e = transfer_list_find(mapped_tl, TL_TAG_FDT);
-		if (tl_e)
+		if (tl_e) {
+			/*
+			 * Expand the data size of the DTB entry to the maximum
+			 * allocable mapped memory to reserve sufficient space
+			 * for inserting new nodes, avoid potentially corrupting
+			 * next entries.
+			 */
+			uint32_t dtb_max_sz = mapped_tl->max_size -
+					      mapped_tl->size + tl_e->data_size;
+
+			if (!transfer_list_set_data_size(mapped_tl, tl_e,
+							 dtb_max_sz)) {
+				EMSG("Failed to extend DTB size to %#"PRIx32,
+				     dtb_max_sz);
+				panic();
+			}
 			fdt_size = tl_e->data_size;
+		}
 	}
 
 	init_external_dt(boot_arg_fdt, fdt_size);
@@ -1115,24 +1131,6 @@ void __weak boot_init_primary_early(void)
 			panic("Failed to map transfer list");
 
 		transfer_list_dump(mapped_tl);
-		tl_e = transfer_list_find(mapped_tl, TL_TAG_FDT);
-		if (tl_e) {
-			/*
-			 * Expand the data size of the DTB entry to the maximum
-			 * allocable mapped memory to reserve sufficient space
-			 * for inserting new nodes, avoid potentially corrupting
-			 * next entries.
-			 */
-			uint32_t dtb_max_sz = mapped_tl->max_size -
-					      mapped_tl->size + tl_e->data_size;
-
-			if (!transfer_list_set_data_size(mapped_tl, tl_e,
-							 dtb_max_sz)) {
-				EMSG("Failed to extend DTB size to %#"PRIx32,
-				     dtb_max_sz);
-				panic();
-			}
-		}
 		tl_e = transfer_list_find(mapped_tl, TL_TAG_OPTEE_PAGABLE_PART);
 	}
 
