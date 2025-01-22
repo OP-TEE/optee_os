@@ -871,7 +871,7 @@ UNWIND(	.cantunwind)
 	set_sctlr
 	isb
 
-	adr	r0, reset_vect_table
+	ldr	r0, =reset_vect_table
 	write_vbar r0
 
 	mov	r4, lr
@@ -896,7 +896,7 @@ DECLARE_KEEP_PAGER cpu_on_handler
 
 LOCAL_FUNC reset_secondary , : , .identity_map
 UNWIND(	.cantunwind)
-	adr	r0, reset_vect_table
+	ldr	r0, =reset_vect_table
 	write_vbar r0
 
 	wait_primary
