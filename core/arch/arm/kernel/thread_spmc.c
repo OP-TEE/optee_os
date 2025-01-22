@@ -119,9 +119,9 @@ static SLIST_HEAD(mem_frag_state_head, mem_frag_state) frag_state_head =
 	SLIST_HEAD_INITIALIZER(&frag_state_head);
 
 #else
-static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
-static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
-static struct ffa_rxtx my_rxtx = {
+static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE) __nex_bss;
+static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE) __nex_bss;
+static struct ffa_rxtx my_rxtx __nex_data = {
 	.rx = __rx_buf,
 	.tx = __tx_buf,
 	.size = sizeof(__rx_buf),
