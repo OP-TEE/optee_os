@@ -769,10 +769,6 @@ void thread_init_per_cpu(void)
 #ifdef ARM32
 	struct thread_core_local *l = thread_get_core_local();
 
-#if !defined(CFG_WITH_ARM_TRUSTED_FW)
-	/* Initialize secure monitor */
-	sm_init(l->tmp_stack_va_end + STACK_TMP_OFFS);
-#endif
 	thread_set_irq_sp(l->tmp_stack_va_end);
 	thread_set_fiq_sp(l->tmp_stack_va_end);
 	thread_set_abt_sp((vaddr_t)l);

@@ -45,6 +45,7 @@ DEFINES
 	DEFINE(THREAD_CORE_LOCAL_SIZE, sizeof(struct thread_core_local));
 
 	DEFINE(SM_PM_CTX_SIZE, sizeof(struct sm_pm_ctx));
+	DEFINE(__STACK_TMP_OFFS, STACK_TMP_OFFS);
 #endif /*ARM32*/
 
 #ifdef ARM64
