@@ -1265,10 +1265,14 @@ CFG_CORE_UNSAFE_MODEXP ?= n
 CFG_TA_MEBDTLS_UNSAFE_MODEXP ?= n
 
 # CFG_BOOT_MEM, when enabled, adds stack like memory allocation during boot.
+# CFG_BOOT_INIT_THREAD_CORE_LOCAL0, when enabled, initializes
+# thread_core_local[0] before calling C code.
 ifeq ($(ARCH),arm)
 $(call force,CFG_BOOT_MEM,y)
+$(call force,CFG_BOOT_INIT_THREAD_CORE_LOCAL0,y)
 else
 CFG_BOOT_MEM ?= n
+CFG_BOOT_INIT_THREAD_CORE_LOCAL0 ?= n
 endif
 
 # CFG_DYN_CONFIG, when enabled, use dynamic memory allocation for translation

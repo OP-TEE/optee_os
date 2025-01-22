@@ -4,13 +4,14 @@
  * Copyright (c) 2021-2023, Arm Limited
  */
 
-#include <arm32_macros.S>
 #include <arm.h>
+#include <arm32_macros.S>
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/cache_helpers.h>
+#include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -448,7 +449,34 @@ shadow_stack_access_ok:
 
 	set_sp
 
-	bl	thread_init_thread_core_local
+	/* Initialize thread_core_local[0] for early boot */
+	bl	thread_get_core_local
+	push	{r0,r1}
+	bl	thread_get_abt_stack
+	pop	{r1,r2}
+	mov	r3, sp
+
+	cps	#CPSR_MODE_IRQ
+	mov	sp, r3
+	cps	#CPSR_MODE_FIQ
+	mov	sp, r3
+	cps	#CPSR_MODE_ABT
+	mov	sp, r1
+	cps	#CPSR_MODE_UND
+	mov	sp, r1
+	cps	#CPSR_MODE_SVC
+
+#ifdef CFG_CORE_DEBUG_CHECK_STACKS
+	mov	r2, #1
+	strb	r2, [r1, #THREAD_CORE_LOCAL_STACKCHECK_RECURSION]
+#endif
+
+	str	sp, [r1, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
+	str	r0, [r1, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
+	mov	r0, #THREAD_ID_INVALID
+	str	r0, [r1, #THREAD_CORE_LOCAL_CURR_THREAD]
+	mov	r0, #THREAD_CLF_TMP
+	str	r0, [r1, #THREAD_CORE_LOCAL_FLAGS]
 
 	/* complete ARM secure MP common configuration */
 	bl	plat_primary_init_early
@@ -516,6 +544,14 @@ shadow_stack_access_ok:
 
 #ifdef CFG_CORE_ASLR
 	/*
+	 * Save a pointer to thread_core_local[core_pos] since we can't
+	 * call thread_get_core_local() again before the recorded end_va's
+	 * have been updated below.
+	 */
+	bl	thread_get_core_local
+	mov	r4, r0
+
+	/*
 	 * Process relocation information for updating with the virtual map
 	 * offset.  We're doing this now before MMU is enabled as some of
 	 * the memory will become write protected.
@@ -541,6 +577,38 @@ shadow_stack_access_ok:
 	ldr	r0, [r0, #CORE_MMU_CONFIG_MAP_OFFSET]
 	bl	boot_mem_relocate
 	/*
+	 * Update recorded end_va, we depend on r4 pointing to the
+	 * pre-relocated thread_core_local[core_pos].
+	 */
+	ldr	r1, =boot_mmu_config
+	ldr	r1, [r1, #CORE_MMU_CONFIG_MAP_OFFSET]
+	add	r4, r4, r1
+	ldr	r0, [r4, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
+	add	r0, r0, r1
+	str	r0, [r4, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
+	ldr	r0, [r4, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
+	add	r0, r0, r1
+	str	r0, [r4, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
+
+	cps	#CPSR_MODE_IRQ
+	mov	sp, r0
+	cps	#CPSR_MODE_FIQ
+	mov	sp, r0
+	cps	#CPSR_MODE_ABT
+	mov	sp, r4
+	cps	#CPSR_MODE_UND
+	mov	sp, r4
+	cps	#CPSR_MODE_SVC
+
+#if defined(CFG_CORE_DEBUG_CHECK_STACKS)
+	/*
+	 * Clear thread_core_local[0].stackcheck_recursion now that the
+	 * stack pointer matches recorded information.
+	 */
+	mov	r2, #0
+	strb	r2, [r4, #THREAD_CORE_LOCAL_STACKCHECK_RECURSION]
+#endif
+	/*
 	 * Reinitialize console, since register_serial_console() has
 	 * previously registered a PA and with ASLR the VA is different
 	 * from the PA.
@@ -557,6 +625,7 @@ shadow_stack_access_ok:
 #endif
 
 	bl	boot_init_primary_early
+	bl	boot_init_primary_late
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	r9, sp
 	ldr	r0, =threads
@@ -567,7 +636,6 @@ shadow_stack_access_ok:
 	mov	r0, #0
 	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
 #endif
-	bl	boot_init_primary_late
 	bl	boot_init_primary_final
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	r0, #THREAD_CLF_TMP
