@@ -2620,6 +2620,11 @@ static TEE_Result spmc_init(void)
 	uint32_t my_vers = 0;
 	uint32_t vers = 0;
 
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+	    virt_add_guest_spec_data(&notif_vm_bitmap_id,
+				     sizeof(struct notif_vm_bitmap), NULL))
+		panic("virt_add_guest_spec_data");
+
 	my_vers = get_ffa_version_from_manifest(get_manifest_dt());
 	if (my_vers < FFA_VERSION_1_0 || my_vers > FFA_VERSION_1_2) {
 		EMSG("Unsupported version %"PRIu32".%"PRIu32" from manifest",
