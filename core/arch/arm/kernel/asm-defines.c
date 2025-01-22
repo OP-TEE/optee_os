@@ -146,6 +146,10 @@ DEFINES
 	DEFINE(THREAD_CORE_LOCAL_DIRECT_RESP_FID,
 	       offsetof(struct thread_core_local, direct_resp_fid));
 #endif
+#if defined(CFG_CORE_DEBUG_CHECK_STACKS)
+	DEFINE(THREAD_CORE_LOCAL_STACKCHECK_RECURSION,
+	       offsetof(struct thread_core_local, stackcheck_recursion));
+#endif
 
 	DEFINE(STACK_TMP_GUARD, STACK_CANARY_SIZE / 2 + STACK_TMP_OFFS);
 

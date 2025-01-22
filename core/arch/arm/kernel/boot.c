@@ -909,7 +909,6 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 {
 	vaddr_t va = 0;
 
-	thread_init_core_local_stacks();
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
 	 * as the thread handler requires those to be masked while
@@ -970,17 +969,6 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 		init_pager_runtime(pageable_part);
 	}
 
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
-		/*
-		 * Virtualization: We can't initialize threads right now because
-		 * threads belong to "tee" part and will be initialized
-		 * separately per each new virtual guest. So, we'll clear
-		 * "curr_thread" and call it done.
-		 */
-		thread_get_core_local()->curr_thread = -1;
-	} else {
-		thread_init_boot_thread();
-	}
 	thread_init_primary();
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
@@ -1040,6 +1028,22 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 	update_external_dt();
 	configure_console_from_dt();
 
+	thread_init_thread_core_local();
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		/*
+		 * Virtualization: We can't initialize threads right now because
+		 * threads belong to "tee" part and will be initialized
+		 * separately per each new virtual guest. So, we'll clear
+		 * "curr_thread" and call it done.
+		 */
+		thread_get_core_local()->curr_thread = -1;
+	} else {
+		thread_init_boot_thread();
+	}
+}
+
+void __weak boot_init_primary_final(void)
+{
 	IMSG("OP-TEE version: %s", core_v_str);
 	if (IS_ENABLED(CFG_INSECURE)) {
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
@@ -1077,14 +1081,7 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 		thread_set_exceptions(thread_get_exceptions() |
 				      THREAD_EXCP_NATIVE_INTR);
 	}
-}
 
-/*
- * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area.
- */
-void __weak boot_init_primary_final(void)
-{
 	if (!IS_ENABLED(CFG_WITH_PAGER))
 		boot_mem_release_tmp_alloc();
 
