@@ -33,11 +33,6 @@ struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
 
 static uint32_t start_canary_value = 0xdedede00;
 static uint32_t end_canary_value = 0xababab00;
-#ifdef CFG_WITH_STACK_CANARIES
-#define GET_START_CANARY(name, stack_num) name[stack_num][0]
-#define GET_END_CANARY(name, stack_num) \
-	name[stack_num][sizeof(name[stack_num]) / sizeof(uint32_t) - 1]
-#endif
 
 #define DECLARE_STACK(name, num_stacks, stack_size, linkage) \
 linkage uint32_t name[num_stacks] \
@@ -103,25 +98,44 @@ static uint32_t *stack_end_va_to_end_canary(size_t stack_size __unused,
 	return (uint32_t *)(end_va + STACK_CANARY_SIZE / 2 - sizeof(uint32_t));
 }
 
+static void init_canaries(size_t stack_size, vaddr_t va_end)
+{
+	uint32_t *canary = NULL;
+
+	assert(va_end);
+	canary = stack_end_va_to_start_canary(stack_size, va_end);
+	*canary = start_canary_value;
+	canary = stack_end_va_to_end_canary(stack_size, va_end);
+	*canary = end_canary_value;
+}
+
 void thread_init_canaries(void)
 {
-#ifdef CFG_WITH_STACK_CANARIES
-	size_t n;
-#define INIT_CANARY(name)						\
-	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
-		uint32_t *start_canary = &GET_START_CANARY(name, n);	\
-		uint32_t *end_canary = &GET_END_CANARY(name, n);	\
-									\
-		*start_canary = start_canary_value;			\
-		*end_canary = end_canary_value;				\
+	vaddr_t va = 0;
+	size_t n = 0;
+
+	if (IS_ENABLED(CFG_WITH_STACK_CANARIES)) {
+		for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+			if (thread_core_local[n].tmp_stack_va_end) {
+				va = thread_core_local[n].tmp_stack_va_end +
+				     STACK_TMP_OFFS;
+				init_canaries(STACK_TMP_SIZE, va);
+			}
+			va = thread_core_local[n].abt_stack_va_end;
+			if (va)
+				init_canaries(STACK_ABT_SIZE, va);
+		}
+
 	}
 
-	INIT_CANARY(stack_tmp);
-	INIT_CANARY(stack_abt);
-#if !defined(CFG_WITH_PAGER) && !defined(CFG_NS_VIRTUALIZATION)
-	INIT_CANARY(stack_thread);
-#endif
-#endif/*CFG_WITH_STACK_CANARIES*/
+	if (IS_ENABLED(CFG_WITH_STACK_CANARIES) &&
+	    !IS_ENABLED(CFG_WITH_PAGER) && !IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		for (n = 0; n < CFG_NUM_THREADS; n++) {
+			va = threads[n].stack_va_end;
+			if (va)
+				init_canaries(STACK_THREAD_SIZE, va);
+		}
+	}
 }
 
 #if defined(CFG_WITH_STACK_CANARIES)
@@ -173,12 +187,17 @@ void thread_check_canaries(void)
 
 	if (IS_ENABLED(CFG_WITH_STACK_CANARIES)) {
 		for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
-			va = thread_core_local[n].tmp_stack_va_end +
-			     STACK_TMP_OFFS;
-			check_stack_canary("tmp_stack", n, STACK_TMP_SIZE, va);
+			if (thread_core_local[n].tmp_stack_va_end) {
+				va = thread_core_local[n].tmp_stack_va_end +
+				     STACK_TMP_OFFS;
+				check_stack_canary("tmp_stack", n,
+						   STACK_TMP_SIZE, va);
+			}
 
 			va = thread_core_local[n].abt_stack_va_end;
-			check_stack_canary("abt_stack", n, STACK_ABT_SIZE, va);
+			if (va)
+				check_stack_canary("abt_stack", n,
+						   STACK_ABT_SIZE, va);
 		}
 	}
 
@@ -186,8 +205,9 @@ void thread_check_canaries(void)
 	    !IS_ENABLED(CFG_WITH_PAGER) && !IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		for (n = 0; n < CFG_NUM_THREADS; n++) {
 			va = threads[n].stack_va_end;
-			check_stack_canary("thread_stack", n,
-					   STACK_THREAD_SIZE, va);
+			if (va)
+				check_stack_canary("thread_stack", n,
+						   STACK_THREAD_SIZE, va);
 		}
 	}
 }
@@ -486,11 +506,16 @@ static void init_thread_stacks(void)
 #else
 static void init_thread_stacks(void)
 {
-	size_t n;
+	vaddr_t va = 0;
+	size_t n = 0;
 
 	/* Assign the thread stacks */
-	for (n = 0; n < CFG_NUM_THREADS; n++)
-		threads[n].stack_va_end = GET_STACK_BOTTOM(stack_thread, n);
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		va = GET_STACK_BOTTOM(stack_thread, n);
+		threads[n].stack_va_end = va;
+		if (IS_ENABLED(CFG_WITH_STACK_CANARIES))
+			init_canaries(STACK_THREAD_SIZE, va);
+	}
 }
 #endif /*CFG_WITH_PAGER*/
 
@@ -516,15 +541,22 @@ vaddr_t __nostackcheck thread_get_abt_stack(void)
 #ifdef CFG_BOOT_INIT_THREAD_CORE_LOCAL0
 void thread_init_thread_core_local(void)
 {
-	size_t n = 0;
 	struct thread_core_local *tcl = thread_core_local;
+	vaddr_t va = 0;
+	size_t n = 0;
 
 	for (n = 1; n < CFG_TEE_CORE_NB_CORE; n++) {
 		tcl[n].curr_thread = THREAD_ID_INVALID;
 		tcl[n].flags = THREAD_CLF_TMP;
-		tcl[n].tmp_stack_va_end = GET_STACK_BOTTOM(stack_tmp, n) -
-					  STACK_TMP_OFFS;
-		tcl[n].abt_stack_va_end = GET_STACK_BOTTOM(stack_abt, n);
+
+		va = GET_STACK_BOTTOM(stack_tmp, n);
+		tcl[n].tmp_stack_va_end = va - STACK_TMP_OFFS;
+		if (IS_ENABLED(CFG_WITH_STACK_CANARIES))
+			init_canaries(STACK_TMP_SIZE, va);
+		va = GET_STACK_BOTTOM(stack_abt, n);
+		tcl[n].abt_stack_va_end = va;
+		if (IS_ENABLED(CFG_WITH_STACK_CANARIES))
+			init_canaries(STACK_ABT_SIZE, va);
 	}
 }
 #else
