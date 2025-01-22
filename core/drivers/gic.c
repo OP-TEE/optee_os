@@ -45,6 +45,7 @@
 #define GICD_ICPENDR(n)		(0x280 + (n) * 4)
 #define GICD_IPRIORITYR(n)	(0x400 + (n) * 4)
 #define GICD_ITARGETSR(n)	(0x800 + (n) * 4)
+#define GICD_ICFGR(n)		(0xc00 + (n) * 4)
 #define GICD_IGROUPMODR(n)	(0xd00 + (n) * 4)
 #define GICD_SGIR		(0xF00)
 
@@ -123,6 +124,14 @@
 #define GICD_SGIR_TARGET_LIST_FILTER_SHIFT	24
 #define GICD_SGIR_NSATT_SHIFT			15
 #define GICD_SGIR_CPU_TARGET_LIST_SHIFT		16
+
+/* GICD ICFGR bit fields */
+#define GICD_ICFGR_TYPE_EDGE		2
+#define GICD_ICFGR_TYPE_LEVEL		0
+#define GICD_ICFGR_FIELD_BITS		2
+#define GICD_ICFGR_FIELD_MASK		0x3
+#define GICD_ICFGR_NUM_INTS_PER_REG	(NUM_INTS_PER_REG / \
+					 GICD_ICFGR_FIELD_BITS)
 
 struct gic_data {
 	vaddr_t gicc_base;
@@ -423,28 +432,48 @@ static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
 			  uint32_t *prio)
 {
 	int it_num = DT_INFO_INVALID_INTERRUPT;
+	uint32_t detection_type = IRQ_TYPE_NONE;
+	uint32_t interrupt_type = GIC_PPI;
 
-	if (type)
-		*type = IRQ_TYPE_NONE;
-
-	if (prio)
-		*prio = 0;
-
-	if (!properties || count < 2)
+	if (!properties || count < 2 || count > 3)
 		return DT_INFO_INVALID_INTERRUPT;
 
-	it_num = fdt32_to_cpu(properties[1]);
+	interrupt_type = fdt32_to_cpu(properties[0]);
+	it_num = (int)fdt32_to_cpu(properties[1]);
 
-	switch (fdt32_to_cpu(properties[0])) {
+	if (count == 3) {
+		detection_type = fdt32_to_cpu(properties[2]) & GENMASK_32(3, 0);
+		if (interrupt_type == GIC_PPI &&
+		    detection_type != IRQ_TYPE_EDGE_RISING) {
+			EMSG("PPI must be edge rising");
+			return DT_INFO_INVALID_INTERRUPT;
+		}
+
+		if (interrupt_type == GIC_SPI &&
+		    (detection_type != IRQ_TYPE_EDGE_RISING &&
+		     detection_type != IRQ_TYPE_LEVEL_HIGH)) {
+			EMSG("SPI must be edge rising or high level");
+			return DT_INFO_INVALID_INTERRUPT;
+		}
+	}
+
+	switch (interrupt_type) {
 	case GIC_PPI:
 		it_num += 16;
+		detection_type = IRQ_TYPE_EDGE_RISING;
 		break;
 	case GIC_SPI:
 		it_num += 32;
 		break;
 	default:
-		it_num = DT_INFO_INVALID_INTERRUPT;
+		return DT_INFO_INVALID_INTERRUPT;
 	}
+
+	if (type)
+		*type = detection_type;
+
+	if (prio)
+		*prio = 0;
 
 	return it_num;
 }
@@ -669,6 +698,25 @@ static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
 	DMSG("prio: writing 0x%x to 0x%" PRIxVA,
 		prio, gd->gicd_base + GICD_IPRIORITYR(0) + it);
 	io_write8(gd->gicd_base + GICD_IPRIORITYR(0) + it, prio);
+}
+
+static void gic_it_set_type(struct gic_data *gd, size_t it, uint32_t type)
+{
+	size_t index = it / GICD_ICFGR_NUM_INTS_PER_REG;
+	uint32_t shift = (it % GICD_ICFGR_NUM_INTS_PER_REG) *
+			 GICD_ICFGR_FIELD_BITS;
+	uint32_t icfg = 0;
+
+	assert(type == IRQ_TYPE_EDGE_RISING || type == IRQ_TYPE_LEVEL_HIGH);
+
+	if (type == IRQ_TYPE_EDGE_RISING)
+		icfg = GICD_ICFGR_TYPE_EDGE;
+	else
+		icfg = GICD_ICFGR_TYPE_LEVEL;
+
+	io_mask32(gd->gicd_base + GICD_ICFGR(index),
+		  SHIFT_U32(icfg, shift),
+		  SHIFT_U32(GICD_ICFGR_FIELD_MASK, shift));
 }
 
 static void gic_it_enable(struct gic_data *gd, size_t it)
@@ -916,8 +964,7 @@ void interrupt_main_handler(void)
 #endif /*CFG_CORE_WORKAROUND_ARM_NMFI*/
 
 static void gic_op_add(struct itr_chip *chip, size_t it,
-		       uint32_t type __unused,
-		       uint32_t prio __unused)
+		       uint32_t type, uint32_t prio __unused)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
@@ -959,6 +1006,8 @@ static void gic_op_add(struct itr_chip *chip, size_t it,
 		/* Set the CPU mask to deliver interrupts to any online core */
 		gic_it_set_cpu_mask(gd, it, 0xff);
 		gic_it_set_prio(gd, it, 0x1);
+		if (type != IRQ_TYPE_NONE)
+			gic_it_set_type(gd, it, type);
 	}
 }
 
@@ -1048,7 +1097,7 @@ static TEE_Result dt_get_gic_chip_cb(struct dt_pargs *arg, void *priv_data,
 {
 	int itr_num = DT_INFO_INVALID_INTERRUPT;
 	struct itr_chip *chip = priv_data;
-	uint32_t phandle_args[2] = { };
+	uint32_t phandle_args[3] = { };
 	uint32_t type = 0;
 	uint32_t prio = 0;
 
@@ -1062,10 +1111,14 @@ static TEE_Result dt_get_gic_chip_cb(struct dt_pargs *arg, void *priv_data,
 	 */
 	if (arg->args_count < 2)
 		return TEE_ERROR_GENERIC;
+
 	phandle_args[0] = cpu_to_fdt32(arg->args[0]);
 	phandle_args[1] = cpu_to_fdt32(arg->args[1]);
+	if (arg->args_count >= 3)
+		phandle_args[2] = cpu_to_fdt32(arg->args[2]);
 
-	itr_num = gic_dt_get_irq((const void *)phandle_args, 2, &type, &prio);
+	itr_num = gic_dt_get_irq((const void *)phandle_args, arg->args_count,
+				 &type, &prio);
 	if (itr_num == DT_INFO_INVALID_INTERRUPT)
 		return TEE_ERROR_GENERIC;
 
