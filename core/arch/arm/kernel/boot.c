@@ -87,7 +87,7 @@ DECLARE_KEEP_PAGER(sem_cpu_sync);
 vaddr_t boot_cached_mem_end __nex_data = 1;
 
 static unsigned long boot_arg_fdt __nex_bss;
-static unsigned long boot_arg_nsec_entry __nex_bss;
+unsigned long boot_arg_nsec_entry __nex_bss;
 static unsigned long boot_arg_pageable_part __nex_bss;
 static unsigned long boot_arg_transfer_list __nex_bss;
 static struct transfer_list_header *mapped_tl __nex_bss;
@@ -905,7 +905,7 @@ static bool add_padding_to_pool(vaddr_t va, size_t len, void *ptr __unused)
 	return true;
 }
 
-static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
+static void init_primary(unsigned long pageable_part)
 {
 	vaddr_t va = 0;
 
@@ -971,7 +971,6 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 
 	thread_init_primary();
 	thread_init_per_cpu();
-	init_sec_mon(nsec_entry);
 }
 
 static bool cpu_nmfi_enabled(void)
@@ -1100,7 +1099,7 @@ void __weak boot_init_primary_final(void)
 			      THREAD_EXCP_NATIVE_INTR);
 }
 
-static void init_secondary_helper(unsigned long nsec_entry)
+static void init_secondary_helper(void)
 {
 	IMSG("Secondary CPU %zu initializing", get_core_pos());
 
@@ -1115,7 +1114,6 @@ static void init_secondary_helper(unsigned long nsec_entry)
 
 	secondary_init_cntfrq();
 	thread_init_per_cpu();
-	init_sec_mon(nsec_entry);
 	boot_secondary_init_intc();
 	init_vfp_sec();
 	init_vfp_nsec();
@@ -1130,11 +1128,7 @@ static void init_secondary_helper(unsigned long nsec_entry)
 void __weak boot_init_primary_early(void)
 {
 	unsigned long pageable_part = 0;
-	unsigned long e = PADDR_INVALID;
 	struct transfer_list_entry *tl_e = NULL;
-
-	if (!IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW))
-		e = boot_arg_nsec_entry;
 
 	if (IS_ENABLED(CFG_TRANSFER_LIST) && boot_arg_transfer_list) {
 		/* map and save the TL */
@@ -1154,7 +1148,7 @@ void __weak boot_init_primary_early(void)
 			pageable_part = boot_arg_pageable_part;
 	}
 
-	init_primary(pageable_part, e);
+	init_primary(pageable_part);
 }
 
 static void boot_save_transfer_list(unsigned long zero_reg,
@@ -1185,13 +1179,13 @@ static void boot_save_transfer_list(unsigned long zero_reg,
 unsigned long boot_cpu_on_handler(unsigned long a0 __maybe_unused,
 				  unsigned long a1 __unused)
 {
-	init_secondary_helper(PADDR_INVALID);
+	init_secondary_helper();
 	return 0;
 }
 #else
-void boot_init_secondary(unsigned long nsec_entry)
+void boot_init_secondary(unsigned long nsec_entry __unused)
 {
-	init_secondary_helper(nsec_entry);
+	init_secondary_helper();
 }
 #endif
 

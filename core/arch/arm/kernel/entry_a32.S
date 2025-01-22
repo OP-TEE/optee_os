@@ -707,6 +707,13 @@ shadow_stack_access_ok:
 	/* Pass the vector address returned from main_init */
 	sub	r1, r1, r0
 #else
+	/* Initialize secure monitor */
+	add	r0, sp, #__STACK_TMP_OFFS
+	bl	sm_init
+	ldr	r0, =boot_arg_nsec_entry
+	ldr	r0, [r0]
+	bl	init_sec_mon
+
 	/* Relay standard bootarg #1 and #2 to non-secure entry */
 	mov	r4, #0
 	mov	r3, r6		/* std bootarg #2 for register R2 */
@@ -989,11 +996,17 @@ UNWIND(	.cantunwind)
 	 */
 	bl	boot_core_hpen
 	ldm	r0, {r0, r6}
+	mov	r8, r0
 #else
-	mov	r0, r8		/* ns-entry address */
 	mov	r6, #0
 #endif
 	bl	boot_init_secondary
+
+	/* Initialize secure monitor */
+	add	r0, sp, #__STACK_TMP_OFFS
+	bl	sm_init
+	mov	r0, r8		/* ns-entry address */
+	bl	init_sec_mon
 
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	mov	r1, r6
