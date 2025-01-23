@@ -66,7 +66,8 @@ int dt_get_irq_type_prio(const void *fdt, int node, uint32_t *type,
 	if (!prop)
 		return it_num;
 
-	return itr_main_chip->dt_get_irq(prop, count, type, prio);
+	return itr_main_chip->dt_get_irq(prop, count / sizeof(uint32_t), type,
+					 prio);
 }
 #endif
 
