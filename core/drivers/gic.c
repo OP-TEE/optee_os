@@ -189,8 +189,8 @@ static bool affinity_routing_is_enabled(struct gic_data *gd)
 
 static size_t probe_max_it(vaddr_t gicc_base __maybe_unused, vaddr_t gicd_base)
 {
-	int i;
-	uint32_t old_ctlr;
+	int i = 0;
+	uint32_t old_ctlr = 0;
 	size_t ret = 0;
 	size_t max_regs = io_read32(gicd_base + GICD_TYPER) &
 			  GICD_TYPER_IT_LINES_NUM_MASK;
@@ -206,9 +206,9 @@ static size_t probe_max_it(vaddr_t gicc_base __maybe_unused, vaddr_t gicd_base)
 	io_write32(gicc_base + GICC_CTLR, 0);
 #endif
 	for (i = max_regs; i >= 0; i--) {
-		uint32_t old_reg;
-		uint32_t reg;
-		int b;
+		uint32_t old_reg = 0;
+		uint32_t reg = 0;
+		int b = 0;
 
 		old_reg = io_read32(gicd_base + GICD_ISENABLER(i));
 		io_write32(gicd_base + GICD_ISENABLER(i), 0xffffffff);
@@ -665,7 +665,8 @@ static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
 {
 	size_t idx __maybe_unused = it / NUM_INTS_PER_REG;
 	uint32_t mask __maybe_unused = 1 << (it % NUM_INTS_PER_REG);
-	uint32_t target, target_shift;
+	uint32_t target = 0;
+	uint32_t target_shift = 0;
 	vaddr_t itargetsr = gd->gicd_base +
 			    GICD_ITARGETSR(it / NUM_TARGETS_PER_REG);
 
@@ -679,9 +680,9 @@ static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
 	target_shift = (it % NUM_TARGETS_PER_REG) * ITARGETSR_FIELD_BITS;
 	target &= ~(ITARGETSR_FIELD_MASK << target_shift);
 	target |= cpu_mask << target_shift;
-	DMSG("cpu_mask: writing 0x%x to 0x%" PRIxVA, target, itargetsr);
+	DMSG("cpu_mask: writing %#"PRIx32" to %#" PRIxVA, target, itargetsr);
 	io_write32(itargetsr, target);
-	DMSG("cpu_mask: 0x%x", io_read32(itargetsr));
+	DMSG("cpu_mask: %#"PRIx32, io_read32(itargetsr));
 }
 
 static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
@@ -695,8 +696,8 @@ static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
 	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Set prio it to selected CPUs */
-	DMSG("prio: writing 0x%x to 0x%" PRIxVA,
-		prio, gd->gicd_base + GICD_IPRIORITYR(0) + it);
+	DMSG("prio: writing %#"PRIx8" to %#" PRIxVA,
+	     prio, gd->gicd_base + GICD_IPRIORITYR(0) + it);
 	io_write8(gd->gicd_base + GICD_IPRIORITYR(0) + it, prio);
 }
 
@@ -894,15 +895,15 @@ void gic_dump_state(void)
 	int i = 0;
 
 #if defined(CFG_ARM_GICV3)
-	DMSG("GICC_CTLR: 0x%x", read_icc_ctlr());
+	DMSG("GICC_CTLR: %#"PRIx32, read_icc_ctlr());
 #else
-	DMSG("GICC_CTLR: 0x%x", io_read32(gd->gicc_base + GICC_CTLR));
+	DMSG("GICC_CTLR: %#"PRIx32, io_read32(gd->gicc_base + GICC_CTLR));
 #endif
-	DMSG("GICD_CTLR: 0x%x", io_read32(gd->gicd_base + GICD_CTLR));
+	DMSG("GICD_CTLR: %#"PRIx32, io_read32(gd->gicd_base + GICD_CTLR));
 
 	for (i = 0; i <= (int)gd->max_it; i++) {
 		if (gic_it_is_enabled(gd, i)) {
-			DMSG("irq%d: enabled, group:%d, target:%x", i,
+			DMSG("irq%d: enabled, group:%d, target:%#"PRIx32, i,
 			     gic_it_get_group(gd, i), gic_it_get_target(gd, i));
 		}
 	}
