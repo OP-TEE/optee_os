@@ -355,7 +355,10 @@ static TEE_Result sam9x60_div_pll_set_rate(struct clk *hw,
 {
 	struct sam9x60_div *div = hw->priv;
 
-	div->div = UDIV_ROUND_NEAREST(parent_rate, rate) - 1;
+	if (parent_rate > rate)
+		div->div = UDIV_ROUND_NEAREST(parent_rate, rate) - 1;
+	else
+		div->div = 0;
 
 	return TEE_SUCCESS;
 }
@@ -370,7 +373,10 @@ static TEE_Result sam9x60_div_pll_set_rate_chg(struct clk *hw,
 	unsigned int val = 0;
 	unsigned int cdiv = 0;
 
-	div->div = UDIV_ROUND_NEAREST(parent_rate, rate) - 1;
+	if (parent_rate > rate)
+		div->div = UDIV_ROUND_NEAREST(parent_rate, rate) - 1;
+	else
+		div->div = 0;
 
 	io_clrsetbits32(regmap + AT91_PMC_PLL_UPDT,
 			AT91_PMC_PLL_UPDT_ID_MASK,
