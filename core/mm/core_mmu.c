@@ -1069,7 +1069,7 @@ static void collect_device_mem_ranges(struct memory_map *mem_map)
 		}
 
 		add_phys_mem(mem_map, name, MEM_AREA_IO_SEC,
-			     base, base + page_count * SMALL_PAGE_SIZE);
+			     base, page_count * SMALL_PAGE_SIZE);
 	}
 }
 
