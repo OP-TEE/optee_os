@@ -22,7 +22,7 @@
 		clocks = <&rcc SAES_K>, <&rcc RNG1_K>;
 		clock-names = "bus", "rng";
 		resets = <&rcc SAES_R>;
-		access-controllers = <&etzpc STM32MP1_ETZPC_SAES_ID>;
+		access-controllers = <&etzpc STM32MP1_ETZPC_SAES_ID>, <&etzpc STM32MP1_ETZPC_RNG_ID>;
 		status = "disabled";
 	};
 
