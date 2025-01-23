@@ -38,7 +38,7 @@ struct itr_chip {
 	/*
 	 * dt_get_irq - parse a device tree interrupt property
 	 *
-	 * @properties raw interrupt property from device tree
+	 * @properties Big-endian interrupt property array from device tree
 	 * @count number of elements in @properties
 	 * @type If not NULL, output interrupt type (IRQ_TYPE_* defines)
 	 * or IRQ_TYPE_NONE if unknown
