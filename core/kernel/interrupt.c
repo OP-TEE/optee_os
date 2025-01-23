@@ -331,7 +331,7 @@ TEE_Result interrupt_dt_get_by_index(const void *fdt, int node,
 		res = get_legacy_interrupt_by_index(fdt, node, index, &desc);
 
 	if (!res) {
-		assert(desc.chip);
+		assert(itr_chip_is_valid(desc.chip));
 		*chip = desc.chip;
 		*itr_num = desc.itr_num;
 	}
