@@ -200,7 +200,14 @@ void __plat_rng_init(void)
 	}
 }
 
+/*
+ * Override this in your platform code. This default implementation only seeds
+ * the random number generator from an easily predictable timestamp value or a
+ * constant value. It is not suitable for a secure environment.
+ */
+#ifdef CFG_INSECURE
 void plat_rng_init(void) __weak __alias("__plat_rng_init");
+#endif
 
 static TEE_Result tee_cryp_init(void)
 {
