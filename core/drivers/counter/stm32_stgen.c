@@ -154,7 +154,7 @@ static void stm32_stgen_pm_resume(void)
 
 	io_setbits32(stgen_d.base + STGENC_CNTCR, STGENC_CNTCR_EN);
 
-	DMSG("Time spent in low-power: %"PRIu64"ms",
+	DMSG("Time spent in low-power: %lld ms",
 	     (nb_pm_count_ticks * 1000) / clock_src_rate);
 }
 
