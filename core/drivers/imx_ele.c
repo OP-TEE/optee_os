@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023 NXP
  */
+#include <crypto/crypto.h>
 #include <drivers/imx_mu.h>
 #include <initcall.h>
 #include <kernel/boot.h>
@@ -16,6 +17,7 @@
 #include <string_ext.h>
 #include <tee/cache.h>
 #include <tee_api_defines.h>
+#include <tee/tee_cryp_utl.h>
 #include <trace.h>
 #include <types_ext.h>
 #include <utee_types.h>
@@ -505,6 +507,28 @@ unsigned long plat_get_aslr_seed(void)
 
 	return aslr;
 }
+
+#ifdef CFG_WITH_SOFTWARE_PRNG
+void plat_rng_init(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t buf[32] = { };
+
+	res = imx_ele_rng_get_random(buf, sizeof(buf));
+	if (res) {
+		EMSG("Failed to read RNG: %#" PRIx32, res);
+		panic();
+	}
+
+	res = crypto_rng_init(buf, sizeof(buf));
+	if (res) {
+		EMSG("Failed to initialize RNG: %#" PRIx32, res);
+		panic();
+	}
+
+	IMSG("PRNG seeded from ELE RNG");
+}
+#endif
 
 int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 {
