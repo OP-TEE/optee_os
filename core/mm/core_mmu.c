@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016, 2022 Linaro Limited
+ * Copyright (c) 2016-2025 Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
  */
@@ -2135,23 +2135,74 @@ static bool mem_range_is_in_vcore_free(vaddr_t vstart, size_t num_pages)
 				     VCORE_FREE_PA, VCORE_FREE_SZ);
 }
 
+static void maybe_remove_from_mem_map(vaddr_t vstart, size_t num_pages)
+{
+	struct memory_map *mem_map = NULL;
+	struct tee_mmap_region *mm = NULL;
+	size_t idx = 0;
+	vaddr_t va = 0;
+
+	mm = find_map_by_va((void *)vstart);
+	if (!mm || !va_is_in_map(mm, vstart + num_pages * SMALL_PAGE_SIZE - 1))
+		panic("VA does not belong to any known mm region");
+
+	if (core_mmu_is_dynamic_vaspace(mm))
+		return;
+
+	if (!mem_range_is_in_vcore_free(vstart, num_pages))
+		panic("Trying to unmap static region");
+
+	/*
+	 * We're going to remove a memory from the VCORE_FREE memory range.
+	 * Depending where the range is we may need to remove the matching
+	 * mm, peal of a bit from the start or end of the mm, or split it
+	 * into two with a whole in the middle.
+	 */
+
+	va = ROUNDDOWN(vstart, SMALL_PAGE_SIZE);
+	assert(mm->region_size == SMALL_PAGE_SIZE);
+
+	if (va == mm->va && mm->size == num_pages * SMALL_PAGE_SIZE) {
+		mem_map = get_memory_map();
+		idx = mm - mem_map->map;
+		assert(idx < mem_map->count);
+
+		rem_array_elem(mem_map->map, mem_map->count,
+			       sizeof(*mem_map->map), idx);
+		mem_map->count--;
+	} else if (va == mm->va) {
+		mm->va += num_pages * SMALL_PAGE_SIZE;
+		mm->pa += num_pages * SMALL_PAGE_SIZE;
+		mm->size -= num_pages * SMALL_PAGE_SIZE;
+	} else if (va + num_pages * SMALL_PAGE_SIZE == mm->va + mm->size) {
+		mm->size -= num_pages * SMALL_PAGE_SIZE;
+	} else {
+		struct tee_mmap_region m = *mm;
+
+		mem_map = get_memory_map();
+		idx = mm - mem_map->map;
+		assert(idx < mem_map->count);
+
+		mm->size = va - mm->va;
+		m.va += mm->size + num_pages * SMALL_PAGE_SIZE;
+		m.pa += mm->size + num_pages * SMALL_PAGE_SIZE;
+		m.size -= mm->size + num_pages * SMALL_PAGE_SIZE;
+		grow_mem_map(mem_map);
+		ins_array_elem(mem_map->map, mem_map->count,
+			       sizeof(*mem_map->map), idx + 1, &m);
+	}
+}
+
 void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 {
 	struct core_mmu_table_info tbl_info;
-	struct tee_mmap_region *mm;
 	size_t i;
 	unsigned int idx;
 	uint32_t exceptions;
 
 	exceptions = mmu_lock();
 
-	mm = find_map_by_va((void *)vstart);
-	if (!mm || !va_is_in_map(mm, vstart + num_pages * SMALL_PAGE_SIZE - 1))
-		panic("VA does not belong to any known mm region");
-
-	if (!core_mmu_is_dynamic_vaspace(mm) &&
-	    !mem_range_is_in_vcore_free(vstart, num_pages))
-		panic("Trying to unmap static region");
+	maybe_remove_from_mem_map(vstart, num_pages);
 
 	for (i = 0; i < num_pages; i++, vstart += SMALL_PAGE_SIZE) {
 		if (!core_mmu_find_table(NULL, vstart, UINT_MAX, &tbl_info))
@@ -2505,7 +2556,6 @@ static void *phys_to_virt_tee_ram(paddr_t pa, size_t len)
 static void *phys_to_virt_tee_ram(paddr_t pa, size_t len)
 {
 	struct tee_mmap_region *mmap = NULL;
-	void *va = NULL;
 
 	mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM, pa, len);
 	if (!mmap)
@@ -2522,22 +2572,7 @@ static void *phys_to_virt_tee_ram(paddr_t pa, size_t len)
 	 * Note that MEM_AREA_INIT_RAM_RO and MEM_AREA_INIT_RAM_RX are only
 	 * used with pager and not needed here.
 	 */
-	va = map_pa2va(mmap, pa, len);
-
-	if (va && mmap->type == MEM_AREA_TEE_RAM_RW) {
-		/*
-		 * Parts of the "unused" memory area covered by
-		 * MEM_AREA_TEE_RAM_RW can be unmaped, but map_pa2va()
-		 * doesn't check for holes in the map. Now that we have a
-		 * possible virtual address, check that it's mapped.
-		 */
-		paddr_t p = 0;
-
-		if (!arch_va2pa_helper(va, &p))
-			va = NULL;
-	}
-
-	return va;
+	return map_pa2va(mmap, pa, len);
 }
 #endif
 
