@@ -18,6 +18,6 @@ $(call force,CFG_SCPFW_MOD_SYSTEM_PLL,y)
 $(call force,CFG_SCPFW_MOD_SENSOR,y)
 $(call force,CFG_SCPFW_MOD_VPLL,y)
 
-$(call force,CFG_SCPFW_NOTIFICATION,y)
-$(call force,CFG_SCPFW_SCMI_SENSOR_EVENTS,y)
+$(call force,CFG_SCPFW_NOTIFICATION,n)
+$(call force,CFG_SCPFW_SCMI_SENSOR_EVENTS,n)
 $(call force,CFG_SCPFW_FAST_CHANNEL,n)
