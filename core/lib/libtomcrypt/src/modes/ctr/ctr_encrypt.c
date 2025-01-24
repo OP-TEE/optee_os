@@ -61,6 +61,7 @@ static int s_ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned lo
        ct         += ctr->blocklen;
        len        -= ctr->blocklen;
        ctr->padlen = ctr->blocklen;
+       s_ctr_increment_counter(ctr);
        continue;
       }
 #endif
