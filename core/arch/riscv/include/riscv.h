@@ -13,6 +13,9 @@
 #include <sys/cdefs.h>
 #include <util.h>
 
+/* The stack pointer is always kept 16-byte aligned */
+#define STACK_ALIGNMENT		16
+
 #define RISCV_XLEN_BITS		(__riscv_xlen)
 #define RISCV_XLEN_BYTES	(__riscv_xlen / 8)
 

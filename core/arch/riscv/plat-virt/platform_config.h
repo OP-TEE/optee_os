@@ -11,9 +11,6 @@
 #include <mm/generic_ram_layout.h>
 #include <riscv.h>
 
-/* The stack pointer is always kept 16-byte aligned */
-#define STACK_ALIGNMENT		16
-
 /* DRAM */
 #ifndef DRAM_BASE
 #define DRAM_BASE		0x80000000
