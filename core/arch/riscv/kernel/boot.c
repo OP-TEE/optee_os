@@ -165,12 +165,13 @@ void __weak boot_init_primary_final(void)
 	boot_mem_release_tmp_alloc();
 
 	call_driver_initcalls();
-	call_finalcalls();
 	IMSG("Primary CPU initialized");
 
 #ifdef CFG_RISCV_S_MODE
 	start_secondary_cores();
 #endif
+
+	call_finalcalls();
 }
 
 static void init_secondary_helper(unsigned long nsec_entry)
