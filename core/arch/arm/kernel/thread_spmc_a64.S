@@ -192,7 +192,8 @@ FUNC thread_rpc_spsr , :
 END_FUNC thread_rpc_spsr
 
 /*
- * void thread_foreign_intr_exit(uint32_t thread_index)
+ * void thread_foreign_intr_exit(uint32_t thread_index,
+ *				 uint32_t rpc_target_info, uint32_t flags);
  *
  * This function is jumped to at the end of macro foreign_intr_handler().
  * The current thread as indicated by @thread_index has just been
@@ -209,14 +210,7 @@ END_FUNC thread_rpc_spsr
  * in threads[w0].flags. This is only set for the thread which handles SPs.
  */
 FUNC thread_foreign_intr_exit , :
-	/* load threads[w0].tsd.rpc_target_info into w1 */
-	mov	x1, #THREAD_CTX_SIZE
-	adr_l	x2, threads
-	madd	x2, x1, x0, x2
-	ldr	w1, [x2, #THREAD_CTX_TSD_RPC_TARGET_INFO]
 #ifdef CFG_SECURE_PARTITION
-	/* load threads[w0].flags into w2 */
-	ldr	w2, [x2, #THREAD_CTX_FLAGS]
 	and     w2, w2, #THREAD_FLAGS_FFA_ONLY
 	cbnz	w2, thread_ffa_interrupt
 #endif /* CFG_SECURE_PARTITION */
