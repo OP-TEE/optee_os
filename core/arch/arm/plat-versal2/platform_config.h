@@ -7,6 +7,7 @@
 #define PLATFORM_CONFIG_H
 
 #include <mm/generic_ram_layout.h>
+#include "plat_ipi.h"
 
 /* Make stacks aligned to data cache line length */
 #define CACHELINE_LEN		64

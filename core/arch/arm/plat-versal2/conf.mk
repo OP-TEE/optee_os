@@ -53,6 +53,13 @@ CFG_TZDRAM_SIZE    ?= 0x8000000
 # 1 : UART1[pl011_1]
 CFG_CONSOLE_UART ?= 0
 
+# MailBox Service configurations
+CFG_MAILBOX_DRIVER ?= n
+
+ifeq ($(CFG_MAILBOX_DRIVER),y)
+CFG_MAILBOX_LOCAL_ID ?= 3
+endif
+
 ifeq ($(CFG_ARM64_core),y)
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,43)
