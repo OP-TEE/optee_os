@@ -581,6 +581,33 @@ fail:
 	return -1;
 }
 
+static int check_phys_to_virt(paddr_t pa, void *exp_va,
+			      enum teecore_memtypes m)
+{
+	paddr_t new_pa = 0;
+	void *v = NULL;
+
+	v = phys_to_virt(pa, m, 1);
+	LOG("phys_to_virt(%#"PRIxPA") => %p (expect %p)",
+	    pa, v, exp_va);
+	if (v != exp_va)
+		goto fail;
+
+	if (!exp_va)
+		return 0;
+
+	new_pa = virt_to_phys(v);
+	LOG("virt_to_phys(%p) => %#"PRIxPA" (expect %#"PRIxPA")",
+	    v, new_pa, pa);
+	if (new_pa != pa)
+		goto fail;
+	return 0;
+
+fail:
+	LOG("Fail");
+	return -1;
+}
+
 static int self_test_va2pa(void)
 {
 	int ret = 0;
@@ -616,6 +643,16 @@ static int self_test_va2pa(void)
 				       MEM_AREA_TEE_RAM))
 			ret = -1;
 	}
+
+	if (!IS_ENABLED(CFG_WITH_PAGER) &&
+	    check_phys_to_virt(virt_to_phys(&ret), &ret, MEM_AREA_TEE_RAM))
+		ret = -1;
+	if (check_phys_to_virt(virt_to_phys(&ret), NULL, MEM_AREA_IO_SEC))
+		ret = -1;
+	if (check_virt_to_phys(0, 0, MEM_AREA_TEE_RAM))
+		ret = -1;
+	if (check_phys_to_virt(0, NULL, MEM_AREA_TEE_RAM))
+		ret = -1;
 
 	return ret;
 }
