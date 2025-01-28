@@ -596,3 +596,44 @@ jobs:
           # xtest 1031 is excluded because 1031.4 (C++ exception from shared library) fails with this cross-compiler
           # Rust is disabled because of a link error in the examples with this toolchain
           make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y MEMTAG=y PAUTH=y RUST_ENABLE=n XTEST_ARGS="-x 1031" check
+
+  QEMUv8_check_arm64_host:
+    name: make check (QEMUv8) (arm64 host)
+    runs-on: ubuntu-24.04-arm
+    container: jforissier/optee_os_ci:qemu_check_arm64
+    steps:
+      - name: Remove /__t/*
+        run: rm -rf /__t/*
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_check_arm64-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_check_arm64-cache-
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_ATTESTATION_PTA=y
+          export CFG_ATTESTATION_PTA_KEY_SIZE=1024
+          OPTEE_OS_TO_TEST=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee.sh qemu_v8 ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          # CFG_CORE_UNSAFE_MODEXP=y to speed up regression_4011
+          # See commit cb03400251f9 ("Squashed commit upgrading to mbedtls-3.6.2")
+          # and commit 85df256c4a67 ("libmbedtls: add CFG_CORE_UNSAFE_MODEXP and CFG_TA_MEBDTLS_UNSAFE_MODEXP")
+          make -j$(nproc) check CFG_CORE_UNSAFE_MODEXP=y
