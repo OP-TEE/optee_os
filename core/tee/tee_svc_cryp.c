@@ -2860,8 +2860,10 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		break;
 	case TEE_OPERATION_ASYMMETRIC_CIPHER:
 	case TEE_OPERATION_ASYMMETRIC_SIGNATURE:
-		if (algo == TEE_ALG_RSASSA_PKCS1_V1_5 &&
-		    !IS_ENABLED(CFG_CRYPTO_RSASSA_NA1)) {
+		if ((algo == TEE_ALG_RSASSA_PKCS1_V1_5 &&
+		     IS_ENABLED(CFG_CRYPTO_RSASSA_NA1)) ||
+		    (algo == TEE_ALG_ECDSA_RAW &&
+		     IS_ENABLED(CFG_CRYPTO_ECDSA_NOHASH))) {
 			res = TEE_ERROR_NOT_SUPPORTED;
 			break;
 		}
@@ -4613,6 +4615,9 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 		exit_user_access();
 		break;
 
+#if defined(CFG_CRYPTO_ECDSA_NOHASH)
+	case TEE_ALG_ECDSA_RAW:
+#endif
 	case TEE_ALG_ECDSA_SHA1:
 	case TEE_ALG_ECDSA_SHA224:
 	case TEE_ALG_ECDSA_SHA256:

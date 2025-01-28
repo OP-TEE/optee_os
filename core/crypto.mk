@@ -313,3 +313,7 @@ _CFG_CORE_LTC_EC25519 := $(call ltc-one-enabled, ED25519 X25519)
 ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
 CFG_CRYPTO_RSASSA_NA1 ?= y
 endif
+
+# Enable TEE_ALG_ECDSA_RAW algorithm for ECDSA signature without an explicit
+# message digest hashing algorithm.
+CFG_CRYPTO_ECDSA_NOHASH ?= y
