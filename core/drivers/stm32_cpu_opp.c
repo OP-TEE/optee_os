@@ -21,6 +21,7 @@
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
+#include <stm32_util.h>
 #include <trace.h>
 
 /*
@@ -267,6 +268,26 @@ TEE_Result stm32_cpu_opp_read_level(unsigned int *level)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result stm32_cpu_opp_is_supported(const void *fdt, int subnode)
+{
+	const fdt32_t *cuint32 = NULL;
+	uint32_t opp = 0;
+
+	cuint32 = fdt_getprop(fdt, subnode, "opp-supported-hw", NULL);
+	if (!cuint32) {
+		DMSG("Can't find property opp-supported-hw");
+		return TEE_ERROR_GENERIC;
+	}
+
+	opp = fdt32_to_cpu(*cuint32);
+	if (!stm32mp_supports_cpu_opp(opp)) {
+		DMSG("Not supported opp-supported-hw %#"PRIx32, opp);
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result cpu_opp_pm(enum pm_op op, unsigned int pm_hint,
 			     const struct pm_callback_handle *hdl __unused)
 {
@@ -340,6 +361,14 @@ static TEE_Result stm32_cpu_opp_get_dt_subnode(const void *fdt, int node)
 		}
 
 		volt_uv = fdt32_to_cpu(*cuint32);
+
+		/* skip OPP when the SOC does not support it */
+		if (stm32_cpu_opp_is_supported(fdt, subnode) != TEE_SUCCESS) {
+			DMSG("Skip soc OPP %"PRIu64"kHz/%"PRIu32"uV",
+			     freq_khz, volt_uv);
+			cpu_opp.opp_count--;
+			continue;
+		}
 
 		/* skip OPP when voltage is not supported */
 		if (!opp_voltage_is_supported(cpu_opp.regul, &volt_uv)) {
