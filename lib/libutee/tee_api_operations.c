@@ -316,10 +316,6 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 
 	op->info.algorithm = algorithm;
 	op->info.operationClass = TEE_ALG_GET_CLASS(algorithm);
-#ifdef CFG_CRYPTO_RSASSA_NA1
-	if (algorithm == TEE_ALG_RSASSA_PKCS1_V1_5)
-		op->info.operationClass = TEE_OPERATION_ASYMMETRIC_SIGNATURE;
-#endif
 	op->info.mode = mode;
 	op->info.digestLength = TEE_ALG_GET_DIGEST_SIZE(algorithm);
 	op->info.maxKeySize = maxKeySize;
@@ -349,7 +345,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	op->block_size = block_size;
 	op->buffer_two_blocks = buffer_two_blocks;
 
-	if (TEE_ALG_GET_CLASS(algorithm) != TEE_OPERATION_DIGEST) {
+	if (op->info.operationClass != TEE_OPERATION_DIGEST) {
 		uint32_t mks = maxKeySize;
 		TEE_ObjectType key_type = TEE_ALG_GET_KEY_TYPE(algorithm,
 						       with_private_key);
@@ -383,7 +379,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	 * Other multi-stage operations initialized w/ TEE_xxxInit functions
 	 * Non-applicable on asymmetric operations
 	 */
-	if (TEE_ALG_GET_CLASS(algorithm) == TEE_OPERATION_DIGEST) {
+	if (op->info.operationClass == TEE_OPERATION_DIGEST) {
 		res = _utee_hash_init(op->state, NULL, 0);
 		if (res != TEE_SUCCESS)
 			goto out;
