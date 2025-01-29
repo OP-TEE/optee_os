@@ -455,19 +455,19 @@ enum pkcs11_rc pkcs2tee_algo_ecdsa(uint32_t *tee_id,
 	 */
 	switch (get_object_key_bit_size(obj)) {
 	case 192:
-		*tee_id = TEE_ALG_ECDSA_P192;
+		*tee_id = __OPTEE_ALG_ECDSA_P192;
 		break;
 	case 224:
-		*tee_id = TEE_ALG_ECDSA_P224;
+		*tee_id = __OPTEE_ALG_ECDSA_P224;
 		break;
 	case 256:
-		*tee_id = TEE_ALG_ECDSA_P256;
+		*tee_id = __OPTEE_ALG_ECDSA_P256;
 		break;
 	case 384:
-		*tee_id = TEE_ALG_ECDSA_P384;
+		*tee_id = __OPTEE_ALG_ECDSA_P384;
 		break;
 	case 521:
-		*tee_id = TEE_ALG_ECDSA_P521;
+		*tee_id = __OPTEE_ALG_ECDSA_P521;
 		break;
 	default:
 		TEE_Panic(0);
@@ -848,15 +848,15 @@ size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op)
 	TEE_GetOperationInfo(op, &info);
 
 	switch (info.algorithm) {
-	case TEE_ALG_ECDSA_P192:
+	case __OPTEE_ALG_ECDSA_P192:
 		return 24;
-	case TEE_ALG_ECDSA_P224:
+	case __OPTEE_ALG_ECDSA_P224:
 		return 28;
-	case TEE_ALG_ECDSA_P256:
+	case __OPTEE_ALG_ECDSA_P256:
 		return 32;
-	case TEE_ALG_ECDSA_P384:
+	case __OPTEE_ALG_ECDSA_P384:
 		return 48;
-	case TEE_ALG_ECDSA_P521:
+	case __OPTEE_ALG_ECDSA_P521:
 		return 66;
 	default:
 		DMSG("Unexpected ECDSA algorithm %#"PRIx32, info.algorithm);
@@ -942,19 +942,19 @@ enum pkcs11_rc pkcs2tee_algo_ecdh(uint32_t *tee_id,
 
 	switch (get_object_key_bit_size(obj)) {
 	case 192:
-		*tee_id = TEE_ALG_ECDH_P192;
+		*tee_id = __OPTEE_ALG_ECDH_P192;
 		break;
 	case 224:
-		*tee_id = TEE_ALG_ECDH_P224;
+		*tee_id = __OPTEE_ALG_ECDH_P224;
 		break;
 	case 256:
-		*tee_id = TEE_ALG_ECDH_P256;
+		*tee_id = __OPTEE_ALG_ECDH_P256;
 		break;
 	case 384:
-		*tee_id = TEE_ALG_ECDH_P384;
+		*tee_id = __OPTEE_ALG_ECDH_P384;
 		break;
 	case 521:
-		*tee_id = TEE_ALG_ECDH_P521;
+		*tee_id = __OPTEE_ALG_ECDH_P521;
 		break;
 	default:
 		TEE_Panic(0);
