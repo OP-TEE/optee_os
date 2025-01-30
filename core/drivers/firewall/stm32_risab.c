@@ -160,16 +160,20 @@ static bool regs_access_granted(struct stm32_risab_pdata *risab_d,
 	uint32_t cidcfgr = io_read32(risab_base(risab_d) +
 				     _RISAB_PGy_CIDCFGR(first_page));
 
+	if (virt_to_phys((void *)risab_base(risab_d)) == RISAB1_BASE ||
+	    virt_to_phys((void *)risab_base(risab_d)) == RISAB2_BASE)
+		return true;
+
+	/* No CID filtering */
+	if (!(cidcfgr & _RISAB_PG_CIDCFGR_CFEN))
+		return true;
+
 	/* Trusted CID access */
-	if (is_tdcid &&
-	    ((cidcfgr & _RISAB_PG_CIDCFGR_CFEN &&
-	      !(cidcfgr & _RISAB_PG_CIDCFGR_DCEN)) ||
-	     !(cidcfgr & _RISAB_PG_CIDCFGR_CFEN)))
+	if (is_tdcid && !(cidcfgr & _RISAB_PG_CIDCFGR_DCEN))
 		return true;
 
 	/* Delegated CID access check */
-	if (cidcfgr & _RISAB_PG_CIDCFGR_CFEN &&
-	    cidcfgr & _RISAB_PG_CIDCFGR_DCEN &&
+	if (cidcfgr & _RISAB_PG_CIDCFGR_DCEN &&
 	    ((cidcfgr & _RISAB_PG_CIDCFGR_DDCID_MASK) >>
 	     _RISAB_PG_CIDCFGR_DDCID_SHIFT) == RIF_CID1)
 		return true;
