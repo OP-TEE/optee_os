@@ -13,8 +13,13 @@
 
 /*
  * Copied from TEE Internal API specificaion v1.0 table 6-9 "Structure of
- * Algorithm Identifier".
+ * Algorithm Identifier" and extended with new values to support
+ * algorithms introduced in API specification v1.1 and later.
+ *
+ * TEE_MAIN_ALGO_UNDEFINED is explicitly 0 and denotes the hash
+ * algorithm is not identified.
  */
+#define TEE_MAIN_ALGO_UNDEFINED  0x00
 #define TEE_MAIN_ALGO_MD5        0x01
 #define TEE_MAIN_ALGO_SHA1       0x02
 #define TEE_MAIN_ALGO_SHA224     0x03
