@@ -129,6 +129,8 @@ static inline uint32_t __tee_alg_get_main_alg(uint32_t algo)
  * Most TEE_ALG_* values where internal hash algorithm ID is defined use
  * bits 15-12 for that purpose (legacy from TEE Internal Core API v1.1).
  * Consider here algo the few other specific cases.
+ * This function returns 0 (TEE_MAIN_ALGO_UNDEFINED) when the hash
+ * algorithm is not defined.
  */
 static inline uint32_t __tee_alg_get_digest_hash(uint32_t algo)
 {
@@ -145,6 +147,12 @@ static inline uint32_t __tee_alg_get_digest_hash(uint32_t algo)
 	case TEE_ALG_ECDSA_SHA384:
 	case TEE_ALG_ECDSA_SHA512:
 		return main_algo + 1;
+	case __OPTEE_ALG_ECDSA_P192:
+	case __OPTEE_ALG_ECDSA_P224:
+	case __OPTEE_ALG_ECDSA_P256:
+	case __OPTEE_ALG_ECDSA_P384:
+	case __OPTEE_ALG_ECDSA_P521:
+		return TEE_MAIN_ALGO_UNDEFINED;
 	default:
 		return main_algo;
 	}
