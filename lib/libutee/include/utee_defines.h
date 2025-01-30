@@ -131,6 +131,8 @@ static inline uint32_t __tee_alg_get_digest_hash(uint32_t algo)
 	uint32_t main_algo = (algo >> 12) & 0xF;
 
 	switch (algo) {
+	case TEE_ALG_ED448:
+		return TEE_MAIN_ALGO_SHAKE256;
 	case TEE_ALG_SM2_DSA_SM3:
 	case TEE_ALG_ECDSA_SHA1:
 	case TEE_ALG_ECDSA_SHA224:
