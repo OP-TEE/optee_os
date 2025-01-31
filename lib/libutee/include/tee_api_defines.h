@@ -332,22 +332,29 @@
 #define __OPTEE_ALG_ECDH_P521			0x80005042
 
 /*
- * TEE_ALG_ECDSA_P* and TEE_ALG_ECDH_P* are deprecated on API v1.2 or later
- * hence are supported (and defined) only __OPTEE_CORE_API_COMPAT_1_1 is
- * enabled.
+ * TEE_ALG_ECDSA_P* are deprecated on API v1.2 or later and are replaced
+ * with TEE_ALG_ECDSA_SHA* and that have the same value but a different
+ * meaning (defined the related hash algorithm). Therefore assign ID values
+ * of __OPTEE_ALG_ECDSA_P* to the deprecated macros to avoid confusion
+ * while still supporting the algorithm for portability and backward
+ * compatibility purposes.
  */
-#if __OPTEE_CORE_API_COMPAT_1_1
 #define TEE_ALG_ECDSA_P192			__OPTEE_ALG_ECDSA_P192
 #define TEE_ALG_ECDSA_P224			__OPTEE_ALG_ECDSA_P224
 #define TEE_ALG_ECDSA_P256			__OPTEE_ALG_ECDSA_P256
 #define TEE_ALG_ECDSA_P384			__OPTEE_ALG_ECDSA_P384
 #define TEE_ALG_ECDSA_P521			__OPTEE_ALG_ECDSA_P521
-#define TEE_ALG_ECDH_P192			__OPTEE_ALG_ECDH_P192
-#define TEE_ALG_ECDH_P224			__OPTEE_ALG_ECDH_P224
-#define TEE_ALG_ECDH_P256			__OPTEE_ALG_ECDH_P256
-#define TEE_ALG_ECDH_P384			__OPTEE_ALG_ECDH_P384
-#define TEE_ALG_ECDH_P521			__OPTEE_ALG_ECDH_P521
-#endif
+
+/*
+ * TEE_ALG_ECDH_P* are deprecated on API v1.2 or later and are replaced with
+ * unique TEE_ALG_ECDH_DERIVE_SHARED_SECRET. We still define deprecated IDs
+ * for portability and backward compatibility purposes.
+ */
+#define TEE_ALG_ECDH_P192		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
+#define TEE_ALG_ECDH_P224		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
+#define TEE_ALG_ECDH_P256		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
+#define TEE_ALG_ECDH_P384		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
+#define TEE_ALG_ECDH_P521		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
 
 #define TEE_ALG_ECDH_DERIVE_SHARED_SECRET	0x80000042
 #define TEE_ALG_ECDSA_SHA1			0x70001042
