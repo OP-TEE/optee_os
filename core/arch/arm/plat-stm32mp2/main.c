@@ -175,7 +175,7 @@ bool stm32mp_allow_probe_shared_device(const void *fdt, int node)
 	return false;
 }
 
-void plat_abort_handler(struct thread_abort_regs *regs __unused)
+void plat_abort_handler(struct abort_info *ai __unused)
 {
 	/* If fault is ignored, it could be due to a SERC event */
 	stm32_serc_handle_ilac();
