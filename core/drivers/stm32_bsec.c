@@ -17,6 +17,7 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stm32_util.h>
+#include <stdlib_ext.h>
 #include <string.h>
 #include <tee_api_defines.h>
 #include <types_ext.h>
@@ -317,6 +318,61 @@ TEE_Result stm32_bsec_read_otp(uint32_t *value, uint32_t otp_id)
 			   (otp_id * sizeof(uint32_t)));
 
 	return TEE_SUCCESS;
+}
+
+/*
+ * Read a range of OTP data values thanks to the name of the cell
+ * @name: Name of the cell describing the OTP range
+ * @len : Size of the OTP range to read
+ * @values : Output read values
+ */
+TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
+					     size_t len, uint8_t **values)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t otp_bit_offset = 0;
+	uint32_t *data_buf = NULL;
+	size_t otp_bit_len = 0;
+	uint32_t otp_start = 0;
+	size_t otp_length = 0;
+	uint32_t otp_id = 0;
+
+	res = stm32_bsec_find_otp_in_nvmem_layout(name, &otp_start,
+						  &otp_bit_offset,
+						  &otp_bit_len);
+	if (res) {
+		EMSG("Can't find %s", name);
+		return res;
+	}
+
+	if (otp_bit_offset || otp_bit_len != len * CHAR_BIT) {
+		EMSG("Bad key OTP alignment");
+		return TEE_ERROR_GENERIC;
+	}
+
+	otp_length = len / sizeof(uint32_t);
+	data_buf = (uint32_t *)calloc(otp_length, sizeof(uint32_t));
+	if (!data_buf)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*values = (uint8_t *)data_buf;
+
+	for (otp_id = otp_start; otp_id < otp_start + otp_length;
+	     otp_id++, data_buf++) {
+		/* Read key in OTP */
+		res = stm32_bsec_read_otp(data_buf, otp_id);
+		if (res)
+			goto clean_values;
+	}
+
+	/* values has to be freed by API caller */
+	return TEE_SUCCESS;
+
+clean_values:
+	free_wipe(*values);
+	*values = NULL;
+
+	return res;
 }
 
 TEE_Result stm32_bsec_shadow_read_otp(uint32_t *otp_value, uint32_t otp_id)

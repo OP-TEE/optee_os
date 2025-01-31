@@ -105,6 +105,15 @@ TEE_Result stm32_bsec_shadow_register(uint32_t otp_id);
 TEE_Result stm32_bsec_read_otp(uint32_t *value, uint32_t otp_id);
 
 /*
+ * Read a range of OTP data values thanks to the name of the cell
+ * @name: Name of the cell describing the OTP range
+ * @len : Size of the OTP range to read
+ * @values : Output read values
+ */
+TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
+					     size_t len, uint8_t **values);
+
+/*
  * Write value in BSEC data register
  * @value: Value to write
  * @otp_id: OTP number
