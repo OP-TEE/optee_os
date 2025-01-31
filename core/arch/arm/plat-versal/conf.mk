@@ -76,6 +76,7 @@ CFG_VERSAL_PM ?= y
 
 # TRNG driver
 $(call force, CFG_VERSAL_RNG_DRV,y)
+$(call force, CFG_VERSAL_RNG_DRV_V2,y)
 $(call force, CFG_WITH_SOFTWARE_PRNG,n)
 
 ifeq ($(PLATFORM_FLAVOR),net)

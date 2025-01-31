@@ -75,12 +75,34 @@
 #define TRNG_STATUS_DTF_MASK		BIT(1)
 #define TRNG_STATUS_DONE_MASK		BIT(0)
 #define TRNG_CTRL			0x08
+#define TRNG_CTRL_PERSODISABLE		BIT(10)
+#define TRNG_CTRL_SINGLEGENMODE		BIT(9)
 #define TRNG_CTRL_EUMODE_MASK		BIT(8)
 #define TRNG_CTRL_PRNGMODE_MASK		BIT(7)
+#define TRNG_CTRL_TSTMODE_MASK		BIT(6)
 #define TRNG_CTRL_PRNGSTART_MASK	BIT(5)
 #define TRNG_CTRL_PRNGXS_MASK		BIT(3)
 #define TRNG_CTRL_TRSSEN_MASK		BIT(2)
 #define TRNG_CTRL_PRNGSRST_MASK		BIT(0)
+
+#if defined(CFG_VERSAL_RNG_DRV_V2)
+#define TRNG_CTRL_2			0x0C
+#define TRNG_CTRL_2_RCTCUTOFF_SHIFT	8
+#define TRNG_CTRL_2_RCTCUTOFF_MASK	GENMASK_32(16, 8)
+#define TRNG_CTRL_2_RCTCUTOFF_DEFVAL	0x21
+#define TRNG_CTRL_2_DIT_SHIFT		0
+#define TRNG_CTRL_2_DIT_MASK		GENMASK_32(4, 0)
+#define TRNG_CTRL_2_DIT_DEFVAL		0xC
+#define TRNG_CTRL_3			0x10
+#define TRNG_CTRL_3_APTCUTOFF_SHIFT	8
+#define TRNG_CTRL_3_APTCUTOFF_MASK	GENMASK_32(17, 8)
+#define TRNG_CTRL_3_APTCUTOFF_DEFVAL	0x264
+#define TRNG_CTRL_3_DLEN_SHIFT		0
+#define TRNG_CTRL_3_DLEN_MASK		GENMASK_32(7, 0)
+#define TRNG_CTRL_3_DLEN_DEFVAL		0x9
+#define TRNG_CTRL_4			0x14
+#endif
+
 #define TRNG_EXT_SEED_0			0x40
 /*
  * Below registers are not directly referenced in driver but are accessed
@@ -582,6 +604,12 @@ static TEE_Result trng_reseed_internal_nodf(struct versal_trng *trng,
 	uint8_t entropy[TRNG_SEED_LEN] = { 0 };
 	uint8_t *seed = NULL;
 
+#if defined(CFG_VERSAL_RNG_DRV_V2)
+	if (trng->cfg.version == TRNG_V2)
+		trng_clrset32(trng->cfg.addr, TRNG_CTRL_3,
+			      TRNG_CTRL_3_DLEN_MASK, TRNG_CTRL_3_DLEN_DEFVAL);
+#endif
+
 	switch (trng->usr_cfg.mode) {
 	case TRNG_HRNG:
 		trng_write32(trng->cfg.addr, TRNG_OSC_EN, TRNG_OSC_EN_VAL_MASK);
@@ -658,7 +686,7 @@ static TEE_Result trng_reseed_internal(struct versal_trng *trng,
 	else
 		trng->len = (mul + 1) * BYTES_PER_BLOCK;
 
-	if (trng->usr_cfg.df_disable) {
+	if (trng->usr_cfg.df_disable || trng->cfg.version == TRNG_V2) {
 		if (trng_reseed_internal_nodf(trng, eseed, str))
 			goto error;
 	} else {
@@ -740,6 +768,21 @@ static TEE_Result trng_instantiate(struct versal_trng *trng,
 	if (trng->usr_cfg.pstr_en)
 		pers = (void *)trng->usr_cfg.pstr;
 
+	if (trng->cfg.version == TRNG_V2 &&
+	    (usr_cfg->mode == TRNG_PTRNG || usr_cfg->mode == TRNG_HRNG)) {
+		/* Configure cutoff test values */
+		trng_clrset32(trng->cfg.addr, TRNG_CTRL_3,
+			      TRNG_CTRL_3_APTCUTOFF_MASK,
+			      TRNG_CTRL_3_APTCUTOFF_DEFVAL
+			      << TRNG_CTRL_3_APTCUTOFF_SHIFT);
+		trng_clrset32(trng->cfg.addr, TRNG_CTRL_2,
+			      TRNG_CTRL_2_RCTCUTOFF_MASK,
+			      TRNG_CTRL_2_RCTCUTOFF_DEFVAL
+			      << TRNG_CTRL_2_RCTCUTOFF_SHIFT);
+		trng_clrset32(trng->cfg.addr, TRNG_CTRL_2,
+			      TRNG_CTRL_2_DIT_MASK,
+			      TRNG_CTRL_2_DIT_DEFVAL << TRNG_CTRL_2_DIT_SHIFT);
+	}
 	if (trng->usr_cfg.mode != TRNG_PTRNG) {
 		if (trng_reseed_internal(trng, seed, pers, trng->usr_cfg.dfmul))
 			goto error;
@@ -986,6 +1029,98 @@ error:
 	return TEE_ERROR_GENERIC;
 }
 
+static TEE_Result trng_kat_test_v2(struct versal_trng *trng)
+{
+	struct trng_usr_cfg tests = {
+		.mode = TRNG_DRNG,
+		.seed_life = 2,
+		.dfmul = 7,
+		.predict_en = false,
+		.iseed_en = true,
+		.pstr_en = true,
+		.df_disable = false,
+	};
+	const uint8_t ext_seed[TRNG_V2_SEED_LEN] = {
+		0x3BU, 0xC3U, 0xEDU, 0x64U, 0xF4U, 0x80U, 0x1CU, 0xC7U,
+		0x14U, 0xCCU, 0x35U, 0xEDU, 0x57U, 0x01U, 0x2AU, 0xE4U,
+		0xBCU, 0xEFU, 0xDEU, 0xF6U, 0x7CU, 0x46U, 0xA6U, 0x34U,
+		0xC6U, 0x79U, 0xE8U, 0x91U, 0x5DU, 0xB1U, 0xDBU, 0xA7U,
+		0x49U, 0xA5U, 0xBBU, 0x4FU, 0xEDU, 0x30U, 0xB3U, 0x7BU,
+		0xA9U, 0x8BU, 0xF5U, 0x56U, 0x4DU, 0x40U, 0x18U, 0x9FU,
+		0x66U, 0x4EU, 0x39U, 0xC0U, 0x60U, 0xC8U, 0x8EU, 0xF4U,
+		0x1CU, 0xB9U, 0x9DU, 0x7BU, 0x97U, 0x8BU, 0x69U, 0x62U,
+		0x45U, 0x0CU, 0xD4U, 0x85U, 0xFCU, 0xDCU, 0x5AU, 0x2BU,
+		0xFDU, 0xABU, 0x92U, 0x4AU, 0x12U, 0x52U, 0x7DU, 0x45U,
+		0xD2U, 0x61U, 0x0AU, 0x06U, 0x74U, 0xA7U, 0x88U, 0x36U,
+		0x4BU, 0xA2U, 0x65U, 0xEEU, 0x71U, 0x0BU, 0x5AU, 0x4EU,
+		0x33U, 0xB2U, 0x7AU, 0x2EU, 0xC0U, 0xA6U, 0xF2U, 0x7DU,
+		0xBDU, 0x7DU, 0xDFU, 0x07U, 0xBBU, 0xE2U, 0x86U, 0xFFU,
+		0xF0U, 0x8EU, 0xA4U, 0xB1U, 0x46U, 0xDBU, 0xF7U, 0x8CU,
+		0x3CU, 0x62U, 0x4DU, 0xF0U, 0x51U, 0x50U, 0xE7U, 0x85U
+	};
+	uint8_t reseed_entropy[TRNG_V2_SEED_LEN] = {
+		0xDFU, 0x5EU, 0x4DU, 0x4FU, 0x38U, 0x9EU, 0x2AU, 0x3EU,
+		0xF2U, 0xABU, 0x46U, 0xE3U, 0xA0U, 0x26U, 0x77U, 0x84U,
+		0x0BU, 0x9DU, 0x29U, 0xB0U, 0x5DU, 0xCEU, 0xC8U, 0xC3U,
+		0xF9U, 0x4DU, 0x32U, 0xF7U, 0xBAU, 0x6FU, 0xA3U, 0xB5U,
+		0x35U, 0xCBU, 0xC7U, 0x5CU, 0x62U, 0x48U, 0x01U, 0x65U,
+		0x3AU, 0xAAU, 0x34U, 0x2DU, 0x89U, 0x6EU, 0xEFU, 0x6FU,
+		0x69U, 0x96U, 0xE7U, 0x84U, 0xDAU, 0xEFU, 0x4EU, 0xBEU,
+		0x27U, 0x4EU, 0x9FU, 0x88U, 0xB1U, 0xA0U, 0x7FU, 0x83U,
+		0xDBU, 0x4AU, 0xA9U, 0x42U, 0x01U, 0xF1U, 0x84U, 0x71U,
+		0xA9U, 0xEFU, 0xB9U, 0xE8U, 0x7FU, 0x81U, 0xC7U, 0xC1U,
+		0x6CU, 0x5EU, 0xACU, 0x00U, 0x47U, 0x34U, 0xA1U, 0x75U,
+		0xC0U, 0xE8U, 0x7FU, 0x48U, 0x00U, 0x45U, 0xC9U, 0xE9U,
+		0x41U, 0xE3U, 0x8DU, 0xD8U, 0x4AU, 0x63U, 0xC4U, 0x94U,
+		0x77U, 0x59U, 0xD9U, 0x50U, 0x2AU, 0x1DU, 0x4CU, 0x47U,
+		0x64U, 0xA6U, 0x66U, 0x60U, 0x16U, 0xE7U, 0x29U, 0xC0U,
+		0xB1U, 0xCFU, 0x3BU, 0x3FU, 0x54U, 0x49U, 0x31U, 0xD4U
+	};
+	const uint8_t pers_str[TRNG_PERS_STR_LEN] = {
+		0xB2U, 0x80U, 0x7EU, 0x4CU, 0xD0U, 0xE4U, 0xE2U, 0xA9U,
+		0x2FU, 0x1FU, 0x5DU, 0xC1U, 0xA2U, 0x1FU, 0x40U, 0xFCU,
+		0x1FU, 0x24U, 0x5DU, 0x42U, 0x61U, 0x80U, 0xE6U, 0xE9U,
+		0x71U, 0x05U, 0x17U, 0x5BU, 0xAFU, 0x70U, 0x30U, 0x18U,
+		0xBCU, 0x23U, 0x18U, 0x15U, 0xCBU, 0xB8U, 0xA6U, 0x3EU,
+		0x83U, 0xB8U, 0x4AU, 0xFEU, 0x38U, 0xFCU, 0x25U, 0x87U,
+	};
+	const uint8_t expected_out[TRNG_GEN_LEN] = {
+		0xEEU, 0xA7U, 0x5BU, 0xB6U, 0x2BU, 0x97U, 0xF0U, 0xC0U,
+		0x0FU, 0xD6U, 0xABU, 0x13U, 0x00U, 0x87U, 0x7EU, 0xF4U,
+		0x00U, 0x7FU, 0xD7U, 0x56U, 0xFEU, 0xE5U, 0xDFU, 0xA6U,
+		0x55U, 0x5BU, 0xB2U, 0x86U, 0xDDU, 0x81U, 0x73U, 0xB2U
+	};
+	uint8_t out[TRNG_GEN_LEN] = { 0 };
+
+	if (!trng)
+		return TEE_ERROR_GENERIC;
+
+	memcpy(&tests.init_seed, ext_seed, sizeof(ext_seed));
+	memcpy(tests.pstr, pers_str, sizeof(pers_str));
+
+	if (trng_instantiate(trng, &tests))
+		goto error;
+
+	if (trng_reseed(trng, reseed_entropy, 7))
+		goto error;
+
+	if (trng_generate(trng, out, sizeof(out), false))
+		goto error;
+
+	if (memcmp(out, expected_out, TRNG_GEN_LEN)) {
+		EMSG("K.A.T mismatch");
+		goto error;
+	}
+
+	if (trng_release(trng))
+		goto error;
+
+	return TEE_SUCCESS;
+error:
+	trng->status = TRNG_ERROR;
+	return TEE_ERROR_GENERIC;
+}
+
 TEE_Result versal_trng_get_random_bytes(struct versal_trng *trng,
 					void *buf, size_t len)
 {
@@ -1021,9 +1156,23 @@ TEE_Result versal_trng_hw_init(struct versal_trng *trng,
 		panic();
 	}
 
-	if (trng_kat_test(trng)) {
-		EMSG("KAT Failed");
-		panic();
+	switch (trng->cfg.version) {
+	case TRNG_V1:
+		if (trng_kat_test(trng)) {
+			EMSG("KAT Failed");
+			panic();
+		}
+		break;
+
+	case TRNG_V2:
+		if (trng_kat_test_v2(trng)) {
+			EMSG("KAT Failed");
+			panic();
+		}
+		break;
+
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	if (trng_health_test(trng)) {
@@ -1051,6 +1200,7 @@ TEE_Result versal_trng_hw_init(struct versal_trng *trng,
 static struct versal_trng versal_trng = {
 	.cfg.base = TRNG_BASE,
 	.cfg.len = TRNG_SIZE,
+	.cfg.version = TRNG_V1,
 };
 
 TEE_Result hw_get_random_bytes(void *buf, size_t len)

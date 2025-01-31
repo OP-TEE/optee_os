@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
+ * Copyright (C) 2022 Xilinx, Inc.  All rights reserved.
+ * Copyright (C) 2022 Foundries Ltd.
  * Copyright (C) 2023 ProvenRun SAS.
  */
 
@@ -13,6 +15,7 @@
 #include <util.h>
 
 #define TRNG_SEED_LEN		48
+#define TRNG_V2_SEED_LEN	128
 #define TRNG_PERS_STR_REGS	12
 #define TRNG_PERS_STR_LEN	48
 #define RAND_BUF_LEN		4
@@ -29,6 +32,11 @@
 #define DF_KEY_LEN		32
 #define BLK_SIZE		16
 #define MAX_ROUNDS		14
+
+enum trng_version {
+	TRNG_V1 = 1,
+	TRNG_V2 = 2,
+};
 
 enum trng_status {
 	TRNG_UNINITIALIZED = 0,
@@ -47,6 +55,7 @@ struct trng_cfg {
 	paddr_t base;
 	vaddr_t addr;
 	size_t len;
+	enum trng_version version;
 };
 
 struct trng_usr_cfg {

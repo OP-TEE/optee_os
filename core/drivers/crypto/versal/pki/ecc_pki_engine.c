@@ -29,6 +29,7 @@
 static struct versal_trng ecc_pki_trng = {
 	.cfg.base = TRNG_BASE,
 	.cfg.len = TRNG_SIZE,
+	.cfg.version = TRNG_V2,
 };
 
 static TEE_Result versal_ecc_trng_init(void)
