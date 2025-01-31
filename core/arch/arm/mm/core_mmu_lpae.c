@@ -1443,6 +1443,8 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 	assert(fault_descr & FSR_LPAE);
 
 	switch (fault_descr & FSR_STATUS_MASK) {
+	case 0x8: /* b01000 Asynchronous extern abort */
+		return CORE_MMU_FAULT_SYNC_EXTERNAL;
 	case 0x21: /* b100001 Alignment fault */
 		return CORE_MMU_FAULT_ALIGNMENT;
 	case 0x11: /* b010001 Asynchronous extern abort (DFSR only) */
@@ -1558,6 +1560,14 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 			return CORE_MMU_FAULT_ALIGNMENT;
 		case ESR_FSC_TAG_CHECK:
 			return CORE_MMU_FAULT_TAG_CHECK;
+		case ESR_FSC_SEA_NTT:
+		case ESR_FSC_SEA_TT_SUB_L2:
+		case ESR_FSC_SEA_TT_SUB_L1:
+		case ESR_FSC_SEA_TT_L0:
+		case ESR_FSC_SEA_TT_L1:
+		case ESR_FSC_SEA_TT_L2:
+		case ESR_FSC_SEA_TT_L3:
+			return CORE_MMU_FAULT_SYNC_EXTERNAL;
 		default:
 			return CORE_MMU_FAULT_OTHER;
 		}
