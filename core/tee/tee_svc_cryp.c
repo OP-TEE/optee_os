@@ -3353,8 +3353,8 @@ static TEE_Result get_hkdf_params(uint32_t algo, const TEE_Attribute *params,
 		*hash_id = TEE_ALG_SHA256;
 	} else {
 		*hash_id = TEE_ALG_GET_DIGEST_HASH(algo);
-		assert(*hash_id != TEE_MAIN_ALGO_UNDEFINED);
-		found |= HASH;
+		if (*hash_id != TEE_MAIN_ALGO_UNDEFINED)
+			found |= HASH;
 	}
 
 	for (n = 0; n < param_count; n++) {
@@ -3886,8 +3886,6 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		struct tee_cryp_obj_secret *ss = ko->attr;
 		const uint8_t *shared_secret = (const uint8_t *)(ss + 1);
 
-		assert(hash_id != TEE_MAIN_ALGO_UNDEFINED);
-
 		res = get_concat_kdf_params(params, param_count, &info,
 					    &info_len, &derived_key_len);
 		if (res != TEE_SUCCESS)
@@ -3916,8 +3914,6 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		uint32_t hash_id = TEE_ALG_GET_DIGEST_HASH(cs->algo);
 		struct tee_cryp_obj_secret *ss = ko->attr;
 		const uint8_t *password = (const uint8_t *)(ss + 1);
-
-		assert(hash_id != TEE_MAIN_ALGO_UNDEFINED);
 
 		res = get_pbkdf2_params(params, param_count, &salt, &salt_len,
 					&derived_key_len, &iteration_count);
