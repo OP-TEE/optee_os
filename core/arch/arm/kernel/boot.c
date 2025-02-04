@@ -1069,8 +1069,14 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 
 	boot_primary_init_intc();
 	init_vfp_nsec();
-	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		/* Unmask native interrupts during driver initcalls */
+		thread_set_exceptions(thread_get_exceptions() &
+				      ~THREAD_EXCP_NATIVE_INTR);
 		init_tee_runtime();
+		thread_set_exceptions(thread_get_exceptions() |
+				      THREAD_EXCP_NATIVE_INTR);
+	}
 }
 
 /*
@@ -1082,10 +1088,19 @@ void __weak boot_init_primary_final(void)
 	if (!IS_ENABLED(CFG_WITH_PAGER))
 		boot_mem_release_tmp_alloc();
 
+	/* Unmask native interrupts during init/finalcalls */
+	thread_set_exceptions(thread_get_exceptions() &
+			      ~THREAD_EXCP_NATIVE_INTR);
+
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		call_driver_initcalls();
+
 	call_finalcalls();
+
 	IMSG("Primary CPU switching to normal world boot");
+
+	thread_set_exceptions(thread_get_exceptions() |
+			      THREAD_EXCP_NATIVE_INTR);
 }
 
 static void init_secondary_helper(unsigned long nsec_entry)
