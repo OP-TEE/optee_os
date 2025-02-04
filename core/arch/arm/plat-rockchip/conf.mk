@@ -9,6 +9,10 @@ CFG_WITH_STATS ?= y
 CFG_NUM_THREADS ?= 4
 CFG_EARLY_CONSOLE ?= n
 
+ifneq ($(PLATFORM_FLAVOR),rk322x)
+CFG_DTB_MAX_SIZE ?= 0x60000
+endif
+
 ifeq ($(PLATFORM_FLAVOR),rk322x)
 include ./core/arch/arm/cpu/cortex-a7.mk
 $(call force,CFG_TEE_CORE_NB_CORE,4)
@@ -77,8 +81,6 @@ CFG_EARLY_CONSOLE_BASE ?= UART2_BASE
 CFG_EARLY_CONSOLE_SIZE ?= UART2_SIZE
 CFG_EARLY_CONSOLE_BAUDRATE ?= 1500000
 CFG_EARLY_CONSOLE_CLK_IN_HZ ?= 24000000
-
-CFG_DTB_MAX_SIZE ?= 0x60000
 endif
 
 ifeq ($(platform-flavor-armv8),1)
