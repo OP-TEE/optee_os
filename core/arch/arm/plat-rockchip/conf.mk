@@ -60,6 +60,7 @@ ifeq ($(PLATFORM_FLAVOR),rk3588)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_TEE_CORE_NB_CORE,8)
 $(call force,CFG_ARM_GICV3,y)
+$(call force,CFG_AUTO_MAX_PA_BITS,y)
 $(call force,CFG_CRYPTO_WITH_CE,y)
 
 CFG_TZDRAM_START ?= 0x08400000
@@ -72,6 +73,8 @@ CFG_EARLY_CONSOLE_BASE ?= UART2_BASE
 CFG_EARLY_CONSOLE_SIZE ?= UART2_SIZE
 CFG_EARLY_CONSOLE_BAUDRATE ?= 1500000
 CFG_EARLY_CONSOLE_CLK_IN_HZ ?= 24000000
+
+CFG_DTB_MAX_SIZE ?= 0x60000
 endif
 
 ifeq ($(platform-flavor-armv8),1)
