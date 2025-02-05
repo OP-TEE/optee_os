@@ -11,6 +11,7 @@
 #include <libfdt.h>
 #include <scmi_agent_configuration.h>
 #include <scmi_clock_consumer.h>
+#include <scmi_reset_consumer.h>
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <util.h>
@@ -69,6 +70,7 @@ static void scmi_scpfw_free_agent(struct scpfw_agent_config *agent_cfg)
 		struct scpfw_channel_config *channel_cfg =
 			agent_cfg->channel_config + j;
 
+		free(channel_cfg->reset);
 		free(channel_cfg->clock);
 	}
 	free(agent_cfg->channel_config);
@@ -191,6 +193,11 @@ optee_scmi_server_init_protocol(const void *fdt,
 		if (optee_scmi_server_init_clocks(fdt, protocol_ctx->dt_node,
 						  agent_cfg, channel_cfg))
 			panic("Error during clocks init");
+		break;
+	case SCMI_PROTOCOL_ID_RESET_DOMAIN:
+		if (optee_scmi_server_init_resets(fdt, protocol_ctx->dt_node,
+						  agent_cfg, channel_cfg))
+			panic("Error during resets init");
 		break;
 	default:
 		EMSG("%s Unknown protocol ID: %#x", protocol_ctx->dt_name,

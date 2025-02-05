@@ -7,6 +7,7 @@
 #define SCMI_AGENT_CONFIGURATION_H
 
 #include <drivers/clk.h>
+#include <drivers/rstctrl.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -25,17 +26,31 @@ struct scmi_clock {
 };
 
 /*
+ * struct scmi_reset - Description of a reset domain
+ * @name: Domain name
+ * @rstctrl: Reset controlled by the domain
+ */
+struct scmi_reset {
+	const char *name;
+	struct rstctrl *rstctrl;
+};
+
+/*
  * struct scpfw_channel_config - SCMI channel resources
  * @name: Channel name
  * @channel_id: ID for the channel in OP-TEE SCMI bindings
  * @clock: Description of the clocks exposed on the channel
  * @clock_count: Number of cells of @clock
+ * @reset: Description of the reset conntrollers exposed on the channel
+ * @reset_count: Number of cells of @reset
  */
 struct scpfw_channel_config {
 	const char *name;
 	unsigned int channel_id;
 	struct scmi_clock *clock;
 	size_t clock_count;
+	struct scmi_reset *reset;
+	size_t reset_count;
 };
 
 /*
