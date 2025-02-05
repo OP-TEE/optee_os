@@ -6,18 +6,36 @@
 #ifndef SCMI_AGENT_CONFIGURATION_H
 #define SCMI_AGENT_CONFIGURATION_H
 
+#include <drivers/clk.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 /* Structure used to describe the SCMI agents */
 
 /*
+ * struct scmi_clock - Description of a clock domain
+ * @name: Domain name
+ * @clk: Clock instance controlled by the domain
+ * @enabled: Default state of the clock
+ */
+struct scmi_clock {
+	const char *name;
+	struct clk *clk;
+	bool enabled;
+};
+
+/*
  * struct scpfw_channel_config - SCMI channel resources
  * @name: Channel name
  * @channel_id: ID for the channel in OP-TEE SCMI bindings
+ * @clock: Description of the clocks exposed on the channel
+ * @clock_count: Number of cells of @clock
  */
 struct scpfw_channel_config {
 	const char *name;
 	unsigned int channel_id;
+	struct scmi_clock *clock;
+	size_t clock_count;
 };
 
 /*
