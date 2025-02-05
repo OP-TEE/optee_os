@@ -66,25 +66,17 @@ static TEE_Result do_hash_final(struct crypto_hash_ctx *ctx, uint8_t *digest,
 				size_t len)
 {
 	struct stm32_hash_ctx *c = to_stm32_hash_ctx(ctx);
-	TEE_Result res = TEE_SUCCESS;
-	uint8_t *full_digest = NULL;
-	bool alloc = false;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t block_digest[STM32_HASH_MAX_DIGEST_SIZE] = { 0 };
+	uint8_t *tmp_digest = digest;
 
-	if (len < stm32_hash_digest_size(&c->hash)) {
-		full_digest = malloc(stm32_hash_digest_size(&c->hash));
-		if (!full_digest)
-			return TEE_ERROR_OUT_OF_MEMORY;
-		alloc = true;
-	} else {
-		full_digest = digest;
-	}
+	if (len < stm32_hash_digest_size(&c->hash))
+		tmp_digest = block_digest;
 
-	res = stm32_hash_final(&c->hash, full_digest, NULL, 0);
+	res = stm32_hash_final(&c->hash, tmp_digest, NULL, 0);
 
-	if (alloc) {
-		memcpy(digest, full_digest, len);
-		free(full_digest);
-	}
+	if (res == TEE_SUCCESS && len < stm32_hash_digest_size(&c->hash))
+		memcpy(digest, tmp_digest, len);
 
 	return res;
 }
@@ -138,7 +130,7 @@ static const struct crypto_hash_ops hash_ops = {
 static TEE_Result stm32_hash_allocate(struct crypto_hash_ctx **ctx,
 				      uint32_t algo)
 {
-	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	struct stm32_hash_ctx *c = NULL;
 	enum stm32_hash_algo stm32_algo = STM32_HASH_SHA256;
 

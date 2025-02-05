@@ -34,6 +34,8 @@ static struct stm32_hmac_ctx *to_stm32_hmac_ctx(struct crypto_mac_ctx *ctx)
  * Initialization of the hmac operation
  *
  * @ctx   Operation software context
+ * @key   Key used for hmac operation
+ * @len   Length of @key in bytes
  */
 static TEE_Result do_hmac_init(struct crypto_mac_ctx *ctx, const uint8_t *key,
 			       size_t len)
@@ -70,6 +72,11 @@ static TEE_Result do_hmac_update(struct crypto_mac_ctx *ctx,
 {
 	struct stm32_hmac_ctx *c = to_stm32_hmac_ctx(ctx);
 
+	if (!c->key) {
+		EMSG("NULL key pointer");
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
 	return stm32_hash_update(&c->hash, data, len);
 }
 
@@ -84,25 +91,22 @@ static TEE_Result do_hmac_final(struct crypto_mac_ctx *ctx, uint8_t *digest,
 				size_t len)
 {
 	struct stm32_hmac_ctx *c = to_stm32_hmac_ctx(ctx);
-	TEE_Result res = TEE_SUCCESS;
-	uint8_t *full_digest = NULL;
-	bool alloc = false;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t block_digest[STM32_HASH_MAX_DIGEST_SIZE] = { 0 };
+	uint8_t *tmp_digest = digest;
 
-	if (len < stm32_hash_digest_size(&c->hash)) {
-		full_digest = malloc(stm32_hash_digest_size(&c->hash));
-		if (!full_digest)
-			return TEE_ERROR_OUT_OF_MEMORY;
-		alloc = true;
-	} else {
-		full_digest = digest;
+	if (!c->key) {
+		EMSG("NULL key pointer");
+		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
-	res = stm32_hash_final(&c->hash, full_digest, c->key, c->key_len);
+	if (len < stm32_hash_digest_size(&c->hash))
+		tmp_digest = block_digest;
 
-	if (alloc) {
-		memcpy(digest, full_digest, len);
-		free(full_digest);
-	}
+	res = stm32_hash_final(&c->hash, tmp_digest, c->key, c->key_len);
+
+	if (res == TEE_SUCCESS && len < stm32_hash_digest_size(&c->hash))
+		memcpy(digest, tmp_digest, len);
 
 	return res;
 }
@@ -167,8 +171,8 @@ static const struct crypto_mac_ops hmac_ops = {
 static TEE_Result stm32_hmac_allocate(struct crypto_mac_ctx **ctx,
 				      uint32_t algo)
 {
-	TEE_Result res = TEE_SUCCESS;
-	enum stm32_hash_algo stm32_algo;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	enum stm32_hash_algo stm32_algo = STM32_HASH_MD5;
 	struct stm32_hmac_ctx *c = NULL;
 
 	switch (TEE_ALG_GET_MAIN_ALG(algo)) {

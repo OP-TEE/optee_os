@@ -387,14 +387,14 @@ static TEE_Result hash_get_digest(struct stm32_hash_context *c, uint8_t *digest)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	vaddr_t base = c->dev->pdata.base;
-	uint32_t i = 0U;
-	uint32_t dsg = 0U;
+	uint32_t i = 0;
+	uint32_t dsg = 0;
 
 	res = wait_digest_ready(base);
 	if (res)
 		return res;
 
-	for (i = 0U; i < c->digest_u32; i++) {
+	for (i = 0; i < c->digest_u32; i++) {
 		dsg = TEE_U32_FROM_BIG_ENDIAN(io_read32(base + _HASH_HR(i)));
 		memcpy(digest + (i * sizeof(uint32_t)), &dsg, sizeof(uint32_t));
 	}
@@ -853,7 +853,7 @@ static TEE_Result stm32_hash_probe(const void *fdt, int node,
 	}
 
 	rev = io_read32(stm32_hash->pdata.base + _HASH_VERR);
-	FMSG("STM32 HASH V%u/%u", (rev & _HASH_VERR_MAJREV) >> 4,
+	FMSG("STM32 HASH v%"PRIu32".%"PRIu32, (rev & _HASH_VERR_MAJREV) >> 4,
 	     rev & _HASH_VERR_MINREV);
 
 	if (stm32_hash->pdata.reset &&
@@ -888,8 +888,8 @@ static TEE_Result stm32_hash_probe(const void *fdt, int node,
 }
 
 static const struct stm32_hash_compat mp13_compat = {
-	.caps = (CAPS_SHA1 | CAPS_SHA2_224 | CAPS_SHA2_256 | CAPS_SHA2_384 |
-		 CAPS_SHA2_512 | CAPS_SHA3),
+	.caps = CAPS_SHA1 | CAPS_SHA2_224 | CAPS_SHA2_256 | CAPS_SHA2_384 |
+		CAPS_SHA2_512 | CAPS_SHA3,
 };
 
 static const struct stm32_hash_compat mp15_compat = {
@@ -897,8 +897,8 @@ static const struct stm32_hash_compat mp15_compat = {
 };
 
 static const struct dt_device_match hash_match_table[] = {
-	{ .compatible = "st,stm32mp13-hash", .compat_data = &mp13_compat},
-	{ .compatible = "st,stm32f756-hash", .compat_data = &mp15_compat},
+	{ .compatible = "st,stm32mp13-hash", .compat_data = &mp13_compat },
+	{ .compatible = "st,stm32f756-hash", .compat_data = &mp15_compat },
 	{ }
 };
 

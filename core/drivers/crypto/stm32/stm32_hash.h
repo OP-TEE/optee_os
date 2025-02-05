@@ -11,6 +11,9 @@
 #include <mm/core_memprot.h>
 #include <stdint.h>
 
+/* Max size supported is SHA512 */
+#define STM32_HASH_MAX_DIGEST_SIZE	U(64)
+
 struct stm32_hash_compat {
 	uint32_t caps;
 };
