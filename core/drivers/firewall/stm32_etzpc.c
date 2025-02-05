@@ -14,7 +14,6 @@
 #include <drivers/clk_dt.h>
 #include <drivers/firewall.h>
 #include <drivers/firewall_device.h>
-#include <drivers/stm32_etzpc.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #ifdef CFG_STM32MP15
 #include <drivers/stm32mp1_rcc.h>
@@ -66,6 +65,15 @@
 #define PERIPH_PM_ATTR_MASK		GENMASK_32(2, 0)
 #define TZMA_PM_LOCK_BIT		BIT(15)
 #define TZMA_PM_VALUE_MASK		GENMASK_32(9, 0)
+
+/* ETZPC DECPROT bit field values */
+enum etzpc_decprot_attributes {
+	ETZPC_DECPROT_S_RW = 0,
+	ETZPC_DECPROT_NS_R_S_W = 1,
+	ETZPC_DECPROT_MCU_ISOLATION = 2,
+	ETZPC_DECPROT_NS_RW = 3,
+	ETZPC_DECPROT_MAX = 4,
+};
 
 /*
  * struct stm32_etzpc_platdata - Driver data set at initialization
@@ -218,7 +226,7 @@ static void etzpc_configure_decprot(uint32_t decprot_id,
 	etzpc_unlock(exceptions);
 }
 
-enum etzpc_decprot_attributes etzpc_get_decprot(uint32_t decprot_id)
+static enum etzpc_decprot_attributes etzpc_get_decprot(uint32_t decprot_id)
 {
 	size_t offset = U(4) * (decprot_id / IDS_PER_DECPROT_REGS);
 	uint32_t shift = (decprot_id % IDS_PER_DECPROT_REGS) << DECPROT_SHIFT;
@@ -260,7 +268,7 @@ static bool decprot_is_locked(uint32_t decprot_id)
 	return io_read32(base + offset + ETZPC_DECPROT_LOCK0) & mask;
 }
 
-void etzpc_configure_tzma(uint32_t tzma_id, uint16_t tzma_value)
+static void etzpc_configure_tzma(uint32_t tzma_id, uint16_t tzma_value)
 {
 	size_t offset = sizeof(uint32_t) * tzma_id;
 	vaddr_t base = etzpc_device->pdata.base.va;
