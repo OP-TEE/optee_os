@@ -19,6 +19,7 @@ scpfw-integ-version = $(scpfw-integ-version-maj).$(scpfw-integ-version-min).$(sc
 srcs-y += scmi_server.c
 srcs-$(CFG_SCMI_SCPFW_FROM_DT) += scmi_server_scpfw.c
 srcs-$(CFG_SCMI_SERVER_CLOCK_CONSUMER) += scmi_clock_consumer.c
+srcs-$(CFG_SCMI_SERVER_RESET_CONSUMER) += scmi_reset_consumer.c
 incdirs-y += include
 
 # SCP-firmware cmake configuration generates header fwk_module_idx.h and
