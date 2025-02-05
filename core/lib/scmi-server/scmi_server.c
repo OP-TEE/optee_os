@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2019-2022, Linaro Limited
+ * Copyright (c) 2025, STMicroelectronics
  */
 
 #include <arch_main.h>
@@ -9,6 +10,7 @@
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <optee_scmi.h>
+#include <scmi_agent_configuration.h>
 #include <scmi/scmi_server.h>
 
 /*
@@ -73,6 +75,18 @@ TEE_Result scmi_server_msg_process_thread(unsigned int channel_id,
 static TEE_Result scmi_server_initialize(void)
 {
 	int rc = 0;
+
+	if (IS_ENABLED(CFG_SCMI_SCPFW_FROM_DT)) {
+		struct scpfw_config *cfg = scmi_scpfw_get_configuration();
+
+		assert(cfg);
+		rc = scmi_configure(cfg);
+		if (rc < 0) {
+			EMSG("SCMI server configuration failed: %d", rc);
+			panic();
+		}
+		scmi_scpfw_release_configuration();
+	}
 
 	rc = scmi_arch_init();
 	if (rc < 0) {
