@@ -289,11 +289,6 @@ $(eval $(call cfg-depends-all,CFG_STM32_IWDG,CFG_WDT_SM_HANDLER CFG_WDT))
 # Platform specific configuration
 CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y
 
-# Default enable scmi-msg server if SCP-firmware SCMI server is disabled
-ifneq ($(CFG_SCMI_SCPFW),y)
-CFG_SCMI_MSG_DRIVERS ?= y
-endif
-
 # SiP/OEM service for non-secure world
 CFG_STM32_BSEC_SIP ?= n
 CFG_STM32MP1_SCMI_SIP ?= n
@@ -317,31 +312,17 @@ endif
 # Default disable CPU OPP support
 CFG_STM32_CPU_OPP ?= n
 
-# Default enable SCMI PTA support
-CFG_SCMI_PTA ?= y
-ifeq ($(CFG_SCMI_PTA),y)
-ifneq ($(CFG_SCMI_SCPFW),y)
+# Force enable SCMI PTA support
+$(call force,CFG_SCMI_PTA,y)
 $(call force,CFG_SCMI_MSG_DRIVERS,y,Mandated by CFG_SCMI_PTA)
-CFG_SCMI_MSG_SMT_THREAD_ENTRY ?= y
-CFG_SCMI_MSG_SHM_MSG ?= y
-CFG_SCMI_MSG_SMT ?= y
-endif # !CFG_SCMI_SCPFW
-endif # CFG_SCMI_PTA
-
-CFG_SCMI_SCPFW ?= n
-ifeq ($(CFG_SCMI_SCPFW),y)
-$(call force,CFG_SCMI_SCPFW_PRODUCT,stm32mp1)
-endif
-
-CFG_SCMI_MSG_DRIVERS ?= n
-ifeq ($(CFG_SCMI_MSG_DRIVERS),y)
+$(call force,CFG_SCMI_SCPFW,n,SCPFW for STM32MP1 no is not supported)
 $(call force,CFG_SCMI_MSG_CLOCK,y)
 $(call force,CFG_SCMI_MSG_RESET_DOMAIN,y)
+$(call force,CFG_SCMI_MSG_VOLTAGE_DOMAIN,y)
 CFG_SCMI_MSG_SHM_MSG ?= y
 CFG_SCMI_MSG_SMT ?= y
 CFG_SCMI_MSG_SMT_THREAD_ENTRY ?= y
-$(call force,CFG_SCMI_MSG_VOLTAGE_DOMAIN,y)
-endif
+CFG_SCMI_MSG_THREAD_ENTRY ?= y
 
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
 CFG_HWRNG_PTA ?= y
