@@ -10,6 +10,7 @@
 #include <kernel/panic.h>
 #include <libfdt.h>
 #include <scmi_agent_configuration.h>
+#include <scmi_clock_consumer.h>
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <util.h>
@@ -62,6 +63,14 @@ static struct scpfw_config scpfw_cfg;
 
 static void scmi_scpfw_free_agent(struct scpfw_agent_config *agent_cfg)
 {
+	unsigned int j = 0;
+
+	for (j = 0; j < agent_cfg->channel_count; j++) {
+		struct scpfw_channel_config *channel_cfg =
+			agent_cfg->channel_config + j;
+
+		free(channel_cfg->clock);
+	}
 	free(agent_cfg->channel_config);
 }
 
@@ -174,10 +183,15 @@ static TEE_Result optee_scmi_server_probe_agent(const void *fdt, int agent_node,
 static void
 optee_scmi_server_init_protocol(const void *fdt,
 				struct optee_scmi_server_protocol *protocol_ctx,
-				struct scpfw_agent_config *agent_cfg __unused,
-				struct scpfw_channel_config *channel __unused)
+				struct scpfw_agent_config *agent_cfg,
+				struct scpfw_channel_config *channel_cfg)
 {
 	switch (protocol_ctx->protocol_id) {
+	case SCMI_PROTOCOL_ID_CLOCK:
+		if (optee_scmi_server_init_clocks(fdt, protocol_ctx->dt_node,
+						  agent_cfg, channel_cfg))
+			panic("Error during clocks init");
+		break;
 	default:
 		EMSG("%s Unknown protocol ID: %#x", protocol_ctx->dt_name,
 		     protocol_ctx->protocol_id);
