@@ -209,11 +209,13 @@ static enum itr_return stm32_iwdg_it_handler(struct itr_handler *h)
 	 */
 	io_write32(iwdg_base + IWDG_KR_OFFSET, IWDG_KR_WPROT_KEY);
 
-	/* Disable early interrupt */
+	/* Ack early interrupt */
 	stm32_iwdg_it_ack(iwdg);
 
 	if (iwdg->nb_int > 1) {
-		iwdg->nb_int--;
+		/* Decrease interrupt counter when watchdog is not stopped*/
+		if (iwdg->nb_int < ULONG_MAX)
+			iwdg->nb_int--;
 		io_write32(get_base(iwdg) + IWDG_KR_OFFSET, IWDG_KR_RELOAD_KEY);
 	} else {
 		panic("Watchdog");
@@ -319,6 +321,10 @@ static void iwdg_wdt_stop(struct wdt_chip *chip)
 		if (iwdg->itr_handler)
 			interrupt_disable(iwdg->itr_chip, iwdg->itr_num);
 	}
+
+	/* Reload on early interrupt and no more panic */
+	iwdg->saved_nb_int = ULONG_MAX;
+	iwdg->nb_int = ULONG_MAX;
 }
 
 static void iwdg_wdt_refresh(struct wdt_chip *chip)
