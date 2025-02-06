@@ -6,6 +6,7 @@
 #ifndef UTEE_DEFINES_H
 #define UTEE_DEFINES_H
 
+#include <assert.h>
 #include <compiler.h>
 #include <tee_api_defines.h>
 #include <tee_api_defines_extensions.h>
@@ -77,6 +78,11 @@ static inline uint32_t __tee_alg_get_class(uint32_t algo)
 		return TEE_OPERATION_ASYMMETRIC_SIGNATURE;
 	if (algo == TEE_ALG_RSAES_PKCS1_OAEP_MGF1_MD5)
 		return TEE_OPERATION_ASYMMETRIC_CIPHER;
+	if (algo == TEE_ALG_ECDSA_RAW)
+		return TEE_OPERATION_ASYMMETRIC_SIGNATURE;
+
+	/* Implementation defined algorithm IDs must be specifically handled */
+	assert(((algo >> 28) & 0xF) != 0xF);
 
 	return (algo >> 28) & 0xF; /* Bits [31:28] */
 }
@@ -99,6 +105,7 @@ static inline uint32_t __tee_alg_get_main_alg(uint32_t algo)
 	case TEE_ALG_ECDSA_SHA256:
 	case TEE_ALG_ECDSA_SHA384:
 	case TEE_ALG_ECDSA_SHA512:
+	case TEE_ALG_ECDSA_RAW:
 		return TEE_MAIN_ALGO_ECDSA;
 	case TEE_ALG_HKDF:
 		return TEE_MAIN_ALGO_HKDF;
