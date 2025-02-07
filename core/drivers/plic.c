@@ -153,9 +153,8 @@ static void plic_complete_interrupt(struct plic_data *pd, uint32_t source)
 	io_write32(PLIC_CLAIM(pd->plic_base, context), source);
 }
 
-static void plic_op_add(struct itr_chip *chip, size_t it,
-			uint32_t type __unused,
-			uint32_t prio)
+static void plic_op_configure(struct itr_chip *chip, size_t it,
+			      uint32_t type __unused, uint32_t prio)
 {
 	struct plic_data *pd = container_of(chip, struct plic_data, chip);
 
@@ -219,7 +218,7 @@ static size_t probe_max_it(vaddr_t plic_base __unused)
 }
 
 static const struct itr_ops plic_ops = {
-	.add = plic_op_add,
+	.configure = plic_op_configure,
 	.mask = plic_op_disable,
 	.unmask = plic_op_enable,
 	.enable = plic_op_enable,
