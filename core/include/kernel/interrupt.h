@@ -43,6 +43,10 @@ struct itr_chip {
 	 * @type If not NULL, output interrupt type (IRQ_TYPE_* defines)
 	 * or IRQ_TYPE_NONE if unknown
 	 * @prio If not NULL, output interrupt priority value or 0 if unknown
+	 *
+	 * This handler is required to support dt_get_irq_type_prio() and
+	 * dt_get_irq() API function for interrupt consumers manually
+	 * retrieving trigger type and/or priority from the device tree.
 	 */
 	int (*dt_get_irq)(const uint32_t *properties, int count, uint32_t *type,
 			  uint32_t *prio);
