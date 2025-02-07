@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: BSD-3-Clause */
+/* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2020-2025, STMicroelectronics
+ * Copyright (c) 2022-2025, STMicroelectronics
  */
 #ifndef __DRIVERS_STM32_SERC_H__
 #define __DRIVERS_STM32_SERC_H__
