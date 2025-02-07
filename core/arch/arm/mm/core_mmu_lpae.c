@@ -1444,7 +1444,7 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 
 	switch (fault_descr & FSR_STATUS_MASK) {
 	case 0x8: /* b01000 Asynchronous extern abort */
-		return CORE_MMU_FAULT_SYNC_EXTERNAL;
+		return CORE_MMU_FAULT_ASYNC_EXTERNAL;
 	case 0x21: /* b100001 Alignment fault */
 		return CORE_MMU_FAULT_ALIGNMENT;
 	case 0x11: /* b010001 Asynchronous extern abort (DFSR only) */

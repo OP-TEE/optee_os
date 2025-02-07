@@ -533,8 +533,8 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 	case CORE_MMU_FAULT_SYNC_EXTERNAL:
 		if (!abort_is_user_exception(ai))
 			abort_print(ai);
-		DMSG("[abort] %s!", fault_to_str(ai->abort_type,
-						 ai->fault_descr));
+		DMSG("[abort]%s", fault_to_str(ai->abort_type,
+					       ai->fault_descr));
 		return FAULT_TYPE_EXTERNAL_ABORT;
 
 	case CORE_MMU_FAULT_TAG_CHECK:
@@ -551,11 +551,6 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 		DMSG("[abort] Unhandled fault!");
 		return FAULT_TYPE_IGNORE;
 	}
-}
-
-void __weak plat_abort_handler(struct abort_info *ai __unused)
-{
-	/* Do nothing */
 }
 
 void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
@@ -577,7 +572,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_EXTERNAL_ABORT:
 #ifdef CFG_EXTERNAL_ABORT_PLAT_HANDLER
 		/* Allow platform-specific handling */
-		plat_abort_handler(&ai);
+		plat_external_abort_handler(&ai);
 #endif
 		break;
 #ifdef CFG_WITH_VFP
