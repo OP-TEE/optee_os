@@ -50,7 +50,7 @@ struct itr_chip {
 
 /*
  * struct itr_ops - Interrupt controller operations
- * @add		Register and configure an interrupt
+ * @configure	Configure an interrupt
  * @enable	Enable an interrupt
  * @disable	Disable an interrupt
  * @mask	Mask an interrupt, may be called from an interrupt context
@@ -59,12 +59,13 @@ struct itr_chip {
  * @raise_sgi	Raise a SGI or NULL if not applicable to that controller
  * @set_affinity Set interrupt/cpu affinity or NULL if not applicable
  *
- * Handlers @enable, @disable, @mask, @unmask and @add are mandated. Handlers
- * @mask and @unmask have unpaged memory contrainsts. See itr_chip_is_valid().
+ * Handlers @enable, @disable, @mask, @unmask and @configure are mandated.
+ * Handlers @mask and @unmask have unpaged memory constraints.
+ * See itr_chip_is_valid().
  */
 struct itr_ops {
-	void (*add)(struct itr_chip *chip, size_t it, uint32_t type,
-		    uint32_t prio);
+	void (*configure)(struct itr_chip *chip, size_t it, uint32_t type,
+			  uint32_t prio);
 	void (*enable)(struct itr_chip *chip, size_t it);
 	void (*disable)(struct itr_chip *chip, size_t it);
 	void (*mask)(struct itr_chip *chip, size_t it);
@@ -133,7 +134,7 @@ static inline bool itr_chip_is_valid(struct itr_chip *chip)
 	       chip->ops->mask && is_unpaged(chip->ops->mask) &&
 	       chip->ops->unmask && is_unpaged(chip->ops->unmask) &&
 	       chip->ops->enable && chip->ops->disable &&
-	       chip->ops->add;
+	       chip->ops->configure;
 }
 
 /*

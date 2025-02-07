@@ -105,7 +105,7 @@ void interrupt_call_handlers(struct itr_chip *chip, size_t itr_num)
 TEE_Result interrupt_configure(struct itr_chip *chip, size_t itr_num,
 			       uint32_t type, uint32_t prio)
 {
-	chip->ops->add(chip, itr_num, type, prio);
+	chip->ops->configure(chip, itr_num, type, prio);
 
 	return TEE_SUCCESS;
 }
