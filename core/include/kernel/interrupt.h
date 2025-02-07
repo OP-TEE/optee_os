@@ -305,7 +305,7 @@ static inline void interrupt_raise_sgi(struct itr_chip *chip, size_t itr_num,
 /*
  * interrupt_set_affinity() - Set CPU affinity for a controller interrupt
  * @chip	Interrupt controller
- * @itr_num	Interrupt number to raise
+ * @itr_num	Interrupt number
  * @cpu_mask	Mask of the CPUs targeted by the interrupt
  */
 static inline void interrupt_set_affinity(struct itr_chip *chip, size_t itr_num,
