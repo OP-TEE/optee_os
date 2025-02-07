@@ -200,7 +200,7 @@ TEE_Result interrupt_create_handler(struct itr_chip *itr_chip, size_t itr_num,
 		.data = priv,
 	};
 
-	res = add_configure_handler(itr_hdl, 0, 0, false /* configure */);
+	res = add_configure_handler(itr_hdl, 0, 0, false /* !configure */);
 	if (res) {
 		free(itr_hdl);
 		return res;
