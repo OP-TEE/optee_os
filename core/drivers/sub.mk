@@ -112,3 +112,4 @@ subdirs-y += wdt
 subdirs-y += rtc
 subdirs-y += firewall
 subdirs-y += counter
+subdirs-y += amd
