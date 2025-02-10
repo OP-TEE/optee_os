@@ -68,6 +68,10 @@ bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_size_t size,
 	pool->entry->pool = pool;
 	pool->lock = SPINLOCK_UNLOCK;
 
+#ifdef CFG_WITH_STATS
+	pool->max_allocated = 0;
+#endif
+
 	return true;
 }
 
