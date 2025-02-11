@@ -26,14 +26,6 @@ struct imx_ele_buf {
 };
 
 /*
- * Cache operation on IMX ELE buffer
- *
- * @op: Cache operation
- * @ele_buf: Buffer on which cache operation to be performed
- */
-void imx_ele_buf_cache_op(enum utee_cache_operation op,
-			  struct imx_ele_buf *ele_buf);
-/*
  * Allocate cache aligned buffer, initialize it with 0's, copy data from
  * @buf to newly allocated buffer and cache flush the buffer.
  *

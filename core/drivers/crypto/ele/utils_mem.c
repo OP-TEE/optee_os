@@ -3,49 +3,13 @@
  * Copyright 2025 NXP
  */
 #include <io.h>
+#include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
 #include <string.h>
 #include <utils_mem.h>
 
-/*
- * Allocate cache aligned memory of given size in bytes.
- * Size will also be rounded up to cachec line size.
- *
- * @size   Size in bytes to allocate
- */
-static void *imx_ele_calloc_align(size_t size)
-{
-	void *ptr = NULL;
-	size_t alloc_size = size;
-	size_t cacheline_size = dcache_get_line_size();
-
-	if (ROUNDUP_OVERFLOW(alloc_size, cacheline_size, &alloc_size))
-		return NULL;
-
-	ptr = memalign(cacheline_size, alloc_size);
-	if (!ptr) {
-		EMSG("alloc Error - NULL");
-		return NULL;
-	}
-
-	memset(ptr, 0, alloc_size);
-
-	return ptr;
-}
-
-/*
- * Free allocated area
- *
- * @ptr  area to free
- */
-static void imx_ele_free(void *ptr)
-{
-	if (ptr)
-		free(ptr);
-}
-
-void imx_ele_buf_cache_op(enum utee_cache_operation op,
-			  struct imx_ele_buf *ele_buf)
+static void imx_ele_buf_cache_op(enum utee_cache_operation op,
+				 struct imx_ele_buf *ele_buf)
 {
 	if (ele_buf && ele_buf->data)
 		cache_operation(op, ele_buf->data, ele_buf->size);
@@ -57,7 +21,7 @@ TEE_Result imx_ele_buf_alloc(struct imx_ele_buf *ele_buf, const uint8_t *buf,
 	if (!ele_buf || !size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ele_buf->data = imx_ele_calloc_align(size);
+	ele_buf->data = alloc_cache_aligned(size);
 	if (!ele_buf->data) {
 		EMSG("buffer allocation failed");
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -65,7 +29,7 @@ TEE_Result imx_ele_buf_alloc(struct imx_ele_buf *ele_buf, const uint8_t *buf,
 
 	ele_buf->paddr = virt_to_phys(ele_buf->data);
 	if (!ele_buf->paddr) {
-		imx_ele_free(ele_buf->data);
+		free(ele_buf->data);
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -85,7 +49,7 @@ TEE_Result imx_ele_buf_alloc(struct imx_ele_buf *ele_buf, const uint8_t *buf,
 void imx_ele_buf_free(struct imx_ele_buf *ele_buf)
 {
 	if (ele_buf) {
-		imx_ele_free(ele_buf->data);
+		free(ele_buf->data);
 		ele_buf->data = NULL;
 		ele_buf->paddr = 0;
 		ele_buf->size = 0;
