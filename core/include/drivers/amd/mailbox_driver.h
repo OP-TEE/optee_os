@@ -4,11 +4,12 @@
  *
  */
 
-#ifndef __MAILBOX_DRIVER_H__
-#define __MAILBOX_DRIVER_H__
+#ifndef __AMD_MAILBOX_DRIVER_H__
+#define __AMD_MAILBOX_DRIVER_H__
 
-#include <platform_config.h>
+#include <kernel/mutex.h>
 #include <tee_api_types.h>
+#include <types_ext.h>
 #include <util.h>
 
 enum mailbox_api {
@@ -22,8 +23,8 @@ enum mailbox_api {
 	IPI_MAILBOX_DISABLE_IRQ
 };
 
-#define IPI_NON_BLOCK	0x0U
-#define IPI_BLOCK	0x1U
+#define IPI_NON_BLOCK	U(0x0)
+#define IPI_BLOCK	U(0x1)
 
 struct ipi_info_t {
 	uint32_t local;
@@ -43,4 +44,4 @@ TEE_Result mailbox_release(uint32_t remote_id, size_t payload_size);
 TEE_Result mailbox_notify(uint32_t remote_id, void *payload,
 			  size_t payload_size, uint32_t blocking);
 
-#endif /* __MAILBOX_DRIVER_H__ */
+#endif /* __AMD_MAILBOX_DRIVER_H__ */

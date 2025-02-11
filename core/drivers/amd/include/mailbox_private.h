@@ -4,15 +4,15 @@
  *
  */
 
-#ifndef __MAILBOX_PRIVATE_H__
-#define __MAILBOX_PRIVATE_H__
+#ifndef __AMD_MAILBOX_PRIVATE_H__
+#define __AMD_MAILBOX_PRIVATE_H__
 
-#define IPI_BASE_MULTIPLIER             0x200U
-#define IPI_OFFSET_MULTIPLIER           0x40U
+#define IPI_BASE_MULTIPLIER             U(0x200)
+#define IPI_OFFSET_MULTIPLIER           U(0x40)
 
 #define IPI_BUFFER_MAX_WORDS            8
 
-#define IPI_REQ_OFFSET                  0x0U
-#define IPI_RESP_OFFSET                 0x20U
+#define IPI_REQ_OFFSET                  U(0x0)
+#define IPI_RESP_OFFSET                 U(0x20)
 
-#endif /* __MAILBOX_PRIVATE_H__ */
+#endif /* __AMD_MAILBOX_PRIVATE_H__ */
