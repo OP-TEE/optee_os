@@ -404,43 +404,54 @@ static void carve_out_phys_mem(struct core_mmu_phys_mem **mem, size_t *nelems,
 	struct core_mmu_phys_mem *m = *mem;
 	size_t n = 0;
 
-	while (true) {
-		if (n >= *nelems) {
-			DMSG("No need to carve out %#" PRIxPA " size %#zx",
-			     pa, size);
-			return;
+	while (n < *nelems) {
+		if (!core_is_buffer_intersect(pa, size, m[n].addr, m[n].size)) {
+			n++;
+			continue;
 		}
-		if (core_is_buffer_inside(pa, size, m[n].addr, m[n].size))
-			break;
-		if (!core_is_buffer_outside(pa, size, m[n].addr, m[n].size))
-			panic();
-		n++;
-	}
 
-	if (pa == m[n].addr && size == m[n].size) {
-		/* Remove this entry */
-		(*nelems)--;
-		memmove(m + n, m + n + 1, sizeof(*m) * (*nelems - n));
-		m = nex_realloc(m, sizeof(*m) * *nelems);
-		if (!m)
-			panic();
-		*mem = m;
-	} else if (pa == m[n].addr) {
-		m[n].addr += size;
-		m[n].size -= size;
-	} else if ((pa + size) == (m[n].addr + m[n].size)) {
-		m[n].size -= size;
-	} else {
-		/* Need to split the memory entry */
-		m = nex_realloc(m, sizeof(*m) * (*nelems + 1));
-		if (!m)
-			panic();
-		*mem = m;
-		memmove(m + n + 1, m + n, sizeof(*m) * (*nelems - n));
-		(*nelems)++;
-		m[n].size = pa - m[n].addr;
-		m[n + 1].size -= size + m[n].size;
-		m[n + 1].addr = pa + size;
+		if (core_is_buffer_inside(m[n].addr, m[n].size, pa, size)) {
+			/* m[n] is completely covered by pa:size */
+			rem_array_elem(m, *nelems, sizeof(*m), n);
+			(*nelems)--;
+			m = nex_realloc(m, sizeof(*m) * *nelems);
+			if (!m)
+				panic();
+			*mem = m;
+			continue;
+		}
+
+		if (pa > m[n].addr &&
+		    pa + size - 1 < m[n].addr + m[n].size - 1) {
+			/*
+			 * pa:size is strictly inside m[n] range so split
+			 * m[n] entry.
+			 */
+			m = nex_realloc(m, sizeof(*m) * (*nelems + 1));
+			if (!m)
+				panic();
+			*mem = m;
+			(*nelems)++;
+			ins_array_elem(m, *nelems, sizeof(*m), n + 1, NULL);
+			m[n + 1].addr = pa + size;
+			m[n + 1].size = m[n].addr + m[n].size - pa - size;
+			m[n].size = pa - m[n].addr;
+			n++;
+		} else if (pa <= m[n].addr) {
+			/*
+			 * pa:size is overlapping (possibly partially) at the
+			 * beginning of m[n].
+			 */
+			m[n].size = m[n].addr + m[n].size - pa - size;
+			m[n].addr = pa + size;
+		} else {
+			/*
+			 * pa:size is overlapping (possibly partially) at
+			 * the end of m[n].
+			 */
+			m[n].size = pa - m[n].addr;
+		}
+		n++;
 	}
 }
 
@@ -533,6 +544,11 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 
 	discovered_nsec_ddr_start = m;
 	discovered_nsec_ddr_nelems = num_elems;
+
+	DMSG("Non-secure RAM:");
+	for (n = 0; n < num_elems; n++)
+		DMSG("%zu: pa %#"PRIxPA"..%#"PRIxPA" sz %#"PRIxPASZ,
+		     n, m[n].addr, m[n].addr + m[n].size - 1, m[n].size);
 
 	if (!core_mmu_check_end_pa(m[num_elems - 1].addr,
 				   m[num_elems - 1].size))
