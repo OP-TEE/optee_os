@@ -1073,20 +1073,20 @@ void __weak boot_init_primary_final(void)
 	boot_primary_init_intc();
 	init_vfp_nsec();
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
-		/* Unmask native interrupts during driver initcalls */
+		/*
+		 * Unmask native interrupts during driver initcalls.
+		 *
+		 * NS-virtualization still uses the temporary stack also
+		 * used for exception handling so it must still have native
+		 * interrupts masked.
+		 */
 		thread_set_exceptions(thread_get_exceptions() &
 				      ~THREAD_EXCP_NATIVE_INTR);
 		init_tee_runtime();
-		thread_set_exceptions(thread_get_exceptions() |
-				      THREAD_EXCP_NATIVE_INTR);
 	}
 
 	if (!IS_ENABLED(CFG_WITH_PAGER))
 		boot_mem_release_tmp_alloc();
-
-	/* Unmask native interrupts during init/finalcalls */
-	thread_set_exceptions(thread_get_exceptions() &
-			      ~THREAD_EXCP_NATIVE_INTR);
 
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		call_driver_initcalls();
@@ -1095,8 +1095,10 @@ void __weak boot_init_primary_final(void)
 
 	IMSG("Primary CPU switching to normal world boot");
 
-	thread_set_exceptions(thread_get_exceptions() |
-			      THREAD_EXCP_NATIVE_INTR);
+	/* Mask native interrupts before switching to the normal world */
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		thread_set_exceptions(thread_get_exceptions() |
+				      THREAD_EXCP_NATIVE_INTR);
 }
 
 static void init_secondary_helper(void)
