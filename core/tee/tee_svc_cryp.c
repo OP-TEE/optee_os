@@ -3353,7 +3353,8 @@ static TEE_Result get_hkdf_params(uint32_t algo, const TEE_Attribute *params,
 		*hash_id = TEE_ALG_SHA256;
 	} else {
 		*hash_id = TEE_ALG_GET_DIGEST_HASH(algo);
-		found |= HASH;
+		if (*hash_id != TEE_MAIN_ALGO_UNDEFINED)
+			found |= HASH;
 	}
 
 	for (n = 0; n < param_count; n++) {

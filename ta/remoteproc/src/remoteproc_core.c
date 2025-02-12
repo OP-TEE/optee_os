@@ -206,7 +206,7 @@ static const struct remoteproc_sig_algo rproc_ta_sign_algo[] = {
 	},
 	{
 		.sign_type = RPROC_ECDSA_SHA256,
-		.id = TEE_ALG_ECDSA_P256,
+		.id = TEE_ALG_ECDSA_SHA256,
 		.hash_len = TEE_SHA256_HASH_SIZE,
 	},
 };
