@@ -1976,7 +1976,14 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 				panic("Page is already mapped");
 
 			core_mmu_set_entry(&tbl_info, idx, paddr, mm->attr);
-			paddr += block_size;
+			/*
+			 * Dynamic vaspace regions don't have a physical
+			 * address initially but we need to allocate and
+			 * initialize the translation tables now for later
+			 * updates to work properly.
+			 */
+			if (paddr)
+				paddr += block_size;
 			vaddr += block_size;
 			size_left -= block_size;
 

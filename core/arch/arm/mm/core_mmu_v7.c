@@ -781,8 +781,7 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct memory_map *mem_map)
 	memset(ttb1, 0, L1_TBL_SIZE);
 
 	for (n = 0; n < mem_map->count; n++)
-		if (!core_mmu_is_dynamic_vaspace(mem_map->map + n))
-			core_mmu_map_region(prtn, mem_map->map + n);
+		core_mmu_map_region(prtn, mem_map->map + n);
 }
 
 void core_init_mmu(struct memory_map *mem_map)

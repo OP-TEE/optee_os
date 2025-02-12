@@ -803,8 +803,7 @@ static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 	memset(prtn->base_tables, 0, BASE_TABLE_SIZE * CFG_TEE_CORE_NB_CORE);
 
 	for (n = 0; n < mem_map->count; n++)
-		if (!core_mmu_is_dynamic_vaspace(mem_map->map + n))
-			core_mmu_map_region(prtn, mem_map->map + n);
+		core_mmu_map_region(prtn, mem_map->map + n);
 
 	/*
 	 * Primary mapping table is ready at index `get_core_pos()`
