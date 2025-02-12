@@ -172,13 +172,13 @@ static int32_t sanitize_message(struct scmi_msg *msg, unsigned int *domain_id,
 {
 	size_t domain_count = plat_scmi_perf_count(msg->channel_id);
 
+	*domain_id = confine_array_index(*domain_id, domain_count);
+
 	if (msg->in_size != exp_in_size)
 		return SCMI_PROTOCOL_ERROR;
 
 	if (*domain_id >= domain_count)
 		return SCMI_INVALID_PARAMETERS;
-
-	*domain_id = confine_array_index(*domain_id, domain_count);
 
 	return SCMI_SUCCESS;
 }
