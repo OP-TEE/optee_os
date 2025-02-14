@@ -59,9 +59,15 @@ struct itr_chip {
  * @raise_sgi	Raise a SGI or NULL if not applicable to that controller
  * @set_affinity Set interrupt/cpu affinity or NULL if not applicable
  *
- * Handlers @enable, @disable, @mask, @unmask and @configure are mandated.
- * Handlers @mask and @unmask have unpaged memory constraints.
- * See itr_chip_is_valid().
+ * Handlers @enable, @disable, @mask and @unmask are mandated. Handlers
+ * @mask and @unmask have unpaged memory constraints. These requirements are
+ * verified by itr_chip_init() and itr_chip_dt_only_init().
+ *
+ * Handler @configure is needed for interrupt providers which do not rely on
+ * DT for consumers interrupt configuration, that is interrupt consumers using
+ * interrupt_configure() or friends (interrupt_add_handler(),
+ * interrupt_add_configure_handler(), interrupt_add_handler_with_chip(),
+ * etc...).
  */
 struct itr_ops {
 	void (*configure)(struct itr_chip *chip, size_t it, uint32_t type,
@@ -124,18 +130,10 @@ struct itr_handler {
 	})
 
 /*
- * Return true only if interrupt chip provides required handlers
- * @chip: Interrupt controller reference
+ * Initialise an interrupt controller handle to be used only with the DT
+ * @chip	Interrupt controller
  */
-static inline bool itr_chip_is_valid(struct itr_chip *chip)
-{
-	return chip && is_unpaged(chip) && chip->ops &&
-	       is_unpaged((void *)chip->ops) &&
-	       chip->ops->mask && is_unpaged(chip->ops->mask) &&
-	       chip->ops->unmask && is_unpaged(chip->ops->unmask) &&
-	       chip->ops->enable && chip->ops->disable &&
-	       chip->ops->configure;
-}
+TEE_Result itr_chip_dt_only_init(struct itr_chip *chip);
 
 /*
  * Initialise an interrupt controller handle

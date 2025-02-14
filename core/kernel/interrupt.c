@@ -22,12 +22,40 @@
 
 static struct itr_chip *itr_main_chip __nex_bss;
 
+static bool itr_chip_is_valid(struct itr_chip *chip)
+{
+	return chip && is_unpaged(chip) && chip->ops &&
+	       is_unpaged((void *)chip->ops) &&
+	       chip->ops->mask && is_unpaged(chip->ops->mask) &&
+	       chip->ops->unmask && is_unpaged(chip->ops->unmask) &&
+	       chip->ops->enable && chip->ops->disable;
+}
+
+static void __itr_chip_init(struct itr_chip *chip)
+{
+	SLIST_INIT(&chip->handlers);
+}
+
 TEE_Result itr_chip_init(struct itr_chip *chip)
+{
+	/*
+	 * Interrupt chips not using only the DT to configure
+	 * consumers interrupts require configure handler.
+	 */
+	if (!itr_chip_is_valid(chip) || !chip->ops->configure)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	__itr_chip_init(chip);
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result itr_chip_dt_only_init(struct itr_chip *chip)
 {
 	if (!itr_chip_is_valid(chip))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	SLIST_INIT(&chip->handlers);
+	__itr_chip_init(chip);
 
 	return TEE_SUCCESS;
 }
@@ -105,6 +133,11 @@ void interrupt_call_handlers(struct itr_chip *chip, size_t itr_num)
 TEE_Result interrupt_configure(struct itr_chip *chip, size_t itr_num,
 			       uint32_t type, uint32_t prio)
 {
+	if (!chip->ops->configure) {
+		EMSG("No configure handler in itr_chip %s", chip->name);
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
 	chip->ops->configure(chip, itr_num, type, prio);
 
 	return TEE_SUCCESS;
@@ -114,6 +147,7 @@ static TEE_Result add_configure_handler(struct itr_handler *hdl,
 					uint32_t type, uint32_t prio,
 					bool configure)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
 	struct itr_handler *h = NULL;
 
 	assert(hdl && hdl->chip->ops && is_unpaged(hdl) &&
@@ -129,8 +163,11 @@ static TEE_Result add_configure_handler(struct itr_handler *hdl,
 		}
 	}
 
-	if (configure)
-		interrupt_configure(hdl->chip, hdl->it, type, prio);
+	if (configure) {
+		res = interrupt_configure(hdl->chip, hdl->it, type, prio);
+		if (res)
+			return res;
+	}
 
 	SLIST_INSERT_HEAD(&hdl->chip->handlers, hdl, link);
 
