@@ -37,8 +37,8 @@ struct hfic_data {
 
 static struct hfic_data hfic_data __nex_bss;
 
-static void hfic_op_add(struct itr_chip *chip __unused, size_t it,
-			uint32_t type __unused, uint32_t prio __unused)
+static void hfic_op_configure(struct itr_chip *chip __unused, size_t it,
+			      uint32_t type __unused, uint32_t prio __unused)
 {
 	uint32_t res __maybe_unused = 0;
 
@@ -66,7 +66,7 @@ static void hfic_op_disable(struct itr_chip *chip __unused, size_t it)
 }
 
 static const struct itr_ops hfic_ops = {
-	.add = hfic_op_add,
+	.configure = hfic_op_configure,
 	.mask = hfic_op_disable,
 	.unmask = hfic_op_enable,
 	.enable = hfic_op_enable,

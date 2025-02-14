@@ -104,8 +104,8 @@ static TEE_Result saic_get_src_type(uint32_t dt_level, size_t it,
 	return TEE_SUCCESS;
 }
 
-static void saic_add(struct itr_chip *chip __unused, size_t it,
-		     uint32_t type, uint32_t prio)
+static void saic_configure(struct itr_chip *chip __unused, size_t it,
+			   uint32_t type, uint32_t prio)
 {
 	uint32_t src_type = AT91_AIC_SMR_HIGH_LEVEL;
 
@@ -131,7 +131,7 @@ static void saic_disable(struct itr_chip *chip __unused, size_t it)
 }
 
 static const struct itr_ops saic_ops = {
-	.add = saic_add,
+	.configure = saic_configure,
 	.mask = saic_disable,
 	.unmask = saic_enable,
 	.enable = saic_enable,

@@ -150,8 +150,8 @@ static bool gic_primary_done __nex_bss;
 static struct gic_data gic_data __nex_bss;
 static struct mutex gic_mutex = MUTEX_INITIALIZER;
 
-static void gic_op_add(struct itr_chip *chip, size_t it, uint32_t type,
-		       uint32_t prio);
+static void gic_op_configure(struct itr_chip *chip, size_t it, uint32_t type,
+			     uint32_t prio);
 static void gic_op_enable(struct itr_chip *chip, size_t it);
 static void gic_op_disable(struct itr_chip *chip, size_t it);
 static void gic_op_raise_pi(struct itr_chip *chip, size_t it);
@@ -161,7 +161,7 @@ static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
 			uint8_t cpu_mask);
 
 static const struct itr_ops gic_ops = {
-	.add = gic_op_add,
+	.configure = gic_op_configure,
 	.mask = gic_op_disable,
 	.unmask = gic_op_enable,
 	.enable = gic_op_enable,
@@ -641,7 +641,7 @@ void gic_init_v3(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
 	interrupt_main_init(&gic_data.chip);
 }
 
-static void gic_it_add(struct gic_data *gd, size_t it)
+static void gic_it_configure(struct gic_data *gd, size_t it)
 {
 	size_t idx = it / NUM_INTS_PER_REG;
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
@@ -964,8 +964,8 @@ void interrupt_main_handler(void)
 }
 #endif /*CFG_CORE_WORKAROUND_ARM_NMFI*/
 
-static void gic_op_add(struct itr_chip *chip, size_t it,
-		       uint32_t type, uint32_t prio __unused)
+static void gic_op_configure(struct itr_chip *chip, size_t it,
+			     uint32_t type, uint32_t prio __unused)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
@@ -1003,7 +1003,7 @@ static void gic_op_add(struct itr_chip *chip, size_t it,
 		io_write32(gicr_base + GICR_IGRPMODR0,
 			   gd->per_cpu_group_modifier);
 	} else {
-		gic_it_add(gd, it);
+		gic_it_configure(gd, it);
 		/* Set the CPU mask to deliver interrupts to any online core */
 		gic_it_set_cpu_mask(gd, it, 0xff);
 		gic_it_set_prio(gd, it, 0x1);
@@ -1123,7 +1123,7 @@ static TEE_Result dt_get_gic_chip_cb(struct dt_pargs *arg, void *priv_data,
 	if (itr_num == DT_INFO_INVALID_INTERRUPT)
 		return TEE_ERROR_GENERIC;
 
-	gic_op_add(chip, itr_num, type, prio);
+	gic_op_configure(chip, itr_num, type, prio);
 
 	itr_desc->chip = chip;
 	itr_desc->itr_num = itr_num;
