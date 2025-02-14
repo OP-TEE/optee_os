@@ -9,6 +9,7 @@
 #include <initcall.h>
 #include <kernel/delay.h>
 #include <kernel/panic.h>
+#include <kernel/thread_arch.h>
 #include <mailbox_private.h>
 #include <malloc.h>
 #include <mm/core_mmu.h>
@@ -57,7 +58,7 @@ TEE_Result mailbox_open(uint32_t remote_id, size_t payload_size)
 	if (!ipi.req) {
 		EMSG("Failed to map request buffer");
 		ipi.remote = 0;
-		return res;
+		return TEE_ERROR_GENERIC;
 	}
 
 	ipi.rsp = core_mmu_add_mapping(MEM_AREA_RAM_SEC,
@@ -65,7 +66,9 @@ TEE_Result mailbox_open(uint32_t remote_id, size_t payload_size)
 				       payload_size);
 	if (!ipi.rsp) {
 		EMSG("Failed to map response buffer");
-		/* Remove mapping for request buffer */
+		/* Remove mapping for request buffer.
+		 * Not checking return value res, since already in error case.
+		 */
 		res = core_mmu_remove_mapping(MEM_AREA_RAM_SEC,
 					      ipi.req,
 					      payload_size);
@@ -79,9 +82,9 @@ TEE_Result mailbox_open(uint32_t remote_id, size_t payload_size)
 
 	res = mailbox_call(IPI_MAILBOX_OPEN, IPI_BLOCK);
 	if (res != TEE_SUCCESS) {
-		EMSG("Failed to open Mailbox for remote id %"PRIu32, remote_id);
-		/* Reset struct ipi_info.
-		 * Not checking return, already in error case
+		EMSG("Failed to open Mailbox for remote ID %"PRIu32, remote_id);
+		/* Reset IPI information structure.
+		 * Not checking return value res, already in error case
 		 */
 		res = core_mmu_remove_mapping(MEM_AREA_RAM_SEC,
 					      ipi.req,
@@ -105,7 +108,7 @@ TEE_Result mailbox_release(uint32_t remote_id, size_t payload_size)
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (ipi.remote != remote_id) {
-		EMSG("Mailbox not available for remote id %"PRIu32, remote_id);
+		EMSG("Mailbox not available for remote ID %"PRIu32, remote_id);
 		return res;
 	}
 
@@ -113,7 +116,7 @@ TEE_Result mailbox_release(uint32_t remote_id, size_t payload_size)
 
 	res = mailbox_call(IPI_MAILBOX_RELEASE, IPI_BLOCK);
 	if (res != TEE_SUCCESS) {
-		EMSG("Mailbox release failed for remote id %"PRIu32, remote_id);
+		EMSG("Mailbox release failed for remote ID %"PRIu32, remote_id);
 		goto out;
 	}
 
@@ -121,7 +124,7 @@ TEE_Result mailbox_release(uint32_t remote_id, size_t payload_size)
 				      ipi.req,
 				      payload_size);
 	if (res != TEE_SUCCESS) {
-		EMSG("Failed to remove response mapping for remote id %"PRIu32,
+		EMSG("Failed to remove response mapping for remote ID %"PRIu32,
 		     remote_id);
 		goto out;
 	}
@@ -130,7 +133,7 @@ TEE_Result mailbox_release(uint32_t remote_id, size_t payload_size)
 				      ipi.rsp,
 				      payload_size);
 	if (res != TEE_SUCCESS) {
-		EMSG("Failed to remove request mapping for remote id %"PRIu32,
+		EMSG("Failed to remove request mapping for remote ID %"PRIu32,
 		     remote_id);
 	}
 
@@ -149,7 +152,7 @@ static TEE_Result mailbox_write(uint32_t remote_id,
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (ipi.remote != remote_id) {
-		EMSG("Mailbox not available for remote id %"PRIu32, remote_id);
+		EMSG("Mailbox not available for remote ID %"PRIu32, remote_id);
 		return res;
 	}
 
@@ -175,20 +178,16 @@ static TEE_Result mailbox_read(uint32_t remote_id,
 			       size_t payload_size,
 			       uint32_t *status)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
-
 	cache_operation(TEE_CACHEINVALIDATE, ipi.rsp, payload_size);
 
 	*status = *(uint32_t *)ipi.rsp;
 
-	if (*status) {
-		res = TEE_ERROR_GENERIC;
-		goto err;
-	}
+	if (*status)
+		return TEE_ERROR_GENERIC;
 
 	memcpy(ipi.rsp, payload, payload_size);
-err:
-	return res;
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result mailbox_notify(uint32_t remote_id,
@@ -200,7 +199,7 @@ TEE_Result mailbox_notify(uint32_t remote_id,
 	uint32_t remote_status = 0;
 
 	if (ipi.remote != remote_id) {
-		EMSG("Mailbox not available for remote id %"PRIu32, remote_id);
+		EMSG("Mailbox not available for remote ID %"PRIu32, remote_id);
 		return res;
 	}
 
@@ -239,8 +238,8 @@ out:
 static TEE_Result mailbox_init(void)
 {
 	ipi.local = CFG_MAILBOX_LOCAL_ID;
-	ipi.buf = (PLAT_IPI_BASE_ADDR +
-			(CFG_MAILBOX_LOCAL_ID * IPI_BASE_MULTIPLIER));
+	ipi.buf = PLAT_IPI_BASE_ADDR +
+		CFG_MAILBOX_LOCAL_ID * IPI_BASE_MULTIPLIER;
 
 	mutex_init(&ipi.lock);
 
