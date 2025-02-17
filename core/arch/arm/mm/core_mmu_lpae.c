@@ -1452,7 +1452,7 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 		return CORE_MMU_FAULT_ASYNC_EXTERNAL;
 	case 0x21: /* b100001 Alignment fault */
 		return CORE_MMU_FAULT_ALIGNMENT;
-	case 0x12: /* b100010 Debug event */
+	case 0x22: /* b100010 Debug event */
 		return CORE_MMU_FAULT_DEBUG_EVENT;
 	default:
 		break;
