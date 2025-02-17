@@ -177,6 +177,6 @@ bool stm32mp_allow_probe_shared_device(const void *fdt, int node)
 
 void plat_external_abort_handler(struct abort_info *ai __unused)
 {
-	/* If fault is ignored, it could be due to a SERC event */
+	/* External abort may be due to SERC events */
 	stm32_serc_handle_ilac();
 }
