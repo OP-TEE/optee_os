@@ -141,11 +141,17 @@ void stm32_serc_handle_ilac(void)
 {
 	struct stm32_serc_platdata *pdata = &serc_dev.pdata;
 	struct serc_driver_data *ddata = serc_dev.ddata;
-	unsigned int nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
-	vaddr_t base = pdata->base;
+	unsigned int nreg = 0;
 	bool do_panic = false;
 	unsigned int i = 0;
+	vaddr_t base = 0;
 	uint32_t isr = 0;
+
+	if (!ddata || !pdata)
+		return;
+
+	nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
+	base = pdata->base;
 
 	for (i = 0; i < nreg; i++) {
 		uint32_t offset = sizeof(uint32_t) * i;
