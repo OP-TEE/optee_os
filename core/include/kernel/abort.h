@@ -34,8 +34,8 @@ void abort_print_error(struct abort_info *ai);
 void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs);
 
 /*
- * Platform overload, should be implemented in platform code.
- * CFG_EXTERNAL_ABORT_PLAT_HANDLER must be set to have the platform handler
+ * Platform specific handler for external abort exceptions.
+ * CFG_EXTERNAL_ABORT_PLAT_HANDLER must be enabled to have the platform handler
  * be called.
  */
 void plat_external_abort_handler(struct abort_info *ai);
