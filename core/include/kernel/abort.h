@@ -27,10 +27,18 @@ struct abort_info {
 
 /* Print abort info to the console */
 void abort_print(struct abort_info *ai);
+
 /* Print abort info + stack dump to the console */
 void abort_print_error(struct abort_info *ai);
 
 void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs);
+
+/*
+ * Platform specific handler for external abort exceptions.
+ * CFG_EXTERNAL_ABORT_PLAT_HANDLER must be enabled to have the platform handler
+ * be called.
+ */
+void plat_external_abort_handler(struct abort_info *ai);
 
 bool abort_is_user_exception(struct abort_info *ai);
 

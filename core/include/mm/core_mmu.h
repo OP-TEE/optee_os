@@ -335,6 +335,7 @@ void core_mmu_get_user_va_range(vaddr_t *base, size_t *size);
  * @CORE_MMU_FAULT_ASYNC_EXTERNAL:	asynchronous external abort
  * @CORE_MMU_FAULT_ACCESS_BIT:		access bit fault
  * @CORE_MMU_FAULT_TAG_CHECK:		tag check fault
+ * @CORE_MMU_FAULT_SYNC_EXTERNAL:	synchronous external abort
  * @CORE_MMU_FAULT_OTHER:		Other/unknown fault
  */
 enum core_mmu_fault {
@@ -346,6 +347,7 @@ enum core_mmu_fault {
 	CORE_MMU_FAULT_ASYNC_EXTERNAL,
 	CORE_MMU_FAULT_ACCESS_BIT,
 	CORE_MMU_FAULT_TAG_CHECK,
+	CORE_MMU_FAULT_SYNC_EXTERNAL,
 	CORE_MMU_FAULT_OTHER,
 };
 

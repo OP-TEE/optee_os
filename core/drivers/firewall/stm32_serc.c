@@ -5,6 +5,7 @@
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/stm32_rif.h>
+#include <drivers/stm32_serc.h>
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
@@ -136,14 +137,21 @@ static TEE_Result stm32_serc_parse_fdt(const void *fdt, int node)
 	return clk_dt_get_by_index(fdt, node, 0, &pdata->clock);
 }
 
-static void stm32_serc_handle_ilac(void)
+void stm32_serc_handle_ilac(void)
 {
 	struct stm32_serc_platdata *pdata = &serc_dev.pdata;
 	struct serc_driver_data *ddata = serc_dev.ddata;
-	unsigned int nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
-	vaddr_t base = pdata->base;
+	unsigned int nreg = 0;
+	bool do_panic = false;
 	unsigned int i = 0;
+	vaddr_t base = 0;
 	uint32_t isr = 0;
+
+	if (!ddata || !pdata)
+		return;
+
+	nreg = DIV_ROUND_UP(ddata->num_ilac, _PERIPH_IDS_PER_REG);
+	base = pdata->base;
 
 	for (i = 0; i < nreg; i++) {
 		uint32_t offset = sizeof(uint32_t) * i;
@@ -155,6 +163,7 @@ static void stm32_serc_handle_ilac(void)
 		if (!isr)
 			continue;
 
+		do_panic = true;
 		EMSG("SERC exceptions [%d:%d]: %#"PRIx32,
 		     SERC_EXCEPT_MSB_BIT(i), SERC_EXCEPT_LSB_BIT(i), isr);
 
@@ -174,7 +183,7 @@ static void stm32_serc_handle_ilac(void)
 	}
 
 	stm32_rif_access_violation_action();
-	if (IS_ENABLED(CFG_STM32_PANIC_ON_SERC_EVENT))
+	if (IS_ENABLED(CFG_STM32_PANIC_ON_SERC_EVENT) && do_panic)
 		panic();
 }
 

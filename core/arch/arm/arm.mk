@@ -207,6 +207,11 @@ endif
 # this in platform config if different.
 CFG_MAX_CACHE_LINE_SHIFT ?= 6
 
+# CFG_EXTERNAL_ABORT_PLAT_HANDLER is used to implement platform-specific
+# handling of external abort implementing the plat_external_abort_handler()
+# function.
+CFG_EXTERNAL_ABORT_PLAT_HANDLER ?= n
+
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel crypto mm tee) $(platform-dir)

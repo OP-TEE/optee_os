@@ -215,7 +215,14 @@
 #define ESR_FSC_PERMF_L1	U(0x0d)
 #define ESR_FSC_PERMF_L2	U(0x0e)
 #define ESR_FSC_PERMF_L3	U(0x0f)
+#define ESR_FSC_SEA_NTT		U(0x10)
 #define ESR_FSC_TAG_CHECK	U(0x11)
+#define ESR_FSC_SEA_TT_SUB_L2	U(0x12)
+#define ESR_FSC_SEA_TT_SUB_L1	U(0x13)
+#define ESR_FSC_SEA_TT_L0	U(0x14)
+#define ESR_FSC_SEA_TT_L1	U(0x15)
+#define ESR_FSC_SEA_TT_L2	U(0x16)
+#define ESR_FSC_SEA_TT_L3	U(0x17)
 #define ESR_FSC_ALIGN		U(0x21)
 
 /* WnR for DABT and RES0 for IABT */
