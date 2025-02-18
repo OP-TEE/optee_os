@@ -67,6 +67,8 @@ struct thread_core_local *thread_get_core_local(void);
  */
 void thread_init_threads(void);
 
+vaddr_t thread_get_abt_stack(void);
+
 /*
  * Called by the init CPU. Sets temporary stack mode for all CPUs
  * (curr_thread = -1 and THREAD_CLF_TMP) and sets the temporary stack limit for

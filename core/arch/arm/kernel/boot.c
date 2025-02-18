@@ -87,7 +87,7 @@ DECLARE_KEEP_PAGER(sem_cpu_sync);
 vaddr_t boot_cached_mem_end __nex_data = 1;
 
 static unsigned long boot_arg_fdt __nex_bss;
-static unsigned long boot_arg_nsec_entry __nex_bss;
+unsigned long boot_arg_nsec_entry __nex_bss;
 static unsigned long boot_arg_pageable_part __nex_bss;
 static unsigned long boot_arg_transfer_list __nex_bss;
 static struct transfer_list_header *mapped_tl __nex_bss;
@@ -905,11 +905,10 @@ static bool add_padding_to_pool(vaddr_t va, size_t len, void *ptr __unused)
 	return true;
 }
 
-static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
+static void init_primary(unsigned long pageable_part)
 {
 	vaddr_t va = 0;
 
-	thread_init_core_local_stacks();
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
 	 * as the thread handler requires those to be masked while
@@ -970,20 +969,8 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 		init_pager_runtime(pageable_part);
 	}
 
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
-		/*
-		 * Virtualization: We can't initialize threads right now because
-		 * threads belong to "tee" part and will be initialized
-		 * separately per each new virtual guest. So, we'll clear
-		 * "curr_thread" and call it done.
-		 */
-		thread_get_core_local()->curr_thread = -1;
-	} else {
-		thread_init_boot_thread();
-	}
 	thread_init_primary();
 	thread_init_per_cpu();
-	init_sec_mon(nsec_entry);
 }
 
 static bool cpu_nmfi_enabled(void)
@@ -1040,6 +1027,22 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 	update_external_dt();
 	configure_console_from_dt();
 
+	thread_init_thread_core_local();
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		/*
+		 * Virtualization: We can't initialize threads right now because
+		 * threads belong to "tee" part and will be initialized
+		 * separately per each new virtual guest. So, we'll clear
+		 * "curr_thread" and call it done.
+		 */
+		thread_get_core_local()->curr_thread = -1;
+	} else {
+		thread_init_boot_thread();
+	}
+}
+
+void __weak boot_init_primary_final(void)
+{
 	IMSG("OP-TEE version: %s", core_v_str);
 	if (IS_ENABLED(CFG_INSECURE)) {
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
@@ -1070,27 +1073,20 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 	boot_primary_init_intc();
 	init_vfp_nsec();
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
-		/* Unmask native interrupts during driver initcalls */
+		/*
+		 * Unmask native interrupts during driver initcalls.
+		 *
+		 * NS-virtualization still uses the temporary stack also
+		 * used for exception handling so it must still have native
+		 * interrupts masked.
+		 */
 		thread_set_exceptions(thread_get_exceptions() &
 				      ~THREAD_EXCP_NATIVE_INTR);
 		init_tee_runtime();
-		thread_set_exceptions(thread_get_exceptions() |
-				      THREAD_EXCP_NATIVE_INTR);
 	}
-}
 
-/*
- * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area.
- */
-void __weak boot_init_primary_final(void)
-{
 	if (!IS_ENABLED(CFG_WITH_PAGER))
 		boot_mem_release_tmp_alloc();
-
-	/* Unmask native interrupts during init/finalcalls */
-	thread_set_exceptions(thread_get_exceptions() &
-			      ~THREAD_EXCP_NATIVE_INTR);
 
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		call_driver_initcalls();
@@ -1099,11 +1095,13 @@ void __weak boot_init_primary_final(void)
 
 	IMSG("Primary CPU switching to normal world boot");
 
-	thread_set_exceptions(thread_get_exceptions() |
-			      THREAD_EXCP_NATIVE_INTR);
+	/* Mask native interrupts before switching to the normal world */
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		thread_set_exceptions(thread_get_exceptions() |
+				      THREAD_EXCP_NATIVE_INTR);
 }
 
-static void init_secondary_helper(unsigned long nsec_entry)
+static void init_secondary_helper(void)
 {
 	IMSG("Secondary CPU %zu initializing", get_core_pos());
 
@@ -1118,7 +1116,6 @@ static void init_secondary_helper(unsigned long nsec_entry)
 
 	secondary_init_cntfrq();
 	thread_init_per_cpu();
-	init_sec_mon(nsec_entry);
 	boot_secondary_init_intc();
 	init_vfp_sec();
 	init_vfp_nsec();
@@ -1133,11 +1130,7 @@ static void init_secondary_helper(unsigned long nsec_entry)
 void __weak boot_init_primary_early(void)
 {
 	unsigned long pageable_part = 0;
-	unsigned long e = PADDR_INVALID;
 	struct transfer_list_entry *tl_e = NULL;
-
-	if (!IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW))
-		e = boot_arg_nsec_entry;
 
 	if (IS_ENABLED(CFG_TRANSFER_LIST) && boot_arg_transfer_list) {
 		/* map and save the TL */
@@ -1157,7 +1150,7 @@ void __weak boot_init_primary_early(void)
 			pageable_part = boot_arg_pageable_part;
 	}
 
-	init_primary(pageable_part, e);
+	init_primary(pageable_part);
 }
 
 static void boot_save_transfer_list(unsigned long zero_reg,
@@ -1188,13 +1181,13 @@ static void boot_save_transfer_list(unsigned long zero_reg,
 unsigned long boot_cpu_on_handler(unsigned long a0 __maybe_unused,
 				  unsigned long a1 __unused)
 {
-	init_secondary_helper(PADDR_INVALID);
+	init_secondary_helper();
 	return 0;
 }
 #else
-void boot_init_secondary(unsigned long nsec_entry)
+void boot_init_secondary(unsigned long nsec_entry __unused)
 {
-	init_secondary_helper(nsec_entry);
+	init_secondary_helper();
 }
 #endif
 
