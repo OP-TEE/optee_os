@@ -511,7 +511,6 @@ static TEE_Result imx_ele_rng_get_random(uint8_t *buffer, size_t size)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct imx_ele_buf rng = { };
-
 	struct rng_get_random_cmd {
 		uint32_t addr_msb;
 		uint32_t addr_lsb;
@@ -562,7 +561,6 @@ out:
 unsigned long plat_get_aslr_seed(void)
 {
 	uint64_t timeout = timeout_init_us(10 * 1000);
-
 	unsigned long aslr __aligned(CACHELINE_SIZE) = 0;
 
 	/*
