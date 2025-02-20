@@ -169,8 +169,7 @@ TEE_Result stm32mp1_dbgmcu_get_chip_dev_id(uint32_t *chip_dev_id)
 {
 	uint32_t id = STM32MP1_CHIP_ID;
 
-	if (!chip_dev_id)
-		return TEE_ERROR_BAD_PARAMETERS;
+	assert(chip_dev_id);
 
 	if (stm32_bsec_read_debug_conf() & BSEC_DBGSWGEN)
 		id = io_read32(stm32_dbgmcu_base() + DBGMCU_IDC) &
