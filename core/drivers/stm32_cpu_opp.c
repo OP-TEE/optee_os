@@ -364,7 +364,7 @@ static TEE_Result stm32_cpu_opp_get_dt_subnode(const void *fdt, int node)
 
 		/* skip OPP when the SOC does not support it */
 		if (stm32_cpu_opp_is_supported(fdt, subnode) != TEE_SUCCESS) {
-			DMSG("Skip soc OPP %"PRIu64"kHz/%"PRIu32"uV",
+			DMSG("Skip SoC OPP %"PRIu64"kHz/%"PRIu32"uV",
 			     freq_khz, volt_uv);
 			cpu_opp.opp_count--;
 			continue;
