@@ -3,10 +3,12 @@
  * Copyright (c) 2016, Linaro Limited
  */
 
+#include <atomic.h>
 #include <compiler.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
+#include <util.h>
 
 #if defined(__KERNEL__)
 # include <kernel/panic.h>
@@ -15,6 +17,8 @@
 #else
 # include <utee_syscalls.h>
 #endif
+
+#define UBSAN_LOC_REPORTED BIT32(31)
 
 struct source_location {
 	const char *file_name;
@@ -38,6 +42,17 @@ static void __noreturn ubsan_panic(void)
 	 */
 	while (1)
 		;
+}
+
+static bool was_already_reported(struct source_location *loc)
+{
+	uint32_t column = loc->column;
+
+	if (column & UBSAN_LOC_REPORTED)
+		return true;
+
+	return !atomic_cas_u32(&loc->column, &column,
+			       column | UBSAN_LOC_REPORTED);
 }
 
 struct type_descriptor {
@@ -128,11 +143,14 @@ static void ubsan_handle_error(const char *func, struct source_location *loc,
 	const char *f = func;
 	const char func_prefix[] = "__ubsan_handle";
 
+	if (was_already_reported(loc))
+		return;
+
 	if (!memcmp(f, func_prefix, sizeof(func_prefix) - 1))
 		f += sizeof(func_prefix);
 
 	EMSG_RAW("Undefined behavior %s at %s:%" PRIu32 " col %" PRIu32,
-		 f, loc->file_name, loc->line, loc->column);
+		 f, loc->file_name, loc->line, loc->column & ~UBSAN_LOC_REPORTED);
 
 	if (panic_flag)
 		ubsan_panic();
