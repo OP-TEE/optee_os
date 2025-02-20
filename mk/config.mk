@@ -790,6 +790,7 @@ CFG_CORE_TPM_EVENT_LOG ?= n
 # CFG_SCMI_MSG_RESET_DOMAIN embeds SCMI reset domain protocol support.
 # CFG_SCMI_MSG_SMT embeds a SMT header in shared device memory buffers
 # CFG_SCMI_MSG_VOLTAGE_DOMAIN embeds SCMI voltage domain protocol support.
+# CFG_SCMI_MSG_PERF_DOMAIN embeds SCMI performance domain management protocol
 # CFG_SCMI_MSG_SMT_FASTCALL_ENTRY embeds fastcall SMC entry with SMT memory
 # CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY embeds interrupt entry with SMT memory
 # CFG_SCMI_MSG_SMT_THREAD_ENTRY embeds threaded entry with SMT memory
@@ -805,6 +806,7 @@ CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY ?= n
 CFG_SCMI_MSG_SMT_THREAD_ENTRY ?= n
 CFG_SCMI_MSG_THREAD_ENTRY ?= n
 CFG_SCMI_MSG_VOLTAGE_DOMAIN ?= n
+CFG_SCMI_MSG_PERF_DOMAIN ?= n
 $(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,CFG_SCMI_MSG_SMT))
 $(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY,CFG_SCMI_MSG_SMT))
 $(eval $(call cfg-depends-one,CFG_SCMI_MSG_SMT_THREAD_ENTRY,CFG_SCMI_MSG_SMT CFG_SCMI_MSG_SHM_MSG))
