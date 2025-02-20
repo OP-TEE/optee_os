@@ -340,7 +340,7 @@ struct channel_resources {
 		.name = (_name), \
 	}
 
-struct stm32_scmi_perfd scmi_performance_domain[] = {
+struct stm32_scmi_perfd __maybe_unused scmi_performance_domain[] = {
 	PERFD_CELL(0 /* PERFD_SCMI0_CPU_OPP */, "cpu-opp"),
 };
 
@@ -1025,7 +1025,7 @@ int32_t plat_scmi_perf_level_latency(unsigned int channel_id,
 	if (!perfd)
 		return SCMI_NOT_FOUND;
 
-	/* Measured latency on STM32MP13 is around 650uS */
+	/* Measured latency on STM32MP13 is around 650uS so set 1mS */
 	*latency = CFG_STM32MP_OPP_LATENCY_US;
 
 	return SCMI_SUCCESS;
