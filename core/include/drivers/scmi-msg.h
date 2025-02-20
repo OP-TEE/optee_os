@@ -451,8 +451,12 @@ int32_t plat_scmi_perf_sustained_freq(unsigned int channel_id,
  * @channel_id: SCMI channel ID
  * @domain_id: SCMI performance domain ID
  * @start_index: Level index to start from
- * @elt: If NULL, function returns, else output level array
- * @nb_elts: Array size of @levels
+ * @elt: Array where to store levels or NULL if querying only @nb_elts
+ * @nb_elts: [in] @elt array size, [out] number of levels
+ *
+ * When @elt is NULL, @nb_elt output value gives full number of levels
+ * remaining starting from @start_index. When @elt is not NULL,
+ * @nb_elt output value gives the number of levels stored in @elt.
  * Return an SCMI compliant error code
  */
 int32_t plat_scmi_perf_levels_array(unsigned int channel_id,
@@ -461,7 +465,7 @@ int32_t plat_scmi_perf_levels_array(unsigned int channel_id,
 
 /*
  * Get latency is microseconds for transition to target performance level.
- * A default (weak) implementation output cost value of 0.
+ * A default (weak) implementation output cost value of 1 microsecond.
  *
  * @channel_id: SCMI channel ID
  * @domain_id: SCMI performance domain ID
@@ -476,7 +480,7 @@ int32_t plat_scmi_perf_level_latency(unsigned int channel_id,
 
 /*
  * Get power cost value related to target performance level.
- * A default (weak) implementation output latency of 0.
+ * A default (weak) implementation output power cost of 0.
  *
  * @channel_id: SCMI channel ID
  * @domain_id: SCMI performance domain ID
