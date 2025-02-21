@@ -10,12 +10,12 @@
 #include <kernel/tee_common_otp.h>
 #include <platform_config.h>
 
+#ifdef CFG_16550_UART
 static struct ns16550_data console_data __nex_bss;
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART0_BASE, CORE_MMU_PGDIR_SIZE);
+#endif
 
 register_ddr(DRAM_BASE, DRAM_SIZE);
-
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART0_BASE,
-			CORE_MMU_PGDIR_SIZE);
 
 #ifdef CFG_RISCV_PLIC
 void boot_primary_init_intc(void)
@@ -29,11 +29,13 @@ void boot_secondary_init_intc(void)
 }
 #endif /* CFG_RISCV_PLIC */
 
+#ifdef CFG_16550_UART
 void plat_console_init(void)
 {
 	ns16550_init(&console_data, UART0_BASE, IO_WIDTH_U8, 0);
 	register_serial_console(&console_data.chip);
 }
+#endif
 
 void interrupt_main_handler(void)
 {
