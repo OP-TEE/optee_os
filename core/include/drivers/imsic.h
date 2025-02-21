@@ -26,7 +26,7 @@ struct imsic_data {
 	uint32_t hart_index_bits;
 	uint32_t group_index_bits;
 	uint32_t group_index_shift;
-	struct aplic_data* aplic;
+	struct aplic_data *aplic;
 	struct itr_chip chip;
 };
 

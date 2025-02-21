@@ -104,6 +104,6 @@ TEE_Result aplic_init_from_device_tree(struct aplic_data *aplic);
 TEE_Result aplic_set_source_mode(struct aplic_data *aplic, uint32_t source,
 				 uint32_t type);
 
-struct aplic_data* get_aplic_data(void);
+struct aplic_data *get_aplic_data(void);
 
 #endif /* __DRIVERS_APLIC_PRIV_H */

@@ -157,7 +157,7 @@ void aplic_dump_state(void)
 {
 }
 
-struct aplic_data* get_aplic_data(void)
+struct aplic_data *get_aplic_data(void)
 {
 	return &aplic_data;
 }

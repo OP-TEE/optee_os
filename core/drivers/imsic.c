@@ -286,8 +286,8 @@ TEE_Result fdt_parse_imsic_node(const void *fdt, int nodeoff,
 	if (val && len > 0)
 		imsic->hart_index_bits = fdt32_to_cpu(*val);
 	else
-		imsic->hart_index_bits = 32 -
-			__builtin_clz(CFG_TEE_CORE_NB_CORE - 1);
+		imsic->hart_index_bits =
+			32 - __builtin_clz(CFG_TEE_CORE_NB_CORE - 1);
 
 	val = fdt_getprop(fdt, nodeoff, "riscv,group-index-bits", &len);
 	if (val && len > 0)
@@ -352,7 +352,7 @@ void imsic_it_handle(void)
 	if (id == IMSIC_IPI_ID)
 		DMSG("Interprocessor interrupt");
 
-	if (id > 1 && id <= imsic->num_ids)
+	if (id > IMSIC_IPI_ID && id <= imsic->num_ids)
 		interrupt_call_handlers(&imsic->chip, id);
 	else
 		DMSG("ignoring interrupt %" PRIu32, id);
@@ -387,4 +387,8 @@ void imsic_init(paddr_t imsic_base_pa)
 	imsic->aplic = get_aplic_data();
 
 	interrupt_main_init(&imsic->chip);
+}
+
+void imsic_dump_state(void)
+{
 }
