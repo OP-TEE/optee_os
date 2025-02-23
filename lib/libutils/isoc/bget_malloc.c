@@ -891,6 +891,7 @@ void raw_malloc_get_stats(struct malloc_ctx *ctx, struct pta_stats_alloc *stats)
 {
 	memcpy_unchecked(stats, &ctx->mstats, sizeof(*stats));
 	stats->allocated = ctx->poolset.totalloc;
+	stats->free2_sum = ctx->poolset.free2_sum;
 }
 #endif
 
