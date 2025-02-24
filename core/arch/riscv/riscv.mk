@@ -70,6 +70,10 @@ ifeq ($(CFG_RISCV_WITH_M_MODE_SM),y)
 $(call force,CFG_RISCV_SBI,y)
 endif
 
+ifeq ($(CFG_RISCV_PLIC)-$(call cfg-one-enabled,CFG_RISCV_APLIC CFG_RISCV_APLIC_MSI CFG_RISCV_IMSIC),y-y)
+$(error PLIC is incompatible with AIA)
+endif
+
 # Disable unsupported and other arch-specific flags
 $(call force,CFG_CORE_FFA,n)
 $(call force,CFG_SECURE_PARTITION,n)
