@@ -133,6 +133,8 @@
 #define GICD_ICFGR_NUM_INTS_PER_REG	(NUM_INTS_PER_REG / \
 					 GICD_ICFGR_FIELD_BITS)
 
+#define GICV2_SPURIOUS_INTERRUPT_ID	1023
+
 struct gic_data {
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
@@ -950,8 +952,13 @@ static void __maybe_unused gic_native_itr_handler(void)
 
 	if (id <= gd->max_it)
 		interrupt_call_handlers(&gd->chip, id);
+	else if (IS_ENABLED(CFG_ARM_GICV3) && id >= 1020 && id <= 1023)
+		return;
+	else if (!IS_ENABLED(CFG_ARM_GICV3) &&
+		 id == GICV2_SPURIOUS_INTERRUPT_ID)
+		return;
 	else
-		DMSG("ignoring interrupt %" PRIu32, id);
+		EMSG("Unhandled interrupt %" PRIu32, id);
 
 	gic_write_eoir(gd, iar);
 }
