@@ -19,7 +19,10 @@
 # Cross-compiler prefix and suffix
 ifeq ($(ARCH),arm)
 CROSS_COMPILE ?= arm-linux-gnueabihf-
+# Don't cross-compile if building on aarch64 natively
+ifneq ($(shell uname -m),aarch64)
 CROSS_COMPILE64 ?= aarch64-linux-gnu-
+endif
 endif
 ifeq ($(ARCH),riscv)
 CROSS_COMPILE ?= riscv-linux-gnu-

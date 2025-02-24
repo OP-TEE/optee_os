@@ -7,13 +7,16 @@ clang-target	:= $(patsubst %-,%,$(notdir $(lastword $(CROSS_COMPILE_$(sm)))))
 ifeq ($(clang-target),aarch64-linux)
 clang-target	:= aarch64-linux-gnu
 endif
+ifneq ($(clang-target),)
+clang-target-opt := --target=$(clang-target)
+endif
 ccache-cmd	:= $(if $(findstring ccache,$(CROSS_COMPILE_$(sm))),$(firstword $(CROSS_COMPILE_$(sm))) ,)
 
-CC$(sm)		:= $(ccache-cmd)$(OPTEE_CLANG_COMPILER_PATH)clang --target=$(clang-target)
+CC$(sm)		:= $(ccache-cmd)$(OPTEE_CLANG_COMPILER_PATH)clang $(clang-target-opt)
 CXX$(sm)	:= false # Untested yet
 # Due to the absence of clang-cpp in AOSP's prebuilt version of clang,
 # use the equivalent command of 'clang -E'
-CPP$(sm)	:= $(ccache-cmd)$(OPTEE_CLANG_COMPILER_PATH)clang --target=$(clang-target) -E
+CPP$(sm)	:= $(ccache-cmd)$(OPTEE_CLANG_COMPILER_PATH)clang $(clang-target-opt) -E
 LD$(sm)		:= $(ccache-cmd)$(OPTEE_CLANG_COMPILER_PATH)ld.lld
 
 AR$(sm)		:= $(ccache-cmd)$(OPTEE_CLANG_COMPILER_PATH)llvm-ar
