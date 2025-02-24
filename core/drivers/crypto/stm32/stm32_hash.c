@@ -33,30 +33,30 @@
 #define _HASH_CR_INIT			BIT(2)
 #define _HASH_CR_MODE			BIT(6)
 #define _HASH_CR_DATATYPE_SHIFT		U(4)
-#define _HASH_CR_DATATYPE_NONE		(U(0) << _HASH_CR_DATATYPE_SHIFT)
-#define _HASH_CR_DATATYPE_HALFWORD	(U(1) << _HASH_CR_DATATYPE_SHIFT)
-#define _HASH_CR_DATATYPE_BYTE		(U(2) << _HASH_CR_DATATYPE_SHIFT)
-#define _HASH_CR_DATATYPE_BIT		(U(3) << _HASH_CR_DATATYPE_SHIFT)
+#define _HASH_CR_DATATYPE_NONE		SHIFT_U32(U(0), _HASH_CR_DATATYPE_SHIFT)
+#define _HASH_CR_DATATYPE_HALFWORD	SHIFT_U32(U(1), _HASH_CR_DATATYPE_SHIFT)
+#define _HASH_CR_DATATYPE_BYTE		SHIFT_U32(U(2), _HASH_CR_DATATYPE_SHIFT)
+#define _HASH_CR_DATATYPE_BIT		SHIFT_U32(U(3), _HASH_CR_DATATYPE_SHIFT)
 #define _HASH_CR_LKEY			BIT(16)
 
 #define _HASH_CR_ALGO_SHIFT		U(17)
 #define _HASH_CR_ALGO_MD5		BIT(7)
-#define _HASH_CR_ALGO_SHA1		(U(0x0) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_SHA224		(U(0x2) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_SHA256		(U(0x3) << _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHA1		SHIFT_U32(U(0x0), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHA224		SHIFT_U32(U(0x2), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHA256		SHIFT_U32(U(0x3), _HASH_CR_ALGO_SHIFT)
 #define _HASH_CR_ALGO_SHA256_IF_MD5	(BIT(18) | BIT(7))
-#define _HASH_CR_ALGO_SHA384		(U(0xC) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_SHA512_224	(U(0xD) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_SHA512_256	(U(0xE) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_SHA512		(U(0xF) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_SHA3_224		(U(0x4) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_SHA3_256		(U(0x5) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_SHA3_384		(U(0x6) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_SHA3_512		(U(0x7) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_SHAKE128		(U(0x8) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_SHAKE256		(U(0x9) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_RAWSHAKE128	(U(0xA) << _HASH_CR_ALGO_SHIFT)
-#define _HASH_CR_ALGO_RAWSHAKE256	(U(0xB) << _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHA384		SHIFT_U32(U(0xC), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHA512_224	SHIFT_U32(U(0xD), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHA512_256	SHIFT_U32(U(0xE), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHA512		SHIFT_U32(U(0xF), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHA3_224		SHIFT_U32(U(0x4), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHA3_256		SHIFT_U32(U(0x5), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHA3_384		SHIFT_U32(U(0x6), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHA3_512		SHIFT_U32(U(0x7), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHAKE128		SHIFT_U32(U(0x8), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_SHAKE256		SHIFT_U32(U(0x9), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_RAWSHAKE128	SHIFT_U32(U(0xA), _HASH_CR_ALGO_SHIFT)
+#define _HASH_CR_ALGO_RAWSHAKE256	SHIFT_U32(U(0xB), _HASH_CR_ALGO_SHIFT)
 
 /* Status Flags */
 #define _HASH_SR_DINIS			BIT(0)
@@ -133,6 +133,10 @@
 #define CAPS_SHA2_512			BIT(5)
 #define CAPS_SHA3			BIT(6)
 
+struct stm32_hash_compat {
+	uint32_t caps;
+};
+
 struct stm32_hash_platdata {
 	vaddr_t base;
 	struct clk *clock;
@@ -149,14 +153,12 @@ static struct stm32_hash_device *stm32_hash;
 
 static TEE_Result wait_end_busy(vaddr_t base)
 {
-	uint64_t timeout = timeout_init_us(HASH_TIMEOUT_US);
+	uint32_t value = 0;
+	uint32_t addr = base + _HASH_SR;
 
-	while (io_read32(base + _HASH_SR) & _HASH_SR_BUSY)
-		if (timeout_elapsed(timeout))
-			break;
-
-	/* Timeout may append due to a schedule after the while(test) */
-	if (io_read32(base + _HASH_SR) & _HASH_SR_BUSY) {
+	/* Timeout may append due to a schedule after the while(timeout()) */
+	if (IO_READ32_POLL_TIMEOUT(addr, value, !(value & _HASH_SR_BUSY), 0,
+				   HASH_TIMEOUT_US)) {
 		EMSG("Busy timeout");
 		return TEE_ERROR_BUSY;
 	}
@@ -166,14 +168,12 @@ static TEE_Result wait_end_busy(vaddr_t base)
 
 static int wait_digest_ready(vaddr_t base)
 {
-	uint64_t timeout = timeout_init_us(HASH_TIMEOUT_US);
-
-	while ((io_read32(base + _HASH_SR) & _HASH_SR_DCIS) != _HASH_SR_DCIS)
-		if (timeout_elapsed(timeout))
-			break;
+	uint32_t value = 0;
+	uint32_t addr = base + _HASH_SR;
 
 	/* Timeout may append due to a schedule after the while(test) */
-	if ((io_read32(base + _HASH_SR) & _HASH_SR_DCIS) != _HASH_SR_DCIS) {
+	if (IO_READ32_POLL_TIMEOUT(addr, value, value & _HASH_SR_DCIS, 0,
+				   HASH_TIMEOUT_US)) {
 		EMSG("Ready timeout");
 		return TEE_ERROR_BUSY;
 	}
@@ -194,7 +194,7 @@ static TEE_Result write_key(vaddr_t base, const uint8_t *key, size_t len)
 	uint32_t tmp_buf = 0;
 
 	io_clrsetbits32(base + _HASH_STR, _HASH_STR_NBLW_MASK,
-			8U * (len % sizeof(uint32_t)));
+			8 * (len % sizeof(uint32_t)));
 
 	while (len / sizeof(uint32_t)) {
 		memcpy(&tmp_buf, key, sizeof(uint32_t));
@@ -223,31 +223,36 @@ static void get_save_registers(struct stm32_hash_context *c, size_t *nb_regs,
 			       size_t *first, size_t *hmac_nb_regs,
 			       size_t *hmac_first)
 {
-	if (c->save_mode == SAVE_SMALL) {
+	switch (c->save_mode) {
+	case SAVE_SMALL:
 		*nb_regs = SAVE_SMALL_NB_REG;
 		*first = SAVE_SMALL_FIRST_REG;
 		if (c->mode == STM32_HMAC_MODE) {
 			*hmac_nb_regs = SAVE_SMALL_HMAC_NB_REG;
 			*hmac_first = SAVE_SMALL_HMAC_FIRST_REG;
 		}
-	}
+		break;
 
-	if (c->save_mode == SAVE_BIG) {
+	case SAVE_BIG:
 		*nb_regs = SAVE_BIG_NB_REG;
 		*first = SAVE_BIG_FIRST_REG;
 		if (c->mode == STM32_HMAC_MODE) {
 			*hmac_nb_regs = SAVE_BIG_HMAC_NB_REG;
 			*hmac_first = SAVE_BIG_HMAC_FIRST_REG;
 		}
-	}
+		break;
 
-	if (c->save_mode == SAVE_SHA3) {
+	case SAVE_SHA3:
 		*nb_regs = SAVE_SHA3_NB_REG;
 		*first = SAVE_SHA3_FIRST_REG;
 		if (c->mode == STM32_HMAC_MODE) {
 			*hmac_nb_regs = SAVE_SHA3_HMAC_NB_REG;
 			*hmac_first = SAVE_SHA3_HMAC_FIRST_REG;
 		}
+		break;
+
+	default:
+		break;
 	}
 }
 
@@ -424,7 +429,7 @@ TEE_Result stm32_hash_deep_copy(struct stm32_hash_context *dst,
 
 	dst_buf = dst->remain.buf;
 	dst_csr = dst->csr;
-	memcpy(dst, src, sizeof(*dst));
+	*dst = *src;
 	dst->remain.buf = dst_buf;
 	dst->csr = dst_csr;
 
@@ -479,6 +484,14 @@ TEE_Result stm32_hash_alloc(struct stm32_hash_context *c,
 		c->block_size = SHA224_BLOCK_SIZE;
 		c->save_mode = SAVE_SMALL;
 		break;
+	case STM32_HASH_SHA256:
+		if (!(c->dev->pdata.compat->caps & CAPS_SHA2_256))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		c->digest_u32 = SHA256_DIGEST_U32;
+		c->block_size = SHA256_BLOCK_SIZE;
+		c->save_mode = SAVE_SMALL;
+		break;
 	case STM32_HASH_SHA384:
 		if (!(c->dev->pdata.compat->caps & CAPS_SHA2_384))
 			return TEE_ERROR_NOT_IMPLEMENTED;
@@ -526,15 +539,6 @@ TEE_Result stm32_hash_alloc(struct stm32_hash_context *c,
 		c->digest_u32 = SHA3_512_DIGEST_U32;
 		c->block_size = SHA3_512_BLOCK_SIZE;
 		c->save_mode = SAVE_SHA3;
-		break;
-	/* Default selected algo is SHA256 */
-	case STM32_HASH_SHA256:
-		if (!(c->dev->pdata.compat->caps & CAPS_SHA2_256))
-			return TEE_ERROR_NOT_IMPLEMENTED;
-
-		c->digest_u32 = SHA256_DIGEST_U32;
-		c->block_size = SHA256_BLOCK_SIZE;
-		c->save_mode = SAVE_SMALL;
 		break;
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
@@ -586,7 +590,8 @@ TEE_Result stm32_hash_update(struct stm32_hash_context *c,
 
 	mutex_lock(&c->dev->lock);
 	if (clk_enable(c->dev->pdata.clock)) {
-		EMSG("Fail to enable clk %s", c->dev->pdata.clock->name);
+		EMSG("Fail to enable clk %s",
+		     clk_get_name(c->dev->pdata.clock));
 		panic();
 	}
 
@@ -604,8 +609,6 @@ TEE_Result stm32_hash_update(struct stm32_hash_context *c,
 		memcpy(((uint8_t *)c->remain.buf) + c->remain.len, buffer,
 		       len);
 		c->remain.len += len;
-
-		next_queue_size = c->queue_size;
 
 		/*
 		 * We don't need to save status as we didn't change IP
@@ -681,7 +684,7 @@ TEE_Result stm32_hash_update(struct stm32_hash_context *c,
 			goto exit;
 		}
 
-		memcpy((uint8_t *)c->remain.buf, buffer, len);
+		memcpy(c->remain.buf, buffer, len);
 		c->remain.len = len;
 	}
 
@@ -709,7 +712,8 @@ TEE_Result stm32_hash_final(struct stm32_hash_context *c, uint8_t *digest,
 
 	mutex_lock(&c->dev->lock);
 	if (clk_enable(c->dev->pdata.clock)) {
-		EMSG("Fail to enable clk %s", c->dev->pdata.clock->name);
+		EMSG("Fail to enable clk %s",
+		     clk_get_name(c->dev->pdata.clock));
 		panic();
 	}
 
@@ -719,11 +723,6 @@ TEE_Result stm32_hash_final(struct stm32_hash_context *c, uint8_t *digest,
 
 	if (c->remain.len) {
 		size_t i = 0;
-
-		if (!c->remain.buf) {
-			res = TEE_ERROR_BAD_STATE;
-			goto exit;
-		}
 
 		for (i = 0;
 		     i < ROUNDUP_DIV(c->remain.len, sizeof(uint32_t));
@@ -735,7 +734,7 @@ TEE_Result stm32_hash_final(struct stm32_hash_context *c, uint8_t *digest,
 		}
 
 		io_clrsetbits32(base + _HASH_STR, _HASH_STR_NBLW_MASK,
-				8U * (c->remain.len % sizeof(uint32_t)));
+				8 * (c->remain.len % sizeof(uint32_t)));
 
 		/* No more saved data */
 		c->remain.len = 0;
@@ -773,7 +772,8 @@ TEE_Result stm32_hash_init(struct stm32_hash_context *c, const uint8_t *key,
 	mutex_lock(&c->dev->lock);
 
 	if (clk_enable(c->dev->pdata.clock)) {
-		EMSG("Fail to enable clk %s", c->dev->pdata.clock->name);
+		EMSG("Fail to enable clk %s",
+		     clk_get_name(c->dev->pdata.clock));
 		panic();
 	}
 
@@ -824,11 +824,6 @@ static TEE_Result stm32_hash_parse_fdt(struct stm32_hash_platdata *pdata,
 	return TEE_SUCCESS;
 }
 
-/*
- * Initialize HASH driver.
- *
- * return TEE_SUCCESS if OK.
- */
 static TEE_Result stm32_hash_probe(const void *fdt, int node,
 				   const void *compat_data)
 {
@@ -841,14 +836,14 @@ static TEE_Result stm32_hash_probe(const void *fdt, int node,
 		return res;
 
 	stm32_hash = calloc(1, sizeof(*stm32_hash));
-
 	if (!stm32_hash)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	memcpy(&stm32_hash->pdata, &temp_pdata, sizeof(temp_pdata));
 
 	if (clk_enable(stm32_hash->pdata.clock)) {
-		EMSG("Fail to enable clk %s", stm32_hash->pdata.clock->name);
+		EMSG("Fail to enable clk %s",
+		     clk_get_name(stm32_hash->pdata.clock));
 		panic();
 	}
 
@@ -871,7 +866,7 @@ static TEE_Result stm32_hash_probe(const void *fdt, int node,
 	if (IS_ENABLED(CFG_CRYPTO_DRV_HASH)) {
 		res = stm32_register_hash();
 		if (res) {
-			EMSG("Failed to register to hash: %#"PRIx32, res);
+			EMSG("Failed to register to HASH: %#"PRIx32, res);
 			panic();
 		}
 	}
@@ -879,7 +874,7 @@ static TEE_Result stm32_hash_probe(const void *fdt, int node,
 	if (IS_ENABLED(CFG_CRYPTO_DRV_MAC)) {
 		res = stm32_register_hmac();
 		if (res) {
-			EMSG("Failed to register to mac: %#"PRIx32, res);
+			EMSG("Failed to register to HMAC : %#"PRIx32, res);
 			panic();
 		}
 	}

@@ -14,10 +14,6 @@
 /* Max size supported is SHA512 */
 #define STM32_HASH_MAX_DIGEST_SIZE	U(64)
 
-struct stm32_hash_compat {
-	uint32_t caps;
-};
-
 enum stm32_hash_algo {
 	STM32_HASH_MD5,
 	STM32_HASH_SHA1,
@@ -63,7 +59,6 @@ TEE_Result stm32_hash_alloc(struct stm32_hash_context *c,
 			    enum stm32_hash_mode mode,
 			    enum stm32_hash_algo algo);
 void stm32_hash_free(struct stm32_hash_context *c);
-
 TEE_Result stm32_hash_update(struct stm32_hash_context *ctx,
 			     const uint8_t *buffer, size_t length);
 TEE_Result stm32_hash_final(struct stm32_hash_context *c, uint8_t *digest,
