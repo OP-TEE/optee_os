@@ -948,10 +948,35 @@ static void __maybe_unused gic_native_itr_handler(void)
 	iar = gic_read_iar(gd);
 	id = iar & GICC_IAR_IT_ID_MASK;
 
+	if (id >= 1020 && id <= 1023) {
+		/*
+		 * Special INTIDs
+		 * 1020: Interrupt expected to be handled at SEL1 or SEL2.
+		 *       PE (Processing Element) is either executing at EL3
+		 *       in AArch64 state or in monitor mode in AArch32 state.
+		 *       Reserved on GIC V1 and GIC V2.
+		 * 1021: Interrupt expected to be handled at NSEL1 or NSEL2
+		 *       PE (Processing Element) is either executing at EL3
+		 *       in AArch64 state or in monitor mode in AArch32 state.
+		 *       Reserved on GIC V1 and GIC V2.
+		 * 1022: -(GICv3.3): Interrupt is an NMI
+		 *       -(Legacy): Group 1 interrupt to be signaled to the
+		 *        PE and acknowledged using alias registers. Reserved if
+		 *        interrupt grouping is not supported.
+		 * 1023: No pending interrupt with sufficient priority
+		 *       (spurious) or the highest priority pending interrupt is
+		 *       not appropriate for the current security state or
+		 *       interrupt group.
+		 */
+		DMSG("Special interrupt %"PRIu32, id);
+
+		return;
+	}
+
 	if (id <= gd->max_it)
 		interrupt_call_handlers(&gd->chip, id);
 	else
-		DMSG("ignoring interrupt %" PRIu32, id);
+		EMSG("Unhandled interrupt %"PRIu32, id);
 
 	gic_write_eoir(gd, iar);
 }
