@@ -43,7 +43,6 @@ struct stm32_rproc_mem {
  * @regions:	memory regions used
  * @mcu_rst:	remote processor reset control
  * @hold_boot:	remote processor hold boot control
- * @ns_loading: True if supports non-secure firmware loading, false otherwise
  */
 struct stm32_rproc_instance {
 	const struct stm32_rproc_compat_data *cdata;
@@ -52,16 +51,17 @@ struct stm32_rproc_instance {
 	struct stm32_rproc_mem *regions;
 	struct rstctrl *mcu_rst;
 	struct rstctrl *hold_boot;
-	bool ns_loading;
 };
 
 /**
  * struct stm32_rproc_compat_data - rproc associated data for compatible list
  *
  * @rproc_id:	identifies the remote processor
+ * @ns_loading: True if supports non-secure firmware loading, false otherwise
  */
 struct stm32_rproc_compat_data {
 	uint32_t rproc_id;
+	bool ns_loading;
 };
 
 static SLIST_HEAD(, stm32_rproc_instance) rproc_list =
