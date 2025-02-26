@@ -33,6 +33,7 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/fobj.h>
+#include <mm/page_alloc.h>
 #include <mm/phys_mem.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
@@ -955,6 +956,15 @@ static void init_primary(unsigned long pageable_part)
 		 */
 		assert(va && va <= boot_cached_mem_end);
 		boot_cached_mem_end = va;
+
+		/*
+		 * This is needed to enable virt_page_alloc() now that
+		 * boot_mem_alloc() can't be used any longer.
+		 */
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+			nex_page_alloc_init();
+		else
+			page_alloc_init();
 	}
 
 	if (IS_ENABLED(CFG_WITH_PAGER)) {
