@@ -143,7 +143,6 @@ void call_preinitcalls(void);
 void call_early_initcalls(void);
 void call_service_initcalls(void);
 void call_driver_initcalls(void);
-void call_initcalls(void);
 void call_finalcalls(void);
 
 #endif
