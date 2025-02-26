@@ -126,7 +126,7 @@ static void do_hmac_free(struct crypto_mac_ctx *ctx)
 }
 
 /*
- * Copy Software hmacing Context
+ * Copy Software HMAC Context
  *
  * @dst_ctx  [out] Reference the context destination
  * @src_ctx  Reference the context source
@@ -163,7 +163,7 @@ static const struct crypto_mac_ops hmac_ops = {
 };
 
 /*
- * Allocate the internal hmacing data context
+ * Allocate the internal HMAC data context
  *
  * @ctx    [out] Caller context variable
  * @algo   OP_TEE Algorithm ID
@@ -202,9 +202,6 @@ static TEE_Result stm32_hmac_allocate(struct crypto_mac_ctx **ctx,
 	if (!c)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	/*
-	 * Allocate internal stm32_hash.
-	 */
 	res = stm32_hash_alloc(&c->hash, STM32_HMAC_MODE, stm32_algo);
 	if (res) {
 		free(c);
