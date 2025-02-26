@@ -91,7 +91,8 @@ void init_tee_runtime(void)
 {
 	core_mmu_init_phys_mem();
 	call_preinitcalls();
-	call_initcalls();
+	call_early_initcalls();
+	call_service_initcalls();
 }
 
 static void init_primary(unsigned long nsec_entry)
@@ -155,6 +156,7 @@ void boot_init_primary_late(unsigned long fdt,
 
 void __weak boot_init_primary_final(void)
 {
+	call_driver_initcalls();
 	call_finalcalls();
 	IMSG("Primary CPU initialized");
 
