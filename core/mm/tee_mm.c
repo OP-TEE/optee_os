@@ -119,19 +119,22 @@ static inline void update_max_allocated(tee_mm_pool_t *pool __unused)
 }
 #endif /* CFG_WITH_STATS */
 
-tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, size_t size)
+tee_mm_entry_t *tee_mm_alloc_flags(tee_mm_pool_t *pool, size_t size,
+				   uint32_t flags)
 {
-	size_t psize;
-	tee_mm_entry_t *entry;
-	tee_mm_entry_t *nn;
-	size_t remaining;
-	uint32_t exceptions;
+	size_t psize = 0;
+	tee_mm_entry_t *entry = NULL;
+	tee_mm_entry_t *nn = NULL;
+	size_t remaining = 0;
+	uint32_t exceptions = 0;
 
 	/* Check that pool is initialized */
 	if (!pool || !pool->entry)
 		return NULL;
 
-	nn  = malloc_flags(pool->flags, NULL, MALLOC_DEFAULT_ALIGNMENT,
+	flags &= ~MAF_NEX;	/* This flag must come from pool->flags */
+	flags |= pool->flags;
+	nn  = malloc_flags(flags, NULL, MALLOC_DEFAULT_ALIGNMENT,
 			   sizeof(tee_mm_entry_t));
 	if (!nn)
 		return NULL;
@@ -202,7 +205,7 @@ tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, size_t size)
 	return nn;
 err:
 	cpu_spin_unlock_xrestore(&pool->lock, exceptions);
-	free_flags(pool->flags, nn);
+	free_flags(flags, nn);
 	return NULL;
 }
 
