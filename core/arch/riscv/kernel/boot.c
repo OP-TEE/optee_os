@@ -151,6 +151,10 @@ void boot_init_primary_late(unsigned long fdt,
 	IMSG("Primary CPU initializing");
 	boot_primary_init_intc();
 	init_tee_runtime();
+}
+
+void __weak boot_init_primary_final(void)
+{
 	call_finalcalls();
 	IMSG("Primary CPU initialized");
 
