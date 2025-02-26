@@ -86,26 +86,26 @@ tee_mm_entry_t *nex_phys_mem_mm_find(paddr_t addr)
 }
 
 static tee_mm_entry_t *mm_alloc(tee_mm_pool_t *p0, tee_mm_pool_t *p1,
-				size_t size)
+				size_t size, uint32_t flags)
 {
 	tee_mm_entry_t *mm = NULL;
 
 	if (p0)
-		mm = tee_mm_alloc(p0, size);
+		mm = tee_mm_alloc_flags(p0, size, flags);
 	if (!mm && p1)
-		mm = tee_mm_alloc(p1, size);
+		mm = tee_mm_alloc_flags(p1, size, flags);
 
 	return mm;
 }
 
 tee_mm_entry_t *nex_phys_mem_core_alloc(size_t size)
 {
-	return mm_alloc(nex_core_pool, NULL, size);
+	return mm_alloc(nex_core_pool, NULL, size, MAF_NULL);
 }
 
 tee_mm_entry_t *nex_phys_mem_ta_alloc(size_t size)
 {
-	return mm_alloc(nex_ta_pool, nex_core_pool, size);
+	return mm_alloc(nex_ta_pool, nex_core_pool, size, MAF_NULL);
 }
 
 static tee_mm_entry_t *mm_alloc2(tee_mm_pool_t *p0, tee_mm_pool_t *p1,
@@ -199,12 +199,12 @@ tee_mm_entry_t *phys_mem_core_alloc(size_t size)
 	 * should normally be able to use one pool only, but if we have two
 	 * make sure to use both even for core allocations.
 	 */
-	return mm_alloc(core_pool, ta_pool, size);
+	return mm_alloc(core_pool, ta_pool, size, MAF_NULL);
 }
 
 tee_mm_entry_t *phys_mem_ta_alloc(size_t size)
 {
-	return mm_alloc(ta_pool, core_pool, size);
+	return mm_alloc(ta_pool, core_pool, size, MAF_NULL);
 }
 
 tee_mm_entry_t *phys_mem_alloc2(paddr_t base, size_t size)
@@ -222,3 +222,21 @@ void phys_mem_stats(struct pta_stats_alloc *stats, bool reset)
 }
 #endif /*CFG_WITH_STATS*/
 #endif /*CFG_NS_VIRTUALIZATION*/
+
+tee_mm_entry_t *phys_mem_alloc_flags(size_t size, uint32_t flags)
+{
+	tee_mm_pool_t *core = nex_core_pool;
+	tee_mm_pool_t *ta = nex_ta_pool;
+
+#if defined(CFG_NS_VIRTUALIZATION)
+	if (!(flags & MAF_NEX)) {
+		core = core_pool;
+		ta = ta_pool;
+	}
+#endif
+
+	if (flags & MAF_CORE_MEM)
+		return mm_alloc(core, NULL, size, flags);
+	else
+		return mm_alloc(ta, core, size, flags);
+}

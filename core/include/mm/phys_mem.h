@@ -67,4 +67,11 @@ static inline void phys_mem_stats(struct pta_stats_alloc *stats, bool reset)
 #endif
 #endif
 
+/*
+ * MAF_NEX selects nexus physical memory
+ * MAF_CORE_MEM selects core physical memory
+ * flags are passed on underlying implementation, tee_mm_alloc_flags().
+ */
+tee_mm_entry_t *phys_mem_alloc_flags(size_t size, uint32_t flags);
+
 #endif /*__MM_PHYS_MEM_H*/
