@@ -1934,16 +1934,19 @@ static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
 
 void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 {
-	struct core_mmu_table_info tbl_info;
-	unsigned int idx;
+	struct core_mmu_table_info tbl_info = { };
+	unsigned int idx = 0;
 	vaddr_t vaddr = mm->va;
 	paddr_t paddr = mm->pa;
 	ssize_t size_left = mm->size;
-	unsigned int level;
-	bool table_found;
-	uint32_t old_attr;
+	uint32_t attr = mm->attr;
+	unsigned int level = 0;
+	bool table_found = false;
+	uint32_t old_attr = 0;
 
 	assert(!((vaddr | paddr) & SMALL_PAGE_MASK));
+	if (!paddr)
+		attr = 0;
 
 	while (size_left > 0) {
 		level = CORE_MMU_BASE_TABLE_LEVEL;
@@ -1982,7 +1985,7 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 			if (old_attr)
 				panic("Page is already mapped");
 
-			core_mmu_set_entry(&tbl_info, idx, paddr, mm->attr);
+			core_mmu_set_entry(&tbl_info, idx, paddr, attr);
 			/*
 			 * Dynamic vaspace regions don't have a physical
 			 * address initially but we need to allocate and
