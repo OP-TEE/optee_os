@@ -225,6 +225,7 @@ UNWIND(	.cantunwind)
 	mv	a0, s1		/* s1 contains saved device tree address */
 	mv	a1, x0		/* unused */
 	jal	boot_init_primary_late
+	jal	boot_init_primary_final
 
 	/*
 	 * After returning from boot_init_primary_late(), the flag and sp are
