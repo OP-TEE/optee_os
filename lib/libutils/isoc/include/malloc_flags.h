@@ -36,5 +36,11 @@
  * should be allocated from the Core or TA physical memory pool.
  */
 #define MAF_CORE_MEM	0x11
+/*
+ * Used by virt_page_alloc() to inidicate whether the allocated memory
+ * should by guareded by an unmapped page at the beginning and end.
+ */
+#define MAF_GUARD_HEAD	0x12
+#define MAF_GUARD_TAIL	0x14
 
 #endif /*__MALLOC_FLAGS_H*/
