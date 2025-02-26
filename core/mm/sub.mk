@@ -11,3 +11,4 @@ ifneq ($(CFG_CORE_FFA),y)
 srcs-$(CFG_CORE_DYN_SHM) += mobj_dyn_shm.c
 endif
 srcs-y += boot_mem.c
+srcs-y += page_alloc.c
