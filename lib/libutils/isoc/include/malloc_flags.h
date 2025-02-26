@@ -31,5 +31,10 @@
  * from high address to low address.
  */
 #define MAF_HI_ALLOC	0x10
+/*
+ * Used by phys_mem_alloc_flags() to indicate whether physical memory
+ * should be allocated from the Core or TA physical memory pool.
+ */
+#define MAF_CORE_MEM	0x20
 
 #endif /*__MALLOC_FLAGS_H*/
