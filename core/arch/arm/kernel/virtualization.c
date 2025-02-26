@@ -18,6 +18,7 @@
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/page_alloc.h>
 #include <mm/phys_mem.h>
 #include <mm/tee_mm.h>
 #include <platform_config.h>
@@ -327,6 +328,7 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 	phys_mem_init(0, 0, tee_mm_get_smem(prtn->ta_ram),
 		      tee_mm_get_bytes(prtn->ta_ram));
+	page_alloc_init();
 	/* Initialize threads */
 	thread_init_threads();
 	/* Do the preinitcalls */
