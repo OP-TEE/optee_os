@@ -10,6 +10,7 @@
  */
 
 #include <arm.h>
+#include <atomic.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/pinctrl.h>
@@ -20,8 +21,11 @@
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
+#include <kernel/interrupt.h>
 #include <kernel/mutex_pm_aware.h>
+#include <kernel/notif.h>
 #include <kernel/panic.h>
+#include <kernel/thread.h>
 #include <libfdt.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -164,6 +168,7 @@
 #define I2C_TIMEOUT_BUSY_MS		25
 #define I2C_TIMEOUT_BUSY_US		(I2C_TIMEOUT_BUSY_MS * 1000)
 #define I2C_TIMEOUT_RXNE_MS		5
+#define I2C_TIMEOUT_ITR_LOCKED_MS	100
 
 #define I2C_TIMEOUT_DEFAULT_MS		100
 
@@ -748,6 +753,97 @@ TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 	return TEE_SUCCESS;
 }
 
+static void init_i2c_bus_access_lock(struct i2c_handle_s *hi2c)
+{
+	mutex_pm_aware_init(&hi2c->mu);
+	hi2c->consumer_itr_lock = 0;
+}
+
+static bool is_thread_context(void)
+{
+	return thread_is_in_normal_mode() && thread_get_id_may_fail() >= 0;
+}
+
+static void lock_i2c_bus_access(struct i2c_handle_s *hi2c)
+{
+	/*
+	 * In order to support cases when a PMIC interrupt triggers
+	 * before async notif is supported, we allow I2C access under
+	 * interrupt context. To do so, thread context ensures PMIC
+	 * interrupt (actually the related PWR interrupt) is masked
+	 * while we're accessing the I2C from a thread context. We
+	 * must also make sure any pending interrupts under execution
+	 * complete before accessing the bus on async notif enable
+	 * transition.
+	 */
+	if (is_thread_context()) {
+		struct stm32_itr_dep *itr_dep = NULL;
+		uint32_t exceptions = 0;
+		uint64_t timeout = 0;
+
+		/* Lock thread access */
+		mutex_pm_aware_lock(&hi2c->mu);
+		FMSG("Thread access");
+
+		/*
+		 * When async notif is not started, mask registered consumer
+		 * interrupt during the thread context I2C access so we don't
+		 * conflict with a interrupt access to the I2C bus. When async
+		 * notif is started, all PMIC interrupts are routed to a thread
+		 * execution context so we don't need to mask them.
+		 */
+		if (!notif_async_is_started(0)) {
+			exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
+			hi2c->consumer_itr_masked = true;
+
+			/* Ensure next pending interrupts are masked */
+			SLIST_FOREACH(itr_dep, &hi2c->consumer_itr_head, link)
+				interrupt_mask(itr_dep->chip, itr_dep->num);
+
+			thread_unmask_exceptions(exceptions);
+		}
+
+		/* Wait possibly executing interrupt transfer completion */
+		timeout = timeout_init_us(I2C_TIMEOUT_ITR_LOCKED_MS * 1000);
+		while (!timeout_elapsed(timeout))
+			if (!atomic_load_int(&hi2c->consumer_itr_lock))
+				break;
+
+		if (atomic_load_int(&hi2c->consumer_itr_lock)) {
+			EMSG("Unexpected lengthy I2C xfer, base PA %"PRIxPA,
+			     hi2c->base.pa);
+			panic();
+		}
+	} else {
+		FMSG("Interrupt access");
+		atomic_store_int(&hi2c->consumer_itr_lock, 1);
+	}
+}
+
+static void unlock_i2c_bus_access(struct i2c_handle_s *hi2c)
+{
+	if (is_thread_context()) {
+		FMSG("Thread access completed");
+
+		if (hi2c->consumer_itr_masked) {
+			struct stm32_itr_dep *itr_dep = NULL;
+
+			/* Unmask possibly pending interrupts */
+			SLIST_FOREACH(itr_dep, &hi2c->consumer_itr_head, link)
+				interrupt_unmask(itr_dep->chip, itr_dep->num);
+
+			hi2c->consumer_itr_masked = false;
+		}
+
+		/* Unlock thread access */
+		mutex_pm_aware_unlock(&hi2c->mu);
+	} else {
+		FMSG("Interrupt access completed");
+		atomic_store_int(&hi2c->consumer_itr_lock, 0);
+	}
+}
+
 int stm32_i2c_init(struct i2c_handle_s *hi2c,
 		   struct stm32_i2c_init_s *init_data)
 {
@@ -756,7 +852,7 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 	vaddr_t base = 0;
 	uint32_t val = 0;
 
-	mutex_pm_aware_init(&hi2c->mu);
+	init_i2c_bus_access_lock(hi2c);
 
 	rc = i2c_setup_timing(hi2c, init_data, &timing);
 	if (rc)
@@ -1076,10 +1172,10 @@ static int do_write(struct i2c_handle_s *hi2c, struct i2c_request *request,
 	if (!p_data || !size)
 		return -1;
 
-	mutex_pm_aware_lock(&hi2c->mu);
+	lock_i2c_bus_access(hi2c);
 
 	if (hi2c->i2c_state != I2C_STATE_READY) {
-		mutex_pm_aware_unlock(&hi2c->mu);
+		unlock_i2c_bus_access(hi2c);
 		return -1;
 	}
 
@@ -1171,7 +1267,7 @@ static int do_write(struct i2c_handle_s *hi2c, struct i2c_request *request,
 
 bail:
 	clk_disable(hi2c->clock);
-	mutex_pm_aware_unlock(&hi2c->mu);
+	unlock_i2c_bus_access(hi2c);
 
 	return rc;
 }
@@ -1214,10 +1310,10 @@ int stm32_i2c_read_write_membyte(struct i2c_handle_s *hi2c, uint16_t dev_addr,
 	uint8_t *p_buff = p_data;
 	uint32_t event_mask = 0;
 
-	mutex_pm_aware_lock(&hi2c->mu);
+	lock_i2c_bus_access(hi2c);
 
 	if (hi2c->i2c_state != I2C_STATE_READY || !p_data) {
-		mutex_pm_aware_unlock(&hi2c->mu);
+		unlock_i2c_bus_access(hi2c);
 		return -1;
 	}
 
@@ -1279,7 +1375,7 @@ int stm32_i2c_read_write_membyte(struct i2c_handle_s *hi2c, uint16_t dev_addr,
 
 bail:
 	clk_disable(hi2c->clock);
-	mutex_pm_aware_unlock(&hi2c->mu);
+	unlock_i2c_bus_access(hi2c);
 
 	return rc;
 }
@@ -1309,10 +1405,10 @@ static int do_read(struct i2c_handle_s *hi2c, struct i2c_request *request,
 	if (!p_data || !size)
 		return -1;
 
-	mutex_pm_aware_lock(&hi2c->mu);
+	lock_i2c_bus_access(hi2c);
 
 	if (hi2c->i2c_state != I2C_STATE_READY) {
-		mutex_pm_aware_unlock(&hi2c->mu);
+		unlock_i2c_bus_access(hi2c);
 		return -1;
 	}
 
@@ -1399,7 +1495,7 @@ static int do_read(struct i2c_handle_s *hi2c, struct i2c_request *request,
 
 bail:
 	clk_disable(hi2c->clock);
-	mutex_pm_aware_unlock(&hi2c->mu);
+	unlock_i2c_bus_access(hi2c);
 
 	return rc;
 }
@@ -1481,10 +1577,10 @@ bool stm32_i2c_is_device_ready(struct i2c_handle_s *hi2c, uint32_t dev_addr,
 	unsigned int i2c_trials = 0U;
 	bool rc = false;
 
-	mutex_pm_aware_lock(&hi2c->mu);
+	lock_i2c_bus_access(hi2c);
 
 	if (hi2c->i2c_state != I2C_STATE_READY) {
-		mutex_pm_aware_unlock(&hi2c->mu);
+		unlock_i2c_bus_access(hi2c);
 		return rc;
 	}
 
@@ -1561,9 +1657,24 @@ bool stm32_i2c_is_device_ready(struct i2c_handle_s *hi2c, uint32_t dev_addr,
 
 bail:
 	clk_disable(hi2c->clock);
-	mutex_pm_aware_unlock(&hi2c->mu);
+	unlock_i2c_bus_access(hi2c);
 
 	return rc;
+}
+
+void stm32_i2c_interrupt_access_lockdeps(struct i2c_handle_s *hi2c,
+					 struct itr_chip *itr_chip,
+					 size_t itr_num)
+{
+	struct stm32_itr_dep *itr_dep = NULL;
+
+	itr_dep = calloc(1, sizeof(*itr_dep));
+	if (!itr_dep)
+		panic();
+
+	itr_dep->chip = itr_chip;
+	itr_dep->num = itr_num;
+	SLIST_INSERT_HEAD(&hi2c->consumer_itr_head, itr_dep, link);
 }
 
 void stm32_i2c_resume(struct i2c_handle_s *hi2c)
