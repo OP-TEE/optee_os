@@ -68,12 +68,18 @@ bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_size_t size,
 /* Kill managed memory area*/
 void tee_mm_final(tee_mm_pool_t *pool);
 
+tee_mm_entry_t *tee_mm_alloc_flags(tee_mm_pool_t *pool, size_t size,
+				   uint32_t flags);
+
 /*
  * Allocates size number of bytes in the paged virtual address space
  * Returns a handle to the memory. The handle is used as an input to
  * the tee_mm_free function.
  */
-tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, size_t size);
+static inline tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, size_t size)
+{
+	return tee_mm_alloc_flags(pool, size, MAF_NULL);
+}
 
 /* Allocate supplied memory range if it's free */
 tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, paddr_t base, size_t size);
