@@ -14,6 +14,8 @@ include mk/cc-option.mk
 
 CFG_MMAP_REGIONS ?= 13
 CFG_RESERVED_VASPACE_SIZE ?= (1024 * 1024 * 10)
+CFG_NEX_DYN_VASPACE_SIZE ?= (1024 * 1024)
+CFG_TEE_DYN_VASPACE_SIZE ?= (1024 * 1024)
 
 ifeq ($(CFG_RV64_core),y)
 CFG_KERN_LINKER_FORMAT ?= elf64-littleriscv
