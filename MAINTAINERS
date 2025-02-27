@@ -124,7 +124,7 @@ F:	core/drivers/zynqmp_huk.c
 F:	core/drivers/zynqmp_pm.c
 
 Function Graph Tracer (ftrace) support
-R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
+R:	Sumit Garg <sumit.garg@kernel.org> [@b49020]
 S:	Maintained
 F:	ldelf/ftrace.c
 F:	lib/libutils/ext/ftrace/
@@ -249,7 +249,7 @@ S:	Maintained
 F:	core/arch/arm/plat-rzg/
 
 Renesas RZ/N1
-R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
+R:	Sumit Garg <sumit.garg@kernel.org> [@b49020]
 S:	Maintained
 F:	core/arch/arm/plat-rzn1/
 
@@ -259,7 +259,7 @@ S:	Maintained
 F:	core/arch/arm/plat-rockchip/
 
 Socionext DeveloperBox (Synquacer SC2A11)
-R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
+R:	Sumit Garg <sumit.garg@kernel.org> [@b49020]
 S:	Maintained
 F:	core/arch/arm/plat-synquacer/
 
