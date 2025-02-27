@@ -17,6 +17,12 @@
 #define PWR_WKUPCR_OFF		0x20
 #define PWR_MPUWKUPENR_OFF	0x28
 
+#ifdef CFG_STM32MP13
+/* CR1 register bitfield for STM32MP13 variants */
+#define PWR_CR1_MPU_RAM_LOW_SPEED	BIT(9)
+#define PWR_MPU_RAM_LOW_SPEED_THRESHOLD 1320000
+#endif
+
 /* CR3 register bitfield for STM32MP13 variants */
 #define PWR_CR3_VDDSD1EN	BIT(13)
 #define PWR_CR3_VDDSD1RDY	BIT(14)
