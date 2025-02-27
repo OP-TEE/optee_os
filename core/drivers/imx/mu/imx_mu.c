@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023, 2025 NXP
  */
 #include <assert.h>
 #include <drivers/imx_mu.h>
+#include <imx-regs.h>
 #include <kernel/delay.h>
 #include <kernel/spinlock.h>
 #include <string.h>
@@ -12,6 +13,12 @@
 #include "imx_mu_platform.h"
 
 #define RX_TIMEOUT (100 * 1000)
+
+#if defined(CFG_MX93) || defined(CFG_MX91)
+#define IS_MU_TRUST (MU_BASE == MU_TRUST_BASE)
+#else
+#define IS_MU_TRUST false
+#endif
 
 static unsigned int mu_spinlock = SPINLOCK_UNLOCK;
 
@@ -89,6 +96,8 @@ static TEE_Result imx_mu_send_msg(vaddr_t base, struct imx_mu_msg *msg)
 	TEE_Result res = TEE_ERROR_GENERIC;
 	unsigned int count = 0;
 	unsigned int nb_channel = 0;
+	unsigned int start_index = 0;
+	unsigned int end_index = 0;
 	uint32_t word = 0;
 
 	assert(base && msg);
@@ -98,16 +107,49 @@ static TEE_Result imx_mu_send_msg(vaddr_t base, struct imx_mu_msg *msg)
 		return TEE_ERROR_BAD_FORMAT;
 	}
 
-	memcpy(&word, &msg->header, sizeof(uint32_t));
-	res = imx_mu_plat_send(base, 0, word);
-	if (res)
-		return res;
+	if (IS_MU_TRUST) {
+		/*
+		 * make sure command (bit[31:26]) is higher than SCM_CR2_CMD_VAL
+		 * SCM_CR2_CMD_VAL is set to 0 by ELE FW. but let’s use
+		 * max value.
+		 */
+		word |= GENMASK_32(31, 26);
 
-	nb_channel = imx_mu_plat_get_tx_channel(base);
+		/* size (including dummy header) ->  bit[19:16]*/
+		word |= SHIFT_U32(((msg->header.size + 1) & GENMASK_32(3, 0)),
+				  16);
 
-	for (count = 1; count < msg->header.size; count++) {
+		res = imx_mu_plat_send(base, start_index, word);
+		if (res)
+			return res;
+
+		start_index++;
+		memcpy(&word, &msg->header, sizeof(uint32_t));
+		res = imx_mu_plat_send(base, start_index, word);
+		if (res)
+			return res;
+
+		start_index++;
+		/*
+		 * TR15 is reserved for special USM commands
+		 */
+		nb_channel = imx_mu_plat_get_tx_channel(base) - 1;
+		end_index = msg->header.size + 1;
+		assert(end_index < nb_channel);
+	} else {
+		memcpy(&word, &msg->header, sizeof(uint32_t));
+		res = imx_mu_plat_send(base, start_index, word);
+		if (res)
+			return res;
+
+		start_index++;
+		nb_channel = imx_mu_plat_get_tx_channel(base);
+		end_index = msg->header.size;
+	}
+
+	for (count = start_index; count < end_index; count++) {
 		res = imx_mu_plat_send(base, count % nb_channel,
-				       msg->data.u32[count - 1]);
+				       msg->data.u32[count - start_index]);
 		if (res)
 			return res;
 	}
