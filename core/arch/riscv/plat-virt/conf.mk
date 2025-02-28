@@ -28,6 +28,9 @@ $(call force,CFG_BOOT_SYNC_CPU,n)
 
 # Interrupt controller
 CFG_RISCV_PLIC ?= y
+CFG_RISCV_APLIC ?= n
+CFG_RISCV_APLIC_MSI ?= n
+CFG_RISCV_IMSIC ?= n
 
 # Console device
 CFG_RISCV_SBI_CONSOLE ?= n
