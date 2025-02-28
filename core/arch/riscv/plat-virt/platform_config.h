@@ -32,6 +32,25 @@
 #define PLIC_NUM_SOURCES	0x5f
 #endif
 
+/* APLIC */
+#ifndef APLIC_BASE
+#define APLIC_BASE		0x0d000000
+#define APLIC_SIZE		0x8000
+#define APLIC_NUM_SOURCE	0x60
+#define APLIC_NUM_IDC		CFG_TEE_CORE_NB_CORE
+#endif
+
+/* IMSIC */
+#ifndef IMSIC_BASE
+#define IMSIC_BASE		0x28000000
+#define IMSIC_SIZE		0x4000000
+#define IMSIC_NUM_IDS		0xff
+#define IMSIC_GUEST_INDEX_BITS	0x00
+#define IMSIC_HART_INDEX_BITS	0x02
+#define IMSIC_GROUP_INDEX_BITS	0x00
+#define IMSIC_GROUP_INDEX_SHIFT	0x18
+#endif
+
 /* UART */
 #ifndef UART0_BASE
 #define UART0_BASE		0x10000000
