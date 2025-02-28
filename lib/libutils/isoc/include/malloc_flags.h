@@ -28,7 +28,7 @@
 #define MAF_FREE_WIPE	0x04	/* Free wipes allocated buffer */
 /*
  * Used by tee_mm_init() to indicatate that the pool should allocate
- * from hi address to low address.
+ * from high address to low address.
  */
 #define MAF_HI_ALLOC	0x10
 /*
