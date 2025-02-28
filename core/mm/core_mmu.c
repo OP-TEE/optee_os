@@ -854,6 +854,8 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_TEE_RAM_RW:
 	case MEM_AREA_NEX_RAM_RO: /* This has to be r/w during init runtime */
 	case MEM_AREA_NEX_RAM_RW:
+	case MEM_AREA_NEX_DYN_VASPACE:
+	case MEM_AREA_TEE_DYN_VASPACE:
 	case MEM_AREA_TEE_ASAN:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | tagged;
 	case MEM_AREA_TEE_COHERENT:
@@ -1216,6 +1218,14 @@ static void collect_mem_ranges(struct memory_map *mem_map)
 
 	add_va_space(mem_map, MEM_AREA_RES_VASPACE, CFG_RESERVED_VASPACE_SIZE);
 	add_va_space(mem_map, MEM_AREA_SHM_VASPACE, SHM_VASPACE_SIZE);
+	if (IS_ENABLED(CFG_DYN_CONFIG)) {
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+			add_va_space(mem_map, MEM_AREA_NEX_DYN_VASPACE,
+				     ROUNDUP(CFG_NEX_DYN_VASPACE_SIZE,
+					     CORE_MMU_PGDIR_SIZE));
+		add_va_space(mem_map, MEM_AREA_TEE_DYN_VASPACE,
+			     CFG_TEE_DYN_VASPACE_SIZE);
+	}
 }
 
 static void assign_mem_granularity(struct memory_map *mem_map)
@@ -1566,6 +1576,8 @@ static void check_mem_map(struct memory_map *mem_map)
 		case MEM_AREA_RES_VASPACE:
 		case MEM_AREA_SHM_VASPACE:
 		case MEM_AREA_PAGER_VASPACE:
+		case MEM_AREA_NEX_DYN_VASPACE:
+		case MEM_AREA_TEE_DYN_VASPACE:
 			break;
 		default:
 			EMSG("Uhandled memtype %d", m->type);
@@ -1953,16 +1965,19 @@ static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
 
 void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 {
-	struct core_mmu_table_info tbl_info;
-	unsigned int idx;
+	struct core_mmu_table_info tbl_info = { };
+	unsigned int idx = 0;
 	vaddr_t vaddr = mm->va;
 	paddr_t paddr = mm->pa;
 	ssize_t size_left = mm->size;
-	unsigned int level;
-	bool table_found;
-	uint32_t old_attr;
+	uint32_t attr = mm->attr;
+	unsigned int level = 0;
+	bool table_found = false;
+	uint32_t old_attr = 0;
 
 	assert(!((vaddr | paddr) & SMALL_PAGE_MASK));
+	if (!paddr)
+		attr = 0;
 
 	while (size_left > 0) {
 		level = CORE_MMU_BASE_TABLE_LEVEL;
@@ -2001,7 +2016,7 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 			if (old_attr)
 				panic("Page is already mapped");
 
-			core_mmu_set_entry(&tbl_info, idx, paddr, mm->attr);
+			core_mmu_set_entry(&tbl_info, idx, paddr, attr);
 			/*
 			 * Dynamic vaspace regions don't have a physical
 			 * address initially but we need to allocate and
@@ -2601,6 +2616,7 @@ static void *phys_to_virt_tee_ram(paddr_t pa, size_t len)
 		mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM_RO, pa, len);
 	if (!mmap)
 		mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM_RX, pa, len);
+
 	/*
 	 * Note that MEM_AREA_INIT_RAM_RO and MEM_AREA_INIT_RAM_RX are only
 	 * used with pager and not needed here.
@@ -2626,6 +2642,8 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m, size_t len)
 		va = phys_to_virt_tee_ram(pa, len);
 		break;
 	case MEM_AREA_SHM_VASPACE:
+	case MEM_AREA_NEX_DYN_VASPACE:
+	case MEM_AREA_TEE_DYN_VASPACE:
 		/* Find VA from PA in dynamic SHM is not yet supported */
 		va = NULL;
 		break;
