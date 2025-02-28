@@ -35,7 +35,7 @@
  * Used by phys_mem_alloc_flags() to indicate whether physical memory
  * should be allocated from the Core or TA physical memory pool.
  */
-#define MAF_CORE_MEM	0x11
+#define MAF_CORE_MEM	0x20
 /*
  * Used by virt_page_alloc() to inidicate whether the allocated memory
  * should by guareded by an unmapped page at the beginning and end.
