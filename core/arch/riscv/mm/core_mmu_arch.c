@@ -36,6 +36,8 @@
 #define debug_print(...) ((void)0)
 #endif
 
+#define IS_PAGE_ALIGNED(addr)	IS_ALIGNED(addr, SMALL_PAGE_SIZE)
+
 static bitstr_t bit_decl(g_asid, RISCV_MMU_ASID_WIDTH) __nex_bss;
 static unsigned int g_asid_spinlock __nex_bss = SPINLOCK_UNLOCK;
 
@@ -246,9 +248,12 @@ static struct mmu_partition *core_mmu_get_prtn(void)
 	return &default_partition;
 }
 
-static struct mmu_pgt *core_mmu_get_root_pgt_va(struct mmu_partition *prtn)
+static struct mmu_pgt *core_mmu_get_root_pgt_va(struct mmu_partition *prtn,
+						size_t core_pos)
 {
-	return prtn->root_pgt + get_core_pos();
+	assert(core_pos < CFG_TEE_CORE_NB_CORE);
+
+	return prtn->root_pgt + core_pos;
 }
 
 static struct mmu_pgt *core_mmu_get_ta_pgt_va(struct mmu_partition *prtn)
@@ -300,12 +305,21 @@ static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 				   struct memory_map *mem_map)
 {
 	size_t n = 0;
-	void *pgt = core_mmu_get_root_pgt_va(prtn);
+
+	assert(prtn && mem_map);
+
+	for (n = 0; n < mem_map->count; n++) {
+		struct tee_mmap_region *mm = mem_map->map + n;
+
+		debug_print(" %010" PRIxVA " %010" PRIxPA " %10zx %x",
+			    mm->va, mm->pa, mm->size, mm->attr);
+
+		if (!IS_PAGE_ALIGNED(mm->pa) || !IS_PAGE_ALIGNED(mm->size))
+			panic("unaligned region");
+	}
 
 	/* Clear table before using it. */
 	memset(prtn->root_pgt, 0, RISCV_MMU_PGT_SIZE * CFG_TEE_CORE_NB_CORE);
-	memset(pgt, 0, RISCV_MMU_PGT_SIZE);
-	memset(prtn->pool_pgts, 0, RISCV_MMU_MAX_PGTS * RISCV_MMU_PGT_SIZE);
 
 	for (n = 0; n < mem_map->count; n++)
 		core_mmu_map_region(prtn, mem_map->map + n);
@@ -315,10 +329,12 @@ static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 	 * whose value may not be ZERO. Take this index as copy source.
 	 */
 	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
-		if (n != get_core_pos())
-			memcpy(&prtn->root_pgt[n],
-			       &prtn->root_pgt[get_core_pos()],
-			       RISCV_MMU_PGT_SIZE);
+		if (n == get_core_pos())
+			continue;
+
+		memcpy(core_mmu_get_root_pgt_va(prtn, n),
+		       core_mmu_get_root_pgt_va(prtn, get_core_pos()),
+		       RISCV_MMU_PGT_SIZE);
 	}
 }
 
@@ -469,7 +485,7 @@ bool arch_va2pa_helper(void *va, paddr_t *pa)
 
 	assert(pa);
 
-	pgt = core_mmu_get_root_pgt_va(prtn);
+	pgt = core_mmu_get_root_pgt_va(prtn, get_core_pos());
 
 	for (level = CORE_MMU_BASE_TABLE_LEVEL; level >= 0; level--) {
 		idx = core_mmu_pgt_idx(vaddr, level);
@@ -516,7 +532,7 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 	if (!prtn)
 		prtn = core_mmu_get_prtn();
 
-	pgt = core_mmu_get_root_pgt_va(prtn);
+	pgt = core_mmu_get_root_pgt_va(prtn, get_core_pos());
 
 	while (true) {
 		idx = core_mmu_pgt_idx(va - va_base, level);
@@ -618,7 +634,7 @@ static void set_user_va_idx(struct mmu_partition *prtn)
 	struct mmu_pte *pte = NULL;
 	unsigned int idx = 0;
 
-	pgt = core_mmu_get_root_pgt_va(prtn);
+	pgt = core_mmu_get_root_pgt_va(prtn, get_core_pos());
 
 	for (idx = 1 ; idx < RISCV_PTES_PER_PT; idx++) {
 		pte = core_mmu_table_get_entry(pgt, idx);
@@ -634,7 +650,7 @@ static void set_user_va_idx(struct mmu_partition *prtn)
 static struct mmu_pte *
 core_mmu_get_user_mapping_entry(struct mmu_partition *prtn)
 {
-	struct mmu_pgt *pgt = core_mmu_get_root_pgt_va(prtn);
+	struct mmu_pgt *pgt = core_mmu_get_root_pgt_va(prtn, get_core_pos());
 
 	assert(core_mmu_user_va_range_is_defined());
 
