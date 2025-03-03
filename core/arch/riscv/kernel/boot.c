@@ -80,16 +80,8 @@ static void start_secondary_cores(void)
 }
 #endif
 
-static void init_runtime(void)
-{
-	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
-
-	IMSG_RAW("\n");
-}
-
 void init_tee_runtime(void)
 {
-	core_mmu_init_phys_mem();
 	call_preinitcalls();
 	call_early_initcalls();
 	call_service_initcalls();
@@ -97,6 +89,8 @@ void init_tee_runtime(void)
 
 static void init_primary(unsigned long nsec_entry)
 {
+	vaddr_t va __maybe_unused = 0;
+
 	thread_init_core_local_stacks();
 
 	/*
@@ -108,7 +102,13 @@ static void init_primary(unsigned long nsec_entry)
 	 */
 	thread_set_exceptions(THREAD_EXCP_ALL);
 
-	init_runtime();
+	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
+	IMSG_RAW("\n");
+
+	core_mmu_save_mem_map();
+	core_mmu_init_phys_mem();
+	va = boot_mem_release_unused();
+
 	thread_init_boot_thread();
 	thread_init_primary();
 	thread_init_per_cpu();
@@ -156,6 +156,8 @@ void boot_init_primary_late(unsigned long fdt,
 
 void __weak boot_init_primary_final(void)
 {
+	boot_mem_release_tmp_alloc();
+
 	call_driver_initcalls();
 	call_finalcalls();
 	IMSG("Primary CPU initialized");
