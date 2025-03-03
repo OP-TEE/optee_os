@@ -1264,14 +1264,11 @@ CFG_CORE_UNSAFE_MODEXP ?= n
 # exponentiation algorithm.
 CFG_TA_MEBDTLS_UNSAFE_MODEXP ?= n
 
-# CFG_BOOT_MEM, when enabled, adds stack like memory allocation during boot.
 # CFG_BOOT_INIT_THREAD_CORE_LOCAL0, when enabled, initializes
 # thread_core_local[0] before calling C code.
 ifeq ($(ARCH),arm)
-$(call force,CFG_BOOT_MEM,y)
 $(call force,CFG_BOOT_INIT_THREAD_CORE_LOCAL0,y)
 else
-CFG_BOOT_MEM ?= n
 CFG_BOOT_INIT_THREAD_CORE_LOCAL0 ?= n
 endif
 
@@ -1280,7 +1277,7 @@ endif
 ifeq ($(CFG_WITH_PAGER),y)
 $(call force,CFG_DYN_CONFIG,n,conflicts with CFG_WITH_PAGER)
 else
-CFG_DYN_CONFIG ?= $(CFG_BOOT_MEM)
+CFG_DYN_CONFIG ?= y
 endif
 
 # CFG_EXTERNAL_ABORT_PLAT_HANDLER is used to implement platform-specific
