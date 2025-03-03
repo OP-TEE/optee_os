@@ -280,6 +280,8 @@ jobs:
           export CROSS_COMPILE64="ccache riscv64-linux-gnu-"
 
           _make PLATFORM=virt
+          _make PLATFORM=virt CFG_RISCV_PLIC=n CFG_RISCV_APLIC=y
+          _make PLATFORM=virt CFG_RISCV_PLIC=n CFG_RISCV_APLIC_MSI=y CFG_RISCV_IMSIC=y
 
   QEMUv7_check:
     name: make check (QEMUv7)
