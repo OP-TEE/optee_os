@@ -200,6 +200,11 @@ UNWIND(	.cantunwind)
 	jal	plat_primary_init_early
 	jal	console_init
 
+	la	a0, __vcore_free_start
+	la	a1, __vcore_free_end
+	la	a2, __vcore_free_end
+	jal	boot_mem_init
+
 	mv	a0, x0
 	la	a1, boot_mmu_config
 	jal	core_init_mmu_map
