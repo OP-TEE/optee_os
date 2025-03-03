@@ -62,19 +62,7 @@ unsigned long default_nsec_shm_size __nex_bss;
 unsigned long default_nsec_shm_paddr __nex_bss;
 #endif
 
-#ifdef CFG_BOOT_MEM
 static struct memory_map static_memory_map __nex_bss;
-#else
-static struct tee_mmap_region static_mmap_regions[CFG_MMAP_REGIONS
-#if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PHYS_RELOCATABLE)
-						+ 1
-#endif
-						+ 4] __nex_bss;
-static struct memory_map static_memory_map __nex_data = {
-	.map = static_mmap_regions,
-	.alloc_count = ARRAY_SIZE(static_mmap_regions),
-};
-#endif
 void (*memory_map_realloc_func)(struct memory_map *mem_map) __nex_bss;
 
 /* Offset of the first TEE RAM mapping from start of secure RAM */
@@ -1609,15 +1597,11 @@ void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 
 	check_sec_nsec_mem_config();
 
-	if (IS_ENABLED(CFG_BOOT_MEM)) {
-		mem_map.alloc_count = CFG_MMAP_REGIONS;
-		mem_map.map = boot_mem_alloc_tmp(mem_map.alloc_count *
-							sizeof(*mem_map.map),
-						 alignof(*mem_map.map));
-		memory_map_realloc_func = boot_mem_realloc_memory_map;
-	} else {
-		mem_map = static_memory_map;
-	}
+	mem_map.alloc_count = CFG_MMAP_REGIONS;
+	mem_map.map = boot_mem_alloc_tmp(mem_map.alloc_count *
+						sizeof(*mem_map.map),
+					 alignof(*mem_map.map));
+	memory_map_realloc_func = boot_mem_realloc_memory_map;
 
 	static_memory_map = (struct memory_map){
 		.map = &tmp_mmap_region,
@@ -1650,20 +1634,17 @@ void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 
 void core_mmu_save_mem_map(void)
 {
-	if (IS_ENABLED(CFG_BOOT_MEM)) {
-		size_t alloc_count = static_memory_map.count + 5;
-		size_t elem_sz = sizeof(*static_memory_map.map);
-		void *p = NULL;
+	size_t alloc_count = static_memory_map.count + 5;
+	size_t elem_sz = sizeof(*static_memory_map.map);
+	void *p = NULL;
 
-		p = nex_calloc(alloc_count, elem_sz);
-		if (!p)
-			panic();
-		memcpy(p, static_memory_map.map,
-		       static_memory_map.count * elem_sz);
-		static_memory_map.map = p;
-		static_memory_map.alloc_count = alloc_count;
-		memory_map_realloc_func = heap_realloc_memory_map;
-	}
+	p = nex_calloc(alloc_count, elem_sz);
+	if (!p)
+		panic();
+	memcpy(p, static_memory_map.map, static_memory_map.count * elem_sz);
+	static_memory_map.map = p;
+	static_memory_map.alloc_count = alloc_count;
+	memory_map_realloc_func = heap_realloc_memory_map;
 }
 
 bool core_mmu_mattr_is_ok(uint32_t mattr)
