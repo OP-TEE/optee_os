@@ -597,7 +597,7 @@ jobs:
 
           # xtest 1031 is excluded because 1031.4 (C++ exception from shared library) fails with this cross-compiler
           # Rust is disabled because of a link error in the examples with this toolchain
-          make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y MEMTAG=y PAUTH=y RUST_ENABLE=n XTEST_ARGS="-x 1031" check
+          make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y SEL0_SPS=y MEMTAG=y PAUTH=y RUST_ENABLE=n XTEST_ARGS="-x n_1031" check
 
   QEMUv8_check_arm64_host:
     name: make check (QEMUv8) (arm64 host)
