@@ -58,15 +58,21 @@ link-ldadd  = $(user-ta-ldadd) $(addprefix -L,$(libdirs))
 link-ldadd += --start-group
 link-ldadd += $(addprefix -l,$(libnames))
 ifneq (,$(filter %.cpp,$(srcs)))
+ifneq ($(CFG_TA_LIBGCC),y)
+$(error C++ code depends on CFG_TA_LIBGCC=y)
+endif
 link-ldflags += --eh-frame-hdr
 link-ldadd += $(libstdc++$(sm)) $(libgcc_eh$(sm))
 endif
 link-ldadd += --end-group
+ifeq ($(CFG_TA_LIBGCC),y)
+link-ldadd += $(libgcc$(sm))
+endif
 
 link-ldadd-after-libgcc += $(addprefix -l,$(libnames-after-libgcc))
 
 ldargs-$(user-ta-uuid).elf := $(link-ldflags) $(objs) $(link-ldadd) \
-				$(libgcc$(sm)) $(link-ldadd-after-libgcc)
+				$(link-ldadd-after-libgcc)
 
 link-script-cppflags-$(sm) := \
 	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
