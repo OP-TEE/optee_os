@@ -1284,3 +1284,8 @@ endif
 # handling of external abort implementing the plat_external_abort_handler()
 # function.
 CFG_EXTERNAL_ABORT_PLAT_HANDLER ?= n
+
+# CFG_TA_LIBGCC, when enabled, links user mode TAs with libgcc. Linking
+# TAs with libgcc is deprecated, but keep this flag while sorting out the
+# out remaining issues with supporting C++.
+CFG_TA_LIBGCC ?= y
