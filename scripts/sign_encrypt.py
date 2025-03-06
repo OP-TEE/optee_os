@@ -593,7 +593,7 @@ class BinaryImage:
                  tag_len] = struct.unpack('<IIHH', ehdr)
 
                 print(' struct shdr_encrypted_ta')
-                enc_algo_name = 'Unkown'
+                enc_algo_name = 'Unknown'
                 if enc_algo in enc_tee_alg.values():
                     enc_algo_name = value_to_key(enc_tee_alg, enc_algo)
                 print('  enc_algo:   0x{:08x} ({})'
@@ -603,7 +603,7 @@ class BinaryImage:
                     raise Exception('Unrecognized encrypt algorithm: 0x{:08x}'
                                     .format(enc_algo))
 
-                flags_name = 'Unkown'
+                flags_name = 'Unknown'
                 if flags in enc_key_type.values():
                     flags_name = value_to_key(enc_key_type, flags)
                 print('  flags:      0x{:x} ({})'.format(flags, flags_name))
