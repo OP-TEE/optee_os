@@ -1041,7 +1041,7 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 	}
 }
 
-void __weak boot_init_primary_final(void)
+void __weak boot_init_primary_runtime(void)
 {
 	IMSG("OP-TEE version: %s", core_v_str);
 	if (IS_ENABLED(CFG_INSECURE)) {
@@ -1087,7 +1087,10 @@ void __weak boot_init_primary_final(void)
 
 	if (!IS_ENABLED(CFG_WITH_PAGER))
 		boot_mem_release_tmp_alloc();
+}
 
+void __weak boot_init_primary_final(void)
+{
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		call_driver_initcalls();
 

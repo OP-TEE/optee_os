@@ -441,6 +441,7 @@ clear_nex_bss:
 	mov	x24, x0
 	str	wzr, [x24, #THREAD_CORE_LOCAL_FLAGS]
 #endif
+	bl	boot_init_primary_runtime
 #ifdef CFG_CORE_PAUTH
 	adr_l	x0, threads
 	ldp	x1, x2, [x0, #THREAD_CTX_KEYS]
