@@ -10,8 +10,9 @@
 #include <riscv.S>
 #endif
 
-#if defined(__aarch64__) && ((defined(__KERNEL__) && defined(CFG_CORE_BTI)) || \
-			     (!defined(__KERNEL__) && defined(CFG_TA_BTI)))
+#if defined(__aarch64__) && \
+    (((defined(__KERNEL__) || defined(__LDELF__)) && defined(CFG_CORE_BTI)) || \
+     (!(defined(__KERNEL__) || defined(__LDELF__)) && defined(CFG_TA_BTI)))
 #define BTI(...) __VA_ARGS__
 #else
 #define BTI(...)
