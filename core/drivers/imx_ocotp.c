@@ -49,7 +49,11 @@
 /* Shadow reload needs more time if eFuses where written prior */
 #define OCOTP_OP_BUSY_TIMEOUT_US	1000
 
+#if defined(CFG_MX6) || defined(CFG_MX7ULP)
+#define OCOTP_ADDR(_b, _w)		(((_b) * (0x80) + (_w) * (0x10)) / 0x10)
+#else
 #define OCOTP_ADDR(_b, _w)		(((_b) * (0x40) + (_w) * (0x10)) / 0x10)
+#endif
 
 #define TIMING_STROBE_PROG_US		10	/* Min time to blow a fuse */
 #define TIMING_STROBE_READ_NS		37	/* Min time before read */
@@ -214,7 +218,7 @@ out:
 	return ret;
 }
 
-static TEE_Result ocotp_mx8m_set_timing(void)
+static TEE_Result ocotp_set_timing(void)
 {
 	uint32_t strobe_read = 0;
 	uint32_t strobe_prog = 0;
@@ -244,13 +248,13 @@ static TEE_Result ocotp_mx8m_set_timing(void)
 	return ocotp_ctrl_wait_for(OCOTP_CTRL_BUSY);
 }
 
-static TEE_Result ocotp_mx8m_write_fuse(unsigned int bank, unsigned int word,
-					uint32_t val)
+static TEE_Result ocotp_write_fuse(unsigned int bank, unsigned int word,
+				   uint32_t val)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	uint32_t reg = 0;
 
-	ret = ocotp_mx8m_set_timing();
+	ret = ocotp_set_timing();
 	if (ret) {
 		EMSG("OCOTP set_timing failed");
 		return ret;
@@ -353,6 +357,7 @@ static const struct ocotp_instance ocotp_imx6q = {
 	.nb_banks = 16,
 	.nb_words = 8,
 	.get_die_id = ocotp_get_die_id_mx,
+	.write_fuse = ocotp_write_fuse,
 };
 
 static const struct ocotp_instance ocotp_imx6sl = {
@@ -377,6 +382,7 @@ static const struct ocotp_instance ocotp_imx6ul = {
 	.nb_banks = 16,
 	.nb_words = 8,
 	.get_die_id = ocotp_get_die_id_mx,
+	.write_fuse = ocotp_write_fuse,
 };
 
 static const struct ocotp_instance ocotp_imx6ull = {
@@ -401,14 +407,14 @@ static const struct ocotp_instance ocotp_imx8m = {
 	.nb_banks = 32,
 	.nb_words = 8,
 	.get_die_id = ocotp_get_die_id_mx,
-	.write_fuse = ocotp_mx8m_write_fuse,
+	.write_fuse = ocotp_write_fuse,
 };
 
 static const struct ocotp_instance ocotp_imx8mp = {
 	.nb_banks = 48,
 	.nb_words = 8,
 	.get_die_id = ocotp_get_die_id_mx,
-	.write_fuse = ocotp_mx8m_write_fuse,
+	.write_fuse = ocotp_write_fuse,
 };
 
 int tee_otp_get_die_id(uint8_t *buffer, size_t len)
