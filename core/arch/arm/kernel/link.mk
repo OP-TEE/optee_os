@@ -52,7 +52,7 @@ link-objs-init := $(filter-out \
 		    $(out-dir)/$(arch-dir)/kernel/link_dummies_init.o, \
 		    $(objs))
 ldargs-tee.elf := $(link-ldflags) $(link-objs) $(link-out-dir)/version.o \
-		  $(link-ldadd) $(libgcccore)
+		  $(link-ldadd)
 
 link-script-cppflags := \
 	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
