@@ -46,7 +46,11 @@
 #define OCOTP_SHADOW_OFFSET(_b, _w)	((_b) * (0x40) + (_w) * (0x10) + 0x400)
 #endif
 
+#if defined(CFG_MX6) || defined(CFG_MX7ULP)
+#define OCOTP_ADDR(_b, _w)		(((_b) * (0x80) + (_w) * (0x10)) / 0x10)
+#else
 #define OCOTP_ADDR(_b, _w)		(((_b) * (0x40) + (_w) * (0x10)) / 0x10)
+#endif
 
 #define TIMING_STROBE_PROG_US		10	/* Min time to blow a fuse */
 #define TIMING_STROBE_READ_NS		37	/* Min time before read */
@@ -343,6 +347,7 @@ static const struct ocotp_instance ocotp_imx6q = {
 	.nb_banks = 16,
 	.nb_words = 8,
 	.get_die_id = ocotp_get_die_id_mx,
+	.write_fuse = ocotp_mx8m_write_fuse,
 };
 
 static const struct ocotp_instance ocotp_imx6sl = {
@@ -367,6 +372,7 @@ static const struct ocotp_instance ocotp_imx6ul = {
 	.nb_banks = 16,
 	.nb_words = 8,
 	.get_die_id = ocotp_get_die_id_mx,
+	.write_fuse = ocotp_mx8m_write_fuse,
 };
 
 static const struct ocotp_instance ocotp_imx6ull = {
