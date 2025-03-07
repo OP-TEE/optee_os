@@ -45,6 +45,7 @@
 
 struct pta_stats_alloc {
 	char desc[TEE_ALLOCATOR_DESC_LENGTH];
+	uint64_t free2_sum;               /* Sum of size^2 of each free chunk */
 	uint32_t allocated;               /* Bytes currently allocated */
 	uint32_t max_allocated;           /* Tracks max value of allocated */
 	uint32_t size;                    /* Total size for this allocator */
