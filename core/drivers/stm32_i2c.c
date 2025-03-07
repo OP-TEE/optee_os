@@ -297,6 +297,9 @@ struct i2c_request {
 	unsigned int timeout_ms;
 };
 
+/* Place holder for STM32MP15 non-secure I2C bus compat data */
+static const int non_secure_bus;
+
 static vaddr_t get_base(struct i2c_handle_s *hi2c)
 {
 	return io_pa_or_va_secure(&hi2c->base, hi2c->reg_size);
@@ -695,7 +698,6 @@ TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 	assert(info.reg != DT_INFO_INVALID_REG &&
 	       info.reg_size != DT_INFO_INVALID_REG_SIZE);
 
-	init->dt_status = info.status;
 	init->pbase = info.reg;
 	init->reg_size = info.reg_size;
 
@@ -818,9 +820,6 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 	hi2c->i2c_state = I2C_STATE_READY;
 
 	i2c_config_analog_filter(hi2c, init_data->analog_filter);
-
-	if (IS_ENABLED(CFG_STM32MP13))
-		stm32_pinctrl_set_secure_cfg(hi2c->pinctrl, true);
 
 	clk_disable(hi2c->clock);
 
@@ -1586,9 +1585,6 @@ void stm32_i2c_resume(struct i2c_handle_s *hi2c)
 
 	restore_cfg(hi2c, &hi2c->sec_cfg);
 
-	if (IS_ENABLED(CFG_STM32MP13))
-		stm32_pinctrl_set_secure_cfg(hi2c->pinctrl, true);
-
 	hi2c->i2c_state = I2C_STATE_READY;
 }
 
@@ -1635,7 +1631,7 @@ static TEE_Result stm32_get_i2c_dev(struct dt_pargs *args, void *data,
 }
 
 static TEE_Result stm32_i2c_probe(const void *fdt, int node,
-				  const void *compat_data __unused)
+				  const void *compat_data)
 {
 	TEE_Result res = TEE_SUCCESS;
 	int subnode = 0;
@@ -1653,7 +1649,6 @@ static TEE_Result stm32_i2c_probe(const void *fdt, int node,
 	if (!i2c_handle_p)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	i2c_handle_p->dt_status = init_data.dt_status;
 	i2c_handle_p->reg_size = init_data.reg_size;
 	i2c_handle_p->clock = init_data.clock;
 	i2c_handle_p->base.pa = init_data.pbase;
@@ -1664,6 +1659,9 @@ static TEE_Result stm32_i2c_probe(const void *fdt, int node,
 	i2c_handle_p->i2c_state = I2C_STATE_RESET;
 	i2c_handle_p->pinctrl = pinctrl_active;
 	i2c_handle_p->pinctrl_sleep = pinctrl_idle;
+
+	if (compat_data != &non_secure_bus)
+		i2c_handle_p->i2c_secure = true;
 
 	init_data.analog_filter = true;
 	init_data.digital_filter_coef = 0;
@@ -1690,7 +1688,10 @@ static TEE_Result stm32_i2c_probe(const void *fdt, int node,
 static const struct dt_device_match stm32_i2c_match_table[] = {
 	{ .compatible = "st,stm32mp15-i2c" },
 	{ .compatible = "st,stm32mp13-i2c" },
-	{ .compatible = "st,stm32mp15-i2c-non-secure" },
+	{
+		.compatible = "st,stm32mp15-i2c-non-secure",
+		.compat_data = &non_secure_bus,
+	},
 	{ }
 };
 

@@ -54,6 +54,9 @@
 #define CSR_XCAUSE		(CSR_MODE_BITS | 0x042)
 #define CSR_XTVAL		(CSR_MODE_BITS | 0x043)
 #define CSR_XIP			(CSR_MODE_BITS | 0x044)
+#define CSR_XISELECT		(CSR_MODE_BITS | 0x050)
+#define CSR_XIREG		(CSR_MODE_BITS | 0x051)
+#define CSR_XTOPEI		(CSR_MODE_BITS | 0x05C)
 
 #define IRQ_XSOFT		(CSR_MODE_OFFSET + 0)
 #define IRQ_XTIMER		(CSR_MODE_OFFSET + 4)
@@ -93,20 +96,30 @@
 		__tmp;							\
 	})
 
-#define set_csr(csr, bit)						\
+#define read_set_csr(csr, val)						\
 	({								\
 		unsigned long __tmp;					\
 		asm volatile ("csrrs %0, %1, %2"			\
-			      : "=r"(__tmp) : "i"(csr), "rK"(bit));	\
+			      : "=r"(__tmp) : "i"(csr), "rK"(val));	\
 		__tmp;							\
 	})
 
-#define clear_csr(csr, bit)						\
+#define set_csr(csr, val)						\
+	({								\
+		asm volatile ("csrs %0, %1" : : "i"(csr), "rK"(val));	\
+	})
+
+#define read_clear_csr(csr, val)					\
 	({								\
 		unsigned long __tmp;					\
 		asm volatile ("csrrc %0, %1, %2"			\
-			      : "=r"(__tmp) : "i"(csr), "rK"(bit));	\
+			      : "=r"(__tmp) : "i"(csr), "rK"(val));	\
 		__tmp;							\
+	})
+
+#define clear_csr(csr, val)						\
+	({								\
+		asm volatile ("csrc %0, %1" : : "i"(csr), "rK"(val));	\
 	})
 
 #define rdtime() read_csr(CSR_TIME)

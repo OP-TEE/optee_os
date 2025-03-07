@@ -15,4 +15,11 @@
 #define TZPROT(id)	(UINT32_C(1) << (id))
 #endif
 
+/* GPIO phandle argument bitmask for a non-secure GPIO */
+#ifdef __ASSEMBLER__
+#define GPIO_STM32_NSEC	(1 << 31)
+#else
+#define GPIO_STM32_NSEC	(UINT32_C(1) << 31)
+#endif
+
 #endif

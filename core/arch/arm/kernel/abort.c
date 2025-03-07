@@ -22,6 +22,7 @@ enum fault_type {
 	FAULT_TYPE_USER_MODE_VFP,
 	FAULT_TYPE_PAGEABLE,
 	FAULT_TYPE_IGNORE,
+	FAULT_TYPE_EXTERNAL_ABORT,
 };
 
 #ifdef CFG_UNWIND
@@ -114,6 +115,10 @@ static __maybe_unused const char *fault_to_str(uint32_t abort_type,
 		return " (write permission fault)";
 	case CORE_MMU_FAULT_TAG_CHECK:
 		return " (tag check fault)";
+	case CORE_MMU_FAULT_SYNC_EXTERNAL:
+		return " (Synchronous external abort)";
+	case CORE_MMU_FAULT_ASYNC_EXTERNAL:
+		return " (Asynchronous external abort)";
 	default:
 		return "";
 	}
@@ -525,10 +530,12 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 		return FAULT_TYPE_PAGEABLE;
 
 	case CORE_MMU_FAULT_ASYNC_EXTERNAL:
+	case CORE_MMU_FAULT_SYNC_EXTERNAL:
 		if (!abort_is_user_exception(ai))
 			abort_print(ai);
-		DMSG("[abort] Ignoring async external abort!");
-		return FAULT_TYPE_IGNORE;
+		DMSG("[abort]%s", fault_to_str(ai->abort_type,
+					       ai->fault_descr));
+		return FAULT_TYPE_EXTERNAL_ABORT;
 
 	case CORE_MMU_FAULT_TAG_CHECK:
 		if (abort_is_user_exception(ai))
@@ -561,6 +568,12 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		save_abort_info_in_tsd(&ai);
 		vfp_disable();
 		handle_user_mode_panic(&ai);
+		break;
+	case FAULT_TYPE_EXTERNAL_ABORT:
+#ifdef CFG_EXTERNAL_ABORT_PLAT_HANDLER
+		/* Allow platform-specific handling */
+		plat_external_abort_handler(&ai);
+#endif
 		break;
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_MODE_VFP:

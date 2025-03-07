@@ -137,7 +137,6 @@ $(call force,CFG_SECONDARY_INIT_CNTFRQ,n)
 $(call force,CFG_STM32_GPIO,y)
 $(call force,CFG_STM32_VREFBUF,y)
 $(call force,CFG_STM32MP_CLK_CORE,y)
-$(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
 $(call force,CFG_STM32MP1_RSTCTRL,y)
 $(call force,CFG_STM32MP13_CLK,y)
 $(call force,CFG_STM32MP13_REGULATOR_IOD,y)
@@ -153,7 +152,7 @@ $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_DRIVERS_CLK_FIXED,n)
 $(call force,CFG_HALT_CORES_ON_PANIC_SGI,15)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
-$(call force,CFG_STM32MP1_SHARED_RESOURCES,y)
+$(call force,CFG_STM32_PKA,n)
 $(call force,CFG_STM32_SAES,n)
 $(call force,CFG_STM32MP1_RSTCTRL,y)
 $(call force,CFG_STM32MP15_CLK,y)
@@ -236,10 +235,13 @@ CFG_STM32_BSEC ?= y
 CFG_STM32_CRYP ?= y
 CFG_STM32_ETZPC ?= y
 CFG_STM32_GPIO ?= y
+CFG_STM32_HASH ?= y
 CFG_STM32_I2C ?= y
 CFG_STM32_IWDG ?= y
+CFG_STM32_PKA ?= y
 CFG_STM32_RNG ?= y
 CFG_STM32_RSTCTRL ?= y
+CFG_STM32_RTC ?= y
 CFG_STM32_SAES ?= y
 CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
@@ -260,7 +262,10 @@ $(call force,CFG_STM32_GPIO,y)
 endif
 
 # If any crypto driver is enabled, enable the crypto-framework layer
-ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP CFG_STM32_SAES),y)
+ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP \
+	                      CFG_STM32_HASH \
+	                      CFG_STM32_PKA  \
+	                      CFG_STM32_SAES),y)
 $(call force,CFG_STM32_CRYPTO_DRIVER,y)
 endif
 
@@ -270,6 +275,7 @@ $(eval $(call cfg-depends-all,CFG_STM32_RSTCTRL,CFG_DRIVERS_RSTCTRL))
 CFG_WDT ?= $(CFG_STM32_IWDG)
 CFG_WDT_SM_HANDLER ?= $(CFG_WDT)
 CFG_WDT_SM_HANDLER_ID ?= 0xbc000000
+$(eval $(call cfg-depends-all,CFG_STM32_IWDG,CFG_WDT_SM_HANDLER CFG_WDT))
 
 # Platform specific configuration
 CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y
@@ -426,3 +432,8 @@ endif
 
 # Allow probing of unsafe peripherals. Firewall config will not be checked
 CFG_STM32_ALLOW_UNSAFE_PROBE ?= n
+
+# Enable RTC
+ifeq ($(CFG_STM32_RTC),y)
+$(call force,CFG_DRIVERS_RTC,y)
+endif

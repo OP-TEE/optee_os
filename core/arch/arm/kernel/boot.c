@@ -80,8 +80,14 @@ uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 DECLARE_KEEP_PAGER(sem_cpu_sync);
 #endif
 
+/*
+ * Must not be in .bss since it's initialized and used from assembly before
+ * .bss is cleared.
+ */
+vaddr_t boot_cached_mem_end __nex_data = 1;
+
 static unsigned long boot_arg_fdt __nex_bss;
-static unsigned long boot_arg_nsec_entry __nex_bss;
+unsigned long boot_arg_nsec_entry __nex_bss;
 static unsigned long boot_arg_pageable_part __nex_bss;
 static unsigned long boot_arg_transfer_list __nex_bss;
 static struct transfer_list_header *mapped_tl __nex_bss;
@@ -381,12 +387,8 @@ static TEE_Result mmap_clear_memtag(struct tee_mmap_region *map,
 				    void *ptr __unused)
 {
 	switch (map->type) {
-	case MEM_AREA_TEE_RAM:
-	case MEM_AREA_TEE_RAM_RW:
 	case MEM_AREA_NEX_RAM_RO:
-	case MEM_AREA_NEX_RAM_RW:
-	case MEM_AREA_TEE_ASAN:
-	case MEM_AREA_TA_RAM:
+	case MEM_AREA_SEC_RAM_OVERALL:
 		DMSG("Clearing tags for VA %#"PRIxVA"..%#"PRIxVA,
 		     map->va, map->va + map->size - 1);
 		memtag_set_tags((void *)map->va, map->size, 0);
@@ -496,7 +498,7 @@ static struct fobj *ro_paged_alloc(tee_mm_entry_t *mm, void *hashes,
 #endif
 }
 
-static void init_runtime(unsigned long pageable_part)
+static void init_pager_runtime(unsigned long pageable_part)
 {
 	size_t n;
 	size_t init_size = (size_t)(__init_end - __init_start);
@@ -521,12 +523,6 @@ static void init_runtime(unsigned long pageable_part)
 
 	tmp_hashes = __init_end + embdata->hashes_offset;
 
-	init_asan();
-
-	/* Add heap2 first as heap1 may be too small as initial bget pool */
-	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
-	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
-
 	/*
 	 * This needs to be initialized early to support address lookup
 	 * in MEM_AREA_TEE_RAM
@@ -540,17 +536,17 @@ static void init_runtime(unsigned long pageable_part)
 	asan_memcpy_unchecked(hashes, tmp_hashes, hash_size);
 
 	/*
-	 * Need physical memory pool initialized to be able to allocate
-	 * secure physical memory below.
+	 * The pager is about the be enabled below, eventual temporary boot
+	 * memory allocation must be removed now.
 	 */
-	core_mmu_init_phys_mem();
+	boot_mem_release_tmp_alloc();
 
 	carve_out_asan_mem();
 
 	mm = nex_phys_mem_ta_alloc(pageable_size);
 	assert(mm);
-	paged_store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM,
-				   pageable_size);
+	paged_store = phys_to_virt(tee_mm_get_smem(mm),
+				   MEM_AREA_SEC_RAM_OVERALL, pageable_size);
 	/*
 	 * Load pageable part in the dedicated allocated area:
 	 * - Move pageable non-init part into pageable area. Note bootloader
@@ -652,27 +648,9 @@ static void init_runtime(unsigned long pageable_part)
 
 	print_pager_pool_size();
 }
-#else
-
-static void init_runtime(unsigned long pageable_part __unused)
+#else /*!CFG_WITH_PAGER*/
+static void init_pager_runtime(unsigned long pageable_part __unused)
 {
-	init_asan();
-
-	/*
-	 * By default whole OP-TEE uses malloc, so we need to initialize
-	 * it early. But, when virtualization is enabled, malloc is used
-	 * only by TEE runtime, so malloc should be initialized later, for
-	 * every virtual partition separately. Core code uses nex_malloc
-	 * instead.
-	 */
-#ifdef CFG_NS_VIRTUALIZATION
-	nex_malloc_add_pool(__nex_heap_start, __nex_heap_end -
-					      __nex_heap_start);
-#else
-	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
-#endif
-
-	IMSG_RAW("\n");
 }
 #endif
 
@@ -889,10 +867,6 @@ static void update_external_dt(void)
 
 void init_tee_runtime(void)
 {
-#ifndef CFG_WITH_PAGER
-	/* Pager initializes TA RAM early */
-	core_mmu_init_phys_mem();
-#endif
 	/*
 	 * With virtualization we call this function when creating the
 	 * OP-TEE partition instead.
@@ -921,9 +895,20 @@ void init_tee_runtime(void)
 		thread_update_canaries();
 }
 
-static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
+static bool add_padding_to_pool(vaddr_t va, size_t len, void *ptr __unused)
 {
-	thread_init_core_local_stacks();
+#ifdef CFG_NS_VIRTUALIZATION
+	nex_malloc_add_pool((void *)va, len);
+#else
+	malloc_add_pool((void *)va, len);
+#endif
+	return true;
+}
+
+static void init_primary(unsigned long pageable_part)
+{
+	vaddr_t va = 0;
+
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
 	 * as the thread handler requires those to be masked while
@@ -938,29 +923,54 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 	if (IS_ENABLED(CFG_CRYPTO_WITH_CE))
 		check_crypto_extensions();
 
-	/*
-	 * Pager: init_runtime() calls thread_kernel_enable_vfp() so we must
-	 * set a current thread right now to avoid a chicken-and-egg problem
-	 * (thread_init_boot_thread() sets the current thread but needs
-	 * things set by init_runtime()).
-	 */
-	thread_get_core_local()->curr_thread = 0;
-	init_runtime(pageable_part);
+	init_asan();
 
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+	/*
+	 * By default whole OP-TEE uses malloc, so we need to initialize
+	 * it early. But, when virtualization is enabled, malloc is used
+	 * only by TEE runtime, so malloc should be initialized later, for
+	 * every virtual partition separately. Core code uses nex_malloc
+	 * instead.
+	 */
+#ifdef CFG_WITH_PAGER
+	/* Add heap2 first as heap1 may be too small as initial bget pool */
+	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
+#endif
+#ifdef CFG_NS_VIRTUALIZATION
+	nex_malloc_add_pool(__nex_heap_start, __nex_heap_end -
+					      __nex_heap_start);
+#else
+	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
+#endif
+	IMSG_RAW("\n");
+
+	core_mmu_save_mem_map();
+	core_mmu_init_phys_mem();
+	boot_mem_foreach_padding(add_padding_to_pool, NULL);
+	va = boot_mem_release_unused();
+	if (!IS_ENABLED(CFG_WITH_PAGER)) {
 		/*
-		 * Virtualization: We can't initialize threads right now because
-		 * threads belong to "tee" part and will be initialized
-		 * separately per each new virtual guest. So, we'll clear
-		 * "curr_thread" and call it done.
+		 * We must update boot_cached_mem_end to reflect the memory
+		 * just unmapped by boot_mem_release_unused().
 		 */
-		thread_get_core_local()->curr_thread = -1;
-	} else {
-		thread_init_boot_thread();
+		assert(va && va <= boot_cached_mem_end);
+		boot_cached_mem_end = va;
 	}
+
+	if (IS_ENABLED(CFG_WITH_PAGER)) {
+		/*
+		 * Pager: init_runtime() calls thread_kernel_enable_vfp()
+		 * so we must set a current thread right now to avoid a
+		 * chicken-and-egg problem (thread_init_boot_thread() sets
+		 * the current thread but needs things set by
+		 * init_runtime()).
+		 */
+		thread_get_core_local()->curr_thread = 0;
+		init_pager_runtime(pageable_part);
+	}
+
 	thread_init_primary();
 	thread_init_per_cpu();
-	init_sec_mon(nsec_entry);
 }
 
 static bool cpu_nmfi_enabled(void)
@@ -986,110 +996,6 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 		struct transfer_list_entry *tl_e = NULL;
 
 		tl_e = transfer_list_find(mapped_tl, TL_TAG_FDT);
-		if (tl_e)
-			fdt_size = tl_e->data_size;
-	}
-
-	init_external_dt(boot_arg_fdt, fdt_size);
-	reinit_manifest_dt();
-#ifdef CFG_CORE_SEL1_SPMC
-	tpm_map_log_area(get_manifest_dt());
-#else
-	tpm_map_log_area(get_external_dt());
-#endif
-	discover_nsec_memory();
-	update_external_dt();
-	configure_console_from_dt();
-
-	IMSG("OP-TEE version: %s", core_v_str);
-	if (IS_ENABLED(CFG_INSECURE)) {
-		IMSG("WARNING: This OP-TEE configuration might be insecure!");
-		IMSG("WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html");
-	}
-	IMSG("Primary CPU initializing");
-#ifdef CFG_CORE_ASLR
-	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
-	     (unsigned long)boot_mmu_config.map_offset, VCORE_START_VA);
-#endif
-	if (IS_ENABLED(CFG_MEMTAG))
-		DMSG("Memory tagging %s",
-		     memtag_is_enabled() ?  "enabled" : "disabled");
-
-	/* Check if platform needs NMFI workaround */
-	if (cpu_nmfi_enabled())	{
-		if (!IS_ENABLED(CFG_CORE_WORKAROUND_ARM_NMFI))
-			IMSG("WARNING: This ARM core has NMFI enabled, please apply workaround!");
-	} else {
-		if (IS_ENABLED(CFG_CORE_WORKAROUND_ARM_NMFI))
-			IMSG("WARNING: This ARM core does not have NMFI enabled, no need for workaround");
-	}
-
-	boot_primary_init_intc();
-	init_vfp_nsec();
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
-		IMSG("Initializing virtualization support");
-		core_mmu_init_virtualization();
-	} else {
-		init_tee_runtime();
-	}
-}
-
-/*
- * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area.
- */
-void __weak boot_init_primary_final(void)
-{
-	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
-		call_driver_initcalls();
-	call_finalcalls();
-	IMSG("Primary CPU switching to normal world boot");
-}
-
-static void init_secondary_helper(unsigned long nsec_entry)
-{
-	IMSG("Secondary CPU %zu initializing", get_core_pos());
-
-	/*
-	 * Mask asynchronous exceptions before switch to the thread vector
-	 * as the thread handler requires those to be masked while
-	 * executing with the temporary stack. The thread subsystem also
-	 * asserts that the foreign interrupts are blocked when using most of
-	 * its functions.
-	 */
-	thread_set_exceptions(THREAD_EXCP_ALL);
-
-	secondary_init_cntfrq();
-	thread_init_per_cpu();
-	init_sec_mon(nsec_entry);
-	boot_secondary_init_intc();
-	init_vfp_sec();
-	init_vfp_nsec();
-
-	IMSG("Secondary CPU %zu switching to normal world boot", get_core_pos());
-}
-
-/*
- * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area so that it lies in the init area.
- */
-void __weak boot_init_primary_early(void)
-{
-	unsigned long pageable_part = 0;
-	unsigned long e = PADDR_INVALID;
-	struct transfer_list_entry *tl_e = NULL;
-
-	if (!IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW))
-		e = boot_arg_nsec_entry;
-
-	if (IS_ENABLED(CFG_TRANSFER_LIST) && boot_arg_transfer_list) {
-		/* map and save the TL */
-		mapped_tl = transfer_list_map(boot_arg_transfer_list);
-		if (!mapped_tl)
-			panic("Failed to map transfer list");
-
-		transfer_list_dump(mapped_tl);
-		tl_e = transfer_list_find(mapped_tl, TL_TAG_FDT);
 		if (tl_e) {
 			/*
 			 * Expand the data size of the DTB entry to the maximum
@@ -1106,7 +1012,133 @@ void __weak boot_init_primary_early(void)
 				     dtb_max_sz);
 				panic();
 			}
+			fdt_size = tl_e->data_size;
 		}
+	}
+
+	init_external_dt(boot_arg_fdt, fdt_size);
+	reinit_manifest_dt();
+#ifdef CFG_CORE_SEL1_SPMC
+	tpm_map_log_area(get_manifest_dt());
+#else
+	tpm_map_log_area(get_external_dt());
+#endif
+	discover_nsec_memory();
+	update_external_dt();
+	configure_console_from_dt();
+
+	thread_init_thread_core_local();
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		/*
+		 * Virtualization: We can't initialize threads right now because
+		 * threads belong to "tee" part and will be initialized
+		 * separately per each new virtual guest. So, we'll clear
+		 * "curr_thread" and call it done.
+		 */
+		thread_get_core_local()->curr_thread = -1;
+	} else {
+		thread_init_boot_thread();
+	}
+}
+
+void __weak boot_init_primary_final(void)
+{
+	IMSG("OP-TEE version: %s", core_v_str);
+	if (IS_ENABLED(CFG_INSECURE)) {
+		IMSG("WARNING: This OP-TEE configuration might be insecure!");
+		IMSG("WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html");
+	}
+	IMSG("Primary CPU initializing");
+#ifdef CFG_CORE_ASLR
+	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
+	     (unsigned long)boot_mmu_config.map_offset, VCORE_START_VA);
+#endif
+#ifdef CFG_NS_VIRTUALIZATION
+	DMSG("NS-virtualization enabled, supporting %u guests",
+	     CFG_VIRT_GUEST_COUNT);
+#endif
+	if (IS_ENABLED(CFG_MEMTAG))
+		DMSG("Memory tagging %s",
+		     memtag_is_enabled() ?  "enabled" : "disabled");
+
+	/* Check if platform needs NMFI workaround */
+	if (cpu_nmfi_enabled())	{
+		if (!IS_ENABLED(CFG_CORE_WORKAROUND_ARM_NMFI))
+			IMSG("WARNING: This ARM core has NMFI enabled, please apply workaround!");
+	} else {
+		if (IS_ENABLED(CFG_CORE_WORKAROUND_ARM_NMFI))
+			IMSG("WARNING: This ARM core does not have NMFI enabled, no need for workaround");
+	}
+
+	boot_primary_init_intc();
+	init_vfp_nsec();
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		/*
+		 * Unmask native interrupts during driver initcalls.
+		 *
+		 * NS-virtualization still uses the temporary stack also
+		 * used for exception handling so it must still have native
+		 * interrupts masked.
+		 */
+		thread_set_exceptions(thread_get_exceptions() &
+				      ~THREAD_EXCP_NATIVE_INTR);
+		init_tee_runtime();
+	}
+
+	if (!IS_ENABLED(CFG_WITH_PAGER))
+		boot_mem_release_tmp_alloc();
+
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		call_driver_initcalls();
+
+	call_finalcalls();
+
+	IMSG("Primary CPU switching to normal world boot");
+
+	/* Mask native interrupts before switching to the normal world */
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		thread_set_exceptions(thread_get_exceptions() |
+				      THREAD_EXCP_NATIVE_INTR);
+}
+
+static void init_secondary_helper(void)
+{
+	IMSG("Secondary CPU %zu initializing", get_core_pos());
+
+	/*
+	 * Mask asynchronous exceptions before switch to the thread vector
+	 * as the thread handler requires those to be masked while
+	 * executing with the temporary stack. The thread subsystem also
+	 * asserts that the foreign interrupts are blocked when using most of
+	 * its functions.
+	 */
+	thread_set_exceptions(THREAD_EXCP_ALL);
+
+	secondary_init_cntfrq();
+	thread_init_per_cpu();
+	boot_secondary_init_intc();
+	init_vfp_sec();
+	init_vfp_nsec();
+
+	IMSG("Secondary CPU %zu switching to normal world boot", get_core_pos());
+}
+
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area so that it lies in the init area.
+ */
+void __weak boot_init_primary_early(void)
+{
+	unsigned long pageable_part = 0;
+	struct transfer_list_entry *tl_e = NULL;
+
+	if (IS_ENABLED(CFG_TRANSFER_LIST) && boot_arg_transfer_list) {
+		/* map and save the TL */
+		mapped_tl = transfer_list_map(boot_arg_transfer_list);
+		if (!mapped_tl)
+			panic("Failed to map transfer list");
+
+		transfer_list_dump(mapped_tl);
 		tl_e = transfer_list_find(mapped_tl, TL_TAG_OPTEE_PAGABLE_PART);
 	}
 
@@ -1118,7 +1150,7 @@ void __weak boot_init_primary_early(void)
 			pageable_part = boot_arg_pageable_part;
 	}
 
-	init_primary(pageable_part, e);
+	init_primary(pageable_part);
 }
 
 static void boot_save_transfer_list(unsigned long zero_reg,
@@ -1149,13 +1181,13 @@ static void boot_save_transfer_list(unsigned long zero_reg,
 unsigned long boot_cpu_on_handler(unsigned long a0 __maybe_unused,
 				  unsigned long a1 __unused)
 {
-	init_secondary_helper(PADDR_INVALID);
+	init_secondary_helper();
 	return 0;
 }
 #else
-void boot_init_secondary(unsigned long nsec_entry)
+void boot_init_secondary(unsigned long nsec_entry __unused)
 {
-	init_secondary_helper(nsec_entry);
+	init_secondary_helper();
 }
 #endif
 
@@ -1262,7 +1294,8 @@ static void *get_fdt_from_boot_info(struct ffa_boot_info_header_1_1 *hdr)
 		EMSG("Bad boot info signature %#"PRIx32, hdr->signature);
 		panic();
 	}
-	if (hdr->version != FFA_BOOT_INFO_VERSION) {
+	if (hdr->version != FFA_BOOT_INFO_VERSION_1_1 &&
+	    hdr->version != FFA_BOOT_INFO_VERSION_1_2) {
 		EMSG("Bad boot info version %#"PRIx32, hdr->version);
 		panic();
 	}

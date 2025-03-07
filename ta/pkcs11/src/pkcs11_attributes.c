@@ -1824,7 +1824,7 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 					       &key_length);
 			if (rc)
 				return PKCS11_CKR_TEMPLATE_INCONSISTENT;
-			key_length = ROUNDUP(key_length, 8) / 8;
+			key_length = ROUNDUP_DIV(key_length, 8);
 			break;
 		case PKCS11_CKK_EC:
 		case PKCS11_CKK_EC_EDWARDS:
@@ -2082,6 +2082,7 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 	case PKCS11_CKM_RSA_AES_KEY_WRAP:
 	case PKCS11_CKM_RSA_PKCS_OAEP:
 	case PKCS11_CKM_RSA_PKCS_PSS:
+	case PKCS11_CKM_RSA_X_509:
 	case PKCS11_CKM_SHA1_RSA_PKCS_PSS:
 	case PKCS11_CKM_SHA224_RSA_PKCS_PSS:
 	case PKCS11_CKM_SHA256_RSA_PKCS_PSS:

@@ -109,35 +109,6 @@ void stm32_uart_init(struct stm32_uart_pdata *pd, vaddr_t base)
 	pd->chip.ops = &stm32_uart_serial_ops;
 }
 
-static void register_secure_uart(struct stm32_uart_pdata *pd)
-{
-#ifndef CFG_STM32MP25
-	stm32mp_register_secure_periph_iomem(pd->base.pa);
-	stm32mp_register_secure_pinctrl(pd->pinctrl);
-	if (pd->pinctrl_sleep)
-		stm32mp_register_secure_pinctrl(pd->pinctrl_sleep);
-#else
-	stm32_pinctrl_set_secure_cfg(pd->pinctrl, true);
-	if (pd->pinctrl_sleep)
-		stm32_pinctrl_set_secure_cfg(pd->pinctrl, true);
-#endif
-}
-
-static void register_non_secure_uart(struct stm32_uart_pdata *pd)
-{
-#ifndef CFG_STM32MP25
-	stm32mp_register_non_secure_periph_iomem(pd->base.pa);
-	stm32mp_register_non_secure_pinctrl(pd->pinctrl);
-	if (pd->pinctrl_sleep)
-		stm32mp_register_non_secure_pinctrl(pd->pinctrl_sleep);
-#else
-	stm32_pinctrl_set_secure_cfg(pd->pinctrl, false);
-	if (pd->pinctrl_sleep)
-		stm32_pinctrl_set_secure_cfg(pd->pinctrl, false);
-#endif
-
-}
-
 struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -158,7 +129,6 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 
 	pd->chip.ops = &stm32_uart_serial_ops;
 	pd->base.pa = info.reg;
-	pd->secure = (info.status == DT_STATUS_OK_SEC);
 
 	res = clk_dt_get_by_index(fdt, node, 0, &pd->clock);
 	if (res) {
@@ -171,9 +141,8 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 		panic();
 
 	assert(cpu_mmu_enabled());
-	pd->base.va = (vaddr_t)phys_to_virt(pd->base.pa,
-					    pd->secure ? MEM_AREA_IO_SEC :
-					    MEM_AREA_IO_NSEC, info.reg_size);
+	pd->base.va = (vaddr_t)phys_to_virt(pd->base.pa, MEM_AREA_IO_SEC,
+					    info.reg_size);
 
 	res = pinctrl_get_state_by_name(fdt, node, "default", &pd->pinctrl);
 	if (res)
@@ -186,11 +155,6 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 	res = pinctrl_apply_state(pd->pinctrl);
 	if (res)
 		panic();
-
-	if (pd->secure)
-		register_secure_uart(pd);
-	else
-		register_non_secure_uart(pd);
 
 	return pd;
 }

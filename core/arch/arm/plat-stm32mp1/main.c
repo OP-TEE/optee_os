@@ -11,10 +11,8 @@
 #include <drivers/gic.h>
 #include <drivers/pinctrl.h>
 #include <drivers/stm32_bsec.h>
-#include <drivers/stm32_etzpc.h>
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32_iwdg.h>
-#include <drivers/stm32_tamp.h>
 #include <drivers/stm32_uart.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #ifdef CFG_STM32MP15
@@ -87,17 +85,16 @@ void plat_console_init(void)
 	/* Early console initialization before MMU setup */
 	struct uart {
 		paddr_t pa;
-		bool secure;
 	} uarts[] = {
 		[0] = { .pa = 0 },
-		[1] = { .pa = USART1_BASE, .secure = true, },
-		[2] = { .pa = USART2_BASE, .secure = false, },
-		[3] = { .pa = USART3_BASE, .secure = false, },
-		[4] = { .pa = UART4_BASE, .secure = false, },
-		[5] = { .pa = UART5_BASE, .secure = false, },
-		[6] = { .pa = USART6_BASE, .secure = false, },
-		[7] = { .pa = UART7_BASE, .secure = false, },
-		[8] = { .pa = UART8_BASE, .secure = false, },
+		[1] = { .pa = USART1_BASE },
+		[2] = { .pa = USART2_BASE },
+		[3] = { .pa = USART3_BASE },
+		[4] = { .pa = UART4_BASE },
+		[5] = { .pa = UART5_BASE },
+		[6] = { .pa = USART6_BASE },
+		[7] = { .pa = UART7_BASE },
+		[8] = { .pa = UART8_BASE },
 	};
 
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(uarts) > CFG_STM32_EARLY_CONSOLE_UART);
@@ -108,7 +105,6 @@ void plat_console_init(void)
 	/* No clock yet bound to the UART console */
 	console_data.clock = NULL;
 
-	console_data.secure = uarts[CFG_STM32_EARLY_CONSOLE_UART].secure;
 	stm32_uart_init(&console_data, uarts[CFG_STM32_EARLY_CONSOLE_UART].pa);
 
 	register_serial_console(&console_data.chip);
@@ -145,7 +141,7 @@ static TEE_Result init_console_from_dt(void)
 	console_flush();
 	console_data = *pd;
 	register_serial_console(&console_data.chip);
-	IMSG("DTB enables console (%ssecure)", pd->secure ? "" : "non-");
+	IMSG("DTB enables console");
 	free(pd);
 
 	return TEE_SUCCESS;
@@ -387,24 +383,7 @@ static void configure_sysram(struct dt_driver_provider *fw_provider)
 
 static TEE_Result init_late_stm32mp1_drivers(void)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t __maybe_unused state = 0;
-
-	/* Set access permission to TAM backup registers */
-	if (IS_ENABLED(CFG_STM32_TAMP)) {
-		struct stm32_bkpregs_conf conf = {
-			.nb_zone1_regs = TAMP_BKP_REGISTER_ZONE1_COUNT,
-			.nb_zone2_regs = TAMP_BKP_REGISTER_ZONE2_COUNT,
-		};
-
-		res = stm32_tamp_set_secure_bkpregs(&conf);
-		if (res == TEE_ERROR_DEFER_DRIVER_INIT) {
-			/* TAMP driver was not probed if disabled in the DT */
-			res = TEE_SUCCESS;
-		}
-		if (res)
-			panic();
-	}
 
 	/* Configure SYSRAM and SRAMx secure hardening */
 	if (IS_ENABLED(CFG_STM32_ETZPC)) {

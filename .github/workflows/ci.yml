@@ -82,7 +82,7 @@ jobs:
           function _make() { make -j$(nproc) -s O=out $*; }
           function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.2 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
 
-          function download_scp_firmware() { git clone --single-branch -b v2.15.0 --depth 1 https://git.gitlab.arm.com/firmware/SCP-firmware.git $HOME/scp-firmware || (rm -rf $HOME/scp-firmware ; echo Nervermind); }
+          function download_scp_firmware() { git clone --single-branch https://git.gitlab.arm.com/firmware/SCP-firmware.git $HOME/scp-firmware &&  git -C $HOME/scp-firmware checkout 22aecaa9cee258d707880c5b8823dd7974b66717 || (rm -rf $HOME/scp-firmware ; echo Nervermind); }
 
           ccache -s -v
           download_plug_and_trust
@@ -122,7 +122,7 @@ jobs:
           _make CFG_SECURE_DATA_PATH=y
           _make CFG_REE_FS_TA_BUFFERED=y
           _make CFG_WITH_USER_TA=n
-          _make CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
+          _make CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT,VERAISON_ATTESTATION}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
           _make PLATFORM=vexpress-qemu_armv8a
           _make PLATFORM=vexpress-qemu_armv8a COMPILER=clang
           _make PLATFORM=vexpress-qemu_armv8a CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 CFG_DEBUG_INFO=n
@@ -135,7 +135,7 @@ jobs:
           _make PLATFORM=vexpress-qemu_armv8a CFG_TRANSFER_LIST=y CFG_MAP_EXT_DT_SECURE=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL2_SPMC=y CFG_CORE_PHYS_RELOCATABLE=y CFG_TZDRAM_START=0x0d304000 CFG_TZDRAM_SIZE=0x00cfc000
-          _make PLATFORM=vexpress-qemu_armv8a CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT,VERAISON_ATTESTATION}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y CFG_NS_VIRTUALIZATION=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CRYPTO_WITH_CE=y CFG_CRYPTOLIB_NAME=mbedtls CFG_CRYPTOLIB_DIR=lib/libmbedtls
           dd if=/dev/urandom of=BL32_AP_MM.fd bs=2621440 count=1 && _make PLATFORM=vexpress-qemu_armv8a CFG_STMM_PATH=BL32_AP_MM.fd CFG_RPMB_FS=y CFG_CORE_HEAP_SIZE=524288 CFG_TEE_RAM_VA_SIZE=0x00400000
@@ -189,7 +189,7 @@ jobs:
           _make PLATFORM=imx-mx7ulpevk
           _make PLATFORM=imx-mx8mmevk
           _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
-          if [ -d $HOME/se050/plug-and-trust ]; then _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_NXP_CAAM_RNG_DRV=y CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER}=y CFG_NXP_SE05X_RNG_DRV=n CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{DIEID,RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_RSA_DRV_FALLBACK=y CFG_NXP_SE05X_ECC_DRV_FALLBACK=y CFG_NXP_SE05X_PLUG_AND_TRUST=$HOME/se050/plug-and-trust ; fi
+          if [ -d $HOME/se050/plug-and-trust ]; then _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_NXP_CAAM_AE_{GCM,CCM}_DRV=y CFG_NXP_CAAM_RNG_DRV=y CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER,AUTHENC}=y CFG_NXP_SE05X_RNG_DRV=n CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{DIEID,RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_RSA_DRV_FALLBACK=y CFG_NXP_SE05X_ECC_DRV_FALLBACK=y CFG_NXP_SE05X_PLUG_AND_TRUST=$HOME/se050/plug-and-trust ; fi
           _make PLATFORM=imx-mx8mnevk
           _make PLATFORM=imx-mx8mqevk
           _make PLATFORM=imx-mx8mpevk
@@ -212,6 +212,8 @@ jobs:
           _make PLATFORM=k3-am64x CFG_ARM64_core=y
           _make PLATFORM=k3-am62x
           _make PLATFORM=k3-am62x CFG_ARM64_core=y
+          _make PLATFORM=k3-am62lx
+          _make PLATFORM=k3-am62lx CFG_ARM64_core=y
           _make PLATFORM=ti-dra7xx out/core/tee{,-pager,-pageable}.bin
           _make PLATFORM=ti-am57xx
           _make PLATFORM=ti-am43xx
@@ -245,6 +247,7 @@ jobs:
           _make PLATFORM=poplar CFG_ARM64_core=y
           _make PLATFORM=rockchip-rk322x
           _make PLATFORM=rockchip-rk3399
+          _make PLATFORM=rockchip-rk3588
           _make PLATFORM=sam
           _make PLATFORM=sam-sama5d2_xplained
           _make PLATFORM=sam-sama5d27_som1_ek
@@ -270,12 +273,15 @@ jobs:
           _make PLATFORM=nuvoton
           _make PLATFORM=d06
           _make PLATFORM=d06 CFG_HISILICON_ACC_V3=y
+          _make PLATFORM=telechips-tcc805x
 
           export ARCH=riscv
           unset CROSS_COMPILE32
           export CROSS_COMPILE64="ccache riscv64-linux-gnu-"
 
           _make PLATFORM=virt
+          _make PLATFORM=virt CFG_RISCV_PLIC=n CFG_RISCV_APLIC=y
+          _make PLATFORM=virt CFG_RISCV_PLIC=n CFG_RISCV_APLIC_MSI=y CFG_RISCV_IMSIC=y
 
   QEMUv7_check:
     name: make check (QEMUv7)
@@ -313,8 +319,8 @@ jobs:
 
           make -j$(nproc) check CFG_LOCKDEP=y CFG_LOCKDEP_RECORD_STACK=n CFG_IN_TREE_EARLY_TAS=pkcs11/fd02c9da-306c-48c7-a49c-bbd827ae86ee CFG_PKCS11_TA=y CFG_CORE_UNSAFE_MODEXP=y XTEST_ARGS="-x pkcs11_1007"
 
-  QEMUv8_check:
-    name: make check (QEMUv8)
+  QEMUv8_check1:
+    name: make check (QEMUv8) 1 / 2
     runs-on: ubuntu-latest
     container: jforissier/optee_os_ci:qemu_check
     steps:
@@ -352,10 +358,51 @@ jobs:
           make -j$(nproc) check
           make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
           # Rust is disabled because signature_verification-rs hangs with this OP-TEE configuration
-          make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001 RUST_ENABLE=n
+          # fTPM is disabled because it takes too long to probe with this OP-TEE configuration
+          make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001 RUST_ENABLE=n MEASURED_BOOT_FTPM=n
+          # fTPM is disabled because tests are too slow otherwise (lots of paging)
+          make -j$(nproc) check CFG_WITH_PAGER=y MEASURED_BOOT_FTPM=n
+
+  QEMUv8_check2:
+    name: make check (QEMUv8) 2 / 2
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemu_check
+    steps:
+      - name: Remove /__t/*
+        run: rm -rf /__t/*
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_check-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_check-cache-
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_ATTESTATION_PTA=y
+          export CFG_ATTESTATION_PTA_KEY_SIZE=1024
+          OPTEE_OS_TO_TEST=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee.sh qemu_v8 ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
+          cd ${TOP}/build
+
           make -j$(nproc) check CFG_PAN=y
-          make -j$(nproc) check CFG_WITH_PAGER=y
           make -j$(nproc) check CFG_ULIBS_SHARED=y
+          make -j$(nproc) arm-tf-clean SPMC_AT_EL=3 && make -j$(nproc) check SPMC_AT_EL=3
+          make -j$(nproc) arm-tf-clean SPMC_AT_EL=1 && make -j$(nproc) check SPMC_AT_EL=1 CFG_SECURE_PARTITION=y CFG_SPMC_TESTS=y
 
   QEMUv8_clang_check:
     name: make check (QEMUv8, Clang)
@@ -551,3 +598,44 @@ jobs:
           # xtest 1031 is excluded because 1031.4 (C++ exception from shared library) fails with this cross-compiler
           # Rust is disabled because of a link error in the examples with this toolchain
           make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y MEMTAG=y PAUTH=y RUST_ENABLE=n XTEST_ARGS="-x 1031" check
+
+  QEMUv8_check_arm64_host:
+    name: make check (QEMUv8) (arm64 host)
+    runs-on: ubuntu-24.04-arm
+    container: jforissier/optee_os_ci:qemu_check_arm64
+    steps:
+      - name: Remove /__t/*
+        run: rm -rf /__t/*
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_check_arm64-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_check_arm64-cache-
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_ATTESTATION_PTA=y
+          export CFG_ATTESTATION_PTA_KEY_SIZE=1024
+          OPTEE_OS_TO_TEST=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee.sh qemu_v8 ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          # CFG_CORE_UNSAFE_MODEXP=y to speed up regression_4011
+          # See commit cb03400251f9 ("Squashed commit upgrading to mbedtls-3.6.2")
+          # and commit 85df256c4a67 ("libmbedtls: add CFG_CORE_UNSAFE_MODEXP and CFG_TA_MEBDTLS_UNSAFE_MODEXP")
+          make -j$(nproc) check CFG_CORE_UNSAFE_MODEXP=y

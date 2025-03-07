@@ -127,7 +127,7 @@ CFG_OS_REV_REPORTS_GIT_SHA1 ?= y
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 4
-CFG_OPTEE_REVISION_MINOR ?= 4
+CFG_OPTEE_REVISION_MINOR ?= 5
 CFG_OPTEE_REVISION_EXTRA ?=
 
 # Trusted OS implementation version
@@ -1213,6 +1213,22 @@ $(eval $(call cfg-depends-all,CFG_WIDEVINE_HUK,CFG_DT))
 CFG_WIDEVINE_PTA ?= n
 $(eval $(call cfg-depends-all,CFG_WIDEVINE_PTA,CFG_DT CFG_WIDEVINE_HUK))
 
+# When enabled, CFG_VERAISON_ATTESTATION_PTA embeds remote attestation PTA
+# service. Note: This is an experimental feature and should be used
+# with caution in production environments.
+CFG_VERAISON_ATTESTATION_PTA ?= n
+ifeq ($(CFG_VERAISON_ATTESTATION_PTA),y)
+$(call force,CFG_QCBOR,y)
+endif
+
+# When enabled, CFG_VERAISON_ATTESTATION_PTA_TEST_KEY embeds a test key.
+# Note: CFG_VERAISON_ATTESTATION_PTA_TEST_KEY must be enabled for
+# CFG_VERAISON_ATTESTATION_PTA to work.
+CFG_VERAISON_ATTESTATION_PTA_TEST_KEY ?= y
+ifneq ($(CFG_VERAISON_ATTESTATION_PTA_TEST_KEY),y)
+$(error "CFG_VERAISON_ATTESTATION_PTA_TEST_KEY must be enabled")
+endif
+
 # CFG_SEMIHOSTING_CONSOLE, when enabled, embeds a semihosting console driver.
 # When CFG_SEMIHOSTING_CONSOLE_FILE=NULL, OP-TEE console reads/writes
 # trace messages from/to the debug terminal of the semihosting host computer.
@@ -1247,3 +1263,24 @@ CFG_CORE_UNSAFE_MODEXP ?= n
 # when enabled, makes MBedTLS library for TAs use 'unsafe' modular
 # exponentiation algorithm.
 CFG_TA_MEBDTLS_UNSAFE_MODEXP ?= n
+
+# CFG_BOOT_INIT_THREAD_CORE_LOCAL0, when enabled, initializes
+# thread_core_local[0] before calling C code.
+ifeq ($(ARCH),arm)
+$(call force,CFG_BOOT_INIT_THREAD_CORE_LOCAL0,y)
+else
+CFG_BOOT_INIT_THREAD_CORE_LOCAL0 ?= n
+endif
+
+# CFG_DYN_CONFIG, when enabled, use dynamic memory allocation for translation
+# tables. Not supported with pager.
+ifeq ($(CFG_WITH_PAGER),y)
+$(call force,CFG_DYN_CONFIG,n,conflicts with CFG_WITH_PAGER)
+else
+CFG_DYN_CONFIG ?= y
+endif
+
+# CFG_EXTERNAL_ABORT_PLAT_HANDLER is used to implement platform-specific
+# handling of external abort implementing the plat_external_abort_handler()
+# function.
+CFG_EXTERNAL_ABORT_PLAT_HANDLER ?= n

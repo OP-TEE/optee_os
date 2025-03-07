@@ -71,7 +71,8 @@ mx8mn-flavorlist = \
 
 mx8mp-flavorlist = \
 	mx8mpevk \
-	mx8mp_rsb3720_6g
+	mx8mp_rsb3720_6g \
+	mx8mp_phyboard_pollux
 
 mx8qm-flavorlist = \
 	mx8qmmek \
@@ -227,7 +228,7 @@ CFG_TEE_CORE_NB_CORE ?= 2
 $(call force,CFG_NXP_SNVS,n)
 $(call force,CFG_IMX_OCOTP,n)
 CFG_IMX_MU ?= y
-CFG_IMX_ELE ?= n
+CFG_IMX_ELE ?= y
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx93-flavorlist)))
 $(call force,CFG_MX93,y)
 $(call force,CFG_ARM64_core,y)
@@ -240,7 +241,7 @@ $(call force,CFG_TZC380,n)
 $(call force,CFG_CRYPTO_DRIVER,n)
 $(call force,CFG_NXP_CAAM,n)
 CFG_IMX_MU ?= y
-CFG_IMX_ELE ?= n
+CFG_IMX_ELE ?= y
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx95-flavorlist)))
 $(call force,CFG_MX95,y)
 $(call force,CFG_ARM64_core,y)
@@ -262,7 +263,7 @@ $(call force,CFG_IMX_OCOTP,n)
 $(call force,CFG_TZC380,n)
 $(call force,CFG_NXP_CAAM,n)
 CFG_IMX_MU ?= y
-CFG_IMX_ELE ?= n
+CFG_IMX_ELE ?= y
 else
 $(error Unsupported PLATFORM_FLAVOR "$(PLATFORM_FLAVOR)")
 endif
@@ -411,6 +412,13 @@ endif
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mpevk))
 CFG_DDR_SIZE ?= UL(0x180000000)
 CFG_UART_BASE ?= UART2_BASE
+$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,36)
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mp_phyboard_pollux))
+CFG_DDR_SIZE ?= 0x80000000
+CFG_UART_BASE ?= UART1_BASE
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
 endif

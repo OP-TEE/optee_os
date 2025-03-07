@@ -38,11 +38,15 @@ struct itr_chip {
 	/*
 	 * dt_get_irq - parse a device tree interrupt property
 	 *
-	 * @properties raw interrupt property from device tree
+	 * @properties Big-endian interrupt property array from device tree
 	 * @count number of elements in @properties
 	 * @type If not NULL, output interrupt type (IRQ_TYPE_* defines)
 	 * or IRQ_TYPE_NONE if unknown
 	 * @prio If not NULL, output interrupt priority value or 0 if unknown
+	 *
+	 * This handler is required to support dt_get_irq_type_prio() and
+	 * dt_get_irq() API function for interrupt consumers manually
+	 * retrieving trigger type and/or priority from the device tree.
 	 */
 	int (*dt_get_irq)(const uint32_t *properties, int count, uint32_t *type,
 			  uint32_t *prio);
@@ -50,7 +54,7 @@ struct itr_chip {
 
 /*
  * struct itr_ops - Interrupt controller operations
- * @add		Register and configure an interrupt
+ * @configure	Configure an interrupt
  * @enable	Enable an interrupt
  * @disable	Disable an interrupt
  * @mask	Mask an interrupt, may be called from an interrupt context
@@ -59,12 +63,19 @@ struct itr_chip {
  * @raise_sgi	Raise a SGI or NULL if not applicable to that controller
  * @set_affinity Set interrupt/cpu affinity or NULL if not applicable
  *
- * Handlers @enable, @disable, @mask, @unmask and @add are mandated. Handlers
- * @mask and @unmask have unpaged memory contrainsts. See itr_chip_is_valid().
+ * Handlers @enable, @disable, @mask and @unmask are mandated. Handlers
+ * @mask and @unmask have unpaged memory constraints. These requirements are
+ * verified by itr_chip_init() and itr_chip_dt_only_init().
+ *
+ * Handler @configure is needed for interrupt providers which do not rely on
+ * DT for consumers interrupt configuration, that is interrupt consumers using
+ * interrupt_configure() or friends (interrupt_add_handler(),
+ * interrupt_add_configure_handler(), interrupt_add_handler_with_chip(),
+ * etc...).
  */
 struct itr_ops {
-	void (*add)(struct itr_chip *chip, size_t it, uint32_t type,
-		    uint32_t prio);
+	void (*configure)(struct itr_chip *chip, size_t it, uint32_t type,
+			  uint32_t prio);
 	void (*enable)(struct itr_chip *chip, size_t it);
 	void (*disable)(struct itr_chip *chip, size_t it);
 	void (*mask)(struct itr_chip *chip, size_t it);
@@ -123,18 +134,10 @@ struct itr_handler {
 	})
 
 /*
- * Return true only if interrupt chip provides required handlers
- * @chip: Interrupt controller reference
+ * Initialise an interrupt controller handle to be used only with the DT
+ * @chip	Interrupt controller
  */
-static inline bool itr_chip_is_valid(struct itr_chip *chip)
-{
-	return chip && is_unpaged(chip) && chip->ops &&
-	       is_unpaged((void *)chip->ops) &&
-	       chip->ops->mask && is_unpaged(chip->ops->mask) &&
-	       chip->ops->unmask && is_unpaged(chip->ops->unmask) &&
-	       chip->ops->enable && chip->ops->disable &&
-	       chip->ops->add;
-}
+TEE_Result itr_chip_dt_only_init(struct itr_chip *chip);
 
 /*
  * Initialise an interrupt controller handle
@@ -302,7 +305,7 @@ static inline void interrupt_raise_sgi(struct itr_chip *chip, size_t itr_num,
 /*
  * interrupt_set_affinity() - Set CPU affinity for a controller interrupt
  * @chip	Interrupt controller
- * @itr_num	Interrupt number to raise
+ * @itr_num	Interrupt number
  * @cpu_mask	Mask of the CPUs targeted by the interrupt
  */
 static inline void interrupt_set_affinity(struct itr_chip *chip, size_t itr_num,
@@ -349,17 +352,18 @@ static inline TEE_Result interrupt_add_handler(struct itr_handler *hdl)
 
 /*
  * interrupt_create_handler() - Allocate/register an interrupt callback handler
- * @itr_chip Interrupt chip obtained from dt_get_interrupt_by_*()
- * @itr_num Interrupt number obtained from dt_get_interrupt_by_*()
- * @callback Callback handler function
- * @priv Private dat to pssa to @callback
- * @flags INTERRUPT_FLAGS_* or 0
- * @out_hdl Output allocated and registered handler or NULL
+ * @itr_chip	Interrupt chip obtained from interrupt_dt_get_by_*() or like
+ * @itr_num	Interrupt number obtained from interrupt_dt_get_by_*() or like
+ * @callback	Callback handler function
+ * @priv	Private dat to pssa to @callback
+ * @flags	INTERRUPT_FLAGS_* or 0
+ * @out_hdl	Output allocated and registered handler or NULL
  *
- * This function  differs from interrupt_add_handler() in that the
+ * This function differs from interrupt_add_handler() in that the
  * interrupt is not reconfigured. interrupt_create_handler() expects
- * @itr_desc was obtained from a call to dt_get_interrupt_by_index()
- * or dt_get_interrupt_by_name(). That call configured the interrupt.
+ * @itr_chip and @itr_num were obtained from a call
+ * to interrupt_dt_get_by_index() or interrupt_dt_get_by_name() that
+ * are in charge of configuring the interrupt according to its DT property.
  */
 TEE_Result interrupt_create_handler(struct itr_chip *itr_chip, size_t itr_num,
 				    itr_handler_t callback, void *priv,

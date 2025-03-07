@@ -277,8 +277,8 @@ static const struct rtc_ops atmel_rtc_ops = {
 
 static struct rtc atmel_rtc = {
 	.ops = &atmel_rtc_ops,
-	.range_min = { 1900, 1, 1, 0, 0, 0, 0 },
-	.range_max = { 2099, 12, 31, 23, 59, 59, 0 },
+	.range_min = RTC_TIME(1900, 0, 1, 1, 0, 0, 0, 0),
+	.range_max = RTC_TIME(2099, 11, 31, 4, 23, 59, 59, 999),
 };
 
 /* Non-null reference for compat data */

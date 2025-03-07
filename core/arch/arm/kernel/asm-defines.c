@@ -45,11 +45,13 @@ DEFINES
 	DEFINE(THREAD_CORE_LOCAL_SIZE, sizeof(struct thread_core_local));
 
 	DEFINE(SM_PM_CTX_SIZE, sizeof(struct sm_pm_ctx));
+	DEFINE(__STACK_TMP_OFFS, STACK_TMP_OFFS);
 #endif /*ARM32*/
 
 #ifdef ARM64
 	DEFINE(THREAD_SMC_ARGS_X0, offsetof(struct thread_smc_args, a0));
 	DEFINE(THREAD_SMC_ARGS_SIZE, sizeof(struct thread_smc_args));
+	DEFINE(THREAD_SMC_1_2_REGS_SIZE, sizeof(struct thread_smc_1_2_regs));
 
 	DEFINE(THREAD_SCALL_REG_X0, offsetof(struct thread_scall_regs, x0));
 	DEFINE(THREAD_SCALL_REG_X2, offsetof(struct thread_scall_regs, x2));
@@ -144,6 +146,10 @@ DEFINES
 #if defined(ARM64) && defined(CFG_CORE_FFA)
 	DEFINE(THREAD_CORE_LOCAL_DIRECT_RESP_FID,
 	       offsetof(struct thread_core_local, direct_resp_fid));
+#endif
+#if defined(CFG_CORE_DEBUG_CHECK_STACKS)
+	DEFINE(THREAD_CORE_LOCAL_STACKCHECK_RECURSION,
+	       offsetof(struct thread_core_local, stackcheck_recursion));
 #endif
 
 	DEFINE(STACK_TMP_GUARD, STACK_CANARY_SIZE / 2 + STACK_TMP_OFFS);

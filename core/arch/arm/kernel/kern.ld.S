@@ -279,8 +279,11 @@ SECTIONS
 		. = ALIGN(8);
 		__nozi_stack_end = .;
 	}
-
-#ifdef CFG_WITH_PAGER
+#ifndef CFG_WITH_PAGER
+	. = ALIGN(SMALL_PAGE_SIZE);
+	__flatmap_free_start = .;
+	__flatmap_unpg_rw_size = __flatmap_free_start - __flatmap_unpg_rw_start;
+#else
 	.heap2 (NOLOAD) : {
 		__heap2_start = .;
 		/*
@@ -409,8 +412,8 @@ SECTIONS
 	_end_of_ram = .;
 
 #ifndef CFG_WITH_PAGER
-	__flatmap_unpg_rw_size = _end_of_ram - __flatmap_unpg_rw_start;
 	__get_tee_init_end = .;
+	__flatmap_free_size = _end_of_ram - __flatmap_free_start;
 #endif
 
 	/*
@@ -461,6 +464,12 @@ __vcore_unpg_rw_start = __flatmap_unpg_rw_start;
 __vcore_unpg_rw_size = __flatmap_unpg_rw_size;
 __vcore_unpg_rw_end = __vcore_unpg_rw_start + __vcore_unpg_rw_size;
 
+#ifndef CFG_WITH_PAGER
+__vcore_free_start = __flatmap_free_start;
+__vcore_free_size = __flatmap_free_size;
+__vcore_free_end = __flatmap_free_start + __flatmap_free_size;
+#endif
+
 #ifdef CFG_NS_VIRTUALIZATION
 /* Nexus read-write memory */
 __vcore_nex_rw_start = __flatmap_nex_rw_start;
@@ -469,28 +478,21 @@ __vcore_nex_rw_end = __vcore_nex_rw_start + __vcore_nex_rw_size;
 #endif
 
 #ifdef CFG_WITH_PAGER
-/*
- * Core init mapping shall cover up to end of the physical RAM.
- * This is required since the hash table is appended to the
- * binary data after the firmware build sequence.
- */
-#define __FLATMAP_PAGER_TRAILING_SPACE	\
-	(TEE_RAM_START + TEE_RAM_PH_SIZE - \
-		(__flatmap_init_ro_start + __flatmap_init_ro_size))
-
 /* Paged/init read-only memories */
 __vcore_init_rx_start = __flatmap_init_rx_start;
-__vcore_init_ro_start = __flatmap_init_ro_start;
 #ifdef CFG_CORE_RODATA_NOEXEC
 __vcore_init_rx_size = __flatmap_init_rx_size;
-__vcore_init_ro_size = __flatmap_init_ro_size + __FLATMAP_PAGER_TRAILING_SPACE;
+__vcore_init_ro_start = __flatmap_init_ro_start;
+__vcore_init_ro_size = __flatmap_init_ro_size;
 #else
-__vcore_init_rx_size = __flatmap_init_rx_size + __flatmap_init_ro_size +
-		       __FLATMAP_PAGER_TRAILING_SPACE;
+__vcore_init_rx_size = __flatmap_init_rx_size + __flatmap_init_ro_size;
+__vcore_init_ro_start = __vcore_init_rx_end;
 __vcore_init_ro_size = 0;
 #endif /* CFG_CORE_RODATA_NOEXEC */
 __vcore_init_rx_end = __vcore_init_rx_start + __vcore_init_rx_size;
 __vcore_init_ro_end = __vcore_init_ro_start + __vcore_init_ro_size;
+ASSERT(__vcore_init_ro_start == __vcore_init_rx_end,
+       "__vcore_init_ro_start should follow __vcore_init_rx_end")
 #endif /* CFG_WITH_PAGER */
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS

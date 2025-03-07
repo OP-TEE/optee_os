@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2019, 2023 NXP
+ * Copyright 2019, 2023-2024 NXP
  */
 #include <caam_common.h>
 #include <caam_hal_ctrl.h>
@@ -124,8 +124,8 @@ enum caam_status
 caam_sm_set_access_perm(const struct caam_sm_page_desc *page_desc,
 			unsigned int grp1_perm, unsigned int grp2_perm)
 {
-	uint32_t grp1 = UINT32_MAX;
-	uint32_t grp2 = UINT32_MAX;
+	uint32_t grp1 = 0;
+	uint32_t grp2 = 0;
 
 	if (!page_desc)
 		return CAAM_BAD_PARAM;
@@ -144,12 +144,18 @@ caam_sm_set_access_perm(const struct caam_sm_page_desc *page_desc,
 	 *
 	 * The Access Group is related to the Job Ring owner setting without
 	 * the Secure Bit setting already managed by the Job Ring.
+	 *
+	 * If any group permissions are set, need to enable Secure World MID
+	 * access in SMAG1/2 registers.
+	 * Since both Non-Secure/Secure world has same MID, using JROWN_ARM_NS
+	 * and if any grp1_perm/grp2_perm is set, need to enable permission
+	 * for Secure World for partition in SMAG1/2 Registers.
 	 */
 	if (grp1_perm)
-		grp1 = JROWN_ARM_NS;
+		grp1 = SHIFT_U32(1, JROWN_ARM_NS);
 
 	if (grp2_perm)
-		grp2 = JROWN_ARM_NS;
+		grp2 = SHIFT_U32(1, JROWN_ARM_NS);
 
 	caam_hal_sm_set_access_group(sm_privdata.jr_addr, page_desc->partition,
 				     grp1, grp2);

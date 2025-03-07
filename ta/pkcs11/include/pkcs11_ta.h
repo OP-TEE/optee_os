@@ -13,8 +13,8 @@
 			 { 0xa4, 0x9c, 0xbb, 0xd8, 0x27, 0xae, 0x86, 0xee } }
 
 /* PKCS11 trusted application version information */
-#define PKCS11_TA_VERSION_MAJOR			0
-#define PKCS11_TA_VERSION_MINOR			1
+#define PKCS11_TA_VERSION_MAJOR			1
+#define PKCS11_TA_VERSION_MINOR			0
 #define PKCS11_TA_VERSION_PATCH			0
 
 /* Attribute specific values */
@@ -1274,6 +1274,7 @@ enum pkcs11_certificate_category {
 enum pkcs11_mechanism_id {
 	PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN	= 0x00000,
 	PKCS11_CKM_RSA_PKCS			= 0x00001,
+	PKCS11_CKM_RSA_X_509			= 0x00003,
 	PKCS11_CKM_MD5_RSA_PKCS			= 0x00005,
 	PKCS11_CKM_SHA1_RSA_PKCS		= 0x00006,
 	PKCS11_CKM_RSA_PKCS_OAEP		= 0x00009,

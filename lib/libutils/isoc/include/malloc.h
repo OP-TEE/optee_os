@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2015-2025, Linaro Limited.
  */
 #ifndef __MALLOC_H
 #define __MALLOC_H
 
+#include <malloc_flags.h>
 #include <pta_stats.h>
 #include <stddef.h>
 #include <types_ext.h>
@@ -15,42 +17,40 @@
  */
 #define MALLOC_INITIAL_POOL_MIN_SIZE	1024
 
+#define MALLOC_DEFAULT_ALIGNMENT	(sizeof(long) * 2)
+
 void *malloc(size_t size);
+void *malloc_flags(uint32_t flags, void *ptr, size_t alignment, size_t size);
 void *calloc(size_t nmemb, size_t size);
 void *realloc(void *ptr, size_t size);
 void *memalign(size_t alignment, size_t size);
 void free(void *ptr);
+void free_flags(uint32_t flags, void *ptr);
 
 #if __STDC_VERSION__ >= 201112L
 void *aligned_alloc(size_t alignment, size_t size);
 #endif
 
 #ifdef ENABLE_MDBG
-
-void *mdbg_malloc(const char *fname, int lineno, size_t size);
-void *mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size);
-void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size);
-void *mdbg_memalign(const char *fname, int lineno, size_t alignment,
-		    size_t size);
-
-#if __STDC_VERSION__ >= 201112L
-void *mdbg_aligned_alloc(const char *fname, int lineno, size_t alignment,
-			 size_t size);
-#endif
+void *__mdbg_alloc(uint32_t flags, void *ptr, size_t alignment, size_t nmemb,
+		   size_t size, const char *fname, int lineno);
 
 void mdbg_check(int bufdump);
 
-#define malloc(size)	mdbg_malloc(__FILE__, __LINE__, (size))
-#define calloc(nmemb, size) \
-		mdbg_calloc(__FILE__, __LINE__, (nmemb), (size))
-#define realloc(ptr, size) \
-		mdbg_realloc(__FILE__, __LINE__, (ptr), (size))
-#define memalign(alignment, size) \
-		mdbg_memalign(__FILE__, __LINE__, (alignment), (size))
+#define malloc(size)		__mdbg_alloc(MAF_NULL, NULL, 1, 1, \
+					     (size), __FILE__, __LINE__)
+#define malloc_flags(flags, ptr, align, size)	\
+	__mdbg_alloc((flags), (ptr), (align), 1, (size), __FILE__, __LINE__)
+#define calloc(nmemb, size)	__mdbg_alloc(MAF_ZERO_INIT, NULL, 1, (nmemb), \
+					     (size), __FILE__, __LINE__)
+#define realloc(ptr, size)	__mdbg_alloc(MAF_NULL, (ptr), 1, 1, \
+					     (size), __FILE__, __LINE__)
+#define memalign(align, size)	__mdbg_alloc(MAF_NULL, NULL, (align), 1, \
+					     (size), __FILE__, __LINE__)
 
 #if __STDC_VERSION__ >= 201112L
-#define aligned_alloc(alignment, size) \
-		mdbg_aligned_alloc(__FILE__, __LINE__, (alignment), (size))
+#define aligned_alloc(align, size) \
+	__mdbg_alloc(MAF_NULL, NULL, (align), 1, (size), __FILE__, __LINE__)
 #endif /* __STDC_VERSION__ */
 
 #else
@@ -86,39 +86,32 @@ void malloc_get_stats(struct pta_stats_alloc *stats);
 void malloc_reset_stats(void);
 #endif /* CFG_WITH_STATS */
 
-
 #ifdef CFG_NS_VIRTUALIZATION
-
-void nex_free(void *ptr);
-
 #ifdef ENABLE_MDBG
-
-void *nex_mdbg_malloc(const char *fname, int lineno, size_t size);
-void *nex_mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size);
-void *nex_mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size);
-void *nex_mdbg_memalign(const char *fname, int lineno, size_t alignment,
-			size_t size);
 
 void nex_mdbg_check(int bufdump);
 
-#define nex_malloc(size)	nex_mdbg_malloc(__FILE__, __LINE__, (size))
-#define nex_calloc(nmemb, size) \
-		nex_mdbg_calloc(__FILE__, __LINE__, (nmemb), (size))
-#define nex_realloc(ptr, size) \
-		nex_mdbg_realloc(__FILE__, __LINE__, (ptr), (size))
-#define nex_memalign(alignment, size) \
-		nex_mdbg_memalign(__FILE__, __LINE__, (alignment), (size))
-
+#define nex_malloc(size)	__mdbg_alloc(MAF_NEX, NULL, 1, 1, \
+					     (size), __FILE__, __LINE__)
+#define nex_calloc(nmemb, size)	__mdbg_alloc(MAF_NEX | MAF_ZERO_INIT, NULL, 1, \
+					     (nmemb), (size), __FILE__, \
+					     __LINE__)
+#define nex_realloc(ptr, size)	__mdbg_alloc(MAF_NEX, (ptr), 1, 1, \
+					     (size), __FILE__, __LINE__)
+#define nex_memalign(align, size) __mdbg_alloc(MAF_NEX, NULL, (align), 1, \
+					       (size), __FILE__, __LINE__)
 #else /* ENABLE_MDBG */
+
+#define nex_mdbg_check(x)        do { } while (0)
 
 void *nex_malloc(size_t size);
 void *nex_calloc(size_t nmemb, size_t size);
 void *nex_realloc(void *ptr, size_t size);
 void *nex_memalign(size_t alignment, size_t size);
 
-#define nex_mdbg_check(x)        do { } while (0)
-
 #endif /* ENABLE_MDBG */
+
+void nex_free(void *ptr);
 
 bool nex_malloc_buffer_is_within_alloced(void *buf, size_t len);
 bool nex_malloc_buffer_overlaps_heap(void *buf, size_t len);

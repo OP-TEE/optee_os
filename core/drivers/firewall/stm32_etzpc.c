@@ -14,7 +14,6 @@
 #include <drivers/clk_dt.h>
 #include <drivers/firewall.h>
 #include <drivers/firewall_device.h>
-#include <drivers/stm32_etzpc.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #ifdef CFG_STM32MP15
 #include <drivers/stm32mp1_rcc.h>
@@ -66,6 +65,15 @@
 #define PERIPH_PM_ATTR_MASK		GENMASK_32(2, 0)
 #define TZMA_PM_LOCK_BIT		BIT(15)
 #define TZMA_PM_VALUE_MASK		GENMASK_32(9, 0)
+
+/* ETZPC DECPROT bit field values */
+enum etzpc_decprot_attributes {
+	ETZPC_DECPROT_S_RW = 0,
+	ETZPC_DECPROT_NS_R_S_W = 1,
+	ETZPC_DECPROT_MCU_ISOLATION = 2,
+	ETZPC_DECPROT_NS_RW = 3,
+	ETZPC_DECPROT_MAX = 4,
+};
 
 /*
  * struct stm32_etzpc_platdata - Driver data set at initialization
@@ -218,7 +226,7 @@ static void etzpc_configure_decprot(uint32_t decprot_id,
 	etzpc_unlock(exceptions);
 }
 
-enum etzpc_decprot_attributes etzpc_get_decprot(uint32_t decprot_id)
+static enum etzpc_decprot_attributes etzpc_get_decprot(uint32_t decprot_id)
 {
 	size_t offset = U(4) * (decprot_id / IDS_PER_DECPROT_REGS);
 	uint32_t shift = (decprot_id % IDS_PER_DECPROT_REGS) << DECPROT_SHIFT;
@@ -260,7 +268,7 @@ static bool decprot_is_locked(uint32_t decprot_id)
 	return io_read32(base + offset + ETZPC_DECPROT_LOCK0) & mask;
 }
 
-void etzpc_configure_tzma(uint32_t tzma_id, uint16_t tzma_value)
+static void etzpc_configure_tzma(uint32_t tzma_id, uint16_t tzma_value)
 {
 	size_t offset = sizeof(uint32_t) * tzma_id;
 	vaddr_t base = etzpc_device->pdata.base.va;
@@ -358,6 +366,28 @@ static TEE_Result etzpc_pm(enum pm_op op, unsigned int pm_hint __unused,
 	return TEE_SUCCESS;
 }
 DECLARE_KEEP_PAGER(etzpc_pm);
+
+static TEE_Result stm32_etzpc_check_access(struct firewall_query *firewall)
+{
+	enum etzpc_decprot_attributes attr_req = ETZPC_DECPROT_MAX;
+	uint32_t id = 0;
+
+	if (!firewall || firewall->arg_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	id = firewall->args[0] & ETZPC_ID_MASK;
+	attr_req = etzpc_binding2decprot((firewall->args[0] &
+					  ETZPC_MODE_MASK) >> ETZPC_MODE_SHIFT);
+
+	if (id < etzpc_device->ddata.num_per_sec) {
+		if (etzpc_get_decprot(id) == attr_req)
+			return TEE_SUCCESS;
+		else
+			return TEE_ERROR_ACCESS_DENIED;
+	} else {
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+}
 
 static TEE_Result stm32_etzpc_acquire_access(struct firewall_query *firewall)
 {
@@ -837,6 +867,7 @@ static TEE_Result init_etzpc_from_dt(const void *fdt, int node)
 static const struct firewall_controller_ops firewall_ops = {
 	.set_conf = stm32_etzpc_configure,
 	.set_memory_conf = stm32_etzpc_configure_memory,
+	.check_access = stm32_etzpc_check_access,
 	.acquire_access = stm32_etzpc_acquire_access,
 	.acquire_memory_access = stm32_etzpc_acquire_memory_access,
 };

@@ -68,17 +68,6 @@ void __weak call_driver_initcalls(void)
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
-void __weak call_initcalls(void)
-{
-	call_early_initcalls();
-	call_service_initcalls();
-	call_driver_initcalls();
-}
-
-/*
- * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area.
- */
 void __weak call_finalcalls(void)
 {
 	DO_INIT_CALLS(finalcall);

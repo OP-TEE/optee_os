@@ -171,5 +171,42 @@
 	 ((mcid) << RIMUPROT_RIMC_MCID_SHIFT) | \
 	 ((mode) << RIMUPROT_RIMC_MODE_SHIFT))
 
+/* RISAL ID */
+#define RISAL_ID(idx)			(idx)
+
+/* RISAL CID subregion modes */
+#define RIFSC_RISAL_SRDIS		0x0
+#define RIFSC_RISAL_SREN		0x1
+
+/* RISAL Block id */
+#define RIFSC_RISAL_BLOCK_A		0x0
+#define RIFSC_RISAL_BLOCK_B		0x1
+
+#define RIFSC_RISAL_REG_ID_SHIFT	0
+#define RIFSC_RISAL_BLOCK_ID_SHIFT	8
+#define RIFSC_RISAL_REGx_CFGR_SHIFT	16
+#define RIFSC_RISAL_SREN_SHIFT		16
+#define RIFSC_RISAL_LOCK_SHIFT		17
+#define RIFSC_RISAL_SRCID_SHIFT		20
+#define RIFSC_RISAL_SEC_SHIFT		24
+#define RIFSC_RISAL_PRIV_SHIFT		25
+#define RIFSC_RISAL_REG_ID_MASK		GENMASK_32(7, 0)
+#define RIFSC_RISAL_BLOCK_ID_MASK	GENMASK_32(15, 8)
+#define RIFSC_RISAL_SRCID_MASK		GENMASK_32(22, 20)
+#define RIFSC_RISAL_REGx_CFGR_MASK	(BIT(RIFSC_RISAL_SREN_SHIFT) | \
+					 BIT(RIFSC_RISAL_LOCK_SHIFT) | \
+					 RIFSC_RISAL_SRCID_MASK | \
+					 BIT(RIFSC_RISAL_SEC_SHIFT) | \
+					 BIT(RIFSC_RISAL_PRIV_SHIFT))
+
+#define RISALPROT(risalid, blockid, srcid, lock, sec, priv, sren) \
+	 (((risalid) << RIFSC_RISAL_REG_ID_SHIFT) | \
+	  ((blockid) << RIFSC_RISAL_BLOCK_ID_SHIFT) | \
+	  ((priv) << RIFSC_RISAL_PRIV_SHIFT) | \
+	  ((sec) << RIFSC_RISAL_SEC_SHIFT) | \
+	  ((srcid) << RIFSC_RISAL_SRCID_SHIFT) | \
+	  ((lock) << RIFSC_RISAL_LOCK_SHIFT) | \
+	  ((sren) << RIFSC_RISAL_SREN_SHIFT))
+
 #endif /* _DT_BINDINGS_FIREWALL_STM32MP25_RIFSC_H */
 

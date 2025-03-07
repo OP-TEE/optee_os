@@ -22,17 +22,18 @@
 		clocks = <&rcc SAES_K>, <&rcc RNG1_K>;
 		clock-names = "bus", "rng";
 		resets = <&rcc SAES_R>;
-		access-controllers = <&etzpc STM32MP1_ETZPC_SAES_ID>;
+		access-controllers = <&etzpc STM32MP1_ETZPC_SAES_ID>, <&etzpc STM32MP1_ETZPC_RNG_ID>;
 		status = "disabled";
 	};
 
 	pka: pka@54006000 {
-		compatible = "st,stm32mp13-pka64";
+		compatible = "st,stm32mp13-pka";
 		reg = <0x54006000 0x2000>;
 		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&rcc PKA>;
+		clocks = <&rcc PKA>, <&rcc RNG1_K>;
+		clock-names = "bus", "rng";
 		resets = <&rcc PKA_R>;
-		access-controllers = <&etzpc STM32MP1_ETZPC_PKA_ID>;
+		access-controllers = <&etzpc STM32MP1_ETZPC_PKA_ID>, <&etzpc STM32MP1_ETZPC_RNG_ID>;
 		status = "disabled";
 	};
 };

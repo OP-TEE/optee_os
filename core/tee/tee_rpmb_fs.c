@@ -25,6 +25,7 @@
 #include <string_ext.h>
 #include <string.h>
 #include <sys/queue.h>
+#include <string_ext.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_key_manager.h>
 #include <tee/tee_pobj.h>
@@ -1221,7 +1222,8 @@ static TEE_Result tee_rpmb_init(void)
 		}
 		res = rpmb_probe_reset();
 		if (res) {
-			if (res != TEE_ERROR_NOT_SUPPORTED)
+			if (res != TEE_ERROR_NOT_SUPPORTED &&
+			    res != TEE_ERROR_NOT_IMPLEMENTED)
 				return res;
 			return legacy_rpmb_init();
 		}
@@ -1248,7 +1250,8 @@ next:
 
 	res = rpmb_probe_reset();
 	if (res) {
-		if (res != TEE_ERROR_NOT_SUPPORTED)
+		if (res != TEE_ERROR_NOT_SUPPORTED &&
+		    res != TEE_ERROR_NOT_IMPLEMENTED)
 			return res;
 		return legacy_rpmb_init();
 	}
@@ -1321,8 +1324,7 @@ static TEE_Result tee_rpmb_read(uint32_t addr, uint8_t *data,
 		/* Overflow */
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
-	blkcnt =
-	    ROUNDUP(len + byte_offset, RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
+	blkcnt = ROUNDUP_DIV(len + byte_offset, RPMB_DATA_SIZE);
 	res = tee_rpmb_init();
 	if (res != TEE_SUCCESS)
 		return res;
@@ -1532,8 +1534,7 @@ static TEE_Result tee_rpmb_write_blk(uint16_t blk_idx,
 static bool tee_rpmb_write_is_atomic(uint32_t addr, uint32_t len)
 {
 	uint8_t byte_offset = addr % RPMB_DATA_SIZE;
-	uint16_t blkcnt = ROUNDUP(len + byte_offset,
-				  RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
+	uint16_t blkcnt = ROUNDUP_DIV(len + byte_offset, RPMB_DATA_SIZE);
 
 	return (blkcnt <= rpmb_ctx->rel_wr_blkcnt);
 }
@@ -1559,8 +1560,7 @@ static TEE_Result tee_rpmb_write(uint32_t addr,
 	blk_idx = addr / RPMB_DATA_SIZE;
 	byte_offset = addr % RPMB_DATA_SIZE;
 
-	blkcnt =
-	    ROUNDUP(len + byte_offset, RPMB_DATA_SIZE) / RPMB_DATA_SIZE;
+	blkcnt = ROUNDUP_DIV(len + byte_offset, RPMB_DATA_SIZE);
 
 	if (byte_offset == 0 && (len % RPMB_DATA_SIZE) == 0) {
 		res = tee_rpmb_write_blk(blk_idx, data, blkcnt, fek, uuid);
@@ -2939,8 +2939,8 @@ static TEE_Result rpmb_fs_dir_populate(const char *path,
 		res = TEE_ERROR_ITEM_NOT_FOUND; /* No directories were found. */
 
 out:
-	mutex_unlock(&rpmb_mutex);
 	fat_entry_dir_deinit();
+	mutex_unlock(&rpmb_mutex);
 	if (res)
 		rpmb_fs_dir_free(dir);
 
@@ -3174,3 +3174,67 @@ bool __weak plat_rpmb_key_is_ready(void)
 {
 	return true;
 }
+
+#ifdef CFG_WITH_STATS
+TEE_Result rpmb_mem_stats(struct pta_stats_alloc *stats, bool reset)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct rpmb_fat_entry *fe = NULL;
+	tee_mm_entry_t *mm = NULL;
+	tee_mm_pool_t pool = { };
+	bool pool_result = false;
+	paddr_size_t pool_sz = 0;
+
+	mutex_lock(&rpmb_mutex);
+
+	res = rpmb_fs_setup();
+	if (res)
+		goto out;
+
+	pool_sz = fs_par->max_rpmb_address - RPMB_STORAGE_START_ADDRESS;
+	pool_result = tee_mm_init(&pool, RPMB_STORAGE_START_ADDRESS,
+				  pool_sz, RPMB_BLOCK_SIZE_SHIFT,
+				  TEE_MM_POOL_HI_ALLOC);
+	if (!pool_result) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	res = fat_entry_dir_init();
+	if (res)
+		goto out;
+
+	/*
+	 * The pool is used to represent the current RPMB layout. To find
+	 * a slot for the file tee_mm_alloc is called on the pool. Thus
+	 * if it is not NULL the entire FAT must be traversed to fill in
+	 * the pool.
+	 */
+	while (true) {
+		res = fat_entry_dir_get_next(&fe, NULL);
+		if (res || !fe)
+			break;
+
+		if (!(fe->flags & FILE_IS_ACTIVE) || !fe->data_size)
+			continue;
+
+		mm = tee_mm_alloc2(&pool, fe->start_address, fe->data_size);
+		if (!mm) {
+			res = TEE_ERROR_GENERIC;
+			break;
+		}
+	}
+
+	fat_entry_dir_deinit();
+
+out:
+	mutex_unlock(&rpmb_mutex);
+
+	if (!res)
+		tee_mm_get_pool_stats(&pool, stats, reset);
+
+	tee_mm_final(&pool);
+
+	return res;
+}
+#endif /*CFG_WITH_STATS*/

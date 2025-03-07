@@ -7,10 +7,6 @@
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/rstctrl.h>
-#if defined(CFG_STM32MP15)
-#include <drivers/stm32_etzpc.h>
-#include <dt-bindings/firewall/stm32mp15-etzpc.h>
-#endif /* defined(CFG_STM32MP15) */
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
@@ -669,14 +665,6 @@ static TEE_Result stm32_rng_probe(const void *fdt, int offs,
 	res = stm32_rng_init();
 	if (res)
 		goto err;
-
-#if defined(CFG_STM32MP15) && defined(CFG_STM32_ETZPC)
-	/* Only STM32MP15 requires a software registering of RNG secure state */
-	if (etzpc_get_decprot(STM32MP1_ETZPC_RNG1_ID) == ETZPC_DECPROT_NS_RW)
-		stm32mp_register_non_secure_periph_iomem(stm32_rng->base.pa);
-	else
-		stm32mp_register_secure_periph_iomem(stm32_rng->base.pa);
-#endif /* defined(CFG_STM32MP15) && defined(CFG_STM32_ETZPC) */
 
 	/* Power management implementation expects both or none are set */
 	assert(stm32_rng->ddata->has_power_optim ==

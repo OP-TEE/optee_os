@@ -132,6 +132,9 @@ static const struct pkcs11_mechachism_modes pkcs11_modes[] = {
 		  CKFM_AUTH_WITH_RECOVER, SINGLE_PART_ONLY),
 	MECHANISM(PKCS11_CKM_RSA_PKCS_OAEP, CKFM_CIPHER_WRAP,
 		  SINGLE_PART_ONLY),
+	MECHANISM(PKCS11_CKM_RSA_X_509, CKFM_CIPHER_WRAP |
+		  CKFM_AUTH_NO_RECOVER | CKFM_AUTH_WITH_RECOVER,
+		  SINGLE_PART_ONLY),
 	MECHANISM(PKCS11_CKM_RSA_PKCS_PSS, CKFM_AUTH_NO_RECOVER,
 		  SINGLE_PART_ONLY),
 	MECHANISM(PKCS11_CKM_MD5_RSA_PKCS, CKFM_AUTH_NO_RECOVER, ANY_PART),
@@ -274,6 +277,9 @@ const struct pkcs11_mechachism_modes token_mechanism[] = {
 	TA_MECHANISM(PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN,
 		     PKCS11_CKFM_GENERATE_KEY_PAIR),
 	TA_MECHANISM(PKCS11_CKM_RSA_PKCS, CKFM_CIPHER | CKFM_AUTH_NO_RECOVER),
+#ifdef CFG_PKCS11_TA_RSA_X_509
+	TA_MECHANISM(PKCS11_CKM_RSA_X_509, CKFM_CIPHER | CKFM_AUTH_NO_RECOVER),
+#endif
 	TA_MECHANISM(PKCS11_CKM_RSA_PKCS_PSS, CKFM_AUTH_NO_RECOVER),
 	TA_MECHANISM(PKCS11_CKM_MD5_RSA_PKCS, CKFM_AUTH_NO_RECOVER),
 	TA_MECHANISM(PKCS11_CKM_SHA1_RSA_PKCS, CKFM_AUTH_NO_RECOVER),
@@ -413,6 +419,7 @@ void pkcs11_mechanism_supported_key_sizes(uint32_t proc_id,
 		break;
 	case PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN:
 	case PKCS11_CKM_RSA_PKCS:
+	case PKCS11_CKM_RSA_X_509:
 	case PKCS11_CKM_MD5_RSA_PKCS:
 	case PKCS11_CKM_SHA1_RSA_PKCS:
 	case PKCS11_CKM_RSA_PKCS_OAEP:
@@ -455,8 +462,8 @@ void mechanism_supported_key_sizes_bytes(uint32_t proc_id,
 	case PKCS11_CKM_ECDSA_SHA512:
 	case PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN:
 		/* Size is in bits -> convert to bytes and ceil */
-		*min_key_size = ROUNDUP(*min_key_size, 8) / 8;
-		*max_key_size = ROUNDUP(*max_key_size, 8) / 8;
+		*min_key_size = ROUNDUP_DIV(*min_key_size, 8);
+		*max_key_size = ROUNDUP_DIV(*max_key_size, 8);
 		break;
 	default:
 		/* Size is already in bytes */

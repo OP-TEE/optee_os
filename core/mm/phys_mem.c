@@ -32,7 +32,9 @@ static tee_mm_pool_t *init_pool(paddr_t b, paddr_size_t sz, uint32_t flags)
 	if (!pool)
 		panic();
 
-	tee_mm_init(pool, b, sz, CORE_MMU_USER_CODE_SHIFT, flags);
+	if (!tee_mm_init(pool, b, sz, CORE_MMU_USER_CODE_SHIFT, flags))
+		panic();
+
 	return pool;
 }
 
@@ -192,7 +194,12 @@ tee_mm_entry_t *phys_mem_mm_find(paddr_t addr)
 
 tee_mm_entry_t *phys_mem_core_alloc(size_t size)
 {
-	return mm_alloc(core_pool, NULL, size);
+	/*
+	 * With CFG_NS_VIRTUALIZATION all memory is equally secure so we
+	 * should normally be able to use one pool only, but if we have two
+	 * make sure to use both even for core allocations.
+	 */
+	return mm_alloc(core_pool, ta_pool, size);
 }
 
 tee_mm_entry_t *phys_mem_ta_alloc(size_t size)

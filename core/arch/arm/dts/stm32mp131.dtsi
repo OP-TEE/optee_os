@@ -277,6 +277,7 @@
 			reg = <0x5c00a000 0x400>;
 			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc RTCAPB>;
+			st,backup-zones = <10 5 17>;
 		};
 
 		pinctrl: pin-controller@50002000 {
@@ -291,6 +292,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				#access-controller-cells = <1>;
 				clocks = <&rcc GPIOA>;
 				reg = <0x0 0x400>;
 				st,bank-name = "GPIOA";
@@ -303,6 +305,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				#access-controller-cells = <1>;
 				clocks = <&rcc GPIOB>;
 				reg = <0x1000 0x400>;
 				st,bank-name = "GPIOB";
@@ -315,6 +318,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				#access-controller-cells = <1>;
 				clocks = <&rcc GPIOC>;
 				reg = <0x2000 0x400>;
 				st,bank-name = "GPIOC";
@@ -327,6 +331,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				#access-controller-cells = <1>;
 				clocks = <&rcc GPIOD>;
 				reg = <0x3000 0x400>;
 				st,bank-name = "GPIOD";
@@ -339,6 +344,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				#access-controller-cells = <1>;
 				clocks = <&rcc GPIOE>;
 				reg = <0x4000 0x400>;
 				st,bank-name = "GPIOE";
@@ -351,6 +357,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				#access-controller-cells = <1>;
 				clocks = <&rcc GPIOF>;
 				reg = <0x5000 0x400>;
 				st,bank-name = "GPIOF";
@@ -363,6 +370,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				#access-controller-cells = <1>;
 				clocks = <&rcc GPIOG>;
 				reg = <0x6000 0x400>;
 				st,bank-name = "GPIOG";
@@ -375,6 +383,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				#access-controller-cells = <1>;
 				clocks = <&rcc GPIOH>;
 				reg = <0x7000 0x400>;
 				st,bank-name = "GPIOH";
@@ -387,6 +396,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				#access-controller-cells = <1>;
 				clocks = <&rcc GPIOI>;
 				reg = <0x8000 0x400>;
 				st,bank-name = "GPIOI";

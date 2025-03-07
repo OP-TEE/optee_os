@@ -15,6 +15,7 @@
 #include <string.h>
 #include <string_ext.h>
 #include <tee_api_types.h>
+#include <tee/tee_fs.h>
 #include <trace.h>
 
 static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
@@ -52,6 +53,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 	}
 	p[1].memref.size = size_to_retrieve;
 	stats = p[1].memref.buffer;
+	memset(stats, 0, size_to_retrieve);
 
 	for (i = ALLOC_ID_HEAP; i <= STATS_NB_POOLS; i++) {
 		if (pool_id != ALLOC_ID_ALL && i != pool_id)
@@ -67,6 +69,8 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 
 		case ALLOC_ID_PUBLIC_DDR:
 			EMSG("public DDR not managed by secure side anymore");
+			strlcpy(stats->desc, "Public DDR (deprecated)",
+				sizeof(stats->desc));
 			break;
 
 		case ALLOC_ID_TA_RAM:
@@ -75,14 +79,26 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 				sizeof(stats->desc));
 			break;
 
-#ifdef CFG_NS_VIRTUALIZATION
 		case ALLOC_ID_NEXUS_HEAP:
+#ifdef CFG_NS_VIRTUALIZATION
 			nex_malloc_get_stats(stats);
 			strlcpy(stats->desc, "KHeap", sizeof(stats->desc));
 			if (p[0].value.b)
 				nex_malloc_reset_stats();
-			break;
+#else
+			strlcpy(stats->desc, "KHeap (disabled)",
+				sizeof(stats->desc));
 #endif
+			break;
+		case ALLOC_ID_RPMB:
+			if (rpmb_mem_stats(stats, p[0].value.b))
+				strlcpy(stats->desc,
+					"RPMB secure storage (no data)",
+					sizeof(stats->desc));
+			else
+				strlcpy(stats->desc, "RPMB secure storage",
+					sizeof(stats->desc));
+			break;
 		default:
 			EMSG("Wrong pool id");
 			break;

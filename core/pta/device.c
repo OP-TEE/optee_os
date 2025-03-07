@@ -88,6 +88,11 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t rflags = 0;
+	/*
+	 * This should also be true if CFG_RPMB_ANNOUNCE_PROBE_CAP is
+	 * enabled when the kernel does not support OP-TEE RPMB operations.
+	 */
+	bool rpmb_needs_supp = !IS_ENABLED(CFG_RPMB_ANNOUNCE_PROBE_CAP);
 
 	switch (nCommandID) {
 	case PTA_CMD_GET_DEVICES:
@@ -95,7 +100,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 		break;
 	case PTA_CMD_GET_DEVICES_SUPP:
 		rflags = TA_FLAG_DEVICE_ENUM_SUPP;
-		if (IS_ENABLED(CFG_REE_FS))
+		if (IS_ENABLED(CFG_REE_FS) ||
+		    (IS_ENABLED(CFG_RPMB_FS) && rpmb_needs_supp))
 			rflags |= TA_FLAG_DEVICE_ENUM_TEE_STORAGE_PRIVATE;
 		break;
 	case PTA_CMD_GET_DEVICES_RPMB:

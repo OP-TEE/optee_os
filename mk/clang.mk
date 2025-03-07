@@ -26,7 +26,8 @@ nostdinc$(sm)	:= -nostdinc -isystem $(shell $(CC$(sm)) \
 			-print-file-name=include 2> /dev/null)
 
 comp-cflags-warns-clang := -Wno-language-extension-token \
-			 -Wno-gnu-zero-variadic-macro-arguments
+			 -Wno-gnu-zero-variadic-macro-arguments \
+			 -Wno-gnu-alignof-expression
 
 # Note, use the compiler runtime library (libclang_rt.builtins.*.a) instead of
 # libgcc for clang

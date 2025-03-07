@@ -22,8 +22,8 @@ $(sm)-platform-cppflags += -DMBEDTLS_SELF_TEST
 endif
 
 ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
-# Build malloc debug code into libutils: (mdbg_malloc(), mdbg_free(),
-# mdbg_check(), etc.).
+# Build malloc debug code into libutils, that is, record allocation
+# location and extra sanity checks.
 $(sm)-platform-cppflags += -DENABLE_MDBG=1
 endif
 

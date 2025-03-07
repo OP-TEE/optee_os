@@ -61,14 +61,12 @@
  * IWDG_FLAGS_HW_ENABLED                Watchdog is enabled by BootROM
  * IWDG_FLAGS_DISABLE_ON_STOP           Watchdog is freezed in SoC STOP mode
  * IWDG_FLAGS_DISABLE_ON_STANDBY        Watchdog is freezed in SoC STANDBY mode
- * IWDG_FLAGS_NON_SECURE                Instance is assigned to non-secure world
  * IWDG_FLAGS_ENABLED			Watchdog has been enabled
  */
 #define IWDG_FLAGS_HW_ENABLED			BIT(0)
 #define IWDG_FLAGS_DISABLE_ON_STOP		BIT(1)
 #define IWDG_FLAGS_DISABLE_ON_STANDBY		BIT(2)
-#define IWDG_FLAGS_NON_SECURE			BIT(3)
-#define IWDG_FLAGS_ENABLED			BIT(4)
+#define IWDG_FLAGS_ENABLED			BIT(3)
 
 /*
  * IWDG watch instance data
@@ -78,7 +76,6 @@
  * @flags - Property flags for the IWDG instance
  * @timeout - Watchdog elaspure timeout
  * @wdt_chip - Wathcdog chip instance
- * @link - Link in registered watchdog instance list
  */
 struct stm32_iwdg_device {
 	struct io_pa_va base;
@@ -87,20 +84,11 @@ struct stm32_iwdg_device {
 	uint32_t flags;
 	unsigned long timeout;
 	struct wdt_chip wdt_chip;
-	SLIST_ENTRY(stm32_iwdg_device) link;
 };
-
-static SLIST_HEAD(iwdg_dev_list_head, stm32_iwdg_device) iwdg_dev_list =
-	SLIST_HEAD_INITIALIZER(iwdg_dev_list_head);
 
 static vaddr_t get_base(struct stm32_iwdg_device *iwdg)
 {
 	return io_pa_or_va(&iwdg->base, 1);
-}
-
-static bool is_assigned_to_nsec(struct stm32_iwdg_device *iwdg)
-{
-	return iwdg->flags & IWDG_FLAGS_NON_SECURE;
 }
 
 static void iwdg_wdt_set_enabled(struct stm32_iwdg_device *iwdg)
@@ -268,17 +256,9 @@ static TEE_Result stm32_iwdg_parse_fdt(struct stm32_iwdg_device *iwdg,
 	if (res)
 		return res;
 
-	if (dt_info.status == DT_STATUS_OK_NSEC)
-		iwdg->flags |= IWDG_FLAGS_NON_SECURE;
-
 	/* Get IOMEM address */
 	iwdg->base.pa = dt_info.reg;
-
-	if (iwdg->flags & IWDG_FLAGS_NON_SECURE)
-		io_pa_or_va_nsec(&iwdg->base, dt_info.reg_size);
-	else
-		io_pa_or_va_secure(&iwdg->base, dt_info.reg_size);
-
+	io_pa_or_va_secure(&iwdg->base, dt_info.reg_size);
 	assert(iwdg->base.va);
 
 	/* Get and check timeout value */
@@ -355,28 +335,6 @@ static TEE_Result stm32_iwdg_setup(struct stm32_iwdg_device *iwdg,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result stm32_iwdg_register(struct stm32_iwdg_device *iwdg)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-
-	if (is_assigned_to_nsec(iwdg)) {
-		stm32mp_register_non_secure_periph_iomem(iwdg->base.pa);
-	} else {
-		stm32mp_register_secure_periph_iomem(iwdg->base.pa);
-
-		/* Expose watchdog runtime service only to secure IWDG */
-		iwdg->wdt_chip.ops = &stm32_iwdg_ops;
-
-		res = watchdog_register(&iwdg->wdt_chip);
-		if (res)
-			return res;
-	}
-
-	SLIST_INSERT_HEAD(&iwdg_dev_list, iwdg, link);
-
-	return TEE_SUCCESS;
-}
-
 static TEE_Result stm32_iwdg_probe(const void *fdt, int node,
 				   const void *compat_data __unused)
 {
@@ -389,16 +347,16 @@ static TEE_Result stm32_iwdg_probe(const void *fdt, int node,
 
 	res = stm32_iwdg_setup(iwdg, fdt, node);
 	if (res)
-		goto err;
+		goto out;
 
-	res = stm32_iwdg_register(iwdg);
+	iwdg->wdt_chip.ops = &stm32_iwdg_ops;
+
+	res = watchdog_register(&iwdg->wdt_chip);
+
+out:
 	if (res)
-		goto err;
+		free(iwdg);
 
-	return TEE_SUCCESS;
-
-err:
-	free(iwdg);
 	return res;
 }
 

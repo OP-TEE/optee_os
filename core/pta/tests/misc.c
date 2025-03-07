@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2025, Linaro Limited.
  */
 #include <assert.h>
 #include <config.h>
 #include <kernel/dt_driver.h>
+#include <kernel/linker.h>
+#include <kernel/panic.h>
 #include <malloc.h>
+#include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <trace.h>
-#include <kernel/panic.h>
 #include <util.h>
 
 #include "misc.h"
@@ -551,6 +554,109 @@ static int self_test_nex_malloc(void)
 }
 #endif
 
+static int check_virt_to_phys(vaddr_t va, paddr_t exp_pa,
+			      enum teecore_memtypes m)
+{
+	paddr_t pa = 0;
+	void *v = NULL;
+
+	pa = virt_to_phys((void *)va);
+	LOG("virt_to_phys(%#"PRIxVA") => %#"PRIxPA" (expect %#"PRIxPA")",
+	    va, pa, exp_pa);
+	if (pa != exp_pa)
+		goto fail;
+
+	if (!exp_pa)
+		return 0;
+
+	v = phys_to_virt(pa, m, 1);
+	LOG("phys_to_virt(%#"PRIxPA") => %p (expect %#"PRIxVA")",
+	    pa, v, va);
+	if ((vaddr_t)v != va)
+		goto fail;
+	return 0;
+
+fail:
+	LOG("Fail");
+	return -1;
+}
+
+static int check_phys_to_virt(paddr_t pa, void *exp_va,
+			      enum teecore_memtypes m)
+{
+	paddr_t new_pa = 0;
+	void *v = NULL;
+
+	v = phys_to_virt(pa, m, 1);
+	LOG("phys_to_virt(%#"PRIxPA") => %p (expect %p)",
+	    pa, v, exp_va);
+	if (v != exp_va)
+		goto fail;
+
+	if (!exp_va)
+		return 0;
+
+	new_pa = virt_to_phys(v);
+	LOG("virt_to_phys(%p) => %#"PRIxPA" (expect %#"PRIxPA")",
+	    v, new_pa, pa);
+	if (new_pa != pa)
+		goto fail;
+	return 0;
+
+fail:
+	LOG("Fail");
+	return -1;
+}
+
+static int self_test_va2pa(void)
+{
+	int ret = 0;
+
+	if (VCORE_FREE_SZ) {
+		vaddr_t va_base = VCORE_FREE_PA;
+		paddr_t pa_base = 0;
+
+		pa_base = virt_to_phys((void *)va_base);
+		if (!pa_base) {
+			LOG("virt_to_phys(%#"PRIxVA") => 0 Fail!", va_base);
+			return -1;
+		}
+
+		/*
+		 * boot_mem_release_unused() and
+		 * boot_mem_release_tmp_alloc() has been called during
+		 * boot.
+		 *
+		 * First pages of VCORE_FREE are expected to be allocated
+		 * with boot_mem_alloc() while the end of VCORE_FREE should
+		 * have been freed by the two mentioned release functions.
+		 */
+		if (check_virt_to_phys(va_base, pa_base, MEM_AREA_TEE_RAM))
+			ret = -1;
+		if (check_virt_to_phys(va_base + 16, pa_base + 16,
+				       MEM_AREA_TEE_RAM))
+			ret = -1;
+		if (check_virt_to_phys(va_base + VCORE_FREE_SZ -
+				       SMALL_PAGE_SIZE, 0, MEM_AREA_TEE_RAM))
+			ret = -1;
+		if (check_virt_to_phys(va_base + VCORE_FREE_SZ - 16, 0,
+				       MEM_AREA_TEE_RAM))
+			ret = -1;
+	}
+
+	if (!IS_ENABLED(CFG_WITH_PAGER) &&
+	    check_phys_to_virt(virt_to_phys(&ret), &ret, MEM_AREA_TEE_RAM))
+		ret = -1;
+	if (check_phys_to_virt(virt_to_phys(&ret), NULL, MEM_AREA_IO_SEC))
+		ret = -1;
+	if (check_virt_to_phys(0, 0, MEM_AREA_TEE_RAM))
+		ret = -1;
+	if (check_phys_to_virt(0, NULL, MEM_AREA_TEE_RAM))
+		ret = -1;
+
+	return ret;
+}
+
 /* exported entry points for some basic test */
 TEE_Result core_self_tests(uint32_t nParamTypes __unused,
 		TEE_Param pParams[TEE_NUM_PARAMS] __unused)
@@ -558,7 +664,7 @@ TEE_Result core_self_tests(uint32_t nParamTypes __unused,
 	if (self_test_mul_signed_overflow() || self_test_add_overflow() ||
 	    self_test_sub_overflow() || self_test_mul_unsigned_overflow() ||
 	    self_test_division() || self_test_malloc() ||
-	    self_test_nex_malloc()) {
+	    self_test_nex_malloc() || self_test_va2pa()) {
 		EMSG("some self_test_xxx failed! you should enable local LOG");
 		return TEE_ERROR_GENERIC;
 	}
