@@ -9,13 +9,11 @@
 #include <gpio_private.h>
 #include <io.h>
 #include <kernel/dt.h>
-#include <kernel/boot.h>
-#include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <libfdt.h>
+#include <mm/core_mmu.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <sys/queue.h>
 #include <trace.h>
 #include <util.h>
 
@@ -38,9 +36,9 @@ static enum gpio_level ps_gpio_get_value(struct gpio_chip *chip,
 	struct amd_gpio_info *ps = container_of(chip, struct amd_gpio_info,
 						chip);
 
-	get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
+	amd_gpio_get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
 
-	if ((io_read32(ps->vbase + DATA_RO_OFFSET(bank)) >> pin) & 1)
+	if ((io_read32(ps->vbase + DATA_RO_OFFSET(bank)) >> pin) & BIT(0))
 		return GPIO_LEVEL_HIGH;
 
 	return GPIO_LEVEL_LOW;
@@ -53,10 +51,11 @@ static void ps_gpio_set_value(struct gpio_chip *chip,
 	uint32_t bank = 0;
 	uint32_t pin = 0;
 	uint32_t offset = 0;
+	uint32_t lvl = 0;
 	struct amd_gpio_info *ps = container_of(chip, struct amd_gpio_info,
 						chip);
 
-	get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
+	amd_gpio_get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
 
 	if (pin >= GPIO_NUM_MIN && pin < GPIO_NUM_MAX) {
 		offset = DATA_LSW_OFFSET(bank);
@@ -67,13 +66,14 @@ static void ps_gpio_set_value(struct gpio_chip *chip,
 
 	/* Explicitly compare the enum value */
 	if (level == GPIO_LEVEL_HIGH)
-		level = 1;
+		lvl = 1;
 	else
-		level = 0;
+		lvl = 0;
 
-	level = ~BIT32(pin) & (SHIFT_U32(level, pin) | GPIO_UPPER_MASK);
+	lvl = ~BIT32(pin + GPIO_NUM_MAX) &
+		(SHIFT_U32(lvl, pin) | GPIO_UPPER_MASK);
 
-	io_write32(ps->vbase + offset, level);
+	io_write32(ps->vbase + offset, lvl);
 }
 
 static enum gpio_dir ps_gpio_get_dir(struct gpio_chip *chip,
@@ -84,7 +84,7 @@ static enum gpio_dir ps_gpio_get_dir(struct gpio_chip *chip,
 	struct amd_gpio_info *ps = container_of(chip, struct amd_gpio_info,
 						chip);
 
-	get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
+	amd_gpio_get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
 
 	if (io_read32(ps->vbase + DIRM_OFFSET(bank)) & BIT(pin))
 		return GPIO_DIR_OUT;
@@ -102,25 +102,20 @@ static void ps_gpio_set_dir(struct gpio_chip *chip,
 	struct amd_gpio_info *ps = container_of(chip, struct amd_gpio_info,
 						chip);
 
-	get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
+	amd_gpio_get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
 
 	if (direction == GPIO_DIR_OUT) {
 		/* set the GPIO pin as output */
-		regval = io_read32(ps->vbase + DIRM_OFFSET(bank));
-		regval |= BIT(pin);
-		io_write32(ps->vbase + DIRM_OFFSET(bank), regval);
+		io_setbits32(ps->vbase + DIRM_OFFSET(bank), BIT(pin));
 
 		/* configure the output enable reg for the pin */
-		regval = io_read32(ps->vbase + OUTEN_OFFSET(bank));
-		regval |= BIT(pin);
-		io_write32(ps->vbase + OUTEN_OFFSET(bank), regval);
+		io_setbits32(ps->vbase + OUTEN_OFFSET(bank), BIT(pin));
 
 		/* set the state of the pin */
 		ps_gpio_set_value(chip, gpio_pin, GPIO_LEVEL_LOW);
 	} else {
-		regval = io_read32(ps->vbase + DIRM_OFFSET(bank));
-		regval &= ~BIT(pin);
-		io_write32(ps->vbase + DIRM_OFFSET(bank), regval);
+		/* Set the GPIO pin as input */
+		io_clrbits32(ps->vbase + DIRM_OFFSET(bank), BIT(pin));
 	}
 }
 
@@ -132,9 +127,9 @@ static enum gpio_interrupt ps_gpio_get_intr(struct gpio_chip *chip,
 	struct amd_gpio_info *ps = container_of(chip, struct amd_gpio_info,
 						chip);
 
-	get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
+	amd_gpio_get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
 
-	if ((io_read32(ps->vbase + INT_MASK_OFFSET(bank)) & BIT(pin)))
+	if ((io_read32(ps->vbase + INTMASK_OFFSET(bank)) & BIT(pin)))
 		return GPIO_INTERRUPT_DISABLE;
 
 	return GPIO_INTERRUPT_ENABLE;
@@ -152,26 +147,25 @@ static void ps_gpio_set_intr(struct gpio_chip *chip,
 	struct amd_gpio_info *ps = container_of(chip, struct amd_gpio_info,
 						chip);
 
-	get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
+	amd_gpio_get_bank_and_pin(ps->bdata, gpio_pin, &bank, &pin);
 
-	mask = io_read32(ps->vbase + INT_MASK_OFFSET(bank)) & BIT(pin);
+	mask = io_read32(ps->vbase + INTMASK_OFFSET(bank)) & BIT(pin);
 
-	/* mask = 1 --> Interrupt is masked/disabled.
+	/*
+	 * mask = 1 --> Interrupt is masked/disabled.
 	 * mask = 0 --> Interrupt is un-masked/enabled.
 	 */
 	if (mask && interrupt == GPIO_INTERRUPT_ENABLE) {
-		offset = INT_EN_OFFSET(bank);
+		offset = INTEN_OFFSET(bank);
 	} else if (!mask && interrupt == GPIO_INTERRUPT_DISABLE) {
-		offset = INT_DIS_OFFSET(bank);
+		offset = INTDIS_OFFSET(bank);
 	} else {
 		IMSG("No change, interrupt already %s",
 		     interrupt ? "Enabled" : "Disabled");
 		return;
 	}
 
-	regval = io_read32(ps->vbase + offset);
-	regval &= BIT(pin);
-	io_write32(ps->vbase + offset, regval);
+	io_setbits32(ps->vbase + offset, BIT(pin));
 }
 
 static const struct gpio_ops ps_gpio_ops = {
@@ -213,7 +207,11 @@ static TEE_Result amd_ps_gpio_probe(const void *fdt, int node,
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
-	fdt_fill_device_info(fdt, &ps_gpio->nodeinfo, node);
+	if (fdt_reg_info(fdt, node, &base, &len) != 0) {
+		EMSG("Failed to get Register Base and Size");
+		free(ps_gpio);
+		return TEE_ERROR_GENERIC;
+	}
 
 	/* Populate GPIO ops */
 	ps_gpio->chip.ops = &ps_gpio_ops;
@@ -221,9 +219,7 @@ static TEE_Result amd_ps_gpio_probe(const void *fdt, int node,
 	ps_gpio->bdata = &ps_bank;
 
 	/* Validate node entries */
-	base = ps_gpio->nodeinfo.reg;
 	assert(base);
-	len = ps_gpio->nodeinfo.reg_size;
 	assert(len);
 
 	ps_gpio->vbase = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC, base,
@@ -231,12 +227,17 @@ static TEE_Result amd_ps_gpio_probe(const void *fdt, int node,
 	if (!ps_gpio->vbase) {
 		EMSG("AMD PS GPIO initialization Failed");
 		free(ps_gpio);
-		ps_gpio = NULL;
 		return TEE_ERROR_GENERIC;
 	}
 
 	res = gpio_register_provider(fdt, node, amd_gpio_get_dt, ps_gpio);
-	assert(res == TEE_SUCCESS);
+	if (res) {
+		EMSG("Failed to register PS GPIO Provider");
+		/* Ignoring return value */
+		core_mmu_remove_mapping(MEM_AREA_IO_SEC, ps_gpio->vbase, len);
+		free(ps_gpio);
+		return res;
+	}
 
 	DMSG("AMD PS GPIO initialized");
 
