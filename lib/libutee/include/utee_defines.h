@@ -13,8 +13,13 @@
 
 /*
  * Copied from TEE Internal API specificaion v1.0 table 6-9 "Structure of
- * Algorithm Identifier".
+ * Algorithm Identifier" and extended with new values to support
+ * algorithms introduced in API specification v1.1 and later.
+ *
+ * TEE_MAIN_ALGO_UNDEFINED is explicitly 0 and denotes the hash
+ * algorithm is not identified.
  */
+#define TEE_MAIN_ALGO_UNDEFINED  0x00
 #define TEE_MAIN_ALGO_MD5        0x01
 #define TEE_MAIN_ALGO_SHA1       0x02
 #define TEE_MAIN_ALGO_SHA224     0x03
@@ -121,20 +126,36 @@ static inline uint32_t __tee_alg_get_main_alg(uint32_t algo)
 #define TEE_ALG_GET_CHAIN_MODE(algo)    (((algo) >> 8) & 0xF)
 
 /*
- * Value not defined in the GP spec, and not used as bits 15-12 of any TEE_ALG*
- * value. TEE_ALG_SM2_DSA_SM3 has value 0x6 for bits 15-12 which would yield the
- * SHA512 digest if we were to apply the bit masks that were valid up to the TEE
- * Internal Core API v1.1.
+ * Most TEE_ALG_* values where internal hash algorithm ID is defined use
+ * bits 15-12 for that purpose (legacy from TEE Internal Core API v1.1).
+ * Consider here algo the few other specific cases.
+ * This function returns 0 (TEE_MAIN_ALGO_UNDEFINED) when the hash
+ * algorithm is not defined.
  */
-#define __TEE_MAIN_HASH_SM3 0x7
-
 static inline uint32_t __tee_alg_get_digest_hash(uint32_t algo)
 {
-	if (algo == TEE_ALG_SM2_DSA_SM3)
-		return __TEE_MAIN_HASH_SM3;
+	/* Hash algo ID is stored in algo ID bits [15:12] */
+	uint32_t main_algo = (algo >> 12) & 0xF;
 
-	/* Bits [15:12] */
-	return (algo >> 12) & 0xF;
+	switch (algo) {
+	case TEE_ALG_ED448:
+		return TEE_MAIN_ALGO_SHAKE256;
+	case TEE_ALG_SM2_DSA_SM3:
+	case TEE_ALG_ECDSA_SHA1:
+	case TEE_ALG_ECDSA_SHA224:
+	case TEE_ALG_ECDSA_SHA256:
+	case TEE_ALG_ECDSA_SHA384:
+	case TEE_ALG_ECDSA_SHA512:
+		return main_algo + 1;
+	case __OPTEE_ALG_ECDSA_P192:
+	case __OPTEE_ALG_ECDSA_P224:
+	case __OPTEE_ALG_ECDSA_P256:
+	case __OPTEE_ALG_ECDSA_P384:
+	case __OPTEE_ALG_ECDSA_P521:
+		return TEE_MAIN_ALGO_UNDEFINED;
+	default:
+		return main_algo;
+	}
 }
 
 #define TEE_ALG_GET_DIGEST_HASH(algo) __tee_alg_get_digest_hash(algo)
@@ -157,7 +178,7 @@ static inline uint32_t __tee_alg_get_key_type(uint32_t algo, bool with_priv)
 
 static inline uint32_t __tee_alg_hash_algo(uint32_t main_hash)
 {
-	if (main_hash == __TEE_MAIN_HASH_SM3)
+	if (main_hash == TEE_MAIN_ALGO_SM3)
 		return TEE_ALG_SM3;
 
 	return (TEE_OPERATION_DIGEST << 28) | main_hash;
