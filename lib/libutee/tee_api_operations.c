@@ -118,6 +118,9 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
+#if defined(CFG_CRYPTO_ECDSA_NOHASH)
+	case TEE_ALG_ECDSA_RAW:
+#endif
 	case TEE_ALG_ECDH_DERIVE_SHARED_SECRET:
 		if (maxKeySize > 521)
 			return TEE_ERROR_NOT_SUPPORTED;
@@ -184,6 +187,9 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_DSA_SHA1:
 	case TEE_ALG_DSA_SHA224:
 	case TEE_ALG_DSA_SHA256:
+#if defined(CFG_CRYPTO_ECDSA_NOHASH)
+	case TEE_ALG_ECDSA_RAW:
+#endif
 	case TEE_ALG_ECDSA_SHA1:
 	case TEE_ALG_ECDSA_SHA224:
 	case TEE_ALG_ECDSA_SHA256:
@@ -316,10 +322,6 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 
 	op->info.algorithm = algorithm;
 	op->info.operationClass = TEE_ALG_GET_CLASS(algorithm);
-#ifdef CFG_CRYPTO_RSASSA_NA1
-	if (algorithm == TEE_ALG_RSASSA_PKCS1_V1_5)
-		op->info.operationClass = TEE_OPERATION_ASYMMETRIC_SIGNATURE;
-#endif
 	op->info.mode = mode;
 	op->info.digestLength = TEE_ALG_GET_DIGEST_SIZE(algorithm);
 	op->info.maxKeySize = maxKeySize;
@@ -349,7 +351,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	op->block_size = block_size;
 	op->buffer_two_blocks = buffer_two_blocks;
 
-	if (TEE_ALG_GET_CLASS(algorithm) != TEE_OPERATION_DIGEST) {
+	if (op->info.operationClass != TEE_OPERATION_DIGEST) {
 		uint32_t mks = maxKeySize;
 		TEE_ObjectType key_type = TEE_ALG_GET_KEY_TYPE(algorithm,
 						       with_private_key);
@@ -383,7 +385,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	 * Other multi-stage operations initialized w/ TEE_xxxInit functions
 	 * Non-applicable on asymmetric operations
 	 */
-	if (TEE_ALG_GET_CLASS(algorithm) == TEE_OPERATION_DIGEST) {
+	if (op->info.operationClass == TEE_OPERATION_DIGEST) {
 		res = _utee_hash_init(op->state, NULL, 0);
 		if (res != TEE_SUCCESS)
 			goto out;
@@ -2660,6 +2662,20 @@ TEE_Result TEE_IsAlgorithmSupported(uint32_t alg, uint32_t element)
 			goto check_element_none;
 	}
 	if (IS_ENABLED(CFG_CRYPTO_ECC)) {
+		if (alg == TEE_ALG_ECDSA_RAW &&
+		    IS_ENABLED(CFG_CRYPTO_ECDSA_NOHASH)) {
+			switch (element) {
+			case TEE_ECC_CURVE_NIST_P192:
+			case TEE_ECC_CURVE_NIST_P224:
+			case TEE_ECC_CURVE_NIST_P256:
+			case TEE_ECC_CURVE_NIST_P384:
+			case TEE_ECC_CURVE_NIST_P521:
+				return TEE_SUCCESS;
+			default:
+				return TEE_ERROR_NOT_SUPPORTED;
+			}
+		}
+
 		if ((alg == __OPTEE_ALG_ECDH_P192 ||
 		     alg == __OPTEE_ALG_ECDSA_P192 ||
 		     alg == TEE_ALG_ECDH_DERIVE_SHARED_SECRET ||
