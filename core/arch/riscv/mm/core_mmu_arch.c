@@ -699,6 +699,17 @@ bool arch_va2pa_helper(void *va, paddr_t *pa)
 	return false;
 }
 
+int arch_core_aslr_mapping(struct memory_map *mem_map __unused,
+			   unsigned long seed __unused,
+			   vaddr_t start_addr __unused,
+			   vaddr_t id_map_start __unused,
+			   vaddr_t id_map_end __unused,
+			   unsigned long *offset __unused)
+{
+	/* Placeholder */
+	return TEE_ERROR_BAD_PARAMETERS;
+}
+
 bool cpu_mmu_enabled(void)
 {
 	return read_satp();
