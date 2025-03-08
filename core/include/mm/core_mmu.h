@@ -674,7 +674,16 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 void core_mmu_map_region(struct mmu_partition *prtn,
 			 struct tee_mmap_region *mm);
 
+bool core_assign_mem_va(vaddr_t tee_ram_va, struct memory_map *mem_map);
+
+bool core_mem_map_add_id_map(struct memory_map *mem_map,
+			     vaddr_t id_map_start, vaddr_t id_map_end);
+
 bool arch_va2pa_helper(void *va, paddr_t *pa);
+
+TEE_Result arch_core_aslr_mapping(struct memory_map *mem_map, unsigned long seed,
+				  vaddr_t start_addr, vaddr_t id_map_start,
+				  vaddr_t id_map_end, unsigned long *offset);
 
 static inline bool core_mmu_check_end_pa(paddr_t pa, size_t len)
 {
