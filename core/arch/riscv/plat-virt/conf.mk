@@ -17,7 +17,6 @@ $(call force,CFG_HWRNG_QUALITY,1024)
 $(call force,CFG_RISCV_ZKR_RNG,y)
 
 # Protection flags
-$(call force,CFG_CORE_ASLR,n)
 $(call force,CFG_CORE_SANITIZE_KADDRESS,n)
 
 # Hart-related flags
