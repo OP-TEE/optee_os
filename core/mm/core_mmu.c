@@ -1507,17 +1507,11 @@ static struct memory_map *init_mem_map(struct memory_map *mem_map,
 		add_pager_vaspace(mem_map);
 
 	if (IS_ENABLED(CFG_CORE_ASLR) && seed) {
-		vaddr_t base_addr = start_addr + seed;
-		const unsigned int va_width = core_mmu_get_va_width();
-		const vaddr_t va_mask = GENMASK_64(va_width - 1,
-						   SMALL_PAGE_SHIFT);
-		vaddr_t ba = base_addr;
+		vaddr_t ba = 0;
 		size_t n = 0;
 
 		for (n = 0; n < 3; n++) {
-			if (n)
-				ba = base_addr ^ BIT64(va_width - n);
-			ba &= va_mask;
+			ba = arch_aslr_base_addr(start_addr, seed, n);
 			if (assign_mem_va(ba, mem_map) &&
 			    mem_map_add_id_map(mem_map, id_map_start,
 					       id_map_end)) {

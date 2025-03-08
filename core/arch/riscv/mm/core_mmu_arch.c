@@ -699,6 +699,13 @@ bool arch_va2pa_helper(void *va, paddr_t *pa)
 	return false;
 }
 
+vaddr_t arch_aslr_base_addr(vaddr_t start_addr, uint64_t seed __unused,
+			    unsigned int iteration_count __unused)
+{
+	/* Placeholder */
+	return start_addr;
+}
+
 bool cpu_mmu_enabled(void)
 {
 	return read_satp();
