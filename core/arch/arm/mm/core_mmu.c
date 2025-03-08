@@ -225,6 +225,19 @@ out:
 	return ret;
 }
 
+vaddr_t arch_aslr_base_addr(vaddr_t start_addr, uint64_t seed,
+			    unsigned int iteration_count)
+{
+	vaddr_t base_addr = start_addr + seed;
+	const unsigned int va_width = core_mmu_get_va_width();
+	const vaddr_t va_mask = GENMASK_64(va_width - 1, SMALL_PAGE_SHIFT);
+
+	if (iteration_count)
+		base_addr ^= BIT64(va_width - iteration_count);
+
+	return base_addr & va_mask;
+}
+
 bool cpu_mmu_enabled(void)
 {
 	uint32_t sctlr;
