@@ -273,6 +273,9 @@ struct clk *at91_cpu_opp_clk_get(void);
 TEE_Result at91_clk_register_cpu_opp(const void *fdt, int node,
 				     struct clk *clk);
 
+void sam_set_clock_range(unsigned int pmc_type, unsigned int pmc_id,
+			 const struct clk_range *range);
+
 #ifdef CFG_PM_ARM32
 void pmc_register_id(uint8_t id);
 void pmc_register_pck(uint8_t pck);
