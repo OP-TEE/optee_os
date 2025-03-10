@@ -65,6 +65,8 @@
  * MEM_AREA_INIT_RAM_RX: init private read-only/executable memory (secure)
  * MEM_AREA_NEX_RAM_RO: nexus private read-only/non-executable memory (secure)
  * MEM_AREA_NEX_RAM_RW: nexus private r/w/non-executable memory (secure)
+ * MEM_AREA_NEX_DYN_VASPACE: nexus private dynamic memory map (secure)
+ * MEM_AREA_TEE_DYN_VASPACE: core private dynamic memory (secure)
  * MEM_AREA_TEE_COHERENT: teecore coherent RAM (secure, reserved to TEE)
  * MEM_AREA_TEE_ASAN: core address sanitizer RAM (secure, reserved to TEE)
  * MEM_AREA_IDENTITY_MAP_RX: core identity mapped r/o executable memory (secure)
@@ -94,6 +96,8 @@ enum teecore_memtypes {
 	MEM_AREA_INIT_RAM_RX,
 	MEM_AREA_NEX_RAM_RO,
 	MEM_AREA_NEX_RAM_RW,
+	MEM_AREA_NEX_DYN_VASPACE,
+	MEM_AREA_TEE_DYN_VASPACE,
 	MEM_AREA_TEE_COHERENT,
 	MEM_AREA_TEE_ASAN,
 	MEM_AREA_IDENTITY_MAP_RX,
@@ -128,6 +132,8 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_INIT_RAM_RX] = "INIT_RAM_RX",
 		[MEM_AREA_NEX_RAM_RO] = "NEX_RAM_RO",
 		[MEM_AREA_NEX_RAM_RW] = "NEX_RAM_RW",
+		[MEM_AREA_NEX_DYN_VASPACE] = "NEX_DYN_VASPACE",
+		[MEM_AREA_TEE_DYN_VASPACE] = "TEE_DYN_VASPACE",
 		[MEM_AREA_TEE_ASAN] = "TEE_ASAN",
 		[MEM_AREA_IDENTITY_MAP_RX] = "IDENTITY_MAP_RX",
 		[MEM_AREA_TEE_COHERENT] = "TEE_COHERENT",
@@ -500,8 +506,15 @@ static inline size_t core_mmu_get_block_offset(
  */
 static inline bool core_mmu_is_dynamic_vaspace(struct tee_mmap_region *mm)
 {
-	return mm->type == MEM_AREA_RES_VASPACE ||
-		mm->type == MEM_AREA_SHM_VASPACE;
+	switch (mm->type) {
+	case MEM_AREA_RES_VASPACE:
+	case MEM_AREA_SHM_VASPACE:
+	case MEM_AREA_NEX_DYN_VASPACE:
+	case MEM_AREA_TEE_DYN_VASPACE:
+		return true;
+	default:
+		return false;
+	}
 }
 
 /*
