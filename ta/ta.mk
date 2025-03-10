@@ -45,6 +45,7 @@ ta-mk-file-export-add-$(sm) += CFG_TEE_TA_LOG_LEVEL ?= $(CFG_TEE_TA_LOG_LEVEL)_n
 ta-mk-file-export-vars-$(sm) += CFG_TA_BGET_TEST
 ta-mk-file-export-vars-$(sm) += CFG_ATTESTATION_PTA
 ta-mk-file-export-vars-$(sm) += CFG_MEMTAG
+ta-mk-file-export-vars-$(sm) += CFG_TA_LIBGCC
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
