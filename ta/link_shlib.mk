@@ -28,7 +28,10 @@ shlink-ldflags += --as-needed # Do not add dependency on unused shlib
 shlink-ldadd  = $(LDADD)
 shlink-ldadd += $(addprefix -L,$(libdirs))
 shlink-ldadd += --start-group $(addprefix -l,$(libnames)) --end-group
-ldargs-$(shlibname).so := $(shlink-ldflags) $(objs) $(shlink-ldadd) $(libgcc$(sm))
+ifeq ($(CFG_TA_LIBGCC),y)
+shlink-ldadd += $(libgcc$(sm))
+endif
+ldargs-$(shlibname).so := $(shlink-ldflags) $(objs) $(shlink-ldadd)
 
 
 $(link-out-dir)/$(shlibname).so: $(objs) $(libdeps)

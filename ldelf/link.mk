@@ -27,7 +27,10 @@ link-ldflags += $(link-ldflags$(sm))
 
 link-ldadd  = $(addprefix -L,$(libdirs))
 link-ldadd += --start-group $(addprefix -l,$(libnames)) --end-group
-ldargs-ldelf.elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc$(sm))
+ifeq ($(CFG_CORE_LIBGCC),y)
+link-ldadd += $(libgcc$(sm))
+endif
+ldargs-ldelf.elf := $(link-ldflags) $(objs) $(link-ldadd)
 
 link-script-cppflags-$(sm) := \
 	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
