@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
+ * Copyright (C) 2002-2021 Xilinx, Inc.  All rights reserved.
+ * Copyright (c) 2022 Foundries.io Ltd. (jorge@foundries.io)
  * Copyright (c) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
  *
  */
@@ -29,6 +31,7 @@ void amd_gpio_get_bank_and_pin(struct amd_gbank_data *bdata, uint32_t gpio,
 	}
 
 	/* Ideally, should never reach over here */
+	EMSG("Invalid GPIO pin number: %"PRIu32, gpio);
 	panic();
 }
 

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
+ * Copyright (C) 2002-2021 Xilinx, Inc.  All rights reserved.
+ * Copyright (c) 2022 Foundries.io Ltd. (jorge@foundries.io)
  * Copyright (c) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
  *
  */
