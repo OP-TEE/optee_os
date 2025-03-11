@@ -274,6 +274,8 @@ jobs:
           _make PLATFORM=d06
           _make PLATFORM=d06 CFG_HISILICON_ACC_V3=y
           _make PLATFORM=telechips-tcc805x
+          _make PLATFORM=versal2
+          _make PLATFORM=versal2 CFG_AMD_PS_GPIO=y
 
           export ARCH=riscv
           unset CROSS_COMPILE32
