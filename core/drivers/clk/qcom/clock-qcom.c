@@ -18,12 +18,20 @@
 #define CBCR_BRANCH_OFF_BIT     BIT(31)
 
 /* Enable clock controlled by CBC soft macro */
-static void clk_enable_cbc(paddr_t cbcr)
+static TEE_Result clk_enable_cbc(paddr_t cbcr)
 {
+	uint64_t timer;
+
 	io_write32(cbcr, CBCR_BRANCH_ENABLE_BIT);
 
-	while (io_read32(cbcr) & CBCR_BRANCH_OFF_BIT)
-		;
+	timer = timeout_init_us(10000 * 1000);
+	do {
+		if (!(io_read32(cbcr) & CBCR_BRANCH_OFF_BIT))
+			return TEE_SUCCESS;
+		if (timeout_elapsed(timer))
+			return TEE_ERROR_TIMEOUT;
+		udelay(10);
+	} while (1);
 }
 
 /* SC7280 clock offsets */
@@ -35,12 +43,19 @@ TEE_Result qcom_clock_enable(enum qcom_clk_group group)
 {
 	struct io_pa_va base = { .pa = GCC_BASE };
 	vaddr_t gcc_base = io_pa_or_va(&base, 0x100000);
+	TEE_Result res;
 
 	switch (group) {
 	case QCOM_CLKS_WPSS:
-		clk_enable_cbc(gcc_base + GCC_WPSS_AHB_CLK);
-		clk_enable_cbc(gcc_base + GCC_WPSS_AHB_BDG_MST_CLK);
-		clk_enable_cbc(gcc_base + GCC_WPSS_RSCP_CLK);
+		res = clk_enable_cbc(gcc_base + GCC_WPSS_AHB_CLK);
+		if (res)
+			return res;
+		res = clk_enable_cbc(gcc_base + GCC_WPSS_AHB_BDG_MST_CLK);
+		if (res)
+			return res;
+		res = clk_enable_cbc(gcc_base + GCC_WPSS_RSCP_CLK);
+		if (res)
+			return res;
 		break;
 	default:
 		EMSG("Unsupported clock group %d\n", group);
