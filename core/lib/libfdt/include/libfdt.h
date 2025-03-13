@@ -912,6 +912,24 @@ int fdt_supernode_atdepth_offset(const void *fdt, int nodeoffset,
  */
 int fdt_node_depth(const void *fdt, int nodeoffset);
 
+
+/**
+ * fdt_node_is_enabled - check if a device tree node is enabled
+ * @fdt: pointer to the device tree blob
+ * @nodeoffset: offset of the node
+ *
+ * fdt_node_is_enabled() checks if a device tree node is enabled by examining its
+ * "status" property. A node is considered enabled if:
+ * - It has no "status" property (default enabled)
+ * - Its "status" property is set to "okay"
+ * - Its "status" property is set to "ok"
+ *
+ * returns:
+ *      true, if the node is enabled
+ *      false, if the node is disabled
+ */
+bool fdt_node_is_enabled(const void *fdt, int nodeoffset);
+
 /**
  * fdt_parent_offset - find the parent of a given node
  * @fdt: pointer to the device tree blob
