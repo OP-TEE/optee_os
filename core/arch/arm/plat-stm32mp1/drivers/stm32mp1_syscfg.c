@@ -24,6 +24,7 @@
 #define SYSCFG_CMPSD1CR				U(0x30)
 #define SYSCFG_CMPSD2CR				U(0x40)
 #define SYSCFG_HSLVEN0R				U(0x50)
+#define SYSCFG_IDC				U(0x380)
 #define SYSCFG_IOSIZE				U(0x400)
 
 /*
@@ -61,11 +62,27 @@
 #define SYSCFG_HSLV_MASK			GENMASK_32(15, 0)
 #define SYSCFG_HSLV_KEY				U(0x1018)
 
+/*
+ * SYSCFG_IDC Register
+ */
+#define SYSCFG_IDC_DEV_ID_MASK			GENMASK_32(11, 0)
+#define SYSCFG_IDC_REV_ID_MASK			GENMASK_32(31, 16)
+#define SYSCFG_IDC_REV_ID_SHIFT			U(16)
+
 static vaddr_t get_syscfg_base(void)
 {
 	static struct io_pa_va base = { .pa = SYSCFG_BASE };
 
 	return io_pa_or_va(&base, SYSCFG_IOSIZE);
+}
+
+uint32_t stm32mp_syscfg_get_chip_dev_id(void)
+{
+	if (IS_ENABLED(CFG_STM32MP13))
+		return io_read32(get_syscfg_base() + SYSCFG_IDC) &
+		       SYSCFG_IDC_DEV_ID_MASK;
+
+	return 0;
 }
 
 static void enable_io_compensation(int cmpcr_offset)
