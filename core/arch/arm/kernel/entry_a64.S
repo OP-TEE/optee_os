@@ -285,7 +285,7 @@ clear_nex_bss:
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
 	set_sp
 
-	/* Initialize thread_core_local[0] for early boot */
+	/* Initialize thread_core_local[current_cpu_id] for early boot */
 	bl	thread_get_abt_stack
 	mov	x1, sp
 	msr	spsel, #1
