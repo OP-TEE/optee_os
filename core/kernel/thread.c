@@ -538,14 +538,17 @@ vaddr_t __nostackcheck thread_get_abt_stack(void)
 	return GET_STACK_BOTTOM(stack_abt, get_core_pos());
 }
 
-#ifdef CFG_BOOT_INIT_THREAD_CORE_LOCAL0
+#ifdef CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL
 void thread_init_thread_core_local(void)
 {
 	struct thread_core_local *tcl = thread_core_local;
+	const size_t core_pos = get_core_pos();
 	vaddr_t va = 0;
 	size_t n = 0;
 
-	for (n = 1; n < CFG_TEE_CORE_NB_CORE; n++) {
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+		if (n == core_pos)
+			continue;	/* Already initialized */
 		tcl[n].curr_thread = THREAD_ID_INVALID;
 		tcl[n].flags = THREAD_CLF_TMP;
 
@@ -583,7 +586,7 @@ void __nostackcheck thread_init_core_local_stacks(void)
 		tcl[n].abt_stack_va_end = GET_STACK_BOTTOM(stack_abt, n);
 	}
 }
-#endif /*CFG_BOOT_INIT_THREAD_CORE_LOCAL0*/
+#endif /*CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL*/
 
 #if defined(CFG_CORE_PAUTH)
 void thread_init_thread_pauth_keys(void)

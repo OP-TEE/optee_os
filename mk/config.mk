@@ -1264,12 +1264,12 @@ CFG_CORE_UNSAFE_MODEXP ?= n
 # exponentiation algorithm.
 CFG_TA_MEBDTLS_UNSAFE_MODEXP ?= n
 
-# CFG_BOOT_INIT_THREAD_CORE_LOCAL0, when enabled, initializes
-# thread_core_local[0] before calling C code.
+# CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL, when enabled, initializes
+# thread_core_local[current_core_pos] before calling C code.
 ifeq ($(ARCH),arm)
-$(call force,CFG_BOOT_INIT_THREAD_CORE_LOCAL0,y)
+$(call force,CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL,y)
 else
-CFG_BOOT_INIT_THREAD_CORE_LOCAL0 ?= n
+CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL ?= n
 endif
 
 # CFG_DYN_CONFIG, when enabled, use dynamic memory allocation for translation
