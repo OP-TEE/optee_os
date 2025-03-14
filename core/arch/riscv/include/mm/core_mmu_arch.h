@@ -161,7 +161,7 @@
 
 struct core_mmu_config {
 	unsigned long satp[CFG_TEE_CORE_NB_CORE];
-	uint32_t map_offset;
+	unsigned long map_offset;
 };
 
 struct core_mmu_user_map {
