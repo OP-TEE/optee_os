@@ -449,7 +449,7 @@ shadow_stack_access_ok:
 
 	set_sp
 
-	/* Initialize thread_core_local[0] for early boot */
+	/* Initialize thread_core_local[current_cpu_id] for early boot */
 	bl	thread_get_core_local
 	push	{r0,r1}
 	bl	thread_get_abt_stack
@@ -602,8 +602,8 @@ shadow_stack_access_ok:
 
 #if defined(CFG_CORE_DEBUG_CHECK_STACKS)
 	/*
-	 * Clear thread_core_local[0].stackcheck_recursion now that the
-	 * stack pointer matches recorded information.
+	 * Clear thread_core_local[current_cpu_id].stackcheck_recursion now
+	 * that the stack pointer matches recorded information.
 	 */
 	mov	r2, #0
 	strb	r2, [r4, #THREAD_CORE_LOCAL_STACKCHECK_RECURSION]
