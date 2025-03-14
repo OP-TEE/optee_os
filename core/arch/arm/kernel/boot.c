@@ -956,7 +956,9 @@ static void init_primary(unsigned long pageable_part)
 		 */
 		assert(va && va <= boot_cached_mem_end);
 		boot_cached_mem_end = va;
+	}
 
+	if (IS_ENABLED(CFG_DYN_CONFIG)) {
 		/*
 		 * This is needed to enable virt_page_alloc() now that
 		 * boot_mem_alloc() can't be used any longer.
