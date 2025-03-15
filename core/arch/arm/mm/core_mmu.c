@@ -255,6 +255,11 @@ int arch_core_aslr_mapping(struct memory_map *mem_map, unsigned long seed,
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
+bool arch_va_is_valid(vaddr_t va)
+{
+	return va < BIT64(core_mmu_get_va_width());
+}
+
 bool cpu_mmu_enabled(void)
 {
 	uint32_t sctlr;

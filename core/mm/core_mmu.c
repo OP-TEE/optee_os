@@ -1289,7 +1289,7 @@ static bool assign_mem_va_dir(vaddr_t tee_ram_va, struct memory_map *mem_map,
 			map->va = va;
 			if (ADD_OVERFLOW(va, map->size, &va))
 				return false;
-			if (va >= BIT64(core_mmu_get_va_width()))
+			if (!arch_va_is_valid(va))
 				return false;
 		}
 	}

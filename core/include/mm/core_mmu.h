@@ -685,6 +685,8 @@ int arch_core_aslr_mapping(struct memory_map *mem_map, unsigned long seed,
 			   vaddr_t start_addr, vaddr_t id_map_start,
 			   vaddr_t id_map_end, unsigned long *offset);
 
+bool arch_va_is_valid(vaddr_t va);
+
 static inline bool core_mmu_check_end_pa(paddr_t pa, size_t len)
 {
 	paddr_t end_pa = 0;
