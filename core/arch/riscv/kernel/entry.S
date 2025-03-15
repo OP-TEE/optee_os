@@ -69,25 +69,6 @@
 	sw	t0, THREAD_CORE_LOCAL_HART_INDEX(tp)
 .endm
 
-.macro set_satp
-	/*
-	 * a0 = hart_index
-	 * a1 = address of boot_mmu_config.satp[0]
-	 * a2 = size of CSR SATP
-	 *
-	 * This hart's SATP is of value (a1 + (a0 * a2)).
-	 */
-	csrr	a0, CSR_XSCRATCH
-	la	a1, boot_mmu_config
-	addi	a1, a1, CORE_MMU_CONFIG_SATP
-	li	a2, CORE_MMU_CONFIG_SATP_SIZE
-	mul	a0, a0, a2
-	add	a1, a1, a0
-	LDR	a2, 0(a1)
-	csrw	CSR_SATP, a2
-	sfence.vma	zero, zero
-.endm
-
 .macro wait_primary
 #ifdef CFG_BOOT_SYNC_CPU
 	la	t0, sem_cpu_sync
@@ -255,11 +236,18 @@ UNWIND(	.cantunwind)
 	la	a2, __vcore_free_end
 	jal	boot_mem_init
 
+#ifdef CFG_CORE_ASLR
+#ifdef CFG_CORE_ASLR_SEED
+	li	a0, CFG_CORE_ASLR_SEED
+#else
+	jal	get_aslr_seed
+#endif
+#else
 	mv	a0, x0
+#endif
 	la	a1, boot_mmu_config
 	jal	core_init_mmu_map
 
-	set_satp
 #ifdef CFG_CORE_ASLR
 	la	a0, boot_mmu_config
 	LDR	a0, CORE_MMU_CONFIG_MAP_OFFSET(a0)
@@ -267,6 +255,8 @@ UNWIND(	.cantunwind)
 	jal	relocate
 1:
 #endif
+
+	jal	enable_mmu
 
 #ifdef CFG_CORE_ASLR
 #if defined(CFG_DYN_CONFIG)
@@ -277,6 +267,29 @@ UNWIND(	.cantunwind)
 	la	t0, thread_core_local
 	STR	tp, 0(t0)
 #endif
+
+	/*
+	 * Update recorded end_va. This must be done before calling into C
+	 * code to make sure that the stack pointer matches what we have in
+	 * thread_core_local[].
+	 */
+	la	a0, boot_mmu_config
+	LDR	a0, CORE_MMU_CONFIG_MAP_OFFSET(a0)
+	LDR	a1, THREAD_CORE_LOCAL_TMP_STACK_VA_END(tp)
+	add	a1, a1, a0
+	STR	a1, THREAD_CORE_LOCAL_TMP_STACK_VA_END(tp)
+	LDR	a1, THREAD_CORE_LOCAL_ABT_STACK_VA_END(tp)
+	add	a1, a1, a0
+	STR	a1, THREAD_CORE_LOCAL_ABT_STACK_VA_END(tp)
+
+	/* Update relocations recorded with boot_mem_add_reloc() */
+	jal	boot_mem_relocate
+	/*
+	 * Reinitialize console, since register_serial_console() has
+	 * previously registered a PA and with ASLR the VA is different
+	 * from the PA.
+	 */
+	jal	console_init
 #endif
 
 	jal	boot_init_primary_early
@@ -391,7 +404,7 @@ UNWIND(	.cantunwind)
 	set_sp
 	set_tp
 #endif
-	set_satp
+	jal	enable_mmu
 	cpu_is_ready
 
 	jal	boot_init_secondary
@@ -461,6 +474,41 @@ LOCAL_FUNC relocate , :
 	ret
 END_FUNC relocate
 #endif
+
+/*
+ * void enable_mmu(void);
+ *
+ * Initializes and enables the Memory Management Unit (MMU).
+ * This function is designed to be called while executing in
+ * an identity-mapped region, where physical and virtual
+ * addresses are identical. When CFG_CORE_ASLR=y:
+ *   - Execution is switched to the new virtual address region,
+ *     based on the randomized offset.
+ *   - CPU registers (global pointer, thread pointer, stack
+ *     pointer, return address) are updated so execution
+ *     continue correctly in a new address space.
+ */
+LOCAL_FUNC enable_mmu , : , .identity_map
+	/* Set SATP from boot_mmu_config.satp[hartidx] */
+	csrr	a0, CSR_XSCRATCH
+	la	a1, boot_mmu_config
+	LDR	a3, CORE_MMU_CONFIG_MAP_OFFSET(a1)
+	addi	a1, a1, CORE_MMU_CONFIG_SATP
+	li	a2, CORE_MMU_CONFIG_SATP_SIZE
+	mul	a0, a0, a2
+	add	a1, a1, a0
+	LDR	a2, 0(a1)
+	csrw	CSR_SATP, a2
+	sfence.vma	zero, zero
+#ifdef CFG_CORE_ASLR
+	/* Update CPU registers with the ASLR offset */
+	add	gp, gp, a3
+	add	tp, tp, a3
+	add	sp, sp, a3
+	add	ra, ra, a3
+#endif
+	ret
+END_FUNC enable_mmu
 
 	.section .identity_map.data
 	.balign	8
