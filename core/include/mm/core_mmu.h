@@ -477,6 +477,10 @@ void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 static inline unsigned core_mmu_va2idx(struct core_mmu_table_info *tbl_info,
 			vaddr_t va)
 {
+#ifdef RV64
+	if (tbl_info->level == CORE_MMU_BASE_TABLE_LEVEL)
+		va &= ~GENMASK_64(63, RISCV_MMU_VA_WIDTH);
+#endif
 	return (va - tbl_info->va_base) >> tbl_info->shift;
 }
 
