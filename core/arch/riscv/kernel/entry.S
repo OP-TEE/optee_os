@@ -8,6 +8,7 @@
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/thread.h>
+#include <kernel/riscv_elf.h>
 #include <kernel/thread_private.h>
 #include <kernel/thread_private_arch.h>
 #include <mm/core_mmu.h>
@@ -162,6 +163,10 @@ END_FUNC _start
 
 LOCAL_FUNC reset_primary , : , .identity_map
 UNWIND(	.cantunwind)
+#ifdef CFG_CORE_ASLR
+	li	a0, 0
+	jal	relocate
+#endif
 	/*
 	 * Zero bss
 	 */
@@ -255,6 +260,13 @@ UNWIND(	.cantunwind)
 	jal	core_init_mmu_map
 
 	set_satp
+#ifdef CFG_CORE_ASLR
+	la	a0, boot_mmu_config
+	LDR	a0, CORE_MMU_CONFIG_MAP_OFFSET(a0)
+	beqz	a0, 1f		/* no offset, skip dynamic relocation */
+	jal	relocate
+1:
+#endif
 
 #ifdef CFG_CORE_ASLR
 #if defined(CFG_DYN_CONFIG)
@@ -400,6 +412,55 @@ LOCAL_FUNC unhandled_cpu , :
 	wfi
 	j	unhandled_cpu
 END_FUNC unhandled_cpu
+
+#if defined(CFG_CORE_ASLR)
+/*
+ * void relocate(unsigned long offset);
+ *
+ * This function updates dynamic relocations.
+ */
+LOCAL_FUNC relocate , :
+	/*
+	 * a0 holds relocate offset
+	 */
+	la	t0, __rel_dyn_start
+	la	t1, __rel_dyn_end
+	beq	t0, t1, 5f
+2:
+	LDR	t5, RISCV_XLEN_BYTES(t0)        /* t5: relocation info:type */
+	li	t3, R_RISCV_RELATIVE
+	bne	t5, t3, 3f
+	LDR	t3, 0(t0)                       /* t3: offset */
+	LDR	t5, (RISCV_XLEN_BYTES * 2)(t0)  /* t5: addend */
+	add	t5, t5, a0                      /* t5: add ASLR offset */
+	STR	t5, 0(t3)                       /* update address */
+	j	4f
+
+3:
+	la	t4, __dyn_sym_start
+	srli	t6, t5, SYM_INDEX             /* t6: sym table index */
+	andi	t5, t5, 0xFF                  /* t5: relocation type */
+	li	t3, RELOC_TYPE
+	bne	t5, t3, 4f
+
+	/* address R_RISCV_64 or R_RISCV_32 cases */
+	LDR	t3, 0(t0)
+	li	t5, SYM_SIZE
+	mul	t6, t6, t5
+	add	t5, t4, t6
+	LDR	t6, (RISCV_XLEN_BYTES * 2)(t0)  /* t6: addend */
+	LDR	t5, RISCV_XLEN_BYTES(t5)        /* t5: sym value */
+	add	t5, t5, t6
+	add	t5, t5, a0                      /* t5: add ASLR offset */
+	STR	t5, 0(t3)                       /* update address */
+
+4:
+	addi	t0, t0, (RISCV_XLEN_BYTES * 3)
+	blt	t0, t1, 2b
+5:
+	ret
+END_FUNC relocate
+#endif
 
 	.section .identity_map.data
 	.balign	8
