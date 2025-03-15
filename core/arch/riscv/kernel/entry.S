@@ -421,7 +421,8 @@ LOCAL_DATA stack_tmp_rel , :
 END_DATA stack_tmp_rel
 #endif
 
+	.section .identity_map.data
 	.balign	8
-LOCAL_DATA boot_mmu_config , : /* struct core_mmu_config */
+DATA boot_mmu_config , : /* struct core_mmu_config */
 	.skip	CORE_MMU_CONFIG_SIZE
 END_DATA boot_mmu_config
