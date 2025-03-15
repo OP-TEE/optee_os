@@ -199,6 +199,30 @@ static inline unsigned int core_mmu_get_va_width(void)
 	return RISCV_MMU_VA_WIDTH;
 }
 
+static inline bool core_mmu_va_is_valid(vaddr_t va)
+{
+#ifdef RV32
+	return va < BIT64(core_mmu_get_va_width());
+#else
+	/*
+	 * Validates if a RV64 virtual address is valid.
+	 * For each RV64 MMU mode, the upper bits must be
+	 * extended from the highest valid VA bit:
+	 * - Sv39: va[63:39] must equal to bit 38
+	 * - Sv48: va[63:48] must equal to bit 47
+	 * - Sv57: va[63:57] must equal to bit 56
+	 * Otherwise, a page-fault exception is raised.
+	 */
+	vaddr_t mask = GENMASK_64(63, RISCV_MMU_VA_WIDTH);
+	uint64_t msb = BIT64(RISCV_MMU_VA_WIDTH - 1);
+
+	if (va & msb)
+		return (va & mask) == mask;
+
+	return (va & mask) == 0;
+#endif
+}
+
 static inline bool core_mmu_level_in_range(unsigned int level)
 {
 	return level <= CORE_MMU_BASE_TABLE_LEVEL;
