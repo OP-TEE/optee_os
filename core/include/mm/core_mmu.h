@@ -471,7 +471,13 @@ void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 static inline unsigned core_mmu_va2idx(struct core_mmu_table_info *tbl_info,
 			vaddr_t va)
 {
-	return (va - tbl_info->va_base) >> tbl_info->shift;
+#ifdef RV64
+	uint16_t idx_mask = tbl_info->num_entries - 1;
+
+	return ((va - tbl_info->va_base) >> tbl_info->shift) & idx_mask;
+#else
+	return ((va - tbl_info->va_base) >> tbl_info->shift);
+#endif
 }
 
 /*
