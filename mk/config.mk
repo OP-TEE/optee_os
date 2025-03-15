@@ -449,6 +449,7 @@ CFG_CORE_BGET_BESTFIT ?= $(call cfg-one-enabled, CFG_WITH_PAGER CFG_LOCKDEP)
 # Enable support for detected undefined behavior in C
 # Uses a lot of memory, can't be enabled by default
 CFG_CORE_SANITIZE_UNDEFINED ?= n
+CFG_TA_SANITIZE_UNDEFINED ?= n
 
 # Enable Kernel Address sanitizer, has a huge performance impact, uses a
 # lot of memory and need platform specific adaptations, can't be enabled by

@@ -4,16 +4,42 @@
  */
 
 #include <compiler.h>
-#include <kernel/panic.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
+#include <atomic.h>
+#include <util.h>
+
+#if defined(__KERNEL__)
+# include <kernel/panic.h>
+# define ubsan_panic() panic()
+#elif defined(__LDELF__)
+# include <ldelf_syscalls.h>
+# define ubsan_panic() _ldelf_panic(2)
+#else
+# include <utee_syscalls.h>
+# define ubsan_panic() _utee_panic(TEE_ERROR_GENERIC)
+#endif
+
+#define UBSAN_LOC_REPORTED BIT32(31)
 
 struct source_location {
 	const char *file_name;
 	uint32_t line;
 	uint32_t column;
 };
+
+static bool was_already_reported(struct source_location *loc)
+{
+	uint32_t column;
+
+	column = loc->column;
+	if (column & UBSAN_LOC_REPORTED)
+		return true;
+
+	return !atomic_cas_u32(&loc->column, &column,
+			       column | UBSAN_LOC_REPORTED);
+}
 
 struct type_descriptor {
 	uint16_t type_kind;
@@ -103,14 +129,17 @@ static void ubsan_handle_error(const char *func, struct source_location *loc,
 	const char *f = func;
 	const char func_prefix[] = "__ubsan_handle";
 
+	if (was_already_reported(loc))
+	    return;
+
 	if (!memcmp(f, func_prefix, sizeof(func_prefix) - 1))
 		f += sizeof(func_prefix);
 
 	EMSG_RAW("Undefined behavior %s at %s:%" PRIu32 " col %" PRIu32,
-		 f, loc->file_name, loc->line, loc->column);
+		 f, loc->file_name, loc->line, loc->column & (~UBSAN_LOC_REPORTED));
 
 	if (should_panic)
-		panic();
+		ubsan_panic();
 }
 
 void __ubsan_handle_type_mismatch(struct type_mismatch_data *data,
@@ -188,12 +217,17 @@ void __ubsan_handle_out_of_bounds(void *data_, void *idx __unused)
 	ubsan_handle_error(__func__, &data->loc, ubsan_panic);
 }
 
-void __ubsan_handle_builtin_unreachable(void *data_)
+/*
+ * __ubsan_handle_builtin_unreachable and __ubsan_handle_missing_return
+ * will give "‘noreturn’ function does return" warning, because
+ * _ldelf_panic and _utee_panic are not marked as noreturn functions.
+ */
+void __noreturn __ubsan_handle_builtin_unreachable(void *data_)
 {
 	struct unreachable_data *data = data_;
 
 	ubsan_handle_error(__func__, &data->loc, false);
-	panic();
+	ubsan_panic();
 }
 
 void __noreturn __ubsan_handle_missing_return(void *data_)
@@ -201,7 +235,7 @@ void __noreturn __ubsan_handle_missing_return(void *data_)
 	struct unreachable_data *data = data_;
 
 	ubsan_handle_error(__func__, &data->loc, false);
-	panic();
+	ubsan_panic();
 }
 
 void __ubsan_handle_vla_bound_not_positive(void *data_, void *bound __unused)
