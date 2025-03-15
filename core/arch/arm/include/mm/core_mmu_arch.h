@@ -201,6 +201,11 @@ static inline unsigned int core_mmu_get_va_width(void)
 	return 32;
 }
 
+static inline bool core_mmu_va_is_valid(vaddr_t va)
+{
+	return va < BIT64(core_mmu_get_va_width());
+}
+
 static inline bool core_mmu_level_in_range(unsigned int level)
 {
 #if CORE_MMU_BASE_TABLE_LEVEL == 0
