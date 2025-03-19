@@ -537,6 +537,7 @@ struct bpoolset {
     bufsize totalloc;		      /* Total space currently allocated */
     long numget;		      /* Number of bget() calls */
     long numrel;		      /* Number of brel() calls */
+    uint64_t free2_sum;	              /* Sum of size^2 of each free chunk */
 #ifdef BECtl
     long numpblk;		      /* Number of pool blocks */
     long numpget;		      /* Number of block gets and rels */
@@ -600,6 +601,36 @@ static bufsize buf_get_pos(struct bfhead *bf, bufsize align, bufsize hdr_size,
         return pos;
 
     return -1;
+}
+
+static uint64_t __maybe_unused get_free2_sum(struct bpoolset *poolset)
+{
+	struct bfhead *b = poolset->freelist.ql.flink;
+	uint64_t free2_sum = 0;
+
+	while (b != &poolset->freelist) {
+		free2_sum += b->bh.bsize * b->bh.bsize;
+		b = b->ql.flink;		  /* Link to next buffer */
+	}
+
+	return free2_sum;
+}
+
+static void update_free2_sum(struct bpoolset *poolset __maybe_unused,
+			     bufsize rem_sz __maybe_unused,
+			     bufsize rem_sz2 __maybe_unused,
+			     bufsize add_sz __maybe_unused)
+{
+#ifdef BufStats
+	uint64_t r2 = rem_sz * rem_sz + rem_sz2 * rem_sz2;
+	uint64_t a2 = add_sz * add_sz;
+	uint64_t f2s = get_free2_sum(poolset);
+
+	assert(f2s == poolset->free2_sum - r2 + a2);
+	assert(poolset->free2_sum >= r2);
+	poolset->free2_sum -= r2;
+	poolset->free2_sum += a2;
+#endif
 }
 
 /*  BGET  --  Allocate a buffer.  */
@@ -686,6 +717,8 @@ void *bget(requested_align, hdr_size, requested_size, poolset)
             if (pos >= 0) {
                 struct bhead *b_alloc = BH((char *)b + pos);
                 struct bhead *b_next = BH((char *)b + b->bh.bsize);
+		bufsize rem_sz = b->bh.bsize;
+		bufsize add_sz = pos;
 
                 assert(b_next->prevfree == b->bh.bsize);
 
@@ -717,6 +750,7 @@ void *bget(requested_align, hdr_size, requested_size, poolset)
                     b_alloc->prevfree = pos;
                     b->bh.bsize = pos;
                 }
+		update_free2_sum(poolset, rem_sz, 0, add_sz);
 
                 assert(b_alloc->bsize < 0);
                 /*
@@ -746,6 +780,7 @@ void *bget(requested_align, hdr_size, requested_size, poolset)
 
                     assert(BH((char *)b + b->bh.bsize) == b_next);
                     b_next->prevfree = b->bh.bsize;
+		    update_free2_sum(poolset, 0, 0, b->bh.bsize);
                 }
 
 #ifdef BufStats
@@ -924,6 +959,9 @@ void brel(buf, poolset, wipe)
     struct bfhead *b, *bn;
     char *wipe_start;
     bufsize wipe_size;
+    bufsize add_sz;
+    bufsize rem_sz;
+    bufsize rem_sz2;
 
     b = BFH(((char *) buf) - sizeof(struct bhead));
 #ifdef BufStats
@@ -993,7 +1031,10 @@ void brel(buf, poolset, wipe)
         /* Make the previous buffer the one we're working on. */
 	assert(BH((char *) b - b->bh.prevfree)->bsize == b->bh.prevfree);
 	b = BFH(((char *) b) - b->bh.prevfree);
+	rem_sz = b->bh.bsize;
 	b->bh.bsize -= size;
+	add_sz = b->bh.bsize;
+	update_free2_sum(poolset, rem_sz, 0, add_sz);
     } else {
 
         /* The previous buffer isn't allocated.  Insert this buffer
@@ -1006,6 +1047,7 @@ void brel(buf, poolset, wipe)
 	poolset->freelist.ql.blink = b;
 	b->ql.blink->ql.flink = b;
 	b->bh.bsize = -b->bh.bsize;
+	update_free2_sum(poolset, 0, 0, b->bh.bsize);
 
 	wipe_start = (char *)b + sizeof(struct bfhead);
 	wipe_size = b->bh.bsize - sizeof(struct bfhead);
@@ -1027,7 +1069,11 @@ void brel(buf, poolset, wipe)
 	assert(bn->ql.flink->ql.blink == bn);
 	bn->ql.blink->ql.flink = bn->ql.flink;
 	bn->ql.flink->ql.blink = bn->ql.blink;
+	rem_sz = b->bh.bsize;
+	rem_sz2 = bn->bh.bsize;
 	b->bh.bsize += bn->bh.bsize;
+	add_sz = b->bh.bsize;
+	update_free2_sum(poolset, rem_sz, rem_sz2, add_sz);
 
 	/* Finally,  advance  to   the	buffer	that   follows	the  newly
 	   consolidated free block.  We must set its  backpointer  to  the
@@ -1152,6 +1198,7 @@ void bpool(buf, len, poolset)
 
     len -= sizeof(struct bhead);
     b->bh.bsize = (bufsize) len;
+    update_free2_sum(poolset, 0, 0, b->bh.bsize);
 #ifdef FreeWipe
     V memset_unchecked(((char *) b) + sizeof(struct bfhead), 0x55,
 		       (MemSize) (len - sizeof(struct bfhead)));
