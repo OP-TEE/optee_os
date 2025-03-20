@@ -1257,8 +1257,9 @@ static bool assign_mem_va_dir(vaddr_t tee_ram_va, struct memory_map *mem_map,
 			      bool tee_ram_at_top)
 {
 	struct tee_mmap_region *map = NULL;
-	vaddr_t va = 0;
+	bool va_is_nex_shared = false;
 	bool va_is_secure = true;
+	vaddr_t va = 0;
 	size_t n = 0;
 
 	/*
@@ -1310,6 +1311,10 @@ static bool assign_mem_va_dir(vaddr_t tee_ram_va, struct memory_map *mem_map,
 			    va_is_secure != map_is_secure(map)) {
 				va_is_secure = !va_is_secure;
 				va = ROUNDDOWN(va, CORE_MMU_PGDIR_SIZE);
+			} else if (va_is_nex_shared !=
+				   core_mmu_type_is_nex_shared(map->type)) {
+				va_is_nex_shared = !va_is_nex_shared;
+				va = ROUNDDOWN(va, CORE_MMU_PGDIR_SIZE);
 			}
 
 			if (SUB_OVERFLOW(va, map->size, &va))
@@ -1341,6 +1346,12 @@ static bool assign_mem_va_dir(vaddr_t tee_ram_va, struct memory_map *mem_map,
 			if (!IS_ENABLED(CFG_WITH_LPAE) &&
 			    va_is_secure != map_is_secure(map)) {
 				va_is_secure = !va_is_secure;
+				if (ROUNDUP_OVERFLOW(va, CORE_MMU_PGDIR_SIZE,
+						     &va))
+					return false;
+			} else if (va_is_nex_shared !=
+				   core_mmu_type_is_nex_shared(map->type)) {
+				va_is_nex_shared = !va_is_nex_shared;
 				if (ROUNDUP_OVERFLOW(va, CORE_MMU_PGDIR_SIZE,
 						     &va))
 					return false;
@@ -1423,6 +1434,15 @@ static int cmp_init_mem_map(const void *a, const void *b)
 	 */
 	if (!rc && !IS_ENABLED(CFG_WITH_LPAE))
 		rc = CMP_TRILEAN(map_is_secure(mm_a), map_is_secure(mm_b));
+
+	/*
+	 * Nexus mappings shared between partitions should not be mixed
+	 * with other mappings in the same translation table. Hence sort
+	 * nexus shared mappings from other mappings.
+	 */
+	if (!rc)
+		rc = CMP_TRILEAN(core_mmu_type_is_nex_shared(mm_a->type),
+				 core_mmu_type_is_nex_shared(mm_b->type));
 
 	return rc;
 }
