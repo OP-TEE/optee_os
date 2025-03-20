@@ -19,18 +19,20 @@
 #include <mm/page_alloc.h>
 #include <stdalign.h>
 
-static struct thread_ctx __threads[CFG_NUM_THREADS];
-struct thread_ctx *threads = __threads;
 #if defined(CFG_DYN_STACK_CONFIG)
 struct thread_core_local *thread_core_local __nex_bss;
 size_t thread_core_count __nex_bss;
+struct thread_ctx *threads;
+size_t thread_count;
 #else
 static struct thread_core_local
 	__thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
 struct thread_core_local *thread_core_local __nex_data = __thread_core_local;
 size_t thread_core_count __nex_data = CFG_TEE_CORE_NB_CORE;
-#endif
+static struct thread_ctx __threads[CFG_NUM_THREADS];
+struct thread_ctx *threads = __threads;
 size_t thread_count = CFG_NUM_THREADS;
+#endif
 unsigned long thread_core_local_pa __nex_bss;
 struct thread_core_local *__thread_core_local_new __nex_bss;
 size_t __thread_core_count_new __nex_bss;
@@ -65,13 +67,16 @@ DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 /* Not used */
 #define GET_STACK_BOTTOM(stack, n) 0
 #endif
-#ifndef CFG_WITH_PAGER
+
+#if defined(CFG_DYN_STACK_CONFIG) || defined(CFG_WITH_PAGER)
+/* Not used */
+#define GET_STACK_THREAD_BOTTOM(n) 0
+#else
 DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
 #define GET_STACK_THREAD_BOTTOM(n) \
 	((vaddr_t)&stack_thread[n] +  sizeof(stack_thread[n]) - \
 	 STACK_CANARY_SIZE / 2)
 #endif
-
 
 #ifndef CFG_DYN_STACK_CONFIG
 const uint32_t stack_tmp_stride __section(".identity_map.stack_tmp_stride") =
@@ -153,8 +158,9 @@ void thread_init_canaries(void)
 	}
 
 	if (IS_ENABLED(CFG_WITH_STACK_CANARIES) &&
-	    !IS_ENABLED(CFG_WITH_PAGER) && !IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
-		for (n = 0; n < CFG_NUM_THREADS; n++) {
+	    !IS_ENABLED(CFG_WITH_PAGER) &&
+	    !IS_ENABLED(CFG_NS_VIRTUALIZATION) && threads) {
+		for (n = 0; n < thread_count; n++) {
 			va = threads[n].stack_va_end;
 			if (va)
 				init_canaries(STACK_THREAD_SIZE, va);
@@ -227,7 +233,7 @@ void thread_check_canaries(void)
 
 	if (IS_ENABLED(CFG_WITH_STACK_CANARIES) &&
 	    !IS_ENABLED(CFG_WITH_PAGER) && !IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
-		for (n = 0; n < CFG_NUM_THREADS; n++) {
+		for (n = 0; n < thread_count; n++) {
 			va = threads[n].stack_va_end;
 			if (va)
 				check_stack_canary("thread_stack", n,
@@ -296,7 +302,7 @@ static void print_stack_limits(void)
 		DMSG("abt [%zu] 0x%" PRIxVA "..0x%" PRIxVA, n, start, end);
 	}
 
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
+	for (n = 0; n < thread_count; n++) {
 		va = threads[n].stack_va_end;
 		start = stack_end_va_to_top_soft(STACK_THREAD_SIZE, va);
 		end = stack_end_va_to_bottom(STACK_THREAD_SIZE, va);
@@ -429,7 +435,7 @@ bool get_stack_limits(vaddr_t *start, vaddr_t *end, bool hard)
 	} else if (l->flags & THREAD_CLF_ABORT) {
 		va = l->abt_stack_va_end;
 		stack_size = STACK_ABT_SIZE;
-	} else if (!l->flags && ct >= 0 && ct < CFG_NUM_THREADS) {
+	} else if (!l->flags && ct >= 0 && (size_t)ct < thread_count) {
 		va = threads[ct].stack_va_end;
 		stack_size = STACK_THREAD_SIZE;
 	} else {
@@ -498,6 +504,27 @@ short int __noprof thread_get_id(void)
 	return ct;
 }
 
+static vaddr_t alloc_stack(size_t stack_size, bool nex)
+{
+	size_t l = stack_size_to_alloc_size(stack_size);
+	size_t rl = ROUNDUP(l, SMALL_PAGE_SIZE);
+	uint32_t flags = MAF_GUARD_HEAD;
+	vaddr_t end_va = 0;
+	vaddr_t va = 0;
+
+	if (nex)
+		flags |= MAF_NEX;
+	va = virt_page_alloc(rl / SMALL_PAGE_SIZE, flags);
+	if (!va)
+		panic();
+
+	end_va = va + l - STACK_CANARY_SIZE / 2;
+	if (IS_ENABLED(CFG_WITH_STACK_CANARIES))
+		init_canaries(stack_size, end_va);
+
+	return end_va;
+}
+
 #ifdef CFG_WITH_PAGER
 static void init_thread_stacks(void)
 {
@@ -506,7 +533,7 @@ static void init_thread_stacks(void)
 	/*
 	 * Allocate virtual memory for thread stacks.
 	 */
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
+	for (n = 0; n < thread_count; n++) {
 		tee_mm_entry_t *mm = NULL;
 		vaddr_t sp = 0;
 		size_t num_pages = 0;
@@ -542,8 +569,11 @@ static void init_thread_stacks(void)
 	size_t n = 0;
 
 	/* Assign the thread stacks */
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		va = GET_STACK_THREAD_BOTTOM(n);
+	for (n = 0; n < thread_count; n++) {
+		if (IS_ENABLED(CFG_DYN_STACK_CONFIG))
+			va = alloc_stack(STACK_THREAD_SIZE, false);
+		else
+			va = GET_STACK_THREAD_BOTTOM(n);
 		threads[n].stack_va_end = va;
 		if (IS_ENABLED(CFG_WITH_STACK_CANARIES))
 			init_canaries(STACK_THREAD_SIZE, va);
@@ -551,18 +581,27 @@ static void init_thread_stacks(void)
 }
 #endif /*CFG_WITH_PAGER*/
 
-void thread_init_threads(size_t count __maybe_unused)
+void thread_init_threads(size_t count)
 {
 	size_t n = 0;
 
-	assert(count == CFG_NUM_THREADS);
+	if (IS_ENABLED(CFG_DYN_STACK_CONFIG)) {
+		assert(count <= CFG_NUM_THREADS);
+		threads = calloc(count, sizeof(*threads));
+		if (!threads)
+			panic();
+		thread_count = count;
+	} else {
+		assert(count == CFG_NUM_THREADS);
+	}
+
 	init_thread_stacks();
 	print_stack_limits();
 	pgt_init();
 
 	mutex_lockdep_init();
 
-	for (n = 0; n < CFG_NUM_THREADS; n++)
+	for (n = 0; n < thread_count; n++)
 		TAILQ_INIT(&threads[n].tsd.sess_stack);
 }
 
@@ -574,27 +613,6 @@ vaddr_t __nostackcheck thread_get_abt_stack(void)
 #endif
 
 #ifdef CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL
-static vaddr_t alloc_stack(size_t stack_size, bool nex)
-{
-	size_t l = stack_size_to_alloc_size(stack_size);
-	size_t rl = ROUNDUP(l, SMALL_PAGE_SIZE);
-	uint32_t flags = MAF_GUARD_HEAD;
-	vaddr_t end_va = 0;
-	vaddr_t va = 0;
-
-	if (nex)
-		flags |= MAF_NEX;
-	va = virt_page_alloc(rl / SMALL_PAGE_SIZE, flags);
-	if (!va)
-		panic();
-
-	end_va = va + l - STACK_CANARY_SIZE / 2;
-	if (IS_ENABLED(CFG_WITH_STACK_CANARIES))
-		init_canaries(stack_size, end_va);
-
-	return end_va;
-}
-
 void thread_init_thread_core_local(size_t core_count)
 {
 	struct thread_core_local *tcl = NULL;
@@ -682,7 +700,7 @@ void thread_init_thread_pauth_keys(void)
 {
 	size_t n = 0;
 
-	for (n = 0; n < CFG_NUM_THREADS; n++)
+	for (n = 0; n < thread_count; n++)
 		if (crypto_rng_read(&threads[n].keys, sizeof(threads[n].keys)))
 			panic("Failed to init thread pauth keys");
 }
