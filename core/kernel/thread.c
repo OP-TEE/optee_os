@@ -19,8 +19,8 @@
 #include <mm/page_alloc.h>
 #include <stdalign.h>
 
-struct thread_ctx threads[CFG_NUM_THREADS];
-
+static struct thread_ctx __threads[CFG_NUM_THREADS];
+struct thread_ctx *threads = __threads;
 #if defined(CFG_DYN_STACK_CONFIG)
 struct thread_core_local *thread_core_local __nex_bss;
 size_t thread_core_count __nex_bss;
@@ -30,6 +30,7 @@ static struct thread_core_local
 struct thread_core_local *thread_core_local __nex_data = __thread_core_local;
 size_t thread_core_count __nex_data = CFG_TEE_CORE_NB_CORE;
 #endif
+size_t thread_count = CFG_NUM_THREADS;
 unsigned long thread_core_local_pa __nex_bss;
 struct thread_core_local *__thread_core_local_new __nex_bss;
 size_t __thread_core_count_new __nex_bss;
@@ -367,8 +368,6 @@ void thread_init_boot_thread(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
 
-	thread_init_threads();
-
 	l->curr_thread = 0;
 	threads[0].state = THREAD_STATE_ACTIVE;
 }
@@ -552,10 +551,11 @@ static void init_thread_stacks(void)
 }
 #endif /*CFG_WITH_PAGER*/
 
-void thread_init_threads(void)
+void thread_init_threads(size_t count __maybe_unused)
 {
 	size_t n = 0;
 
+	assert(count == CFG_NUM_THREADS);
 	init_thread_stacks();
 	print_stack_limits();
 	pgt_init();

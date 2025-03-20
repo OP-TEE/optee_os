@@ -204,6 +204,7 @@ UNWIND(	.cantunwind)
 	 */
 	mv	s2, sp
 	la	a0, threads
+	LDR	a0, 0(a0)
 	LDR	a0, THREAD_CTX_STACK_VA_END(a0)
 	mv	sp, a0
 	jal	thread_get_core_local
