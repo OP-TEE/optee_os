@@ -368,6 +368,12 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr);
  */
 uint32_t core_mmu_type_to_attr(enum teecore_memtypes t);
 
+static inline bool core_mmu_type_is_nex_shared(enum teecore_memtypes t)
+{
+	return IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+	       (t == MEM_AREA_NEX_DYN_VASPACE || t == MEM_AREA_NEX_NSEC_SHM);
+}
+
 /*
  * core_mmu_create_user_map() - Create user mode mapping
  * @uctx:	Pointer to user mode context
