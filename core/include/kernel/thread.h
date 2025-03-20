@@ -75,7 +75,9 @@ vaddr_t thread_get_abt_stack(void);
  *
  * Called by the init CPU. Sets temporary stack mode for all CPUs
  * (curr_thread = -1 and THREAD_CLF_TMP) and sets the temporary stack limit
- * for the init CPU. @core_count must be equal to CFG_TEE_CORE_NB_CORE.
+ * for the init CPU. @core_count must be <= CFG_TEE_CORE_NB_CORE, and will
+ * set the number of supported cores to @core_count if configured with
+ * CFG_DYN_CONFIG=y, else @core_count must equal CFG_TEE_CORE_NB_CORE.
  */
 void thread_init_thread_core_local(size_t core_count);
 void thread_init_core_local_stacks(void);

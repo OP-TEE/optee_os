@@ -590,9 +590,6 @@ static void init_user_kcode(void)
 
 void thread_init_primary(void)
 {
-	/* Initialize canaries around the stacks */
-	thread_init_canaries();
-
 	init_user_kcode();
 }
 
@@ -766,15 +763,6 @@ static vaddr_t get_excp_vect(void)
 
 void thread_init_per_cpu(void)
 {
-#ifdef ARM32
-	struct thread_core_local *l = thread_get_core_local();
-
-	thread_set_irq_sp(l->tmp_stack_va_end);
-	thread_set_fiq_sp(l->tmp_stack_va_end);
-	thread_set_abt_sp((vaddr_t)l);
-	thread_set_und_sp((vaddr_t)l);
-#endif
-
 	thread_init_vbar(get_excp_vect());
 
 #ifdef CFG_FTRACE_SUPPORT
