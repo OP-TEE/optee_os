@@ -66,7 +66,9 @@ struct thread_core_local *thread_get_core_local(void);
  *
  * Initializes thread contexts. Called in thread_init_boot_thread() if
  * virtualization is disabled. Virtualization subsystem calls it for every
- * new guest otherwise. @thread_count must be equal to CFG_NUM_THREADS.
+ * new guest otherwise. @thread_count must be <= CFG_NUM_THREADS, and will
+ * initialize the number of threads to @thread_count if configured with
+ * CFG_DYN_STACK_CONFIG=y, else @thread_count must equal CFG_NUM_THREADS.
  */
 void thread_init_threads(size_t thread_count);
 
