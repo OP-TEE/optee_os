@@ -1009,7 +1009,7 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 	update_external_dt();
 	configure_console_from_dt();
 
-	thread_init_thread_core_local();
+	thread_init_thread_core_local(CFG_TEE_CORE_NB_CORE);
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		/*
 		 * Virtualization: We can't initialize threads right now because
