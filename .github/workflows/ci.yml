@@ -638,5 +638,5 @@ jobs:
 
           # CFG_CORE_UNSAFE_MODEXP=y to speed up regression_4011
           # See commit cb03400251f9 ("Squashed commit upgrading to mbedtls-3.6.2")
-          # and commit 85df256c4a67 ("libmbedtls: add CFG_CORE_UNSAFE_MODEXP and CFG_TA_MEBDTLS_UNSAFE_MODEXP")
+          # and commit 85df256c4a67 ("libmbedtls: add CFG_CORE_UNSAFE_MODEXP and CFG_TA_MBEDTLS_UNSAFE_MODEXP")
           make -j$(nproc) check CFG_CORE_UNSAFE_MODEXP=y
