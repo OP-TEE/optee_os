@@ -1262,7 +1262,7 @@ CFG_CORE_UNSAFE_MODEXP ?= n
 # CFG_TA_MBEDTLS_UNSAFE_MODEXP, similar to CFG_CORE_UNSAFE_MODEXP,
 # when enabled, makes MBedTLS library for TAs use 'unsafe' modular
 # exponentiation algorithm.
-CFG_TA_MEBDTLS_UNSAFE_MODEXP ?= n
+CFG_TA_MBEDTLS_UNSAFE_MODEXP ?= n
 
 # CFG_BOOT_INIT_THREAD_CORE_LOCAL0, when enabled, initializes
 # thread_core_local[0] before calling C code.
