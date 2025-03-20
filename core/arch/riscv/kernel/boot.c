@@ -91,8 +91,6 @@ static void init_primary(void)
 {
 	vaddr_t va __maybe_unused = 0;
 
-	thread_init_core_local_stacks();
-
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
 	 * as the thread handler requires those to be masked while
@@ -110,7 +108,6 @@ static void init_primary(void)
 	boot_mem_foreach_padding(add_padding_to_pool, NULL);
 	va = boot_mem_release_unused();
 
-	thread_init_boot_thread();
 	thread_init_primary();
 	thread_init_per_cpu();
 }
@@ -141,7 +138,12 @@ void boot_init_primary_late(unsigned long fdt,
 	init_external_dt(fdt, CFG_DTB_MAX_SIZE);
 	discover_nsec_memory();
 	update_external_dt();
+	thread_init_thread_core_local();
+	thread_init_boot_thread();
+}
 
+void __weak boot_init_primary_runtime(void)
+{
 	IMSG("OP-TEE version: %s", core_v_str);
 	if (IS_ENABLED(CFG_INSECURE)) {
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
@@ -150,12 +152,12 @@ void boot_init_primary_late(unsigned long fdt,
 	IMSG("Primary CPU initializing");
 	boot_primary_init_intc();
 	init_tee_runtime();
+
+	boot_mem_release_tmp_alloc();
 }
 
 void __weak boot_init_primary_final(void)
 {
-	boot_mem_release_tmp_alloc();
-
 	call_driver_initcalls();
 	call_finalcalls();
 	IMSG("Primary CPU initialized");
