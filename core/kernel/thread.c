@@ -19,7 +19,11 @@
 
 struct thread_ctx threads[CFG_NUM_THREADS];
 
-struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
+static struct thread_core_local
+	__thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
+struct thread_core_local *thread_core_local __nex_data = __thread_core_local;
+size_t thread_core_count __nex_data = CFG_TEE_CORE_NB_CORE;
+unsigned long thread_core_local_pa __nex_bss;
 
 /*
  * Stacks
@@ -539,13 +543,14 @@ vaddr_t __nostackcheck thread_get_abt_stack(void)
 }
 
 #ifdef CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL
-void thread_init_thread_core_local(void)
+void thread_init_thread_core_local(size_t core_count __maybe_unused)
 {
 	struct thread_core_local *tcl = thread_core_local;
 	const size_t core_pos = get_core_pos();
 	vaddr_t va = 0;
 	size_t n = 0;
 
+	assert(core_count == CFG_TEE_CORE_NB_CORE);
 	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
 		if (n == core_pos)
 			continue;	/* Already initialized */
@@ -561,13 +566,18 @@ void thread_init_thread_core_local(void)
 		if (IS_ENABLED(CFG_WITH_STACK_CANARIES))
 			init_canaries(STACK_ABT_SIZE, va);
 	}
+
+	/* Might be needed when resuming from suspend on ARMv7. */
+	if (IS_ENABLED(CFG_ARM32_core) && !IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW))
+		thread_core_local_pa = virt_to_phys(tcl);
 }
 #else
-void __nostackcheck thread_init_thread_core_local(void)
+void __nostackcheck thread_init_thread_core_local(size_t core_count)
 {
 	size_t n = 0;
 	struct thread_core_local *tcl = thread_core_local;
 
+	assert(core_count == CFG_TEE_CORE_NB_CORE);
 	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
 		tcl[n].curr_thread = THREAD_ID_INVALID;
 		tcl[n].flags = THREAD_CLF_TMP;
