@@ -70,11 +70,14 @@ void thread_init_threads(void);
 vaddr_t thread_get_abt_stack(void);
 
 /*
+ * thread_init_thread_core_local() - Initialize thread_core_local
+ * @core_count:	Number of cores in the system
+ *
  * Called by the init CPU. Sets temporary stack mode for all CPUs
- * (curr_thread = -1 and THREAD_CLF_TMP) and sets the temporary stack limit for
- * the init CPU.
+ * (curr_thread = -1 and THREAD_CLF_TMP) and sets the temporary stack limit
+ * for the init CPU. @core_count must be equal to CFG_TEE_CORE_NB_CORE.
  */
-void thread_init_thread_core_local(void);
+void thread_init_thread_core_local(size_t core_count);
 void thread_init_core_local_stacks(void);
 
 #if defined(CFG_CORE_PAUTH)
