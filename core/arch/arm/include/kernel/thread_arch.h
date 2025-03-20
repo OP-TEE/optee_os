@@ -51,6 +51,9 @@ struct thread_core_local {
 	struct thread_pauth_keys keys;
 #endif
 	vaddr_t tmp_stack_va_end;
+#ifdef ARM32
+	unsigned long tmp_stack_pa_end;
+#endif
 	long kcode_offset;
 	short int curr_thread;
 	uint32_t flags;
