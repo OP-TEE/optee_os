@@ -334,7 +334,7 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 		      tee_mm_get_bytes(prtn->ta_ram), 0, 0);
 	page_alloc_init();
 	/* Initialize threads */
-	thread_init_threads();
+	thread_init_threads(CFG_NUM_THREADS);
 	/* Do the preinitcalls */
 	call_preinitcalls();
 

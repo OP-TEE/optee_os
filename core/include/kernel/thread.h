@@ -61,11 +61,14 @@ static inline void thread_update_canaries(void) { }
 struct thread_core_local *thread_get_core_local(void);
 
 /*
+ * thread_init_threads() - Initialize threads
+ * @thread_count: Number of threads to configure
+ *
  * Initializes thread contexts. Called in thread_init_boot_thread() if
- * virtualization is disabled. Virtualization subsystem calls it for
- * every new guest otherwise.
+ * virtualization is disabled. Virtualization subsystem calls it for every
+ * new guest otherwise. @thread_count must be equal to CFG_NUM_THREADS.
  */
-void thread_init_threads(void);
+void thread_init_threads(size_t thread_count);
 
 vaddr_t thread_get_abt_stack(void);
 

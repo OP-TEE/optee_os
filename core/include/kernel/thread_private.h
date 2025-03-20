@@ -72,7 +72,8 @@ struct thread_ctx {
 #ifndef __ASSEMBLER__
 extern const void *stack_tmp_export;
 extern const uint32_t stack_tmp_stride;
-extern struct thread_ctx threads[];
+extern struct thread_ctx *threads;
+extern size_t thread_count;
 extern struct thread_core_local *thread_core_local;
 extern unsigned long thread_core_local_pa;
 extern size_t thread_core_count;
