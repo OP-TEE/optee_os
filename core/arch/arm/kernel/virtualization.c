@@ -326,8 +326,12 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 	set_current_prtn(prtn);
 
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
-	phys_mem_init(0, 0, tee_mm_get_smem(prtn->ta_ram),
-		      tee_mm_get_bytes(prtn->ta_ram));
+	/*
+	 * The TA memory is registered in the core pool to allow it to be
+	 * used for both core and TA physical memory allocations.
+	 */
+	phys_mem_init(tee_mm_get_smem(prtn->ta_ram),
+		      tee_mm_get_bytes(prtn->ta_ram), 0, 0);
 	page_alloc_init();
 	/* Initialize threads */
 	thread_init_threads();
