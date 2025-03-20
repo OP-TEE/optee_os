@@ -610,6 +610,7 @@ fail:
 
 static int self_test_va2pa(void)
 {
+	void *ptr = self_test_va2pa;
 	int ret = 0;
 
 	if (IS_ENABLED(CFG_DYN_CONFIG) && VCORE_FREE_SZ) {
@@ -645,9 +646,9 @@ static int self_test_va2pa(void)
 	}
 
 	if (!IS_ENABLED(CFG_WITH_PAGER) &&
-	    check_phys_to_virt(virt_to_phys(&ret), &ret, MEM_AREA_TEE_RAM))
+	    check_phys_to_virt(virt_to_phys(ptr), ptr, MEM_AREA_TEE_RAM))
 		ret = -1;
-	if (check_phys_to_virt(virt_to_phys(&ret), NULL, MEM_AREA_IO_SEC))
+	if (check_phys_to_virt(virt_to_phys(ptr), NULL, MEM_AREA_IO_SEC))
 		ret = -1;
 	if (check_virt_to_phys(0, 0, MEM_AREA_TEE_RAM))
 		ret = -1;
