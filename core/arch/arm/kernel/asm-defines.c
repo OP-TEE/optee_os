@@ -7,6 +7,7 @@
 #include <kernel/boot.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#include <kernel/thread_private_arch.h>
 #include <mm/core_mmu_arch.h>
 #include <sm/pm.h>
 #include <sm/sm.h>
@@ -42,7 +43,6 @@ DEFINES
 	DEFINE(THREAD_CORE_LOCAL_R0, offsetof(struct thread_core_local, r[0]));
 	DEFINE(THREAD_CORE_LOCAL_SM_PM_CTX_PHYS,
 	       offsetof(struct thread_core_local, sm_pm_ctx_phys));
-	DEFINE(THREAD_CORE_LOCAL_SIZE, sizeof(struct thread_core_local));
 
 	DEFINE(SM_PM_CTX_SIZE, sizeof(struct sm_pm_ctx));
 	DEFINE(__STACK_TMP_OFFS, STACK_TMP_OFFS);
@@ -143,6 +143,7 @@ DEFINES
 	       offsetof(struct thread_core_local, flags));
 	DEFINE(THREAD_CORE_LOCAL_ABT_STACK_VA_END,
 	       offsetof(struct thread_core_local, abt_stack_va_end));
+	DEFINE(THREAD_CORE_LOCAL_SIZE, sizeof(struct thread_core_local));
 #if defined(ARM64) && defined(CFG_CORE_FFA)
 	DEFINE(THREAD_CORE_LOCAL_DIRECT_RESP_FID,
 	       offsetof(struct thread_core_local, direct_resp_fid));
@@ -176,5 +177,6 @@ DEFINES
 	 */
 	DEFINE(__CORE_MMU_BASE_TABLE_OFFSET, CORE_MMU_BASE_TABLE_OFFSET);
 #endif
+	DEFINE(__STACK_CANARY_SIZE, STACK_CANARY_SIZE);
 
 }

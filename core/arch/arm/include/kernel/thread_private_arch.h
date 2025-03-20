@@ -257,4 +257,7 @@ void thread_scall_handler(struct thread_scall_regs *regs);
 
 void thread_spmc_register_secondary_ep(vaddr_t ep);
 #endif /*__ASSEMBLER__*/
+
+#define THREAD_BOOT_INIT_TMP_ALLOC	(SMALL_PAGE_SIZE * 6)
+
 #endif /*__KERNEL_THREAD_PRIVATE_ARCH_H*/
