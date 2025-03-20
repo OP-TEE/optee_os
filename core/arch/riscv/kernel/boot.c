@@ -17,6 +17,7 @@
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/page_alloc.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 #include <platform_config.h>
@@ -107,6 +108,8 @@ static void init_primary(void)
 	core_mmu_init_phys_mem();
 	boot_mem_foreach_padding(add_padding_to_pool, NULL);
 	va = boot_mem_release_unused();
+	if (IS_ENABLED(CFG_DYN_CONFIG))
+		page_alloc_init();
 
 	thread_init_primary();
 	thread_init_per_cpu();
