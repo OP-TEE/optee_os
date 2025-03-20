@@ -76,6 +76,8 @@ extern struct thread_ctx threads[];
 extern struct thread_core_local *thread_core_local;
 extern unsigned long thread_core_local_pa;
 extern size_t thread_core_count;
+extern struct thread_core_local *__thread_core_local_new;
+extern size_t __thread_core_count_new;
 
 #ifdef CFG_WITH_STACK_CANARIES
 #define STACK_CANARY_SIZE	(4 * sizeof(long))

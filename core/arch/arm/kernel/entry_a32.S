@@ -13,6 +13,7 @@
 #include <kernel/cache_helpers.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#include <kernel/thread_private_arch.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <sm/optee_smc.h>
@@ -447,6 +448,47 @@ shadow_stack_access_ok:
 	bls	shadow_stack_access_ok
 #endif
 
+#if defined(CFG_DYN_STACK_CONFIG)
+	ldr	r0, =boot_embdata_ptr
+	ldr	r0, [r0]
+	sub	r1, r0, #THREAD_BOOT_INIT_TMP_ALLOC
+
+	/* Clear the allocated struct thread_core_local */
+	add	r2, r1, #THREAD_CORE_LOCAL_SIZE
+	mov	r3, #0
+1:	str	r3, [r2, #-4]!
+	cmp	r2, r1
+	bgt	1b
+
+	sub	r0, r0, #(__STACK_TMP_OFFS + __STACK_CANARY_SIZE)
+	mov	r2, #THREAD_ID_INVALID
+	str	r2, [r1, #THREAD_CORE_LOCAL_CURR_THREAD]
+	mov	r2, #THREAD_CLF_TMP
+	str	r2, [r1, #THREAD_CORE_LOCAL_FLAGS]
+	str	r0, [r1, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
+	add	r2, r1, #(THREAD_BOOT_INIT_TMP_ALLOC / 2)
+	sub	r2, r2, #__STACK_CANARY_SIZE
+	str	r2, [r1, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
+	mov	sp, r0
+	cps	#CPSR_MODE_IRQ
+	mov	sp, r0
+	cps	#CPSR_MODE_FIQ
+	mov	sp, r0
+	cps	#CPSR_MODE_ABT
+	mov	sp, r1
+	cps	#CPSR_MODE_UND
+	mov	sp, r1
+	cps	#CPSR_MODE_SVC
+	/*
+	 * Record a single core, to be changed later before secure world
+	 * boot is done.
+	 */
+	ldr	r2, =thread_core_local
+	str	r1, [r2]
+	ldr	r2, =thread_core_count
+	mov	r0, #1
+	str	r0, [r2]
+#else
 	set_sp
 
 	/* Initialize thread_core_local[current_cpu_id] for early boot */
@@ -472,6 +514,7 @@ shadow_stack_access_ok:
 	str	r0, [r1, #THREAD_CORE_LOCAL_CURR_THREAD]
 	mov	r0, #THREAD_CLF_TMP
 	str	r0, [r1, #THREAD_CORE_LOCAL_FLAGS]
+#endif
 
 	/* complete ARM secure MP common configuration */
 	bl	plat_primary_init_early
@@ -502,6 +545,9 @@ shadow_stack_access_ok:
 	ldr	r0, =__vcore_free_start
 	ldr	r1, =boot_embdata_ptr
 	ldr	r1, [r1]
+#ifdef CFG_DYN_STACK_CONFIG
+	sub	r1, r1, #THREAD_BOOT_INIT_TMP_ALLOC
+#endif
 	ldr	r2, =__vcore_free_end
 #endif
 	bl	boot_mem_init
@@ -523,6 +569,13 @@ shadow_stack_access_ok:
 	/* Enable PL310 if not yet enabled */
 	bl	pl310_base
 	bl	arm_cl2_enable
+#endif
+
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
+	ldr	r0, =thread_core_local
+	ldr	r0, [r0]
+	ldr	r1, =thread_core_local_pa
+	str	r0, [r1]
 #endif
 
 #ifdef CFG_CORE_ASLR
@@ -577,6 +630,11 @@ shadow_stack_access_ok:
 	 */
 	ldr	r1, =boot_mmu_config
 	ldr	r1, [r1, #CORE_MMU_CONFIG_MAP_OFFSET]
+#if defined(CFG_DYN_STACK_CONFIG)
+	ldr	r0, =thread_core_local
+	add	r2, r4, r1
+	str	r2, [r0]
+#endif
 	add	r4, r4, r1
 	ldr	r0, [r4, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
 	add	r0, r0, r1
@@ -617,6 +675,52 @@ shadow_stack_access_ok:
 
 	bl	boot_init_primary_early
 	bl	boot_init_primary_late
+
+#if defined(CFG_DYN_STACK_CONFIG)
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
+	/* Update thread_core_local_pa with a new physical address */
+	ldr	r0, =__thread_core_local_new
+	ldr	r0, [r0]
+	bl	virt_to_phys
+	ldr	r1, =thread_core_local_pa
+	str	r0, [r1]
+#endif
+	bl	__get_core_pos
+
+	/*
+	 * Switch to the new thread_core_local and thread_core_count and
+	 * keep the pointer to the new thread_core_local in r1.
+	 */
+	ldr	r1, =__thread_core_count_new
+	ldr	r1, [r1]
+	ldr 	r2, =thread_core_count;
+	str	r1, [r2]
+	ldr	r1, =__thread_core_local_new
+	ldr	r1, [r1]
+	ldr	r2, =thread_core_local
+	str	r1, [r2]
+
+	/*
+	 * Update to use the new stacks and thread_core_local. Clear
+	 * thread_core_local[0].stackcheck_recursion now that the stack
+	 * pointer matches recorded information.
+	 */
+	mov	r2, #THREAD_CORE_LOCAL_SIZE
+	/* r3 = r2 * r0 + r1 */
+	mla	r3, r2, r0, r1
+	ldr	r0, [r3, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
+	mov	sp, r0
+	cps	#CPSR_MODE_IRQ
+	mov	sp, r0
+	cps	#CPSR_MODE_FIQ
+	mov	sp, r0
+	cps	#CPSR_MODE_ABT
+	mov	sp, r3
+	cps	#CPSR_MODE_UND
+	mov	sp, r3
+	cps	#CPSR_MODE_SVC
+#endif
+
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	r9, sp
 	ldr	r0, =threads
@@ -916,6 +1020,7 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	bx	lr
 END_FUNC enable_mmu
 
+#if !defined(CFG_DYN_STACK_CONFIG)
 LOCAL_DATA stack_tmp_rel , :
 	.word	stack_tmp - stack_tmp_rel - STACK_TMP_GUARD
 END_DATA stack_tmp_rel
@@ -923,6 +1028,7 @@ END_DATA stack_tmp_rel
 LOCAL_DATA stack_tmp_stride_rel , :
 	.word	stack_tmp_stride - stack_tmp_stride_rel
 END_DATA stack_tmp_stride_rel
+#endif
 
 DATA boot_mmu_config , : /* struct core_mmu_config */
 	.skip	CORE_MMU_CONFIG_SIZE
@@ -946,7 +1052,26 @@ UNWIND(	.cantunwind)
 	bl	__get_core_pos
 	bl	enable_mmu
 
-	set_sp
+	/*
+	 * Use the stacks from thread_core_local.
+	 */
+	bl	__get_core_pos
+	ldr	r1, =thread_core_local
+	ldr	r1, [r1]
+	mov	r2, #THREAD_CORE_LOCAL_SIZE
+	/* r3 = r2 * r0 + r1 */
+	mla	r3, r2, r0, r1
+	ldr	r0, [r3, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
+	mov	sp, r0
+	cps	#CPSR_MODE_IRQ
+	mov	sp, r0
+	cps	#CPSR_MODE_FIQ
+	mov	sp, r0
+	cps	#CPSR_MODE_ABT
+	mov	sp, r3
+	cps	#CPSR_MODE_UND
+	mov	sp, r3
+	cps	#CPSR_MODE_SVC
 
 	mov	r0, r4
 	mov	r1, r5
@@ -968,7 +1093,24 @@ UNWIND(	.cantunwind)
 
 	wait_primary
 
-	set_sp
+	/*
+	 * Initialize stack pointer from thread_core_local, compensate for
+	 * ASLR if enabled.
+	 */
+#ifdef CFG_CORE_ASLR
+	ldr	r4, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
+#endif
+	bl	__get_core_pos
+	ldr	r1, =thread_core_local_pa
+#ifdef CFG_CORE_ASLR
+	sub	r1, r1, r4
+#endif
+	ldr	r1, [r1]
+	mov	r2, #THREAD_CORE_LOCAL_SIZE
+	/* r3 = r2 * r0 + r1 */
+	mla	r3, r2, r0, r1
+	ldr	r0, [r3, #THREAD_CORE_LOCAL_TMP_STACK_PA_END]
+	mov	sp, r0
 
 #if defined (CFG_BOOT_SECONDARY_REQUEST)
 	/* if L1 is not invalidated before, do it here */
@@ -978,6 +1120,27 @@ UNWIND(	.cantunwind)
 
 	bl	__get_core_pos
 	bl	enable_mmu
+
+	/*
+	 * Use the stacks from thread_core_local.
+	 */
+	bl	__get_core_pos
+	ldr	r1, =thread_core_local
+	ldr	r1, [r1]
+	mov	r2, #THREAD_CORE_LOCAL_SIZE
+	/* r3 = r2 * r0 + r1 */
+	mla	r3, r2, r0, r1
+	ldr	r0, [r3, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
+	mov	sp, r0
+	cps	#CPSR_MODE_IRQ
+	mov	sp, r0
+	cps	#CPSR_MODE_FIQ
+	mov	sp, r0
+	cps	#CPSR_MODE_ABT
+	mov	sp, r3
+	cps	#CPSR_MODE_UND
+	mov	sp, r3
+	cps	#CPSR_MODE_SVC
 
 	cpu_is_ready
 

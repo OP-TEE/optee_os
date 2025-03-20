@@ -38,6 +38,7 @@
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 #include <sm/psci.h>
+#include <stdalign.h>
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
@@ -914,6 +915,17 @@ static void init_primary(unsigned long pageable_part)
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 #endif
 	IMSG_RAW("\n");
+	if (IS_ENABLED(CFG_DYN_CONFIG)) {
+		size_t sz = sizeof(struct thread_core_local) *
+			    CFG_TEE_CORE_NB_CORE;
+		void *p = boot_mem_alloc(sz, alignof(void *) * 2);
+
+#ifdef CFG_NS_VIRTUALIZATION
+		nex_malloc_add_pool(p, sz);
+#else
+		malloc_add_pool(p, sz);
+#endif
+	}
 
 	core_mmu_save_mem_map();
 	core_mmu_init_phys_mem();
@@ -951,7 +963,8 @@ static void init_primary(unsigned long pageable_part)
 		init_pager_runtime(pageable_part);
 	}
 
-	thread_init_primary();
+	/* Initialize canaries around the stacks */
+	thread_init_canaries();
 	thread_init_per_cpu();
 }
 
@@ -1009,7 +1022,6 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 	update_external_dt();
 	configure_console_from_dt();
 
-	thread_init_thread_core_local(CFG_TEE_CORE_NB_CORE);
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		/*
 		 * Virtualization: We can't initialize threads right now because
@@ -1021,10 +1033,12 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 	} else {
 		thread_init_boot_thread();
 	}
+	thread_init_thread_core_local(CFG_TEE_CORE_NB_CORE);
 }
 
 void __weak boot_init_primary_runtime(void)
 {
+	thread_init_primary();
 	IMSG("OP-TEE version: %s", core_v_str);
 	if (IS_ENABLED(CFG_INSECURE)) {
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
