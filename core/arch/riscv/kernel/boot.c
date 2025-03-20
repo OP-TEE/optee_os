@@ -62,12 +62,6 @@ static void update_external_dt(void)
 }
 #endif /*!CFG_DT*/
 
-void init_sec_mon(unsigned long nsec_entry __maybe_unused)
-{
-	assert(nsec_entry == PADDR_INVALID);
-	/* Do nothing as we don't have a secure monitor */
-}
-
 #ifdef CFG_RISCV_S_MODE
 static void start_secondary_cores(void)
 {
@@ -122,7 +116,7 @@ static bool add_padding_to_pool(vaddr_t va, size_t len, void *ptr __unused)
 	return true;
 }
 
-static void init_primary(unsigned long nsec_entry)
+static void init_primary(void)
 {
 	vaddr_t va __maybe_unused = 0;
 
@@ -149,7 +143,6 @@ static void init_primary(unsigned long nsec_entry)
 	thread_init_boot_thread();
 	thread_init_primary();
 	thread_init_per_cpu();
-	init_sec_mon(nsec_entry);
 }
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
@@ -206,9 +199,7 @@ __weak void boot_secondary_init_intc(void)
 
 void boot_init_primary_early(void)
 {
-	unsigned long e = PADDR_INVALID;
-
-	init_primary(e);
+	init_primary();
 }
 
 void boot_init_primary_late(unsigned long fdt,
@@ -251,7 +242,7 @@ void __weak boot_init_primary_final(void)
 #endif
 }
 
-static void init_secondary_helper(unsigned long nsec_entry)
+static void init_secondary_helper(void)
 {
 	size_t pos = get_core_pos();
 
@@ -268,7 +259,6 @@ static void init_secondary_helper(unsigned long nsec_entry)
 	thread_set_exceptions(THREAD_EXCP_ALL);
 
 	thread_init_per_cpu();
-	init_sec_mon(nsec_entry);
 	boot_secondary_init_intc();
 
 	IMSG("Secondary CPU%zu (hart%"PRIu32") initialized",
@@ -277,5 +267,5 @@ static void init_secondary_helper(unsigned long nsec_entry)
 
 void boot_init_secondary(unsigned long nsec_entry __unused)
 {
-	init_secondary_helper(PADDR_INVALID);
+	init_secondary_helper();
 }
