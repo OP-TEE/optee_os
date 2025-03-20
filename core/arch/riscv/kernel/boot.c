@@ -145,6 +145,7 @@ static void init_primary(unsigned long nsec_entry)
 	boot_mem_foreach_padding(add_padding_to_pool, NULL);
 	va = boot_mem_release_unused();
 
+	thread_init_threads(CFG_NUM_THREADS);
 	thread_init_boot_thread();
 	thread_init_primary();
 	thread_init_per_cpu();

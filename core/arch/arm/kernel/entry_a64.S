@@ -520,6 +520,7 @@ clear_nex_bss:
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	x23, sp
 	adr_l	x0, threads
+	ldr	x0, [x0]
 	ldr	x0, [x0, #THREAD_CTX_STACK_VA_END]
 	mov	sp, x0
 	bl	thread_get_core_local
@@ -529,6 +530,7 @@ clear_nex_bss:
 	bl	boot_init_primary_runtime
 #ifdef CFG_CORE_PAUTH
 	adr_l	x0, threads
+	ldr	x0, [x0]
 	ldp	x1, x2, [x0, #THREAD_CTX_KEYS]
 	write_apiakeyhi x1
 	write_apiakeylo x2

@@ -724,6 +724,7 @@ shadow_stack_access_ok:
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	r9, sp
 	ldr	r0, =threads
+	ldr	r0, [r0]
 	ldr	r0, [r0, #THREAD_CTX_STACK_VA_END]
 	mov	sp, r0
 	bl	thread_get_core_local

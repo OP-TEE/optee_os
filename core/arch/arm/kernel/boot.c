@@ -1031,6 +1031,7 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 		 */
 		thread_get_core_local()->curr_thread = -1;
 	} else {
+		thread_init_threads(CFG_NUM_THREADS);
 		thread_init_boot_thread();
 	}
 	thread_init_thread_core_local(CFG_TEE_CORE_NB_CORE);
