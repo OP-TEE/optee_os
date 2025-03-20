@@ -652,14 +652,23 @@ static uint64_t *core_mmu_xlat_table_alloc(struct mmu_partition *prtn)
 			tee_mm_entry_t *mm = NULL;
 			paddr_t pa = 0;
 
-			if (prtn == get_prtn()) {
-				mm = phys_mem_core_alloc(XLAT_TABLE_SIZE);
-				if (!mm)
-					EMSG("Phys mem exhausted");
-			} else {
+			/*
+			 * The default_partition only has a physical memory
+			 * pool for the nexus when virtualization is
+			 * enabled. We should use the nexus physical memory
+			 * pool if we're allocating memory for another
+			 * partition than our own.
+			 */
+			if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+			    (prtn == &default_partition ||
+			     prtn != get_prtn())) {
 				mm = nex_phys_mem_core_alloc(XLAT_TABLE_SIZE);
 				if (!mm)
 					EMSG("Phys nex mem exhausted");
+			} else {
+				mm = phys_mem_core_alloc(XLAT_TABLE_SIZE);
+				if (!mm)
+					EMSG("Phys mem exhausted");
 			}
 			if (!mm)
 				return NULL;
