@@ -115,6 +115,9 @@
 #define TRNG_S_BASE		0xfe398000
 #define TRNG_S_SIZE		SIZE_K(32)
 
+#define OTP_S_BASE		0xfe3a0000
+#define OTP_S_SIZE		SIZE_K(64)
+
 #else
 #error "Unknown platform flavor"
 #endif
