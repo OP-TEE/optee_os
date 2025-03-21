@@ -38,7 +38,8 @@
 
 #ifdef ARM64
 #if (defined(__clang__) && !defined(__OPTIMIZE_SIZE__)) || \
-	defined(CFG_CORE_SANITIZE_KADDRESS) || defined(CFG_NS_VIRTUALIZATION)
+	defined(CFG_CORE_SANITIZE_KADDRESS) || \
+	defined(CFG_CORE_DEBUG_CHECK_STACKS) || defined(CFG_NS_VIRTUALIZATION)
 #define STACK_TMP_SIZE		(4096 + STACK_TMP_OFFS + CFG_STACK_TMP_EXTRA)
 #else
 #define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS + CFG_STACK_TMP_EXTRA)
@@ -256,4 +257,7 @@ void thread_scall_handler(struct thread_scall_regs *regs);
 
 void thread_spmc_register_secondary_ep(vaddr_t ep);
 #endif /*__ASSEMBLER__*/
+
+#define THREAD_BOOT_INIT_TMP_ALLOC	(SMALL_PAGE_SIZE * 6)
+
 #endif /*__KERNEL_THREAD_PRIVATE_ARCH_H*/
