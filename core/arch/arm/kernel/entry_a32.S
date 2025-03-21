@@ -466,11 +466,6 @@ shadow_stack_access_ok:
 	mov	sp, r1
 	cps	#CPSR_MODE_SVC
 
-#ifdef CFG_CORE_DEBUG_CHECK_STACKS
-	mov	r2, #1
-	strb	r2, [r1, #THREAD_CORE_LOCAL_STACKCHECK_RECURSION]
-#endif
-
 	str	sp, [r1, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
 	str	r0, [r1, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
 	mov	r0, #THREAD_ID_INVALID
@@ -600,14 +595,6 @@ shadow_stack_access_ok:
 	mov	sp, r4
 	cps	#CPSR_MODE_SVC
 
-#if defined(CFG_CORE_DEBUG_CHECK_STACKS)
-	/*
-	 * Clear thread_core_local[current_cpu_id].stackcheck_recursion now
-	 * that the stack pointer matches recorded information.
-	 */
-	mov	r2, #0
-	strb	r2, [r4, #THREAD_CORE_LOCAL_STACKCHECK_RECURSION]
-#endif
 	/*
 	 * Reinitialize console, since register_serial_console() has
 	 * previously registered a PA and with ASLR the VA is different
