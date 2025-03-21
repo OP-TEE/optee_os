@@ -64,6 +64,7 @@ DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 #define GET_STACK_BOTTOM(stack, n) ((vaddr_t)&(stack)[n] + sizeof(stack[n]) - \
 				    STACK_CANARY_SIZE / 2)
 #else
+/* Not used */
 #define GET_STACK_BOTTOM(stack, n) 0
 #endif
 
