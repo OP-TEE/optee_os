@@ -68,6 +68,7 @@ DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 #endif
 
 #if defined(CFG_DYN_STACK_CONFIG) || defined(CFG_WITH_PAGER)
+/* Not used */
 #define GET_STACK_THREAD_BOTTOM(n) 0
 #else
 DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
