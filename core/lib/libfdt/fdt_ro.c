@@ -618,6 +618,24 @@ int fdt_node_depth(const void *fdt, int nodeoffset)
 	return nodedepth;
 }
 
+bool fdt_node_is_enabled(const void *fdt, int nodeoffset)
+{
+	int len;
+	const void *prop;
+
+	prop = fdt_getprop(fdt, nodeoffset, "status", &len);
+	if (!prop)
+		return true;
+
+	if (!strncmp(prop, "okay", strlen("okay")))
+		return true;
+
+	if (!strncmp(prop, "ok", strlen("ok")))
+		return true;
+
+	return false;
+}
+
 int fdt_parent_offset(const void *fdt, int nodeoffset)
 {
 	int parent_offset = 0;
