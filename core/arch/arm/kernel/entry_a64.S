@@ -291,10 +291,6 @@ clear_nex_bss:
 	msr	spsel, #1
 	str	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
 	str	x0, [sp, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
-#ifdef CFG_CORE_DEBUG_CHECK_STACKS
-	mov	x0, #1
-	strb	w0, [sp, #THREAD_CORE_LOCAL_STACKCHECK_RECURSION]
-#endif
 	mov	x0, #THREAD_ID_INVALID
 	str	x0, [sp, #THREAD_CORE_LOCAL_CURR_THREAD]
 	mov	w0, #THREAD_CLF_TMP
@@ -402,9 +398,6 @@ clear_nex_bss:
 	ldr	x1, [sp, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
 	add	x1, x1, x0
 	str	x1, [sp, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
-#ifdef CFG_CORE_DEBUG_CHECK_STACKS
-	strb	wzr, [sp, #THREAD_CORE_LOCAL_STACKCHECK_RECURSION]
-#endif
 	msr	spsel, #0
 	/*
 	 * Reinitialize console, since register_serial_console() has
