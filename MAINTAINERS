@@ -67,6 +67,7 @@ R:	Michal Simek <michal.simek@amd.com> [@michalsimek]
 R:	Akshay Belsare <akshay.belsare@amd.com> [@Akshay-Belsare]
 S:	Maintained
 F:	core/arch/arm/plat-versal2/
+F:	core/drivers/amd/
 
 AmLogic AXG (A113D)
 R:	Carlo Caione <ccaione@baylibre.com> [@carlocaione]
