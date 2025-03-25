@@ -497,7 +497,7 @@ struct transfer_list_entry *transfer_list_add(struct transfer_list_header *tl,
 	tl->size += ev - tl_ev;
 
 	if (data)
-		memmove(tl_e + tl_e->hdr_size, data, data_size);
+		memmove(transfer_list_entry_data(tl_e), data, data_size);
 
 	transfer_list_update_checksum(tl);
 
