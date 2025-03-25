@@ -433,6 +433,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 		return core_aes_perf_tests(nParamTypes, pParams);
 	case PTA_INVOKE_TESTS_CMD_DT_DRIVER_TESTS:
 		return core_dt_driver_tests(nParamTypes, pParams);
+	case PTA_INVOKE_TESTS_CMD_TRANSFER_LIST_TESTS:
+		return core_transfer_list_tests(nParamTypes, pParams);
 	default:
 		break;
 	}

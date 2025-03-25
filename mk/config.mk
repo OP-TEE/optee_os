@@ -513,11 +513,8 @@ endif
 # has a stable release.
 # This feature requires the support of Device Tree.
 CFG_TRANSFER_LIST ?= n
-ifeq ($(CFG_TRANSFER_LIST),y)
-$(call force,CFG_DT,y)
-$(call force,CFG_EXTERNAL_DT,y)
-$(call force,CFG_MAP_EXT_DT_SECURE,y)
-endif
+$(eval $(call cfg-enable-all-depends,CFG_TRANSFER_LIST, \
+	 CFG_DT CFG_EXTERNAL_DT CFG_MAP_EXT_DT_SECURE))
 
 # Maximum size of the Device Tree Blob, has to be large enough to allow
 # editing of the supplied DTB.
@@ -557,6 +554,9 @@ CFG_ENABLE_EMBEDDED_TESTS ?= n
 
 # Enable core self tests and related pseudo TAs
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= $(CFG_ENABLE_EMBEDDED_TESTS)
+# Embed transfer list support self test when enabled
+CFG_TRANSFER_LIST_TEST ?= $(call cfg-all-enabled,CFG_TRANSFER_LIST \
+			    CFG_TEE_CORE_EMBED_INTERNAL_TESTS)
 
 # Compiles bget_main_test() to be called from a test TA
 CFG_TA_BGET_TEST ?= $(CFG_ENABLE_EMBEDDED_TESTS)

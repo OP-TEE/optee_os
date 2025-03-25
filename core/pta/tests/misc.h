@@ -37,4 +37,16 @@ TEE_Result core_aes_perf_tests(uint32_t param_types,
 TEE_Result core_dt_driver_tests(uint32_t param_types,
 				TEE_Param params[TEE_NUM_PARAMS]);
 
+#if defined(CFG_TRANSFER_LIST_TEST)
+TEE_Result core_transfer_list_tests(uint32_t nParamTypes,
+				    TEE_Param pParams[TEE_NUM_PARAMS]);
+#else
+static inline TEE_Result
+core_transfer_list_tests(uint32_t nParamTypes __unused,
+			 TEE_Param pParams[TEE_NUM_PARAMS] __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
+
 #endif /*CORE_PTA_TESTS_MISC_H*/
