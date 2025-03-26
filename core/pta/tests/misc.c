@@ -612,7 +612,7 @@ static int self_test_va2pa(void)
 {
 	int ret = 0;
 
-	if (VCORE_FREE_SZ) {
+	if (IS_ENABLED(CFG_DYN_CONFIG) && VCORE_FREE_SZ) {
 		vaddr_t va_base = VCORE_FREE_PA;
 		paddr_t pa_base = 0;
 
