@@ -79,7 +79,7 @@ const struct csu_sa_setting csu_sa_imx7ds = { 0x15554554, 0x2aaa8aaa };
 
 const struct csu_config csu_imx6 = { &csu_sa_imx6, csu_setting_imx6 };
 const struct csu_config csu_imx6ul = { &csu_sa_imx6ul, csu_setting_imx6ul };
-const struct csu_config csu_imx6ull = { NULL, csu_setting_imx6ull };
+const struct csu_config csu_imx6ull = { &csu_sa_imx6ul, csu_setting_imx6ull };
 const struct csu_config csu_imx6sl = { NULL, csu_setting_imx6sl };
 const struct csu_config csu_imx6sx = { NULL, csu_setting_imx6sx };
 const struct csu_config csu_imx7ds = { &csu_sa_imx7ds, csu_setting_imx7ds };
