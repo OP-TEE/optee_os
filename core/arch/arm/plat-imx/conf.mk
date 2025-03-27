@@ -561,6 +561,7 @@ CFG_MMAP_REGIONS ?= 24
 # SE05X and OCOTP both implement tee_otp_get_die_id()
 ifeq ($(CFG_NXP_SE05X),y)
 $(call force,CFG_IMX_OCOTP,n)
+$(call force,CFG_CORE_HUK_SUBKEY_COMPAT_USE_OTP_DIE_ID,n)
 endif
 CFG_IMX_OCOTP ?= y
 CFG_IMX_DIGPROG ?= y
