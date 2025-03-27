@@ -12,9 +12,13 @@ include mk/$(COMPILER_$(sm)).mk
 # Config flags from mk/config.mk
 #
 
+ifeq ($(_CFG_TA_STACK_PROTECTOR),y)
 ta-stackp-cflags-$(CFG_TA_STACK_PROTECTOR) := -fstack-protector
 ta-stackp-cflags-$(CFG_TA_STACK_PROTECTOR_STRONG) := -fstack-protector-strong
 ta-stackp-cflags-$(CFG_TA_STACK_PROTECTOR_ALL) := -fstack-protector-all
+else
+ta-stackp-cflags-y := -fno-stack-protector
+endif
 $(sm)-platform-cflags += $(ta-stackp-cflags-y)
 
 ifeq ($(CFG_TA_MBEDTLS_SELF_TEST),y)
