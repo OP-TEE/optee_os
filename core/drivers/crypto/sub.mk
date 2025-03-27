@@ -15,3 +15,5 @@ subdirs-$(CFG_VERSAL_CRYPTO_DRIVER) += versal
 subdirs-$(CFG_HISILICON_CRYPTO_DRIVER) += hisilicon
 
 subdirs-$(CFG_IMX_ELE) += ele
+
+subdirs-$(CFG_MARVELL_CRYPTO_DRIVER) += marvell
