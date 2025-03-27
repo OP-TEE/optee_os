@@ -1,3 +1,5 @@
+srcs-$(CFG_CRYPTO_DRV_AUTHENC) += authenc.c
+
 ifeq ($(CFG_MARVELL_EHSM_CRYPTO),y)
 srcs-y += mrvl_ehsm_cryp.c
 
