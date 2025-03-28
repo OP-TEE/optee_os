@@ -20,17 +20,7 @@
 #include <stddef.h>
 
 #if defined(__ARM_NEON)
-/*
- * Undefine and restore __section and __data from compiler.h to prevent
- * collision with arm_neon.h
- */
-#pragma push_macro("__section")
-#pragma push_macro("__data")
-#undef __section
-#undef __data
 #include <arm_neon.h>
-#pragma pop_macro("__data")
-#pragma pop_macro("__section")
 #define MBEDTLS_HAVE_NEON_INTRINSICS
 #elif defined(MBEDTLS_PLATFORM_IS_WINDOWS_ON_ARM64)
 #include <arm64_neon.h>
@@ -209,13 +199,11 @@ static inline void mbedtls_xor(unsigned char *r,
         uint8x16_t x = veorq_u8(v1, v2);
         vst1q_u8(r + i, x);
     }
-#if defined(__IAR_SYSTEMS_ICC__) || defined(MBEDTLS_COMPILER_IS_GCC)
+#if defined(__IAR_SYSTEMS_ICC__)
     /* This if statement helps some compilers (e.g., IAR) optimise out the byte-by-byte tail case
      * where n is a constant multiple of 16.
      * For other compilers (e.g. recent gcc and clang) it makes no difference if n is a compile-time
-     * constant, and is a very small perf regression if n is not a compile-time constant.
-     * GCC 14.2 outputs a warning "array subscript 48 is outside array bounds" if we don't return
-     * early. */
+     * constant, and is a very small perf regression if n is not a compile-time constant. */
     if (n % 16 == 0) {
         return;
     }
