@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 CHECKPATCH="${CHECKPATCH:-checkpatch.pl}"
 CHECKPATCH_OPT="${CHECKPATCH_OPT:-}"
