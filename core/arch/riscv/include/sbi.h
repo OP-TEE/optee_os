@@ -54,6 +54,16 @@ enum sbi_ext_dbcn_fid {
 	SBI_EXT_DBCN_CONSOLE_WRITE_BYTE = 2,
 };
 
+enum sbi_hsm_hart_state {
+	SBI_HSM_STATE_STARTED = 0,
+	SBI_HSM_STATE_STOPPED,
+	SBI_HSM_STATE_START_PENDING,
+	SBI_HSM_STATE_STOP_PENDING,
+	SBI_HSM_STATE_SUSPENDED,
+	SBI_HSM_STATE_SUSPEND_PENDING,
+	SBI_HSM_STATE_RESUME_PENDING,
+};
+
 #include <compiler.h>
 #include <encoding.h>
 #include <stdint.h>
@@ -65,6 +75,7 @@ int sbi_probe_extension(int extid);
 void sbi_console_putchar(int ch);
 int sbi_dbcn_write_byte(unsigned char ch);
 int sbi_hsm_hart_start(uint32_t hartid, paddr_t start_addr, unsigned long arg);
+int sbi_hsm_hart_get_status(uint32_t hartid, enum sbi_hsm_hart_state *status);
 
 #endif /*__ASSEMBLER__*/
 #endif /*defined(CFG_RISCV_SBI)*/

@@ -24,6 +24,8 @@ DEFINES
 	DEFINE(THREAD_CORE_LOCAL_SIZE, sizeof(struct thread_core_local));
 	DEFINE(THREAD_CORE_LOCAL_HART_ID,
 	       offsetof(struct thread_core_local, hart_id));
+	DEFINE(THREAD_CORE_LOCAL_HART_INDEX,
+	       offsetof(struct thread_core_local, hart_index));
 	DEFINE(THREAD_CORE_LOCAL_TMP_STACK_VA_END,
 	       offsetof(struct thread_core_local, tmp_stack_va_end));
 	DEFINE(THREAD_CORE_LOCAL_CURR_THREAD,
