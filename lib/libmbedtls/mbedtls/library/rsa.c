@@ -48,8 +48,6 @@
 
 #include "mbedtls/platform.h"
 
-#include <fault_mitigation.h>
-
 /*
  * Wrapper around mbedtls_asn1_get_mpi() that rejects zero.
  *
@@ -1958,10 +1956,7 @@ int mbedtls_rsa_rsaes_oaep_decrypt(mbedtls_rsa_context *ctx,
     /*
      * RSA operation
      */
-    if( ctx->P.n == 0 )
-        ret = mbedtls_rsa_private( ctx, NULL, NULL, input, buf );
-    else
-        ret = mbedtls_rsa_private(ctx, f_rng, p_rng, input, buf);
+    ret = mbedtls_rsa_private(ctx, f_rng, p_rng, input, buf);
 
     if (ret != 0) {
         goto cleanup;
@@ -2221,9 +2216,6 @@ static int rsa_rsassa_pss_sign_no_mode_check(mbedtls_rsa_context *ctx,
 
     p += hlen;
     *p++ = 0xBC;
-
-    if (ctx->P.n == 0)
-        return mbedtls_rsa_private(ctx, NULL, NULL, sig, sig);
 
     return mbedtls_rsa_private(ctx, f_rng, p_rng, sig, sig);
 }
@@ -2642,7 +2634,7 @@ int mbedtls_rsa_rsassa_pss_verify_ext(mbedtls_rsa_context *ctx,
         return ret;
     }
 
-    if (FTMN_CALLEE_DONE_MEMCMP(memcmp, hash_start, result, hlen) != 0) {
+    if (memcmp(hash_start, result, hlen) != 0) {
         return MBEDTLS_ERR_RSA_VERIFY_FAILED;
     }
 
@@ -2724,8 +2716,8 @@ int mbedtls_rsa_rsassa_pkcs1_v15_verify(mbedtls_rsa_context *ctx,
      * Compare
      */
 
-    if ((ret = FTMN_CALLEE_DONE_MEMCMP(mbedtls_ct_memcmp, encoded,
-                                       encoded_expected, sig_len )) != 0) {
+    if ((ret = mbedtls_ct_memcmp(encoded, encoded_expected,
+                                 sig_len)) != 0) {
         ret = MBEDTLS_ERR_RSA_VERIFY_FAILED;
         goto cleanup;
     }

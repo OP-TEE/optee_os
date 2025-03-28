@@ -382,10 +382,6 @@ static const mbedtls_ecp_curve_info ecp_supported_curves[] =
 #if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
     { MBEDTLS_ECP_DP_CURVE448,     30,     448,    "x448"              },
 #endif
-#if defined(MBEDTLS_ECP_DP_SM2_ENABLED)
-    /* https://tools.ietf.org/id/draft-yang-tls-tls13-sm-suites-05.html */
-    { MBEDTLS_ECP_DP_SM2,          41,     256,    "sm2"               },
-#endif
     { MBEDTLS_ECP_DP_NONE,          0,     0,      NULL                },
 };
 
@@ -2916,7 +2912,7 @@ int mbedtls_ecp_muladd(mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
 
 #if defined(MBEDTLS_ECP_MONTGOMERY_ENABLED)
 #if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED)
-#define ECP_MPI_INIT(_p, _n) { .p = (mbedtls_mpi_uint *) (_p), .s = 1, .n = (_n), .use_mempool = 0 }
+#define ECP_MPI_INIT(_p, _n) { .p = (mbedtls_mpi_uint *) (_p), .s = 1, .n = (_n) }
 #define ECP_MPI_INIT_ARRAY(x)   \
     ECP_MPI_INIT(x, sizeof(x) / sizeof(mbedtls_mpi_uint))
 /*
@@ -3060,7 +3056,7 @@ int mbedtls_ecp_check_privkey(const mbedtls_ecp_group *grp,
         /* see RFC 7748 sec. 5 para. 5 */
         if (mbedtls_mpi_get_bit(d, 0) != 0 ||
             mbedtls_mpi_get_bit(d, 1) != 0 ||
-            mbedtls_mpi_bitlen(d) - 1 != grp->nbits) {  /* mbedtls_mpi_bitlen is one-based! */
+            mbedtls_mpi_bitlen(d) != grp->nbits + 1) {  /* mbedtls_mpi_bitlen is one-based! */
             return MBEDTLS_ERR_ECP_INVALID_KEY;
         }
 
