@@ -30,6 +30,7 @@ $(call force,CFG_DT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_HALT_CORES_ON_PANIC_SGI,15)
 $(call force,CFG_INIT_CNTVOFF,y)
+$(call force,CFG_SCMI_SCPFW_PRODUCT,stm32mp2)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_STM32_SHARED_IO,y)
 $(call force,CFG_STM32_STGEN,y)
@@ -71,6 +72,11 @@ CFG_STM32_SERC ?= y
 CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
 
+CFG_SCMI_PTA ?= y
+CFG_SCMI_SCPFW ?= n
+CFG_SCMI_SCPFW_FROM_DT ?= y
+CFG_SCMI_SERVER_CLOCK_CONSUMER ?= y
+CFG_SCMI_SERVER_RESET_CONSUMER ?= y
 # Default enable some test facitilites
 CFG_ENABLE_EMBEDDED_TESTS ?= y
 CFG_WITH_STATS ?= y

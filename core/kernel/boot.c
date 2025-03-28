@@ -141,7 +141,18 @@ void discover_nsec_memory(void)
 			return;
 		}
 
-		DMSG("No non-secure memory found in FDT");
+		DMSG("No non-secure memory found in external DT");
+	}
+
+	fdt = get_embedded_dt();
+	if (fdt) {
+		mem = get_nsec_memory(fdt, &nelems);
+		if (mem) {
+			core_mmu_set_discovered_nsec_ddr(mem, nelems);
+			return;
+		}
+
+		DMSG("No non-secure memory found in embedded DT");
 	}
 
 	mem_begin = phys_ddr_overall_begin;
