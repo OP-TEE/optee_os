@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # SPDX-License-Identifier: BSD-2-Clause
 
 EC_CURVES="prime192v1 secp224r1 prime256v1 secp384r1 secp521r1"
