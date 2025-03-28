@@ -855,6 +855,7 @@ endif
 
 ifneq ($(CFG_STMM_PATH),)
 $(call force,CFG_WITH_STMM_SP,y)
+$(call force,CFG_EFILIB,y)
 else
 CFG_WITH_STMM_SP ?= n
 endif
