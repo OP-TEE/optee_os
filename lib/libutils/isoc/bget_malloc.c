@@ -85,9 +85,10 @@
 #include <pta_stats.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib_ext.h>
 #include <stdlib.h>
+#include <stdlib_ext.h>
 #include <string.h>
+#include <string_ext.h>
 #include <trace.h>
 #include <util.h>
 
@@ -798,13 +799,46 @@ void raw_malloc_init_ctx(struct malloc_ctx *ctx)
 	ctx->poolset.freelist.ql.blink = &ctx->poolset.freelist;
 }
 
+static bool merge_pools(struct bpoolset *poolset, void *pool, void *next_pool)
+{
+	struct bfhead *b = pool;
+	struct bfhead *b_next = next_pool;
+	bufsize bs = 0;
+
+	/* The pointers should be the first block of each pool */
+	assert(b->bh.prevfree == 0);
+	assert(b_next->bh.prevfree == 0);
+
+	/* Find the end sentinel for the pool */
+	while (b->bh.bsize != ESent) {
+		bs = b->bh.bsize;
+		if (bs < 0)
+			bs = -bs;
+		b = BFH((char *)b + bs);
+	}
+
+	/*
+	 * The next pool must follow directly after the end sentinel or we
+	 * can't merge the two pools.
+	 */
+	if (b + 1 != b_next)
+		return false;
+
+	/* Turn the end sentinel into a normal allocated block and free it */
+	b->bh.bsize = (char *)b - (char *)b_next;
+	brel(BH(b) + 1, poolset, false);
+
+	return true;
+}
+
 void raw_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
 {
-	const size_t min_len = sizeof(struct bhead) + sizeof(struct bfhead);
+	const size_t min_len = sizeof(struct bfhead) * 2;
 	uintptr_t start = (uintptr_t)buf;
 	uintptr_t end = start + len;
 	void *p = NULL;
 	size_t l = 0;
+	size_t n = 0;
 
 	start = ROUNDUP(start, SizeQuant);
 	end = ROUNDDOWN(end, SizeQuant);
@@ -822,16 +856,43 @@ void raw_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
 
 	tag_asan_free((void *)start, end - start);
 	bpool((void *)start, end - start, &ctx->poolset);
+
 	l = ctx->pool_len + 1;
 	p = realloc_unlocked(ctx, ctx->pool, sizeof(struct malloc_pool) * l);
 	assert(p);
 	ctx->pool = p;
-	ctx->pool[ctx->pool_len].buf = (void *)start;
-	ctx->pool[ctx->pool_len].len = end - start;
+
+	/*
+	 * The list of pools is sorted by the start address of the pool.
+	 * Find the spot to insert the pool.
+	 */
+	for (n = 0; n < ctx->pool_len; n++)
+		if ((void *)start < ctx->pool[n].buf)
+			break;
+
+	ins_array_elem(ctx->pool, l, sizeof(*ctx->pool), n, NULL);
+	ctx->pool[n].buf = (void *)start;
+	ctx->pool[n].len = end - start;
 #ifdef BufStats
 	ctx->mstats.size += ctx->pool[ctx->pool_len].len;
 #endif
 	ctx->pool_len = l;
+
+	/*
+	 * Check if we can merge any of the pools.
+	 */
+	for (n = 1; n < ctx->pool_len; n++) {
+		if ((char *)ctx->pool[n - 1].buf + ctx->pool[n - 1].len !=
+		    ctx->pool[n].buf)
+			continue;
+		if (!merge_pools(&ctx->poolset, ctx->pool[n - 1].buf,
+				 ctx->pool[n].buf))
+			continue;
+		ctx->pool[n - 1].len += ctx->pool[n].len;
+		rem_array_elem(ctx->pool, ctx->pool_len, sizeof(*ctx->pool), n);
+		ctx->pool_len--;
+		n--;
+	}
 }
 
 bool raw_malloc_buffer_overlaps_heap(struct malloc_ctx *ctx,

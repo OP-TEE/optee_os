@@ -1125,7 +1125,7 @@ void bpool(buf, len, poolset)
        it  had	better	not  be  (much) larger than the largest buffer
        whose size we can store in bhead.bsize. */
 
-    assert(len - sizeof(struct bhead) <= -((bufsize) ESent + 1));
+    assert(len - sizeof(struct bfhead) <= -((bufsize) ESent + 1));
 
     /* Clear  the  backpointer at  the start of the block to indicate that
        there  is  no  free  block  prior  to  this   one.    That   blocks
@@ -1150,7 +1150,7 @@ void bpool(buf, len, poolset)
        routines (this specific value is  not  counted  on  by  the  actual
        allocation and release functions). */
 
-    len -= sizeof(struct bhead);
+    len -= sizeof(struct bfhead);
     b->bh.bsize = (bufsize) len;
 #ifdef FreeWipe
     V memset_unchecked(((char *) b) + sizeof(struct bfhead), 0x55,
