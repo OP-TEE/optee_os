@@ -111,7 +111,7 @@ void __utee_tcb_init(void)
 		return;
 
 	/* (Re-)allocate the TCB */
-	_tcb = realloc(_tcb, TCB_SIZE(total_size));
+	_tcb = malloc_flags(MAF_ZERO_INIT, _tcb, 1, TCB_SIZE(total_size));
 	if (!_tcb) {
 		EMSG("TCB allocation failed (%zu bytes)", TCB_SIZE(total_size));
 		abort();
@@ -119,7 +119,7 @@ void __utee_tcb_init(void)
 
 	/* (Re-)allocate the DTV. + 1 since dtv[0] holds the size */
 	size = DTV_SIZE((__elf_phdr_info.count + 1) * sizeof(union dtv));
-	_tcb->dtv = realloc(_tcb->dtv, size);
+	_tcb->dtv = malloc_flags(MAF_ZERO_INIT, _tcb->dtv, 1, size);
 	if (!_tcb->dtv) {
 		EMSG("DTV allocation failed (%zu bytes)", size);
 		abort();
