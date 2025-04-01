@@ -372,7 +372,8 @@ int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 	return 0;
 }
 
-#if defined(CFG_MX93) || defined(CFG_MX91) || defined(CFG_MX95)
+#if defined(CFG_MX93) || defined(CFG_MX91) || defined(CFG_MX95) || \
+	defined(CFG_MX943)
 static TEE_Result imx_ele_derive_key(const uint8_t *ctx, size_t ctx_size,
 				     uint8_t *key, size_t key_size)
 {
