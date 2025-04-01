@@ -228,7 +228,7 @@ CFG_TEE_CORE_NB_CORE ?= 2
 $(call force,CFG_NXP_SNVS,n)
 $(call force,CFG_IMX_OCOTP,n)
 CFG_IMX_MU ?= y
-CFG_IMX_ELE ?= y
+CFG_IMX_ELE ?= n
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx93-flavorlist)))
 $(call force,CFG_MX93,y)
 $(call force,CFG_ARM64_core,y)
