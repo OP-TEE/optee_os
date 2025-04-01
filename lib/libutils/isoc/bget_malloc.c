@@ -418,9 +418,9 @@ static bool bpool_foreach(struct malloc_ctx *ctx,
 	for (bpool_foreach_iterator_init((ctx),(iterator));   \
 	     bpool_foreach((ctx),(iterator), (bp));)
 
-static void *raw_mem_alloc(uint32_t flags, void *ptr, size_t hdr_size,
-			   size_t ftr_size, size_t alignment, size_t pl_nmemb,
-			   size_t pl_size, struct malloc_ctx *ctx)
+void *raw_malloc_flags(uint32_t flags, void *ptr, size_t hdr_size,
+		       size_t ftr_size, size_t alignment, size_t pl_nmemb,
+		       size_t pl_size, struct malloc_ctx *ctx)
 {
 	void *p = NULL;
 	bufsize s = 0;
@@ -469,15 +469,15 @@ out:
 void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
 		   size_t pl_size, struct malloc_ctx *ctx)
 {
-	return raw_mem_alloc(MAF_NULL, NULL, hdr_size, ftr_size, alignment, 1,
-			     pl_size, ctx);
+	return raw_malloc_flags(MAF_NULL, NULL, hdr_size, ftr_size, alignment,
+				1, pl_size, ctx);
 }
 
 void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size,
 		 struct malloc_ctx *ctx)
 {
-	return raw_mem_alloc(MAF_NULL, NULL, hdr_size, ftr_size, 1, 1,
-			     pl_size, ctx);
+	return raw_malloc_flags(MAF_NULL, NULL, hdr_size, ftr_size, 1, 1,
+				pl_size, ctx);
 }
 
 void raw_free(void *ptr, struct malloc_ctx *ctx, bool wipe)
@@ -491,15 +491,15 @@ void raw_free(void *ptr, struct malloc_ctx *ctx, bool wipe)
 void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 		 size_t pl_size, struct malloc_ctx *ctx)
 {
-	return raw_mem_alloc(MAF_ZERO_INIT, NULL, hdr_size, ftr_size, 1,
-			     pl_nmemb, pl_size, ctx);
+	return raw_malloc_flags(MAF_ZERO_INIT, NULL, hdr_size, ftr_size, 1,
+				pl_nmemb, pl_size, ctx);
 }
 
 void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 		  size_t pl_size, struct malloc_ctx *ctx)
 {
-	return raw_mem_alloc(MAF_NULL, ptr, hdr_size, ftr_size, 1, 1,
-			     pl_size, ctx);
+	return raw_malloc_flags(MAF_NULL, ptr, hdr_size, ftr_size, 1, 1,
+				pl_size, ctx);
 }
 
 struct mdbg_hdr {
@@ -576,8 +576,8 @@ static void *mem_alloc_unlocked(uint32_t flags, void *ptr, size_t alignment,
 		ptr = hdr;
 	}
 
-	ptr = raw_mem_alloc(flags, ptr, hdr_size, ftr_size, alignment, nmemb,
-			    size, ctx);
+	ptr = raw_malloc_flags(flags, ptr, hdr_size, ftr_size, alignment, nmemb,
+			       size, ctx);
 
 	if (IS_ENABLED2(ENABLE_MDBG) && ptr) {
 		hdr = ptr;
