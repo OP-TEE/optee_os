@@ -452,8 +452,7 @@ void *raw_malloc_flags(uint32_t flags, void *ptr, size_t hdr_size,
 
 		if (old_sz < new_sz) {
 			memcpy_unchecked(p, old_ptr, old_sz);
-			/* User space reallocations are always zeroed */
-			if (!IS_ENABLED2(__KERNEL__) || (flags & MAF_ZERO_INIT))
+			if (flags & MAF_ZERO_INIT)
 				memset_unchecked((uint8_t *)p + old_sz, 0,
 						 new_sz - old_sz);
 		} else {
