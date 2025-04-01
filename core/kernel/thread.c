@@ -538,7 +538,6 @@ vaddr_t __nostackcheck thread_get_abt_stack(void)
 	return GET_STACK_BOTTOM(stack_abt, get_core_pos());
 }
 
-#ifdef CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL
 void thread_init_thread_core_local(void)
 {
 	struct thread_core_local *tcl = thread_core_local;
@@ -562,31 +561,6 @@ void thread_init_thread_core_local(void)
 			init_canaries(STACK_ABT_SIZE, va);
 	}
 }
-#else
-void __nostackcheck thread_init_thread_core_local(void)
-{
-	size_t n = 0;
-	struct thread_core_local *tcl = thread_core_local;
-
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
-		tcl[n].curr_thread = THREAD_ID_INVALID;
-		tcl[n].flags = THREAD_CLF_TMP;
-	}
-	tcl[0].tmp_stack_va_end = GET_STACK_BOTTOM(stack_tmp, 0);
-}
-
-void __nostackcheck thread_init_core_local_stacks(void)
-{
-	size_t n = 0;
-	struct thread_core_local *tcl = thread_core_local;
-
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
-		tcl[n].tmp_stack_va_end = GET_STACK_BOTTOM(stack_tmp, n) -
-					  STACK_TMP_OFFS;
-		tcl[n].abt_stack_va_end = GET_STACK_BOTTOM(stack_abt, n);
-	}
-}
-#endif /*CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL*/
 
 #if defined(CFG_CORE_PAUTH)
 void thread_init_thread_pauth_keys(void)
