@@ -652,14 +652,23 @@ static uint64_t *core_mmu_xlat_table_alloc(struct mmu_partition *prtn)
 			tee_mm_entry_t *mm = NULL;
 			paddr_t pa = 0;
 
-			if (prtn == get_prtn()) {
-				mm = phys_mem_core_alloc(XLAT_TABLE_SIZE);
-				if (!mm)
-					EMSG("Phys mem exhausted");
-			} else {
+			/*
+			 * The default_partition only has a physical memory
+			 * pool for the nexus when virtualization is
+			 * enabled. We should use the nexus physical memory
+			 * pool if we're allocating memory for another
+			 * partition than our own.
+			 */
+			if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+			    (prtn == &default_partition ||
+			     prtn != get_prtn())) {
 				mm = nex_phys_mem_core_alloc(XLAT_TABLE_SIZE);
 				if (!mm)
 					EMSG("Phys nex mem exhausted");
+			} else {
+				mm = phys_mem_core_alloc(XLAT_TABLE_SIZE);
+				if (!mm)
+					EMSG("Phys mem exhausted");
 			}
 			if (!mm)
 				return NULL;
@@ -784,6 +793,50 @@ static bool core_mmu_entry_copy(struct core_mmu_table_info *tbl_info,
 	return true;
 }
 
+static void share_region(struct mmu_partition *dst_prtn,
+			 struct mmu_partition *src_prtn,
+			 struct tee_mmap_region *mm)
+{
+	unsigned int level = CORE_MMU_PGDIR_LEVEL - 1;
+	struct core_mmu_table_info dst_ti = { };
+	struct core_mmu_table_info src_ti = { };
+	struct tee_mmap_region dummy_mm = *mm;
+	unsigned int idx = 0;
+	uint32_t attr = 0;
+	paddr_t pa = 0;
+	vaddr_t va = 0;
+
+	dummy_mm.region_size = CORE_MMU_PGDIR_SIZE;
+	core_mmu_map_region(dst_prtn, &dummy_mm);
+
+	/*
+	 * Assign the PGDIR translation tables used in the src_prtn for the
+	 * memory region into the same virtual address in the dst_prtn.
+	 * This is used to share dynamic nexus mappings between partitions.
+	 */
+	for (va = mm->va; va < mm->va + mm->size - 1;
+	     va += CORE_MMU_PGDIR_SIZE) {
+		/*
+		 * The loop is typically only one iteration so there's no
+		 * need to try to be clever with the table lookup.
+		 */
+		if (!core_mmu_find_table(src_prtn, va, level, &src_ti))
+			panic("can't find src table for mapping");
+		if (!core_mmu_find_table(dst_prtn, va, level, &dst_ti))
+			panic("can't find dst table for mapping");
+
+		/*
+		 * If two mmap regions share the same table we'll overwrite
+		 * the value with the same value. This doesn't happen often
+		 * enough that it's worth trying to be clever about when to
+		 * write.
+		 */
+		idx = core_mmu_va2idx(&src_ti, va);
+		core_mmu_get_entry(&src_ti, idx, &pa, &attr);
+		core_mmu_set_entry(&dst_ti, idx, pa, attr);
+	}
+}
+
 static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 				   struct memory_map *mem_map)
 {
@@ -803,8 +856,14 @@ static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 	/* Clear table before use */
 	memset(prtn->base_tables, 0, BASE_TABLE_SIZE * CFG_TEE_CORE_NB_CORE);
 
-	for (n = 0; n < mem_map->count; n++)
-		core_mmu_map_region(prtn, mem_map->map + n);
+	for (n = 0; n < mem_map->count; n++) {
+		if (core_mmu_type_is_nex_shared(mem_map->map[n].type) &&
+		    prtn != &default_partition)
+			share_region(prtn, &default_partition,
+				     mem_map->map + n);
+		else
+			core_mmu_map_region(prtn, mem_map->map + n);
+	}
 
 	/*
 	 * Primary mapping table is ready at index `get_core_pos()`

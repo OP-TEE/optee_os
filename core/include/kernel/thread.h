@@ -61,20 +61,30 @@ static inline void thread_update_canaries(void) { }
 struct thread_core_local *thread_get_core_local(void);
 
 /*
+ * thread_init_threads() - Initialize threads
+ * @thread_count: Number of threads to configure
+ *
  * Initializes thread contexts. Called in thread_init_boot_thread() if
- * virtualization is disabled. Virtualization subsystem calls it for
- * every new guest otherwise.
+ * virtualization is disabled. Virtualization subsystem calls it for every
+ * new guest otherwise. @thread_count must be <= CFG_NUM_THREADS, and will
+ * initialize the number of threads to @thread_count if configured with
+ * CFG_DYN_STACK_CONFIG=y, else @thread_count must equal CFG_NUM_THREADS.
  */
-void thread_init_threads(void);
+void thread_init_threads(size_t thread_count);
 
 vaddr_t thread_get_abt_stack(void);
 
 /*
+ * thread_init_thread_core_local() - Initialize thread_core_local
+ * @core_count:	Number of cores in the system
+ *
  * Called by the init CPU. Sets temporary stack mode for all CPUs
- * (curr_thread = -1 and THREAD_CLF_TMP) and sets the temporary stack limit for
- * the init CPU.
+ * (curr_thread = -1 and THREAD_CLF_TMP) and sets the temporary stack limit
+ * for the init CPU. @core_count must be <= CFG_TEE_CORE_NB_CORE, and will
+ * set the number of supported cores to @core_count if configured with
+ * CFG_DYN_CONFIG=y, else @core_count must equal CFG_TEE_CORE_NB_CORE.
  */
-void thread_init_thread_core_local(void);
+void thread_init_thread_core_local(size_t core_count);
 void thread_init_core_local_stacks(void);
 
 #if defined(CFG_CORE_PAUTH)
