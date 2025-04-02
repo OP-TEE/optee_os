@@ -27,6 +27,7 @@ $(call force,CFG_TEE_CORE_NB_CORE,8)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_PL011,y)
 $(call force,CFG_GIC,y)
+$(call force,CFG_DT,y)
 
 CFG_CORE_RESERVED_SHM	?= n
 CFG_CORE_DYN_SHM	?= y
@@ -52,6 +53,14 @@ CFG_TZDRAM_SIZE    ?= 0x8000000
 # 0 : UART0[pl011, pl011_0] (default)
 # 1 : UART1[pl011_1]
 CFG_CONSOLE_UART ?= 0
+
+# PS GPIO Controller configuration.
+CFG_AMD_PS_GPIO ?= n
+
+ifeq ($(CFG_AMD_PS_GPIO),y)
+$(call force,CFG_MAP_EXT_DT_SECURE,y)
+$(call force,CFG_DRIVERS_GPIO,y)
+endif
 
 ifeq ($(CFG_ARM64_core),y)
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
