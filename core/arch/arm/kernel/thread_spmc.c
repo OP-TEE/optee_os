@@ -168,15 +168,6 @@ uint32_t spmc_exchange_version(uint32_t vers, struct ffa_rxtx *rxtx)
 	uint32_t my_major_vers = 0;
 	uint32_t my_minor_vers = 0;
 
-	/*
-	 * Holding back the FF-A version if we use Xen or S-EL0 SPs.
-	 * - Xen doesn't handle negotiating with version 1.2.
-	 * - S-EL0 SPs are limited to x0-x7 for normal world requests.
-	 * We'll remove this when the obstacles are cleared.
-	 */
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
-		my_vers = FFA_VERSION_1_1;
-
 	my_major_vers = FFA_GET_MAJOR_VERSION(my_vers);
 	my_minor_vers = FFA_GET_MINOR_VERSION(my_vers);
 
