@@ -269,8 +269,8 @@ cleanfiles := $$(cleanfiles) $2 \
 		$$(dtb-predts-$2) $$(dtb-predep-$2) \
 		$$(dtb-dep-$2) $$(dtb-cmd-file-$2)
 
-dtb-cppflags-$2 := -Icore/include/ -x assembler-with-cpp -undef -D__DTS__ \
-		   -E -ffreestanding $$(CPPFLAGS) \
+dtb-cppflags-$2 := -Icore/include/ -I$(arch-dir)/dts -x assembler-with-cpp \
+		   -undef -D__DTS__ -E -ffreestanding $$(CPPFLAGS) \
 		   -MD -MF $$(dtb-predep-$2) -MT $$(dtb-predts-$2)
 
 dtb-dtcflags-$2	:= $$(DTC_FLAGS) -I dts -O dtb -Wno-unit_address_vs_reg \
