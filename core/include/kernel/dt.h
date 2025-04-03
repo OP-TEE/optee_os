@@ -320,15 +320,17 @@ int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 /*
  * init_manifest_dt() - Initialize the manifest DTB to given address.
  * @fdt:	Physical address where the manifest DTB located.
+ * @max_size:	Maximum size of the DTB
  *
  * Initialize the manifest DTB to physical address
  */
-void init_manifest_dt(void *fdt);
+void init_manifest_dt(void *fdt, size_t max_size);
 
 /*
  * reinit_manifest_dt() - Reinitialize the manifest DTB
  *
- * Add MMU mapping of the manifest DTB and initialize device tree overlay
+ * Reserve used physical memory, add MMU mapping of the manifest DTB, and
+ * initialize device tree overlay
  */
 void reinit_manifest_dt(void);
 
@@ -492,7 +494,8 @@ static inline int add_res_mem_dt_node(struct dt_descriptor *dt __unused,
 	return -1;
 }
 
-static inline void init_manifest_dt(void *fdt __unused)
+static inline void init_manifest_dt(void *fdt __unused,
+				    size_t max_size __unused)
 {
 }
 
