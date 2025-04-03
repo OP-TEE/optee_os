@@ -1316,7 +1316,8 @@ static void *get_fdt_from_boot_info(struct ffa_boot_info_header_1_1 *hdr)
 	return fdt;
 }
 
-static void get_sec_mem_from_manifest(void *fdt, paddr_t *base, size_t *size)
+static void get_sec_mem_from_manifest(void *fdt, paddr_t *base,
+				      paddr_size_t *size)
 {
 	int ret = 0;
 	uint64_t num = 0;
@@ -1411,20 +1412,30 @@ void __weak boot_save_args(unsigned long a0, unsigned long a1,
 	}
 
 	if (IS_ENABLED(CFG_CORE_FFA)) {
+		size_t fdt_max_size = CFG_DTB_MAX_SIZE;
+		void *fdt = NULL;
+
 		if (IS_ENABLED(CFG_CORE_SEL2_SPMC) ||
 		    IS_ENABLED(CFG_CORE_EL3_SPMC))
-			init_manifest_dt(get_fdt_from_boot_info((void *)a0));
+			fdt = get_fdt_from_boot_info((void *)a0);
 		else
-			init_manifest_dt((void *)a0);
-		if (IS_ENABLED(CFG_CORE_SEL2_SPMC) &&
-		    IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE)) {
+			fdt = (void *)a0;
+		if (IS_ENABLED(CFG_CORE_SEL2_SPMC)) {
+			paddr_size_t size = 0;
 			paddr_t base = 0;
-			size_t size = 0;
 
-			get_sec_mem_from_manifest(get_manifest_dt(),
-						  &base, &size);
-			core_mmu_set_secure_memory(base, size);
+			if (IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE)) {
+				get_sec_mem_from_manifest(fdt, &base, &size);
+				core_mmu_set_secure_memory(base, size);
+			} else {
+				core_mmu_get_secure_memory(&base, &size);
+			}
+			assert((unsigned long)fdt >= base);
+			assert((unsigned long)fdt <= base + size);
+			assert((unsigned long)fdt < VCORE_START_VA);
+			fdt_max_size = VCORE_START_VA - (unsigned long)fdt;
 		}
+		init_manifest_dt(fdt, fdt_max_size);
 	} else {
 		if (IS_ENABLED(CFG_WITH_PAGER)) {
 #if defined(CFG_PAGEABLE_ADDR)
