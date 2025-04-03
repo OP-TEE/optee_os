@@ -221,6 +221,23 @@ UNWIND(	.cantunwind)
 	sw	a0, THREAD_CORE_LOCAL_FLAGS(s3)
 	mv	sp, s2
 
+#ifdef _CFG_CORE_STACK_PROTECTOR
+	/* Update stack canary value */
+	addi	sp, sp, -STACK_ALIGNMENT
+	mv	a0, sp
+	li	a1, 1
+#ifdef RV32
+	li	a2, 4
+#else
+	li	a2, 8
+#endif
+	jal	plat_get_random_stack_canaries
+	LDR	s0, 0(sp)
+	la	s1, __stack_chk_guard
+	STR	s0, 0(s1)
+	addi	sp, sp, STACK_ALIGNMENT
+#endif
+
 	cpu_is_ready
 	flush_cpu_semaphores
 	wait_secondary

@@ -111,6 +111,9 @@ void init_tee_runtime(void)
 	call_preinitcalls();
 	call_early_initcalls();
 	call_service_initcalls();
+
+	/* Reinitialize canaries around the stacks with crypto_rng_read(). */
+	thread_update_canaries();
 }
 
 static bool add_padding_to_pool(vaddr_t va, size_t len, void *ptr __unused)
