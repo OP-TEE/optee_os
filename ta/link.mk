@@ -88,7 +88,7 @@ define gen-link-t
 $(link-script-pp$(sm)): $(link-script$(sm)) $(conf-file) $(link-script-pp-makefiles$(sm))
 	@$(cmd-echo-silent) '  CPP     $$@'
 	$(q)mkdir -p $$(dir $$@)
-	$(q)$(CPP$(sm)) -P -MT $$@ -MD -MF $(link-script-dep$(sm)) \
+	$(q)$(CPP$(sm)) -P -MT $$@ -MD -MP -MF $(link-script-dep$(sm)) \
 		$(link-script-cppflags-$(sm)) $$< -o $$@
 
 $(link-out-dir$(sm))/$(user-ta-uuid).elf: $(objs) $(libdeps) \
