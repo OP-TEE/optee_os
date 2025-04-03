@@ -12,6 +12,7 @@
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/phys_mem.h>
 #include <stdio.h>
 #include <string.h>
 #include <trace.h>
@@ -20,6 +21,7 @@ static struct dt_descriptor external_dt __nex_bss;
 
 #if defined(CFG_CORE_FFA)
 static void *manifest_dt __nex_bss;
+static size_t manifest_max_size __nex_bss;
 #endif
 
 const struct dt_driver *dt_find_compatible_driver(const void *fdt, int offs)
@@ -972,29 +974,44 @@ int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 }
 
 #if defined(CFG_CORE_FFA)
-void init_manifest_dt(void *fdt)
+void init_manifest_dt(void *fdt, size_t max_size)
 {
 	manifest_dt = fdt;
+	manifest_max_size = max_size;
 }
 
 void reinit_manifest_dt(void)
 {
-	paddr_t pa = (unsigned long)manifest_dt;
+	paddr_t end_pa = 0;
 	void *fdt = NULL;
+	paddr_t pa = 0;
 	int ret = 0;
 
-	if (!pa) {
+	if (!manifest_dt) {
 		EMSG("No manifest DT found");
 		return;
 	}
 
-	fdt = core_mmu_add_mapping(MEM_AREA_MANIFEST_DT, pa, CFG_DTB_MAX_SIZE);
+	if (IS_ENABLED(CFG_CORE_SEL2_SPMC)) {
+		pa = (unsigned long)manifest_dt;
+		end_pa = pa + manifest_max_size;
+		pa = ROUNDDOWN(pa, SMALL_PAGE_SIZE);
+		end_pa = ROUNDUP(end_pa, SMALL_PAGE_SIZE);
+		if (!phys_mem_alloc2(pa, end_pa - pa)) {
+			EMSG("Failed to reserve manifest DT physical memory %#"PRIxPA"..%#"PRIxPA" len %#zx",
+			     pa, end_pa - 1, end_pa - pa);
+			panic();
+		}
+	}
+
+	pa = (unsigned long)manifest_dt;
+	fdt = core_mmu_add_mapping(MEM_AREA_MANIFEST_DT, pa, manifest_max_size);
 	if (!fdt)
 		panic("Failed to map manifest DT");
 
 	manifest_dt = fdt;
 
-	ret = fdt_check_full(fdt, CFG_DTB_MAX_SIZE);
+	ret = fdt_check_full(fdt, manifest_max_size);
 	if (ret < 0) {
 		EMSG("Invalid manifest Device Tree at %#lx: error %d", pa, ret);
 		panic();
@@ -1010,20 +1027,28 @@ void *get_manifest_dt(void)
 
 static TEE_Result release_manifest_dt(void)
 {
+	paddr_t pa = 0;
+
 	if (!manifest_dt)
 		return TEE_SUCCESS;
 
+	if (IS_ENABLED(CFG_CORE_SEL2_SPMC))
+		pa = virt_to_phys(manifest_dt);
+
 	if (core_mmu_remove_mapping(MEM_AREA_MANIFEST_DT, manifest_dt,
-				    CFG_DTB_MAX_SIZE))
+				    manifest_max_size))
 		panic("Failed to remove temporary manifest DT mapping");
 	manifest_dt = NULL;
+
+	if (IS_ENABLED(CFG_CORE_SEL2_SPMC))
+		tee_mm_free(phys_mem_mm_find(pa));
 
 	return TEE_SUCCESS;
 }
 
 boot_final(release_manifest_dt);
 #else
-void init_manifest_dt(void *fdt __unused)
+void init_manifest_dt(void *fdt __unused, size_t max_size __unused)
 {
 }
 
