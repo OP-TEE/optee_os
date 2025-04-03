@@ -48,7 +48,7 @@ cleanfiles += $(link-script-pp) $(link-script-dep)
 $(link-script-pp): $(link-script) $(link-script-extra-deps)
 	@$(cmd-echo-silent) '  CPP     $@'
 	@mkdir -p $(dir $@)
-	$(q)$(CPPcore) -P -MT $@ -MD -MF $(link-script-dep) \
+	$(q)$(CPPcore) -P -MT $@ -MD -MP -MF $(link-script-dep) \
 		$(link-script-cppflags) $< -o $@
 
 $(link-out-dir)/version.o:
