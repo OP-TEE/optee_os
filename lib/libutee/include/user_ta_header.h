@@ -52,8 +52,13 @@
 					BIT32(11)
 #define TA_FLAG_DEVICE_ENUM_TEE_STORAGE_PRIVATE	\
 					BIT32(12) /* with TEE_STORAGE_PRIVATE */
+/*
+ * Don't restart a TA with TA_FLAG_INSTANCE_KEEP_ALIVE set if it has
+ * crashed.
+ */
+#define TA_FLAG_INSTANCE_KEEP_CRASHED	BIT32(13)
 
-#define TA_FLAGS_MASK			GENMASK_32(12, 0)
+#define TA_FLAGS_MASK			GENMASK_32(13, 0)
 
 struct ta_head {
 	TEE_UUID uuid;
@@ -133,6 +138,7 @@ extern struct __elf_phdr_info __elf_phdr_info;
 #define TA_PROP_STR_SINGLE_INSTANCE	"gpd.ta.singleInstance"
 #define TA_PROP_STR_MULTI_SESSION	"gpd.ta.multiSession"
 #define TA_PROP_STR_KEEP_ALIVE		"gpd.ta.instanceKeepAlive"
+#define TA_PROP_STR_KEEP_CRASHED	"optee.ta.instanceKeepCrashed"
 #define TA_PROP_STR_DATA_SIZE		"gpd.ta.dataSize"
 #define TA_PROP_STR_STACK_SIZE		"gpd.ta.stackSize"
 #define TA_PROP_STR_VERSION		"gpd.ta.version"
