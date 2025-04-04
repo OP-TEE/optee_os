@@ -516,7 +516,7 @@ CFG_TRANSFER_LIST ?= n
 $(eval $(call cfg-enable-all-depends,CFG_TRANSFER_LIST, \
 	 CFG_DT CFG_EXTERNAL_DT CFG_MAP_EXT_DT_SECURE))
 
-CFG_TRANSFER_LIST_TEST ?= $(call cfg-all-enabled,CFG_TRANSFER_LIST)
+CFG_TRANSFER_LIST_TEST ?= $(CFG_TRANSFER_LIST)
 
 # Maximum size of the Device Tree Blob, has to be large enough to allow
 # editing of the supplied DTB.
