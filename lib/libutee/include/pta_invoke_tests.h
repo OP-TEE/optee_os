@@ -108,5 +108,10 @@
  */
 #define PTA_INVOKE_TESTS_CMD_DT_DRIVER_TESTS	11
 
+/*
+ * Retrieve results of the transfer list internal test
+ */
+#define PTA_INVOKE_TESTS_CMD_TRANSFER_LIST_TESTS	12
+
 #endif /*__PTA_INVOKE_TESTS_H*/
 

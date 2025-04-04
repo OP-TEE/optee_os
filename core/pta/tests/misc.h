@@ -37,4 +37,7 @@ TEE_Result core_aes_perf_tests(uint32_t param_types,
 TEE_Result core_dt_driver_tests(uint32_t param_types,
 				TEE_Param params[TEE_NUM_PARAMS]);
 
+TEE_Result core_transfer_list_tests(uint32_t nParamTypes,
+				    TEE_Param pParams[TEE_NUM_PARAMS]);
+
 #endif /*CORE_PTA_TESTS_MISC_H*/
