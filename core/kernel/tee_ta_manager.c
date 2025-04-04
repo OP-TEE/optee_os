@@ -455,6 +455,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	struct tee_ta_session *sess = NULL;
 	struct tee_ta_ctx *ctx = NULL;
 	struct ts_ctx *ts_ctx = NULL;
+	bool keep_crashed = false;
 	bool keep_alive = false;
 
 	DMSG("csess 0x%" PRIxVA " id %u",
@@ -501,9 +502,12 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 		panic();
 
 	ctx->ref_count--;
-	keep_alive = (ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE) &&
-			(ctx->flags & TA_FLAG_SINGLE_INSTANCE);
-	if (!ctx->ref_count && (ctx->panicked || !keep_alive)) {
+	if (ctx->flags & TA_FLAG_SINGLE_INSTANCE)
+		keep_alive = ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE;
+	if (keep_alive)
+		keep_crashed = ctx->flags & TA_FLAG_INSTANCE_KEEP_CRASHED;
+	if (!ctx->ref_count &&
+	    ((ctx->panicked && !keep_crashed) || !keep_alive)) {
 		if (!ctx->is_releasing) {
 			TAILQ_REMOVE(&tee_ctxes, ctx, link);
 			ctx->is_releasing = true;
