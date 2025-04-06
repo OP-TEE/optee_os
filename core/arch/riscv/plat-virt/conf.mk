@@ -26,11 +26,18 @@ CFG_TEE_CORE_NB_CORE ?= 1
 CFG_NUM_THREADS ?= 1
 $(call force,CFG_BOOT_SYNC_CPU,n)
 
+# Interrupt controller
+CFG_RISCV_PLIC ?= y
+CFG_RISCV_APLIC ?= n
+CFG_RISCV_APLIC_MSI ?= n
+CFG_RISCV_IMSIC ?= n
+
+# Console device
+CFG_RISCV_SBI_CONSOLE ?= n
+CFG_16550_UART ?= y
+
 $(call force,CFG_RISCV_M_MODE,n)
 $(call force,CFG_RISCV_S_MODE,y)
-$(call force,CFG_RISCV_PLIC,y)
-$(call force,CFG_SBI_CONSOLE,n)
-$(call force,CFG_16550_UART,y)
 $(call force,CFG_RISCV_TIME_SOURCE_RDTIME,y)
 CFG_RISCV_MTIME_RATE ?= 10000000
 CFG_RISCV_SBI ?= y

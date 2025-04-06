@@ -14,14 +14,17 @@
  * Override these in your platform code to really fetch device-unique
  * bits from e-fuses or whatever.
  *
- * The default implementation just sets it to a constant.
+ * The default implementation just sets it to a constant and cannot be
+ * used in a secure environment.
  */
 
+#ifdef CFG_INSECURE
 __weak TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
 	memset(&hwkey->data[0], 0, sizeof(hwkey->data));
 	return TEE_SUCCESS;
 }
+#endif
 
 __weak int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 {

@@ -7,10 +7,6 @@
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/rstctrl.h>
-#if defined(CFG_STM32MP15)
-#include <drivers/stm32_etzpc.h>
-#include <dt-bindings/firewall/stm32mp15-etzpc.h>
-#endif /* defined(CFG_STM32MP15) */
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>

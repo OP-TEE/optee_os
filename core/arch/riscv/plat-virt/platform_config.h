@@ -11,9 +11,6 @@
 #include <mm/generic_ram_layout.h>
 #include <riscv.h>
 
-/* The stack pointer is always kept 16-byte aligned */
-#define STACK_ALIGNMENT		16
-
 /* DRAM */
 #ifndef DRAM_BASE
 #define DRAM_BASE		0x80000000
@@ -30,6 +27,25 @@
 #define PLIC_BASE		0x0c000000
 #define PLIC_REG_SIZE		0x600000
 #define PLIC_NUM_SOURCES	0x5f
+#endif
+
+/* APLIC */
+#ifndef APLIC_BASE
+#define APLIC_BASE		0x0d000000
+#define APLIC_SIZE		0x8000
+#define APLIC_NUM_SOURCE	0x60
+#define APLIC_NUM_IDC		CFG_TEE_CORE_NB_CORE
+#endif
+
+/* IMSIC */
+#ifndef IMSIC_BASE
+#define IMSIC_BASE		0x28000000
+#define IMSIC_SIZE		0x4000000
+#define IMSIC_NUM_IDS		0xff
+#define IMSIC_GUEST_INDEX_BITS	0x00
+#define IMSIC_HART_INDEX_BITS	0x02
+#define IMSIC_GROUP_INDEX_BITS	0x00
+#define IMSIC_GROUP_INDEX_SHIFT	0x18
 #endif
 
 /* UART */

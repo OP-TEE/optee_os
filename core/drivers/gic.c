@@ -17,6 +17,7 @@
 #include <kernel/dt_driver.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
+#include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -44,6 +45,7 @@
 #define GICD_ICPENDR(n)		(0x280 + (n) * 4)
 #define GICD_IPRIORITYR(n)	(0x400 + (n) * 4)
 #define GICD_ITARGETSR(n)	(0x800 + (n) * 4)
+#define GICD_ICFGR(n)		(0xc00 + (n) * 4)
 #define GICD_IGROUPMODR(n)	(0xd00 + (n) * 4)
 #define GICD_SGIR		(0xF00)
 
@@ -123,6 +125,14 @@
 #define GICD_SGIR_NSATT_SHIFT			15
 #define GICD_SGIR_CPU_TARGET_LIST_SHIFT		16
 
+/* GICD ICFGR bit fields */
+#define GICD_ICFGR_TYPE_EDGE		2
+#define GICD_ICFGR_TYPE_LEVEL		0
+#define GICD_ICFGR_FIELD_BITS		2
+#define GICD_ICFGR_FIELD_MASK		0x3
+#define GICD_ICFGR_NUM_INTS_PER_REG	(NUM_INTS_PER_REG / \
+					 GICD_ICFGR_FIELD_BITS)
+
 struct gic_data {
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
@@ -138,9 +148,10 @@ struct gic_data {
 
 static bool gic_primary_done __nex_bss;
 static struct gic_data gic_data __nex_bss;
+static struct mutex gic_mutex = MUTEX_INITIALIZER;
 
-static void gic_op_add(struct itr_chip *chip, size_t it, uint32_t type,
-		       uint32_t prio);
+static void gic_op_configure(struct itr_chip *chip, size_t it, uint32_t type,
+			     uint32_t prio);
 static void gic_op_enable(struct itr_chip *chip, size_t it);
 static void gic_op_disable(struct itr_chip *chip, size_t it);
 static void gic_op_raise_pi(struct itr_chip *chip, size_t it);
@@ -150,7 +161,7 @@ static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
 			uint8_t cpu_mask);
 
 static const struct itr_ops gic_ops = {
-	.add = gic_op_add,
+	.configure = gic_op_configure,
 	.mask = gic_op_disable,
 	.unmask = gic_op_enable,
 	.enable = gic_op_enable,
@@ -178,8 +189,8 @@ static bool affinity_routing_is_enabled(struct gic_data *gd)
 
 static size_t probe_max_it(vaddr_t gicc_base __maybe_unused, vaddr_t gicd_base)
 {
-	int i;
-	uint32_t old_ctlr;
+	int i = 0;
+	uint32_t old_ctlr = 0;
 	size_t ret = 0;
 	size_t max_regs = io_read32(gicd_base + GICD_TYPER) &
 			  GICD_TYPER_IT_LINES_NUM_MASK;
@@ -195,9 +206,9 @@ static size_t probe_max_it(vaddr_t gicc_base __maybe_unused, vaddr_t gicd_base)
 	io_write32(gicc_base + GICC_CTLR, 0);
 #endif
 	for (i = max_regs; i >= 0; i--) {
-		uint32_t old_reg;
-		uint32_t reg;
-		int b;
+		uint32_t old_reg = 0;
+		uint32_t reg = 0;
+		int b = 0;
 
 		old_reg = io_read32(gicd_base + GICD_ISENABLER(i));
 		io_write32(gicd_base + GICD_ISENABLER(i), 0xffffffff);
@@ -421,28 +432,48 @@ static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
 			  uint32_t *prio)
 {
 	int it_num = DT_INFO_INVALID_INTERRUPT;
+	uint32_t detection_type = IRQ_TYPE_NONE;
+	uint32_t interrupt_type = GIC_PPI;
 
-	if (type)
-		*type = IRQ_TYPE_NONE;
-
-	if (prio)
-		*prio = 0;
-
-	if (!properties || count < 2)
+	if (!properties || count < 2 || count > 3)
 		return DT_INFO_INVALID_INTERRUPT;
 
-	it_num = fdt32_to_cpu(properties[1]);
+	interrupt_type = fdt32_to_cpu(properties[0]);
+	it_num = (int)fdt32_to_cpu(properties[1]);
 
-	switch (fdt32_to_cpu(properties[0])) {
+	if (count == 3) {
+		detection_type = fdt32_to_cpu(properties[2]) & GENMASK_32(3, 0);
+		if (interrupt_type == GIC_PPI &&
+		    detection_type != IRQ_TYPE_EDGE_RISING) {
+			EMSG("PPI must be edge rising");
+			return DT_INFO_INVALID_INTERRUPT;
+		}
+
+		if (interrupt_type == GIC_SPI &&
+		    (detection_type != IRQ_TYPE_EDGE_RISING &&
+		     detection_type != IRQ_TYPE_LEVEL_HIGH)) {
+			EMSG("SPI must be edge rising or high level");
+			return DT_INFO_INVALID_INTERRUPT;
+		}
+	}
+
+	switch (interrupt_type) {
 	case GIC_PPI:
 		it_num += 16;
+		detection_type = IRQ_TYPE_EDGE_RISING;
 		break;
 	case GIC_SPI:
 		it_num += 32;
 		break;
 	default:
-		it_num = DT_INFO_INVALID_INTERRUPT;
+		return DT_INFO_INVALID_INTERRUPT;
 	}
+
+	if (type)
+		*type = detection_type;
+
+	if (prio)
+		*prio = 0;
 
 	return it_num;
 }
@@ -610,7 +641,7 @@ void gic_init_v3(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
 	interrupt_main_init(&gic_data.chip);
 }
 
-static void gic_it_add(struct gic_data *gd, size_t it)
+static void gic_it_configure(struct gic_data *gd, size_t it)
 {
 	size_t idx = it / NUM_INTS_PER_REG;
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
@@ -634,7 +665,8 @@ static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
 {
 	size_t idx __maybe_unused = it / NUM_INTS_PER_REG;
 	uint32_t mask __maybe_unused = 1 << (it % NUM_INTS_PER_REG);
-	uint32_t target, target_shift;
+	uint32_t target = 0;
+	uint32_t target_shift = 0;
 	vaddr_t itargetsr = gd->gicd_base +
 			    GICD_ITARGETSR(it / NUM_TARGETS_PER_REG);
 
@@ -648,9 +680,9 @@ static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
 	target_shift = (it % NUM_TARGETS_PER_REG) * ITARGETSR_FIELD_BITS;
 	target &= ~(ITARGETSR_FIELD_MASK << target_shift);
 	target |= cpu_mask << target_shift;
-	DMSG("cpu_mask: writing 0x%x to 0x%" PRIxVA, target, itargetsr);
+	DMSG("cpu_mask: writing %#"PRIx32" to %#" PRIxVA, target, itargetsr);
 	io_write32(itargetsr, target);
-	DMSG("cpu_mask: 0x%x", io_read32(itargetsr));
+	DMSG("cpu_mask: %#"PRIx32, io_read32(itargetsr));
 }
 
 static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
@@ -664,9 +696,28 @@ static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
 	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Set prio it to selected CPUs */
-	DMSG("prio: writing 0x%x to 0x%" PRIxVA,
-		prio, gd->gicd_base + GICD_IPRIORITYR(0) + it);
+	DMSG("prio: writing %#"PRIx8" to %#" PRIxVA,
+	     prio, gd->gicd_base + GICD_IPRIORITYR(0) + it);
 	io_write8(gd->gicd_base + GICD_IPRIORITYR(0) + it, prio);
+}
+
+static void gic_it_set_type(struct gic_data *gd, size_t it, uint32_t type)
+{
+	size_t index = it / GICD_ICFGR_NUM_INTS_PER_REG;
+	uint32_t shift = (it % GICD_ICFGR_NUM_INTS_PER_REG) *
+			 GICD_ICFGR_FIELD_BITS;
+	uint32_t icfg = 0;
+
+	assert(type == IRQ_TYPE_EDGE_RISING || type == IRQ_TYPE_LEVEL_HIGH);
+
+	if (type == IRQ_TYPE_EDGE_RISING)
+		icfg = GICD_ICFGR_TYPE_EDGE;
+	else
+		icfg = GICD_ICFGR_TYPE_LEVEL;
+
+	io_mask32(gd->gicd_base + GICD_ICFGR(index),
+		  SHIFT_U32(icfg, shift),
+		  SHIFT_U32(GICD_ICFGR_FIELD_MASK, shift));
 }
 
 static void gic_it_enable(struct gic_data *gd, size_t it)
@@ -844,18 +895,48 @@ void gic_dump_state(void)
 	int i = 0;
 
 #if defined(CFG_ARM_GICV3)
-	DMSG("GICC_CTLR: 0x%x", read_icc_ctlr());
+	DMSG("GICC_CTLR: %#"PRIx32, read_icc_ctlr());
 #else
-	DMSG("GICC_CTLR: 0x%x", io_read32(gd->gicc_base + GICC_CTLR));
+	DMSG("GICC_CTLR: %#"PRIx32, io_read32(gd->gicc_base + GICC_CTLR));
 #endif
-	DMSG("GICD_CTLR: 0x%x", io_read32(gd->gicd_base + GICD_CTLR));
+	DMSG("GICD_CTLR: %#"PRIx32, io_read32(gd->gicd_base + GICD_CTLR));
 
 	for (i = 0; i <= (int)gd->max_it; i++) {
 		if (gic_it_is_enabled(gd, i)) {
-			DMSG("irq%d: enabled, group:%d, target:%x", i,
+			DMSG("irq%d: enabled, group:%d, target:%#"PRIx32, i,
 			     gic_it_get_group(gd, i), gic_it_get_target(gd, i));
 		}
 	}
+}
+
+TEE_Result gic_spi_release_to_ns(size_t it)
+{
+	struct gic_data *gd = &gic_data;
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = BIT32(it % NUM_INTS_PER_REG);
+
+	if (it >= gd->max_it || it < GIC_SPI_BASE)
+		return TEE_ERROR_BAD_PARAMETERS;
+	/* Make sure it's already disabled */
+	if (!gic_it_is_enabled(gd, it))
+		return TEE_ERROR_BAD_STATE;
+	/* Assert it's secure to start with */
+	if (!gic_it_get_group(gd, it))
+		return TEE_ERROR_BAD_STATE;
+
+	mutex_lock(&gic_mutex);
+	gic_it_set_cpu_mask(gd, it, 0);
+	gic_it_set_prio(gd, it, GIC_SPI_PRI_NS_EL1);
+
+	/* Clear pending status */
+	io_write32(gd->gicd_base + GICD_ICPENDR(idx), mask);
+	/* Assign it to NS Group1 */
+	io_setbits32(gd->gicd_base + GICD_IGROUPR(idx), mask);
+#if defined(CFG_ARM_GICV3)
+	io_clrbits32(gd->gicd_base + GICD_IGROUPMODR(idx), mask);
+#endif
+	mutex_unlock(&gic_mutex);
+	return TEE_SUCCESS;
 }
 
 static void __maybe_unused gic_native_itr_handler(void)
@@ -867,10 +948,35 @@ static void __maybe_unused gic_native_itr_handler(void)
 	iar = gic_read_iar(gd);
 	id = iar & GICC_IAR_IT_ID_MASK;
 
+	if (id >= 1020 && id <= 1023) {
+		/*
+		 * Special INTIDs
+		 * 1020: Interrupt expected to be handled at SEL1 or SEL2.
+		 *       PE (Processing Element) is either executing at EL3
+		 *       in AArch64 state or in monitor mode in AArch32 state.
+		 *       Reserved on GIC V1 and GIC V2.
+		 * 1021: Interrupt expected to be handled at NSEL1 or NSEL2
+		 *       PE (Processing Element) is either executing at EL3
+		 *       in AArch64 state or in monitor mode in AArch32 state.
+		 *       Reserved on GIC V1 and GIC V2.
+		 * 1022: -(GICv3.3): Interrupt is an NMI
+		 *       -(Legacy): Group 1 interrupt to be signaled to the
+		 *        PE and acknowledged using alias registers. Reserved if
+		 *        interrupt grouping is not supported.
+		 * 1023: No pending interrupt with sufficient priority
+		 *       (spurious) or the highest priority pending interrupt is
+		 *       not appropriate for the current security state or
+		 *       interrupt group.
+		 */
+		DMSG("Special interrupt %"PRIu32, id);
+
+		return;
+	}
+
 	if (id <= gd->max_it)
 		interrupt_call_handlers(&gd->chip, id);
 	else
-		DMSG("ignoring interrupt %" PRIu32, id);
+		EMSG("Unhandled interrupt %"PRIu32, id);
 
 	gic_write_eoir(gd, iar);
 }
@@ -883,9 +989,8 @@ void interrupt_main_handler(void)
 }
 #endif /*CFG_CORE_WORKAROUND_ARM_NMFI*/
 
-static void gic_op_add(struct itr_chip *chip, size_t it,
-		       uint32_t type __unused,
-		       uint32_t prio __unused)
+static void gic_op_configure(struct itr_chip *chip, size_t it,
+			     uint32_t type, uint32_t prio __unused)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
@@ -923,10 +1028,12 @@ static void gic_op_add(struct itr_chip *chip, size_t it,
 		io_write32(gicr_base + GICR_IGRPMODR0,
 			   gd->per_cpu_group_modifier);
 	} else {
-		gic_it_add(gd, it);
+		gic_it_configure(gd, it);
 		/* Set the CPU mask to deliver interrupts to any online core */
 		gic_it_set_cpu_mask(gd, it, 0xff);
 		gic_it_set_prio(gd, it, 0x1);
+		if (type != IRQ_TYPE_NONE)
+			gic_it_set_type(gd, it, type);
 	}
 }
 
@@ -1016,7 +1123,7 @@ static TEE_Result dt_get_gic_chip_cb(struct dt_pargs *arg, void *priv_data,
 {
 	int itr_num = DT_INFO_INVALID_INTERRUPT;
 	struct itr_chip *chip = priv_data;
-	uint32_t phandle_args[2] = { };
+	uint32_t phandle_args[3] = { };
 	uint32_t type = 0;
 	uint32_t prio = 0;
 
@@ -1030,14 +1137,18 @@ static TEE_Result dt_get_gic_chip_cb(struct dt_pargs *arg, void *priv_data,
 	 */
 	if (arg->args_count < 2)
 		return TEE_ERROR_GENERIC;
+
 	phandle_args[0] = cpu_to_fdt32(arg->args[0]);
 	phandle_args[1] = cpu_to_fdt32(arg->args[1]);
+	if (arg->args_count >= 3)
+		phandle_args[2] = cpu_to_fdt32(arg->args[2]);
 
-	itr_num = gic_dt_get_irq((const void *)phandle_args, 2, &type, &prio);
+	itr_num = gic_dt_get_irq((const void *)phandle_args, arg->args_count,
+				 &type, &prio);
 	if (itr_num == DT_INFO_INVALID_INTERRUPT)
 		return TEE_ERROR_GENERIC;
 
-	gic_op_add(chip, itr_num, type, prio);
+	gic_op_configure(chip, itr_num, type, prio);
 
 	itr_desc->chip = chip;
 	itr_desc->itr_num = itr_num;

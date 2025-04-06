@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/firewall.h>
 #include <drivers/stm32_rif.h>
 #include <drivers/stm32_risaf.h>
 #include <dt-bindings/firewall/stm32mp25-risaf.h>
@@ -13,6 +14,7 @@
 #include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/pm.h>
+#include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -555,10 +557,136 @@ stm32_risaf_pm(enum pm_op op, unsigned int pm_hint,
 	return res;
 }
 
+static TEE_Result stm32_risaf_acquire_access(struct firewall_query *fw,
+					     paddr_t paddr, size_t size,
+					     bool read, bool write)
+{
+	struct stm32_risaf_instance *risaf = NULL;
+	struct stm32_risaf_region *region = NULL;
+	uint32_t cidcfgr = 0;
+	unsigned int i = 0;
+	uint32_t cfgr = 0;
+	vaddr_t base = 0;
+	uint32_t id = 0;
+
+	assert(fw->ctrl->priv && (read || write));
+
+	if (paddr == TZDRAM_BASE && size == TZDRAM_SIZE)
+		return TEE_SUCCESS;
+
+	risaf = fw->ctrl->priv;
+	base = risaf_base(risaf);
+
+	if (fw->arg_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * RISAF region configuration, we assume the query is as
+	 * follows:
+	 * firewall->args[0]: Region configuration
+	 */
+	id = _RISAF_GET_REGION_ID(fw->args[0]);
+
+	if (!id || id >= risaf->pdata.nregions)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	for (i = 0; i < risaf->pdata.nregions; i++) {
+		if (id == _RISAF_GET_REGION_ID(risaf->pdata.regions[i].cfg)) {
+			region = &risaf->pdata.regions[i];
+			if (region->addr != paddr || region->len != size)
+				return TEE_ERROR_GENERIC;
+			break;
+		}
+	}
+	if (!region)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	cfgr = io_read32(base + _RISAF_REG_CFGR(id));
+	cidcfgr = io_read32(base + _RISAF_REG_CIDCFGR(id));
+
+	/*
+	 * Access is denied if the region is disabled and OP-TEE does not run as
+	 * TDCID, or the region is not secure, or if it is not accessible in
+	 * read and/or write mode, if requested, by OP-TEE CID.
+	 */
+	if (!(cfgr & _RISAF_REG_CFGR_BREN) && !is_tdcid)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	if ((cfgr & _RISAF_REG_CFGR_BREN) &&
+	    (!(cfgr & _RISAF_REG_CFGR_SEC) ||
+	     (read && !_RISAF_REG_READ_OK(cidcfgr, RIF_CID1)) ||
+	     (write && !_RISAF_REG_WRITE_OK(cidcfgr, RIF_CID1)))) {
+		return TEE_ERROR_ACCESS_DENIED;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_risaf_reconfigure_region(struct firewall_query *fw,
+						 paddr_t paddr, size_t size)
+{
+	struct stm32_risaf_instance *risaf = NULL;
+	struct stm32_risaf_region *region = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t exceptions = 0;
+	uint32_t q_cfg = 0;
+	unsigned int i = 0;
+	uint32_t id = 0;
+
+	assert(fw->ctrl->priv);
+
+	risaf = fw->ctrl->priv;
+
+	if (fw->arg_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * RISAF region configuration, we assume the query is as
+	 * follows:
+	 * firewall->args[0]: Region configuration
+	 */
+	q_cfg = fw->args[0];
+	id = _RISAF_GET_REGION_ID(q_cfg);
+
+	if (!id || id >= risaf->pdata.nregions)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	for (i = 0; i < risaf->pdata.nregions; i++) {
+		if (id == _RISAF_GET_REGION_ID(risaf->pdata.regions[i].cfg)) {
+			region = &risaf->pdata.regions[i];
+			if (region->addr != paddr || region->len != size)
+				return TEE_ERROR_GENERIC;
+			break;
+		}
+	}
+	if (!region)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	DMSG("Reconfiguring %s region ID: %"PRIu32, risaf->pdata.risaf_name,
+	     id);
+
+	exceptions = cpu_spin_lock_xsave(&risaf->pdata.conf_lock);
+	res = risaf_configure_region(risaf, id,
+				     stm32_risaf_get_region_config(q_cfg),
+				     stm32_risaf_get_region_cid_config(q_cfg),
+				     region->addr,
+				     region->addr + region->len - 1);
+
+	cpu_spin_unlock_xrestore(&risaf->pdata.conf_lock, exceptions);
+
+	return res;
+}
+
+static const struct firewall_controller_ops firewall_ops = {
+	.acquire_memory_access = stm32_risaf_acquire_access,
+	.set_memory_conf = stm32_risaf_reconfigure_region,
+};
+
 static TEE_Result stm32_risaf_probe(const void *fdt, int node,
 				    const void *compat_data)
 {
 	const struct stm32_risaf_compat_data *compat = compat_data;
+	struct firewall_controller *controller = NULL;
 	struct stm32_risaf_instance *risaf = NULL;
 	struct stm32_risaf_region *regions = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -698,10 +826,23 @@ static TEE_Result stm32_risaf_probe(const void *fdt, int node,
 			panic();
 	}
 
+	controller = calloc(1, sizeof(*controller));
+	if (!controller)
+		panic();
+
+	controller->base = &risaf->pdata.base;
+	controller->name = risaf->pdata.risaf_name;
+	controller->priv = risaf;
+	controller->ops = &firewall_ops;
+
 	risaf->pdata.regions = regions;
 	risaf->pdata.nregions = nregions;
 
 	SLIST_INSERT_HEAD(&risaf_list, risaf, link);
+
+	res = firewall_dt_controller_register(fdt, node, controller);
+	if (res)
+		panic();
 
 	register_pm_core_service_cb(stm32_risaf_pm, risaf, "stm32-risaf");
 

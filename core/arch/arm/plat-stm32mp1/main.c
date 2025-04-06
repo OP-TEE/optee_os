@@ -11,7 +11,6 @@
 #include <drivers/gic.h>
 #include <drivers/pinctrl.h>
 #include <drivers/stm32_bsec.h>
-#include <drivers/stm32_etzpc.h>
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32_iwdg.h>
 #include <drivers/stm32_uart.h>
@@ -150,6 +149,35 @@ static TEE_Result init_console_from_dt(void)
 
 /* Probe console from DT once clock inits (service init level) are completed */
 service_init_late(init_console_from_dt);
+
+static uintptr_t stm32_dbgmcu_base(void)
+{
+	static void *va;
+
+	if (!cpu_mmu_enabled())
+		return DBGMCU_BASE;
+
+	if (!va)
+		va = phys_to_virt(DBGMCU_BASE, MEM_AREA_IO_SEC, 1);
+
+	return (uintptr_t)va;
+}
+
+/* SoC device ID util, returns default ID if can't access DBGMCU */
+TEE_Result stm32mp1_dbgmcu_get_chip_dev_id(uint32_t *chip_dev_id)
+{
+	uint32_t id = STM32MP1_CHIP_ID;
+
+	assert(chip_dev_id);
+
+	if (stm32_bsec_read_debug_conf() & BSEC_DBGSWGEN)
+		id = io_read32(stm32_dbgmcu_base() + DBGMCU_IDC) &
+		     DBGMCU_IDC_DEV_ID_MASK;
+
+	*chip_dev_id = id;
+
+	return TEE_SUCCESS;
+}
 
 /*
  * GIC init, used also for primary/secondary boot core wake completion
@@ -620,3 +648,138 @@ bool stm32mp1_ram_intersect_pager_ram(paddr_t base, size_t size)
 					CFG_TZSRAM_SIZE);
 }
 #endif
+
+static TEE_Result get_chip_dev_id(uint32_t *dev_id)
+{
+#ifdef CFG_STM32MP13
+	*dev_id = stm32mp_syscfg_get_chip_dev_id();
+	return TEE_SUCCESS;
+#else /* assume CFG_STM32MP15 */
+	return stm32mp1_dbgmcu_get_chip_dev_id(dev_id);
+#endif
+}
+
+static TEE_Result get_part_number(uint32_t *part_nb)
+{
+	static uint32_t part_number;
+	uint32_t dev_id = 0;
+	uint32_t otp = 0;
+	size_t bit_len = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	assert(part_nb);
+
+	if (part_number) {
+		*part_nb = part_number;
+		return TEE_SUCCESS;
+	}
+
+	res = get_chip_dev_id(&dev_id);
+	if (res)
+		return res;
+
+	res = stm32_bsec_find_otp_in_nvmem_layout("part_number_otp",
+						  &otp, NULL, &bit_len);
+	if (res)
+		return res;
+
+	res = stm32_bsec_read_otp(&part_number, otp);
+	if (res)
+		return res;
+
+	assert(bit_len < 16);
+	part_number = (part_number & GENMASK_32(bit_len, 0)) |
+		      SHIFT_U32(dev_id, 16);
+
+	*part_nb = part_number;
+
+	return TEE_SUCCESS;
+}
+
+bool stm32mp_supports_cpu_opp(uint32_t opp_id)
+{
+	uint32_t part_number = 0;
+	uint32_t id = 0;
+
+	if (get_part_number(&part_number)) {
+		DMSG("Cannot get part number");
+		panic();
+	}
+
+	switch (part_number) {
+	case STM32MP135F_PART_NB:
+	case STM32MP135D_PART_NB:
+	case STM32MP133F_PART_NB:
+	case STM32MP133D_PART_NB:
+	case STM32MP131F_PART_NB:
+	case STM32MP131D_PART_NB:
+	case STM32MP157F_PART_NB:
+	case STM32MP157D_PART_NB:
+	case STM32MP153F_PART_NB:
+	case STM32MP153D_PART_NB:
+	case STM32MP151F_PART_NB:
+	case STM32MP151D_PART_NB:
+		id = BIT(1);
+		break;
+	default:
+		id = BIT(0);
+		break;
+	}
+
+	return opp_id & id;
+}
+
+bool stm32mp_supports_hw_cryp(void)
+{
+	uint32_t part_number = 0;
+
+	if (!IS_ENABLED(CFG_STM32_CRYP))
+		return false;
+
+	if (get_part_number(&part_number)) {
+		DMSG("Cannot get part number");
+		panic();
+	}
+
+	switch (part_number) {
+	case STM32MP135F_PART_NB:
+	case STM32MP135C_PART_NB:
+	case STM32MP133F_PART_NB:
+	case STM32MP133C_PART_NB:
+	case STM32MP131F_PART_NB:
+	case STM32MP131C_PART_NB:
+		return true;
+	case STM32MP157F_PART_NB:
+	case STM32MP157C_PART_NB:
+	case STM32MP153F_PART_NB:
+	case STM32MP153C_PART_NB:
+	case STM32MP151F_PART_NB:
+	case STM32MP151C_PART_NB:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool stm32mp_supports_second_core(void)
+{
+	uint32_t part_number = 0;
+
+	if (CFG_TEE_CORE_NB_CORE == 1)
+		return false;
+
+	if (get_part_number(&part_number)) {
+		DMSG("Cannot get part number");
+		panic();
+	}
+
+	switch (part_number) {
+	case STM32MP151F_PART_NB:
+	case STM32MP151D_PART_NB:
+	case STM32MP151C_PART_NB:
+	case STM32MP151A_PART_NB:
+		return false;
+	default:
+		return true;
+	}
+}

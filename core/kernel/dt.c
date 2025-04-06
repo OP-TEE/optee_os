@@ -188,13 +188,18 @@ static size_t fdt_read_size(const uint32_t *cell, int n)
 	return sz;
 }
 
-int fdt_reg_info(const void *fdt, int offs, paddr_t *base, size_t *size)
+int fdt_get_reg_props_by_index(const void *fdt, int offs, int index,
+			       paddr_t *base, size_t *size)
 {
 	const fdt32_t *reg = NULL;
 	int addr_ncells = 0;
 	int size_ncells = 0;
+	int cell_offset = 0;
 	int parent = 0;
 	int len = 0;
+
+	if (index < 0)
+		return -FDT_ERR_BADOFFSET;
 
 	reg = (const uint32_t *)fdt_getprop(fdt, offs, "reg", &len);
 	if (!reg)
@@ -215,25 +220,34 @@ int fdt_reg_info(const void *fdt, int offs, paddr_t *base, size_t *size)
 			return -FDT_ERR_NOTFOUND;
 	}
 
-	if ((size_t)len < addr_ncells * sizeof(*reg))
+	cell_offset = index * (addr_ncells + size_ncells);
+
+	if ((size_t)len < (cell_offset + addr_ncells) * sizeof(*reg))
 		return -FDT_ERR_BADSTRUCTURE;
 
 	if (base) {
-		*base = fdt_read_paddr(reg, addr_ncells);
+		*base = fdt_read_paddr(reg + cell_offset, addr_ncells);
 		if (*base == DT_INFO_INVALID_REG)
 			return -FDT_ERR_NOTFOUND;
 	}
 
 	if (size) {
-		if ((size_t)len < (addr_ncells + size_ncells) * sizeof(*reg))
+		if ((size_t)len <
+		    (cell_offset + addr_ncells + size_ncells) * sizeof(*reg))
 			return -FDT_ERR_BADSTRUCTURE;
 
-		*size = fdt_read_size(reg + addr_ncells, size_ncells);
+		*size = fdt_read_size(reg + cell_offset + addr_ncells,
+				      size_ncells);
 		if (*size == DT_INFO_INVALID_REG_SIZE)
 			return -FDT_ERR_NOTFOUND;
 	}
 
 	return 0;
+}
+
+int fdt_reg_info(const void *fdt, int offs, paddr_t *base, size_t *size)
+{
+	return fdt_get_reg_props_by_index(fdt, offs, 0, base, size);
 }
 
 paddr_t fdt_reg_base_address(const void *fdt, int offs)
@@ -378,52 +392,6 @@ uint32_t fdt_read_uint32_default(const void *fdt, int node,
 	fdt_read_uint32_index(fdt, node, prop_name, 0, &ret);
 
 	return ret;
-}
-
-int fdt_get_reg_props_by_index(const void *fdt, int node, int index,
-			       paddr_t *base, size_t *size)
-{
-	const fdt32_t *prop = NULL;
-	int parent = 0;
-	int len = 0;
-	int address_cells = 0;
-	int size_cells = 0;
-	int cell = 0;
-
-	parent = fdt_parent_offset(fdt, node);
-	if (parent < 0)
-		return parent;
-
-	address_cells = fdt_address_cells(fdt, parent);
-	if (address_cells < 0)
-		return address_cells;
-
-	size_cells = fdt_size_cells(fdt, parent);
-	if (size_cells < 0)
-		return size_cells;
-
-	cell = index * (address_cells + size_cells);
-
-	prop = fdt_getprop(fdt, node, "reg", &len);
-	if (!prop)
-		return len;
-
-	if (((cell + address_cells + size_cells) * (int)sizeof(uint32_t)) > len)
-		return -FDT_ERR_BADVALUE;
-
-	if (base) {
-		*base = fdt_read_paddr(&prop[cell], address_cells);
-		if (*base == DT_INFO_INVALID_REG)
-			return -FDT_ERR_BADVALUE;
-	}
-
-	if (size) {
-		*size = fdt_read_size(&prop[cell + address_cells], size_cells);
-		if (*size == DT_INFO_INVALID_REG_SIZE)
-			return -FDT_ERR_BADVALUE;
-	}
-
-	return 0;
 }
 
 int fdt_get_reg_props_by_name(const void *fdt, int node, const char *name,

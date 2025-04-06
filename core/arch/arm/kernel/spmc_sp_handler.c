@@ -18,29 +18,23 @@
 
 static unsigned int mem_ref_lock = SPINLOCK_UNLOCK;
 
-void spmc_sp_start_thread(struct thread_smc_args *args)
+void spmc_sp_start_thread(struct thread_smc_1_2_regs *args)
 {
-	thread_sp_alloc_and_run(args);
+	thread_sp_alloc_and_run(&args->arg11);
 }
 
-static void ffa_set_error(struct thread_smc_args *args, uint32_t error)
+static void ffa_set_error(struct thread_smc_1_2_regs *args, uint32_t error)
 {
-	args->a0 = FFA_ERROR;
-	args->a1 = FFA_PARAM_MBZ;
-	args->a2 = error;
-	args->a3 = FFA_PARAM_MBZ;
-	args->a4 = FFA_PARAM_MBZ;
-	args->a5 = FFA_PARAM_MBZ;
-	args->a6 = FFA_PARAM_MBZ;
-	args->a7 = FFA_PARAM_MBZ;
+	spmc_set_args(args, FFA_ERROR, FFA_PARAM_MBZ, error, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void ffa_success(struct thread_smc_args *args)
+static void ffa_success(struct thread_smc_1_2_regs *args)
 {
-	args->a0 = FFA_SUCCESS_32;
+	spmc_set_args(args, FFA_SUCCESS_32, 0, 0, 0, 0, 0);
 }
 
-static TEE_Result ffa_get_dst(struct thread_smc_args *args,
+static TEE_Result ffa_get_dst(struct thread_smc_1_2_regs *args,
 			      struct sp_session *caller,
 			      struct sp_session **dst)
 {
@@ -127,7 +121,7 @@ static int add_mem_region_to_sp(struct ffa_mem_access *mem_acc,
 	return FFA_OK;
 }
 
-static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
+static void spmc_sp_handle_mem_share(struct thread_smc_1_2_regs *args,
 				     struct ffa_rxtx *rxtx,
 				     struct sp_session *owner_sp)
 {
@@ -599,7 +593,7 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 	}
 }
 
-static void ffa_mem_retrieve(struct thread_smc_args *args,
+static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 			     struct sp_session *caller_sp,
 			     struct ffa_rxtx *rxtx)
 {
@@ -715,7 +709,7 @@ err:
 	ffa_set_error(args, ret);
 }
 
-static void ffa_mem_relinquish(struct thread_smc_args *args,
+static void ffa_mem_relinquish(struct thread_smc_1_2_regs *args,
 			       struct sp_session *caller_sp,
 			       struct ffa_rxtx  *rxtx)
 {
@@ -810,7 +804,7 @@ static void zero_mem_region(struct sp_mem *smem, struct sp_session *s)
  * After this thread_spmc calls handle_mem_reclaim() to make sure that the
  * region is reclaimed from the OP-TEE endpoint.
  */
-bool ffa_mem_reclaim(struct thread_smc_args *args,
+bool ffa_mem_reclaim(struct thread_smc_1_2_regs *args,
 		     struct sp_session *caller_sp)
 {
 	uint64_t handle = reg_pair_to_64(args->a2, args->a1);
@@ -866,7 +860,7 @@ bool ffa_mem_reclaim(struct thread_smc_args *args,
 }
 
 static struct sp_session *
-ffa_handle_sp_direct_req(struct thread_smc_args *args,
+ffa_handle_sp_direct_req(struct thread_smc_1_2_regs *args,
 			 struct sp_session *caller_sp)
 {
 	struct sp_session *dst = NULL;
@@ -972,7 +966,7 @@ ffa_handle_sp_direct_req(struct thread_smc_args *args,
 }
 
 static struct sp_session *
-ffa_handle_sp_direct_resp(struct thread_smc_args *args,
+ffa_handle_sp_direct_resp(struct thread_smc_1_2_regs *args,
 			  struct sp_session *caller_sp)
 {
 	struct sp_session *dst = NULL;
@@ -1063,7 +1057,7 @@ ffa_handle_sp_direct_resp(struct thread_smc_args *args,
 }
 
 static struct sp_session *
-ffa_handle_sp_error(struct thread_smc_args *args,
+ffa_handle_sp_error(struct thread_smc_1_2_regs *args,
 		    struct sp_session *caller_sp)
 {
 	/* If caller_sp == NULL send message to Normal World */
@@ -1081,7 +1075,7 @@ ffa_handle_sp_error(struct thread_smc_args *args,
 	return caller_sp;
 }
 
-static void handle_features(struct thread_smc_args *args)
+static void handle_features(struct thread_smc_1_2_regs *args)
 {
 	uint32_t ret_fid = 0;
 	uint32_t ret_w2 = FFA_PARAM_MBZ;
@@ -1110,7 +1104,7 @@ static void handle_features(struct thread_smc_args *args)
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void handle_mem_perm_get(struct thread_smc_args *args,
+static void handle_mem_perm_get(struct thread_smc_1_2_regs *args,
 				struct sp_session *sp_s)
 {
 	struct sp_ctx *sp_ctx = NULL;
@@ -1154,7 +1148,7 @@ out:
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void handle_mem_perm_set(struct thread_smc_args *args,
+static void handle_mem_perm_set(struct thread_smc_1_2_regs *args,
 				struct sp_session *sp_s)
 {
 	struct sp_ctx *sp_ctx = NULL;
@@ -1223,7 +1217,7 @@ out:
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void spmc_handle_version(struct thread_smc_args *args,
+static void spmc_handle_version(struct thread_smc_1_2_regs *args,
 				struct ffa_rxtx *rxtx)
 {
 	spmc_set_args(args, spmc_exchange_version(args->a1, rxtx),
@@ -1231,22 +1225,22 @@ static void spmc_handle_version(struct thread_smc_args *args,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void handle_console_log(struct thread_smc_args *args)
+static void handle_console_log(uint32_t ffa_vers,
+			       struct thread_smc_1_2_regs *args)
 {
 	uint32_t ret_fid = FFA_ERROR;
 	uint32_t ret_val = FFA_INVALID_PARAMETERS;
 	size_t char_count = args->a1 & FFA_CONSOLE_LOG_CHAR_COUNT_MASK;
-	const void *reg_list[] = {
-		&args->a2, &args->a3, &args->a4,
-		&args->a5, &args->a6, &args->a7
-	};
 	char buffer[FFA_CONSOLE_LOG_64_MAX_MSG_LEN + 1] = { 0 };
 	size_t max_length = 0;
 	size_t reg_size = 0;
 	size_t n = 0;
 
 	if (args->a0 == FFA_CONSOLE_LOG_64) {
-		max_length = FFA_CONSOLE_LOG_64_MAX_MSG_LEN;
+		if (ffa_vers >= FFA_VERSION_1_2)
+			max_length = FFA_CONSOLE_LOG_64_MAX_MSG_LEN;
+		else
+			max_length = FFA_CONSOLE_LOG_64_V1_1_MAX_MSG_LEN;
 		reg_size = sizeof(uint64_t);
 	} else {
 		max_length = FFA_CONSOLE_LOG_32_MAX_MSG_LEN;
@@ -1256,9 +1250,11 @@ static void handle_console_log(struct thread_smc_args *args)
 	if (char_count < 1 || char_count > max_length)
 		goto out;
 
-	for (n = 0; n < char_count; n += reg_size)
-		memcpy(buffer + n, reg_list[n / reg_size],
+	for (n = 0; n < char_count; n += reg_size) {
+		/* + 2 since we're starting from W2/X2 */
+		memcpy(buffer + n, &args->a[2 + n / reg_size],
 		       MIN(char_count - n, reg_size));
+	}
 
 	buffer[char_count] = '\0';
 
@@ -1277,7 +1273,7 @@ out:
  * here. This is the entry of the sp_spmc kernel thread. The caller_sp is set
  * to NULL when it is the Normal World.
  */
-void spmc_sp_msg_handler(struct thread_smc_args *args,
+void spmc_sp_msg_handler(struct thread_smc_1_2_regs *args,
 			 struct sp_session *caller_sp)
 {
 	thread_check_canaries();
@@ -1398,7 +1394,7 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 		case FFA_CONSOLE_LOG_64:
 #endif
 		case FFA_CONSOLE_LOG_32:
-			handle_console_log(args);
+			handle_console_log(caller_sp->rxtx.ffa_vers, args);
 			sp_enter(args, caller_sp);
 			break;
 

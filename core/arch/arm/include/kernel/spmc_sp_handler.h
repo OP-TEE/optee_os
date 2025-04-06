@@ -15,20 +15,21 @@
 #define FFA_SRC(x)	(((x) >> 16) & UINT16_MAX)
 
 void spmc_sp_thread_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
-void spmc_sp_msg_handler(struct thread_smc_args *args,
+void spmc_sp_msg_handler(struct thread_smc_1_2_regs *args,
 			 struct sp_session *caller_sp);
-bool ffa_mem_reclaim(struct thread_smc_args *args,
+bool ffa_mem_reclaim(struct thread_smc_1_2_regs *args,
 		     struct sp_session *caller_sp);
 
 #ifdef CFG_SECURE_PARTITION
-void spmc_sp_start_thread(struct thread_smc_args *args);
+void spmc_sp_start_thread(struct thread_smc_1_2_regs *args);
 int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 		      struct ffa_rxtx *rxtx, size_t blen, size_t flen,
 		      uint64_t *global_handle, struct sp_session *owner_sp);
 void spmc_sp_set_to_preempted(struct ts_session *ts_sess);
 int spmc_sp_resume_from_preempted(uint16_t endpoint_id);
 #else
-static inline void spmc_sp_start_thread(struct thread_smc_args *args __unused)
+static inline void
+spmc_sp_start_thread(struct thread_smc_1_2_regs *args __unused)
 {
 }
 

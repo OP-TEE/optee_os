@@ -80,7 +80,7 @@ struct initcall {
  *  +-------------------------------+-----------------------------------+
  *  | 1. call_preinitcalls()        | In the nexus, final calls         |
  *  | 2. call_initcalls()           +-----------------------------------+
- *  | 3. call_finalcalls()          | 1. boot_final() / nex_*init*()    |
+ *  | 3. call_finalcalls()          | 1. nex_*init*() / boot_final()    |
  *  +-------------------------------+-----------------------------------+
  *  | "Primary CPU switching to normal world boot" is printed           |
  *  +-------------------------------+-----------------------------------+
@@ -112,8 +112,6 @@ struct initcall {
 #define driver_init_late(fn)		__define_initcall(driver_init, 2, fn)
 #define release_init_resource(fn)	__define_initcall(driver_init, 3, fn)
 
-#define boot_final(fn)			__define_initcall(final, 1, fn)
-
 /*
  * These nex_* init-calls are provided for drivers and services that reside
  * in the nexus in case of virtualization. The init-calls are performed
@@ -122,7 +120,7 @@ struct initcall {
  * final calls, while otherwise are the same as the non-nex counterpart.
  */
 #ifdef CFG_NS_VIRTUALIZATION
-#define nex_early_init(fn)		boot_final(fn)
+#define nex_early_init(fn)		__define_initcall(final, 1, fn)
 #define nex_early_init_late(fn)		__define_initcall(final, 2, fn)
 #define nex_service_init(fn)		__define_initcall(final, 3, fn)
 #define nex_service_init_late(fn)	__define_initcall(final, 4, fn)
@@ -139,11 +137,12 @@ struct initcall {
 #define nex_release_init_resource(fn)	release_init_resource(fn)
 #endif
 
+#define boot_final(fn)			__define_initcall(final, 8, fn)
+
 void call_preinitcalls(void);
 void call_early_initcalls(void);
 void call_service_initcalls(void);
 void call_driver_initcalls(void);
-void call_initcalls(void);
 void call_finalcalls(void);
 
 #endif

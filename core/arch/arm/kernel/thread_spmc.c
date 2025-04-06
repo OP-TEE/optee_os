@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2020-2023, Linaro Limited.
+ * Copyright (c) 2020-2025, Linaro Limited.
  * Copyright (c) 2019-2024, Arm Limited. All rights reserved.
  */
 
@@ -8,6 +8,7 @@
 #include <ffa.h>
 #include <initcall.h>
 #include <io.h>
+#include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <kernel/notif.h>
 #include <kernel/panic.h>
@@ -19,6 +20,7 @@
 #include <kernel/thread_private.h>
 #include <kernel/thread_spmc.h>
 #include <kernel/virtualization.h>
+#include <libfdt.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <optee_ffa.h>
@@ -117,9 +119,9 @@ static SLIST_HEAD(mem_frag_state_head, mem_frag_state) frag_state_head =
 	SLIST_HEAD_INITIALIZER(&frag_state_head);
 
 #else
-static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
-static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
-static struct ffa_rxtx my_rxtx = {
+static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE) __nex_bss;
+static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE) __nex_bss;
+static struct ffa_rxtx my_rxtx __nex_data = {
 	.rx = __rx_buf,
 	.tx = __tx_buf,
 	.size = sizeof(__rx_buf),
@@ -136,18 +138,21 @@ static uint16_t get_sender_id(uint32_t src_dst)
 	return src_dst >> 16;
 }
 
-void spmc_set_args(struct thread_smc_args *args, uint32_t fid, uint32_t src_dst,
-		   uint32_t w2, uint32_t w3, uint32_t w4, uint32_t w5)
+void spmc_set_args(struct thread_smc_1_2_regs *args, uint32_t fid,
+		   uint32_t src_dst, uint32_t w2, uint32_t w3, uint32_t w4,
+		   uint32_t w5)
 {
-	*args = (struct thread_smc_args){ .a0 = fid,
-					  .a1 = src_dst,
-					  .a2 = w2,
-					  .a3 = w3,
-					  .a4 = w4,
-					  .a5 = w5, };
+	*args = (struct thread_smc_1_2_regs){
+		.a0 = fid,
+		.a1 = src_dst,
+		.a2 = w2,
+		.a3 = w3,
+		.a4 = w4,
+		.a5 = w5,
+	};
 }
 
-static void set_simple_ret_val(struct thread_smc_args *args, int ffa_ret)
+static void set_simple_ret_val(struct thread_smc_1_2_regs *args, int ffa_ret)
 {
 	if (ffa_ret)
 		spmc_set_args(args, FFA_ERROR, 0, ffa_ret, 0, 0, 0);
@@ -157,18 +162,35 @@ static void set_simple_ret_val(struct thread_smc_args *args, int ffa_ret)
 
 uint32_t spmc_exchange_version(uint32_t vers, struct ffa_rxtx *rxtx)
 {
+	uint32_t major_vers = FFA_GET_MAJOR_VERSION(vers);
+	uint32_t minor_vers = FFA_GET_MINOR_VERSION(vers);
+	uint32_t my_vers = FFA_VERSION_1_2;
+	uint32_t my_major_vers = 0;
+	uint32_t my_minor_vers = 0;
+
+	my_major_vers = FFA_GET_MAJOR_VERSION(my_vers);
+	my_minor_vers = FFA_GET_MINOR_VERSION(my_vers);
+
 	/*
 	 * No locking, if the caller does concurrent calls to this it's
 	 * only making a mess for itself. We must be able to renegotiate
 	 * the FF-A version in order to support differing versions between
 	 * the loader and the driver.
+	 *
+	 * Callers should use the version requested if we return a matching
+	 * major version and a matching or larger minor version. The caller
+	 * should downgrade to our minor version if our minor version is
+	 * smaller. Regardless, always return our version as recommended by
+	 * the specification.
 	 */
-	if (vers < FFA_VERSION_1_1)
-		rxtx->ffa_vers = FFA_VERSION_1_0;
-	else
-		rxtx->ffa_vers = FFA_VERSION_1_1;
+	if (major_vers == my_major_vers) {
+		if (minor_vers > my_minor_vers)
+			rxtx->ffa_vers = my_vers;
+		else
+			rxtx->ffa_vers = vers;
+	}
 
-	return rxtx->ffa_vers;
+	return my_vers;
 }
 
 static bool is_ffa_success(uint32_t fid)
@@ -219,7 +241,7 @@ static int __maybe_unused ffa_set_notification(uint16_t dst, uint16_t src,
 }
 
 #if defined(CFG_CORE_SEL1_SPMC)
-static void handle_features(struct thread_smc_args *args)
+static void handle_features(struct thread_smc_1_2_regs *args)
 {
 	uint32_t ret_fid = FFA_ERROR;
 	uint32_t ret_w2 = FFA_NOT_SUPPORTED;
@@ -312,7 +334,7 @@ static int map_buf(paddr_t pa, unsigned int sz, void **va_ret)
 	return 0;
 }
 
-void spmc_handle_spm_id_get(struct thread_smc_args *args)
+void spmc_handle_spm_id_get(struct thread_smc_1_2_regs *args)
 {
 	spmc_set_args(args, FFA_SUCCESS_32, FFA_PARAM_MBZ, spmc_id,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
@@ -327,7 +349,8 @@ static void unmap_buf(void *va, size_t sz)
 	tee_mm_free(mm);
 }
 
-void spmc_handle_rxtx_map(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
+void spmc_handle_rxtx_map(struct thread_smc_1_2_regs *args,
+			  struct ffa_rxtx *rxtx)
 {
 	int rc = 0;
 	unsigned int sz = 0;
@@ -438,7 +461,8 @@ out:
 	set_simple_ret_val(args, rc);
 }
 
-void spmc_handle_rxtx_unmap(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
+void spmc_handle_rxtx_unmap(struct thread_smc_1_2_regs *args,
+			    struct ffa_rxtx *rxtx)
 {
 	int rc = FFA_INVALID_PARAMETERS;
 
@@ -466,7 +490,8 @@ out:
 	set_simple_ret_val(args, rc);
 }
 
-void spmc_handle_rx_release(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
+void spmc_handle_rx_release(struct thread_smc_1_2_regs *args,
+			    struct ffa_rxtx *rxtx)
 {
 	int rc = 0;
 
@@ -561,7 +586,7 @@ static int handle_partition_info_get_all(size_t *elem_count,
 	return FFA_OK;
 }
 
-void spmc_handle_partition_info_get(struct thread_smc_args *args,
+void spmc_handle_partition_info_get(struct thread_smc_1_2_regs *args,
 				    struct ffa_rxtx *rxtx)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -652,7 +677,7 @@ out:
 	}
 }
 
-static void spmc_handle_run(struct thread_smc_args *args)
+static void spmc_handle_run(struct thread_smc_1_2_regs *args)
 {
 	uint16_t endpoint = FFA_TARGET_INFO_GET_SP_ID(args->a1);
 	uint16_t thread_id = FFA_TARGET_INFO_GET_VCPU_ID(args->a1);
@@ -732,7 +757,7 @@ out:
 	return res;
 }
 
-static void handle_yielding_call(struct thread_smc_args *args,
+static void handle_yielding_call(struct thread_smc_1_2_regs *args,
 				 uint32_t direct_resp_fid)
 {
 	TEE_Result res = 0;
@@ -777,7 +802,7 @@ static uint32_t handle_unregister_shm(uint32_t a4, uint32_t a5)
 	}
 }
 
-static void handle_blocking_call(struct thread_smc_args *args,
+static void handle_blocking_call(struct thread_smc_1_2_regs *args,
 				 uint32_t direct_resp_fid)
 {
 	uint32_t sec_caps = 0;
@@ -823,7 +848,7 @@ static void handle_blocking_call(struct thread_smc_args *args,
 	}
 }
 
-static void handle_framework_direct_request(struct thread_smc_args *args,
+static void handle_framework_direct_request(struct thread_smc_1_2_regs *args,
 					    struct ffa_rxtx *rxtx,
 					    uint32_t direct_resp_fid)
 {
@@ -875,7 +900,7 @@ static void handle_framework_direct_request(struct thread_smc_args *args,
 	spmc_set_args(args, w0, w1, w2, w3, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void handle_direct_request(struct thread_smc_args *args,
+static void handle_direct_request(struct thread_smc_1_2_regs *args,
 				  struct ffa_rxtx *rxtx)
 {
 	uint32_t direct_resp_fid = 0;
@@ -1302,7 +1327,7 @@ out:
 	return rc;
 }
 
-static void handle_mem_share(struct thread_smc_args *args,
+static void handle_mem_share(struct thread_smc_1_2_regs *args,
 			     struct ffa_rxtx *rxtx)
 {
 	uint32_t tot_len = args->a1;
@@ -1366,7 +1391,7 @@ static struct mem_frag_state *get_frag_state(uint64_t global_handle)
 	return NULL;
 }
 
-static void handle_mem_frag_tx(struct thread_smc_args *args,
+static void handle_mem_frag_tx(struct thread_smc_1_2_regs *args,
 			       struct ffa_rxtx *rxtx)
 {
 	uint64_t global_handle = reg_pair_to_64(args->a2, args->a1);
@@ -1448,7 +1473,7 @@ out_set_rc:
 	spmc_set_args(args, ret_fid, ret_w1, ret_w2, ret_w3, 0, 0);
 }
 
-static void handle_mem_reclaim(struct thread_smc_args *args)
+static void handle_mem_reclaim(struct thread_smc_1_2_regs *args)
 {
 	int rc = FFA_INVALID_PARAMETERS;
 	uint64_t cookie = 0;
@@ -1497,7 +1522,7 @@ out:
 	set_simple_ret_val(args, rc);
 }
 
-static void handle_notification_bitmap_create(struct thread_smc_args *args)
+static void handle_notification_bitmap_create(struct thread_smc_1_2_regs *args)
 {
 	uint32_t ret_val = FFA_INVALID_PARAMETERS;
 	uint32_t ret_fid = FFA_ERROR;
@@ -1536,7 +1561,7 @@ out_virt_put:
 	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
 }
 
-static void handle_notification_bitmap_destroy(struct thread_smc_args *args)
+static void handle_notification_bitmap_destroy(struct thread_smc_1_2_regs *args)
 {
 	uint32_t ret_val = FFA_INVALID_PARAMETERS;
 	uint32_t ret_fid = FFA_ERROR;
@@ -1574,7 +1599,7 @@ out_virt_put:
 	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
 }
 
-static void handle_notification_bind(struct thread_smc_args *args)
+static void handle_notification_bind(struct thread_smc_1_2_regs *args)
 {
 	uint32_t ret_val = FFA_INVALID_PARAMETERS;
 	struct guest_partition *prtn = NULL;
@@ -1620,7 +1645,7 @@ out:
 	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
 }
 
-static void handle_notification_unbind(struct thread_smc_args *args)
+static void handle_notification_unbind(struct thread_smc_1_2_regs *args)
 {
 	uint32_t ret_val = FFA_INVALID_PARAMETERS;
 	struct guest_partition *prtn = NULL;
@@ -1661,7 +1686,7 @@ out:
 	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
 }
 
-static void handle_notification_get(struct thread_smc_args *args)
+static void handle_notification_get(struct thread_smc_1_2_regs *args)
 {
 	uint32_t w2 = FFA_INVALID_PARAMETERS;
 	struct guest_partition *prtn = NULL;
@@ -1699,7 +1724,7 @@ out:
 }
 
 struct notif_info_get_state {
-	struct thread_smc_args *args;
+	struct thread_smc_1_2_regs *args;
 	unsigned int ids_per_reg;
 	unsigned int ids_count;
 	unsigned int id_pos;
@@ -1708,78 +1733,17 @@ struct notif_info_get_state {
 	unsigned int list_count;
 };
 
-static unsigned long get_smc_arg(struct thread_smc_args *args, unsigned int idx)
-{
-	switch (idx) {
-	case 0:
-		return args->a0;
-	case 1:
-		return args->a1;
-	case 2:
-		return args->a2;
-	case 3:
-		return args->a3;
-	case 4:
-		return args->a4;
-	case 5:
-		return args->a5;
-	case 6:
-		return args->a6;
-	case 7:
-		return args->a7;
-	default:
-		assert(0);
-		return 0;
-	}
-}
-
-static void set_smc_arg(struct thread_smc_args *args, unsigned int idx,
-			unsigned long val)
-{
-	switch (idx) {
-	case 0:
-		args->a0 = val;
-		break;
-	case 1:
-		args->a1 = val;
-		break;
-	case 2:
-		args->a2 = val;
-		break;
-	case 3:
-		args->a3 = val;
-		break;
-	case 4:
-		args->a4 = val;
-		break;
-	case 5:
-		args->a5 = val;
-		break;
-	case 6:
-		args->a6 = val;
-		break;
-	case 7:
-		args->a7 = val;
-		break;
-	default:
-		assert(0);
-	}
-}
-
 static bool add_id_in_regs(struct notif_info_get_state *state,
 			   uint16_t id)
 {
 	unsigned int reg_idx = state->id_pos / state->ids_per_reg + 3;
 	unsigned int reg_shift = (state->id_pos % state->ids_per_reg) * 16;
-	unsigned long v;
 
 	if (reg_idx > 7)
 		return false;
 
-	v = get_smc_arg(state->args, reg_idx);
-	v &= ~(0xffffUL << reg_shift);
-	v |= (unsigned long)id << reg_shift;
-	set_smc_arg(state->args, reg_idx, v);
+	state->args->a[reg_idx] &= ~SHIFT_U64(0xffff, reg_shift);
+	state->args->a[reg_idx] |= (unsigned long)id << reg_shift;
 
 	state->id_pos++;
 	state->count++;
@@ -1813,7 +1777,7 @@ static bool add_nvb_to_state(struct notif_info_get_state *state,
 	return add_id_in_regs(state, guest_id) && add_id_count(state);
 }
 
-static void handle_notification_info_get(struct thread_smc_args *args)
+static void handle_notification_info_get(struct thread_smc_1_2_regs *args)
 {
 	struct notif_info_get_state state = { .args = args };
 	uint32_t ffa_res = FFA_INVALID_PARAMETERS;
@@ -1931,8 +1895,8 @@ void notif_send_async(uint32_t value, uint16_t guest_id)
 #endif
 
 /* Only called from assembly */
-void thread_spmc_msg_recv(struct thread_smc_args *args);
-void thread_spmc_msg_recv(struct thread_smc_args *args)
+void thread_spmc_msg_recv(struct thread_smc_1_2_regs *args);
+void thread_spmc_msg_recv(struct thread_smc_1_2_regs *args)
 {
 	assert((thread_get_exceptions() & THREAD_EXCP_ALL) == THREAD_EXCP_ALL);
 	switch (args->a0) {
@@ -2621,28 +2585,57 @@ out:
 	return ret;
 }
 
+static uint32_t get_ffa_version_from_manifest(void *fdt)
+{
+	int ret = 0;
+	uint32_t vers = 0;
+
+	ret = fdt_node_check_compatible(fdt, 0, "arm,ffa-manifest-1.0");
+	if (ret < 0) {
+		EMSG("Invalid FF-A manifest at %p: error %d", fdt, ret);
+		panic();
+	}
+
+	ret = fdt_read_uint32(fdt, 0, "ffa-version", &vers);
+	if (ret < 0) {
+		EMSG("Can't read \"ffa-version\" from FF-A manifest at %p: error %d",
+		     fdt, ret);
+		panic();
+	}
+
+	return vers;
+}
+
 static TEE_Result spmc_init(void)
 {
-	unsigned int major = 0;
-	unsigned int minor __maybe_unused = 0;
 	uint32_t my_vers = 0;
 	uint32_t vers = 0;
 
-	my_vers = MAKE_FFA_VERSION(FFA_VERSION_MAJOR, FFA_VERSION_MINOR);
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+	    virt_add_guest_spec_data(&notif_vm_bitmap_id,
+				     sizeof(struct notif_vm_bitmap), NULL))
+		panic("virt_add_guest_spec_data");
+
+	my_vers = get_ffa_version_from_manifest(get_manifest_dt());
+	if (my_vers < FFA_VERSION_1_0 || my_vers > FFA_VERSION_1_2) {
+		EMSG("Unsupported version %"PRIu32".%"PRIu32" from manifest",
+		     FFA_GET_MAJOR_VERSION(my_vers),
+		     FFA_GET_MINOR_VERSION(my_vers));
+		panic();
+	}
 	vers = get_ffa_version(my_vers);
-	major = (vers >> FFA_VERSION_MAJOR_SHIFT) & FFA_VERSION_MAJOR_MASK;
-	minor = (vers >> FFA_VERSION_MINOR_SHIFT) & FFA_VERSION_MINOR_MASK;
-	DMSG("SPMC reported version %u.%u", major, minor);
-	if (major != FFA_VERSION_MAJOR) {
-		EMSG("Incompatible major version %u, expected %u",
-		     major, FFA_VERSION_MAJOR);
+	DMSG("SPMC reported version %"PRIu32".%"PRIu32,
+	     FFA_GET_MAJOR_VERSION(vers), FFA_GET_MINOR_VERSION(vers));
+	if (FFA_GET_MAJOR_VERSION(vers) != FFA_GET_MAJOR_VERSION(my_vers)) {
+		EMSG("Incompatible major version %"PRIu32", expected %"PRIu32"",
+		     FFA_GET_MAJOR_VERSION(vers),
+		     FFA_GET_MAJOR_VERSION(my_vers));
 		panic();
 	}
 	if (vers < my_vers)
 		my_vers = vers;
-	DMSG("Using version %u.%u",
-	     (my_vers >> FFA_VERSION_MAJOR_SHIFT) & FFA_VERSION_MAJOR_MASK,
-	     (my_vers >> FFA_VERSION_MINOR_SHIFT) & FFA_VERSION_MINOR_MASK);
+	DMSG("Using version %"PRIu32".%"PRIu32"",
+	     FFA_GET_MAJOR_VERSION(my_vers), FFA_GET_MINOR_VERSION(my_vers));
 	my_rxtx.ffa_vers = my_vers;
 
 	spmc_rxtx_map(&my_rxtx);

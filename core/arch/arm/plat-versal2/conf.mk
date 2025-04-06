@@ -34,8 +34,7 @@ CFG_WITH_STATS		?= y
 CFG_ARM64_core		?= y
 
 # Enable ARM Crypto Extensions(CE)
-$(call force,CFG_CRYPTO_WITH_CE,y)
-$(call force,CFG_CRYPTO_WITH_CE82,y)
+CFG_CRYPTO_WITH_CE ?= y
 
 # Define the number of cores per cluster used in calculating core position.
 # The cluster number is shifted by this value and added to the core ID,

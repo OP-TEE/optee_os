@@ -11,6 +11,7 @@
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
+#include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <mm/core_mmu.h>
 #include <sm/optee_smc.h>
@@ -284,7 +285,17 @@ clear_nex_bss:
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
 	set_sp
 
-	bl	thread_init_thread_core_local
+	/* Initialize thread_core_local[current_cpu_id] for early boot */
+	bl	thread_get_abt_stack
+	mov	x1, sp
+	msr	spsel, #1
+	str	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
+	str	x0, [sp, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
+	mov	x0, #THREAD_ID_INVALID
+	str	x0, [sp, #THREAD_CORE_LOCAL_CURR_THREAD]
+	mov	w0, #THREAD_CLF_TMP
+	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	msr	spsel, #0
 
 	/* Enable aborts now that we can receive exceptions */
 	msr	daifclr, #DAIFBIT_ABT
@@ -376,6 +387,19 @@ clear_nex_bss:
 	ldr	x0, [x0, #CORE_MMU_CONFIG_MAP_OFFSET]
 	bl	boot_mem_relocate
 	/*
+	 * Update recorded end_va.
+	 */
+	adr_l	x0, boot_mmu_config
+	ldr	x0, [x0, #CORE_MMU_CONFIG_MAP_OFFSET]
+	msr	spsel, #1
+	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
+	add	x1, x1, x0
+	str	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
+	ldr	x1, [sp, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
+	add	x1, x1, x0
+	str	x1, [sp, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
+	msr	spsel, #0
+	/*
 	 * Reinitialize console, since register_serial_console() has
 	 * previously registered a PA and with ASLR the VA is different
 	 * from the PA.
@@ -400,7 +424,7 @@ clear_nex_bss:
 #ifdef CFG_MEMTAG
 	init_memtag_per_cpu
 #endif
-
+	bl	boot_init_primary_late
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	x23, sp
 	adr_l	x0, threads
@@ -410,7 +434,7 @@ clear_nex_bss:
 	mov	x24, x0
 	str	wzr, [x24, #THREAD_CORE_LOCAL_FLAGS]
 #endif
-	bl	boot_init_primary_late
+	bl	boot_init_primary_runtime
 #ifdef CFG_CORE_PAUTH
 	adr_l	x0, threads
 	ldp	x1, x2, [x0, #THREAD_CTX_KEYS]

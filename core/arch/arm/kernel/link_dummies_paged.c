@@ -31,10 +31,6 @@ void __section(".text.dummy.call_driver_initcalls") call_driver_initcalls(void)
 {
 }
 
-void __section(".text.dummy.call_initcalls") call_initcalls(void)
-{
-}
-
 void __section(".text.dummy.call_finalcalls") call_finalcalls(void)
 {
 }

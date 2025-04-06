@@ -65,6 +65,8 @@
  * MEM_AREA_INIT_RAM_RX: init private read-only/executable memory (secure)
  * MEM_AREA_NEX_RAM_RO: nexus private read-only/non-executable memory (secure)
  * MEM_AREA_NEX_RAM_RW: nexus private r/w/non-executable memory (secure)
+ * MEM_AREA_NEX_DYN_VASPACE: nexus private dynamic memory map (secure)
+ * MEM_AREA_TEE_DYN_VASPACE: core private dynamic memory (secure)
  * MEM_AREA_TEE_COHERENT: teecore coherent RAM (secure, reserved to TEE)
  * MEM_AREA_TEE_ASAN: core address sanitizer RAM (secure, reserved to TEE)
  * MEM_AREA_IDENTITY_MAP_RX: core identity mapped r/o executable memory (secure)
@@ -94,6 +96,8 @@ enum teecore_memtypes {
 	MEM_AREA_INIT_RAM_RX,
 	MEM_AREA_NEX_RAM_RO,
 	MEM_AREA_NEX_RAM_RW,
+	MEM_AREA_NEX_DYN_VASPACE,
+	MEM_AREA_TEE_DYN_VASPACE,
 	MEM_AREA_TEE_COHERENT,
 	MEM_AREA_TEE_ASAN,
 	MEM_AREA_IDENTITY_MAP_RX,
@@ -128,6 +132,8 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_INIT_RAM_RX] = "INIT_RAM_RX",
 		[MEM_AREA_NEX_RAM_RO] = "NEX_RAM_RO",
 		[MEM_AREA_NEX_RAM_RW] = "NEX_RAM_RW",
+		[MEM_AREA_NEX_DYN_VASPACE] = "NEX_DYN_VASPACE",
+		[MEM_AREA_TEE_DYN_VASPACE] = "TEE_DYN_VASPACE",
 		[MEM_AREA_TEE_ASAN] = "TEE_ASAN",
 		[MEM_AREA_IDENTITY_MAP_RX] = "IDENTITY_MAP_RX",
 		[MEM_AREA_TEE_COHERENT] = "TEE_COHERENT",
@@ -295,10 +301,7 @@ extern const unsigned long core_mmu_tee_load_pa;
 
 void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg);
 void core_init_mmu_regs(struct core_mmu_config *cfg);
-/*
- * Copy static memory map from temporary boot_mem to heap when CFG_BOOT_MEM
- * is enabled.
- */
+/* Copy static memory map from temporary boot_mem to heap */
 void core_mmu_save_mem_map(void);
 
 /* Arch specific function to help optimizing 1 MMU xlat table */
@@ -335,6 +338,7 @@ void core_mmu_get_user_va_range(vaddr_t *base, size_t *size);
  * @CORE_MMU_FAULT_ASYNC_EXTERNAL:	asynchronous external abort
  * @CORE_MMU_FAULT_ACCESS_BIT:		access bit fault
  * @CORE_MMU_FAULT_TAG_CHECK:		tag check fault
+ * @CORE_MMU_FAULT_SYNC_EXTERNAL:	synchronous external abort
  * @CORE_MMU_FAULT_OTHER:		Other/unknown fault
  */
 enum core_mmu_fault {
@@ -346,6 +350,7 @@ enum core_mmu_fault {
 	CORE_MMU_FAULT_ASYNC_EXTERNAL,
 	CORE_MMU_FAULT_ACCESS_BIT,
 	CORE_MMU_FAULT_TAG_CHECK,
+	CORE_MMU_FAULT_SYNC_EXTERNAL,
 	CORE_MMU_FAULT_OTHER,
 };
 
@@ -501,8 +506,15 @@ static inline size_t core_mmu_get_block_offset(
  */
 static inline bool core_mmu_is_dynamic_vaspace(struct tee_mmap_region *mm)
 {
-	return mm->type == MEM_AREA_RES_VASPACE ||
-		mm->type == MEM_AREA_SHM_VASPACE;
+	switch (mm->type) {
+	case MEM_AREA_RES_VASPACE:
+	case MEM_AREA_SHM_VASPACE:
+	case MEM_AREA_NEX_DYN_VASPACE:
+	case MEM_AREA_TEE_DYN_VASPACE:
+		return true;
+	default:
+		return false;
+	}
 }
 
 /*

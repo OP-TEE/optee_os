@@ -217,4 +217,4 @@ static TEE_Result rngb_init(void)
 	return TEE_SUCCESS;
 }
 
-driver_init(rngb_init);
+early_init(rngb_init);

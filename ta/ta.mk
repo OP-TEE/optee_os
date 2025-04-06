@@ -12,9 +12,13 @@ include mk/$(COMPILER_$(sm)).mk
 # Config flags from mk/config.mk
 #
 
+ifeq ($(_CFG_TA_STACK_PROTECTOR),y)
 ta-stackp-cflags-$(CFG_TA_STACK_PROTECTOR) := -fstack-protector
 ta-stackp-cflags-$(CFG_TA_STACK_PROTECTOR_STRONG) := -fstack-protector-strong
 ta-stackp-cflags-$(CFG_TA_STACK_PROTECTOR_ALL) := -fstack-protector-all
+else
+ta-stackp-cflags-y := -fno-stack-protector
+endif
 $(sm)-platform-cflags += $(ta-stackp-cflags-y)
 
 ifeq ($(CFG_TA_MBEDTLS_SELF_TEST),y)
@@ -22,8 +26,8 @@ $(sm)-platform-cppflags += -DMBEDTLS_SELF_TEST
 endif
 
 ifeq ($(CFG_TEE_TA_MALLOC_DEBUG),y)
-# Build malloc debug code into libutils: (mdbg_malloc(), mdbg_free(),
-# mdbg_check(), etc.).
+# Build malloc debug code into libutils, that is, record allocation
+# location and extra sanity checks.
 $(sm)-platform-cppflags += -DENABLE_MDBG=1
 endif
 
@@ -45,6 +49,9 @@ ta-mk-file-export-add-$(sm) += CFG_TEE_TA_LOG_LEVEL ?= $(CFG_TEE_TA_LOG_LEVEL)_n
 ta-mk-file-export-vars-$(sm) += CFG_TA_BGET_TEST
 ta-mk-file-export-vars-$(sm) += CFG_ATTESTATION_PTA
 ta-mk-file-export-vars-$(sm) += CFG_MEMTAG
+ta-mk-file-export-vars-$(sm) += CFG_TA_LIBGCC
+ta-mk-file-export-vars-$(sm) += CFG_TA_SANITIZE_UNDEFINED
+ta-mk-file-export-vars-$(sm) += _CFG_TA_STACK_PROTECTOR
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
@@ -56,6 +63,9 @@ aflags$(sm)	:= $(platform-aflags) $($(sm)-platform-aflags)
 # compiled, these flags are not propagated to the TA
 cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
+ifeq ($(CFG_TA_SANITIZE_UNDEFINED),y)
+cflags$(sm) += -fsanitize=undefined
+endif
 
 ifeq ($(ta-target),ta_arm32)
 arm32-user-sysreg-txt = lib/libutee/arch/arm/arm32_user_sysreg.txt

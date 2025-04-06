@@ -45,11 +45,13 @@ DEFINES
 	DEFINE(THREAD_CORE_LOCAL_SIZE, sizeof(struct thread_core_local));
 
 	DEFINE(SM_PM_CTX_SIZE, sizeof(struct sm_pm_ctx));
+	DEFINE(__STACK_TMP_OFFS, STACK_TMP_OFFS);
 #endif /*ARM32*/
 
 #ifdef ARM64
 	DEFINE(THREAD_SMC_ARGS_X0, offsetof(struct thread_smc_args, a0));
 	DEFINE(THREAD_SMC_ARGS_SIZE, sizeof(struct thread_smc_args));
+	DEFINE(THREAD_SMC_1_2_REGS_SIZE, sizeof(struct thread_smc_1_2_regs));
 
 	DEFINE(THREAD_SCALL_REG_X0, offsetof(struct thread_scall_regs, x0));
 	DEFINE(THREAD_SCALL_REG_X2, offsetof(struct thread_scall_regs, x2));

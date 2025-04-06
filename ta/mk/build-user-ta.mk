@@ -40,10 +40,8 @@ endif
 cflags$(sm)	:= $(cflags$(ta-target)) $(CFLAGS_$(ta-target))
 aflags$(sm)	:= $(aflags$(ta-target))
 
-ifeq ($(CFG_ULIBS_SHARED),y)
 # For now, do not link in-tree TAs against shared libraries
 link-ldflags$(sm) := -static
-endif
 
 libdirs  = $(ta-dev-kit-dir$(sm))/lib
 libnames = utils utee

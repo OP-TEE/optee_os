@@ -407,7 +407,8 @@ bool transfer_list_set_data_size(struct transfer_list_header *tl,
 		tl->size -= mov_dis;
 	}
 	/* Move all following entries to fit in the expanded or shrunk space */
-	memmove((void *)r_new_ev, (void *)old_ev, tl_old_ev - old_ev);
+	if (tl_old_ev > old_ev)
+		memmove((void *)r_new_ev, (void *)old_ev, tl_old_ev - old_ev);
 
 	/*
 	 * Fill the gap due to round up/down with a void entry if the size of

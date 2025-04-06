@@ -127,7 +127,7 @@ CFG_OS_REV_REPORTS_GIT_SHA1 ?= y
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 4
-CFG_OPTEE_REVISION_MINOR ?= 4
+CFG_OPTEE_REVISION_MINOR ?= 5
 CFG_OPTEE_REVISION_EXTRA ?=
 
 # Trusted OS implementation version
@@ -449,6 +449,7 @@ CFG_CORE_BGET_BESTFIT ?= $(call cfg-one-enabled, CFG_WITH_PAGER CFG_LOCKDEP)
 # Enable support for detected undefined behavior in C
 # Uses a lot of memory, can't be enabled by default
 CFG_CORE_SANITIZE_UNDEFINED ?= n
+CFG_TA_SANITIZE_UNDEFINED ?= n
 
 # Enable Kernel Address sanitizer, has a huge performance impact, uses a
 # lot of memory and need platform specific adaptations, can't be enabled by
@@ -790,6 +791,7 @@ CFG_CORE_TPM_EVENT_LOG ?= n
 # CFG_SCMI_MSG_RESET_DOMAIN embeds SCMI reset domain protocol support.
 # CFG_SCMI_MSG_SMT embeds a SMT header in shared device memory buffers
 # CFG_SCMI_MSG_VOLTAGE_DOMAIN embeds SCMI voltage domain protocol support.
+# CFG_SCMI_MSG_PERF_DOMAIN embeds SCMI performance domain management protocol
 # CFG_SCMI_MSG_SMT_FASTCALL_ENTRY embeds fastcall SMC entry with SMT memory
 # CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY embeds interrupt entry with SMT memory
 # CFG_SCMI_MSG_SMT_THREAD_ENTRY embeds threaded entry with SMT memory
@@ -805,6 +807,7 @@ CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY ?= n
 CFG_SCMI_MSG_SMT_THREAD_ENTRY ?= n
 CFG_SCMI_MSG_THREAD_ENTRY ?= n
 CFG_SCMI_MSG_VOLTAGE_DOMAIN ?= n
+CFG_SCMI_MSG_PERF_DOMAIN ?= n
 $(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,CFG_SCMI_MSG_SMT))
 $(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY,CFG_SCMI_MSG_SMT))
 $(eval $(call cfg-depends-one,CFG_SCMI_MSG_SMT_THREAD_ENTRY,CFG_SCMI_MSG_SMT CFG_SCMI_MSG_SHM_MSG))
@@ -1262,11 +1265,30 @@ CFG_CORE_UNSAFE_MODEXP ?= n
 # CFG_TA_MBEDTLS_UNSAFE_MODEXP, similar to CFG_CORE_UNSAFE_MODEXP,
 # when enabled, makes MBedTLS library for TAs use 'unsafe' modular
 # exponentiation algorithm.
-CFG_TA_MEBDTLS_UNSAFE_MODEXP ?= n
+CFG_TA_MBEDTLS_UNSAFE_MODEXP ?= n
 
-# CFG_BOOT_MEM, when enabled, adds stack like memory allocation during boot.
+# CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL, when enabled, initializes
+# thread_core_local[current_core_pos] before calling C code.
 ifeq ($(ARCH),arm)
-$(call force,CFG_BOOT_MEM,y)
+$(call force,CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL,y)
 else
-CFG_BOOT_MEM ?= n
+CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL ?= n
 endif
+
+# CFG_DYN_CONFIG, when enabled, use dynamic memory allocation for translation
+# tables. Not supported with pager.
+ifeq ($(CFG_WITH_PAGER),y)
+$(call force,CFG_DYN_CONFIG,n,conflicts with CFG_WITH_PAGER)
+else
+CFG_DYN_CONFIG ?= y
+endif
+
+# CFG_EXTERNAL_ABORT_PLAT_HANDLER is used to implement platform-specific
+# handling of external abort implementing the plat_external_abort_handler()
+# function.
+CFG_EXTERNAL_ABORT_PLAT_HANDLER ?= n
+
+# CFG_TA_LIBGCC, when enabled, links user mode TAs with libgcc. Linking
+# TAs with libgcc is deprecated, but keep this flag while sorting out the
+# out remaining issues with supporting C++.
+CFG_TA_LIBGCC ?= y

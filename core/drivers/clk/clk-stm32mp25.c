@@ -1684,6 +1684,41 @@ static int wait_xbar_sts(uint16_t channel)
 	return 0;
 }
 
+static TEE_Result flexclkgen_search_config(uint16_t channel,
+					   unsigned int *clk_src,
+					   unsigned int *prediv,
+					   unsigned int *findiv)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	struct stm32_clk_platdata *pdata = priv->pdata;
+	unsigned int flex_id = U(0);
+	uint32_t dt_cfg = U(0);
+	uint32_t i = U(0);
+
+	assert(clk_src && prediv && findiv);
+
+	/*
+	 * pdata->flexgen is the array of all the flexgen configuration from
+	 * the device tree.
+	 * The binding does not enforce the description of all flexgen nor
+	 * the order it which they are listed.
+	 */
+	for (i = 0; i < pdata->nflexgen; i++) {
+		dt_cfg = pdata->flexgen[i];
+
+		flex_id = (dt_cfg & FLEX_ID_MASK) >> FLEX_ID_SHIFT;
+		if (flex_id == channel) {
+			*clk_src = (dt_cfg & FLEX_SEL_MASK) >> FLEX_SEL_SHIFT;
+			*prediv = (dt_cfg & FLEX_PDIV_MASK) >> FLEX_PDIV_SHIFT;
+			*findiv = (dt_cfg & FLEX_FDIV_MASK) >> FLEX_FDIV_SHIFT;
+
+			return TEE_SUCCESS;
+		}
+	}
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
 static void flexclkgen_config_channel(uint16_t channel, unsigned int clk_src,
 				      unsigned int prediv, unsigned int findiv)
 {
@@ -2391,7 +2426,30 @@ static TEE_Result clk_stm32_flexgen_enable(struct clk *clk)
 {
 	struct clk_stm32_flexgen_cfg *cfg = clk->priv;
 	uintptr_t rcc_base = clk_stm32_get_rcc_base();
+	TEE_Result ret = TEE_ERROR_GENERIC;
 	uint8_t channel = cfg->flex_id;
+
+	/*
+	 * Configure flexgen of STGEN since it has been skipped during
+	 * flexgen configuration.
+	 */
+	if (channel == FLEX_STGEN) {
+		unsigned int clk_src = U(0);
+		unsigned int pdiv = U(0);
+		unsigned int fdiv = U(0);
+
+		ret = flexclkgen_search_config(channel, &clk_src, &pdiv, &fdiv);
+		if (ret) {
+			EMSG("Error %#"PRIx32" when getting STGEN flexgen conf",
+			     ret);
+			return ret;
+		}
+
+		flexclkgen_config_channel(channel, clk_src, pdiv, fdiv);
+
+		/* Update parent */
+		clk->parent = clk_get_parent_by_index(clk, clk_src);
+	}
 
 	io_setbits32(rcc_base + RCC_FINDIV0CFGR + (0x4 * channel),
 		     RCC_FINDIV0CFGR_FINDIV0EN);

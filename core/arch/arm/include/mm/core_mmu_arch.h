@@ -76,9 +76,7 @@
  * that these magic numbers are correct.
  */
 #define CORE_MMU_BASE_TABLE_OFFSET \
-	(CFG_TEE_CORE_NB_CORE * \
-	 BIT(CFG_LPAE_ADDR_SPACE_BITS - CORE_MMU_BASE_TABLE_SHIFT) * \
-	 U(8))
+	(BIT(CFG_LPAE_ADDR_SPACE_BITS - CORE_MMU_BASE_TABLE_SHIFT) * U(8))
 #endif
 
 #ifndef __ASSEMBLER__

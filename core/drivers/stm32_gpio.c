@@ -31,10 +31,6 @@
 #include <trace.h>
 #include <util.h>
 
-#ifndef CFG_DRIVERS_GPIO
-#error stm32_gpio driver expects CFG_DRIVERS_GPIO
-#endif
-
 #define GPIO_PIN_MAX		15
 
 #define GPIO_MODER_OFFSET	U(0x00)

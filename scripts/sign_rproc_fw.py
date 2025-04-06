@@ -316,6 +316,9 @@ def get_args(logger):
                         help='Type of signing key: should be RSA or ECC',
                         default='RSA',
                         dest='key_type')
+    parser.add_argument('--key_pwd', required=False,
+                        help='passphrase for the private key decryption',
+                        dest='key_pwd')
     parser.add_argument('--plat-tlv', required=False, nargs=2,
                         metavar=("ID", "value"), action='append',
                         help='Platform TLV that will be placed into image '
@@ -335,12 +338,12 @@ def get_args(logger):
     return parsed
 
 
-def rsa_key(key_file):
-    return RSA.importKey(open(key_file).read())
+def rsa_key(key_file, key_pwd):
+    return RSA.importKey(open(key_file).read(), key_pwd)
 
 
-def ecc_key(key_file):
-    return ECC.import_key(open(key_file).read())
+def ecc_key(key_file, key_pwd):
+    return ECC.import_key(open(key_file).read(), key_pwd)
 
 
 key_type = {
@@ -385,7 +388,7 @@ def main():
     sign_type = ENUM_SIGNATURE_TYPE[args.key_type]
     get_key = key_type.get(sign_type, lambda: "Invalid sign type")
 
-    key = get_key(args.key_file)
+    key = get_key(args.key_file, args.key_pwd)
 
     if not key.has_private():
         logger.error('Provided key cannot be used for signing, ')

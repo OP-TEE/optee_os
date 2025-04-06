@@ -69,6 +69,15 @@ int sbi_dbcn_write_byte(unsigned char ch)
 	return ret.error;
 }
 
+/**
+ * sbi_hsm_hart_start() - Start target hart at OP-TEE entry in S-mode
+ * @hartid:     Target hart ID
+ * @start_addr: Physical address of OP-TEE entry
+ * @arg:        opaque parameter, typically used as the physical
+ *              address of device-tree passed via @arg->a1
+ *
+ * Return:      SBI error code (SBI_SUCCESS = 0 on success)
+ */
 int sbi_hsm_hart_start(uint32_t hartid, paddr_t start_addr, unsigned long arg)
 {
 	struct sbiret ret = { };
@@ -77,4 +86,24 @@ int sbi_hsm_hart_start(uint32_t hartid, paddr_t start_addr, unsigned long arg)
 			arg);
 
 	return ret.error;
+}
+
+/**
+ * sbi_hsm_hart_get_status() - Get the current HSM state of given hart
+ * @hartid:         Target hart ID
+ * @status:         Pointer to store HSM state
+ *
+ * Return:          SBI error code (SBI_SUCCESS = 0 on success)
+ */
+int sbi_hsm_hart_get_status(uint32_t hartid, enum sbi_hsm_hart_state *status)
+{
+	struct sbiret ret = { };
+
+	ret = sbi_ecall(SBI_EXT_HSM, SBI_EXT_HSM_HART_GET_STATUS, hartid);
+
+	if (ret.error)
+		return ret.error;
+
+	*status = ret.value;
+	return SBI_SUCCESS;
 }

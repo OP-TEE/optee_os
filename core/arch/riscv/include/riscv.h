@@ -13,6 +13,9 @@
 #include <sys/cdefs.h>
 #include <util.h>
 
+/* The stack pointer is always kept 16-byte aligned */
+#define STACK_ALIGNMENT		16
+
 #define RISCV_XLEN_BITS		(__riscv_xlen)
 #define RISCV_XLEN_BYTES	(__riscv_xlen / 8)
 
@@ -54,6 +57,9 @@
 #define CSR_XCAUSE		(CSR_MODE_BITS | 0x042)
 #define CSR_XTVAL		(CSR_MODE_BITS | 0x043)
 #define CSR_XIP			(CSR_MODE_BITS | 0x044)
+#define CSR_XISELECT		(CSR_MODE_BITS | 0x050)
+#define CSR_XIREG		(CSR_MODE_BITS | 0x051)
+#define CSR_XTOPEI		(CSR_MODE_BITS | 0x05C)
 
 #define IRQ_XSOFT		(CSR_MODE_OFFSET + 0)
 #define IRQ_XTIMER		(CSR_MODE_OFFSET + 4)

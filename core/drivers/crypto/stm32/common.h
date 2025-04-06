@@ -34,5 +34,8 @@ enum stm32_cipher_ip_id {
 
 TEE_Result stm32_register_authenc(void);
 TEE_Result stm32_register_cipher(enum stm32_cipher_ip_id);
+TEE_Result stm32_register_ecc(void);
+TEE_Result stm32_register_hash(void);
+TEE_Result stm32_register_hmac(void);
 
 #endif /* __DRIVERS_CRYPTO_STM32_COMMON_H */

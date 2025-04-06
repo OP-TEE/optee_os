@@ -31,13 +31,8 @@ struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
  * stack_xxx[n]          "hard" top          "soft" top       bottom
  */
 
-#ifdef CFG_WITH_STACK_CANARIES
 static uint32_t start_canary_value = 0xdedede00;
 static uint32_t end_canary_value = 0xababab00;
-#define GET_START_CANARY(name, stack_num) name[stack_num][0]
-#define GET_END_CANARY(name, stack_num) \
-	name[stack_num][sizeof(name[stack_num]) / sizeof(uint32_t) - 1]
-#endif
 
 #define DECLARE_STACK(name, num_stacks, stack_size, linkage) \
 linkage uint32_t name[num_stacks] \
@@ -46,8 +41,6 @@ linkage uint32_t name[num_stacks] \
 		__attribute__((section(".nozi_stack." # name), \
 			       aligned(STACK_ALIGNMENT)))
 
-#define GET_STACK(stack) ((vaddr_t)(stack) + STACK_SIZE(stack))
-
 DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE, STACK_TMP_SIZE,
 	      /* global linkage */);
 DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
@@ -55,10 +48,6 @@ DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
 #endif
 
-#define GET_STACK_TOP_HARD(stack, n) \
-	((vaddr_t)&(stack)[n] + STACK_CANARY_SIZE / 2)
-#define GET_STACK_TOP_SOFT(stack, n) \
-	(GET_STACK_TOP_HARD(stack, n) + STACK_CHECK_EXTRA)
 #define GET_STACK_BOTTOM(stack, n) ((vaddr_t)&(stack)[n] + sizeof(stack[n]) - \
 				    STACK_CANARY_SIZE / 2)
 
@@ -73,25 +62,80 @@ DECLARE_KEEP_PAGER(stack_tmp_stride);
 
 static unsigned int thread_global_lock __nex_bss = SPINLOCK_UNLOCK;
 
+static size_t stack_size_to_alloc_size(size_t stack_size)
+{
+	return ROUNDUP(stack_size + STACK_CANARY_SIZE + STACK_CHECK_EXTRA,
+		       STACK_ALIGNMENT);
+}
+
+static vaddr_t stack_end_va_to_top_hard(size_t stack_size, vaddr_t end_va)
+{
+	size_t l = stack_size_to_alloc_size(stack_size);
+
+	return end_va - l + STACK_CANARY_SIZE;
+}
+
+static vaddr_t stack_end_va_to_top_soft(size_t stack_size, vaddr_t end_va)
+{
+	return stack_end_va_to_top_hard(stack_size, end_va) + STACK_CHECK_EXTRA;
+}
+
+static vaddr_t stack_end_va_to_bottom(size_t stack_size __unused,
+				      vaddr_t end_va)
+{
+	return end_va;
+}
+
+static uint32_t *stack_end_va_to_start_canary(size_t stack_size, vaddr_t end_va)
+{
+	return (uint32_t *)(stack_end_va_to_top_hard(stack_size, end_va) -
+			    STACK_CANARY_SIZE / 2);
+}
+
+static uint32_t *stack_end_va_to_end_canary(size_t stack_size __unused,
+					    vaddr_t end_va)
+{
+	return (uint32_t *)(end_va + STACK_CANARY_SIZE / 2 - sizeof(uint32_t));
+}
+
+static void init_canaries(size_t stack_size, vaddr_t va_end)
+{
+	uint32_t *canary = NULL;
+
+	assert(va_end);
+	canary = stack_end_va_to_start_canary(stack_size, va_end);
+	*canary = start_canary_value;
+	canary = stack_end_va_to_end_canary(stack_size, va_end);
+	*canary = end_canary_value;
+}
+
 void thread_init_canaries(void)
 {
-#ifdef CFG_WITH_STACK_CANARIES
-	size_t n;
-#define INIT_CANARY(name)						\
-	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
-		uint32_t *start_canary = &GET_START_CANARY(name, n);	\
-		uint32_t *end_canary = &GET_END_CANARY(name, n);	\
-									\
-		*start_canary = start_canary_value;			\
-		*end_canary = end_canary_value;				\
+	vaddr_t va = 0;
+	size_t n = 0;
+
+	if (IS_ENABLED(CFG_WITH_STACK_CANARIES)) {
+		for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+			if (thread_core_local[n].tmp_stack_va_end) {
+				va = thread_core_local[n].tmp_stack_va_end +
+				     STACK_TMP_OFFS;
+				init_canaries(STACK_TMP_SIZE, va);
+			}
+			va = thread_core_local[n].abt_stack_va_end;
+			if (va)
+				init_canaries(STACK_ABT_SIZE, va);
+		}
+
 	}
 
-	INIT_CANARY(stack_tmp);
-	INIT_CANARY(stack_abt);
-#if !defined(CFG_WITH_PAGER) && !defined(CFG_NS_VIRTUALIZATION)
-	INIT_CANARY(stack_thread);
-#endif
-#endif/*CFG_WITH_STACK_CANARIES*/
+	if (IS_ENABLED(CFG_WITH_STACK_CANARIES) &&
+	    !IS_ENABLED(CFG_WITH_PAGER) && !IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		for (n = 0; n < CFG_NUM_THREADS; n++) {
+			va = threads[n].stack_va_end;
+			if (va)
+				init_canaries(STACK_THREAD_SIZE, va);
+		}
+	}
 }
 
 #if defined(CFG_WITH_STACK_CANARIES)
@@ -115,47 +159,57 @@ void thread_update_canaries(void)
 }
 #endif
 
-#define CANARY_DIED(stack, loc, n, addr) \
-	do { \
-		EMSG_RAW("Dead canary at %s of '%s[%zu]' (%p)", #loc, #stack, \
-			 n, (void *)addr); \
-		panic(); \
-	} while (0)
+static void check_stack_canary(const char *stack_name __maybe_unused,
+			       size_t n __maybe_unused,
+			       size_t stack_size, vaddr_t end_va)
+{
+	uint32_t *canary = NULL;
+
+	canary = stack_end_va_to_start_canary(stack_size, end_va);
+	if (*canary != start_canary_value) {
+		EMSG_RAW("Dead canary at start of '%s[%zu]' (%p)",
+			 stack_name, n, (void *)canary);
+		panic();
+	}
+
+	canary = stack_end_va_to_end_canary(stack_size, end_va);
+	if (*canary != end_canary_value) {
+		EMSG_RAW("Dead canary at end of '%s[%zu]' (%p)",
+			 stack_name, n, (void *)canary);
+		panic();
+	}
+}
 
 void thread_check_canaries(void)
 {
-#ifdef CFG_WITH_STACK_CANARIES
-	uint32_t *canary = NULL;
+	vaddr_t va = 0;
 	size_t n = 0;
 
-	for (n = 0; n < ARRAY_SIZE(stack_tmp); n++) {
-		canary = &GET_START_CANARY(stack_tmp, n);
-		if (*canary != start_canary_value)
-			CANARY_DIED(stack_tmp, start, n, canary);
-		canary = &GET_END_CANARY(stack_tmp, n);
-		if (*canary != end_canary_value)
-			CANARY_DIED(stack_tmp, end, n, canary);
+	if (IS_ENABLED(CFG_WITH_STACK_CANARIES)) {
+		for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+			if (thread_core_local[n].tmp_stack_va_end) {
+				va = thread_core_local[n].tmp_stack_va_end +
+				     STACK_TMP_OFFS;
+				check_stack_canary("tmp_stack", n,
+						   STACK_TMP_SIZE, va);
+			}
+
+			va = thread_core_local[n].abt_stack_va_end;
+			if (va)
+				check_stack_canary("abt_stack", n,
+						   STACK_ABT_SIZE, va);
+		}
 	}
 
-	for (n = 0; n < ARRAY_SIZE(stack_abt); n++) {
-		canary = &GET_START_CANARY(stack_abt, n);
-		if (*canary != start_canary_value)
-			CANARY_DIED(stack_abt, start, n, canary);
-		canary = &GET_END_CANARY(stack_abt, n);
-		if (*canary != end_canary_value)
-			CANARY_DIED(stack_abt, end, n, canary);
+	if (IS_ENABLED(CFG_WITH_STACK_CANARIES) &&
+	    !IS_ENABLED(CFG_WITH_PAGER) && !IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		for (n = 0; n < CFG_NUM_THREADS; n++) {
+			va = threads[n].stack_va_end;
+			if (va)
+				check_stack_canary("thread_stack", n,
+						   STACK_THREAD_SIZE, va);
+		}
 	}
-#if !defined(CFG_WITH_PAGER) && !defined(CFG_NS_VIRTUALIZATION)
-	for (n = 0; n < ARRAY_SIZE(stack_thread); n++) {
-		canary = &GET_START_CANARY(stack_thread, n);
-		if (*canary != start_canary_value)
-			CANARY_DIED(stack_thread, start, n, canary);
-		canary = &GET_END_CANARY(stack_thread, n);
-		if (*canary != end_canary_value)
-			CANARY_DIED(stack_thread, end, n, canary);
-	}
-#endif
-#endif/*CFG_WITH_STACK_CANARIES*/
 }
 
 void thread_lock_global(void)
@@ -195,20 +249,24 @@ static void print_stack_limits(void)
 	size_t n = 0;
 	vaddr_t __maybe_unused start = 0;
 	vaddr_t __maybe_unused end = 0;
+	vaddr_t va = 0;
 
 	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
-		start = GET_STACK_TOP_SOFT(stack_tmp, n);
-		end = GET_STACK_BOTTOM(stack_tmp, n);
+		va = thread_core_local[n].tmp_stack_va_end + STACK_TMP_OFFS;
+		start = stack_end_va_to_top_soft(STACK_TMP_SIZE, va);
+		end = stack_end_va_to_bottom(STACK_TMP_SIZE, va);
 		DMSG("tmp [%zu] 0x%" PRIxVA "..0x%" PRIxVA, n, start, end);
-	}
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
-		start = GET_STACK_TOP_SOFT(stack_abt, n);
-		end = GET_STACK_BOTTOM(stack_abt, n);
+
+		va = thread_core_local[n].abt_stack_va_end;
+		start = stack_end_va_to_top_soft(STACK_ABT_SIZE, va);
+		end = stack_end_va_to_bottom(STACK_ABT_SIZE, va);
 		DMSG("abt [%zu] 0x%" PRIxVA "..0x%" PRIxVA, n, start, end);
 	}
+
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		end = threads[n].stack_va_end;
-		start = end - STACK_THREAD_SIZE + STACK_CHECK_EXTRA;
+		va = threads[n].stack_va_end;
+		start = stack_end_va_to_top_soft(STACK_THREAD_SIZE, va);
+		end = stack_end_va_to_bottom(STACK_THREAD_SIZE, va);
 		DMSG("thr [%zu] 0x%" PRIxVA "..0x%" PRIxVA, n, start, end);
 	}
 }
@@ -315,7 +373,7 @@ vaddr_t thread_stack_start(void)
 		return 0;
 
 	thr = threads + ct;
-	return thr->stack_va_end - STACK_THREAD_SIZE;
+	return stack_end_va_to_top_soft(STACK_THREAD_SIZE, thr->stack_va_end);
 }
 
 size_t thread_stack_size(void)
@@ -329,32 +387,29 @@ bool get_stack_limits(vaddr_t *start, vaddr_t *end, bool hard)
 	unsigned int pos = get_core_pos();
 	struct thread_core_local *l = get_core_local(pos);
 	int ct = l->curr_thread;
-	bool ret = false;
+	size_t stack_size = 0;
+	bool ret = true;
+	vaddr_t va = 0;
 
 	if (l->flags & THREAD_CLF_TMP) {
-		if (hard)
-			*start = GET_STACK_TOP_HARD(stack_tmp, pos);
-		else
-			*start = GET_STACK_TOP_SOFT(stack_tmp, pos);
-		*end = GET_STACK_BOTTOM(stack_tmp, pos);
-		ret = true;
+		va = l->tmp_stack_va_end + STACK_TMP_OFFS;
+		stack_size = STACK_TMP_SIZE;
 	} else if (l->flags & THREAD_CLF_ABORT) {
-		if (hard)
-			*start = GET_STACK_TOP_HARD(stack_abt, pos);
-		else
-			*start = GET_STACK_TOP_SOFT(stack_abt, pos);
-		*end = GET_STACK_BOTTOM(stack_abt, pos);
-		ret = true;
-	} else if (!l->flags) {
-		if (ct < 0 || ct >= CFG_NUM_THREADS)
-			goto out;
-
-		*end = threads[ct].stack_va_end;
-		*start = *end - STACK_THREAD_SIZE;
-		if (!hard)
-			*start += STACK_CHECK_EXTRA;
-		ret = true;
+		va = l->abt_stack_va_end;
+		stack_size = STACK_ABT_SIZE;
+	} else if (!l->flags && ct >= 0 && ct < CFG_NUM_THREADS) {
+		va = threads[ct].stack_va_end;
+		stack_size = STACK_THREAD_SIZE;
+	} else {
+		ret = false;
+		goto out;
 	}
+
+	*end = stack_end_va_to_bottom(stack_size, va);
+	if (hard)
+		*start = stack_end_va_to_top_hard(stack_size, va);
+	else
+		*start = stack_end_va_to_top_soft(stack_size, va);
 out:
 	thread_unmask_exceptions(exceptions);
 	return ret;
@@ -451,11 +506,16 @@ static void init_thread_stacks(void)
 #else
 static void init_thread_stacks(void)
 {
-	size_t n;
+	vaddr_t va = 0;
+	size_t n = 0;
 
 	/* Assign the thread stacks */
-	for (n = 0; n < CFG_NUM_THREADS; n++)
-		threads[n].stack_va_end = GET_STACK_BOTTOM(stack_thread, n);
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		va = GET_STACK_BOTTOM(stack_thread, n);
+		threads[n].stack_va_end = va;
+		if (IS_ENABLED(CFG_WITH_STACK_CANARIES))
+			init_canaries(STACK_THREAD_SIZE, va);
+	}
 }
 #endif /*CFG_WITH_PAGER*/
 
@@ -473,6 +533,36 @@ void thread_init_threads(void)
 		TAILQ_INIT(&threads[n].tsd.sess_stack);
 }
 
+vaddr_t __nostackcheck thread_get_abt_stack(void)
+{
+	return GET_STACK_BOTTOM(stack_abt, get_core_pos());
+}
+
+#ifdef CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL
+void thread_init_thread_core_local(void)
+{
+	struct thread_core_local *tcl = thread_core_local;
+	const size_t core_pos = get_core_pos();
+	vaddr_t va = 0;
+	size_t n = 0;
+
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+		if (n == core_pos)
+			continue;	/* Already initialized */
+		tcl[n].curr_thread = THREAD_ID_INVALID;
+		tcl[n].flags = THREAD_CLF_TMP;
+
+		va = GET_STACK_BOTTOM(stack_tmp, n);
+		tcl[n].tmp_stack_va_end = va - STACK_TMP_OFFS;
+		if (IS_ENABLED(CFG_WITH_STACK_CANARIES))
+			init_canaries(STACK_TMP_SIZE, va);
+		va = GET_STACK_BOTTOM(stack_abt, n);
+		tcl[n].abt_stack_va_end = va;
+		if (IS_ENABLED(CFG_WITH_STACK_CANARIES))
+			init_canaries(STACK_ABT_SIZE, va);
+	}
+}
+#else
 void __nostackcheck thread_init_thread_core_local(void)
 {
 	size_t n = 0;
@@ -496,6 +586,7 @@ void __nostackcheck thread_init_core_local_stacks(void)
 		tcl[n].abt_stack_va_end = GET_STACK_BOTTOM(stack_abt, n);
 	}
 }
+#endif /*CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL*/
 
 #if defined(CFG_CORE_PAUTH)
 void thread_init_thread_pauth_keys(void)
