@@ -104,6 +104,11 @@
 #define TEE_ALG_SM4_XTS 0xF0000414
 
 /*
+ * ECDSA pre-hashed sign/verify
+ */
+#define TEE_ALG_ECDSA_RAW		0xF0000042
+
+/*
  * Implementation-specific object storage constants
  */
 
