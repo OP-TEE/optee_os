@@ -1,3 +1,33 @@
+# OP-TEE - version 4.6.0 (2025-04-25)
+
+- Links to the release pages, commits and pull requests merged into this release for:
+  - OP-TEE/optee_os: [release page][OP_TEE_optee_os_release_4_6_0], [commits][OP_TEE_optee_os_commits_4_6_0] and [pull requests][OP_TEE_optee_os_pr_4_6_0]
+  - OP-TEE/optee_client: [release page][OP_TEE_optee_client_release_4_6_0], [commits][OP_TEE_optee_client_commits_4_6_0] and [pull requests][OP_TEE_optee_client_pr_4_6_0]
+  - OP-TEE/optee_test: [release page][OP_TEE_optee_test_release_4_6_0], [commits][OP_TEE_optee_test_commits_4_6_0] and [pull requests][OP_TEE_optee_test_pr_4_6_0]
+  - OP-TEE/build: [release page][OP_TEE_build_release_4_6_0], [commits][OP_TEE_build_commits_4_6_0] and [pull requests][OP_TEE_build_pr_4_6_0]
+  - linaro-swg/optee_examples: [release page][linaro_swg_optee_examples_release_4_6_0], [commits][linaro_swg_optee_examples_commits_4_6_0] and [pull requests][linaro_swg_optee_examples_pr_4_6_0]
+
+
+[OP_TEE_optee_os_release_4_6_0]: https://github.com/OP-TEE/optee_os/releases/tag/4.6.0
+[OP_TEE_optee_os_commits_4_6_0]: https://github.com/OP-TEE/optee_os/compare/4.5.0...4.6.0
+[OP_TEE_optee_os_pr_4_6_0]: https://github.com/OP-TEE/optee_os/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2024-01-17..2025-04-25
+
+[OP_TEE_optee_client_release_4_6_0]: https://github.com/OP-TEE/optee_client/releases/tag/4.6.0
+[OP_TEE_optee_client_commits_4_6_0]: https://github.com/OP-TEE/optee_client/compare/4.5.0...4.6.0
+[OP_TEE_optee_client_pr_4_6_0]: https://github.com/OP-TEE/optee_client/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2024-01-17..2025-04-25
+
+[OP_TEE_optee_test_release_4_6_0]: https://github.com/OP-TEE/optee_test/releases/tag/4.6.0
+[OP_TEE_optee_test_commits_4_6_0]: https://github.com/OP-TEE/optee_test/compare/4.5.0...4.6.0
+[OP_TEE_optee_test_pr_4_6_0]: https://github.com/OP-TEE/optee_test/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2024-01-17..2025-04-25
+
+[OP_TEE_build_release_4_6_0]: https://github.com/OP-TEE/build/releases/tag/4.6.0
+[OP_TEE_build_commits_4_6_0]: https://github.com/OP-TEE/build/compare/4.5.0...4.6.0
+[OP_TEE_build_pr_4_6_0]: https://github.com/OP-TEE/build/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2024-01-17..2025-04-25
+
+[linaro_swg_optee_examples_release_4_6_0]: https://github.com/linaro-swg/optee_examples/releases/tag/4.6.0
+[linaro_swg_optee_examples_commits_4_6_0]: https://github.com/linaro-swg/optee_examples/compare/4.5.0...4.6.0
+[linaro_swg_optee_examples_pr_4_6_0]: https://github.com/linaro-swg/optee_examples/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2024-01-17..2025-04-25
+
 # OP-TEE - version 4.5.0 (2025-01-17)
 
 - Links to the release pages, commits and pull requests merged into this release for:
