@@ -657,7 +657,7 @@
 #define MBEDTLS_TLS_EXT_KEY_SHARE                   51 /* RFC 8446 TLS 1.3 */
 
 /*
- * MBEDTLS_TLS_EXT_CID is required only when deprecated
+ * MBEDTLS_TLS_EXT_CID is required only when
  * MBEDTLS_SSL_DTLS_CONNECTION_ID is defined.
  */
 #if defined(MBEDTLS_SSL_DTLS_CONNECTION_ID)
