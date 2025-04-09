@@ -113,7 +113,7 @@ UNWIND(	.cantunwind)
 	adr	r4, _suspend_sp
 	ldr	r5, [r4]
 	add	r4, r4, r5
-	ldr	r4, [r5]
+	ldr	r4, [r4]
 
 	mov_imm r1, THREAD_CORE_LOCAL_SIZE
 	mla	r0, r0, r1, r4
