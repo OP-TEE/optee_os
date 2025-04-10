@@ -4,86 +4,35 @@
  * Author: Jorge Ramirez <jorge@foundries.io>
  */
 
+#include <config.h>
+#include <crypto/crypto_impl.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
-#include <crypto/crypto_impl.h>
+#include <ecc.h>
 #include <initcall.h>
-#include <ipi.h>
+#include <io.h>
+#include <kernel/delay.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <string.h>
 #include <tee/cache.h>
 #include <tee/tee_cryp_utl.h>
 #include <util.h>
 
-/* AMD/Xilinx Versal's Known Answer Tests */
-#define XSECURE_ECDSA_KAT_NIST_P384	0
-#define XSECURE_ECDSA_KAT_NIST_P521	2
-
 /* Software based ECDSA operations */
 static const struct crypto_ecc_keypair_ops *pair_ops;
 static const struct crypto_ecc_public_ops *pub_ops;
 
-enum versal_ecc_err {
-	KAT_KEY_NOTVALID_ERROR = 0xC0,
-	KAT_FAILED_ERROR,
-	NON_SUPPORTED_CURVE,
-	KEY_ZERO,
-	KEY_WRONG_ORDER,
-	KEY_NOT_ON_CURVE,
-	BAD_SIGN,
-	GEN_SIGN_INCORRECT_HASH_LEN,
-	VER_SIGN_INCORRECT_HASH_LEN,
-	GEN_SIGN_BAD_RAND_NUM,
-	GEN_KEY_ERR,
-	INVALID_PARAM,
-	VER_SIGN_R_ZERO,
-	VER_SIGN_S_ZERO,
-	VER_SIGN_R_ORDER_ERROR,
-	VER_SIGN_S_ORDER_ERROR,
-	KAT_INVLD_CRV_ERROR,
-};
-
-#define VERSAL_ECC_ERROR(m) { .error = (m), .name = TO_STR(m) }
-
-static const char *versal_ecc_error(uint8_t err)
-{
-	struct {
-		enum versal_ecc_err error;
-		const char *name;
-	} elist[] = {
-		VERSAL_ECC_ERROR(KAT_KEY_NOTVALID_ERROR),
-		VERSAL_ECC_ERROR(KAT_FAILED_ERROR),
-		VERSAL_ECC_ERROR(NON_SUPPORTED_CURVE),
-		VERSAL_ECC_ERROR(KEY_ZERO),
-		VERSAL_ECC_ERROR(KEY_WRONG_ORDER),
-		VERSAL_ECC_ERROR(KEY_NOT_ON_CURVE),
-		VERSAL_ECC_ERROR(BAD_SIGN),
-		VERSAL_ECC_ERROR(GEN_SIGN_INCORRECT_HASH_LEN),
-		VERSAL_ECC_ERROR(VER_SIGN_INCORRECT_HASH_LEN),
-		VERSAL_ECC_ERROR(GEN_SIGN_BAD_RAND_NUM),
-		VERSAL_ECC_ERROR(GEN_KEY_ERR),
-		VERSAL_ECC_ERROR(INVALID_PARAM),
-		VERSAL_ECC_ERROR(VER_SIGN_R_ZERO),
-		VERSAL_ECC_ERROR(VER_SIGN_S_ZERO),
-		VERSAL_ECC_ERROR(VER_SIGN_R_ORDER_ERROR),
-		VERSAL_ECC_ERROR(VER_SIGN_S_ORDER_ERROR),
-		VERSAL_ECC_ERROR(KAT_INVLD_CRV_ERROR),
-	};
-
-	if (err <= KAT_INVLD_CRV_ERROR && err >= KAT_KEY_NOTVALID_ERROR) {
-		if (elist[err - KAT_KEY_NOTVALID_ERROR].name)
-			return elist[err - KAT_KEY_NOTVALID_ERROR].name;
-
-		return "Invalid";
-	}
-
-	return "Unknown";
-}
-
-static TEE_Result ecc_get_key_size(uint32_t curve, size_t *bytes, size_t *bits)
+TEE_Result versal_ecc_get_key_size(uint32_t curve, size_t *bytes, size_t *bits)
 {
 	switch (curve) {
+#if defined(CFG_VERSAL_PKI_DRIVER)
+	case TEE_ECC_CURVE_NIST_P256:
+		*bits = 256;
+		*bytes = 32;
+		break;
+#endif
 	case TEE_ECC_CURVE_NIST_P384:
 		*bits = 384;
 		*bytes = 48;
@@ -99,7 +48,7 @@ static TEE_Result ecc_get_key_size(uint32_t curve, size_t *bytes, size_t *bits)
 	return TEE_SUCCESS;
 }
 
-static void memcpy_swp(uint8_t *to, const uint8_t *from, size_t len)
+void versal_memcpy_swp(uint8_t *to, const uint8_t *from, size_t len)
 {
 	size_t i = 0;
 
@@ -107,217 +56,53 @@ static void memcpy_swp(uint8_t *to, const uint8_t *from, size_t len)
 		to[i] = from[len - 1 - i];
 }
 
-static void crypto_bignum_bn2bin_eswap(uint32_t curve,
-				       struct bignum *from, uint8_t *to)
+void versal_crypto_bignum_bn2bin_eswap(uint32_t curve, struct bignum *from,
+				       uint8_t *to)
 {
 	uint8_t pad[66] = { 0 };
 	size_t len = crypto_bignum_num_bytes(from);
 	size_t bytes = 0;
 	size_t bits = 0;
 
-	if (ecc_get_key_size(curve, &bytes, &bits))
+	if (versal_ecc_get_key_size(curve, &bytes, &bits))
 		panic();
 
 	crypto_bignum_bn2bin(from, pad + bytes - len);
-	memcpy_swp(to, pad, bytes);
+	versal_memcpy_swp(to, pad, bytes);
 }
 
-static TEE_Result ecc_prepare_msg(uint32_t algo, const uint8_t *msg,
-				  size_t msg_len, struct versal_mbox_mem *p)
+void versal_crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,
+				       struct bignum *to)
 {
-	uint8_t swp[TEE_SHA512_HASH_SIZE + 2] = { 0 };
-	size_t len = 0;
+	uint8_t pad[66] = { 0 };
 
+	assert(sz <= sizeof(pad));
+
+	versal_memcpy_swp(pad, from, sz);
+	crypto_bignum_bin2bn(pad, sz, to);
+}
+
+TEE_Result versal_ecc_prepare_msg(uint32_t algo, const uint8_t *msg,
+				  size_t msg_len, size_t *len, uint8_t *buf)
+{
 	if (msg_len > TEE_SHA512_HASH_SIZE + 2)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (algo == TEE_ALG_ECDSA_SHA384)
-		len = TEE_SHA384_HASH_SIZE;
+		*len = TEE_SHA384_HASH_SIZE;
 	else if (algo == TEE_ALG_ECDSA_SHA512)
-		len = TEE_SHA512_HASH_SIZE + 2;
+		*len = TEE_SHA512_HASH_SIZE + 2;
+#if defined(PLATFORM_FLAVOR_net)
+	else if (algo == TEE_ALG_ECDSA_SHA256)
+		*len = TEE_SHA256_HASH_SIZE;
+#endif
 	else
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	/* Swap the hash/message and pad if necessary */
-	memcpy_swp(swp, msg, msg_len);
-	return versal_mbox_alloc(len, swp, p);
-}
+	versal_memcpy_swp(buf, msg, msg_len);
 
-static TEE_Result verify(uint32_t algo, struct ecc_public_key *key,
-			 const uint8_t *msg, size_t msg_len,
-			 const uint8_t *sig, size_t sig_len)
-{
-	TEE_Result ret = TEE_SUCCESS;
-	struct versal_ecc_verify_param *cmd = NULL;
-	struct versal_cmd_args arg = { };
-	struct versal_mbox_mem x = { };
-	struct versal_mbox_mem s = { };
-	struct versal_mbox_mem p = { };
-	struct versal_mbox_mem cmd_buf = { };
-	uint32_t err = 0;
-	size_t bytes = 0;
-	size_t bits = 0;
-
-	if (sig_len % 2)
-		return TEE_ERROR_SIGNATURE_INVALID;
-
-	ret = ecc_get_key_size(key->curve, &bytes, &bits);
-	if (ret != TEE_SUCCESS) {
-		if (ret != TEE_ERROR_NOT_SUPPORTED)
-			return ret;
-
-		/* Fallback to software */
-		return pub_ops->verify(algo, key, msg, msg_len, sig, sig_len);
-	}
-
-	ret = ecc_prepare_msg(algo, msg, msg_len, &p);
-	if (ret)
-		return ret;
-
-	versal_mbox_alloc(bytes * 2, NULL, &x);
-	crypto_bignum_bn2bin_eswap(key->curve, key->x, x.buf);
-	crypto_bignum_bn2bin_eswap(key->curve, key->y,
-				   (uint8_t *)x.buf + bytes);
-	/* Validate the public key for the curve */
-	arg.data[0] = key->curve;
-	arg.dlen = 1;
-	arg.ibuf[0].mem = x;
-	if (versal_crypto_request(VERSAL_ELLIPTIC_VALIDATE_PUBLIC_KEY,
-				  &arg, &err)) {
-		EMSG("Versal ECC: %s", versal_ecc_error(err));
-		ret = TEE_ERROR_GENERIC;
-		goto out;
-	}
-	memset(&arg, 0, sizeof(arg));
-
-	versal_mbox_alloc(sig_len, NULL, &s);
-	/* Swap the {R,S} components */
-	memcpy_swp(s.buf, sig, sig_len / 2);
-	memcpy_swp((uint8_t *)s.buf + sig_len / 2, sig + sig_len / 2,
-		   sig_len / 2);
-	versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
-
-	cmd = cmd_buf.buf;
-	cmd->signature_addr = virt_to_phys(s.buf);
-	cmd->pub_key_addr = virt_to_phys(x.buf);
-	cmd->hash_addr = virt_to_phys(p.buf);
-	cmd->hash_len = p.len;
-	cmd->curve = key->curve;
-
-	arg.ibuf[0].mem = cmd_buf;
-	arg.ibuf[1].mem = p;
-	arg.ibuf[1].only_cache = true;
-	arg.ibuf[2].mem = x;
-	arg.ibuf[3].mem = s;
-
-	if (versal_crypto_request(VERSAL_ELLIPTIC_VERIFY_SIGN, &arg, &err)) {
-		EMSG("Versal ECC: %s", versal_ecc_error(err));
-		ret = TEE_ERROR_GENERIC;
-	}
-out:
-	free(p.buf);
-	free(x.buf);
-	free(s.buf);
-	free(cmd);
-
-	return ret;
-}
-
-static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
-		       const uint8_t *msg, size_t msg_len,
-		       uint8_t *sig, size_t *sig_len)
-{
-	struct versal_ecc_sign_param *cmd = NULL;
-	struct versal_mbox_mem cmd_buf = { };
-	struct ecc_keypair ephemeral = { };
-	struct versal_cmd_args arg = { };
-	struct versal_mbox_mem p = { };
-	struct versal_mbox_mem k = { };
-	struct versal_mbox_mem d = { };
-	struct versal_mbox_mem s = { };
-	TEE_Result ret = TEE_SUCCESS;
-	uint32_t err = 0;
-	size_t bytes = 0;
-	size_t bits = 0;
-
-	ret = ecc_get_key_size(key->curve, &bytes, &bits);
-	if (ret != TEE_SUCCESS) {
-		if (ret != TEE_ERROR_NOT_SUPPORTED)
-			return ret;
-
-		/* Fallback to software */
-		return pair_ops->sign(algo, key, msg, msg_len, sig, sig_len);
-	}
-
-	/* Hash and update the length */
-	ret = ecc_prepare_msg(algo, msg, msg_len, &p);
-	if (ret)
-		return ret;
-
-	/* Ephemeral private key */
-	ret = drvcrypt_asym_alloc_ecc_keypair(&ephemeral,
-					      TEE_TYPE_ECDSA_KEYPAIR, bits);
-	if (ret) {
-		EMSG("Versal, can't allocate the ephemeral key");
-		return ret;
-	}
-
-	ephemeral.curve = key->curve;
-	ret = crypto_acipher_gen_ecc_key(&ephemeral, bits);
-	if (ret) {
-		EMSG("Versal, can't generate the ephemeral key");
-		return ret;
-	}
-
-	versal_mbox_alloc(bytes, NULL, &k);
-	crypto_bignum_bn2bin_eswap(key->curve, ephemeral.d, k.buf);
-	crypto_bignum_free(&ephemeral.d);
-	crypto_bignum_free(&ephemeral.x);
-	crypto_bignum_free(&ephemeral.y);
-
-	/* Private key*/
-	versal_mbox_alloc(bytes, NULL, &d);
-	crypto_bignum_bn2bin_eswap(key->curve, key->d, d.buf);
-
-	/* Signature */
-	versal_mbox_alloc(*sig_len, NULL, &s);
-
-	/* IPI command */
-	versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
-
-	cmd = cmd_buf.buf;
-	cmd->priv_key_addr = virt_to_phys(d.buf);
-	cmd->epriv_key_addr = virt_to_phys(k.buf);
-	cmd->hash_addr = virt_to_phys(p.buf);
-	cmd->hash_len = p.len;
-	cmd->curve = key->curve;
-
-	arg.ibuf[0].mem = cmd_buf;
-	arg.ibuf[1].mem = s;
-	arg.ibuf[2].mem = k;
-	arg.ibuf[3].mem = d;
-	arg.ibuf[4].mem = p;
-
-	if (versal_crypto_request(VERSAL_ELLIPTIC_GENERATE_SIGN, &arg, &err)) {
-		EMSG("Versal ECC: %s", versal_ecc_error(err));
-		ret = TEE_ERROR_GENERIC;
-		goto out;
-	}
-
-	*sig_len = 2 * bytes;
-
-	/* Swap the {R,S} components */
-	memcpy_swp(sig, s.buf, *sig_len / 2);
-	memcpy_swp(sig + *sig_len / 2, (uint8_t *)s.buf + *sig_len / 2,
-		   *sig_len / 2);
-out:
-	free(cmd);
-	free(k.buf);
-	free(p.buf);
-	free(s.buf);
-	free(d.buf);
-
-	return ret;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result shared_secret(struct ecc_keypair *private_key,
@@ -338,32 +123,68 @@ static TEE_Result do_shared_secret(struct drvcrypt_secret_data *sdata)
 
 static TEE_Result do_sign(struct drvcrypt_sign_data *sdata)
 {
-	return sign(sdata->algo,
-		    sdata->key,
-		    sdata->message.data,
-		    sdata->message.length,
-		    sdata->signature.data,
-		    &sdata->signature.length);
+	TEE_Result ret = TEE_SUCCESS;
+
+	ret = versal_ecc_sign(sdata->algo,
+			      sdata->key,
+			      sdata->message.data,
+			      sdata->message.length,
+			      sdata->signature.data,
+			      &sdata->signature.length);
+
+	if (ret == TEE_ERROR_NOT_SUPPORTED) {
+		/* Fallback to software */
+		return pair_ops->sign(sdata->algo, sdata->key,
+				      sdata->message.data,
+				      sdata->message.length,
+				      sdata->signature.data,
+				      &sdata->signature.length);
+	}
+
+	return ret;
 }
 
 static TEE_Result do_verify(struct drvcrypt_sign_data *sdata)
 {
-	return verify(sdata->algo,
-		      sdata->key,
-		      sdata->message.data,
-		      sdata->message.length,
-		      sdata->signature.data,
-		      sdata->signature.length);
+	TEE_Result ret = TEE_SUCCESS;
+
+	ret = versal_ecc_verify(sdata->algo,
+				sdata->key,
+				sdata->message.data,
+				sdata->message.length,
+				sdata->signature.data,
+				sdata->signature.length);
+
+	if (ret == TEE_ERROR_NOT_SUPPORTED) {
+		/* Fallback to software */
+		return pub_ops->verify(sdata->algo, sdata->key,
+				       sdata->message.data,
+				       sdata->message.length,
+				       sdata->signature.data,
+				       sdata->signature.length);
+	}
+
+	return ret;
 }
 
 static TEE_Result do_gen_keypair(struct ecc_keypair *s, size_t size_bits)
 {
-	/*
-	 * Versal requires little endian so need to memcpy_swp on Versal IP ops.
-	 * We chose not to do it here because some tests might be using
-	 * their own keys
-	 */
-	return pair_ops->generate(s, size_bits);
+	TEE_Result ret = versal_ecc_gen_keypair(s);
+
+	if (ret == TEE_ERROR_NOT_SUPPORTED)
+		return pair_ops->generate(s, size_bits);
+
+#ifdef CFG_VERSAL_PKI_PWCT
+	if (ret != TEE_SUCCESS)
+		return ret;
+
+	/* Perform a pairwise consistencty test on the generated key pair */
+	ret = versal_ecc_keypair_pwct(s);
+	if (ret)
+		DMSG("Pair-wise consistency test failed (0x%" PRIx32 ")", ret);
+#endif
+
+	return ret;
 }
 
 static TEE_Result do_alloc_keypair(struct ecc_keypair *s,
@@ -431,24 +252,19 @@ static struct drvcrypt_ecc driver_ecc = {
 
 static TEE_Result ecc_init(void)
 {
-	struct versal_cmd_args arg = { };
-	uint32_t err = 0;
+	TEE_Result ret = TEE_SUCCESS;
 
-	arg.data[arg.dlen++] = XSECURE_ECDSA_KAT_NIST_P384;
-	if (versal_crypto_request(VERSAL_ELLIPTIC_KAT, &arg, &err)) {
-		EMSG("Versal KAG NIST_P384: %s", versal_ecc_error(err));
-		return TEE_ERROR_GENERIC;
-	}
+	/* HW initialization if needed */
+	ret = versal_ecc_hw_init();
+	if (ret != TEE_SUCCESS)
+		return ret;
 
-	/* Clean previous request */
-	arg.dlen = 0;
+	/* Run KAT self-tests */
+	ret = versal_ecc_kat_test();
+	if (ret != TEE_SUCCESS)
+		return ret;
 
-	arg.data[arg.dlen++] = XSECURE_ECDSA_KAT_NIST_P521;
-	if (versal_crypto_request(VERSAL_ELLIPTIC_KAT, &arg, &err)) {
-		EMSG("Versal KAG NIST_P521 %s", versal_ecc_error(err));
-		return TEE_ERROR_GENERIC;
-	}
-
+	/* Fall back to software implementations if needed */
 	pair_ops = crypto_asym_get_ecc_keypair_ops(TEE_TYPE_ECDSA_KEYPAIR);
 	if (!pair_ops)
 		return TEE_ERROR_GENERIC;
