@@ -58,6 +58,7 @@
 	csrr	a3, CSR_XSCRATCH /* a3: hart_index */
 	li	a1, THREAD_CORE_LOCAL_SIZE
 	la	tp, thread_core_local
+	LDR	tp, 0(tp)
 	mul	a2, a1, a3
 	add	tp, tp, a2
 	sw	a0, THREAD_CORE_LOCAL_HART_ID(tp)
@@ -177,6 +178,7 @@ UNWIND(	.cantunwind)
 	set_sp
 	set_tp
 
+	li	a0, CFG_TEE_CORE_NB_CORE
 	jal	thread_init_thread_core_local
 	jal	plat_primary_init_early
 	jal	console_init
@@ -202,6 +204,7 @@ UNWIND(	.cantunwind)
 	 */
 	mv	s2, sp
 	la	a0, threads
+	LDR	a0, 0(a0)
 	LDR	a0, THREAD_CTX_STACK_VA_END(a0)
 	mv	sp, a0
 	jal	thread_get_core_local

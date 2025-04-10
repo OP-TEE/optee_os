@@ -104,14 +104,16 @@ UNWIND(	.cantunwind)
 	/*
 	 * At this point, MMU is not enabled now.
 	 * 1. Get the runtime physical address of _suspend_sp
-	 * 2. Get the offset from _suspend_sp to &thread_core_local
+	 * 2. Get the offset from _suspend_sp to thread_core_local
 	 * 3. Get the runtime physical address of thread_core_local
 	 * Since moving towards non-linear mapping,
-	 * `ldr r0, =thread_core_local` is not used here.
+	 * `ldr r0, =thread_core_local
+	 *  ldr r0 [r0]` is not used here.
 	 */
 	adr	r4, _suspend_sp
 	ldr	r5, [r4]
 	add	r4, r4, r5
+	ldr	r4, [r4]
 
 	mov_imm r1, THREAD_CORE_LOCAL_SIZE
 	mla	r0, r0, r1, r4
@@ -128,9 +130,9 @@ END_FUNC sm_pm_cpu_resume
  * _core_pos stores the offset between __get_core_pos to _core_pos.
  */
 .align 2
-.extern thread_core_local
+.extern thread_core_local_pa
 _suspend_sp:
-	.long	thread_core_local - .
+	.long	thread_core_local_pa - .
 .extern __get_core_pos
 _core_pos:
 	.long	__get_core_pos - .
