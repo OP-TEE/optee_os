@@ -407,21 +407,21 @@ bool transfer_list_set_data_size(struct transfer_list_header *tl,
 		tl->size -= mov_dis;
 	}
 	/* Move all following entries to fit in the expanded or shrunk space */
-	if (tl_old_ev > old_ev)
+	if (tl_old_ev > old_ev) {
 		memmove((void *)r_new_ev, (void *)old_ev, tl_old_ev - old_ev);
-
-	/*
-	 * Fill the gap due to round up/down with a void entry if the size of
-	 * the gap is more than an entry header.
-	 */
-	gap = r_new_ev - new_ev;
-	if (gap >= sizeof(*dummy_te)) {
-		/* Create a dummy transfer entry to fill up the gap */
-		dummy_te = (struct transfer_list_entry *)new_ev;
-		dummy_te->tag_id = TL_TAG_EMPTY;
-		dummy_te->reserved0 = 0;
-		dummy_te->hdr_size = sizeof(*dummy_te);
-		dummy_te->data_size = gap - sizeof(*dummy_te);
+		/*
+		 * Fill the gap due to round up/down with a void entry if the
+		 * size of the gap is more than an entry header.
+		 */
+		gap = r_new_ev - new_ev;
+		if (gap >= sizeof(*dummy_te)) {
+			/* Create a dummy transfer entry to fill up the gap */
+			dummy_te = (struct transfer_list_entry *)new_ev;
+			dummy_te->tag_id = TL_TAG_EMPTY;
+			dummy_te->reserved0 = 0;
+			dummy_te->hdr_size = sizeof(*dummy_te);
+			dummy_te->data_size = gap - sizeof(*dummy_te);
+		}
 	}
 
 	tl_e->data_size = new_data_size;
