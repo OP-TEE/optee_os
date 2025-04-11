@@ -51,7 +51,8 @@ static TEE_Result ecc_get_curve_info(uint32_t curve, uint32_t algo,
 		size_bits = 192;
 		size_bytes = 24;
 		name = "NISTP192";
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_SHA1) &&
+		if ((algo != 0) &&
+		    (__tee_alg_get_main_alg(algo) != TEE_MAIN_ALGO_ECDSA) &&
 		    (algo != TEE_ALG_ECDH_DERIVE_SHARED_SECRET))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
@@ -59,7 +60,8 @@ static TEE_Result ecc_get_curve_info(uint32_t curve, uint32_t algo,
 		size_bits = 224;
 		size_bytes = 28;
 		name = "NISTP224";
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_SHA224) &&
+		if ((algo != 0) &&
+		    (__tee_alg_get_main_alg(algo) != TEE_MAIN_ALGO_ECDSA) &&
 		    (algo != TEE_ALG_ECDH_DERIVE_SHARED_SECRET))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
@@ -67,7 +69,8 @@ static TEE_Result ecc_get_curve_info(uint32_t curve, uint32_t algo,
 		size_bits = 256;
 		size_bytes = 32;
 		name = "NISTP256";
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_SHA256) &&
+		if ((algo != 0) &&
+		    (__tee_alg_get_main_alg(algo) != TEE_MAIN_ALGO_ECDSA) &&
 		    (algo != TEE_ALG_ECDH_DERIVE_SHARED_SECRET))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
@@ -75,7 +78,8 @@ static TEE_Result ecc_get_curve_info(uint32_t curve, uint32_t algo,
 		size_bits = 384;
 		size_bytes = 48;
 		name = "NISTP384";
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_SHA384) &&
+		if ((algo != 0) &&
+		    (__tee_alg_get_main_alg(algo) != TEE_MAIN_ALGO_ECDSA) &&
 		    (algo != TEE_ALG_ECDH_DERIVE_SHARED_SECRET))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
@@ -83,7 +87,8 @@ static TEE_Result ecc_get_curve_info(uint32_t curve, uint32_t algo,
 		size_bits = 521;
 		size_bytes = 66;
 		name = "NISTP521";
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_SHA512) &&
+		if ((algo != 0) &&
+		    (__tee_alg_get_main_alg(algo) != TEE_MAIN_ALGO_ECDSA) &&
 		    (algo != TEE_ALG_ECDH_DERIVE_SHARED_SECRET))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
