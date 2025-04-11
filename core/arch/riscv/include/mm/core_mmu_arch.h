@@ -72,8 +72,13 @@
 #define SMALL_PAGE_SHIFT	U(12)
 
 /*
+ * RV32:
  * Level 0, shift = 12, 4 KiB pages
- * Level 1, shift = 21, 2 MiB pages (4 MiB pages in Sv32)
+ * Level 1, shift = 22, 4 MiB pages
+ *
+ * RV64:
+ * Level 0, shift = 12, 4 KiB pages
+ * Level 1, shift = 21, 2 MiB pages
  * Level 2, shift = 30, 1 GiB pages
  * Level 3, shift = 39, 512 GiB pages
  * Level 4, shift = 48, 256 TiB pages
@@ -95,12 +100,48 @@
 
 /*
  * In all MMU modes, the CORE_MMU_PGDIR_LEVEL is always 0:
- * Sv32: 4 KiB, 4 MiB
- * Sv39: 4 KiB, 2 MiB, 1 GiB
- * Sv48: 4 KiB, 2 MiB, 1 GiB, 512 GiB
- * Sv57: 4 KiB, 2 MiB, 1 GiB, 512 GiB, 256 TiB
+ * Sv32: 4 MiB, 4 KiB
+ *                                       +-------------------------------------+
+ *                                       |31      22 21      12 11            0|
+ *                                       |-------------------------------------+
+ *                                       |  VPN[1]  |  VPN[0]  |  page offset  |
+ *                                       +-------------------------------------+
+ * Sv39: 1 GiB, 2 MiB, 4 KiB
+ *                            +------------------------------------------------+
+ *                            |38      30 29      21 20      12 11            0|
+ *                            |------------------------------------------------+
+ *                            |  VPN[2]  |  VPN[1]  |  VPN[0]  |  page offset  |
+ *                            +------------------------------------------------+
+ * Sv48: 512 GiB, 1 GiB, 2 MiB, 4 KiB
+ *                 +-----------------------------------------------------------+
+ *                 |47      39 38      30 29      21 20      12 11            0|
+ *                 |-----------------------------------------------------------+
+ *                 |  VPN[3]  |  VPN[2]  |  VPN[1]  |  VPN[0]  |  page offset  |
+ *                 +-----------------------------------------------------------+
+ * Sv57: 256 TiB, 512 GiB, 1 GiB, 2 MiB, 4 KiB
+ *      +----------------------------------------------------------------------+
+ *      |56      48 47      39 38      30 29      21 20      12 11            0|
+ *      |----------------------------------------------------------------------+
+ *      |  VPN[4]  |  VPN[3]  |  VPN[2]  |  VPN[1]  |  VPN[0]  |  page offset  |
+ *      +----------------------------------------------------------------------+
  */
-#define CORE_MMU_PGDIR_LEVEL		U(0)
+#define CORE_MMU_VPN0_LEVEL		U(0)
+#define CORE_MMU_VPN1_LEVEL		U(1)
+#define CORE_MMU_VPN2_LEVEL		U(2)
+#define CORE_MMU_VPN3_LEVEL		U(3)
+#define CORE_MMU_VPN4_LEVEL		U(4)
+#define CORE_MMU_VPN0_SHIFT		\
+	CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_VPN0_LEVEL)
+#define CORE_MMU_VPN1_SHIFT		\
+	CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_VPN1_LEVEL)
+#define CORE_MMU_VPN2_SHIFT		\
+	CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_VPN2_LEVEL)
+#define CORE_MMU_VPN3_SHIFT		\
+	CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_VPN3_LEVEL)
+#define CORE_MMU_VPN4_SHIFT		\
+	CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_VPN4_LEVEL)
+
+#define CORE_MMU_PGDIR_LEVEL		CORE_MMU_VPN0_LEVEL
 #define CORE_MMU_PGDIR_SHIFT \
 		CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_PGDIR_LEVEL + 1)
 
