@@ -41,7 +41,7 @@
 
 #define IS_PAGE_ALIGNED(addr)	IS_ALIGNED(addr, SMALL_PAGE_SIZE)
 
-static bitstr_t bit_decl(g_asid, RISCV_MMU_ASID_WIDTH) __nex_bss;
+static bitstr_t bit_decl(g_asid, RISCV_SATP_ASID_WIDTH) __nex_bss;
 static unsigned int g_asid_spinlock __nex_bss = SPINLOCK_UNLOCK;
 
 struct mmu_pte {
@@ -498,7 +498,7 @@ unsigned int asid_alloc(void)
 	unsigned int r = 0;
 	int i = 0;
 
-	bit_ffc(g_asid, RISCV_MMU_ASID_WIDTH, &i);
+	bit_ffc(g_asid, (int)RISCV_SATP_ASID_WIDTH, &i);
 	if (i == -1) {
 		r = 0;
 	} else {
@@ -516,9 +516,9 @@ void asid_free(unsigned int asid)
 	uint32_t exceptions = cpu_spin_lock_xsave(&g_asid_spinlock);
 
 	if (asid) {
-		int i = asid - 1;
+		unsigned int i = asid - 1;
 
-		assert(i < RISCV_MMU_ASID_WIDTH && bit_test(g_asid, i));
+		assert(i < RISCV_SATP_ASID_WIDTH && bit_test(g_asid, i));
 		bit_clear(g_asid, i);
 	}
 
