@@ -149,6 +149,12 @@ CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
 # TEE_STORAGE_PRIVATE is passed to the trusted storage API)
 CFG_REE_FS ?= y
 
+# CFG_REE_FS_HTREE_HASH_SIZE_COMPAT, when enabled, supports the legacy
+# REE FS hash tree tagging implementation that uses a truncated hash.
+# Be warned that disabling this config could break accesses to existing
+# REE FS content.
+CFG_REE_FS_HTREE_HASH_SIZE_COMPAT ?= y
+
 # RPMB file system support
 CFG_RPMB_FS ?= n
 
