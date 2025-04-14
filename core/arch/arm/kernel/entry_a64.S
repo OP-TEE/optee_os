@@ -383,11 +383,10 @@ clear_nex_bss:
 	bl	__get_core_pos
 	bl	enable_mmu
 #ifdef CFG_CORE_ASLR
-	adr_l	x0, boot_mmu_config
-	ldr	x0, [x0, #CORE_MMU_CONFIG_MAP_OFFSET]
-	bl	boot_mem_relocate
 	/*
-	 * Update recorded end_va.
+	 * Update recorded end_va. This must be done before calling into C
+	 * code to make sure that the stack pointer matches what we have in
+	 * thread_core_local[].
 	 */
 	adr_l	x0, boot_mmu_config
 	ldr	x0, [x0, #CORE_MMU_CONFIG_MAP_OFFSET]
@@ -399,6 +398,11 @@ clear_nex_bss:
 	add	x1, x1, x0
 	str	x1, [sp, #THREAD_CORE_LOCAL_ABT_STACK_VA_END]
 	msr	spsel, #0
+
+	/* Update relocations recorded with boot_mem_add_reloc() */
+	adr_l	x0, boot_mmu_config
+	ldr	x0, [x0, #CORE_MMU_CONFIG_MAP_OFFSET]
+	bl	boot_mem_relocate
 	/*
 	 * Reinitialize console, since register_serial_console() has
 	 * previously registered a PA and with ASLR the VA is different
