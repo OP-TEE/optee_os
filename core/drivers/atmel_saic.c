@@ -146,8 +146,6 @@ static int saic_dt_get_irq(const uint32_t *properties, int len,
 	uint32_t priority = 0;
 	uint32_t irq_type = 0;
 
-	len /= sizeof(uint32_t);
-
 	if (len != 3)
 		return DT_INFO_INVALID_INTERRUPT;
 
