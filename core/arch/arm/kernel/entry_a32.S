@@ -568,12 +568,12 @@ shadow_stack_access_ok:
 	bl	__get_core_pos
 	bl	enable_mmu
 #ifdef CFG_CORE_ASLR
-	ldr	r0, =boot_mmu_config
-	ldr	r0, [r0, #CORE_MMU_CONFIG_MAP_OFFSET]
-	bl	boot_mem_relocate
 	/*
 	 * Update recorded end_va, we depend on r4 pointing to the
 	 * pre-relocated thread_core_local[core_pos].
+	 *
+	 * This must be done before calling into C code to make sure that
+	 * the stack pointer matches what we have in thread_core_local[].
 	 */
 	ldr	r1, =boot_mmu_config
 	ldr	r1, [r1, #CORE_MMU_CONFIG_MAP_OFFSET]
@@ -595,6 +595,10 @@ shadow_stack_access_ok:
 	mov	sp, r4
 	cps	#CPSR_MODE_SVC
 
+	/* Update relocations recorded with boot_mem_add_reloc() */
+	ldr	r0, =boot_mmu_config
+	ldr	r0, [r0, #CORE_MMU_CONFIG_MAP_OFFSET]
+	bl	boot_mem_relocate
 	/*
 	 * Reinitialize console, since register_serial_console() has
 	 * previously registered a PA and with ASLR the VA is different
