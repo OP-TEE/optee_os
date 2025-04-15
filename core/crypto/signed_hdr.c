@@ -55,6 +55,18 @@ static bool is_weak_hash_algo(uint32_t algo)
 	       algo == TEE_ALG_MD5SHA1 || algo == TEE_ALG_SHA224;
 }
 
+/*
+ * Checks for key sizes in bits, that are depracted.
+ */
+static bool is_weak_key_size(uint32_t algo, size_t key_size_bits)
+{
+	if (TEE_ALG_GET_MAIN_ALG(algo) == TEE_MAIN_ALGO_RSA &&
+	    key_size_bits < 2048)
+		return true;
+
+	return false;
+}
+
 TEE_Result shdr_verify_signature(const struct shdr *shdr)
 {
 	struct rsa_public_key key = { };
@@ -73,6 +85,9 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 
 	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
 	if (is_weak_hash_algo(hash_algo))
+		goto err;
+
+	if (is_weak_key_size(shdr->algo, ta_pub_key_modulus_size * 8))
 		goto err;
 
 	res = tee_alg_get_digest_size(hash_algo, &hash_size);
@@ -359,6 +374,9 @@ TEE_Result shdr_verify_signature2(struct shdr_pub_key *key,
 
 	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
 	if (is_weak_hash_algo(hash_algo))
+		goto err;
+
+	if (is_weak_key_size(shdr->algo, ta_pub_key_modulus_size * 8))
 		goto err;
 
 	if (tee_alg_get_digest_size(hash_algo, &hash_size) ||
