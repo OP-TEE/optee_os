@@ -52,7 +52,7 @@ struct shdr *shdr_alloc_and_copy(size_t offs, const void *img, size_t img_size)
 static bool is_weak_hash_algo(uint32_t algo)
 {
 	return algo == TEE_ALG_MD5 || algo == TEE_ALG_SHA1 ||
-	       algo == TEE_ALG_MD5SHA1;
+	       algo == TEE_ALG_MD5SHA1 || algo == TEE_ALG_SHA224;
 }
 
 TEE_Result shdr_verify_signature(const struct shdr *shdr)
