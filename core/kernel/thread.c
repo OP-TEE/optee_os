@@ -426,7 +426,7 @@ bool thread_is_from_abort_mode(void)
  * This function should always be accurate, but it might be possible to
  * implement a more efficient depending on cpu architecture.
  */
-bool __weak thread_is_in_normal_mode(void)
+bool __weak __noprof thread_is_in_normal_mode(void)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	struct thread_core_local *l = thread_get_core_local();
