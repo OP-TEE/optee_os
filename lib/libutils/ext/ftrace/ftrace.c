@@ -37,11 +37,10 @@
 static __noprof struct ftrace_buf *get_fbuf(void)
 {
 #if defined(__KERNEL__)
-	short int ct = thread_get_id_may_fail();
 	struct ts_session *s = NULL;
 	struct thread_specific_data *tsd = NULL;
 
-	if (ct == -1)
+	if (!thread_is_in_normal_mode())
 		return NULL;
 
 	if (!(core_mmu_user_va_range_is_defined() &&

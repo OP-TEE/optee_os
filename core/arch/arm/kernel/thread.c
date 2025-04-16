@@ -439,7 +439,7 @@ vaddr_t thread_get_saved_thread_sp(void)
 #endif /*ARM64*/
 
 #ifdef ARM32
-bool thread_is_in_normal_mode(void)
+bool __noprof thread_is_in_normal_mode(void)
 {
 	return (read_cpsr() & ARM32_CPSR_MODE_MASK) == ARM32_CPSR_MODE_SVC;
 }
