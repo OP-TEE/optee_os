@@ -168,6 +168,12 @@ libdir = core/lib/zlib
 include mk/lib.mk
 endif
 
+ifeq ($(CFG_EFILIB),y)
+libname = efi
+libdir = core/lib/libefi
+include mk/lib.mk
+endif
+
 libname = unw
 libdir = lib/libunw
 include mk/lib.mk
