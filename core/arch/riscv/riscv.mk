@@ -44,6 +44,11 @@ ifeq ($(CFG_CORE_LARGE_PHYS_ADDR),y)
 $(call force,CFG_WITH_LPAE,y)
 endif
 
+# Paged virtual-memory schemes (SvXX)
+# Currently we only support RV64. Thus, the acceptable values are 39, 48, 57.
+CFG_RISCV_MMU_MODE ?= 39
+$(call cfg-check-value,RISCV_MMU_MODE,39 48 57)
+
 CFG_RISCV_SBI	 ?= n
 CFG_RISCV_M_MODE ?= y
 ifeq ($(CFG_RISCV_M_MODE),y)

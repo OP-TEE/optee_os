@@ -30,34 +30,40 @@
 #else
 #ifdef RV64
 #define RISCV_MMU_MODE		U(39)
-#define RISCV_MMU_ASID_WIDTH	16
 #else
 #define RISCV_MMU_MODE		U(32)
-#define RISCV_MMU_ASID_WIDTH	9
 #endif
 #endif
 
-#if RISCV_MMU_MODE == 48	/*Sv48*/
+#if RISCV_MMU_MODE == 57	/*Sv57*/
+#define RISCV_SATP_MODE	SATP_MODE_SV57
+#define RISCV_SATP_MODE_SHIFT	U(60)
+#define RISCV_SATP_ASID_SHIFT	U(44)
+#define RISCV_SATP_ASID_WIDTH	U(16)
+#define RISCV_SATP_ASID_MASK	0x0FFFF
+#define RISCV_MMU_PA_WIDTH	U(56)
+#define RISCV_MMU_VA_WIDTH	U(57)
+#elif RISCV_MMU_MODE == 48	/*Sv48*/
 #define RISCV_SATP_MODE	SATP_MODE_SV48
 #define RISCV_SATP_MODE_SHIFT	U(60)
 #define RISCV_SATP_ASID_SHIFT	U(44)
-#define RISCV_SATP_ASID_SIZE	U(16)
+#define RISCV_SATP_ASID_WIDTH	U(16)
 #define RISCV_SATP_ASID_MASK	0x0FFFF
 #define RISCV_MMU_PA_WIDTH	U(56)
 #define RISCV_MMU_VA_WIDTH	U(48)
 #elif RISCV_MMU_MODE == 39	/*Sv39*/
 #define RISCV_SATP_MODE	SATP_MODE_SV39
+#define RISCV_SATP_MODE_SHIFT	U(60)
 #define RISCV_SATP_ASID_SHIFT	U(44)
-#define RISCV_SATP_ASID_SIZE	U(16)
+#define RISCV_SATP_ASID_WIDTH	U(16)
 #define RISCV_SATP_ASID_MASK	0x0FFFF
 #define RISCV_MMU_PA_WIDTH	U(56)
 #define RISCV_MMU_VA_WIDTH	U(39)
-#define RISCV_SATP_MODE_SHIFT 60
 #elif RISCV_MMU_MODE == 32	/*Sv32*/
 #define RISCV_SATP_MODE	SATP_MODE_SV32
 #define RISCV_SATP_MODE_SHIFT	U(31)
 #define RISCV_SATP_ASID_SHIFT	U(22)
-#define RISCV_SATP_ASID_SIZE	U(9)
+#define RISCV_SATP_ASID_WIDTH	U(9)
 #define RISCV_SATP_ASID_MASK	0x01FF
 #define RISCV_MMU_PA_WIDTH	U(32)
 #define RISCV_MMU_VA_WIDTH	U(32)
@@ -97,12 +103,42 @@
 
 /*
  * In all MMU modes, the CORE_MMU_PGDIR_LEVEL is always 0:
- * Sv32: 4 KiB, 4 MiB
- * Sv39: 4 KiB, 2 MiB, 1 GiB
- * Sv48: 4 KiB, 2 MiB, 1 GiB, 512 GiB
- * Sv57: 4 KiB, 2 MiB, 1 GiB, 512 GiB, 256 TiB
+ * Sv39: 1 GiB, 2 MiB, 4 KiB
+ *                            +------------------------------------------------+
+ *                            |38      30 29      21 20      12 11            0|
+ *                            |------------------------------------------------+
+ *                            |  VPN[2]  |  VPN[1]  |  VPN[0]  |  page offset  |
+ *                            +------------------------------------------------+
+ * Sv48: 512 GiB, 1 GiB, 2 MiB, 4 KiB
+ *                 +-----------------------------------------------------------+
+ *                 |47      39 38      30 29      21 20      12 11            0|
+ *                 |-----------------------------------------------------------+
+ *                 |  VPN[3]  |  VPN[2]  |  VPN[1]  |  VPN[0]  |  page offset  |
+ *                 +-----------------------------------------------------------+
+ * Sv57: 256 TiB, 512 GiB, 1 GiB, 2 MiB, 4 KiB
+ *      +----------------------------------------------------------------------+
+ *      |56      48 47      39 38      30 29      21 20      12 11            0|
+ *      |----------------------------------------------------------------------+
+ *      |  VPN[4]  |  VPN[3]  |  VPN[2]  |  VPN[1]  |  VPN[0]  |  page offset  |
+ *      +----------------------------------------------------------------------+
  */
-#define CORE_MMU_PGDIR_LEVEL		U(0)
+#define CORE_MMU_VPN0_LEVEL		U(0)
+#define CORE_MMU_VPN1_LEVEL		U(1)
+#define CORE_MMU_VPN2_LEVEL		U(2)
+#define CORE_MMU_VPN3_LEVEL		U(3)
+#define CORE_MMU_VPN4_LEVEL		U(4)
+#define CORE_MMU_VPN0_SHIFT		\
+	CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_VPN0_LEVEL)
+#define CORE_MMU_VPN1_SHIFT		\
+	CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_VPN1_LEVEL)
+#define CORE_MMU_VPN2_SHIFT		\
+	CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_VPN2_LEVEL)
+#define CORE_MMU_VPN3_SHIFT		\
+	CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_VPN3_LEVEL)
+#define CORE_MMU_VPN4_SHIFT		\
+	CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_VPN4_LEVEL)
+
+#define CORE_MMU_PGDIR_LEVEL		CORE_MMU_VPN0_LEVEL
 #define CORE_MMU_PGDIR_SHIFT \
 		CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_PGDIR_LEVEL + 1)
 
