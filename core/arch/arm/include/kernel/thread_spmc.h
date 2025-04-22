@@ -10,18 +10,13 @@
 #include <ffa.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+#include <sys/queue.h>
+#include <tee_api_types.h>
+#include <types_ext.h>
 
 /* The FF-A ID of Secure World components should be between these limits */
 #define FFA_SWD_ID_MIN	0x8000
 #define FFA_SWD_ID_MAX	UINT16_MAX
-
-/*
- * OP-TEE FF-A partition ID. This is valid both when
- * - the SPMC is implemented by OP-TEE and the core OP-TEE functionality runs
- *   in a logical SP that resides at the same exception level as the SPMC, or,
- * - the SPMC is at a higher EL and OP-TEE is running as a standalone S-EL1 SP.
- */
-extern uint16_t optee_endpoint_id;
 
 #define SPMC_CORE_SEL1_MAX_SHM_COUNT	64
 
@@ -57,6 +52,19 @@ int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
 			      struct ffa_mem_transaction_x *trans);
 
 bool spmc_is_reserved_id(uint16_t id);
+
+struct spmc_lsp_desc {
+	void (*direct_req)(struct thread_smc_1_2_regs *args);
+	uint16_t sp_id;
+	uint32_t properties;
+	uint32_t uuid_words[4];
+	const char *name;
+	STAILQ_ENTRY(spmc_lsp_desc) link;
+};
+
+struct spmc_lsp_desc *spmc_find_lsp_by_sp_id(uint16_t sp_id);
+
+TEE_Result spmc_register_lsp(struct spmc_lsp_desc *desc);
 
 #if defined(CFG_CORE_SEL1_SPMC)
 void thread_spmc_set_async_notif_intid(int intid);
