@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2021-2024, Arm Limited.
- * Copyright (c) 2023, Linaro Limited
+ * Copyright (c) 2023-2025, Linaro Limited
  */
 #ifndef __KERNEL_THREAD_SPMC_H
 #define __KERNEL_THREAD_SPMC_H
@@ -22,17 +22,6 @@
  * - the SPMC is at a higher EL and OP-TEE is running as a standalone S-EL1 SP.
  */
 extern uint16_t optee_endpoint_id;
-
-/*
- * FF-A ID of the SPMC. This is valid both when the SPMC is implemented in
- * OP-TEE or at a higher EL.
- */
-extern uint16_t spmc_id;
-
-#if defined(CFG_CORE_SEL1_SPMC)
-/* FF-A ID of the SPMD. This is only valid when OP-TEE is the S-EL1 SPMC. */
-extern uint16_t spmd_id;
-#endif
 
 #define SPMC_CORE_SEL1_MAX_SHM_COUNT	64
 
@@ -66,6 +55,8 @@ TEE_Result spmc_fill_partition_entry(uint32_t ffa_vers, void *buf, size_t blen,
 				     const uint32_t uuid_words[4]);
 int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
 			      struct ffa_mem_transaction_x *trans);
+
+bool spmc_is_reserved_id(uint16_t id);
 
 #if defined(CFG_CORE_SEL1_SPMC)
 void thread_spmc_set_async_notif_intid(int intid);
