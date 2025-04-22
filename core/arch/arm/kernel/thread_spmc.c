@@ -67,9 +67,9 @@ static struct notif_vm_bitmap default_notif_vm_bitmap;
 
 /* Initialized in spmc_init() below */
 uint16_t optee_endpoint_id __nex_bss;
-uint16_t spmc_id __nex_bss;
+static uint16_t spmc_id __nex_bss;
 #ifdef CFG_CORE_SEL1_SPMC
-uint16_t spmd_id __nex_bss;
+static uint16_t spmd_id __nex_bss;
 static const uint32_t my_part_props = FFA_PART_PROP_DIRECT_REQ_RECV |
 				      FFA_PART_PROP_DIRECT_REQ_SEND |
 #ifdef CFG_NS_VIRTUALIZATION
@@ -127,6 +127,15 @@ static struct ffa_rxtx my_rxtx __nex_data = {
 	.size = sizeof(__rx_buf),
 };
 #endif
+
+bool spmc_is_reserved_id(uint16_t id)
+{
+#ifdef CFG_CORE_SEL1_SPMC
+	if (id == spmd_id)
+		return true;
+#endif
+	return id == spmc_id;
+}
 
 static uint32_t swap_src_dst(uint32_t src_dst)
 {
@@ -2368,7 +2377,7 @@ static TEE_Result spmc_init(void)
 	DMSG("SPMC ID %#"PRIx16, spmc_id);
 
 	optee_endpoint_id = FFA_SWD_ID_MIN;
-	while (optee_endpoint_id == spmd_id || optee_endpoint_id == spmc_id)
+	while (spmc_is_reserved_id(optee_endpoint_id))
 		optee_endpoint_id++;
 
 	DMSG("OP-TEE endpoint ID %#"PRIx16, optee_endpoint_id);
