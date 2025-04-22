@@ -127,11 +127,18 @@ struct sp_session *sp_get_session(uint32_t session_id)
 }
 
 TEE_Result sp_partition_info_get(uint32_t ffa_vers, void *buf, size_t buf_size,
-				 const TEE_UUID *ffa_uuid, size_t *elem_count,
-				 bool count_only)
+				 const uint32_t ffa_uuid_words[4],
+				 size_t *elem_count, bool count_only)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *s = NULL;
+	TEE_UUID uuid = { };
+	TEE_UUID *ffa_uuid = NULL;
+
+	if (ffa_uuid_words) {
+		tee_uuid_from_octets(&uuid, (void *)ffa_uuid_words);
+		ffa_uuid = &uuid;
+	}
 
 	TAILQ_FOREACH(s, &open_sp_sessions, link) {
 		if (ffa_uuid &&
