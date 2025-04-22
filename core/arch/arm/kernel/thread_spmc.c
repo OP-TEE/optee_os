@@ -688,21 +688,27 @@ static void spmc_handle_run(struct thread_smc_1_2_regs *args)
 {
 	uint16_t endpoint = FFA_TARGET_INFO_GET_SP_ID(args->a1);
 	uint16_t thread_id = FFA_TARGET_INFO_GET_VCPU_ID(args->a1);
-	uint32_t rc = FFA_OK;
+	uint32_t rc = FFA_INVALID_PARAMETERS;
 
-	if (endpoint != optee_endpoint_id) {
-		/*
-		 * The endpoint should be an SP, try to resume the SP from
-		 * preempted into busy state.
-		 */
-		rc = spmc_sp_resume_from_preempted(endpoint);
-		if (rc)
-			goto out;
-	}
+	/*
+	 * OP-TEE core threads are only preemted using controlled exit so
+	 * FFA_RUN mustn't be used to resume such threads.
+	 */
+	if (endpoint == optee_endpoint_id)
+		goto out;
 
+	/*
+	 * The endpoint should be a S-EL0 SP, try to resume the SP from
+	 * preempted into busy state.
+	 */
+	rc = spmc_sp_resume_from_preempted(endpoint);
+	if (rc)
+		goto out;
 	thread_resume_from_rpc(thread_id, 0, 0, 0, 0);
-
-	/* thread_resume_from_rpc return only of the thread_id is invalid */
+	/*
+	 * thread_resume_from_rpc() only returns if the thread_id
+	 * is invalid.
+	 */
 	rc = FFA_INVALID_PARAMETERS;
 
 out:
