@@ -647,17 +647,15 @@ void spmc_handle_partition_info_get(struct thread_smc_1_2_regs *args,
 		rc = 1;
 	} else if (IS_ENABLED(CFG_SECURE_PARTITION)) {
 		uint32_t uuid_array[4] = { 0 };
-		TEE_UUID uuid = { };
 		size_t count = 0;
 
 		uuid_array[0] = args->a1;
 		uuid_array[1] = args->a2;
 		uuid_array[2] = args->a3;
 		uuid_array[3] = args->a4;
-		tee_uuid_from_octets(&uuid, (uint8_t *)uuid_array);
 
 		res = sp_partition_info_get(rxtx->ffa_vers, rxtx->tx,
-					    rxtx->size, &uuid, &count,
+					    rxtx->size, uuid_array, &count,
 					    count_only);
 		if (res != TEE_SUCCESS) {
 			ret_fid = FFA_ERROR;
