@@ -192,7 +192,7 @@ static bool endpoint_id_is_valid(uint32_t id)
 	 * These IDs are assigned at the SPMC init so already have valid values
 	 * by the time this function gets first called
 	 */
-	return !spmc_is_reserved_id(id) && id != optee_endpoint_id &&
+	return !spmc_is_reserved_id(id) && !spmc_find_lsp_by_sp_id(id) &&
 	       id >= FFA_SWD_ID_MIN && id <= FFA_SWD_ID_MAX;
 }
 

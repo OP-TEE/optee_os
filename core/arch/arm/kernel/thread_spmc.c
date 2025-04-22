@@ -31,6 +31,8 @@
 #include <sys/queue.h>
 #include <tee/entry_std.h>
 #include <tee/uuid.h>
+#include <tee_api_types.h>
+#include <types_ext.h>
 #include <util.h>
 
 #if defined(CFG_CORE_SEL1_SPMC)
@@ -56,6 +58,11 @@ struct notif_vm_bitmap {
 	uint64_t bound;
 };
 
+STAILQ_HEAD(spmc_lsp_desc_head, spmc_lsp_desc);
+
+static struct spmc_lsp_desc_head lsp_head __nex_data =
+	STAILQ_HEAD_INITIALIZER(lsp_head);
+
 static unsigned int spmc_notif_lock __nex_data = SPINLOCK_UNLOCK;
 static bool spmc_notif_is_ready __nex_bss;
 static int notif_intid __nex_data __maybe_unused = -1;
@@ -66,32 +73,15 @@ static unsigned int notif_vm_bitmap_id __nex_bss;
 static struct notif_vm_bitmap default_notif_vm_bitmap;
 
 /* Initialized in spmc_init() below */
-uint16_t optee_endpoint_id __nex_bss;
-static uint16_t spmc_id __nex_bss;
+static struct spmc_lsp_desc optee_core_lsp;
 #ifdef CFG_CORE_SEL1_SPMC
+/*
+ * Representation of the internal SPMC when OP-TEE is the S-EL1 SPMC.
+ * Initialized in spmc_init() below.
+ */
+static struct spmc_lsp_desc optee_spmc_lsp;
+/* FF-A ID of the SPMD. This is only valid when OP-TEE is the S-EL1 SPMC. */
 static uint16_t spmd_id __nex_bss;
-static const uint32_t my_part_props = FFA_PART_PROP_DIRECT_REQ_RECV |
-				      FFA_PART_PROP_DIRECT_REQ_SEND |
-#ifdef CFG_NS_VIRTUALIZATION
-				      FFA_PART_PROP_NOTIF_CREATED |
-				      FFA_PART_PROP_NOTIF_DESTROYED |
-#endif
-#ifdef ARM64
-				      FFA_PART_PROP_AARCH64_STATE |
-#endif
-				      FFA_PART_PROP_IS_PE_ID;
-
-static uint32_t my_uuid_words[] = {
-	/*
-	 * - if the SPMC is in S-EL2 this UUID describes OP-TEE as a S-EL1
-	 *   SP, or
-	 * - if the SPMC is in S-EL1 then this UUID is for OP-TEE as a
-	 *   logical partition, residing in the same exception level as the
-	 *   SPMC
-	 * UUID 486178e0-e7f8-11e3-bc5e-0002a5d5c51b
-	 */
-	0xe0786148, 0xe311f8e7, 0x02005ebc, 0x1bc5d5a5,
-};
 
 /*
  * If struct ffa_rxtx::size is 0 RX/TX buffers are not mapped or initialized.
@@ -119,6 +109,8 @@ static SLIST_HEAD(mem_frag_state_head, mem_frag_state) frag_state_head =
 	SLIST_HEAD_INITIALIZER(&frag_state_head);
 
 #else
+/* FF-A ID of the external SPMC */
+static uint16_t spmc_id __nex_bss;
 static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE) __nex_bss;
 static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE) __nex_bss;
 static struct ffa_rxtx my_rxtx __nex_data = {
@@ -131,10 +123,21 @@ static struct ffa_rxtx my_rxtx __nex_data = {
 bool spmc_is_reserved_id(uint16_t id)
 {
 #ifdef CFG_CORE_SEL1_SPMC
-	if (id == spmd_id)
-		return true;
-#endif
+	return id == spmd_id;
+#else
 	return id == spmc_id;
+#endif
+}
+
+struct spmc_lsp_desc *spmc_find_lsp_by_sp_id(uint16_t sp_id)
+{
+	struct spmc_lsp_desc *desc = NULL;
+
+	STAILQ_FOREACH(desc, &lsp_head, link)
+		if (desc->sp_id == sp_id)
+			return desc;
+
+	return NULL;
 }
 
 static uint32_t swap_src_dst(uint32_t src_dst)
@@ -345,7 +348,7 @@ static int map_buf(paddr_t pa, unsigned int sz, void **va_ret)
 
 void spmc_handle_spm_id_get(struct thread_smc_1_2_regs *args)
 {
-	spmc_set_args(args, FFA_SUCCESS_32, FFA_PARAM_MBZ, spmc_id,
+	spmc_set_args(args, FFA_SUCCESS_32, FFA_PARAM_MBZ, optee_spmc_lsp.sp_id,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
@@ -522,19 +525,6 @@ static bool is_nil_uuid(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3)
 	return !w0 && !w1 && !w2 && !w3;
 }
 
-static bool is_my_uuid(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3)
-{
-	/*
-	 * This depends on which UUID we have been assigned.
-	 * TODO add a generic mechanism to obtain our UUID.
-	 *
-	 * The test below is for the hard coded UUID
-	 * 486178e0-e7f8-11e3-bc5e-0002a5d5c51b
-	 */
-	return w0 == my_uuid_words[0] && w1 == my_uuid_words[1] &&
-	       w2 == my_uuid_words[2] && w3 == my_uuid_words[3];
-}
-
 TEE_Result spmc_fill_partition_entry(uint32_t ffa_vers, void *buf, size_t blen,
 				     size_t idx, uint16_t endpoint_id,
 				     uint16_t execution_context,
@@ -573,26 +563,40 @@ TEE_Result spmc_fill_partition_entry(uint32_t ffa_vers, void *buf, size_t blen,
 	return TEE_SUCCESS;
 }
 
-static int handle_partition_info_get_all(size_t *elem_count,
-					 struct ffa_rxtx *rxtx, bool count_only)
+static TEE_Result lsp_partition_info_get(uint32_t ffa_vers, void *buf,
+					 size_t buf_size, size_t *elem_count,
+					 const uint32_t uuid_words[4],
+					 bool count_only)
 {
-	if (!count_only) {
-		/* Add OP-TEE SP */
-		if (spmc_fill_partition_entry(rxtx->ffa_vers, rxtx->tx,
-					      rxtx->size, 0, optee_endpoint_id,
-					      CFG_TEE_CORE_NB_CORE,
-					      my_part_props, my_uuid_words))
-			return FFA_NO_MEMORY;
-	}
-	*elem_count = 1;
+	struct spmc_lsp_desc *desc = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	size_t c = *elem_count;
 
-	if (IS_ENABLED(CFG_SECURE_PARTITION)) {
-		if (sp_partition_info_get(rxtx->ffa_vers, rxtx->tx, rxtx->size,
-					  NULL, elem_count, count_only))
-			return FFA_NO_MEMORY;
+	STAILQ_FOREACH(desc, &lsp_head, link) {
+		/*
+		 * LSPs (OP-TEE SPMC) without an assigned UUID are not
+		 * proper LSPs and shouldn't be reported here.
+		 */
+		if (is_nil_uuid(desc->uuid_words[0], desc->uuid_words[1],
+				desc->uuid_words[2], desc->uuid_words[3]))
+			continue;
+
+		if (uuid_words && memcmp(uuid_words, desc->uuid_words,
+					 sizeof(desc->uuid_words)))
+			continue;
+
+		if (!count_only && !res)
+			res = spmc_fill_partition_entry(ffa_vers, buf, buf_size,
+							c, desc->sp_id,
+							CFG_TEE_CORE_NB_CORE,
+							desc->properties,
+							desc->uuid_words);
+		c++;
 	}
 
-	return FFA_OK;
+	*elem_count = c;
+
+	return res;
 }
 
 void spmc_handle_partition_info_get(struct thread_smc_1_2_regs *args,
@@ -603,6 +607,9 @@ void spmc_handle_partition_info_get(struct thread_smc_1_2_regs *args,
 	uint32_t fpi_size = 0;
 	uint32_t rc = 0;
 	bool count_only = args->a5 & FFA_PARTITION_INFO_GET_COUNT_FLAG;
+	uint32_t uuid_words[4] = { args->a1, args->a2, args->a3, args->a4, };
+	uint32_t *uuid = uuid_words;
+	size_t count = 0;
 
 	if (!count_only) {
 		cpu_spin_lock(&rxtx->spinlock);
@@ -613,64 +620,28 @@ void spmc_handle_partition_info_get(struct thread_smc_1_2_regs *args,
 		}
 	}
 
-	if (is_nil_uuid(args->a1, args->a2, args->a3, args->a4)) {
-		size_t elem_count = 0;
+	if (is_nil_uuid(uuid[0], uuid[1], uuid[2], uuid[3]))
+		uuid = NULL;
 
-		ret_fid = handle_partition_info_get_all(&elem_count, rxtx,
-							count_only);
-
-		if (ret_fid) {
-			rc = ret_fid;
-			ret_fid = FFA_ERROR;
-		} else {
-			ret_fid = FFA_SUCCESS_32;
-			rc = elem_count;
-		}
-
+	if (lsp_partition_info_get(rxtx->ffa_vers, rxtx->tx, rxtx->size,
+				   &count, uuid, count_only)) {
+		ret_fid = FFA_ERROR;
+		rc = FFA_INVALID_PARAMETERS;
 		goto out;
 	}
-
-	if (is_my_uuid(args->a1, args->a2, args->a3, args->a4)) {
-		if (!count_only) {
-			res = spmc_fill_partition_entry(rxtx->ffa_vers,
-							rxtx->tx, rxtx->size, 0,
-							optee_endpoint_id,
-							CFG_TEE_CORE_NB_CORE,
-							my_part_props,
-							my_uuid_words);
-			if (res) {
-				ret_fid = FFA_ERROR;
-				rc = FFA_INVALID_PARAMETERS;
-				goto out;
-			}
-		}
-		rc = 1;
-	} else if (IS_ENABLED(CFG_SECURE_PARTITION)) {
-		uint32_t uuid_array[4] = { 0 };
-		size_t count = 0;
-
-		uuid_array[0] = args->a1;
-		uuid_array[1] = args->a2;
-		uuid_array[2] = args->a3;
-		uuid_array[3] = args->a4;
-
+	if (IS_ENABLED(CFG_SECURE_PARTITION)) {
 		res = sp_partition_info_get(rxtx->ffa_vers, rxtx->tx,
-					    rxtx->size, uuid_array, &count,
+					    rxtx->size, uuid, &count,
 					    count_only);
 		if (res != TEE_SUCCESS) {
 			ret_fid = FFA_ERROR;
 			rc = FFA_INVALID_PARAMETERS;
 			goto out;
 		}
-		rc = count;
-	} else {
-		ret_fid = FFA_ERROR;
-		rc = FFA_INVALID_PARAMETERS;
-		goto out;
 	}
 
+	rc = count;
 	ret_fid = FFA_SUCCESS_32;
-
 out:
 	if (ret_fid == FFA_SUCCESS_32 && !count_only &&
 	    rxtx->ffa_vers >= FFA_VERSION_1_1)
@@ -693,8 +664,11 @@ static void spmc_handle_run(struct thread_smc_1_2_regs *args)
 	/*
 	 * OP-TEE core threads are only preemted using controlled exit so
 	 * FFA_RUN mustn't be used to resume such threads.
+	 *
+	 * The OP-TEE SPMC is not preemted at all, it's an error to try to
+	 * resume that ID.
 	 */
-	if (endpoint == optee_endpoint_id)
+	if (spmc_find_lsp_by_sp_id(endpoint))
 		goto out;
 
 	/*
@@ -770,10 +744,20 @@ out:
 	return res;
 }
 
-static void handle_yielding_call(struct thread_smc_1_2_regs *args,
-				 uint32_t direct_resp_fid)
+static uint32_t get_direct_resp_fid(uint32_t fid)
 {
-	TEE_Result res = 0;
+	assert(fid == FFA_MSG_SEND_DIRECT_REQ_64 ||
+	       fid == FFA_MSG_SEND_DIRECT_REQ_32);
+
+	if (OPTEE_SMC_IS_64(fid))
+		return FFA_MSG_SEND_DIRECT_RESP_64;
+	return FFA_MSG_SEND_DIRECT_RESP_32;
+}
+
+static void handle_yielding_call(struct thread_smc_1_2_regs *args)
+{
+	uint32_t direct_resp_fid = get_direct_resp_fid(args->a0);
+	TEE_Result res = TEE_SUCCESS;
 
 	thread_check_canaries();
 
@@ -815,9 +799,9 @@ static uint32_t handle_unregister_shm(uint32_t a4, uint32_t a5)
 	}
 }
 
-static void handle_blocking_call(struct thread_smc_1_2_regs *args,
-				 uint32_t direct_resp_fid)
+static void handle_blocking_call(struct thread_smc_1_2_regs *args)
 {
+	uint32_t direct_resp_fid = get_direct_resp_fid(args->a0);
 	uint32_t sec_caps = 0;
 
 	switch (args->a3) {
@@ -861,10 +845,9 @@ static void handle_blocking_call(struct thread_smc_1_2_regs *args,
 	}
 }
 
-static void handle_framework_direct_request(struct thread_smc_1_2_regs *args,
-					    struct ffa_rxtx *rxtx,
-					    uint32_t direct_resp_fid)
+static void handle_framework_direct_request(struct thread_smc_1_2_regs *args)
 {
+	uint32_t direct_resp_fid = get_direct_resp_fid(args->a0);
 	uint32_t w0 = FFA_ERROR;
 	uint32_t w1 = FFA_PARAM_MBZ;
 	uint32_t w2 = FFA_NOT_SUPPORTED;
@@ -905,7 +888,7 @@ static void handle_framework_direct_request(struct thread_smc_1_2_regs *args,
 		w0 = direct_resp_fid;
 		w1 = swap_src_dst(args->a1);
 		w2 = FFA_MSG_FLAG_FRAMEWORK | FFA_MSG_VERSION_RESP;
-		w3 = spmc_exchange_version(args->a3, rxtx);
+		w3 = spmc_exchange_version(args->a3, &my_rxtx);
 		break;
 	default:
 		break;
@@ -913,39 +896,25 @@ static void handle_framework_direct_request(struct thread_smc_1_2_regs *args,
 	spmc_set_args(args, w0, w1, w2, w3, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void handle_direct_request(struct thread_smc_1_2_regs *args,
-				  struct ffa_rxtx *rxtx)
+static void optee_lsp_handle_direct_request(struct thread_smc_1_2_regs *args)
 {
-	uint32_t direct_resp_fid = 0;
-
-	if (IS_ENABLED(CFG_SECURE_PARTITION) &&
-	    FFA_DST(args->a1) != spmc_id &&
-	    FFA_DST(args->a1) != optee_endpoint_id) {
-		spmc_sp_start_thread(args);
-		return;
-	}
-
-	if (OPTEE_SMC_IS_64(args->a0))
-		direct_resp_fid = FFA_MSG_SEND_DIRECT_RESP_64;
-	else
-		direct_resp_fid = FFA_MSG_SEND_DIRECT_RESP_32;
-
 	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
-		handle_framework_direct_request(args, rxtx, direct_resp_fid);
+		handle_framework_direct_request(args);
 		return;
 	}
 
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
 	    virt_set_guest(get_sender_id(args->a1))) {
-		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
+		spmc_set_args(args, get_direct_resp_fid(args->a0),
+			      swap_src_dst(args->a1), 0,
 			      TEE_ERROR_ITEM_NOT_FOUND, 0, 0);
 		return;
 	}
 
 	if (args->a3 & BIT32(OPTEE_FFA_YIELDING_CALL_BIT))
-		handle_yielding_call(args, direct_resp_fid);
+		handle_yielding_call(args);
 	else
-		handle_blocking_call(args, direct_resp_fid);
+		handle_blocking_call(args);
 
 	/*
 	 * Note that handle_yielding_call() typically only returns if a
@@ -954,6 +923,31 @@ static void handle_direct_request(struct thread_smc_1_2_regs *args,
 	 */
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
+}
+
+static void __maybe_unused
+optee_spmc_lsp_handle_direct_request(struct thread_smc_1_2_regs *args)
+{
+	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK)
+		handle_framework_direct_request(args);
+	else
+		set_simple_ret_val(args, FFA_INVALID_PARAMETERS);
+}
+
+static void handle_direct_request(struct thread_smc_1_2_regs *args)
+{
+	struct spmc_lsp_desc *lsp = spmc_find_lsp_by_sp_id(FFA_DST(args->a1));
+
+	if (lsp) {
+		lsp->direct_req(args);
+	} else {
+		spmc_sp_start_thread(args);
+		/*
+		 * spmc_sp_start_thread() returns here if the SP ID is
+		 * invalid.
+		 */
+		set_simple_ret_val(args, FFA_INVALID_PARAMETERS);
+	}
 }
 
 int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
@@ -1033,7 +1027,7 @@ static int get_acc_perms(vaddr_t mem_acc_base, unsigned int mem_access_size,
 	for (n = 0; n < mem_access_count; n++) {
 		mem_acc = (void *)(mem_acc_base + mem_access_size * n);
 		descr = &mem_acc->access_perm;
-		if (READ_ONCE(descr->endpoint_id) == optee_endpoint_id) {
+		if (READ_ONCE(descr->endpoint_id) == optee_core_lsp.sp_id) {
 			*acc_perms = READ_ONCE(descr->perm);
 			*region_offs = READ_ONCE(mem_acc[n].region_offs);
 			return 0;
@@ -1163,7 +1157,7 @@ static bool is_sp_share(struct ffa_mem_transaction_x *mem_trans,
 	 * OP-TEE. We do read it later on again, but there are some additional
 	 * checks there to make sure that the data is correct.
 	 */
-	return READ_ONCE(perm->endpoint_id) != optee_endpoint_id;
+	return READ_ONCE(perm->endpoint_id) != optee_core_lsp.sp_id;
 }
 
 static int add_mem_share(struct ffa_mem_transaction_x *mem_trans,
@@ -1895,7 +1889,8 @@ void notif_send_async(uint32_t value, uint16_t guest_id)
 	if (nvb) {
 		assert(value == NOTIF_VALUE_DO_BOTTOM_HALF &&
 		       spmc_notif_is_ready && nvb->do_bottom_half_value >= 0);
-		res = ffa_set_notification(guest_id, optee_endpoint_id, flags,
+		res = ffa_set_notification(guest_id, optee_core_lsp.sp_id,
+					   flags,
 					   BIT64(nvb->do_bottom_half_value));
 		if (res) {
 			EMSG("notification set failed with error %d", res);
@@ -1950,7 +1945,7 @@ void thread_spmc_msg_recv(struct thread_smc_1_2_regs *args)
 	case FFA_MSG_SEND_DIRECT_REQ_64:
 #endif
 	case FFA_MSG_SEND_DIRECT_REQ_32:
-		handle_direct_request(args, &my_rxtx);
+		handle_direct_request(args);
 		break;
 #if defined(CFG_CORE_SEL1_SPMC)
 #ifdef ARM64
@@ -2367,7 +2362,117 @@ static uint16_t ffa_spm_id_get(void)
 	return args.a2;
 }
 
+static TEE_Result check_desc(struct spmc_lsp_desc *d)
+{
+	uint32_t accept_props = FFA_PART_PROP_DIRECT_REQ_RECV |
+				FFA_PART_PROP_DIRECT_REQ_SEND |
+				FFA_PART_PROP_NOTIF_CREATED |
+				FFA_PART_PROP_NOTIF_DESTROYED |
+				FFA_PART_PROP_AARCH64_STATE;
+	uint32_t id = d->sp_id;
+
+	if (id && (spmc_is_reserved_id(id) || spmc_find_lsp_by_sp_id(id) ||
+		   id < FFA_SWD_ID_MIN || id > FFA_SWD_ID_MAX)) {
+		EMSG("Conflicting SP id for SP \"%s\" id %#"PRIx32,
+		     d->name, id);
+		if (!IS_ENABLED(CFG_SP_SKIP_FAILED))
+			panic();
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	if (d->properties & ~accept_props) {
+		EMSG("Unexpected properties in %#"PRIx32" for LSP \"%s\" %#"PRIx16,
+		     d->properties, d->name, d->sp_id);
+		if (!IS_ENABLED(CFG_SP_SKIP_FAILED))
+			panic();
+		d->properties &= accept_props;
+	}
+
+	if (!d->direct_req) {
+		EMSG("Missing direct request callback for LSP \"%s\" %#"PRIx16,
+		     d->name, d->sp_id);
+		if (!IS_ENABLED(CFG_SP_SKIP_FAILED))
+			panic();
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	if (!d->uuid_words[0] && !d->uuid_words[1] &&
+	    !d->uuid_words[2] && !d->uuid_words[3]) {
+		EMSG("Found NULL UUID for LSP \"%s\" %#"PRIx16,
+		     d->name, d->sp_id);
+		if (!IS_ENABLED(CFG_SP_SKIP_FAILED))
+			panic();
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static uint16_t find_unused_sp_id(void)
+{
+	uint32_t id = FFA_SWD_ID_MIN;
+
+	while (spmc_is_reserved_id(id) || spmc_find_lsp_by_sp_id(id)) {
+		id++;
+		assert(id <= FFA_SWD_ID_MAX);
+	}
+
+	return id;
+}
+
+TEE_Result spmc_register_lsp(struct spmc_lsp_desc *desc)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	res = check_desc(desc);
+	if (res)
+		return res;
+
+	if (STAILQ_EMPTY(&lsp_head)) {
+		DMSG("Cannot add Logical SP \"%s\": LSP framework not initialized yet",
+		     desc->name);
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	if (!desc->sp_id)
+		desc->sp_id = find_unused_sp_id();
+
+	DMSG("Adding Logical SP \"%s\" with id %#"PRIx16,
+	     desc->name, desc->sp_id);
+
+	STAILQ_INSERT_TAIL(&lsp_head, desc, link);
+
+	return TEE_SUCCESS;
+}
+
+static struct spmc_lsp_desc optee_core_lsp __nex_data = {
+	.name = "OP-TEE",
+	.direct_req = optee_lsp_handle_direct_request,
+	.properties = FFA_PART_PROP_DIRECT_REQ_RECV |
+		      FFA_PART_PROP_DIRECT_REQ_SEND |
+#ifdef CFG_NS_VIRTUALIZATION
+		      FFA_PART_PROP_NOTIF_CREATED |
+		      FFA_PART_PROP_NOTIF_DESTROYED |
+#endif
+		      FFA_PART_PROP_AARCH64_STATE |
+		      FFA_PART_PROP_IS_PE_ID,
+	/*
+	 * - if the SPMC is in S-EL2 this UUID describes OP-TEE as a S-EL1
+	 *   SP, or
+	 * - if the SPMC is in S-EL1 then this UUID is for OP-TEE as a
+	 *   logical partition, residing in the same exception level as the
+	 *   SPMC
+	 * UUID 486178e0-e7f8-11e3-bc5e-0002a5d5c51b
+	 */
+	.uuid_words = { 0xe0786148, 0xe311f8e7, 0x02005ebc, 0x1bc5d5a5, },
+};
+
 #if defined(CFG_CORE_SEL1_SPMC)
+static struct spmc_lsp_desc optee_spmc_lsp __nex_data = {
+	.name = "OP-TEE SPMC",
+	.direct_req = optee_spmc_lsp_handle_direct_request,
+};
+
 static TEE_Result spmc_init(void)
 {
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
@@ -2377,14 +2482,13 @@ static TEE_Result spmc_init(void)
 	spmd_id = ffa_spm_id_get();
 	DMSG("SPMD ID %#"PRIx16, spmd_id);
 
-	spmc_id = ffa_id_get();
-	DMSG("SPMC ID %#"PRIx16, spmc_id);
+	optee_spmc_lsp.sp_id = ffa_id_get();
+	DMSG("SPMC ID %#"PRIx16, optee_spmc_lsp.sp_id);
+	STAILQ_INSERT_HEAD(&lsp_head, &optee_spmc_lsp, link);
 
-	optee_endpoint_id = FFA_SWD_ID_MIN;
-	while (spmc_is_reserved_id(optee_endpoint_id))
-		optee_endpoint_id++;
-
-	DMSG("OP-TEE endpoint ID %#"PRIx16, optee_endpoint_id);
+	optee_core_lsp.sp_id = find_unused_sp_id();
+	DMSG("OP-TEE endpoint ID %#"PRIx16, optee_core_lsp.sp_id);
+	STAILQ_INSERT_HEAD(&lsp_head, &optee_core_lsp, link);
 
 	/*
 	 * If SPMD think we are version 1.0 it will report version 1.0 to
@@ -2484,7 +2588,7 @@ static void *spmc_retrieve_req(uint64_t cookie,
 	acc_descr_array->region_offs = 0;
 	acc_descr_array->reserved = 0;
 	perm_descr = &acc_descr_array->access_perm;
-	perm_descr->endpoint_id = optee_endpoint_id;
+	perm_descr->endpoint_id = optee_core_lsp.sp_id;
 	perm_descr->perm = FFA_MEM_ACC_RW;
 	perm_descr->flags = 0;
 
@@ -2522,7 +2626,7 @@ void thread_spmc_relinquish(uint64_t cookie)
 	relinquish_desc->handle = cookie;
 	relinquish_desc->flags = 0;
 	relinquish_desc->endpoint_count = 1;
-	relinquish_desc->endpoint_id_array[0] = optee_endpoint_id;
+	relinquish_desc->endpoint_id_array[0] = optee_core_lsp.sp_id;
 	thread_smccc(&args);
 	if (!is_ffa_success(args.a0))
 		EMSG("Failed to relinquish cookie %#"PRIx64, cookie);
@@ -2656,8 +2760,9 @@ static TEE_Result spmc_init(void)
 	spmc_id = ffa_spm_id_get();
 	DMSG("SPMC ID %#"PRIx16, spmc_id);
 
-	optee_endpoint_id = ffa_id_get();
-	DMSG("OP-TEE endpoint ID %#"PRIx16, optee_endpoint_id);
+	optee_core_lsp.sp_id = ffa_id_get();
+	DMSG("OP-TEE endpoint ID %#"PRIx16, optee_core_lsp.sp_id);
+	STAILQ_INSERT_HEAD(&lsp_head, &optee_core_lsp, link);
 
 	if (!ffa_features(FFA_NOTIFICATION_SET)) {
 		spmc_notif_is_ready = true;
