@@ -454,7 +454,17 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 		iv = ni->iv;
 	} else {
 		iv = ht->head.iv;
-		aad_len += TEE_FS_HTREE_HASH_SIZE + sizeof(ht->head.counter);
+		aad_len += sizeof(ht->head.counter);
+
+		/*
+		 * With CFG_REE_FS_HTREE_HASH_SIZE_COMPAT, hash data passed
+		 * for AAD is truncated to TEE_FS_HTREE_FEK_SIZE bytes so
+		 * use the correct size aad_len computation.
+		 */
+		if (IS_ENABLED(CFG_REE_FS_HTREE_HASH_SIZE_COMPAT))
+			aad_len += TEE_FS_HTREE_FEK_SIZE;
+		else
+			aad_len += TEE_FS_HTREE_HASH_SIZE;
 	}
 
 	if (mode == TEE_MODE_ENCRYPT) {
