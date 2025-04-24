@@ -79,8 +79,35 @@
 #define TEE_SCN_SE_CHANNEL_CLOSE__DEPRECATED		69
 /* End of deprecated Secure Element API syscalls */
 #define TEE_SCN_CACHE_OPERATION			70
-
-#define TEE_SCN_MAX				70
+#define psa_generate_key_function 71
+#define psa_cipher_operation_init_function 72
+#define psa_cipher_encrypt_setup_function 73
+#define psa_cipher_decrypt_setup_function 74
+#define psa_cipher_generate_iv_function 75
+#define psa_cipher_set_iv_function 76
+#define psa_cipher_update_function 77
+#define psa_cipher_finish_function 78
+#define psa_cipher_abort_function 79
+#define psa_aead_encrypt_function 80
+#define psa_aead_decrypt_function 81
+#define psa_aead_operation_init_function 82
+#define psa_aead_encrypt_setup_function 83
+#define psa_aead_decrypt_setup_function 84
+#define psa_aead_generate_nonce_function 85
+#define psa_aead_set_nonce_function 86
+#define psa_aead_set_lengths_function 87
+#define psa_aead_update_ad_function 88
+#define psa_aead_update_function 89
+#define psa_aead_finish_function 90
+#define psa_aead_verify_function 91
+#define psa_aead_abort_function 92
+#define psa_sign_message_function 93
+#define psa_verify_message_function 94
+#define psa_sign_hash_function 95
+#define psa_verify_hash_function 96
+#define psa_asymmetric_encrypt_function 97
+#define psa_asymmetric_decrypt_function 98
+#define TEE_SCN_MAX				101
 
 /* Maximum number of allowed arguments for a syscall */
 #define TEE_SVC_MAX_ARGS			8
