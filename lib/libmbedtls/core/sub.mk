@@ -1,6 +1,11 @@
 cppflags-y += -DMBEDTLS_ALLOW_PRIVATE_ACCESS
+# These flags are for enabling psa crypto
+cppflags-y += -DMBEDTLS_PSA_CRYPTO_C
+cppflags-y += -DMBEDTLS_ENTROPY_C
+
 srcs-y += mbed_helpers.c
 srcs-y += tomcrypt.c
+srcs-y += psa_crypto.c
 srcs-$(call cfg-one-enabled, CFG_CRYPTO_MD5 CFG_CRYPTO_SHA1 CFG_CRYPTO_SHA224 \
 			     CFG_CRYPTO_SHA256 CFG_CRYPTO_SHA384 \
 			     CFG_CRYPTO_SHA512) += hash.c
