@@ -17,9 +17,10 @@
 #define MBEDTLS_DES_C
 #define MBEDTLS_AES_C
 #define MBEDTLS_NIST_KW_C
-#define MBEDTLS_POLY1305_C
-#define MBEDTLS_CHACHA20_C
-#define MBEDTLS_CHACHAPOLY_C
+// these defines need extra configs, so they are excluded
+// #define MBEDTLS_POLY1305_C
+// #define MBEDTLS_CHACHA20_C
+// #define MBEDTLS_CHACHAPOLY_C
 
 #define MBEDTLS_SHA1_C
 #define MBEDTLS_SHA256_C
@@ -67,5 +68,8 @@
 #define MBEDTLS_CERTS_C
 #define MBEDTLS_PEM_PARSE_C
 #define MBEDTLS_PEM_WRITE_C
+#define MBEDTLS_PSA_CRYPTO_C
+#define MBEDTLS_PSA_CRYPTO_CLIENT
+#define MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG
 
 #endif /* __MBEDTLS_CONFIG_UTA_H */
