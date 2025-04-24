@@ -11,6 +11,239 @@
 
 #define TEE_USAGE_DEFAULT   0xffffffff
 
+psa_status_t __GP11_PSA_GenerateKey(const struct psa_key_attributes_s *attributes, mbedtls_svc_key_id_t *key) {
+    return _utee_cryp_psa_obj_generate_key(attributes, key);
+}
+
+mbedtls_psa_cipher_operation* __GP_11_psa_cipher_operation_init(void) {
+    return _utee_cryp_psa_cipher_operation_init();
+}
+
+psa_status_t __GP_11_psa_cipher_encrypt_setup(mbedtls_psa_cipher_operation *operation,
+                                              mbedtls_svc_key_id_t key,
+                                              psa_algorithm_t alg) {
+    return _utee_cryp_psa_cipher_encrypt_setup(operation, key, alg);
+}
+
+psa_status_t __GP_11_psa_cipher_decrypt_setup(mbedtls_psa_cipher_operation *operation,
+                                              mbedtls_svc_key_id_t key,
+                                              psa_algorithm_t alg) {
+    return _utee_cryp_psa_cipher_decrypt_setup(operation, key, alg);
+}
+
+psa_status_t __GP_11_psa_cipher_generate_iv(mbedtls_psa_cipher_operation *operation,
+                                            uint8_t *iv,
+                                            size_t iv_size,
+                                            size_t *iv_length) {
+    return _utee_cryp_psa_cipher_generate_iv(operation, iv, iv_size, iv_length);
+}
+
+psa_status_t __GP_11_psa_cipher_set_iv(mbedtls_psa_cipher_operation *operation,
+                                       const uint8_t *iv,
+                                       size_t iv_length) {
+    return _utee_cryp_psa_cipher_set_iv(operation, iv, iv_length);
+}
+
+psa_status_t __GP_11_psa_cipher_update(mbedtls_psa_cipher_operation *operation,
+                                       const uint8_t *input,
+                                       size_t input_length,
+                                       uint8_t *output,
+                                       size_t output_size,
+                                       size_t *output_length) {
+    return _utee_cryp_psa_cipher_update(operation, input, input_length, output, output_size, output_length);
+}
+
+psa_status_t __GP_11_psa_cipher_finish(mbedtls_psa_cipher_operation *operation,
+                                       uint8_t *output,
+                                       size_t output_size,
+                                       size_t *output_length) {
+    return _utee_cryp_psa_cipher_finish(operation, output, output_size, output_length);
+}
+
+psa_status_t __GP_11_psa_cipher_abort(mbedtls_psa_cipher_operation *operation) {
+    return _utee_cryp_psa_cipher_abort(operation);
+}
+
+psa_status_t __GP_11_psa_aead_encrypt(mbedtls_svc_key_id_t key,
+                                      psa_algorithm_t alg,
+                                      const uint8_t *nonce,
+                                      size_t nonce_length,
+                                      const uint8_t *additional_data,
+                                      size_t additional_data_length,
+                                      const uint8_t *plaintext,
+                                      size_t plaintext_length,
+                                      uint8_t *ciphertext,
+                                      size_t ciphertext_size,
+                                      size_t *ciphertext_length) {
+    syscallStruct syscall;
+    syscall.nonce = nonce;
+    syscall.nonce_length = nonce_length;
+    syscall.additional_data = additional_data;
+    syscall.additional_data_length = additional_data_length;
+    return _utee_psa_aead_encrypt(key, alg, syscall, plaintext,
+                                  plaintext_length, ciphertext, ciphertext_size, ciphertext_length);
+}
+
+psa_status_t __GP_11_psa_aead_decrypt(mbedtls_svc_key_id_t key,
+                                      psa_algorithm_t alg,
+                                      const uint8_t *nonce,
+                                      size_t nonce_length,
+                                      const uint8_t *additional_data,
+                                      size_t additional_data_length,
+                                      const uint8_t *ciphertext,
+                                      size_t ciphertext_length,
+                                      uint8_t *plaintext,
+                                      size_t plaintext_size,
+                                      size_t *plaintext_length) {
+    syscallStruct syscall;
+    syscall.nonce = nonce;
+    syscall.nonce_length = nonce_length;
+    syscall.additional_data = additional_data;
+    syscall.additional_data_length = additional_data_length;
+    return _utee_psa_aead_decrypt(key, alg, syscall, ciphertext,
+                                  ciphertext_length, plaintext, plaintext_size, plaintext_length);
+}
+
+static  psa_aead_operation* __GP_11_psa_aead_operation_init(void) {
+    return _utee_psa_aead_operation_init();
+}
+
+psa_status_t __GP_11_psa_aead_encrypt_setup( psa_aead_operation *operation,
+                                            mbedtls_svc_key_id_t key,
+                                            psa_algorithm_t alg) {
+    return _utee_psa_aead_encrypt_setup(operation, key, alg);
+}
+
+psa_status_t __GP_11_psa_aead_decrypt_setup( psa_aead_operation *operation,
+                                            mbedtls_svc_key_id_t key,
+                                            psa_algorithm_t alg) {
+    return _utee_psa_aead_decrypt_setup(operation, key, alg);
+}
+
+psa_status_t __GP_11_psa_aead_generate_nonce( psa_aead_operation *operation,
+                                             uint8_t *nonce,
+                                             size_t nonce_size,
+                                             size_t *nonce_length) {
+    return _utee_psa_aead_generate_nonce(operation, nonce, nonce_size, nonce_length);
+}
+
+psa_status_t __GP_11_psa_aead_set_nonce( psa_aead_operation *operation,
+                                        const uint8_t *nonce,
+                                        size_t nonce_length) {
+    return _utee_psa_aead_set_nonce(operation, nonce, nonce_length);
+}
+
+psa_status_t __GP_11_psa_aead_set_lengths( psa_aead_operation *operation,
+                                          size_t ad_length,
+                                          size_t plaintext_length) {
+    return _utee_psa_aead_set_lengths(operation, ad_length, plaintext_length);
+}
+
+psa_status_t __GP_11_psa_aead_update_ad( psa_aead_operation *operation,
+                                        const uint8_t *input,
+                                        size_t input_length) {
+    return _utee_psa_aead_update_ad(operation, input, input_length);
+}
+
+psa_status_t __GP_11_psa_aead_update( psa_aead_operation *operation,
+                                     const uint8_t *input,
+                                     size_t input_length,
+                                     uint8_t *output,
+                                     size_t output_size,
+                                     size_t *output_length) {
+    return _utee_psa_aead_update(operation, input, input_length, output, output_size, output_length);
+}
+
+psa_status_t __GP_11_psa_aead_finish( psa_aead_operation *operation,
+                                     uint8_t *ciphertext,
+                                     size_t ciphertext_size,
+                                     size_t *ciphertext_length,
+                                     uint8_t *tag,
+                                     size_t tag_size,
+                                     size_t *tag_length) {
+    return _utee_psa_aead_finish(operation, ciphertext, ciphertext_size, ciphertext_length, tag, tag_size, tag_length);
+}
+
+psa_status_t __GP_11_psa_aead_verify( psa_aead_operation *operation,
+                                     uint8_t *plaintext,
+                                     size_t plaintext_size,
+                                     size_t *plaintext_length,
+                                     const uint8_t *tag,
+                                     size_t tag_length) {
+    return _utee_psa_aead_verify(operation, plaintext, plaintext_size, plaintext_length, tag, tag_length);
+}
+
+psa_status_t __GP_11_psa_aead_abort( psa_aead_operation *operation) {
+    return _utee_psa_aead_abort(operation);
+}
+
+psa_status_t __GP_11_psa_sign_message(mbedtls_svc_key_id_t key,
+                                      psa_algorithm_t alg,
+                                      const uint8_t *input,
+                                      size_t input_length,
+                                      uint8_t *signature,
+                                      size_t signature_size,
+                                      size_t *signature_length) {
+    return _utee_psa_sign_message(key, alg, input, input_length, signature, signature_size, signature_length);
+}
+
+psa_status_t __GP_11_psa_verify_message(mbedtls_svc_key_id_t key,
+                                        psa_algorithm_t alg,
+                                        const uint8_t *input,
+                                        size_t input_length,
+                                        const uint8_t *signature,
+                                        size_t signature_length) {
+    return _utee_psa_verify_message(key, alg, input, input_length, signature, signature_length);
+}
+
+psa_status_t __GP_11_psa_sign_hash(mbedtls_svc_key_id_t key,
+                                   psa_algorithm_t alg,
+                                   const uint8_t *hash,
+                                   size_t hash_length,
+                                   uint8_t *signature,
+                                   size_t signature_size,
+                                   size_t *signature_length) {
+    return _utee_psa_sign_hash(key, alg, hash, hash_length, signature, signature_size, signature_length);
+}
+
+psa_status_t __GP_11_psa_verify_hash(mbedtls_svc_key_id_t key,
+                                     psa_algorithm_t alg,
+                                     const uint8_t *hash,
+                                     size_t hash_length,
+                                     const uint8_t *signature,
+                                     size_t signature_length) {
+    return _utee_psa_verify_hash(key, alg, hash, hash_length, signature, signature_length);
+}
+
+psa_status_t __GP_11_psa_asymmetric_encrypt(mbedtls_svc_key_id_t key,
+                                            psa_algorithm_t alg,
+                                            const uint8_t *input,
+                                            size_t input_length,
+                                            const uint8_t *salt,
+                                            size_t salt_length,
+                                            uint8_t *output,
+                                            size_t output_size,
+                                            size_t *output_length) {
+    return _utee_psa_asymmetric_encrypt(key, alg, input, input_length, salt, salt_length, output, output_size,
+                                        output_length);
+}
+
+psa_status_t __GP_11_psa_asymmetric_decrypt(mbedtls_svc_key_id_t key,
+                                            psa_algorithm_t alg,
+                                            const uint8_t *input,
+                                            size_t input_length,
+                                            const uint8_t *salt,
+                                            size_t salt_length,
+                                            uint8_t *output,
+                                            size_t output_size,
+                                            size_t *output_length) {
+    return _utee_psa_asymmetric_decrypt(key, alg, input, input_length, salt, salt_length, output, output_size,
+                                        output_length);
+}
+
+
+
+
 void __utee_from_attr(struct utee_attribute *ua, const TEE_Attribute *attrs,
 			uint32_t attr_count)
 {
