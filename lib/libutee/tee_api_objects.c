@@ -104,7 +104,7 @@ psa_status_t __GP_11_psa_aead_decrypt(mbedtls_svc_key_id_t key,
                                   ciphertext_length, plaintext, plaintext_size, plaintext_length);
 }
 
-static  psa_aead_operation* __GP_11_psa_aead_operation_init(void) {
+psa_aead_operation* __GP_11_psa_aead_operation_init(void) {
     return _utee_psa_aead_operation_init();
 }
 
