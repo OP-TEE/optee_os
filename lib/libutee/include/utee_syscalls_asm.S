@@ -122,3 +122,59 @@
                      TEE_SCN_CRYP_OBJ_GENERATE_KEY, 4
 
         UTEE_SYSCALL _utee_cache_operation, TEE_SCN_CACHE_OPERATION, 3
+
+        UTEE_SYSCALL _utee_cryp_psa_obj_generate_key   , psa_generate_key_function, 2
+
+        UTEE_SYSCALL _utee_cryp_psa_cipher_operation_init, psa_cipher_operation_init_function, 0
+
+        UTEE_SYSCALL _utee_cryp_psa_cipher_encrypt_setup, psa_cipher_encrypt_setup_function, 3
+
+        UTEE_SYSCALL _utee_cryp_psa_cipher_decrypt_setup, psa_cipher_decrypt_setup_function, 3
+
+        UTEE_SYSCALL _utee_cryp_psa_cipher_generate_iv, psa_cipher_generate_iv_function, 4
+
+        UTEE_SYSCALL _utee_cryp_psa_cipher_set_iv, psa_cipher_set_iv_function, 3
+
+        UTEE_SYSCALL _utee_cryp_psa_cipher_update, psa_cipher_update_function, 6
+
+        UTEE_SYSCALL _utee_cryp_psa_cipher_finish, psa_cipher_finish_function, 4
+
+        UTEE_SYSCALL _utee_cryp_psa_cipher_abort, psa_cipher_abort_function, 1
+
+        UTEE_SYSCALL _utee_psa_aead_encrypt, psa_aead_encrypt_function, 8
+
+        UTEE_SYSCALL _utee_psa_aead_decrypt, psa_aead_decrypt_function, 8
+
+        UTEE_SYSCALL _utee_psa_aead_operation_init, psa_aead_operation_init_function, 0
+
+        UTEE_SYSCALL _utee_psa_aead_encrypt_setup, psa_aead_encrypt_setup_function, 3
+
+        UTEE_SYSCALL _utee_psa_aead_decrypt_setup, psa_aead_decrypt_setup_function, 3
+
+        UTEE_SYSCALL _utee_psa_aead_generate_nonce, psa_aead_generate_nonce_function, 4
+
+        UTEE_SYSCALL _utee_psa_aead_set_nonce, psa_aead_set_nonce_function, 3
+
+        UTEE_SYSCALL _utee_psa_aead_set_lengths, psa_aead_set_lengths_function, 3
+
+        UTEE_SYSCALL _utee_psa_aead_update_ad, psa_aead_update_ad_function, 3
+
+        UTEE_SYSCALL _utee_psa_aead_update, psa_aead_update_function, 6
+
+        UTEE_SYSCALL _utee_psa_aead_finish, psa_aead_finish_function, 7
+
+        UTEE_SYSCALL _utee_psa_aead_verify, psa_aead_verify_function, 6
+
+        UTEE_SYSCALL _utee_psa_aead_abort, psa_aead_abort_function, 1
+
+        UTEE_SYSCALL _utee_psa_sign_message, psa_sign_message_function, 7
+
+        UTEE_SYSCALL _utee_psa_verify_message, psa_verify_message_function, 6
+
+        UTEE_SYSCALL _utee_psa_sign_hash, psa_sign_hash_function, 7
+
+        UTEE_SYSCALL _utee_psa_verify_hash, psa_verify_hash_function, 6
+
+        UTEE_SYSCALL _utee_psa_asymmetric_encrypt, psa_asymmetric_encrypt_function, 8
+
+        UTEE_SYSCALL _utee_psa_asymmetric_decrypt, psa_asymmetric_decrypt_function, 8
