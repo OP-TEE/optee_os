@@ -6,8 +6,11 @@
 #define __TEE_TEE_SVC_CRYP_H
 
 #include <tee_api_types.h>
+#include <../../libmbedtls/mbedtls/include/psa/crypto_types.h>
+#include <../../libmbedtls/mbedtls/include/psa/crypto_struct.h>
 #include <utee_types.h>
 #include <tee/tee_obj.h>
+#include <psa/crypto.h>
 
 struct user_ta_ctx;
 
@@ -29,6 +32,139 @@ TEE_Result syscall_cryp_obj_copy(unsigned long dst_obj,
 TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 			const struct utee_attribute *params,
 			unsigned long param_count);
+psa_status_t syscall_cryp_psa_obj_generate_key(const struct psa_key_attributes_s *attributes, mbedtls_svc_key_id_t *key);
+
+psa_cipher_operation_t* syscall_cryp_psa_cipher_operation_init(void);
+psa_status_t syscall_cryp_psa_cipher_encrypt_setup(psa_cipher_operation_t *operation,
+                                                   mbedtls_svc_key_id_t key,
+                                                   psa_algorithm_t alg);
+psa_status_t syscall_cryp_psa_cipher_decrypt_setup(psa_cipher_operation_t *operation,
+                                                   mbedtls_svc_key_id_t key,
+                                                   psa_algorithm_t alg);
+psa_status_t syscall_cryp_psa_cipher_generate_iv(psa_cipher_operation_t *operation,
+                                                 uint8_t *iv,
+                                                 size_t iv_size,
+                                                 size_t *iv_length);
+psa_status_t syscall_cryp_psa_cipher_set_iv(psa_cipher_operation_t *operation,
+                                            const uint8_t *iv,
+                                            size_t iv_length);
+psa_status_t syscall_cryp_psa_cipher_update(psa_cipher_operation_t *operation,
+                                            const uint8_t *input,
+                                            size_t input_length,
+                                            uint8_t *output,
+                                            size_t output_size,
+                                            size_t *output_length);
+psa_status_t syscall_cryp_psa_cipher_finish(psa_cipher_operation_t *operation,
+                                            uint8_t *output,
+                                            size_t output_size,
+                                            size_t *output_length);
+psa_status_t syscall_cryp_psa_cipher_abort(psa_cipher_operation_t *operation);
+
+psa_status_t syscall_cryp_psa_aead_encrypt(mbedtls_svc_key_id_t key,
+                                           psa_algorithm_t alg,
+                                           const uint8_t *nonce,
+                                           size_t nonce_length,
+                                           const uint8_t *additional_data,
+                                           size_t additional_data_length,
+                                           const uint8_t *plaintext,
+                                           size_t plaintext_length,
+                                           uint8_t *ciphertext,
+                                           size_t ciphertext_size,
+                                           size_t *ciphertext_length);
+psa_status_t syscall_cryp_psa_aead_decrypt(mbedtls_svc_key_id_t key,
+                                           psa_algorithm_t alg,
+                                           const uint8_t *nonce,
+                                           size_t nonce_length,
+                                           const uint8_t *additional_data,
+                                           size_t additional_data_length,
+                                           const uint8_t *ciphertext,
+                                           size_t ciphertext_length,
+                                           uint8_t *plaintext,
+                                           size_t plaintext_size,
+                                           size_t *plaintext_length);
+psa_aead_operation_t* syscall_cryp_psa_aead_operation_init(void);
+psa_status_t syscall_cryp_psa_aead_encrypt_setup(psa_aead_operation_t *operation,
+                                                 mbedtls_svc_key_id_t key,
+                                                 psa_algorithm_t alg);
+psa_status_t syscall_cryp_psa_aead_decrypt_setup(psa_aead_operation_t *operation,
+                                                 mbedtls_svc_key_id_t key,
+                                                 psa_algorithm_t alg);
+psa_status_t syscall_cryp_psa_aead_generate_nonce(psa_aead_operation_t *operation,
+                                                  uint8_t *nonce,
+                                                  size_t nonce_size,
+                                                  size_t *nonce_length);
+psa_status_t syscall_cryp_psa_aead_set_nonce(psa_aead_operation_t *operation,
+                                             const uint8_t *nonce,
+                                             size_t nonce_length);
+psa_status_t syscall_cryp_psa_aead_set_lengths(psa_aead_operation_t *operation,
+                                               size_t ad_length,
+                                               size_t plaintext_length);
+psa_status_t syscall_cryp_psa_aead_update_ad(psa_aead_operation_t *operation,
+                                             const uint8_t *input,
+                                             size_t input_length);
+psa_status_t syscall_cryp_psa_aead_update(psa_aead_operation_t *operation,
+                                          const uint8_t *input,
+                                          size_t input_length,
+                                          uint8_t *output,
+                                          size_t output_size,
+                                          size_t *output_length);
+psa_status_t syscall_cryp_psa_aead_finish(psa_aead_operation_t *operation,
+                                          uint8_t *ciphertext,
+                                          size_t ciphertext_size,
+                                          size_t *ciphertext_length,
+                                          uint8_t *tag,
+                                          size_t tag_size,
+                                          size_t *tag_length);
+psa_status_t syscall_cryp_psa_aead_verify(psa_aead_operation_t *operation,
+                                          uint8_t *plaintext,
+                                          size_t plaintext_size,
+                                          size_t *plaintext_length,
+                                          const uint8_t *tag,
+                                          size_t tag_length);
+psa_status_t syscall_cryp_psa_aead_abort(psa_aead_operation_t *operation);
+
+psa_status_t syscall_cryp_psa_sign_message(mbedtls_svc_key_id_t key,
+                                           psa_algorithm_t alg,
+                                           const uint8_t *input,
+                                           size_t input_length,
+                                           uint8_t *signature,
+                                           size_t signature_size,
+                                           size_t *signature_length);
+psa_status_t syscall_cryp_psa_verify_message(mbedtls_svc_key_id_t key,
+                                             psa_algorithm_t alg,
+                                             const uint8_t *input,
+                                             size_t input_length,
+                                             const uint8_t *signature,
+                                             size_t signature_length);
+psa_key_derivation_operation_t* syscall_cryp_psa_key_derivation_operation_init(void);
+psa_status_t syscall_cryp_psa_key_derivation_setup(psa_key_derivation_operation_t *operation,
+                                                   psa_algorithm_t alg);
+psa_status_t syscall_cryp_psa_key_derivation_input_bytes(psa_key_derivation_operation_t *operation,
+                                                         psa_key_derivation_step_t step,
+                                                         const uint8_t *data,
+                                                         size_t data_length);
+psa_status_t syscall_cryp_psa_mac_verify(mbedtls_svc_key_id_t key,
+                                         psa_algorithm_t alg,
+                                         const uint8_t *input,
+                                         size_t input_length,
+                                         const uint8_t *mac,
+                                         size_t mac_length);
+psa_status_t syscall_cryp_psa_mac_compute(mbedtls_svc_key_id_t key,
+                                          psa_algorithm_t alg,
+                                          const uint8_t *input,
+                                          size_t input_length,
+                                          uint8_t *mac,
+                                          size_t mac_size,
+                                          size_t *mac_length);
+psa_hash_operation_t* syscall_cryp_psa_hash_operation_init(void);
+psa_status_t syscall_cryp_psa_hash_compute(psa_algorithm_t alg,
+                                           const uint8_t *input,
+                                           size_t input_length,
+                                           uint8_t *hash,
+                                           size_t hash_size,
+                                           size_t *hash_length);
+
+
 
 TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long op_mode,
 			unsigned long key1, unsigned long key2,
