@@ -131,7 +131,7 @@ static bool core_mmu_entry_is_leaf(struct mmu_pte *pte)
 
 static bool __maybe_unused core_mmu_entry_is_branch(struct mmu_pte *pte)
 {
-	return !core_mmu_entry_is_leaf(pte);
+	return core_mmu_entry_is_valid(pte) && !core_mmu_entry_is_leaf(pte);
 }
 
 static unsigned long core_mmu_pte_create(unsigned long ppn, uint8_t pte_bits)
