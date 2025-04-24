@@ -24,8 +24,172 @@
 
 #include <tee/tee_obj.h>
 #include <tee_api_types.h>
+#include <../../lib/libmbedtls/mbedtls/include/psa/crypto_types.h>
+#include <../../lib/libmbedtls/mbedtls/include/psa/crypto_struct.h>
+
+#include "psa/crypto.h"
+
 
 TEE_Result crypto_init(void);
+psa_status_t psa_generate_key_proxy(const psa_key_attributes_t *attributes,
+                              mbedtls_svc_key_id_t *key);
+psa_cipher_operation_t psa_cipher_operation_init_proxy(void);
+
+psa_status_t psa_cipher_encrypt_setup_proxy(psa_cipher_operation_t *operation,
+											mbedtls_svc_key_id_t key,
+											psa_algorithm_t alg);
+
+psa_status_t psa_cipher_decrypt_setup_proxy(psa_cipher_operation_t *operation,
+											mbedtls_svc_key_id_t key,
+											psa_algorithm_t alg);
+
+psa_status_t psa_cipher_generate_iv_proxy(psa_cipher_operation_t *operation,
+										  uint8_t *iv,
+										  size_t iv_size,
+										  size_t *iv_length);
+
+psa_status_t psa_cipher_set_iv_proxy(psa_cipher_operation_t *operation,
+									 const uint8_t *iv,
+									 size_t iv_length);
+
+psa_status_t psa_cipher_update_proxy(psa_cipher_operation_t *operation,
+									 const uint8_t *input,
+									 size_t input_length,
+									 uint8_t *output,
+									 size_t output_size,
+									 size_t *output_length);
+
+psa_status_t psa_cipher_finish_proxy(psa_cipher_operation_t *operation,
+									 uint8_t *output,
+									 size_t output_size,
+									 size_t *output_length);
+
+psa_status_t psa_cipher_abort_proxy(psa_cipher_operation_t *operation);
+
+psa_status_t psa_aead_encrypt_proxy(mbedtls_svc_key_id_t key,
+                                    psa_algorithm_t alg,
+                                    const uint8_t *nonce,
+                                    size_t nonce_length,
+                                    const uint8_t *additional_data,
+                                    size_t additional_data_length,
+                                    const uint8_t *plaintext,
+                                    size_t plaintext_length,
+                                    uint8_t *ciphertext,
+                                    size_t ciphertext_size,
+                                    size_t *ciphertext_length);
+
+psa_status_t psa_aead_decrypt_proxy(mbedtls_svc_key_id_t key,
+                                    psa_algorithm_t alg,
+                                    const uint8_t *nonce,
+                                    size_t nonce_length,
+                                    const uint8_t *additional_data,
+                                    size_t additional_data_length,
+                                    const uint8_t *ciphertext,
+                                    size_t ciphertext_length,
+                                    uint8_t *plaintext,
+                                    size_t plaintext_size,
+                                    size_t *plaintext_length);
+
+psa_aead_operation_t psa_aead_operation_init_proxy(void);
+
+psa_status_t psa_aead_encrypt_setup_proxy(psa_aead_operation_t *operation,
+                                          mbedtls_svc_key_id_t key,
+                                          psa_algorithm_t alg);
+
+psa_status_t psa_aead_decrypt_setup_proxy(psa_aead_operation_t *operation,
+                                          mbedtls_svc_key_id_t key,
+                                          psa_algorithm_t alg);
+
+psa_status_t psa_aead_generate_nonce_proxy(psa_aead_operation_t *operation,
+                                           uint8_t *nonce,
+                                           size_t nonce_size,
+                                           size_t *nonce_length);
+
+psa_status_t psa_aead_set_nonce_proxy(psa_aead_operation_t *operation,
+                                      const uint8_t *nonce,
+                                      size_t nonce_length);
+
+psa_status_t psa_aead_set_lengths_proxy(psa_aead_operation_t *operation,
+                                        size_t ad_length,
+                                        size_t plaintext_length);
+
+psa_status_t psa_aead_update_ad_proxy(psa_aead_operation_t *operation,
+                                      const uint8_t *input,
+                                      size_t input_length);
+
+psa_status_t psa_aead_update_proxy(psa_aead_operation_t *operation,
+                                   const uint8_t *input,
+                                   size_t input_length,
+                                   uint8_t *output,
+                                   size_t output_size,
+                                   size_t *output_length);
+
+psa_status_t psa_aead_finish_proxy(psa_aead_operation_t *operation,
+                                   uint8_t *ciphertext,
+                                   size_t ciphertext_size,
+                                   size_t *ciphertext_length,
+                                   uint8_t *tag,
+                                   size_t tag_size,
+                                   size_t *tag_length);
+
+psa_status_t psa_aead_verify_proxy(psa_aead_operation_t *operation,
+                                   uint8_t *plaintext,
+                                   size_t plaintext_size,
+                                   size_t *plaintext_length,
+                                   const uint8_t *tag,
+                                   size_t tag_length);
+
+psa_status_t psa_aead_abort_proxy(psa_aead_operation_t *operation);
+
+psa_status_t psa_sign_message_proxy(mbedtls_svc_key_id_t key,
+                                    psa_algorithm_t alg,
+                                    const uint8_t *input,
+                                    size_t input_length,
+                                    uint8_t *signature,
+                                    size_t signature_size,
+                                    size_t *signature_length);
+
+psa_status_t psa_verify_message_proxy(mbedtls_svc_key_id_t key,
+                                      psa_algorithm_t alg,
+                                      const uint8_t *input,
+                                      size_t input_length,
+                                      const uint8_t *signature,
+                                      size_t signature_length);
+
+psa_key_derivation_operation_t psa_key_derivation_operation_init_proxy(void);
+
+psa_status_t psa_key_derivation_setup_proxy(psa_key_derivation_operation_t *operation,
+                                            psa_algorithm_t alg);
+
+psa_status_t psa_key_derivation_input_bytes_proxy(psa_key_derivation_operation_t *operation,
+                                                  psa_key_derivation_step_t step,
+                                                  const uint8_t *data,
+                                                  size_t data_length);
+
+psa_status_t psa_mac_verify_proxy(mbedtls_svc_key_id_t key,
+                                  psa_algorithm_t alg,
+                                  const uint8_t *input,
+                                  size_t input_length,
+                                  const uint8_t *mac,
+                                  size_t mac_length);
+
+psa_status_t psa_mac_compute_proxy(mbedtls_svc_key_id_t key,
+                                   psa_algorithm_t alg,
+                                   const uint8_t *input,
+                                   size_t input_length,
+                                   uint8_t *mac,
+                                   size_t mac_size,
+                                   size_t *mac_length);
+
+psa_hash_operation_t psa_hash_operation_init_proxy(void);
+
+psa_status_t psa_hash_compute_proxy(psa_algorithm_t alg,
+                                    const uint8_t *input,
+                                    size_t input_length,
+                                    uint8_t *hash,
+                                    size_t hash_size,
+                                    size_t *hash_length);
+
 
 /* Message digest functions */
 TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo);
