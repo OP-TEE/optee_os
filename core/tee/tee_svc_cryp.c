@@ -29,6 +29,10 @@
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
+#include <psa/crypto_types.h>
+#include <psa/crypto_struct.h>
+#include <psa/crypto.h>
+
 #if defined(CFG_CRYPTO_HKDF)
 #include <tee/tee_cryp_hkdf.h>
 #endif
@@ -2574,6 +2578,226 @@ out:
 	}
 	return res;
 }
+
+psa_status_t syscall_cryp_psa_obj_generate_key(const psa_key_attributes_t *attributes,
+                                               mbedtls_svc_key_id_t *key) {
+    return psa_generate_key(attributes, key);
+}
+
+psa_cipher_operation_t* syscall_cryp_psa_cipher_operation_init(void) {
+    psa_cipher_operation_t return_value = psa_cipher_operation_init_proxy();
+    return & return_value;
+}
+
+psa_status_t syscall_cryp_psa_cipher_encrypt_setup(psa_cipher_operation_t *operation,
+                                                   mbedtls_svc_key_id_t key,
+                                                   psa_algorithm_t alg) {
+    return psa_cipher_encrypt_setup_proxy(operation, key, alg);
+}
+
+psa_status_t syscall_cryp_psa_cipher_decrypt_setup(psa_cipher_operation_t *operation,
+                                                   mbedtls_svc_key_id_t key,
+                                                   psa_algorithm_t alg) {
+    return psa_cipher_decrypt_setup_proxy(operation, key, alg);
+}
+
+psa_status_t syscall_cryp_psa_cipher_generate_iv(psa_cipher_operation_t *operation,
+                                                 uint8_t *iv,
+                                                 size_t iv_size,
+                                                 size_t *iv_length) {
+    return psa_cipher_generate_iv_proxy(operation, iv, iv_size, iv_length);
+}
+
+psa_status_t syscall_cryp_psa_cipher_set_iv(psa_cipher_operation_t *operation,
+                                            const uint8_t *iv,
+                                            size_t iv_length) {
+    return psa_cipher_set_iv_proxy(operation, iv, iv_length);
+}
+
+psa_status_t syscall_cryp_psa_cipher_update(psa_cipher_operation_t *operation,
+                                            const uint8_t *input,
+                                            size_t input_length,
+                                            uint8_t *output,
+                                            size_t output_size,
+                                            size_t *output_length) {
+    return psa_cipher_update_proxy(operation, input, input_length, output, output_size, output_length);
+}
+
+psa_status_t syscall_cryp_psa_cipher_finish(psa_cipher_operation_t *operation,
+                                            uint8_t *output,
+                                            size_t output_size,
+                                            size_t *output_length) {
+    return psa_cipher_finish_proxy(operation, output, output_size, output_length);
+}
+
+psa_status_t syscall_cryp_psa_cipher_abort(psa_cipher_operation_t *operation) {
+    return psa_cipher_abort_proxy(operation);
+}
+
+psa_status_t syscall_cryp_psa_aead_encrypt(mbedtls_svc_key_id_t key,
+                                           psa_algorithm_t alg,
+                                           const uint8_t *nonce,
+                                           size_t nonce_length,
+                                           const uint8_t *additional_data,
+                                           size_t additional_data_length,
+                                           const uint8_t *plaintext,
+                                           size_t plaintext_length,
+                                           uint8_t *ciphertext,
+                                           size_t ciphertext_size,
+                                           size_t *ciphertext_length) {
+    return psa_aead_encrypt_proxy(key, alg, nonce, nonce_length, additional_data,
+                                  additional_data_length, plaintext, plaintext_length,
+                                  ciphertext, ciphertext_size, ciphertext_length);
+}
+
+psa_status_t syscall_cryp_psa_aead_decrypt(mbedtls_svc_key_id_t key,
+                                           psa_algorithm_t alg,
+                                           const uint8_t *nonce,
+                                           size_t nonce_length,
+                                           const uint8_t *additional_data,
+                                           size_t additional_data_length,
+                                           const uint8_t *ciphertext,
+                                           size_t ciphertext_length,
+                                           uint8_t *plaintext,
+                                           size_t plaintext_size,
+                                           size_t *plaintext_length) {
+    return psa_aead_decrypt_proxy(key, alg, nonce, nonce_length, additional_data,
+                                  additional_data_length, ciphertext, ciphertext_length,
+                                  plaintext, plaintext_size, plaintext_length);
+}
+
+psa_aead_operation_t* syscall_cryp_psa_aead_operation_init(void) {
+    psa_aead_operation_t return_value = psa_aead_operation_init_proxy();
+    return & return_value;
+}
+
+psa_status_t syscall_cryp_psa_aead_encrypt_setup(psa_aead_operation_t *operation,
+                                                 mbedtls_svc_key_id_t key,
+                                                 psa_algorithm_t alg) {
+    return psa_aead_encrypt_setup_proxy(operation, key, alg);
+}
+
+psa_status_t syscall_cryp_psa_aead_decrypt_setup(psa_aead_operation_t *operation,
+                                                 mbedtls_svc_key_id_t key,
+                                                 psa_algorithm_t alg) {
+    return psa_aead_decrypt_setup_proxy(operation, key, alg);
+}
+
+psa_status_t syscall_cryp_psa_aead_generate_nonce(psa_aead_operation_t *operation,
+                                                  uint8_t *nonce,
+                                                  size_t nonce_size,
+                                                  size_t *nonce_length) {
+    return psa_aead_generate_nonce_proxy(operation, nonce, nonce_size, nonce_length);
+}
+
+psa_status_t syscall_cryp_psa_aead_set_nonce(psa_aead_operation_t *operation,
+                                             const uint8_t *nonce,
+                                             size_t nonce_length) {
+    return psa_aead_set_nonce_proxy(operation, nonce, nonce_length);
+}
+
+psa_status_t syscall_cryp_psa_aead_set_lengths(psa_aead_operation_t *operation,
+                                               size_t ad_length,
+                                               size_t plaintext_length) {
+    return psa_aead_set_lengths_proxy(operation, ad_length, plaintext_length);
+}
+
+psa_status_t syscall_cryp_psa_aead_update_ad(psa_aead_operation_t *operation,
+                                             const uint8_t *input,
+                                             size_t input_length) {
+    return psa_aead_update_ad_proxy(operation, input, input_length);
+}
+
+psa_status_t syscall_cryp_psa_aead_update(psa_aead_operation_t *operation,
+                                          const uint8_t *input,
+                                          size_t input_length,
+                                          uint8_t *output,
+                                          size_t output_size,
+                                          size_t *output_length) {
+    return psa_aead_update_proxy(operation, input, input_length, output, output_size, output_length);
+}
+
+psa_status_t syscall_cryp_psa_aead_finish(psa_aead_operation_t *operation,
+                                          uint8_t *ciphertext,
+                                          size_t ciphertext_size,
+                                          size_t *ciphertext_length,
+                                          uint8_t *tag,
+                                          size_t tag_size,
+                                          size_t *tag_length) {
+    return psa_aead_finish_proxy(operation, ciphertext, ciphertext_size, ciphertext_length, tag, tag_size, tag_length);
+}
+
+psa_status_t syscall_cryp_psa_aead_verify(psa_aead_operation_t *operation,
+                                          uint8_t *plaintext,
+                                          size_t plaintext_size,
+                                          size_t *plaintext_length,
+                                          const uint8_t *tag,
+                                          size_t tag_length) {
+    return psa_aead_verify_proxy(operation, plaintext, plaintext_size, plaintext_length, tag, tag_length);
+}
+
+psa_status_t syscall_cryp_psa_aead_abort(psa_aead_operation_t *operation) {
+    return psa_aead_abort_proxy(operation);
+}
+
+psa_status_t syscall_cryp_psa_sign_message(mbedtls_svc_key_id_t key,
+                                           psa_algorithm_t alg,
+                                           const uint8_t *input,
+                                           size_t input_length,
+                                           uint8_t *signature,
+                                           size_t signature_size,
+                                           size_t *signature_length) {
+    return psa_sign_message_proxy(key, alg, input, input_length, signature, signature_size, signature_length);
+}
+
+psa_status_t syscall_cryp_psa_verify_message(mbedtls_svc_key_id_t key,
+                                             psa_algorithm_t alg,
+                                             const uint8_t *input,
+                                             size_t input_length,
+                                             const uint8_t *signature,
+                                             size_t signature_length) {
+    return psa_verify_message_proxy(key, alg, input, input_length, signature, signature_length);
+}
+
+psa_key_derivation_operation_t* syscall_cryp_psa_key_derivation_operation_init(void) {
+    psa_key_derivation_operation_t return_value = psa_key_derivation_operation_init_proxy();
+    return & return_value;
+}
+
+psa_status_t syscall_cryp_psa_key_derivation_setup(
+    psa_key_derivation_operation_t *operation, psa_algorithm_t alg) {
+    return psa_key_derivation_setup_proxy(operation, alg);
+}
+
+psa_status_t syscall_cryp_psa_key_derivation_input_bytes(
+    psa_key_derivation_operation_t *operation, psa_key_derivation_step_t step,
+    const uint8_t *data, size_t data_length) {
+    return psa_key_derivation_input_bytes_proxy(operation, step, data, data_length);
+}
+
+psa_status_t syscall_cryp_psa_mac_verify(mbedtls_svc_key_id_t key, psa_algorithm_t alg,
+                                         const uint8_t *input, size_t input_length,
+                                         const uint8_t *mac, size_t mac_length) {
+    return psa_mac_verify_proxy(key, alg, input, input_length, mac, mac_length);
+}
+
+psa_status_t syscall_cryp_psa_mac_compute(mbedtls_svc_key_id_t key, psa_algorithm_t alg,
+                                          const uint8_t *input, size_t input_length,
+                                          uint8_t *mac, size_t mac_size, size_t *mac_length) {
+    return psa_mac_compute_proxy(key, alg, input, input_length, mac, mac_size, mac_length);
+}
+
+psa_hash_operation_t* syscall_cryp_psa_hash_operation_init(void) {
+     psa_hash_operation_t return_value = psa_hash_operation_init_proxy();
+    return & return_value;
+}
+
+psa_status_t syscall_cryp_psa_hash_compute(psa_algorithm_t alg, const uint8_t *input,
+                                           size_t input_length, uint8_t *hash,
+                                           size_t hash_size, size_t *hash_length) {
+    return psa_hash_compute_proxy(alg, input, input_length, hash, hash_size, hash_length);
+}
+
 
 static TEE_Result tee_svc_cryp_get_state(struct ts_session *sess,
 					 vaddr_t state_id,
