@@ -1035,7 +1035,7 @@ TEE_Result stm32_saes_update(struct stm32_saes_context *ctx, bool last_block,
 			 */
 
 			/* We save remaining mask and its new size */
-			memmove(ctx->extra, ctx->extra + j,
+			memmove(ctx->extra, (uint8_t *)ctx->extra + j,
 				ctx->extra_size - j);
 			ctx->extra_size -= j;
 
