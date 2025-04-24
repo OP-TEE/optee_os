@@ -97,6 +97,34 @@ TEE_Result __ta_invoke_cmd(void *sess_ctx, uint32_t cmd_id, uint32_t pt,
 #define TEE_SetOperationKey __GP11_TEE_SetOperationKey
 #define TEE_TruncateObjectData __GP11_TEE_TruncateObjectData
 #define TEE_WriteObjectData __GP11_TEE_WriteObjectData
+#define PSA_GenerateKey __GP11_PSA_GenerateKey
+#define PSA_CipherOperationInit __GP_11_psa_cipher_operation_init
+#define PSA_CipherEncryptSetup __GP_11_psa_cipher_encrypt_setup
+#define PSA_CipherDecryptSetup __GP_11_psa_cipher_decrypt_setup
+#define PSA_CipherGenerateIV __GP_11_psa_cipher_generate_iv
+#define PSA_CipherSetIV __GP_11_psa_cipher_set_iv
+#define PSA_CipherUpdate __GP_11_psa_cipher_update
+#define PSA_CipherFinish __GP_11_psa_cipher_finish
+#define PSA_CipherAbort __GP_11_psa_cipher_abort
+#define PSA_AEADEncrypt __GP_11_psa_aead_encrypt
+#define PSA_AEADDecrypt __GP_11_psa_aead_decrypt
+#define PSA_AEADOperationInit __GP_11_psa_aead_operation_init
+#define PSA_AEADEncryptSetup __GP_11_psa_aead_encrypt_setup
+#define PSA_AEADDecryptSetup __GP_11_psa_aead_decrypt_setup
+#define PSA_AEADGenerateNonce __GP_11_psa_aead_generate_nonce
+#define PSA_AEADSetNonce __GP_11_psa_aead_set_nonce
+#define PSA_AEADSetLengths __GP_11_psa_aead_set_lengths
+#define PSA_AEADUpdateAD __GP_11_psa_aead_update_ad
+#define PSA_AEADUpdate __GP_11_psa_aead_update
+#define PSA_AEADFinish __GP_11_psa_aead_finish
+#define PSA_AEADVerify __GP_11_psa_aead_verify
+#define PSA_AEADAbort __GP_11_psa_aead_abort
+#define PSA_SignMessage __GP_11_psa_sign_message
+#define PSA_VerifyMessage __GP_11_psa_verify_message
+#define PSA_SignHash __GP_11_psa_sign_hash
+#define PSA_VerifyHash __GP_11_psa_verify_hash
+#define PSA_AsymmetricEncrypt __GP_11_psa_asymmetric_encrypt
+#define PSA_AsymmetricDecrypt __GP_11_psa_asymmetric_decrypt
 #endif
 
 #endif /*__TEE_API_COMPAT_H*/
