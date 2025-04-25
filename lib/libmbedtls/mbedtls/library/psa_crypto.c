@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "mbedtls/platform.h"
+#include "psa/crypto.h"
 
 #include "mbedtls/aes.h"
 #include "mbedtls/asn1.h"
@@ -4236,12 +4237,23 @@ static psa_status_t psa_generate_random_internal(uint8_t *output,
 
     psa_status_t status;
     size_t output_length = 0;
-    status = mbedtls_psa_external_get_random(&global_data.rng,
-                                             output, output_size,
-                                             &output_length);
-    if (status != PSA_SUCCESS) {
-        return status;
-    }
+	// this is a workaround for configuring a external rng
+		uint32_t x;
+		size_t i;
+		x = 0xDEADBEEF;
+
+		uint32_t a = 1103515245;
+		uint32_t c = 12345;
+		uint32_t m = 0x7fffffff;
+
+		for (i = 0; i < output_size; i++) {
+			x = (a * x + c) & m;
+			output[i] = (uint8_t)(x & 0xFF);
+		}
+
+		if (output_length)
+			output_length = output_size;
+
     /* Breaking up a request into smaller chunks is currently not supported
      * for the external RNG interface. */
     if (output_length != output_size) {

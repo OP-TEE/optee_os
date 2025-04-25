@@ -6,8 +6,7 @@
  *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
-#include <psa/common.h>
-#include "../mbedtls/library/psa_crypto_core_common.h"
+#include "../../core/include/crypto/crypto.h"
 #include "psa/crypto.h"
 #include "psa/crypto_values.h"
 
@@ -31,7 +30,6 @@
 #if defined(MBEDTLS_PSA_CRYPTO_SE_C)
 #include "psa_crypto_se.h"
 #endif
-#include "optee_os/core/include/tee/tee_svc_cryp.h"
 
 /* Include internal declarations that are useful for implementing persistently
  * stored keys. */
@@ -62,7 +60,6 @@
 #include "mbedtls/gcm.h"
 #include "mbedtls/md5.h"
 #include "mbedtls/pk.h"
-#include "mbedtls/pk_wrap.h"
 #include "mbedtls/platform_util.h"
 #include "mbedtls/error.h"
 #include "mbedtls/ripemd160.h"
@@ -301,11 +298,6 @@ psa_status_t psa_hash_compute_proxy(psa_algorithm_t alg,
                                     size_t hash_size,
                                     size_t *hash_length) {
     return psa_hash_compute(alg, input, input_length, hash, hash_size, hash_length);
-}
-
-psa_status_t psa_generate_random(uint8_t *output,
-                                 size_t output_size) {
-
 }
 
 #endif /* MBEDTLS_PSA_CRYPTO_C */
