@@ -85,7 +85,7 @@ __print_abort_info(struct abort_info *ai __maybe_unused,
 	if (abort_is_user_exception(ai))
 		core_pos = thread_get_tsd()->abort_core;
 	else
-		core_pos = get_core_pos();
+		core_pos = thread_get_current_hartindex();
 
 	EMSG_RAW("");
 	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "%s",
@@ -193,7 +193,7 @@ static void save_abort_info_in_tsd(struct abort_info *ai)
 	tsd->abort_descr = ai->fault_descr;
 	tsd->abort_va = ai->va;
 	tsd->abort_regs = *ai->regs;
-	tsd->abort_core = get_core_pos();
+	tsd->abort_core = thread_get_current_hartindex();
 }
 
 static void set_abort_info(uint32_t abort_type __unused,
