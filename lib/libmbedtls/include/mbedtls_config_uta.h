@@ -8,7 +8,6 @@
  * use 32-bit arithmetics.
  */
 #define MBEDTLS_HAVE_INT32
-#define MBEDTLS_NO_UDBL_DIVISION
 
 #define MBEDTLS_CIPHER_MODE_CBC
 #define MBEDTLS_PKCS1_V15
