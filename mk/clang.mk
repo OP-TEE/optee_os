@@ -29,11 +29,6 @@ comp-cflags-warns-clang := -Wno-language-extension-token \
 			 -Wno-gnu-zero-variadic-macro-arguments \
 			 -Wno-gnu-alignof-expression
 
-# Note, use the compiler runtime library (libclang_rt.builtins.*.a) instead of
-# libgcc for clang
-libgcc$(sm)	:= $(shell $(CC$(sm)) $(CFLAGS$(arch-bits-$(sm))) \
-			-rtlib=compiler-rt -print-libgcc-file-name 2> /dev/null)
-
 # Core ASLR relies on the executable being ready to run from its preferred load
 # address, because some symbols are used before the MMU is enabled and the
 # relocations are applied.
