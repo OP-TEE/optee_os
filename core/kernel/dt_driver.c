@@ -453,7 +453,7 @@ TEE_Result dt_driver_device_from_node_idx_prop(const char *prop_name,
 static void __maybe_unused print_probe_list(const void *fdt __maybe_unused)
 {
 	struct dt_driver_probe *elt = NULL;
-	unsigned int count = 0;
+	unsigned int __maybe_unused count = 0;
 
 	TAILQ_FOREACH(elt, &dt_driver_probe_list, link)
 		count++;
