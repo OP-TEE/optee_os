@@ -27,6 +27,7 @@ register_ddr(CFG_DRAM_BASE, CFG_DRAM_SIZE);
 register_ddr(CFG_NSEC_DDR_1_BASE, CFG_NSEC_DDR_1_SIZE);
 #endif
 
+#ifdef CFG_GIC
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
 void boot_primary_init_intc(void)
@@ -38,6 +39,7 @@ void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
 }
+#endif
 
 void plat_console_init(void)
 {
