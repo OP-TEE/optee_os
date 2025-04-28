@@ -251,6 +251,15 @@ TA_PUBLIC_KEY ?= $(TA_SIGN_KEY)
 # may not because they obtain the isoc functions from elsewhere
 CFG_LIBUTILS_WITH_ISOC ?= y
 
+# Include lib/libutils/compiler-rt in the build. Most platforms need this.
+# Provides some functions called "compiler builtins", which the compiler
+# may invoke to perform low-level operations such as long long division
+# etc. Such functions typically come with compiler runtime libraires (GCC
+# has libgcc, Clang has compiler-rt). OP-TEE often can't use them because
+# they may be Linux-specific or bring unwanted dependencies. Therefore,
+# this imports and builds only what's needed.
+CFG_LIBUTILS_WITH_COMPILER_RT ?= y
+
 # Enables floating point support for user TAs
 # ARM32: EABI defines both a soft-float ABI and a hard-float ABI,
 #	 hard-float is basically a super set of soft-float. Hard-float
