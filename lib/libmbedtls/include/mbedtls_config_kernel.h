@@ -9,7 +9,6 @@
 #ifdef ARM64
 #define MBEDTLS_HAVE_INT64
 #endif
-#define MBEDTLS_NO_UDBL_DIVISION
 #define MBEDTLS_BIGNUM_C
 #define MBEDTLS_GENPRIME
 
