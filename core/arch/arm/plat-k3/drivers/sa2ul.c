@@ -33,7 +33,67 @@
 #define FW_SECURE_ONLY          GENMASK_32(7, 0)
 #define FW_NON_SECURE           GENMASK_32(15, 0)
 
+#define DDR16SS0_TI_SCI_FW_ID	1
+#define TI_SCI_FW_RGN_ID_DDR16SS0_OPTEE	0
+
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SA2UL_BASE, SA2UL_REG_SIZE);
+
+static int protect_optee_memory(void)
+{
+	uint8_t owner_privid = 0;
+	uint8_t owner_index = OPTEE_HOST_ID;
+	uint16_t owner_permission_bits = 0;
+	uint16_t fwl_id = DDR16SS0_TI_SCI_FW_ID;
+	unsigned int region = TI_SCI_FW_RGN_ID_DDR16SS0_OPTEE;
+	uint32_t control = 0;
+	uint32_t permissions[FWL_MAX_PRIVID_SLOTS] = { };
+	uint64_t start_address = 0;
+	uint64_t end_address = 0;
+	int ret = 0;
+
+	ret = ti_sci_change_fwl_owner(fwl_id, region, owner_index,
+				      &owner_privid, &owner_permission_bits);
+	if (ret) {
+		EMSG("Cannot set owner %u/%u\n", fwl_id, region);
+		return ret;
+	}
+
+	ret = ti_sci_get_fwl_region(fwl_id, region, 1,
+				    &control, permissions,
+				    &start_address, &end_address);
+	if (ret) {
+		EMSG("Could not get firewall region information");
+		return ret;
+	}
+
+	/* Modify firewall to allow all others access */
+	control = FW_ENABLE_REGION | FW_BACKGROUND_REGION;
+	start_address = DRAM0_BASE;
+	end_address = (uint64_t)DRAM0_BASE + DRAM0_SIZE - 1;
+	permissions[0] = (FW_WILDCARD_PRIVID << 16) | FW_NON_SECURE;
+	ret = ti_sci_set_fwl_region(fwl_id, region, 1,
+				    control, permissions,
+				    start_address, end_address);
+	if (ret) {
+		EMSG("Could not set firewall region information");
+		return ret;
+	}
+
+	/* Modify firewall to block all others access */
+	control = FW_ENABLE_REGION;
+	start_address = CFG_TZDRAM_START;
+	end_address = (uint64_t)CFG_TZDRAM_START + CFG_TZDRAM_SIZE - 1;
+	permissions[0] = (FW_WILDCARD_PRIVID << 16) | FW_SECURE_ONLY;
+	ret = ti_sci_set_fwl_region(fwl_id, 1, 1,
+				    control, permissions,
+				    start_address, end_address);
+	if (ret) {
+		EMSG("Could not set firewall region information");
+		return ret;
+	}
+
+	return 0;
+}
 
 static TEE_Result sa2ul_init(void)
 {
@@ -64,6 +124,12 @@ static TEE_Result sa2ul_init(void)
 	}
 
 	IMSG("Activated SA2UL device");
+
+	if (IS_ENABLED(PLATFORM_FLAVOR_am62x)) {
+		ret = protect_optee_memory();
+		if (ret)
+			panic("Failed to protect OP-TEE memory");
+	}
 
 	/* Try to claim the SA2UL firewall for ourselves */
 	ret = ti_sci_change_fwl_owner(fwl_id, sa2ul_region, owner_index,
