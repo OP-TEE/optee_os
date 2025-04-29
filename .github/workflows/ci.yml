@@ -366,6 +366,7 @@ jobs:
           # fTPM is disabled because tests are too slow otherwise (lots of paging)
           make -j$(nproc) check CFG_WITH_PAGER=y MEASURED_BOOT_FTPM=n
           make -j$(nproc) check CFG_DYN_CONFIG=n
+          make arm-tf-clean && make -j$(nproc) check ARM_FIRMWARE_HANDOFF=y
 
   QEMUv8_check2:
     name: make check (QEMUv8) 2 / 2
