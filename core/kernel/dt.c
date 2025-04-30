@@ -997,7 +997,7 @@ void reinit_manifest_dt(void)
 		end_pa = pa + manifest_max_size;
 		pa = ROUNDDOWN(pa, SMALL_PAGE_SIZE);
 		end_pa = ROUNDUP(end_pa, SMALL_PAGE_SIZE);
-		if (!phys_mem_alloc2(pa, end_pa - pa)) {
+		if (!nex_phys_mem_alloc2(pa, end_pa - pa)) {
 			EMSG("Failed to reserve manifest DT physical memory %#"PRIxPA"..%#"PRIxPA" len %#zx",
 			     pa, end_pa - 1, end_pa - pa);
 			panic();
@@ -1041,7 +1041,7 @@ static TEE_Result release_manifest_dt(void)
 	manifest_dt = NULL;
 
 	if (IS_ENABLED(CFG_CORE_SEL2_SPMC))
-		tee_mm_free(phys_mem_mm_find(pa));
+		tee_mm_free(nex_phys_mem_mm_find(pa));
 
 	return TEE_SUCCESS;
 }
