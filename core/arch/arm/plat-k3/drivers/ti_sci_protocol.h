@@ -476,4 +476,33 @@ struct ti_sci_msq_resp_get_keycnt_keyrev {
 	uint32_t keycnt;
 	uint32_t keyrev;
 } __packed;
+
+/**
+ * struct ti_sci_msq_req_set_keyrev - Request for writing the Key Revision
+ * in OTP
+ * @hdr:		Generic header
+ * @value:		Key Revision value to be written
+ * @cert_addr_lo:	Lower 32 bit address of the dual signed certificate
+ * @cert_addr_hi:	Higher 32 bit address of the dual signed certificate
+ *
+ * Request for TI_SCI_MSG_WRITE_KEYREV
+ */
+struct ti_sci_msq_req_set_keyrev {
+	struct ti_sci_msg_hdr hdr;
+	uint32_t value;
+	uint32_t cert_addr_lo;
+	uint32_t cert_addr_hi;
+} __packed;
+
+/**
+ * struct ti_sci_msq_resp_set_keyrev - Response for writing the Key Revision
+ * in OTP
+ * @hdr:	Generic header
+ *
+ * Response for TI_SCI_MSG_WRITE_KEYREV
+ */
+struct ti_sci_msq_resp_set_keyrev {
+	struct ti_sci_msg_hdr hdr;
+} __packed;
+
 #endif

@@ -195,6 +195,20 @@ int ti_sci_get_swrev(uint32_t *swrev);
 int ti_sci_get_keycnt_keyrev(uint32_t *key_cnt, uint32_t *key_rev);
 
 /**
+ * ti_sci_set_keyrev - Write Key Revision
+ * @keyrev:		Key Revision
+ * @cert_addr_lo:	Lower 32 bit address of the dual signed certificate
+ * @cert_addr_hi:	Higher 32 bit address of the dual signed certificate
+ *
+ * Writes the Key Revision in OTP
+ *
+ * Return: 0 if all goes well, else appropriate error message
+ */
+int ti_sci_set_keyrev(uint32_t keyrev,
+		      uint32_t cert_addr_lo,
+		      uint32_t cert_addr_hi);
+
+/**
  * ti_sci_init() - Basic initialization
  *
  * Return: 0 if all goes well, else appropriate error message
