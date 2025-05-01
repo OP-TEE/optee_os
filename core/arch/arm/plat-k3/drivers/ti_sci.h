@@ -162,6 +162,17 @@ int ti_sci_lock_otp_row(uint8_t row_idx, uint8_t hw_write_lock,
 			uint8_t hw_read_lock, uint8_t row_soft_lock);
 
 /**
+ * ti_sci_set_swrev - Write Software Revision
+ * @identifier: One of the entries from enum tisci_otp_revision_identifier
+ * @swrev:	Software Revision
+ *
+ * Writes the Software Revision in OTP for the specified identifier
+ *
+ * Return: 0 if all goes well, else appropriate error message
+ */
+int ti_sci_set_swrev(uint8_t identifier, uint32_t swrev);
+
+/**
  * ti_sci_get_swrev - Read Software Revision
  * @swrev:	Software Revision
  *
