@@ -398,6 +398,32 @@ enum tisci_otp_revision_identifier {
 };
 
 /**
+ * struct ti_sci_msq_req_set_swrev - Request for writing the Software Revision
+ * in OTP
+ * @hdr:	Generic header
+ * @identifier: One of the entries from enum tisci_otp_revision_identifier
+ * @swrev:	Revision value (integer) to be bit encoded, and programmed
+ *
+ * Request for TI_SCI_MSG_WRITE_SWREV
+ */
+struct ti_sci_msq_req_set_swrev {
+	struct ti_sci_msg_hdr hdr;
+	uint8_t identifier;
+	uint32_t swrev;
+} __packed;
+
+/**
+ * struct ti_sci_msq_resp_set_swrev - Response for writing the Software Revision
+ * in OTP
+ * @hdr:	Generic header
+ *
+ * Response for TI_SCI_MSG_WRITE_SWREV
+ */
+struct ti_sci_msq_resp_set_swrev {
+	struct ti_sci_msg_hdr hdr;
+} __packed;
+
+/**
  * struct ti_sci_msq_req_get_swrev - Request for reading the Software Revision
  * in OTP
  * @hdr:	Generic header
