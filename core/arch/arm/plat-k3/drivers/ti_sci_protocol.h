@@ -412,7 +412,7 @@ struct ti_sci_msq_req_get_swrev {
 } __packed;
 
 /**
- * struct ti_sci_msq_req_get_swrev - Response for reading the Software Revision
+ * struct ti_sci_msq_resp_get_swrev - Response for reading the Software Revision
  * in OTP
  * @hdr:	Generic header
  * @swrev:	Decoded Sofrware Revision value from efuses
@@ -436,13 +436,14 @@ struct ti_sci_msq_req_get_keycnt_keyrev {
 } __packed;
 
 /**
- * struct ti_sci_msq_req_get_swrev - Response for reading the Key Count and Key
+ * struct ti_sci_msq_resp_get_keycnt_keyrev - Response for reading the Key Count
+ * and Key Revision in OTP
  * Revision in OTP
  * @hdr:	Generic header
  * @keycnt:	Key Count integer value
  * @keyrev:	Key Revision integer value
  *
- * Response for TI_SCI_MSG_READ_SWREV
+ * Response for TI_SCI_MSG_READ_KEYCNT_KEYREV
  */
 struct ti_sci_msq_resp_get_keycnt_keyrev {
 	struct ti_sci_msg_hdr hdr;
