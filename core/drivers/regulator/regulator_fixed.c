@@ -108,6 +108,12 @@ static TEE_Result get_enable_gpio(const void *fdt, int node,
 	if (cuint)
 		regu->off_on_delay = fdt32_to_cpu(*cuint);
 
+	/* Low level initialisation with updated dt_flags */
+	res = gpio_configure(gpio, GPIO_ASIS);
+	if (res)
+		return res;
+
+	/* Configure output, don't change level */
 	gpio_set_direction(gpio, GPIO_DIR_OUT);
 
 	regu->enable_gpio = gpio;
