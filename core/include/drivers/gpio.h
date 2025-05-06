@@ -156,7 +156,7 @@ TEE_Result gpio_dt_alloc_pin(struct dt_pargs *pargs, struct gpio **gpio);
  * @fdt: Device tree to work on
  * @nodeoffset: Node offset of the subnode containing a 'gpios' property
  * @index: GPIO pin index in '*-gpios' property
- * @gpio_name: Name of the GPIO pin
+ * @gpio_name: Prefix of the GPIO properties in device tree, can be NULL
  * @gpio: Output GPIO pin reference upon success
  *
  * Return TEE_SUCCESS in case of success
