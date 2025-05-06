@@ -64,3 +64,35 @@ TEE_Result gpio_dt_get_by_index(const void *fdt, int nodeoffset,
 
 	return res;
 }
+
+TEE_Result gpio_configure(struct gpio *gpio, enum gpio_flags flags)
+{
+	enum gpio_level value = GPIO_LEVEL_LOW;
+
+	/* Process requester flags */
+	if (flags & GPIO_FLAGS_BIT_DIR_SET) {
+		if (flags & GPIO_FLAGS_BIT_DIR_OUT) {
+			if (flags & GPIO_FLAGS_BIT_DIR_VAL)
+				value = GPIO_LEVEL_HIGH;
+			gpio_set_value(gpio, value);
+			gpio_set_direction(gpio, GPIO_DIR_OUT);
+		} else {
+			gpio_set_direction(gpio, GPIO_DIR_IN);
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result gpio_dt_cfg_by_index(const void *fdt, int nodeoffset,
+				unsigned int index, const char *gpio_name,
+				enum gpio_flags flags, struct gpio **gpio)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = gpio_dt_get_by_index(fdt, nodeoffset, index, gpio_name, gpio);
+	if (!res)
+		return gpio_configure(*gpio, flags);
+
+	return res;
+}

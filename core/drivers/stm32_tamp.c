@@ -1652,7 +1652,7 @@ stm32_tamp_configure_pin_from_dt(const void *fdt, int node,
 	 * If only one GPIO is defined, the tamper control is a passive tamper.
 	 * Else, it is an active tamper.
 	 */
-	res = gpio_dt_get_by_index(fdt, node, 1, "tamper", &gpio_out);
+	res = gpio_dt_cfg_by_index(fdt, node, 1, "tamper", GPIO_IN, &gpio_out);
 	if (res && res != TEE_ERROR_ITEM_NOT_FOUND)
 		return res;
 
@@ -1667,7 +1667,7 @@ stm32_tamp_configure_pin_from_dt(const void *fdt, int node,
 		stm32_tamp_configure_pin(out_id, gpio_out, true, pdata);
 	}
 
-	res = gpio_dt_get_by_index(fdt, node, 0, "tamper", &gpio_ext);
+	res = gpio_dt_cfg_by_index(fdt, node, 0, "tamper", GPIO_IN, &gpio_ext);
 	if (res) {
 		gpio_put(gpio_out);
 		return res;
