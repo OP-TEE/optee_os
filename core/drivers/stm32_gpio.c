@@ -283,9 +283,6 @@ static void stm32_gpio_set_level(struct gpio_chip *chip, unsigned int gpio_pin,
 	if (clk_enable(bank->clock))
 		panic();
 
-	assert(((io_read32(bank->base + GPIO_MODER_OFFSET) >>
-		 (gpio_pin << 1)) & GPIO_MODE_MASK) == GPIO_MODE_OUTPUT);
-
 	if (level == GPIO_LEVEL_HIGH)
 		io_write32(bank->base + GPIO_BSRR_OFFSET, BIT(gpio_pin));
 	else
@@ -353,6 +350,48 @@ static TEE_Result consumed_gpios_pm(enum pm_op op, unsigned int pm_hint,
 static void release_rif_semaphore_if_acquired(struct stm32_gpio_bank *bank,
 					      unsigned int pin);
 
+static TEE_Result stm32_gpio_configure(struct gpio_chip *chip,
+				       struct gpio *gpio)
+{
+	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
+	uint32_t exceptions = 0;
+	uint32_t otype = 0;
+	uint32_t pupd = 0;
+	unsigned int shift_1b = gpio->pin;
+	unsigned int shift_2b = SHIFT_U32(gpio->pin, 1);
+
+	assert(is_stm32_gpio_chip(chip));
+
+	if (gpio->dt_flags & GPIO_PULL_UP)
+		pupd = GPIO_PUPD_PULL_UP;
+	else if (gpio->dt_flags & GPIO_PULL_DOWN)
+		pupd = GPIO_PUPD_PULL_DOWN;
+	else
+		pupd = GPIO_PUPD_NO_PULL;
+
+	if (gpio->dt_flags & GPIO_LINE_OPEN_DRAIN)
+		otype = GPIO_OTYPE_OPEN_DRAIN;
+	else
+		otype = GPIO_OTYPE_PUSH_PULL;
+
+	if (clk_enable(bank->clock))
+		panic();
+	exceptions = cpu_spin_lock_xsave(&gpio_lock);
+
+	io_clrsetbits32(bank->base + GPIO_OTYPER_OFFSET,
+			SHIFT_U32(GPIO_OTYPE_OPEN_DRAIN, shift_1b),
+			SHIFT_U32(otype, shift_1b));
+
+	io_clrsetbits32(bank->base + GPIO_PUPDR_OFFSET,
+			SHIFT_U32(GPIO_PUPD_PULL_MASK, shift_2b),
+			SHIFT_U32(pupd, shift_2b));
+
+	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
+	clk_disable(bank->clock);
+
+	return TEE_SUCCESS;
+}
+
 static void stm32_gpio_put_gpio(struct gpio_chip *chip, struct gpio *gpio)
 {
 	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
@@ -386,6 +425,7 @@ static const struct gpio_ops stm32_gpio_ops = {
 	.set_direction = stm32_gpio_set_direction,
 	.get_value = stm32_gpio_get_level,
 	.set_value = stm32_gpio_set_level,
+	.configure = stm32_gpio_configure,
 	.put = stm32_gpio_put_gpio,
 };
 
@@ -782,13 +822,7 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 	struct stm32_gpio_pm_state *state = NULL;
 	struct stm32_gpio_bank *bank = data;
 	struct gpio *gpio = NULL;
-	unsigned int shift_1b = 0;
-	unsigned int shift_2b = 0;
 	bool gpio_secure = true;
-	uint32_t exceptions = 0;
-	uint32_t otype = 0;
-	uint32_t pupd = 0;
-	uint32_t mode = 0;
 
 	consumer_name = fdt_get_name(pargs->fdt, pargs->consumer_node,
 				     NULL);
@@ -857,40 +891,6 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 	SLIST_INSERT_HEAD(&consumed_gpios_head, state, link);
 
 	register_pm_driver_cb(consumed_gpios_pm, state, "stm32-gpio-state");
-
-	shift_1b = gpio->pin;
-	shift_2b = SHIFT_U32(gpio->pin, 1);
-
-	if (gpio->dt_flags & GPIO_PULL_UP)
-		pupd = GPIO_PUPD_PULL_UP;
-	else if (gpio->dt_flags & GPIO_PULL_DOWN)
-		pupd = GPIO_PUPD_PULL_DOWN;
-	else
-		pupd = GPIO_PUPD_NO_PULL;
-
-	if (gpio->dt_flags & GPIO_LINE_OPEN_DRAIN)
-		otype = GPIO_OTYPE_OPEN_DRAIN;
-	else
-		otype = GPIO_OTYPE_PUSH_PULL;
-
-	if (clk_enable(bank->clock))
-		panic();
-	exceptions = cpu_spin_lock_xsave(&gpio_lock);
-
-	io_clrsetbits32(bank->base + GPIO_MODER_OFFSET,
-			SHIFT_U32(GPIO_MODE_MASK, shift_2b),
-			SHIFT_U32(mode, shift_2b));
-
-	io_clrsetbits32(bank->base + GPIO_OTYPER_OFFSET,
-			SHIFT_U32(GPIO_OTYPE_OPEN_DRAIN, shift_1b),
-			SHIFT_U32(otype, shift_1b));
-
-	io_clrsetbits32(bank->base + GPIO_PUPDR_OFFSET,
-			SHIFT_U32(GPIO_PUPD_PULL_MASK, shift_2b),
-			SHIFT_U32(pupd, shift_2b));
-
-	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
-	clk_disable(bank->clock);
 
 	gpio->chip = &bank->gpio_chip;
 
