@@ -365,6 +365,7 @@ jobs:
           make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001 RUST_ENABLE=n MEASURED_BOOT_FTPM=n
           # fTPM is disabled because tests are too slow otherwise (lots of paging)
           make -j$(nproc) check CFG_WITH_PAGER=y MEASURED_BOOT_FTPM=n
+          make -j$(nproc) check CFG_DYN_CONFIG=n
 
   QEMUv8_check2:
     name: make check (QEMUv8) 2 / 2
