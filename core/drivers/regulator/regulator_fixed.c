@@ -78,14 +78,8 @@ static TEE_Result get_enable_gpio(const void *fdt, int node,
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const fdt32_t *cuint = NULL;
 	struct gpio *gpio = NULL;
-	void *gpio_ref = &gpio;
 
-	res = dt_driver_device_from_node_idx_prop("gpios", fdt, node, 0,
-						  DT_DRIVER_GPIO, gpio_ref);
-	if (res == TEE_ERROR_ITEM_NOT_FOUND)
-		res = dt_driver_device_from_node_idx_prop("gpio", fdt, node, 0,
-							  DT_DRIVER_GPIO,
-							  gpio_ref);
+	res = gpio_dt_get_by_index(fdt, node, 0, NULL, &gpio);
 	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
 		regu->enable_gpio = NULL;
 
