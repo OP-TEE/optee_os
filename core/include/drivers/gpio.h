@@ -151,12 +151,14 @@ TEE_Result gpio_dt_alloc_pin(struct dt_pargs *pargs, struct gpio **gpio);
 
 /**
  * gpio_dt_get_by_index() - Get a GPIO controller at a specific index in
- * 'gpios' property
+ * 'gpios' or 'gpio' properties with or without prefixes.
  *
  * @fdt: Device tree to work on
- * @nodeoffset: Node offset of the subnode containing a 'gpios' property
- * @index: GPIO pin index in '*-gpios' property
- * @gpio_name: Name of the GPIO pin
+ * @nodeoffset: Node offset of the subnode containing a 'gpios' or 'gpio'
+ *		property.
+ * @index: GPIO pin index in 'gpios' property find in device tree.
+ * @gpio_name: Prefix of a '-gpios' or '-gpio' properties in device tree,
+ *	       can be NULL to search for 'gpios' or 'gpio' properties
  * @gpio: Output GPIO pin reference upon success
  *
  * Return TEE_SUCCESS in case of success
