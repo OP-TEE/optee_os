@@ -170,13 +170,11 @@ static TEE_Result get_voltage_level_gpio(const void *fdt, int node,
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const fdt32_t *cuint = NULL;
 	struct gpio *gpio = NULL;
-	void *gpio_ref = &gpio;
 	int level0 = 0;
 	int level1 = 0;
 	int len = 0;
 
-	res = dt_driver_device_from_node_idx_prop("gpios", fdt, node, 0,
-						  DT_DRIVER_GPIO, gpio_ref);
+	res = gpio_dt_get_by_index(fdt, node, 0, NULL, &gpio);
 	if (res)
 		return res;
 
@@ -186,8 +184,7 @@ static TEE_Result get_voltage_level_gpio(const void *fdt, int node,
 	 * this implementation is simplified to support only 2 voltage
 	 * levels controlled with a single GPIO.
 	 */
-	if (dt_driver_device_from_node_idx_prop("gpios", fdt, node, 1,
-						DT_DRIVER_GPIO, gpio_ref) !=
+	if (gpio_dt_get_by_index(fdt, node, 1, NULL, &gpio) !=
 	    TEE_ERROR_ITEM_NOT_FOUND) {
 		EMSG("Multiple GPIOs not supported for level control");
 		return TEE_ERROR_GENERIC;
