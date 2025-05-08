@@ -263,9 +263,8 @@ get_core_local(unsigned int pos)
 	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
 
 	/*
-	 * With CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL, we boot on a
-	 * single core and have allocated only one struct thread_core_local
-	 * so we return that regardless of pos.
+	 * We boot on a single core and have allocated only one struct
+	 * thread_core_local so we return that regardless of pos.
 	 */
 	if (IS_ENABLED(CFG_DYN_STACK_CONFIG) &&
 	    thread_core_local != __thread_core_local_new)
@@ -612,7 +611,6 @@ vaddr_t __nostackcheck thread_get_abt_stack(void)
 }
 #endif
 
-#ifdef CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL
 void thread_init_thread_core_local(size_t core_count)
 {
 	struct thread_core_local *tcl = NULL;
@@ -667,33 +665,6 @@ void thread_init_thread_core_local(size_t core_count)
 		tcl[n].abt_stack_va_end = va;
 	}
 }
-#else
-void __nostackcheck
-thread_init_thread_core_local(size_t core_count __maybe_unused)
-{
-	size_t n = 0;
-	struct thread_core_local *tcl = thread_core_local;
-
-	assert(core_count == CFG_TEE_CORE_NB_CORE);
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
-		tcl[n].curr_thread = THREAD_ID_INVALID;
-		tcl[n].flags = THREAD_CLF_TMP;
-	}
-	tcl[0].tmp_stack_va_end = GET_STACK_BOTTOM(stack_tmp, 0);
-}
-
-void __nostackcheck thread_init_core_local_stacks(void)
-{
-	size_t n = 0;
-	struct thread_core_local *tcl = thread_core_local;
-
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
-		tcl[n].tmp_stack_va_end = GET_STACK_BOTTOM(stack_tmp, n) -
-					  STACK_TMP_OFFS;
-		tcl[n].abt_stack_va_end = GET_STACK_BOTTOM(stack_abt, n);
-	}
-}
-#endif /*CFG_BOOT_INIT_CURRENT_THREAD_CORE_LOCAL*/
 
 #if defined(CFG_CORE_PAUTH)
 void thread_init_thread_pauth_keys(void)
