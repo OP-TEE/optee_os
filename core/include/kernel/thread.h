@@ -85,7 +85,6 @@ vaddr_t thread_get_abt_stack(void);
  * CFG_DYN_CONFIG=y, else @core_count must equal CFG_TEE_CORE_NB_CORE.
  */
 void thread_init_thread_core_local(size_t core_count);
-void thread_init_core_local_stacks(void);
 
 #if defined(CFG_CORE_PAUTH)
 void thread_init_thread_pauth_keys(void);
