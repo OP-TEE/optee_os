@@ -7,6 +7,7 @@
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
+#include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -178,8 +179,16 @@ UNWIND(	.cantunwind)
 	set_sp
 	set_tp
 
-	li	a0, CFG_TEE_CORE_NB_CORE
-	jal	thread_init_thread_core_local
+	/* Initialize thread_core_local[hart_index] for early boot */
+	jal	thread_get_abt_stack
+	mv	a1, sp
+	STR	a1, THREAD_CORE_LOCAL_TMP_STACK_VA_END(tp)
+	STR	a0, THREAD_CORE_LOCAL_ABT_STACK_VA_END(tp)
+	li	a0, THREAD_ID_INVALID
+	sh	a0, THREAD_CORE_LOCAL_CURR_THREAD(tp)
+	li	a0, THREAD_CLF_TMP
+	sw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
+
 	jal	plat_primary_init_early
 	jal	console_init
 
@@ -196,8 +205,12 @@ UNWIND(	.cantunwind)
 
 	jal	boot_init_primary_early
 
+	mv	a0, s1		/* s1 contains saved device tree address */
+	mv	a1, x0		/* unused */
+	jal	boot_init_primary_late
+
 	/*
-	 * Before entering boot_init_primary_late(), we do these two steps:
+	 * Before entering boot_init_primary_runtime(), we do these two steps:
 	 * 1. Save current sp to s2, and set sp as threads[0].stack_va_end
 	 * 2. Clear the flag which indicates usage of the temporary stack in the
 	 *    current hart's thread_core_local structure.
@@ -211,9 +224,7 @@ UNWIND(	.cantunwind)
 	mv	s3, a0
 	sw	zero, THREAD_CORE_LOCAL_FLAGS(s3)
 
-	mv	a0, s1		/* s1 contains saved device tree address */
-	mv	a1, x0		/* unused */
-	jal	boot_init_primary_late
+	jal	boot_init_primary_runtime
 	jal	boot_init_primary_final
 
 	/*
