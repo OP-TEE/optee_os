@@ -699,6 +699,41 @@ bool arch_va2pa_helper(void *va, paddr_t *pa)
 	return false;
 }
 
+int arch_core_aslr_mapping(struct memory_map *mem_map __unused,
+			   unsigned long seed __unused,
+			   vaddr_t start_addr __unused,
+			   vaddr_t id_map_start __unused,
+			   vaddr_t id_map_end __unused,
+			   unsigned long *offset __unused)
+{
+	/* Placeholder */
+	return TEE_ERROR_BAD_PARAMETERS;
+}
+
+bool arch_va_is_valid(vaddr_t va)
+{
+#ifdef RV32
+	return va < BIT64(core_mmu_get_va_width());
+#else
+	/*
+	 * Validates if a RV64 virtual address is valid.
+	 * For each RV64 MMU mode, the upper bits must be
+	 * extended from the highest valid VA bit:
+	 * - Sv39: va[63:39] must equal to bit 38
+	 * - Sv48: va[63:48] must equal to bit 47
+	 * - Sv57: va[63:57] must equal to bit 56
+	 * Otherwise, a page-fault exception is raised.
+	 */
+	vaddr_t mask = GENMASK_64(63, RISCV_MMU_VA_WIDTH);
+	uint64_t msb = BIT64(RISCV_MMU_VA_WIDTH - 1);
+
+	if (va & msb)
+		return (va & mask) == mask;
+
+	return (va & mask) == 0;
+#endif
+}
+
 bool cpu_mmu_enabled(void)
 {
 	return read_satp();
@@ -1008,7 +1043,6 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct memory_map *mem_map)
 void core_init_mmu(struct memory_map *mem_map)
 {
 	struct mmu_partition *prtn = &default_partition;
-	uint64_t max_va = 0;
 	size_t n = 0;
 
 	if (IS_ENABLED(CFG_DYN_CONFIG)) {
@@ -1034,17 +1068,15 @@ void core_init_mmu(struct memory_map *mem_map)
 	core_init_mmu_prtn_tee(prtn, mem_map);
 
 	for (n = 0; n < mem_map->count; n++) {
-		vaddr_t va_end = mem_map->map[n].va + mem_map->map[n].size - 1;
-
-		if (va_end > max_va)
-			max_va = va_end;
+		if (!arch_va_is_valid(mem_map->map[n].va) ||
+		    !arch_va_is_valid(mem_map->map[n].va +
+					mem_map->map[n].size - 1))
+			panic("Invalid VA range in memory map");
 	}
 
 	set_user_va_idx(prtn);
 
 	core_init_mmu_prtn_ta(prtn);
-
-	assert(max_va < BIT64(RISCV_MMU_VA_WIDTH));
 }
 
 void core_init_mmu_regs(struct core_mmu_config *cfg)
