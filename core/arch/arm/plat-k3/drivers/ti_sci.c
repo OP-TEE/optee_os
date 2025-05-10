@@ -425,6 +425,31 @@ int ti_sci_lock_otp_row(uint8_t row_idx, uint8_t hw_write_lock,
 	return 0;
 }
 
+int ti_sci_set_swrev(uint8_t identifier, uint32_t swrev)
+{
+	struct ti_sci_msq_req_set_swrev req = { };
+	struct ti_sci_msq_resp_set_swrev resp = { };
+	struct ti_sci_xfer xfer = { };
+	int ret = 0;
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_WRITE_SWREV, 0,
+				&req, sizeof(req),
+				&resp, sizeof(resp),
+				&xfer);
+	if (ret)
+		return ret;
+
+	req.identifier = identifier;
+	req.swrev = swrev;
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		return ret;
+
+	memzero_explicit(&req, sizeof(req));
+	return 0;
+}
+
 int ti_sci_get_swrev(uint32_t *swrev)
 {
 	struct ti_sci_msq_req_get_swrev req = { };
@@ -467,6 +492,34 @@ int ti_sci_get_keycnt_keyrev(uint32_t *key_cnt, uint32_t *key_rev)
 	*key_cnt = resp.keycnt;
 	*key_rev = resp.keyrev;
 	memzero_explicit(&resp, sizeof(resp));
+	return 0;
+}
+
+int ti_sci_set_keyrev(uint32_t keyrev,
+		      uint32_t cert_addr_lo,
+		      uint32_t cert_addr_hi)
+{
+	struct ti_sci_msq_req_set_keyrev req = { };
+	struct ti_sci_msq_resp_set_keyrev resp = { };
+	struct ti_sci_xfer xfer = { };
+	int ret = 0;
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_WRITE_KEYREV, 0,
+				&req, sizeof(req),
+				&resp, sizeof(resp),
+				&xfer);
+	if (ret)
+		return ret;
+
+	req.value = keyrev;
+	req.cert_addr_lo = cert_addr_lo;
+	req.cert_addr_hi = cert_addr_hi;
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		return ret;
+
+	memzero_explicit(&req, sizeof(req));
 	return 0;
 }
 

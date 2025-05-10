@@ -398,6 +398,32 @@ enum tisci_otp_revision_identifier {
 };
 
 /**
+ * struct ti_sci_msq_req_set_swrev - Request for writing the Software Revision
+ * in OTP
+ * @hdr:	Generic header
+ * @identifier: One of the entries from enum tisci_otp_revision_identifier
+ * @swrev:	Revision value (integer) to be bit encoded, and programmed
+ *
+ * Request for TI_SCI_MSG_WRITE_SWREV
+ */
+struct ti_sci_msq_req_set_swrev {
+	struct ti_sci_msg_hdr hdr;
+	uint8_t identifier;
+	uint32_t swrev;
+} __packed;
+
+/**
+ * struct ti_sci_msq_resp_set_swrev - Response for writing the Software Revision
+ * in OTP
+ * @hdr:	Generic header
+ *
+ * Response for TI_SCI_MSG_WRITE_SWREV
+ */
+struct ti_sci_msq_resp_set_swrev {
+	struct ti_sci_msg_hdr hdr;
+} __packed;
+
+/**
  * struct ti_sci_msq_req_get_swrev - Request for reading the Software Revision
  * in OTP
  * @hdr:	Generic header
@@ -412,7 +438,7 @@ struct ti_sci_msq_req_get_swrev {
 } __packed;
 
 /**
- * struct ti_sci_msq_req_get_swrev - Response for reading the Software Revision
+ * struct ti_sci_msq_resp_get_swrev - Response for reading the Software Revision
  * in OTP
  * @hdr:	Generic header
  * @swrev:	Decoded Sofrware Revision value from efuses
@@ -436,17 +462,47 @@ struct ti_sci_msq_req_get_keycnt_keyrev {
 } __packed;
 
 /**
- * struct ti_sci_msq_req_get_swrev - Response for reading the Key Count and Key
+ * struct ti_sci_msq_resp_get_keycnt_keyrev - Response for reading the Key Count
+ * and Key Revision in OTP
  * Revision in OTP
  * @hdr:	Generic header
  * @keycnt:	Key Count integer value
  * @keyrev:	Key Revision integer value
  *
- * Response for TI_SCI_MSG_READ_SWREV
+ * Response for TI_SCI_MSG_READ_KEYCNT_KEYREV
  */
 struct ti_sci_msq_resp_get_keycnt_keyrev {
 	struct ti_sci_msg_hdr hdr;
 	uint32_t keycnt;
 	uint32_t keyrev;
 } __packed;
+
+/**
+ * struct ti_sci_msq_req_set_keyrev - Request for writing the Key Revision
+ * in OTP
+ * @hdr:		Generic header
+ * @value:		Key Revision value to be written
+ * @cert_addr_lo:	Lower 32 bit address of the dual signed certificate
+ * @cert_addr_hi:	Higher 32 bit address of the dual signed certificate
+ *
+ * Request for TI_SCI_MSG_WRITE_KEYREV
+ */
+struct ti_sci_msq_req_set_keyrev {
+	struct ti_sci_msg_hdr hdr;
+	uint32_t value;
+	uint32_t cert_addr_lo;
+	uint32_t cert_addr_hi;
+} __packed;
+
+/**
+ * struct ti_sci_msq_resp_set_keyrev - Response for writing the Key Revision
+ * in OTP
+ * @hdr:	Generic header
+ *
+ * Response for TI_SCI_MSG_WRITE_KEYREV
+ */
+struct ti_sci_msq_resp_set_keyrev {
+	struct ti_sci_msg_hdr hdr;
+} __packed;
+
 #endif
