@@ -386,6 +386,7 @@ LOCAL_FUNC reset_secondary , : , .identity_map
 UNWIND(	.cantunwind)
 	wait_primary
 	csrw	CSR_SATP, zero
+	jal	enable_mmu
 #if defined(CFG_DYN_CONFIG)
 	/*
 	 * Update tp to point the new thread_core_local.
@@ -404,7 +405,6 @@ UNWIND(	.cantunwind)
 	set_sp
 	set_tp
 #endif
-	jal	enable_mmu
 	cpu_is_ready
 
 	jal	boot_init_secondary
