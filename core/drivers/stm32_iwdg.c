@@ -29,7 +29,7 @@
 #include <trace.h>
 
 /* IWDG Compatibility */
-#define IWDG_TIMEOUT_US		U(10000)
+#define IWDG_TIMEOUT_US		U(40000)
 #define IWDG_CNT_MASK		GENMASK_32(11, 0)
 #define IWDG_ONF_MIN_VER	U(0x31)
 #define IWDG_ICR_MIN_VER	U(0x40)
@@ -48,9 +48,9 @@
 #define IWDG_KR_RELOAD_KEY	U(0xAAAA)
 #define IWDG_KR_START_KEY	U(0xCCCC)
 
-/* Use a fixed prescaler divider of 256 */
-#define IWDG_PRESCALER_256	U(256)
-#define IWDG_PR_DIV_256		U(0x06)
+/* Use a fixed prescaler divider of 1024 */
+#define IWDG_PRESCALER_1024	U(1024)
+#define IWDG_PR_DIV_1024	U(0x8)
 #define IWDG_PR_DIV_MASK	GENMASK_32(3, 0)
 
 #define IWDG_SR_PVU		BIT(0)
@@ -145,7 +145,7 @@ static uint32_t iwdg_timeout_cnt(struct stm32_iwdg_device *iwdg,
 				 unsigned long to_sec)
 {
 	uint64_t reload = (uint64_t)to_sec * clk_get_rate(iwdg->clk_lsi);
-	uint64_t cnt = (reload / IWDG_PRESCALER_256) - 1;
+	uint64_t cnt = (reload / IWDG_PRESCALER_1024) - 1;
 
 	/* Be safe and expect any counter to be above 2 */
 	if (cnt > IWDG_CNT_MASK || cnt < 3)
@@ -234,7 +234,7 @@ static TEE_Result configure_timeout(struct stm32_iwdg_device *iwdg)
 	}
 
 	io_write32(iwdg_base + IWDG_KR_OFFSET, IWDG_KR_ACCESS_KEY);
-	io_write32(iwdg_base + IWDG_PR_OFFSET, IWDG_PR_DIV_256);
+	io_write32(iwdg_base + IWDG_PR_OFFSET, IWDG_PR_DIV_1024);
 	io_write32(iwdg_base + IWDG_RLR_OFFSET, rlr_value);
 	if (ewie_value &&
 	    !(io_read32(iwdg_base + IWDG_EWCR_OFFSET) & IWDG_EWCR_EWIE))
@@ -289,8 +289,8 @@ static TEE_Result iwdg_wdt_init(struct wdt_chip *chip,
 		return TEE_ERROR_GENERIC;
 
 	/* Be safe and expect any counter to be above 2 */
-	*min_timeout = 3 * IWDG_PRESCALER_256 / rate;
-	*max_timeout = INT32_MAX;
+	*min_timeout = 3 * IWDG_PRESCALER_1024 / rate;
+	*max_timeout = (IWDG_CNT_MASK + 1) * IWDG_PRESCALER_1024 / rate;
 
 	return TEE_SUCCESS;
 }
@@ -344,7 +344,7 @@ static void stm32_iwdg_handle_timeouts(struct stm32_iwdg_device *iwdg,
 	long w = 0;
 
 	rate = clk_get_rate(iwdg->clk_lsi);
-	iwdg->max_hw_timeout = (IWDG_CNT_MASK + 1) * IWDG_PRESCALER_256 / rate;
+	iwdg->max_hw_timeout = (IWDG_CNT_MASK + 1) * IWDG_PRESCALER_1024 / rate;
 
 	if (timeout_sec > iwdg->max_hw_timeout) {
 		IMSG("Timeout exceeds hardware capability, approximate it");
