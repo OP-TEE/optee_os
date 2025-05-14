@@ -592,9 +592,6 @@ jobs:
           # TF-A v2.6 fails to build with the above toolchain so override it
           export TF_A_EXPORTS="CROSS_COMPILE=${TOP}/toolchains/aarch64/bin/aarch64-linux-gnu-"
           /root/get_optee.sh qemu_v8 ${TOP}
-          # QEMU v7.2.0 has an issue with MTE
-          # https://github.com/OP-TEE/optee_os/issues/5759#issuecomment-1380590951
-          cd ${TOP}/qemu && git fetch github && git checkout 13356edb87
           mv ${TOP}/optee_os ${TOP}/optee_os_old
           ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
