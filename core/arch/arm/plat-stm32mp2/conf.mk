@@ -53,6 +53,8 @@ $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_WITH_LPAE,y)
 
 ifeq ($(CFG_STM32MP21),y)
+$(call force,CFG_STM32MP21_CLK,y)
+$(call force,CFG_STM32MP21_RSTCTRL,y)
 else
 $(call force,CFG_STM32MP25_CLK,y)
 $(call force,CFG_STM32MP25_RSTCTRL,y)
