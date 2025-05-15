@@ -162,6 +162,17 @@ int ti_sci_lock_otp_row(uint8_t row_idx, uint8_t hw_write_lock,
 			uint8_t hw_read_lock, uint8_t row_soft_lock);
 
 /**
+ * ti_sci_set_swrev - Write Software Revision
+ * @identifier: One of the entries from enum tisci_otp_revision_identifier
+ * @swrev:	Software Revision
+ *
+ * Writes the Software Revision in OTP for the specified identifier
+ *
+ * Return: 0 if all goes well, else appropriate error message
+ */
+int ti_sci_set_swrev(uint8_t identifier, uint32_t swrev);
+
+/**
  * ti_sci_get_swrev - Read Software Revision
  * @swrev:	Software Revision
  *
@@ -182,6 +193,20 @@ int ti_sci_get_swrev(uint32_t *swrev);
  * Return: 0 if all goes well, else appropriate error message
  */
 int ti_sci_get_keycnt_keyrev(uint32_t *key_cnt, uint32_t *key_rev);
+
+/**
+ * ti_sci_set_keyrev - Write Key Revision
+ * @keyrev:		Key Revision
+ * @cert_addr_lo:	Lower 32 bit address of the dual signed certificate
+ * @cert_addr_hi:	Higher 32 bit address of the dual signed certificate
+ *
+ * Writes the Key Revision in OTP
+ *
+ * Return: 0 if all goes well, else appropriate error message
+ */
+int ti_sci_set_keyrev(uint32_t keyrev,
+		      uint32_t cert_addr_lo,
+		      uint32_t cert_addr_hi);
 
 /**
  * ti_sci_init() - Basic initialization
