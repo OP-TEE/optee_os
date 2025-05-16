@@ -367,8 +367,11 @@ static TEE_Result stm32_iwdg_setup(struct stm32_iwdg_device *iwdg,
 		return res;
 
 	/* Enable watchdog source and bus clocks once for all */
-	clk_enable(iwdg->clk_lsi);
-	clk_enable(iwdg->clk_pclk);
+	if (clk_enable(iwdg->clk_lsi))
+		panic();
+
+	if (clk_enable(iwdg->clk_pclk))
+		panic();
 
 	iwdg_wdt_get_version_and_status(iwdg);
 
@@ -376,7 +379,7 @@ static TEE_Result stm32_iwdg_setup(struct stm32_iwdg_device *iwdg,
 		/* Configure timeout if watchdog is already enabled */
 		res = configure_timeout(iwdg);
 		if (res)
-			return res;
+			panic();
 
 		iwdg_refresh(iwdg);
 	}
