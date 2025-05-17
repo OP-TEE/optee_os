@@ -261,6 +261,24 @@ static unsigned int core_mmu_pgt_idx(vaddr_t va, unsigned int level)
 	return idx & RISCV_MMU_VPN_MASK;
 }
 
+/* Get the pointed VA base of specific PTE in page table */
+static inline vaddr_t core_mmu_pgt_get_va_base(unsigned int level,
+					       unsigned int idx)
+{
+#ifdef RV32
+	return SHIFT_U32(idx, CORE_MMU_SHIFT_OF_LEVEL(level));
+#else
+	vaddr_t va_base = SHIFT_U64(idx, CORE_MMU_SHIFT_OF_LEVEL(level));
+	vaddr_t va_width_msb = BIT64(RISCV_MMU_VA_WIDTH - 1);
+	vaddr_t va_extended_mask = GENMASK_64(63, RISCV_MMU_VA_WIDTH);
+
+	if (va_base & va_width_msb)
+		return va_extended_mask | va_base;
+
+	return va_base;
+#endif
+}
+
 static struct mmu_partition *core_mmu_get_prtn(void)
 {
 	return &default_partition;
@@ -745,7 +763,7 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 		pgt = core_mmu_xlat_table_entry_pa2va(pte, pgt);
 		if (!pgt)
 			goto out;
-		va_base += SHIFT_U64(idx, CORE_MMU_SHIFT_OF_LEVEL(level));
+		va_base += core_mmu_pgt_get_va_base(level, idx);
 		level--;
 	}
 out:
