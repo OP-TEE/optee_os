@@ -44,6 +44,7 @@ struct boot_mem_padding {
  * @orig_mem_end: Boot memory start end address
  * @mem_start: Boot memory free space start address
  * @mem_end: Boot memory free space end address
+ * @final_mem_start: Final @mem_start before end of boot_mem_release_unused()
  * @reloc: Boot memory pointers requiring relocation
  * @padding: Linked list of unused memory between allocated blocks
  */
@@ -52,6 +53,7 @@ struct boot_mem_desc {
 	vaddr_t orig_mem_end;
 	vaddr_t mem_start;
 	vaddr_t mem_end;
+	vaddr_t final_mem_start;
 	struct boot_mem_reloc *reloc;
 	struct boot_mem_padding *padding;
 };
@@ -332,6 +334,7 @@ vaddr_t boot_mem_release_unused(void)
 	core_mmu_unmap_pages(va, n / SMALL_PAGE_SIZE);
 
 out:
+	boot_mem_desc->final_mem_start = boot_mem_desc->mem_start;
 	/* Stop further allocations. */
 	boot_mem_desc->mem_start = boot_mem_desc->mem_end;
 	return va;
@@ -347,15 +350,16 @@ void boot_mem_release_tmp_alloc(void)
 	assert(boot_mem_desc &&
 	       boot_mem_desc->mem_start == boot_mem_desc->mem_end);
 
+	va = MAX(ROUNDDOWN(boot_mem_desc->mem_end, SMALL_PAGE_SIZE),
+		 ROUNDUP(boot_mem_desc->final_mem_start, SMALL_PAGE_SIZE));
 	if (IS_ENABLED(CFG_WITH_PAGER)) {
-		n = boot_mem_desc->orig_mem_end - boot_mem_desc->mem_end;
-		va = boot_mem_desc->mem_end;
+		n = ROUNDDOWN(boot_mem_desc->orig_mem_end, SMALL_PAGE_SIZE) -
+		    va;
 		boot_mem_desc = NULL;
 		DMSG("Releasing %zu bytes from va %#"PRIxVA, n, va);
 		return;
 	}
 
-	va = ROUNDDOWN(boot_mem_desc->mem_end, SMALL_PAGE_SIZE);
 	pa = vaddr_to_phys(va);
 
 	mm = nex_phys_mem_mm_find(pa);
