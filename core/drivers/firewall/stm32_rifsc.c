@@ -370,7 +370,7 @@ static TEE_Result stm32_rifsc_dt_conf_rimu(const void *fdt, int node,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	for (i = 0; i < pdata->nrimu; i++) {
-		uint32_t value = fdt32_to_cpu(*conf_list);
+		uint32_t value = fdt32_to_cpu(conf_list[i]);
 		struct rimu_cfg *rimu = pdata->rimu + i;
 
 		rimu->id = _RIF_FLD_GET(RIMUPROT_RIMC_M_ID, value) -
