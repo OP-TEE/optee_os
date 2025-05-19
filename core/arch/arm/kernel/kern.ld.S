@@ -49,6 +49,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <generated/asm-defines.h>
+#include <kernel/thread_private_arch.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <util.h>
@@ -316,7 +318,33 @@ SECTIONS
 	 * the physical memory.
 	 */
 	.pager_boot_mem (NOLOAD): {
+#ifdef CFG_DYN_CONFIG
+#ifdef CFG_WITH_LPAE
+		XLAT_TABLE_SIZE = SMALL_PAGE_SIZE;
+#ifndef MAX_XLAT_TABLES
+		MAX_XLAT_TABLES = 3 /* ASLR_EXTRA */ + 5 /* TEE_EXTRA */;
+#endif
+		/* Base tables */
+		. += 4 * 2 * CFG_TEE_CORE_NB_CORE * XLAT_TABLE_SIZE;
+		/* Per thread EL0 tables */
+		. += CFG_NUM_THREADS * XLAT_TABLE_SIZE;
+#else
+		XLAT_TABLE_SIZE = 1024;
+#ifndef MAX_XLAT_TABLES
+		MAX_XLAT_TABLES = 6 + 2 /* ASLR_EXTRA */;
+#endif
+		. += 16 * 1024; /* Main L1 table */
+		. += 64 * 4 * CFG_NUM_THREADS; /* L1 table for TAs */
+#endif
+		. += MAX_XLAT_TABLES * XLAT_TABLE_SIZE;
+		. += CFG_CORE_HEAP_SIZE;
+		. += CFG_NUM_THREADS * THREAD_CTX_SIZE;
+		. += CFG_TEE_CORE_NB_CORE * THREAD_CORE_LOCAL_SIZE;
+		. += THREAD_BOOT_INIT_TMP_ALLOC;
+#else
 		. += SMALL_PAGE_SIZE;
+#endif
+		. = ALIGN(SMALL_PAGE_SIZE);
 	}
 	__flatmap_free_start = ADDR(.pager_boot_mem);
 	__flatmap_free_size = SIZEOF(.pager_boot_mem);
