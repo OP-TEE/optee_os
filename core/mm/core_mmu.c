@@ -45,6 +45,14 @@ tee_mm_pool_t core_virt_mem_pool;
 /* Virtual memory pool for shared memory mappings */
 tee_mm_pool_t core_virt_shm_pool;
 
+#ifdef CFG_WITH_PAGER
+/* this is synced with the generic linker file kern.ld.S */
+vaddr_t core_mmu_linear_map_end = (vaddr_t)__init_start;
+#else
+/* Not used, but needed to avoid a few #ifdefs */
+vaddr_t core_mmu_linear_map_end;
+#endif
+
 #ifdef CFG_CORE_PHYS_RELOCATABLE
 unsigned long core_mmu_tee_load_pa __nex_bss;
 #else
@@ -2468,15 +2476,9 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 }
 
 #ifdef CFG_WITH_PAGER
-static vaddr_t get_linear_map_end_va(void)
-{
-	/* this is synced with the generic linker file kern.ld.S */
-	return (vaddr_t)__heap2_end;
-}
-
 static paddr_t get_linear_map_end_pa(void)
 {
-	return get_linear_map_end_va() - boot_mmu_config.map_offset;
+	return core_mmu_linear_map_end - boot_mmu_config.map_offset;
 }
 #endif
 
@@ -2707,7 +2709,7 @@ bool is_unpaged(const void *va)
 {
 	vaddr_t v = (vaddr_t)va;
 
-	return v >= VCORE_START_VA && v < get_linear_map_end_va();
+	return v >= VCORE_START_VA && v < core_mmu_linear_map_end;
 }
 #endif
 
