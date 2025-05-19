@@ -38,7 +38,21 @@
 
 /* size_t __get_core_pos(void); */
 FUNC __get_core_pos , : , .identity_map
+	/*
+	 * Return the logical hart index (0 to CFG_TEE_CORE_NB_CORE-1).
+	 * This index is used for core-specific operation and data
+	 * structures.
+	 */
 	lw	a0, THREAD_CORE_LOCAL_HART_INDEX(tp)
+#ifdef CFG_TEE_CORE_DEBUG
+	/* Sanity check for hart index */
+	li	t0, CFG_TEE_CORE_NB_CORE
+	bltu	a0, t0, out
+fail:
+	wfi
+	j	fail
+out:
+#endif
 	ret
 END_FUNC __get_core_pos
 
