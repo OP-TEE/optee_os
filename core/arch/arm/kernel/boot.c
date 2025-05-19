@@ -511,12 +511,6 @@ static void init_pager_runtime(unsigned long pageable_part)
 	assert(hashes);
 	asan_memcpy_unchecked(hashes, tmp_hashes, hash_size);
 
-	/*
-	 * The pager is about the be enabled below, eventual temporary boot
-	 * memory allocation must be removed now.
-	 */
-	boot_mem_release_tmp_alloc();
-
 	carve_out_asan_mem();
 
 	mm = nex_phys_mem_ta_alloc(pageable_size);
@@ -966,15 +960,6 @@ static void init_primary(unsigned long pageable_part)
 	core_mmu_save_mem_map();
 	core_mmu_init_phys_mem();
 	boot_mem_foreach_padding(add_padding_to_pool, NULL);
-	va = boot_mem_release_unused();
-	if (!IS_ENABLED(CFG_WITH_PAGER)) {
-		/*
-		 * We must update boot_cached_mem_end to reflect the memory
-		 * just unmapped by boot_mem_release_unused().
-		 */
-		assert(va && va <= boot_cached_mem_end);
-		boot_cached_mem_end = va;
-	}
 
 	if (IS_ENABLED(CFG_DYN_CONFIG)) {
 		/*
@@ -997,6 +982,23 @@ static void init_primary(unsigned long pageable_part)
 		 */
 		thread_get_core_local()->curr_thread = 0;
 		init_pager_runtime(pageable_part);
+	}
+
+	va = boot_mem_release_unused();
+	if (IS_ENABLED(CFG_WITH_PAGER)) {
+		/*
+		 * Paging is activated, and anything beyond the start of
+		 * the released unused memory is managed by the pager.
+		 */
+		assert(va && va <= core_mmu_linear_map_end);
+		core_mmu_linear_map_end = va;
+	} else {
+		/*
+		 * We must update boot_cached_mem_end to reflect the memory
+		 * just unmapped by boot_mem_release_unused().
+		 */
+		assert(va && va <= boot_cached_mem_end);
+		boot_cached_mem_end = va;
 	}
 
 	/* Initialize canaries around the stacks */
@@ -1117,9 +1119,7 @@ void __weak boot_init_primary_runtime(void)
 				      ~THREAD_EXCP_NATIVE_INTR);
 		init_tee_runtime();
 	}
-
-	if (!IS_ENABLED(CFG_WITH_PAGER))
-		boot_mem_release_tmp_alloc();
+	boot_mem_release_tmp_alloc();
 }
 
 void __weak boot_init_primary_final(void)
