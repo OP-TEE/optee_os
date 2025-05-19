@@ -244,10 +244,12 @@ SECTIONS
 		__bss_end = .;
 	}
 
-#ifdef CFG_DYN_CONFIG
+#if defined(CFG_DYN_CONFIG) && !defined(CFG_WITH_PAGER)
 	. = ALIGN(SMALL_PAGE_SIZE);
 	__flatmap_free_start = .;
-#else
+#endif
+
+#ifndef CFG_DYN_CONFIG
 	.heap1 (NOLOAD) : {
 		/*
 		 * We're keeping track of the padding added before the
@@ -285,10 +287,7 @@ SECTIONS
 		. = ALIGN(8);
 		__nozi_stack_end = .;
 	}
-#ifndef CFG_WITH_PAGER
-	. = ALIGN(SMALL_PAGE_SIZE);
-	__flatmap_free_start = .;
-#else
+#ifdef CFG_WITH_PAGER
 	.heap2 (NOLOAD) : {
 		__heap2_start = .;
 		/*
@@ -300,6 +299,27 @@ SECTIONS
 		. = ALIGN(SMALL_PAGE_SIZE);
 		__heap2_end = .;
 	}
+#endif
+#ifndef CFG_WITH_PAGER
+	. = ALIGN(SMALL_PAGE_SIZE);
+	__flatmap_free_start = .;
+#endif
+#endif /*!CFG_DYN_CONFIG*/
+
+#ifdef CFG_WITH_PAGER
+	/*
+	 * This memory is used by the boot_mem*() functions during boot.
+	 * Enough memory must be carved out to support the worst case
+	 * memory allocation, but the remaining unused memory will be
+	 * returned to be managed by the pager at end of boot. The tradeoff
+	 * is that the init code follows this section and must also fit in
+	 * the physical memory.
+	 */
+	.pager_boot_mem (NOLOAD): {
+		. += SMALL_PAGE_SIZE;
+	}
+	__flatmap_free_start = ADDR(.pager_boot_mem);
+	__flatmap_free_size = SIZEOF(.pager_boot_mem);
 
 	/* Start page aligned read-only memory */
 	__flatmap_unpg_rw_size = . - __flatmap_unpg_rw_start;
@@ -386,10 +406,11 @@ SECTIONS
 		(__pageable_end - __pageable_start) / 4096 * 32 +
 		SIZEOF(.rel) / 2 + SIZEOF(.rela) / 3 ,
 		"Too few free pages to initialize paging")
-
-
 #endif /*CFG_WITH_PAGER*/
-#endif /*CFG_DYN_CONFIG*/
+
+#ifndef CFG_WITH_PAGER
+	__flatmap_free_start = .;
+#endif
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
 	/*
@@ -483,11 +504,9 @@ __vcore_unpg_rw_start = __flatmap_unpg_rw_start;
 __vcore_unpg_rw_size = __flatmap_unpg_rw_size;
 __vcore_unpg_rw_end = __vcore_unpg_rw_start + __vcore_unpg_rw_size;
 
-#ifndef CFG_WITH_PAGER
 __vcore_free_start = __flatmap_free_start;
 __vcore_free_size = __flatmap_free_size;
 __vcore_free_end = __flatmap_free_start + __flatmap_free_size;
-#endif
 
 #ifdef CFG_NS_VIRTUALIZATION
 /* Nexus read-write memory */
