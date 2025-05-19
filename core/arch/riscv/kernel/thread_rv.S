@@ -56,6 +56,12 @@ out:
 	ret
 END_FUNC __get_core_pos
 
+/* size_t get_core_pos_hartid(void) */
+FUNC get_core_pos_hartid , :
+	lw	a0, THREAD_CORE_LOCAL_HART_ID(tp)
+	ret
+END_FUNC get_core_pos_hartid
+
 FUNC thread_trap_vect , :
 	csrrw	tp, CSR_XSCRATCH, tp
 	bnez	tp, 0f
