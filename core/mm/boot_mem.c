@@ -14,6 +14,18 @@
 #include <string.h>
 #include <util.h>
 
+#ifdef CFG_WITH_PAGER
+#include <mm/tee_pager.h>
+#endif
+
+static inline void pager_add_pages(vaddr_t vaddr __maybe_unused,
+				   size_t npages __maybe_unused)
+{
+#ifdef CFG_WITH_PAGER
+	tee_pager_add_pages(vaddr, npages, true);
+#endif
+}
+
 /*
  * struct boot_mem_reloc - Pointers relocated in memory during boot
  * @ptrs: Array of relocation
@@ -109,7 +121,6 @@ static void *mem_alloc(struct boot_mem_desc *desc, size_t len, size_t align)
 	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
 		align = MAX(align, ASAN_BLOCK_SIZE);
 
-	runtime_assert(!IS_ENABLED(CFG_WITH_PAGER));
 	assert(desc && desc->mem_start && desc->mem_end);
 	assert(IS_POWER_OF_TWO(align));
 	va = ROUNDUP2(desc->mem_start, align);
@@ -301,8 +312,17 @@ vaddr_t boot_mem_release_unused(void)
 	     (size_t)(boot_mem_desc->orig_mem_end - boot_mem_desc->mem_end),
 	     boot_mem_desc->mem_end);
 
-	if (IS_ENABLED(CFG_WITH_PAGER))
+	va = ROUNDUP(boot_mem_desc->mem_start, SMALL_PAGE_SIZE);
+	tmp_va = ROUNDDOWN(boot_mem_desc->mem_end, SMALL_PAGE_SIZE);
+
+	if (IS_ENABLED(CFG_WITH_PAGER)) {
+		if (tmp_va > va) {
+			n = tmp_va - va;
+			DMSG("Releasing %zu bytes from va %#"PRIxVA, n, va);
+			pager_add_pages(va, n / SMALL_PAGE_SIZE);
+		}
 		goto out;
+	}
 
 	pa = vaddr_to_phys(ROUNDUP(boot_mem_desc->orig_mem_start,
 				   SMALL_PAGE_SIZE));
@@ -310,9 +330,6 @@ vaddr_t boot_mem_release_unused(void)
 	if (!mm)
 		panic();
 
-	va = ROUNDUP(boot_mem_desc->mem_start, SMALL_PAGE_SIZE);
-
-	tmp_va = ROUNDDOWN(boot_mem_desc->mem_end, SMALL_PAGE_SIZE);
 	tmp_n = boot_mem_desc->orig_mem_end - tmp_va;
 	tmp_pa = vaddr_to_phys(tmp_va);
 
@@ -343,6 +360,7 @@ out:
 void boot_mem_release_tmp_alloc(void)
 {
 	tee_mm_entry_t *mm = NULL;
+	vaddr_t tmp_va = 0;
 	vaddr_t va = 0;
 	paddr_t pa = 0;
 	size_t n = 0;
@@ -353,10 +371,15 @@ void boot_mem_release_tmp_alloc(void)
 	va = MAX(ROUNDDOWN(boot_mem_desc->mem_end, SMALL_PAGE_SIZE),
 		 ROUNDUP(boot_mem_desc->final_mem_start, SMALL_PAGE_SIZE));
 	if (IS_ENABLED(CFG_WITH_PAGER)) {
-		n = ROUNDDOWN(boot_mem_desc->orig_mem_end, SMALL_PAGE_SIZE) -
-		    va;
+		tmp_va = ROUNDDOWN(boot_mem_desc->orig_mem_end,
+				   SMALL_PAGE_SIZE);
+		if (tmp_va > va) {
+			n = tmp_va - va;
+			DMSG("Releasing %zu bytes from va %#"PRIxVA, n, va);
+			pager_add_pages(va, n / SMALL_PAGE_SIZE);
+		}
+
 		boot_mem_desc = NULL;
-		DMSG("Releasing %zu bytes from va %#"PRIxVA, n, va);
 		return;
 	}
 
