@@ -38,7 +38,21 @@
 
 /* size_t __get_core_pos(void); */
 FUNC __get_core_pos , : , .identity_map
+	/*
+	 * Get the logical core position in the range
+	 * [0, CFG_TEE_CORE_NB_CORE) for indexing into
+	 * per-core data structures.
+	 */
 	lw	a0, THREAD_CORE_LOCAL_HART_INDEX(tp)
+#ifdef CFG_TEE_CORE_DEBUG
+	/* Sanity check: ensure hart index is valid */
+	li	t0, CFG_TEE_CORE_NB_CORE
+	bltu	a0, t0, out
+fail:
+	wfi
+	j	fail
+out:
+#endif
 	ret
 END_FUNC __get_core_pos
 
