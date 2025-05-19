@@ -451,8 +451,12 @@ shadow_stack_access_ok:
 #endif
 
 #if defined(CFG_DYN_CONFIG)
+#ifdef CFG_WITH_PAGER
+	ldr	r0, =__vcore_free_end
+#else
 	ldr	r0, =boot_embdata_ptr
 	ldr	r0, [r0]
+#endif
 	sub	r1, r0, #THREAD_BOOT_INIT_TMP_ALLOC
 
 	/* Clear the allocated struct thread_core_local */
@@ -537,7 +541,11 @@ shadow_stack_access_ok:
 	ldr	r0, =__vcore_free_start
 	ldr	r2, =__vcore_free_end
 #ifdef CFG_WITH_PAGER
+#ifdef CFG_DYN_CONFIG
+	sub	r1, r2, #THREAD_BOOT_INIT_TMP_ALLOC
+#else
 	mov	r1, r2
+#endif
 #else
 	ldr	r1, =boot_embdata_ptr
 	ldr	r1, [r1]

@@ -316,8 +316,12 @@ clear_nex_bss:
 	 * Point SP_EL1 a temporary struct thread_core_local before the
 	 * temporary stack.
 	 */
+#ifdef CFG_WITH_PAGER
+	adr_l	x0, __vcore_free_end
+#else
 	adr_l	x0, boot_embdata_ptr
 	ldr	x0, [x0]
+#endif
 	sub	x1, x0, #THREAD_BOOT_INIT_TMP_ALLOC
 
 	/* Clear the allocated struct thread_core_local */
@@ -391,7 +395,11 @@ clear_nex_bss:
 	adr_l	x0, __vcore_free_start
 	adr_l	x2, __vcore_free_end
 #ifdef CFG_WITH_PAGER
+#ifdef CFG_DYN_CONFIG
+	sub	x1, x2, #THREAD_BOOT_INIT_TMP_ALLOC
+#else
 	mov	x1, x2
+#endif
 #else
 	adr_l	x1, boot_embdata_ptr
 	ldr	x1, [x1]
