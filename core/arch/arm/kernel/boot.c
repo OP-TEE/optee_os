@@ -911,11 +911,11 @@ static void init_primary(unsigned long pageable_part)
 	 * every virtual partition separately. Core code uses nex_malloc
 	 * instead.
 	 */
+#ifndef CFG_DYN_CONFIG
 #ifdef CFG_WITH_PAGER
 	/* Add heap2 first as heap1 may be too small as initial bget pool */
 	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 #endif
-#ifndef CFG_DYN_CONFIG
 #ifdef CFG_NS_VIRTUALIZATION
 	nex_malloc_add_pool(__nex_heap_start, __nex_heap_end -
 					      __nex_heap_start);
@@ -981,6 +981,12 @@ static void init_primary(unsigned long pageable_part)
 		 * init_runtime()).
 		 */
 		thread_get_core_local()->curr_thread = 0;
+		if (IS_ENABLED(CFG_DYN_CONFIG)) {
+			threads = calloc(1, sizeof(*threads));
+			if (!threads)
+				panic();
+			thread_count = 1;
+		}
 		init_pager_runtime(pageable_part);
 	}
 
