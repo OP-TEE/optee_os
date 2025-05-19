@@ -34,6 +34,8 @@
 
 #define BOUNCE_BUFFER_SIZE		4096
 
+#define UNDEFINED_BOOT_ORDER_VALUE	UINT32_MAX
+
 #define SP_MANIFEST_ATTR_READ		BIT(0)
 #define SP_MANIFEST_ATTR_WRITE		BIT(1)
 #define SP_MANIFEST_ATTR_EXEC		BIT(2)
@@ -1565,31 +1567,52 @@ static TEE_Result read_vm_availability_msg(const void *fdt,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result get_boot_order(const void *fdt, uint32_t *boot_order)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	res = sp_dt_get_u32(fdt, 0, "boot-order", boot_order);
+
+	if (res == TEE_SUCCESS) {
+		if (*boot_order > UINT16_MAX) {
+			EMSG("Value of boot-order property (%"PRIu32") is out of range",
+			     *boot_order);
+			res = TEE_ERROR_BAD_FORMAT;
+		}
+	} else if (res == TEE_ERROR_BAD_FORMAT) {
+		uint16_t boot_order_u16 = 0;
+
+		res = sp_dt_get_u16(fdt, 0, "boot-order", &boot_order_u16);
+		if (res == TEE_SUCCESS)
+			*boot_order = boot_order_u16;
+	}
+
+	if (res == TEE_ERROR_ITEM_NOT_FOUND)
+		*boot_order = UNDEFINED_BOOT_ORDER_VALUE;
+	else if (res != TEE_SUCCESS)
+		EMSG("Failed reading boot-order property err: %#"PRIx32, res);
+
+	return res;
+}
+
 static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *sess = NULL;
 	TEE_UUID ffa_uuid = {};
-	uint16_t boot_order = 0;
-	uint32_t boot_order_arg = 0;
+	uint32_t boot_order = 0;
 
 	res = fdt_get_uuid(fdt, &ffa_uuid);
 	if (res)
 		return res;
 
-	res = sp_dt_get_u16(fdt, 0, "boot-order", &boot_order);
-	if (res == TEE_SUCCESS) {
-		boot_order_arg = boot_order;
-	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		boot_order_arg = UINT32_MAX;
-	} else {
-		EMSG("Failed reading boot-order property err:%#"PRIx32, res);
+	res = get_boot_order(fdt, &boot_order);
+	if (res)
 		return res;
-	}
 
 	res = sp_open_session(&sess,
 			      &open_sp_sessions,
-			      &ffa_uuid, bin_uuid, boot_order_arg, fdt);
+			      &ffa_uuid, bin_uuid, boot_order, fdt);
 	if (res)
 		return res;
 
@@ -2063,8 +2086,8 @@ static TEE_Result sp_init_all(void)
 	 * and warn in case there is a non-unique value.
 	 */
 	TAILQ_FOREACH(s, &open_sp_sessions, link) {
-		/* User specified boot-order values are uint16 */
-		if (s->boot_order > UINT16_MAX)
+		/* Avoid warnings if multiple SP have undefined boot-order. */
+		if (s->boot_order == UNDEFINED_BOOT_ORDER_VALUE)
 			break;
 
 		if (prev_sp && prev_sp->boot_order == s->boot_order)
