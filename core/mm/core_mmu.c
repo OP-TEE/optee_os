@@ -1598,12 +1598,7 @@ static void check_mem_map(struct memory_map *mem_map)
  */
 void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 {
-#ifndef CFG_NS_VIRTUALIZATION
-	vaddr_t start = ROUNDDOWN((vaddr_t)__nozi_start, SMALL_PAGE_SIZE);
-#else
-	vaddr_t start = ROUNDDOWN((vaddr_t)__vcore_nex_rw_start,
-				  SMALL_PAGE_SIZE);
-#endif
+	vaddr_t start = ROUNDDOWN((vaddr_t)__text_start, SMALL_PAGE_SIZE);
 #ifdef CFG_DYN_CONFIG
 	vaddr_t len = ROUNDUP(VCORE_FREE_END_PA, SMALL_PAGE_SIZE) - start;
 #else
