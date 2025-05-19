@@ -25,6 +25,7 @@
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
+#include <kernel/thread_private.h>
 #include <kernel/tpm.h>
 #include <kernel/transfer_list.h>
 #include <libfdt.h>
@@ -332,7 +333,9 @@ static void init_asan(void)
 #ifdef CFG_WITH_PAGER
 	asan_tag_access(__pageable_start, __pageable_end);
 #endif /*CFG_WITH_PAGER*/
+#ifndef CFG_DYN_CONFIG
 	asan_tag_access(__nozi_start, __nozi_end);
+#endif
 #ifdef ARM32
 	asan_tag_access(__exidx_start, __exidx_end);
 	asan_tag_access(__extab_start, __extab_end);
@@ -878,6 +881,15 @@ static bool add_padding_to_pool(vaddr_t va, size_t len, void *ptr __unused)
 	return true;
 }
 
+static bool calc_padding_size(vaddr_t va __unused, size_t len, void *ptr)
+{
+	size_t *tot_size = ptr;
+
+	if (len >= MALLOC_INITIAL_POOL_MIN_SIZE)
+		(*tot_size) += len;
+	return false; /* don't consume */
+}
+
 static void init_primary(unsigned long pageable_part)
 {
 	vaddr_t va = 0;
@@ -909,18 +921,41 @@ static void init_primary(unsigned long pageable_part)
 	/* Add heap2 first as heap1 may be too small as initial bget pool */
 	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 #endif
+#ifndef CFG_DYN_CONFIG
 #ifdef CFG_NS_VIRTUALIZATION
 	nex_malloc_add_pool(__nex_heap_start, __nex_heap_end -
 					      __nex_heap_start);
 #else
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 #endif
+#endif
 	IMSG_RAW("\n");
 	if (IS_ENABLED(CFG_DYN_CONFIG)) {
-		size_t sz = sizeof(struct thread_core_local) *
-			    CFG_TEE_CORE_NB_CORE;
-		void *p = boot_mem_alloc(sz, alignof(void *) * 2);
+		size_t tot_padding_sz = 0;
+		void *p = NULL;
+		size_t sz = 0;
 
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+			sz = CFG_CORE_NEX_HEAP_SIZE;
+		else
+			sz = CFG_CORE_HEAP_SIZE;
+
+		/*
+		 * thread_core_local and threads are allocated from the
+		 * heap so add the needed sizes to the initial heap.
+		 */
+		sz += sizeof(struct thread_core_local) * CFG_TEE_CORE_NB_CORE;
+		if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
+			sz += sizeof(struct thread_ctx) * CFG_NUM_THREADS;
+
+		boot_mem_foreach_padding(calc_padding_size, &tot_padding_sz);
+		if (tot_padding_sz > sz - MALLOC_INITIAL_POOL_MIN_SIZE)
+			sz = MALLOC_INITIAL_POOL_MIN_SIZE;
+		else
+			sz -= tot_padding_sz;
+		sz = ROUNDUP(sz, alignof(void *) * 2);
+		p = boot_mem_alloc(sz, alignof(void *) * 2);
+		boot_mem_foreach_padding(add_padding_to_pool, NULL);
 #ifdef CFG_NS_VIRTUALIZATION
 		nex_malloc_add_pool(p, sz);
 #else
