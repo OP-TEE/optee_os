@@ -46,17 +46,10 @@ extern const uint8_t __extab_end[];
 
 #define VCORE_START_VA		((vaddr_t)__text_start)
 
-#ifndef CFG_WITH_PAGER
 #define VCORE_FREE_PA		((unsigned long)__vcore_free_start)
 #define VCORE_FREE_SZ		((size_t)(__vcore_free_end - \
 					  __vcore_free_start))
 #define VCORE_FREE_END_PA	((unsigned long)__vcore_free_end)
-#else
-/* No VCORE_FREE range in pager configuration since it uses all memory */
-#define VCORE_FREE_PA		PADDR_MAX
-#define VCORE_FREE_SZ		0
-#define VCORE_FREE_END_PA	PADDR_MAX
-#endif
 
 #define EMIT_SECTION_INFO_SYMBOLS(section_name) \
 	extern const uint8_t __vcore_ ## section_name ## _start[]; \
