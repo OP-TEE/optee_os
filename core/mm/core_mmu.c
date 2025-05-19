@@ -2681,9 +2681,18 @@ bool is_unpaged(const void *va)
 #ifdef CFG_NS_VIRTUALIZATION
 bool is_nexus(const void *va)
 {
+	struct tee_mmap_region *mm = NULL;
 	vaddr_t v = (vaddr_t)va;
 
-	return v >= VCORE_START_VA && v < VCORE_NEX_RW_PA + VCORE_NEX_RW_SZ;
+	if (v >= VCORE_START_VA && v < VCORE_NEX_RW_PA + VCORE_NEX_RW_SZ)
+		return true;
+
+	mm = find_map_by_va((void *)v);
+	if (mm && (mm->type == MEM_AREA_NEX_RAM_RW ||
+		   mm->type == MEM_AREA_NEX_DYN_VASPACE))
+		return virt_to_phys((void *)v); /* it must be mapped */
+
+	return false;
 }
 #endif
 
