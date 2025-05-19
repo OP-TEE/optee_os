@@ -29,6 +29,7 @@
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
+#include <mm/page_alloc.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 #include <smccc.h>
@@ -45,6 +46,11 @@ static size_t thread_user_kcode_size __nex_bss;
 #if defined(CFG_CORE_UNMAP_CORE_AT_EL0) && \
 	defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC) && defined(ARM64)
 long thread_user_kdata_sp_offset __nex_bss;
+#ifdef CFG_DYN_CONFIG
+static uint8_t *thread_user_kdata_page __nex_bss;
+static size_t thread_user_kdata_page_size __nex_bss;
+static struct mobj *thread_user_kdata_page_mobj __nex_bss;
+#else
 static uint8_t thread_user_kdata_page[
 	ROUNDUP(sizeof(struct thread_core_local) * CFG_TEE_CORE_NB_CORE,
 		SMALL_PAGE_SIZE)]
@@ -53,6 +59,9 @@ static uint8_t thread_user_kdata_page[
 	__section(".nozi.kdata_page");
 #else
 	__section(".nex_nozi.kdata_page");
+#endif
+static size_t thread_user_kdata_page_size __nex_data =
+	sizeof(thread_user_kdata_page);
 #endif
 #endif
 
@@ -561,6 +570,9 @@ set_core_local_kcode_offset(struct thread_core_local *cls, long offset)
 
 static void init_user_kcode(void)
 {
+	__maybe_unused struct mobj *m;
+	__maybe_unused size_t c = 0;
+
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 	vaddr_t v = (vaddr_t)thread_excp_vect;
 	vaddr_t ve = (vaddr_t)thread_excp_vect_end;
@@ -575,6 +587,20 @@ static void init_user_kcode(void)
 	set_core_local_kcode_offset(thread_core_local,
 				    thread_user_kcode_offset);
 #if defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC) && defined(ARM64)
+#ifdef CFG_DYN_CONFIG
+	assert(!thread_user_kdata_page_size && !thread_user_kdata_page &&
+	       !thread_user_kdata_page_mobj);
+	c = ROUNDUP_DIV(sizeof(struct thread_core_local) * CFG_TEE_CORE_NB_CORE,
+			SMALL_PAGE_SIZE);
+	m = mobj_page_alloc(c, MAF_NEX | MAF_CORE_MEM | MAF_ZERO_INIT);
+	if (!m)
+		panic();
+	thread_user_kdata_page = mobj_get_va(m, 0, c * SMALL_PAGE_SIZE);
+	if (!thread_user_kdata_page)
+		panic();
+	thread_user_kdata_page_size = c * SMALL_PAGE_SIZE;
+	thread_user_kdata_page_mobj = m;
+#endif
 	set_core_local_kcode_offset((void *)thread_user_kdata_page,
 				    thread_user_kcode_offset);
 	/*
@@ -1056,10 +1082,15 @@ void thread_get_user_kdata(struct mobj **mobj, size_t *offset,
 
 	core_mmu_get_user_va_range(&v, NULL);
 	*va = v + thread_user_kcode_size;
+#ifdef CFG_DYN_CONFIG
+	*mobj = thread_user_kdata_page_mobj;
+	*offset = 0;
+#else
 	*mobj = mobj_tee_ram_rw;
-	*sz = sizeof(thread_user_kdata_page);
 	*offset = (vaddr_t)thread_user_kdata_page -
 		  (vaddr_t)mobj_get_va(*mobj, 0, *sz);
+#endif
+	*sz = thread_user_kdata_page_size;
 }
 #endif
 
