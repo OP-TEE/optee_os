@@ -33,6 +33,7 @@ struct mobj_phys {
 	enum buf_is_attr battr;
 	/* Defined by TEE_MATTR_MEM_TYPE_* in tee_mmu_types.h */
 	uint32_t mem_type;
+	uint32_t flags; /* MAF_* in malloc_flags.h */
 	vaddr_t va;
 	paddr_t pa;
 };
@@ -109,7 +110,7 @@ static void mobj_phys_free(struct mobj *mobj)
 {
 	struct mobj_phys *moph = to_mobj_phys(mobj);
 
-	free(moph);
+	free_flags(moph->flags, moph);
 }
 
 /*
@@ -194,6 +195,36 @@ struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t mem_type,
 	}
 
 	return mobj_phys_init(pa, size, mem_type, battr, area_type);
+}
+
+struct mobj *mobj_phys_alloc_flags(vaddr_t va, paddr_t pa, size_t size,
+				   enum teecore_memtypes memtype,
+				   enum buf_is_attr battr, uint32_t flags)
+{
+	uint32_t f = (flags & MAF_NEX) | MAF_ZERO_INIT;
+	struct mobj_phys *m = NULL;
+
+	if ((pa & CORE_MMU_USER_PARAM_MASK) ||
+	    (size & CORE_MMU_USER_PARAM_MASK)) {
+		DMSG("Expect %#x alignment", CORE_MMU_USER_PARAM_SIZE);
+		return NULL;
+	}
+
+	m = malloc_flags(f, NULL, MALLOC_DEFAULT_ALIGNMENT, sizeof(*m));
+	if (!m)
+		return NULL;
+
+	m->flags = f;
+	m->battr = battr;
+	m->mem_type = (core_mmu_type_to_attr(memtype) >>
+		       TEE_MATTR_MEM_TYPE_SHIFT) & TEE_MATTR_MEM_TYPE_MASK;
+	m->mobj.size = size;
+	m->mobj.ops = &mobj_phys_ops;
+	refcount_set(&m->mobj.refc, 1);
+	m->pa = pa;
+	m->va = va;
+
+	return &m->mobj;
 }
 
 /*
