@@ -1296,12 +1296,8 @@ CFG_CORE_UNSAFE_MODEXP ?= n
 CFG_TA_MBEDTLS_UNSAFE_MODEXP ?= n
 
 # CFG_DYN_CONFIG, when enabled, use dynamic memory allocation for translation
-# tables and stacks. Not supported with pager.
-ifeq ($(CFG_WITH_PAGER),y)
-$(call force,CFG_DYN_CONFIG,n,conflicts with CFG_WITH_PAGER)
-else
+# tables and stacks.
 CFG_DYN_CONFIG ?= y
-endif
 
 # CFG_EXTERNAL_ABORT_PLAT_HANDLER is used to implement platform-specific
 # handling of external abort implementing the plat_external_abort_handler()
