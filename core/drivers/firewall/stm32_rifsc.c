@@ -449,7 +449,7 @@ static TEE_Result stm32_rifsc_parse_fdt(const void *fdt, int node,
 	rifsc_pdata.errata_ahbrisab = fdt_getprop(fdt, node,
 						  "st,errata-ahbrisab", NULL);
 
-	return stm32_rifsc_dt_conf_rimu(fdt, node, pdata);
+	return TEE_SUCCESS;
 }
 
 static TEE_Result stm32_risup_cfg(struct rifsc_platdata *pdata,
