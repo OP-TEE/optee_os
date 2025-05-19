@@ -74,6 +74,7 @@
 #include <mm/core_memprot.h>
 #include <mm/pgt_cache.h>
 #include <mm/phys_mem.h>
+#include <mm/tee_pager.h>
 #include <stdalign.h>
 #include <string.h>
 #include <trace.h>
@@ -643,40 +644,62 @@ void core_mmu_set_default_prtn_tbl(void)
 }
 #endif
 
+static void *alloc_table_from_phys_mem(struct mmu_partition *prtn)
+{
+	tee_mm_entry_t *mm = NULL;
+	paddr_t pa = 0;
+
+	/*
+	 * The default_partition only has a physical memory
+	 * pool for the nexus when virtualization is
+	 * enabled. We should use the nexus physical memory
+	 * pool if we're allocating memory for another
+	 * partition than our own.
+	 */
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+	    (prtn == &default_partition ||
+	     prtn != get_prtn())) {
+		mm = nex_phys_mem_core_alloc(XLAT_TABLE_SIZE);
+		if (!mm)
+			EMSG("Phys nex mem exhausted");
+	} else {
+		mm = phys_mem_core_alloc(XLAT_TABLE_SIZE);
+		if (!mm)
+			EMSG("Phys mem exhausted");
+	}
+	if (!mm)
+		return NULL;
+	pa = tee_mm_get_smem(mm);
+
+	return phys_to_virt(pa, MEM_AREA_SEC_RAM_OVERALL, XLAT_TABLE_SIZE);
+}
+
+static void *alloc_table_from_pager(void)
+{
+#ifdef CFG_WITH_PAGER
+	uint8_t *p = tee_pager_alloc(XLAT_TABLE_SIZE);
+
+	/* Dereference the pointer to map a physical page now. */
+	if (p)
+		*p = 0;
+	else
+		EMSG("Pager mem exhausted");
+	return p;
+#else
+	return NULL;
+#endif
+}
+
 static uint64_t *core_mmu_xlat_table_alloc(struct mmu_partition *prtn)
 {
 	uint64_t *new_table = NULL;
 
 	if (IS_ENABLED(CFG_DYN_CONFIG)) {
 		if (cpu_mmu_enabled()) {
-			tee_mm_entry_t *mm = NULL;
-			paddr_t pa = 0;
-
-			/*
-			 * The default_partition only has a physical memory
-			 * pool for the nexus when virtualization is
-			 * enabled. We should use the nexus physical memory
-			 * pool if we're allocating memory for another
-			 * partition than our own.
-			 */
-			if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
-			    (prtn == &default_partition ||
-			     prtn != get_prtn())) {
-				mm = nex_phys_mem_core_alloc(XLAT_TABLE_SIZE);
-				if (!mm)
-					EMSG("Phys nex mem exhausted");
-			} else {
-				mm = phys_mem_core_alloc(XLAT_TABLE_SIZE);
-				if (!mm)
-					EMSG("Phys mem exhausted");
-			}
-			if (!mm)
-				return NULL;
-			pa = tee_mm_get_smem(mm);
-
-			new_table = phys_to_virt(pa, MEM_AREA_SEC_RAM_OVERALL,
-						 XLAT_TABLE_SIZE);
-			assert(new_table);
+			if (IS_ENABLED(CFG_WITH_PAGER))
+				new_table = alloc_table_from_pager();
+			else
+				new_table = alloc_table_from_phys_mem(prtn);
 		} else {
 			new_table = boot_mem_alloc(XLAT_TABLE_SIZE,
 						   XLAT_TABLE_SIZE);
