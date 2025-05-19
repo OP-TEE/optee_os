@@ -568,6 +568,26 @@ set_core_local_kcode_offset(struct thread_core_local *cls, long offset)
 		cls[n].kcode_offset = offset;
 }
 
+static struct mobj __maybe_unused *alloc_kdata_page(size_t count)
+{
+#ifdef CFG_WITH_PAGER
+	uint8_t *p = tee_pager_alloc(count * SMALL_PAGE_SIZE);
+	size_t n = 0;
+
+	if (!p)
+		panic();
+	/* Make sure all pages are locked in memory */
+	for (n = 0; n < count; n++)
+		p[n * SMALL_PAGE_SIZE] = 0;
+
+	return mobj_phys_alloc_flags((vaddr_t)p, virt_to_phys(p),
+				     count * SMALL_PAGE_SIZE, MEM_AREA_TEE_RAM,
+				     CORE_MEM_TEE_RAM, MAF_NULL);
+#else
+	return mobj_page_alloc(count, MAF_NEX | MAF_CORE_MEM | MAF_ZERO_INIT);
+#endif
+}
+
 static void init_user_kcode(void)
 {
 	__maybe_unused struct mobj *m;
@@ -592,7 +612,7 @@ static void init_user_kcode(void)
 	       !thread_user_kdata_page_mobj);
 	c = ROUNDUP_DIV(sizeof(struct thread_core_local) * CFG_TEE_CORE_NB_CORE,
 			SMALL_PAGE_SIZE);
-	m = mobj_page_alloc(c, MAF_NEX | MAF_CORE_MEM | MAF_ZERO_INIT);
+	m = alloc_kdata_page(c);
 	if (!m)
 		panic();
 	thread_user_kdata_page = mobj_get_va(m, 0, c * SMALL_PAGE_SIZE);
