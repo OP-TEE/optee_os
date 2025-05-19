@@ -187,6 +187,7 @@ SECTIONS
 		__nex_bss_end = .;
 	}
 
+#ifndef CFG_DYN_CONFIG
 	/*
 	 * We want to keep all nexus memory in one place, because
 	 * it should be always mapped and it is easier to map one
@@ -212,6 +213,7 @@ SECTIONS
 		ASSERT(!(ABSOLUTE(.) & (16 * 1024 - 1)), "align nozi to 16kB");
 		KEEP(*(.nozi.mmu.base_table .nozi.mmu.l2))
 	}
+#endif
 
 	. = ALIGN(SMALL_PAGE_SIZE);
 
@@ -242,6 +244,10 @@ SECTIONS
 		__bss_end = .;
 	}
 
+#ifdef CFG_DYN_CONFIG
+	. = ALIGN(SMALL_PAGE_SIZE);
+	__flatmap_free_start = .;
+#else
 	.heap1 (NOLOAD) : {
 		/*
 		 * We're keeping track of the padding added before the
@@ -282,7 +288,6 @@ SECTIONS
 #ifndef CFG_WITH_PAGER
 	. = ALIGN(SMALL_PAGE_SIZE);
 	__flatmap_free_start = .;
-	__flatmap_unpg_rw_size = __flatmap_free_start - __flatmap_unpg_rw_start;
 #else
 	.heap2 (NOLOAD) : {
 		__heap2_start = .;
@@ -384,6 +389,7 @@ SECTIONS
 
 
 #endif /*CFG_WITH_PAGER*/
+#endif /*CFG_DYN_CONFIG*/
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
 	/*
@@ -426,6 +432,7 @@ SECTIONS
 #ifndef CFG_CORE_SANITIZE_KADDRESS
 	__flatmap_free_size = _end_of_ram - __flatmap_free_start;
 #endif
+	__flatmap_unpg_rw_size = __flatmap_free_start - __flatmap_unpg_rw_start;
 #endif
 
 	/*
