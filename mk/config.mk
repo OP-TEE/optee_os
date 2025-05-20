@@ -532,8 +532,6 @@ endif
 # has a stable release.
 # This feature requires the support of Device Tree.
 CFG_TRANSFER_LIST ?= n
-$(eval $(call cfg-enable-all-depends,CFG_TRANSFER_LIST, \
-	 CFG_DT CFG_EXTERNAL_DT CFG_MAP_EXT_DT_SECURE))
 
 # Maximum size of the Device Tree Blob, has to be large enough to allow
 # editing of the supplied DTB.
