@@ -703,6 +703,15 @@
 	memory-region = <&mm_ospi1>;
 };
 
+&ommanager {
+	st,omm-mux = <0x0>;
+
+	spi@0 {
+		memory-region = <&mm_ospi1>;
+		/* insert flash definition here */
+	};
+};
+
 &pcie_device {
 	st,protreg = <RISAFPROT(RISAF_REG_ID(1), RIF_CID0_BF|RIF_CID1_BF, RIF_CID0_BF|RIF_CID1_BF, RIF_UNUSED, RIF_NSEC, RIF_ENC_DIS, RIF_BREN_EN)>;
 };
