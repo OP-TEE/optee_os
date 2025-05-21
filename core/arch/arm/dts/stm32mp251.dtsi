@@ -278,6 +278,11 @@
 			};
 		};
 
+		syscfg: syscon@44230000 {
+			reg = <0x44230000 0x10000>;
+			status = "disabled";
+		};
+
 		pinctrl: pinctrl@44240000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
