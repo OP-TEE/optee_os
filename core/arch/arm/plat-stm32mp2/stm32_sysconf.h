@@ -118,4 +118,11 @@ uint32_t stm32mp_syscfg_read(uint32_t id);
  */
 void stm32mp25_syscfg_set_safe_reset(bool status);
 
+/*
+ * Manage OSPI address mapping
+ * @mm1_size: Size of memory addressed by the OSPI1 peripheral
+ * @mm2_size: Size of memory addressed by the OSPI2 peripheral
+ */
+void stm32mp25_syscfg_set_amcr(size_t mm1_size, size_t mm2_size);
+
 #endif /*__STM32_SYSCONF_H__*/
