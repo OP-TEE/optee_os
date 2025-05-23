@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015-2022, Linaro Limited
+ * Copyright (c) 2015-2025, Linaro Limited
  * Copyright (c) 2021-2023, Arm Limited
  */
 
@@ -11,6 +11,7 @@
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
+#include <kernel/asan.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <kernel/thread_private_arch.h>
@@ -280,6 +281,31 @@ clear_nex_bss:
 	cbz	x0, 1f
 	bl	relocate
 1:
+#endif
+
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+	/* Initialize the entire shadow area with no access */
+	adr_l	x0, __asan_shadow_start	/* start */
+	adr_l	x1, __asan_shadow_end	/* limit */
+	mov	x2, #ASAN_DATA_RED_ZONE
+1:	str	x2, [x0], #8
+	cmp	x0, x1
+	bls	1b
+
+#if !defined(CFG_DYN_CONFIG)
+	/* Mark the entire stack area as OK */
+	mov_imm	x2, CFG_ASAN_SHADOW_OFFSET
+	adr_l	x0, __nozi_stack_start	/* start */
+	lsr	x0, x0, #ASAN_BLOCK_SHIFT
+	add	x0, x0, x2
+	adr_l	x1, __nozi_stack_end	/* limit */
+	lsr	x1, x1, #ASAN_BLOCK_SHIFT
+	add	x1, x1, x2
+	mov	w2, #0
+1:	strb	w2, [x0], #1
+	cmp	x0, x1
+	bls	1b
+#endif
 #endif
 
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */

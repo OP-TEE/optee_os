@@ -1179,14 +1179,8 @@ static void collect_mem_ranges(struct memory_map *mem_map)
 		ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, secure_only[n].paddr,
 			     secure_only[n].size);
 
-	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS) &&
-	    IS_ENABLED(CFG_WITH_PAGER)) {
-		/*
-		 * Asan ram is part of MEM_AREA_TEE_RAM_RW when pager is
-		 * disabled.
-		 */
+	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
 		ADD_PHYS_MEM(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
-	}
 
 #undef ADD_PHYS_MEM
 
