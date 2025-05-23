@@ -323,6 +323,7 @@ jobs:
           cd ${TOP}/build
 
           make -j$(nproc) check CFG_LOCKDEP=y CFG_LOCKDEP_RECORD_STACK=n CFG_IN_TREE_EARLY_TAS=pkcs11/fd02c9da-306c-48c7-a49c-bbd827ae86ee CFG_PKCS11_TA=y CFG_CORE_UNSAFE_MODEXP=y XTEST_ARGS="-x pkcs11_1007"
+          make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n XTEST_ARGS="n_1001 n_1003 n_1004"
 
   QEMUv8_check1:
     name: make check (QEMUv8) 1 / 2
@@ -362,6 +363,7 @@ jobs:
 
           make -j$(nproc) check
           make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
+          make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n RUST_ENABLE=n MEASURED_BOOT_FTPM=n XTEST_ARGS="n_1001 n_1003 n_1004"
           # Rust is disabled because signature_verification-rs hangs with this OP-TEE configuration
           # fTPM is disabled because it takes too long to probe with this OP-TEE configuration
           make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001 RUST_ENABLE=n MEASURED_BOOT_FTPM=n
