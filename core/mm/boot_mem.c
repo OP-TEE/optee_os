@@ -71,7 +71,8 @@ static void *mem_alloc_tmp(struct boot_mem_desc *desc, size_t len, size_t align)
 		panic();
 	desc->mem_end = va;
 
-	asan_tag_access((void *)va, (void *)(va + len));
+	asan_tag_access((void *)ROUNDDOWN(va, ASAN_BLOCK_SIZE),
+			(void *)(va + len));
 
 	return (void *)va;
 }
@@ -107,7 +108,8 @@ static void *mem_alloc(struct boot_mem_desc *desc, size_t len, size_t align)
 	add_padding(desc, va);
 	desc->mem_start = ve;
 
-	asan_tag_access((void *)va, (void *)(va + len));
+	asan_tag_access((void *)ROUNDDOWN(va, ASAN_BLOCK_SIZE),
+			(void *)(va + len));
 
 	return (void *)va;
 }
@@ -142,9 +144,11 @@ static bool tag_padding_no_access(vaddr_t va __unused, size_t len __unused,
 
 void boot_mem_init_asan(void)
 {
-	asan_tag_access((void *)boot_mem_desc->orig_mem_start,
+	asan_tag_access((void *)ROUNDDOWN(boot_mem_desc->orig_mem_start,
+					  ASAN_BLOCK_SIZE),
 			(void *)boot_mem_desc->mem_start);
-	asan_tag_access((void *)boot_mem_desc->mem_end,
+	asan_tag_access((void *)ROUNDDOWN(boot_mem_desc->mem_end,
+					  ASAN_BLOCK_SIZE),
 			(void *)boot_mem_desc->orig_mem_end);
 	boot_mem_foreach_padding(tag_padding_no_access, NULL);
 }
@@ -249,7 +253,8 @@ void boot_mem_foreach_padding(bool (*func)(vaddr_t va, size_t len, void *ptr),
 		asan_tag_access(pad, (uint8_t *)pad + sizeof(*pad));
 		start = pad->start;
 		len = pad->len;
-		asan_tag_access((void *)start, (void *)(start + len));
+		asan_tag_access((void *)ROUNDDOWN(start, ASAN_BLOCK_SIZE),
+				(void *)(start + len));
 		next = pad->next;
 		if (func(start, len, ptr)) {
 			DMSG("consumed %p %#"PRIxVA" len %#zx",
@@ -259,7 +264,8 @@ void boot_mem_foreach_padding(bool (*func)(vaddr_t va, size_t len, void *ptr),
 			DMSG("keeping %p %#"PRIxVA" len %#zx",
 			     pad, start, len);
 			prev = &pad->next;
-			asan_tag_no_access((void *)start,
+			asan_tag_no_access((void *)ROUNDDOWN(start,
+							     ASAN_BLOCK_SIZE),
 					   (void *)(start + len));
 		}
 	}
