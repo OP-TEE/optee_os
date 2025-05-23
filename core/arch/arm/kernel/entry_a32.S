@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014-2025, Linaro Limited
  * Copyright (c) 2021-2023, Arm Limited
  */
 
@@ -433,6 +433,7 @@ shadow_no_access:
 	cmp	r0, r1
 	bls	shadow_no_access
 
+#if !defined(CFG_DYN_CONFIG)
 	/* Mark the entire stack area as OK */
 	ldr	r2, =CFG_ASAN_SHADOW_OFFSET
 	ldr	r0, =__nozi_stack_start	/* start */
@@ -446,6 +447,7 @@ shadow_stack_access_ok:
 	strb	r2, [r0], #1
 	cmp	r0, r1
 	bls	shadow_stack_access_ok
+#endif
 #endif
 
 #if defined(CFG_DYN_CONFIG)
