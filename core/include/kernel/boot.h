@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015-2020, Linaro Limited
+ * Copyright (c) 2015-2025, Linaro Limited
  * Copyright (c) 2021-2023, Arm Limited
  */
 #ifndef __KERNEL_BOOT_H
@@ -115,6 +115,7 @@ int mark_static_shm_as_reserved(struct dt_descriptor *dt);
  * free physical memory once MMU is initialized.
  */
 void boot_mem_init(vaddr_t start, vaddr_t end, vaddr_t orig_end);
+void boot_mem_init_asan(void);
 void boot_mem_foreach_padding(bool (*func)(vaddr_t va, size_t len, void *ptr),
 			      void *ptr);
 void boot_mem_add_reloc(void *ptr);

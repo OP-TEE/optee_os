@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2024, Linaro Limited
+ * Copyright (c) 2024-2025, Linaro Limited
  */
 
 #include <assert.h>
+#include <kernel/asan.h>
 #include <kernel/boot.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -61,6 +62,9 @@ static void *mem_alloc_tmp(struct boot_mem_desc *desc, size_t len, size_t align)
 {
 	vaddr_t va = 0;
 
+	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
+		align = MAX(align, ASAN_BLOCK_SIZE);
+
 	assert(desc && desc->mem_start && desc->mem_end);
 	assert(IS_POWER_OF_TWO(align) && !(len % align));
 	if (SUB_OVERFLOW(desc->mem_end, len, &va))
@@ -69,18 +73,26 @@ static void *mem_alloc_tmp(struct boot_mem_desc *desc, size_t len, size_t align)
 	if (va < desc->mem_start)
 		panic();
 	desc->mem_end = va;
+
+	asan_tag_access((void *)va, (void *)(va + len));
+
 	return (void *)va;
 }
 
 static void add_padding(struct boot_mem_desc *desc, vaddr_t va)
 {
 	struct boot_mem_padding *pad = NULL;
-	vaddr_t rounded = ROUNDUP(desc->mem_start, alignof(*pad));
+	vaddr_t start = desc->mem_start;
+	vaddr_t rounded = 0;
 
+	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
+		start = ROUNDUP(start, ASAN_BLOCK_SIZE);
+
+	rounded = ROUNDUP(start, alignof(*pad));
 	if (rounded < va && va - rounded > sizeof(*pad)) {
 		pad = (struct boot_mem_padding *)rounded;
-		pad->start = desc->mem_start;
-		pad->len = va - desc->mem_start;
+		pad->start = start;
+		pad->len = va - start;
 		DMSG("%#"PRIxVA" len %#zx", pad->start, pad->len);
 		pad->next = desc->padding;
 		desc->padding = pad;
@@ -92,6 +104,9 @@ static void *mem_alloc(struct boot_mem_desc *desc, size_t len, size_t align)
 	vaddr_t va = 0;
 	vaddr_t ve = 0;
 
+	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
+		align = MAX(align, ASAN_BLOCK_SIZE);
+
 	runtime_assert(!IS_ENABLED(CFG_WITH_PAGER));
 	assert(desc && desc->mem_start && desc->mem_end);
 	assert(IS_POWER_OF_TWO(align) && !(len % align));
@@ -102,6 +117,9 @@ static void *mem_alloc(struct boot_mem_desc *desc, size_t len, size_t align)
 		panic();
 	add_padding(desc, va);
 	desc->mem_start = ve;
+
+	asan_tag_access((void *)va, (void *)(va + len));
+
 	return (void *)va;
 }
 
@@ -120,6 +138,28 @@ void boot_mem_init(vaddr_t start, vaddr_t end, vaddr_t orig_end)
 					     sizeof(*boot_mem_desc->reloc),
 					     alignof(*boot_mem_desc->reloc));
 	memset(boot_mem_desc->reloc, 0, sizeof(*boot_mem_desc->reloc));
+}
+
+static bool tag_padding_no_access(vaddr_t va __unused, size_t len __unused,
+				  void *ptr __unused)
+{
+	/*
+	 * No need to do anything since boot_mem_foreach_padding() calls
+	 * asan_tag_access() before this function is called and calls
+	 * asan_tag_no_access() after this function has returned false.
+	 */
+	return false;
+}
+
+void boot_mem_init_asan(void)
+{
+	asan_tag_access((void *)ROUNDDOWN(boot_mem_desc->orig_mem_start,
+					  ASAN_BLOCK_SIZE),
+			(void *)boot_mem_desc->mem_start);
+	asan_tag_access((void *)ROUNDDOWN(boot_mem_desc->mem_end,
+					  ASAN_BLOCK_SIZE),
+			(void *)boot_mem_desc->orig_mem_end);
+	boot_mem_foreach_padding(tag_padding_no_access, NULL);
 }
 
 void boot_mem_add_reloc(void *ptr)
@@ -216,9 +256,13 @@ void boot_mem_foreach_padding(bool (*func)(vaddr_t va, size_t len, void *ptr),
 
 	prev = &boot_mem_desc->padding;
 	for (pad = boot_mem_desc->padding; pad; pad = next) {
-		vaddr_t start = pad->start;
-		size_t len = pad->len;
+		vaddr_t start = 0;
+		size_t len = 0;
 
+		asan_tag_access(pad, (uint8_t *)pad + sizeof(*pad));
+		start = pad->start;
+		len = pad->len;
+		asan_tag_access((void *)start, (void *)(start + len));
 		next = pad->next;
 		if (func(start, len, ptr)) {
 			DMSG("consumed %p %#"PRIxVA" len %#zx",
@@ -228,6 +272,8 @@ void boot_mem_foreach_padding(bool (*func)(vaddr_t va, size_t len, void *ptr),
 			DMSG("keeping %p %#"PRIxVA" len %#zx",
 			     pad, start, len);
 			prev = &pad->next;
+			asan_tag_no_access((void *)start,
+					   (void *)(start + len));
 		}
 	}
 }
