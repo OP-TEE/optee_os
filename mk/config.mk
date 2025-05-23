@@ -851,6 +851,11 @@ $(error CFG_SCMI_SCPFW=y requires CFG_SCP_FIRMWARE configuration)
 endif
 endif #CFG_SCMI_SCPFW
 
+# CFG_SCMI_SCPFW_FROM_DT, when enabled, calls scpfw_configure() function
+# in SCP-firmware that will retrieve resources in "scmi" fdt node.
+CFG_SCMI_SCPFW_FROM_DT ?= n
+$(eval $(call cfg-depends-all,CFG_SCMI_SCPFW_FROM_DT,CFG_SCMI_SCPFW CFG_EMBED_DTB))
+
 ifeq ($(CFG_SCMI_MSG_DRIVERS)-$(CFG_SCMI_SCPFW),y-y)
 $(error CFG_SCMI_MSG_DRIVERS=y and CFG_SCMI_SCPFW=y are mutually exclusive)
 endif

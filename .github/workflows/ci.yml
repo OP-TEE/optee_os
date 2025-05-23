@@ -82,7 +82,7 @@ jobs:
           function _make() { make -j$(nproc) -s O=out $*; }
           function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.2 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
 
-          function download_scp_firmware() { git clone --single-branch https://git.gitlab.arm.com/firmware/SCP-firmware.git $HOME/scp-firmware &&  git -C $HOME/scp-firmware checkout 22aecaa9cee258d707880c5b8823dd7974b66717 || (rm -rf $HOME/scp-firmware ; echo Nervermind); }
+          function download_scp_firmware() { git clone --single-branch https://git.gitlab.arm.com/firmware/SCP-firmware.git $HOME/scp-firmware &&  git -C $HOME/scp-firmware checkout 0d48080449e3bd3e5218a31c5f24a6068004c5af || (rm -rf $HOME/scp-firmware ; echo Nervermind); }
 
           ccache -s -v
           download_plug_and_trust
@@ -147,8 +147,10 @@ jobs:
           _make PLATFORM=stm32mp1-135F_DK CFG_DRIVERS_CLK_PRINT_TREE=y CFG_DRIVERS_REGULATOR_PRINT_TREE=y
           _make PLATFORM=stm32mp1-135F_DK COMPILER=clang
           _make PLATFORM=stm32mp1 CFG_STM32MP1_OPTEE_IN_SYSRAM=y CFG_STM32MP_REMOTEPROC=y
-          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp1-157C_DK2 CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
+          # Don't build stm32mp1 with SCP-Firmware until its support is fixed in SCP-Firmware source tree
+          # if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp1-157C_DK2 CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
           _make PLATFORM=stm32mp2
+          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp2 CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
           _make PLATFORM=vexpress-fvp
           _make PLATFORM=vexpress-fvp CFG_ARM64_core=y
           _make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_CORE_SEL1_SPMC=y CFG_SECURE_PARTITION=y
