@@ -386,8 +386,18 @@ SECTIONS
 #endif /*CFG_WITH_PAGER*/
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
+	/*
+	 * Guard against moving the location counter backwards in the assignment
+	 * below.
+	 */
+	ASSERT(. <= (TEE_RAM_START + (TEE_RAM_VA_SIZE * 8) / 9 - 8),
+		"TEE_RAM_VA_SIZE is too small")
 	. = TEE_RAM_START + (TEE_RAM_VA_SIZE * 8) / 9 - 8;
 	. = ALIGN(8);
+#ifndef CFG_WITH_PAGER
+	__flatmap_free_size = LD_ROUNDDOWN(. - __flatmap_free_start,
+					   SMALL_PAGE_SIZE);
+#endif
 	.asan_shadow : {
 		__asan_shadow_start = .;
 		. += TEE_RAM_VA_SIZE / 9;
@@ -413,7 +423,9 @@ SECTIONS
 
 #ifndef CFG_WITH_PAGER
 	__get_tee_init_end = .;
+#ifndef CFG_CORE_SANITIZE_KADDRESS
 	__flatmap_free_size = _end_of_ram - __flatmap_free_start;
+#endif
 #endif
 
 	/*
