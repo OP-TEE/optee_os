@@ -9,6 +9,7 @@
 #include <keep.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#include <kernel/thread_private_arch.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <riscv.h>
@@ -176,6 +177,50 @@ UNWIND(	.cantunwind)
 #endif
 
 	csrw	CSR_SATP, zero
+
+	/* Setup sp and tp */
+#if defined(CFG_DYN_STACK_CONFIG)
+	/*
+	 * Point sp to a temporary stack at the end of mapped core memory.
+	 * Point tp to a temporary struct thread_core_local before the temporary
+	 * stack.
+	 */
+	la	t0, __vcore_free_end
+	li	t1, THREAD_BOOT_INIT_TMP_ALLOC
+	sub	t1, t0, t1
+
+	/* Clear the allocated struct thread_core_local */
+	add	t2, t1, THREAD_CORE_LOCAL_SIZE
+1:	addi	t2, t2, -RISCV_XLEN_BYTES
+	STR	zero, (t2)
+	bgt	t2, t1, 1b
+
+	li	t2, THREAD_ID_INVALID
+	sh	t2, THREAD_CORE_LOCAL_CURR_THREAD(t1)
+	li	t2, THREAD_CLF_TMP
+	sw	t2, THREAD_CORE_LOCAL_FLAGS(t1)
+	li	t2, (__STACK_CANARY_SIZE / 2)
+	sub	t0, t0, t2
+	STR	t0, THREAD_CORE_LOCAL_TMP_STACK_VA_END(t1)
+	li	t2, (THREAD_BOOT_INIT_TMP_ALLOC / 2)
+	sub	t2, t0, t2
+	STR	t2, THREAD_CORE_LOCAL_ABT_STACK_VA_END(t1)
+	csrr	t2, CSR_XSCRATCH /* t2: hart_index */
+	sw	a0, THREAD_CORE_LOCAL_HART_ID(t1)
+	sw	t2, THREAD_CORE_LOCAL_HART_INDEX(t1)
+
+	mv	sp, t0
+	mv	tp, t1
+	/*
+	 * Record a single core, to be changed later before secure world
+	 * boot is done.
+	 */
+	la	t2, thread_core_local
+	STR	tp, 0(t2)
+	la	t2, thread_core_count
+	li	t0, 1
+	STR	t0, 0(t2)
+#else
 	set_sp
 	set_tp
 
@@ -188,12 +233,17 @@ UNWIND(	.cantunwind)
 	sh	a0, THREAD_CORE_LOCAL_CURR_THREAD(tp)
 	li	a0, THREAD_CLF_TMP
 	sw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
+#endif
 
 	jal	plat_primary_init_early
 	jal	console_init
 
 	la	a0, __vcore_free_start
 	la	a1, __vcore_free_end
+#ifdef CFG_DYN_STACK_CONFIG
+	li	a2, THREAD_BOOT_INIT_TMP_ALLOC
+	sub	a1, a1, a2
+#endif
 	la	a2, __vcore_free_end
 	jal	boot_mem_init
 
@@ -203,11 +253,48 @@ UNWIND(	.cantunwind)
 
 	set_satp
 
+#ifdef CFG_CORE_ASLR
+#if defined(CFG_DYN_STACK_CONFIG)
+	/*
+	 * thread_core_local holds only one core and thread_core_count is 1
+	 * so tp points to the updated pointer for thread_core_local.
+	 */
+	la	t0, thread_core_local
+	STR	tp, 0(t0)
+#endif
+#endif
+
 	jal	boot_init_primary_early
 
 	mv	a0, s1		/* s1 contains saved device tree address */
 	mv	a1, x0		/* unused */
 	jal	boot_init_primary_late
+
+#if defined(CFG_DYN_STACK_CONFIG)
+	/* Get hart index */
+	jal	__get_core_pos
+
+	/*
+	 * Switch to the new thread_core_local and thread_core_count and
+	 * keep the pointer to the new thread_core_local in a1.
+	 */
+	LDR	a1, __thread_core_count_new
+	la	a2, thread_core_count
+	STR	a1, 0(a2)
+	LDR	a1, __thread_core_local_new
+	la	a2, thread_core_local
+	STR	a1, 0(a2)
+
+	/*
+	 * Update tp to point the new thread_core_local.
+	 * Update sp to use the new tmp stack.
+	 */
+	li	a2, THREAD_CORE_LOCAL_SIZE
+	/* tp = a2 * a0(hart index) + a1(thread_core_local) */
+	mul	a2, a2, a0
+	add	tp, a2, a1
+	LDR	sp, THREAD_CORE_LOCAL_TMP_STACK_VA_END(tp)
+#endif
 
 	/*
 	 * Before entering boot_init_primary_runtime(), we do these two steps:
@@ -271,8 +358,24 @@ LOCAL_FUNC reset_secondary , : , .identity_map
 UNWIND(	.cantunwind)
 	wait_primary
 	csrw	CSR_SATP, zero
+#if defined(CFG_DYN_STACK_CONFIG)
+	/*
+	 * Update tp to point the new thread_core_local.
+	 * Update sp to use the new tmp stack.
+	 */
+	csrr	t0, CSR_XSCRATCH /* t0: hart_index */
+	LDR	t1, thread_core_local
+	li	t2, THREAD_CORE_LOCAL_SIZE
+	/* tp = t2 * t0(hart index) + t1(thread_core_local) */
+	mul	t2, t2, t0
+	add	tp, t2, t1
+	sw	a0, THREAD_CORE_LOCAL_HART_ID(tp)
+	sw	t0, THREAD_CORE_LOCAL_HART_INDEX(tp)
+	LDR	sp, THREAD_CORE_LOCAL_TMP_STACK_VA_END(tp)
+#else
 	set_sp
 	set_tp
+#endif
 	set_satp
 	cpu_is_ready
 
@@ -312,13 +415,11 @@ LOCAL_DATA sem_cpu_sync_end , :
 END_DATA sem_cpu_sync_end
 #endif
 
+#if !defined(CFG_DYN_STACK_CONFIG)
 LOCAL_DATA stack_tmp_rel , :
 	.word	stack_tmp - stack_tmp_rel - STACK_TMP_GUARD
 END_DATA stack_tmp_rel
-
-LOCAL_DATA stack_tmp_stride_rel , :
-	.word	stack_tmp_stride - stack_tmp_stride_rel
-END_DATA stack_tmp_stride_rel
+#endif
 
 	.balign	8
 LOCAL_DATA boot_mmu_config , : /* struct core_mmu_config */

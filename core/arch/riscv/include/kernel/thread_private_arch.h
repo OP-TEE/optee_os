@@ -130,4 +130,11 @@ static inline void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 void thread_scall_handler(struct thread_scall_regs *regs);
 
 #endif /*__ASSEMBLER__*/
+
+/*
+ * Used in entry.S to allocate a temporary thread_core_local[0] for the boot CPU
+ * and the associated abort and temporary stacks.
+ */
+#define THREAD_BOOT_INIT_TMP_ALLOC	(SMALL_PAGE_SIZE * 6)
+
 #endif /*__KERNEL_THREAD_PRIVATE_ARCH_H*/

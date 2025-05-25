@@ -24,6 +24,7 @@
 #include <platform_config.h>
 #include <riscv.h>
 #include <sbi.h>
+#include <stdalign.h>
 #include <stdio.h>
 #include <trace.h>
 #include <util.h>
@@ -132,6 +133,13 @@ static void init_primary(void)
 
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 	IMSG_RAW("\n");
+	if (IS_ENABLED(CFG_DYN_CONFIG)) {
+		size_t sz = sizeof(struct thread_core_local) *
+			    CFG_TEE_CORE_NB_CORE;
+		void *p = boot_mem_alloc(sz, 2 * alignof(void *));
+
+		malloc_add_pool(p, sz);
+	}
 
 	core_mmu_save_mem_map();
 	core_mmu_init_phys_mem();
@@ -140,8 +148,8 @@ static void init_primary(void)
 	if (IS_ENABLED(CFG_DYN_CONFIG))
 		page_alloc_init();
 
-	thread_init_threads(CFG_NUM_THREADS);
-	thread_init_primary();
+	/* Initialize canaries around the stacks */
+	thread_init_canaries();
 	thread_init_per_cpu();
 }
 
@@ -208,8 +216,9 @@ void boot_init_primary_late(unsigned long fdt,
 	init_external_dt(fdt, CFG_DTB_MAX_SIZE);
 	discover_nsec_memory();
 	update_external_dt();
-	thread_init_thread_core_local(CFG_TEE_CORE_NB_CORE);
+	thread_init_threads(CFG_NUM_THREADS);
 	thread_init_boot_thread();
+	thread_init_thread_core_local(CFG_TEE_CORE_NB_CORE);
 }
 
 void __weak boot_init_primary_runtime(void)
@@ -219,6 +228,7 @@ void __weak boot_init_primary_runtime(void)
 	/* The primary CPU is always indexed by 0 */
 	assert(pos == 0);
 
+	thread_init_primary();
 	IMSG("OP-TEE version: %s", core_v_str);
 	if (IS_ENABLED(CFG_INSECURE)) {
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
