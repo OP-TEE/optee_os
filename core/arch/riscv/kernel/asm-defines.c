@@ -38,6 +38,7 @@ DEFINES
 	DEFINE(THREAD_CORE_LOCAL_X1, offsetof(struct thread_core_local, x[1]));
 
 	DEFINE(STACK_TMP_GUARD, STACK_CANARY_SIZE / 2 + STACK_TMP_OFFS);
+	DEFINE(__STACK_CANARY_SIZE, STACK_CANARY_SIZE);
 
 	/* struct thread_ctx_regs */
 	DEFINE(THREAD_CTX_REG_STATUS, offsetof(struct thread_ctx_regs, status));

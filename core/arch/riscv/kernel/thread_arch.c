@@ -464,9 +464,6 @@ static void init_user_kcode(void)
 
 void thread_init_primary(void)
 {
-	/* Initialize canaries around the stacks */
-	thread_init_canaries();
-
 	init_user_kcode();
 }
 
