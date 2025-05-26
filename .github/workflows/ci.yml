@@ -311,7 +311,7 @@ jobs:
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
-          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_TEE_CORE_LOG_LEVEL=2
           WD=$(pwd)
           cd ..
           TOP=$(pwd)/optee
@@ -347,7 +347,7 @@ jobs:
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
-          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_TEE_CORE_LOG_LEVEL=2
           export CFG_ATTESTATION_PTA=y
           export CFG_ATTESTATION_PTA_KEY_SIZE=1024
           OPTEE_OS_TO_TEST=$(pwd)
@@ -393,7 +393,7 @@ jobs:
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
-          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_TEE_CORE_LOG_LEVEL=2
           export CFG_ATTESTATION_PTA=y
           export CFG_ATTESTATION_PTA_KEY_SIZE=1024
           OPTEE_OS_TO_TEST=$(pwd)
@@ -434,7 +434,7 @@ jobs:
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
-          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_TEE_CORE_LOG_LEVEL=2
           export CFG_ATTESTATION_PTA=y
           export CFG_ATTESTATION_PTA_KEY_SIZE=1024
           export COMPILER=clang
@@ -472,7 +472,7 @@ jobs:
           # make check task
           set -e -v
           export LC_ALL=C
-          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_TEE_CORE_LOG_LEVEL=2
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
           OPTEE_OS_TO_TEST=$(pwd)
@@ -509,7 +509,7 @@ jobs:
           # make check task
           set -e -v
           export LC_ALL=C
-          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_TEE_CORE_LOG_LEVEL=2
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
           OPTEE_OS_TO_TEST=$(pwd)
@@ -545,7 +545,7 @@ jobs:
           # make check task
           set -e -v
           export LC_ALL=C
-          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_TEE_CORE_LOG_LEVEL=2
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
           OPTEE_OS_TO_TEST=$(pwd)
@@ -586,7 +586,7 @@ jobs:
           export AARCH64_CROSS_COMPILE=aarch64-unknown-linux-uclibc-
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
-          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_TEE_CORE_LOG_LEVEL=2
           export CFG_USER_TA_TARGETS=ta_arm64
           OPTEE_OS_TO_TEST=$(pwd)
           cd ..
@@ -627,7 +627,7 @@ jobs:
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export FORCE_UNSAFE_CONFIGURE=1 # Prevent Buildroot error when building as root
-          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_TEE_CORE_LOG_LEVEL=2
           export CFG_ATTESTATION_PTA=y
           export CFG_ATTESTATION_PTA_KEY_SIZE=1024
           OPTEE_OS_TO_TEST=$(pwd)
