@@ -1,6 +1,11 @@
+flavor_dts_file-215F_DK = stm32mp215f-dk.dts
 flavor_dts_file-257F_EV1 = stm32mp257f-ev1.dts
 
+flavorlist-MP21 = $(flavor_dts_file-215F_DK)
 flavorlist-MP25 = $(flavor_dts_file-257F_EV1)
+
+# List of all DTS for this PLATFORM
+ALL_DTS = $(flavorlist-MP21) $(flavorlist-MP25)
 
 ifneq ($(PLATFORM_FLAVOR),)
 ifeq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
@@ -10,12 +15,21 @@ CFG_EMBED_DTB_SOURCE_FILE ?= $(flavor_dts_file-$(PLATFORM_FLAVOR))
 endif
 CFG_EMBED_DTB_SOURCE_FILE ?= stm32mp257f-ev1.dts
 
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP21)),)
+$(call force,CFG_STM32MP21,y)
+endif
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP25)),)
 $(call force,CFG_STM32MP25,y)
 endif
 
-ifneq ($(CFG_STM32MP25),y)
-$(error STM32 Platform must be defined)
+# CFG_STM32MP2x switches are exclusive.
+# - CFG_STM32MP21 is enabled for STM32MP21x-* targets
+# - CFG_STM32MP25 is enabled for STM32MP25x-* targets (default)
+ifeq ($(CFG_STM32MP21),y)
+$(call force,CFG_STM32MP25,n)
+else
+$(call force,CFG_STM32MP21,n)
+$(call force,CFG_STM32MP25,y)
 endif
 
 include core/arch/arm/cpu/cortex-armv8-0.mk
@@ -35,10 +49,14 @@ $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_STM32_SHARED_IO,y)
 $(call force,CFG_STM32_STGEN,y)
 $(call force,CFG_STM32MP_CLK_CORE,y)
-$(call force,CFG_STM32MP25_CLK,y)
-$(call force,CFG_STM32MP25_RSTCTRL,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_WITH_LPAE,y)
+
+ifeq ($(CFG_STM32MP21),y)
+else
+$(call force,CFG_STM32MP25_CLK,y)
+$(call force,CFG_STM32MP25_RSTCTRL,y)
+endif
 
 CFG_TZDRAM_START ?= 0x82000000
 CFG_TZDRAM_SIZE  ?= 0x02000000
@@ -53,6 +71,9 @@ CFG_DTB_MAX_SIZE ?= 262144
 CFG_HALT_CORES_ON_PANIC ?= y
 CFG_MMAP_REGIONS ?= 30
 CFG_NUM_THREADS ?= 5
+ifeq ($(CFG_STM32MP21),y)
+$(call force,CFG_TEE_CORE_NB_CORE,1)
+endif
 CFG_TEE_CORE_NB_CORE ?= 2
 CFG_STM32MP_OPP_COUNT ?= 3
 
@@ -100,6 +121,10 @@ CFG_HWRNG_QUALITY ?= 1024
 endif
 
 # Enable reset control
+ifeq ($(CFG_STM32MP21_RSTCTRL),y)
+$(call force,CFG_DRIVERS_RSTCTRL,y)
+$(call force,CFG_STM32_RSTCTRL,y)
+endif
 ifeq ($(CFG_STM32MP25_RSTCTRL),y)
 $(call force,CFG_DRIVERS_RSTCTRL,y)
 $(call force,CFG_STM32_RSTCTRL,y)
