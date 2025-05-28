@@ -366,6 +366,7 @@
 			compatible = "st,stm32-tamp", "syscon", "simple-mfd";
 			reg = <0x5c00a000 0x400>;
 			clocks = <&rcc RTCAPB>;
+			interrupts = <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>;
 			st,backup-zones = <10 5 17>;
 		};
 
