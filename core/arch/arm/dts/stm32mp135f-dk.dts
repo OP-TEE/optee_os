@@ -11,6 +11,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/stm32mp_gpio.h>
 #include <dt-bindings/regulator/st,stm32mp13-regulator.h>
+#include <dt-bindings/tamper/st,stm32mp13-tamp.h>
 #include "stm32mp135.dtsi"
 #include "stm32mp13xf.dtsi"
 #include "stm32mp13-pinctrl.dtsi"
@@ -117,6 +118,10 @@
 		<DECPROT(STM32MP1_ETZPC_USART2_ID, DECPROT_NS_RW, DECPROT_UNLOCK)>,
 		<DECPROT(STM32MP1_ETZPC_USBPHYCTRL_ID, DECPROT_NS_RW, DECPROT_UNLOCK)>,
 		<DECPROT(STM32MP1_ETZPC_VREFBUF_ID, DECPROT_NS_RW, DECPROT_UNLOCK)>;
+};
+
+&gpioa {
+	st,protreg = <TZPROT(6)>;
 };
 
 &gpiob {
@@ -525,6 +530,28 @@
 
 &sdmmc2_io {
 	vddsd2-supply = <&vdd>;
+};
+
+&tamp {
+	st,tamp-passive-nb-sample = <4>;
+	st,tamp-passive-sample-clk-div = <16384>;
+	wakeup-source;
+
+	/* Tamper button */
+	tamp-button {
+		tamper-gpios = <&gpioa 6 0>;
+		st,tamp-mode = <TAMPER_CONFIRMED_MODE>;
+		st,tamp-id = <2>;
+		status = "okay";
+	};
+
+	/* Connect pin8 and pin22 from CN8 */
+	tamp-active {
+		tamper-gpios = <&gpioc 0 0>, <&gpioi 0 0>;
+		st,tamp-mode = <TAMPER_CONFIRMED_MODE>;
+		st,tamp-id = <3>, <1>;
+		status = "disabled";
+	};
 };
 
 &tzc400 {
