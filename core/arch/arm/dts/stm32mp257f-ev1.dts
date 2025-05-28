@@ -12,6 +12,7 @@
 #include "stm32mp257f-ev1-ca35tdcid-rif.dtsi"
 #include "stm32mp25xf.dtsi"
 #include "stm32mp25-pinctrl.dtsi"
+#include "stm32mp25-st-scmi-cfg.dtsi"
 #include "stm32mp25xxai-pinctrl.dtsi"
 
 / {
