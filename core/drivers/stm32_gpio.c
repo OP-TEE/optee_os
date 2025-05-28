@@ -229,6 +229,13 @@ static struct stm32_gpio_bank *gpio_chip_to_bank(struct gpio_chip *chip)
 	return container_of(chip, struct stm32_gpio_bank, gpio_chip);
 }
 
+unsigned int stm32_gpio_chip_bank_id(struct gpio_chip *chip)
+{
+	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
+
+	return bank->bank_id;
+}
+
 static enum gpio_level stm32_gpio_get_level(struct gpio_chip *chip,
 					    unsigned int gpio_pin)
 {
