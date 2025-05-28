@@ -6,6 +6,7 @@
 
 /dts-v1/;
 #include <dt-bindings/clock/stm32mp25-clksrc.h>
+#include <dt-bindings/tamper/st,stm32mp25-tamp.h>
 #include "stm32mp257.dtsi"
 #include "stm32mp257f-ev1-ca35tdcid-rcc.dtsi"
 #include "stm32mp257f-ev1-ca35tdcid-resmem.dtsi"
@@ -69,6 +70,21 @@
 
 &risaf5 {
 	status = "okay";
+};
+
+&tamp {
+	st,tamp-passive-precharge = <2>;
+	st,tamp-passive-nb-sample = <4>;
+	st,tamp-passive-sample-clk-div = <16384>;
+	wakeup-source;
+
+	/* Tamper button */
+	tamp-button {
+		status = "okay";
+		tamper-gpios = <&gpioi 8 0>;
+		st,tamp-mode = <TAMPER_CONFIRMED_MODE>;
+		st,tamp-id = <1>;
+	};
 };
 
 &usart2 {
