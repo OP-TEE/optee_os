@@ -307,7 +307,7 @@
 		tamp: tamp@5c00a000 {
 			compatible = "st,stm32mp13-tamp";
 			reg = <0x5c00a000 0x400>;
-			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&exti 18 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&rcc RTCAPB>;
 			st,backup-zones = <10 5 17>;
 		};
