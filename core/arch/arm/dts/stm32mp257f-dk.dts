@@ -6,7 +6,11 @@
 
 /dts-v1/;
 
+#include <dt-bindings/clock/stm32mp25-clksrc.h>
 #include "stm32mp257.dtsi"
+#include "stm32mp257f-dk-ca35tdcid-rcc.dtsi"
+#include "stm32mp257f-dk-ca35tdcid-resmem.dtsi"
+#include "stm32mp257f-dk-ca35tdcid-rif.dtsi"
 #include "stm32mp25xf.dtsi"
 #include "stm32mp25-pinctrl.dtsi"
 #include "stm32mp25xxal-pinctrl.dtsi"
