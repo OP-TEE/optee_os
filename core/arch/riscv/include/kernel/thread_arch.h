@@ -198,7 +198,6 @@ static inline void thread_user_clear_vfp(struct user_mode_ctx *uctx __unused)
 #endif
 
 vaddr_t thread_get_saved_thread_sp(void);
-uint32_t thread_get_hartid_by_hartindex(uint32_t hartidx);
 
 static inline void thread_get_user_kcode(struct mobj **mobj, size_t *offset,
 					 vaddr_t *va, size_t *sz)

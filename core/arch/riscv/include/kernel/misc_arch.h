@@ -9,4 +9,6 @@
 /* Bootable hart ID table */
 extern uint32_t hartids[CFG_TEE_CORE_NB_CORE];
 
+size_t get_core_pos_hartid(void);
+
 #endif /*__KERNEL_MISC_ARCH_H*/
