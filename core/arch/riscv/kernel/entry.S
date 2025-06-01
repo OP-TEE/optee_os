@@ -57,14 +57,15 @@
 .endm
 
 .macro set_tp
-	csrr	a3, CSR_XSCRATCH /* a3: hart_index */
-	li	a1, THREAD_CORE_LOCAL_SIZE
+	csrr	t0, CSR_XSCRATCH /* t0: hart_index */
+	li	t1, THREAD_CORE_LOCAL_SIZE
+	mul	t2, t1, t0
 	la	tp, thread_core_local
 	LDR	tp, 0(tp)
-	mul	a2, a1, a3
-	add	tp, tp, a2
-	sw	a0, THREAD_CORE_LOCAL_HART_ID(tp)
-	sw	a3, THREAD_CORE_LOCAL_HART_INDEX(tp)
+	add	tp, tp, t2
+	/* Save hart_id and hart_index into thread_core_local */
+	sw	s0, THREAD_CORE_LOCAL_HART_ID(tp)
+	sw	t0, THREAD_CORE_LOCAL_HART_INDEX(tp)
 .endm
 
 .macro set_satp
@@ -130,6 +131,7 @@ FUNC _start , :
 	 * a0	- if non-NULL holds the hart ID
 	 * a1	- if non-NULL holds the system DTB address
 	 *
+	 * s0 - saved a0
 	 * s1 - saved a1
 	 */
 .option push
@@ -139,6 +141,7 @@ FUNC _start , :
 #ifdef CFG_RISCV_M_MODE
 	csrr	a0, CSR_MHARTID
 #endif
+	mv	s0, a0		/* Save hart ID into s0 */
 
 #if defined(CFG_DT_ADDR)
 	li	s1, CFG_DT_ADDR
