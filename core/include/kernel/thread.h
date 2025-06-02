@@ -68,7 +68,7 @@ struct thread_core_local *thread_get_core_local(void);
  * virtualization is disabled. Virtualization subsystem calls it for every
  * new guest otherwise. @thread_count must be <= CFG_NUM_THREADS, and will
  * initialize the number of threads to @thread_count if configured with
- * CFG_DYN_STACK_CONFIG=y, else @thread_count must equal CFG_NUM_THREADS.
+ * CFG_DYN_CONFIG=y, else @thread_count must equal CFG_NUM_THREADS.
  */
 void thread_init_threads(size_t thread_count);
 

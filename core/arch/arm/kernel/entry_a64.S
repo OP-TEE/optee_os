@@ -283,7 +283,7 @@ clear_nex_bss:
 #endif
 
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 	/*
 	 * Point SP_EL0 to a temporary stack with the at the end of mapped
 	 * core memory.
@@ -374,7 +374,7 @@ clear_nex_bss:
 	adr_l	x0, __vcore_free_start
 	adr_l	x1, boot_embdata_ptr
 	ldr	x1, [x1]
-#ifdef CFG_DYN_STACK_CONFIG
+#ifdef CFG_DYN_CONFIG
 	sub	x1, x1, #THREAD_BOOT_INIT_TMP_ALLOC
 #endif
 	adr_l	x2, __vcore_free_end;
@@ -426,7 +426,7 @@ clear_nex_bss:
 	bl	__get_core_pos
 	bl	enable_mmu
 #ifdef CFG_CORE_ASLR
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 	/*
 	 * thread_core_local holds only one core and thread_core_count is 1
 	 * so SP_EL1 points to the updated pointer for thread_core_local.
@@ -485,7 +485,7 @@ clear_nex_bss:
 #endif
 	bl	boot_init_primary_late
 
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 	bl	__get_core_pos
 
 	/*
@@ -777,7 +777,7 @@ FUNC cpu_on_handler , :
 	bl	__get_core_pos
 	bl	enable_mmu
 
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 	/*
 	 * Update SP_EL0 to use the new tmp stack and update SP_EL1 to
 	 * point the new thread_core_local.
@@ -822,7 +822,7 @@ LOCAL_FUNC unhandled_cpu , :
 	b	unhandled_cpu
 END_FUNC unhandled_cpu
 
-#if !defined(CFG_DYN_STACK_CONFIG)
+#if !defined(CFG_DYN_CONFIG)
 LOCAL_DATA stack_tmp_rel , :
 	.word	stack_tmp - stack_tmp_rel - STACK_TMP_GUARD
 END_DATA stack_tmp_rel

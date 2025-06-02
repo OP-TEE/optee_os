@@ -1292,20 +1292,11 @@ CFG_CORE_UNSAFE_MODEXP ?= n
 CFG_TA_MBEDTLS_UNSAFE_MODEXP ?= n
 
 # CFG_DYN_CONFIG, when enabled, use dynamic memory allocation for translation
-# tables. Not supported with pager.
-# CFG_DYN_STACK_CONFIG, when enabled, use dynamic memory allocation for
-# stacks. Not supported with pager.
+# tables and stacks. Not supported with pager.
 ifeq ($(CFG_WITH_PAGER),y)
 $(call force,CFG_DYN_CONFIG,n,conflicts with CFG_WITH_PAGER)
-$(call force,CFG_DYN_STACK_CONFIG,n,conflicts with CFG_WITH_PAGER)
 else
 CFG_DYN_CONFIG ?= y
-ifeq ($(ARCH),arm)
-# CFG_DYN_CONFIG can replace CFG_DYN_STACK_CONFIG once riscv support it
-$(call force,CFG_DYN_STACK_CONFIG,$(CFG_DYN_CONFIG))
-else
-CFG_DYN_STACK_CONFIG ?= n
-endif
 endif
 
 # CFG_EXTERNAL_ABORT_PLAT_HANDLER is used to implement platform-specific

@@ -448,7 +448,7 @@ shadow_stack_access_ok:
 	bls	shadow_stack_access_ok
 #endif
 
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 	ldr	r0, =boot_embdata_ptr
 	ldr	r0, [r0]
 	sub	r1, r0, #THREAD_BOOT_INIT_TMP_ALLOC
@@ -545,7 +545,7 @@ shadow_stack_access_ok:
 	ldr	r0, =__vcore_free_start
 	ldr	r1, =boot_embdata_ptr
 	ldr	r1, [r1]
-#ifdef CFG_DYN_STACK_CONFIG
+#ifdef CFG_DYN_CONFIG
 	sub	r1, r1, #THREAD_BOOT_INIT_TMP_ALLOC
 #endif
 	ldr	r2, =__vcore_free_end
@@ -630,7 +630,7 @@ shadow_stack_access_ok:
 	 */
 	ldr	r1, =boot_mmu_config
 	ldr	r1, [r1, #CORE_MMU_CONFIG_MAP_OFFSET]
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 	ldr	r0, =thread_core_local
 	add	r2, r4, r1
 	str	r2, [r0]
@@ -676,7 +676,7 @@ shadow_stack_access_ok:
 	bl	boot_init_primary_early
 	bl	boot_init_primary_late
 
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Update thread_core_local_pa with a new physical address */
 	ldr	r0, =__thread_core_local_new
@@ -1021,7 +1021,7 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	bx	lr
 END_FUNC enable_mmu
 
-#if !defined(CFG_DYN_STACK_CONFIG)
+#if !defined(CFG_DYN_CONFIG)
 LOCAL_DATA stack_tmp_rel , :
 	.word	stack_tmp - stack_tmp_rel - STACK_TMP_GUARD
 END_DATA stack_tmp_rel
