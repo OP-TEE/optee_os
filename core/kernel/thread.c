@@ -19,7 +19,7 @@
 #include <mm/page_alloc.h>
 #include <stdalign.h>
 
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 struct thread_core_local *thread_core_local __nex_bss;
 size_t thread_core_count __nex_bss;
 struct thread_ctx *threads;
@@ -57,7 +57,7 @@ linkage uint32_t name[num_stacks] \
 		__attribute__((section(".nozi_stack." # name), \
 			       aligned(STACK_ALIGNMENT)))
 
-#ifndef CFG_DYN_STACK_CONFIG
+#ifndef CFG_DYN_CONFIG
 DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE, STACK_TMP_SIZE,
 	      /* global linkage */);
 DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
@@ -68,7 +68,7 @@ DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 #define GET_STACK_BOTTOM(stack, n) 0
 #endif
 
-#if defined(CFG_DYN_STACK_CONFIG) || defined(CFG_WITH_PAGER)
+#if defined(CFG_DYN_CONFIG) || defined(CFG_WITH_PAGER)
 /* Not used */
 #define GET_STACK_THREAD_BOTTOM(n) 0
 #else
@@ -78,7 +78,7 @@ DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
 	 STACK_CANARY_SIZE / 2)
 #endif
 
-#ifndef CFG_DYN_STACK_CONFIG
+#ifndef CFG_DYN_CONFIG
 const uint32_t stack_tmp_stride __section(".identity_map.stack_tmp_stride") =
 	sizeof(stack_tmp[0]);
 
@@ -266,7 +266,7 @@ get_core_local(unsigned int pos)
 	 * We boot on a single core and have allocated only one struct
 	 * thread_core_local so we return that regardless of pos.
 	 */
-	if (IS_ENABLED(CFG_DYN_STACK_CONFIG) &&
+	if (IS_ENABLED(CFG_DYN_CONFIG) &&
 	    thread_core_local != __thread_core_local_new)
 		return thread_core_local;
 
@@ -569,7 +569,7 @@ static void init_thread_stacks(void)
 
 	/* Assign the thread stacks */
 	for (n = 0; n < thread_count; n++) {
-		if (IS_ENABLED(CFG_DYN_STACK_CONFIG))
+		if (IS_ENABLED(CFG_DYN_CONFIG))
 			va = alloc_stack(STACK_THREAD_SIZE, false);
 		else
 			va = GET_STACK_THREAD_BOTTOM(n);
@@ -584,7 +584,7 @@ void thread_init_threads(size_t count)
 {
 	size_t n = 0;
 
-	if (IS_ENABLED(CFG_DYN_STACK_CONFIG)) {
+	if (IS_ENABLED(CFG_DYN_CONFIG)) {
 		assert(count <= CFG_NUM_THREADS);
 		threads = calloc(count, sizeof(*threads));
 		if (!threads)
@@ -604,7 +604,7 @@ void thread_init_threads(size_t count)
 		TAILQ_INIT(&threads[n].tsd.sess_stack);
 }
 
-#ifndef CFG_DYN_STACK_CONFIG
+#ifndef CFG_DYN_CONFIG
 vaddr_t __nostackcheck thread_get_abt_stack(void)
 {
 	return GET_STACK_BOTTOM(stack_abt, get_core_pos());
@@ -618,7 +618,7 @@ void thread_init_thread_core_local(size_t core_count)
 	vaddr_t va = 0;
 	size_t n = 0;
 
-	if (IS_ENABLED(CFG_DYN_STACK_CONFIG)) {
+	if (IS_ENABLED(CFG_DYN_CONFIG)) {
 		assert(core_count <= CFG_TEE_CORE_NB_CORE);
 		tcl = nex_calloc(core_count, sizeof(*tcl));
 		if (!tcl)
@@ -639,7 +639,7 @@ void thread_init_thread_core_local(size_t core_count)
 
 	for (n = 0; n < core_count; n++) {
 		if (n == core_pos) {
-			if (IS_ENABLED(CFG_DYN_STACK_CONFIG))
+			if (IS_ENABLED(CFG_DYN_CONFIG))
 				tcl[n] = thread_core_local[0];
 			else
 				continue;
@@ -648,7 +648,7 @@ void thread_init_thread_core_local(size_t core_count)
 			tcl[n].flags = THREAD_CLF_TMP;
 		}
 
-		if (IS_ENABLED(CFG_DYN_STACK_CONFIG))
+		if (IS_ENABLED(CFG_DYN_CONFIG))
 			va = alloc_stack(STACK_TMP_SIZE, true);
 		else
 			va = GET_STACK_BOTTOM(stack_tmp, n);
@@ -658,7 +658,7 @@ void thread_init_thread_core_local(size_t core_count)
 			vaddr_to_phys(tcl[n].tmp_stack_va_end);
 #endif
 
-		if (IS_ENABLED(CFG_DYN_STACK_CONFIG))
+		if (IS_ENABLED(CFG_DYN_CONFIG))
 			va = alloc_stack(STACK_ABT_SIZE, true);
 		else
 			va = GET_STACK_BOTTOM(stack_abt, n);

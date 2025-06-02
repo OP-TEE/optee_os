@@ -179,7 +179,7 @@ UNWIND(	.cantunwind)
 	csrw	CSR_SATP, zero
 
 	/* Setup sp and tp */
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 	/*
 	 * Point sp to a temporary stack at the end of mapped core memory.
 	 * Point tp to a temporary struct thread_core_local before the temporary
@@ -240,7 +240,7 @@ UNWIND(	.cantunwind)
 
 	la	a0, __vcore_free_start
 	la	a1, __vcore_free_end
-#ifdef CFG_DYN_STACK_CONFIG
+#ifdef CFG_DYN_CONFIG
 	li	a2, THREAD_BOOT_INIT_TMP_ALLOC
 	sub	a1, a1, a2
 #endif
@@ -254,7 +254,7 @@ UNWIND(	.cantunwind)
 	set_satp
 
 #ifdef CFG_CORE_ASLR
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 	/*
 	 * thread_core_local holds only one core and thread_core_count is 1
 	 * so tp points to the updated pointer for thread_core_local.
@@ -270,7 +270,7 @@ UNWIND(	.cantunwind)
 	mv	a1, x0		/* unused */
 	jal	boot_init_primary_late
 
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 	/* Get hart index */
 	jal	__get_core_pos
 
@@ -358,7 +358,7 @@ LOCAL_FUNC reset_secondary , : , .identity_map
 UNWIND(	.cantunwind)
 	wait_primary
 	csrw	CSR_SATP, zero
-#if defined(CFG_DYN_STACK_CONFIG)
+#if defined(CFG_DYN_CONFIG)
 	/*
 	 * Update tp to point the new thread_core_local.
 	 * Update sp to use the new tmp stack.
@@ -415,7 +415,7 @@ LOCAL_DATA sem_cpu_sync_end , :
 END_DATA sem_cpu_sync_end
 #endif
 
-#if !defined(CFG_DYN_STACK_CONFIG)
+#if !defined(CFG_DYN_CONFIG)
 LOCAL_DATA stack_tmp_rel , :
 	.word	stack_tmp - stack_tmp_rel - STACK_TMP_GUARD
 END_DATA stack_tmp_rel
