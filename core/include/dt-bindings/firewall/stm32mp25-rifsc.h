@@ -147,9 +147,13 @@
 #define RIMU_ID_OFFSET		200
 #define RIMU_ID(idx)		((idx) + RIMU_ID_OFFSET)
 
-/* master configuration modes */
-#define RIF_CIDSEL_P	0x0 /* config from RISUP */
-#define RIF_CIDSEL_M	0x1 /* config from RIMU */
+/*
+ * CID selection mode
+ * RIF_CIDSEL_P	configuration by hardware or inherited from RISUP
+ * RIF_CIDSEL_M	configuration from provided RIMU data
+ */
+#define RIF_CIDSEL_P		0
+#define RIF_CIDSEL_M		1
 
 #define RIMUPROT_RIMC_M_ID_SHIFT	0
 #define RIMUPROT_RIMC_MODE_SHIFT	10
