@@ -1300,14 +1300,33 @@ static int stm32_clk_parse_fdt(const void *fdt, int node,
 	return 0;
 }
 
-static void stm32mp2_a35_ss_on_hsi(void)
+static void stm32mp2_a35_ss_on_bypass(void)
 {
 	uint64_t timeout = 0;
+	uint32_t chgclkreq = stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ);
 
-	/* Nothing to do if clock source is already set on bypass clock */
-	if (stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ) &
-	    A35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK)
+	if (chgclkreq & A35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK) {
+		/* Nothing to do, clock source is already set on bypass clock */
 		return;
+	}
+
+	/*
+	 * for clkext2f frequency at 400MHZ, the default flexgen63 config,
+	 * divider by 2 is required with ARM_DIVSEL=0
+	 */
+	if (chgclkreq & A35SS_SSC_CHGCLKREQ_ARM_DIVSEL) {
+		stm32mp_syscfg_write(A35SS_SSC_CHGCLKREQ,
+				     0U,
+				     A35SS_SSC_CHGCLKREQ_ARM_DIVSEL);
+		timeout = timeout_init_us(CLKSRC_TIMEOUT);
+		while (!timeout_elapsed(timeout))
+			if (!(stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ) &
+			      A35SS_SSC_CHGCLKREQ_ARM_DIVSELACK))
+				break;
+		if (stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ) &
+		    A35SS_SSC_CHGCLKREQ_ARM_DIVSELACK)
+			panic("Cannot set div on A35 bypass clock");
+	}
 
 	stm32mp_syscfg_write(A35SS_SSC_CHGCLKREQ,
 			     A35SS_SSC_CHGCLKREQ_ARM_CHGCLKREQ_EN,
@@ -1534,7 +1553,7 @@ static void clk_stm32_pll1_init(struct clk_stm32_priv *priv,
 	 * a configuration on the fly.
 	 */
 
-	stm32mp2_a35_ss_on_hsi();
+	stm32mp2_a35_ss_on_bypass();
 
 	if (clk_stm32_pll_set_mux(priv, pll_conf->src))
 		panic();
