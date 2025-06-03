@@ -22,7 +22,7 @@
  * DT_DRIVER_RSTCTRL Reset controller using generic reset DT bindings
  * DT_DRIVER_I2C    I2C bus controller using generic I2C bus DT bindings
  * DT_DRIVER_GPIO   GPIO controller using generic GPIO DT bindings
- * DT_DRIVER_PINCTRL Pin controller using generic reset DT bindings
+ * DT_DRIVER_PINCTRL Pin controller using generic DT bindings
  * DT_DRIVER_INTERRUPT Interrupt controller using generic DT bindings
  * DT_DRIVER_REGULATOR Voltage regulator controller using generic DT bindings
  * DT_DRIVER_NVMEM NVMEM controller using generic NVMEM DT bindings
