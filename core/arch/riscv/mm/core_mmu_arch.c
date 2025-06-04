@@ -1054,6 +1054,11 @@ void core_init_mmu(struct memory_map *mem_map)
 #endif
 	}
 
+#if (RISCV_SATP_MODE >= SATP_MODE_SV48)
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
+		boot_mem_add_reloc(&prtn->user_vpn2_table_va[n]);
+#endif
+
 	/* Initialize default pagetables */
 	core_init_mmu_prtn_tee(prtn, mem_map);
 
