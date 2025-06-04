@@ -66,7 +66,7 @@ static void *mem_alloc_tmp(struct boot_mem_desc *desc, size_t len, size_t align)
 		align = MAX(align, ASAN_BLOCK_SIZE);
 
 	assert(desc && desc->mem_start && desc->mem_end);
-	assert(IS_POWER_OF_TWO(align) && !(len % align));
+	assert(IS_POWER_OF_TWO(align));
 	if (SUB_OVERFLOW(desc->mem_end, len, &va))
 		panic();
 	va = ROUNDDOWN2(va, align);
@@ -109,7 +109,7 @@ static void *mem_alloc(struct boot_mem_desc *desc, size_t len, size_t align)
 
 	runtime_assert(!IS_ENABLED(CFG_WITH_PAGER));
 	assert(desc && desc->mem_start && desc->mem_end);
-	assert(IS_POWER_OF_TWO(align) && !(len % align));
+	assert(IS_POWER_OF_TWO(align));
 	va = ROUNDUP2(desc->mem_start, align);
 	if (ADD_OVERFLOW(va, len, &ve))
 		panic();
