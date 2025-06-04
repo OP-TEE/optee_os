@@ -1065,6 +1065,10 @@ CFG_CORE_ASYNC_NOTIF ?= n
 $(call force,_CFG_CORE_ASYNC_NOTIF_DEFAULT_IMPL,$(CFG_CORE_ASYNC_NOTIF))
 endif
 
+ifeq ($(CFG_CORE_SEL2_SPMC),y)
+$(call force,CFG_CALLOUT,n)
+endif
+
 # Enable callout service
 CFG_CALLOUT ?= $(CFG_CORE_ASYNC_NOTIF)
 
