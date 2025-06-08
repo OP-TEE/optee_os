@@ -75,5 +75,7 @@ int setjmp(jmp_buf env);
 void ftrace_longjmp(unsigned int *ret_idx);
 void ftrace_setjmp(unsigned int *ret_idx);
 #endif
-
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+void asan_handle_longjmp(void *old_sp);
+#endif
 #endif /*__SETJMP_H*/
