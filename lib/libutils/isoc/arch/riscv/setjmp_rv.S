@@ -63,6 +63,10 @@ FUNC longjmp , :
 	LDR	ra, REGOFF(3)(sp)
 	addi	sp, sp, REGOFF(4)
 #endif
+#if defined(__KERNEL__) && defined(CFG_CORE_SANITIZE_KADDRESS) && \
+    !defined(CFG_DYN_CONFIG)
+#error longjmp() stack unpoisoning not implemented for RISC-V with ASAN
+#endif
 	LDR	s0, REGOFF(0)(a0)
 	LDR	s1, REGOFF(1)(a0)
 	LDR	s2, REGOFF(2)(a0)

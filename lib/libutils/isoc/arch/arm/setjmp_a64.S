@@ -83,6 +83,13 @@ BTI(	bti	c)
 	ldp	x29, x30, [sp], #16
 	ldp	x0, x1, [sp], #16
 #endif
+#if defined(__KERNEL__) && defined(CFG_CORE_SANITIZE_KADDRESS) && \
+    !defined(CFG_DYN_CONFIG)
+	stp	x0, x1, [sp, #-16]!
+	ldr	x0, [x0, 96]
+	bl	asan_handle_longjmp
+	ldp	x0, x1, [sp], #16
+#endif
 	GPR_LAYOUT
 	FPR_LAYOUT
 #undef REG_PAIR

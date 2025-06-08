@@ -9,6 +9,7 @@
 #include <kernel/asan.h>
 #include <kernel/panic.h>
 #include <printk.h>
+#include <setjmp.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
@@ -326,4 +327,13 @@ void __asan_unregister_globals(struct asan_global *globals, size_t size);
 void __asan_unregister_globals(struct asan_global *globals __unused,
 			       size_t size __unused)
 {
+}
+
+void asan_handle_longjmp(void *old_sp)
+{
+	void *top = old_sp;
+	void *bottom = (void *)ROUNDDOWN((vaddr_t)&top,
+					 ASAN_BLOCK_SIZE);
+
+	asan_tag_access(bottom, top);
 }
