@@ -15,6 +15,7 @@
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tlb_helpers.h>
+#include <kernel/user_access.h>
 #include <kernel/user_mode_ctx.h>
 #include <kernel/virtualization.h>
 #include <libfdt.h>
@@ -1484,6 +1485,29 @@ static bool mem_map_add_id_map(struct memory_map *mem_map,
 	return true;
 }
 
+static vaddr_t get_uref_base(struct memory_map *mem_map)
+{
+	vaddr_t va = SIZE_MAX;
+	size_t n = 0;
+
+	/* Find the lowest address possible for core data mappings */
+	for (n = 0; n < mem_map->count; n++) {
+		switch (mem_map->map[n].type) {
+		case MEM_AREA_TEE_RAM:
+		case MEM_AREA_TEE_RAM_RX:
+		case MEM_AREA_TEE_DYN_VASPACE:
+		case MEM_AREA_NEX_DYN_VASPACE:
+			va = MIN(va, mem_map->map[n].va);
+			break;
+		default:
+			break;
+		}
+	}
+
+	assert(va);
+	return va;
+}
+
 static struct memory_map *init_mem_map(struct memory_map *mem_map,
 				       unsigned long seed,
 				       unsigned long *ret_offs)
@@ -1539,6 +1563,7 @@ out:
 	      cmp_mmap_by_lower_va);
 
 	dump_mmap_table(mem_map);
+	uref_base_init(get_uref_base(mem_map));
 
 	*ret_offs = offs;
 	return mem_map;
