@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2018-2020 Maxime Villard, m00nbsd.net
  */
 
 #include <assert.h>
@@ -44,6 +45,12 @@ static vaddr_t asan_va_base;
 static size_t asan_va_size;
 static bool asan_active;
 static asan_panic_cb_t asan_panic_cb = asan_panic;
+
+static bool addr_crosses_scale_boundary(vaddr_t addr, size_t size)
+{
+	return (addr >> ASAN_BLOCK_SHIFT) !=
+	       ((addr + size - 1) >> ASAN_BLOCK_SHIFT);
+}
 
 static int8_t *va_to_shadow(const void *va)
 {
@@ -122,7 +129,7 @@ void asan_tag_access(const void *begin, const void *end)
 	asan_memset_unchecked(va_to_shadow(begin), 0,
 			      va_range_to_shadow_size(begin, end));
 	if (!va_is_well_aligned(end))
-		*va_to_shadow(end) = ASAN_BLOCK_SIZE - va_misalignment(end);
+		*va_to_shadow(end) = va_misalignment(end);
 }
 
 void asan_tag_heap_free(const void *begin, const void *end)
@@ -211,14 +218,87 @@ static void asan_report(vaddr_t addr, size_t size)
 	asan_panic_cb();
 }
 
-static void check_access(vaddr_t addr, size_t size)
+static __always_inline bool asan_shadow_1byte_isvalid(vaddr_t addr)
 {
+	int8_t last = (addr & ASAN_BLOCK_MASK) + 1;
+	int8_t *byte = va_to_shadow((void *)addr);
+
+	if (*byte == 0 || last <= *byte)
+		return true;
+
+	return false;
+}
+
+static __always_inline bool asan_shadow_2byte_isvalid(vaddr_t addr)
+{
+	if (addr_crosses_scale_boundary(addr, 2)) {
+		return (asan_shadow_1byte_isvalid(addr) &&
+			asan_shadow_1byte_isvalid(addr + 1));
+	} else {
+		int8_t last = ((addr + 1) & ASAN_BLOCK_MASK) + 1;
+		int8_t *byte = va_to_shadow((void *)addr);
+
+		if (*byte == 0 || last <= *byte)
+			return true;
+
+		return false;
+	}
+}
+
+static __always_inline bool asan_shadow_4byte_isvalid(vaddr_t addr)
+{
+	if (addr_crosses_scale_boundary(addr, 4)) {
+		return (asan_shadow_2byte_isvalid(addr) &&
+			asan_shadow_2byte_isvalid(addr + 2));
+	} else {
+		int8_t last = ((addr + 3) & ASAN_BLOCK_MASK) + 1;
+		int8_t *byte = va_to_shadow((void *)addr);
+
+		if (*byte == 0 || last <= *byte)
+			return true;
+
+		return false;
+	}
+}
+
+static __always_inline bool asan_shadow_8byte_isvalid(vaddr_t addr)
+{
+	if (addr_crosses_scale_boundary(addr, 8)) {
+		return (asan_shadow_4byte_isvalid(addr) &&
+			asan_shadow_4byte_isvalid(addr + 4));
+	} else {
+		int8_t last = ((addr + 7) & ASAN_BLOCK_MASK) + 1;
+		int8_t *byte = va_to_shadow((void *)addr);
+
+		if (*byte == 0 || last <= *byte)
+			return true;
+
+		return false;
+	}
+}
+
+static __always_inline bool asan_shadow_Nbyte_isvalid(vaddr_t addr,
+						      size_t size)
+{
+	size_t i = 0;
+
+	for (; i < size; i++) {
+		if (!asan_shadow_1byte_isvalid(addr + i))
+			return false;
+	}
+
+	return true;
+}
+
+static __always_inline void check_access(vaddr_t addr, size_t size)
+{
+	bool valid = false;
 	void *begin = (void *)addr;
 	void *end = (void *)(addr + size);
-	int8_t *a;
-	int8_t *e;
 
-	if (!asan_active || !size)
+	if (!asan_active)
+		return;
+	if (size == 0)
 		return;
 	if (va_range_outside_shadow(begin, end))
 		return;
@@ -229,22 +309,38 @@ static void check_access(vaddr_t addr, size_t size)
 	if (!va_range_inside_shadow(begin, end))
 		panic();
 
-	e = va_to_shadow((void *)(addr + size - 1));
-	for (a = va_to_shadow(begin); a <= e; a++)
-		if (*a < 0)
-			asan_report(addr, size);
+	if (__builtin_constant_p(size)) {
+		switch (size) {
+		case 1:
+			valid = asan_shadow_1byte_isvalid(addr);
+			break;
+		case 2:
+			valid = asan_shadow_2byte_isvalid(addr);
+			break;
+		case 4:
+			valid = asan_shadow_4byte_isvalid(addr);
+			break;
+		case 8:
+			valid = asan_shadow_8byte_isvalid(addr);
+			break;
+		default:
+			valid = asan_shadow_Nbyte_isvalid(addr, size);
+			break;
+		}
+	} else {
+		valid = asan_shadow_Nbyte_isvalid(addr, size);
+	}
 
-	if (!va_is_well_aligned(end) &&
-	    va_misalignment(end) > (size_t)(*e - ASAN_BLOCK_SIZE))
+	if (!valid)
 		asan_report(addr, size);
 }
 
-static void check_load(vaddr_t addr, size_t size)
+static __always_inline void check_load(vaddr_t addr, size_t size)
 {
 	check_access(addr, size);
 }
 
-static void check_store(vaddr_t addr, size_t size)
+static __always_inline void check_store(vaddr_t addr, size_t size)
 {
 	check_access(addr, size);
 }
