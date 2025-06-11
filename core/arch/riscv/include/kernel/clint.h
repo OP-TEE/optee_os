@@ -35,12 +35,12 @@ static inline void clint_ipi_clear(unsigned long hart)
 static inline void clint_set_mtimecmp(uint64_t timecmp)
 {
 	/* Each hart has a separate source of timer interrupts */
-	io_write64(CLINT_MTIMECMP(get_core_pos()), timecmp);
+	io_write64(CLINT_MTIMECMP(get_core_pos_hartid()), timecmp);
 }
 
 static inline uint64_t clint_get_mtimecmp(void)
 {
-	return io_read64(CLINT_MTIMECMP(get_core_pos()));
+	return io_read64(CLINT_MTIMECMP(get_core_pos_hartid()));
 }
 
 static inline uint64_t clint_get_mtime(void)

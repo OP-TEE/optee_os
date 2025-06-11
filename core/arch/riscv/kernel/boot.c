@@ -67,7 +67,7 @@ static void update_external_dt(void)
 #ifdef CFG_RISCV_S_MODE
 static void start_secondary_cores(void)
 {
-	uint32_t curr_hartid = thread_get_core_local()->hart_id;
+	uint32_t curr_hartid = get_core_pos_hartid();
 	enum sbi_hsm_hart_state status = 0;
 	uint32_t hartid = 0;
 	int rc = 0;
@@ -223,10 +223,10 @@ void boot_init_primary_late(unsigned long fdt,
 
 void __weak boot_init_primary_runtime(void)
 {
-	size_t pos = get_core_pos();
+	size_t hartid = get_core_pos_hartid();
 
 	/* The primary CPU is always indexed by 0 */
-	assert(pos == 0);
+	assert(get_core_pos() == 0);
 
 	thread_init_primary();
 	IMSG("OP-TEE version: %s", core_v_str);
@@ -234,8 +234,7 @@ void __weak boot_init_primary_runtime(void)
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
 		IMSG("WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html");
 	}
-	IMSG("Primary CPU0 (hart%"PRIu32") initializing",
-	     thread_get_hartid_by_hartindex(pos));
+	IMSG("Primary CPU0 (hart%zu) initializing", hartid);
 	boot_primary_init_intc();
 	boot_primary_init_core_ids();
 	init_tee_runtime();
@@ -244,12 +243,11 @@ void __weak boot_init_primary_runtime(void)
 
 void __weak boot_init_primary_final(void)
 {
-	size_t pos = get_core_pos();
+	size_t hartid = get_core_pos_hartid();
 
 	call_driver_initcalls();
 	call_finalcalls();
-	IMSG("Primary CPU0 (hart%"PRIu32") initialized",
-	     thread_get_hartid_by_hartindex(pos));
+	IMSG("Primary CPU0 (hart%zu) initialized", hartid);
 
 #ifdef CFG_RISCV_S_MODE
 	start_secondary_cores();
@@ -258,10 +256,10 @@ void __weak boot_init_primary_final(void)
 
 static void init_secondary_helper(void)
 {
+	size_t hartid = get_core_pos_hartid();
 	size_t pos = get_core_pos();
 
-	IMSG("Secondary CPU%zu (hart%"PRIu32") initializing",
-	     pos, thread_get_hartid_by_hartindex(pos));
+	IMSG("Secondary CPU%zu (hart%zu) initializing", pos, hartid);
 
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -275,8 +273,7 @@ static void init_secondary_helper(void)
 	thread_init_per_cpu();
 	boot_secondary_init_intc();
 
-	IMSG("Secondary CPU%zu (hart%"PRIu32") initialized",
-	     pos, thread_get_hartid_by_hartindex(pos));
+	IMSG("Secondary CPU%zu (hart%zu) initialized", pos, hartid);
 }
 
 void boot_init_secondary(unsigned long nsec_entry __unused)
