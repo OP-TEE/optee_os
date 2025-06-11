@@ -8,6 +8,7 @@
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/panic.h>
+#include <printk.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
@@ -41,6 +42,7 @@ struct asan_global {
 static vaddr_t asan_va_base;
 static size_t asan_va_size;
 static bool asan_active;
+static asan_panic_cb_t asan_panic_cb = asan_panic;
 
 static int8_t *va_to_shadow(const void *va)
 {
@@ -166,6 +168,48 @@ void asan_start(void)
 	asan_active = true;
 }
 
+void __noreturn asan_panic(void)
+{
+	panic();
+}
+
+void asan_set_panic_cb(asan_panic_cb_t panic_cb)
+{
+	asan_panic_cb = panic_cb;
+}
+
+static void asan_report(vaddr_t addr, size_t size)
+{
+#ifdef KASAN_DUMP_SHADOW
+	char buf[128] = {0};
+	int r = 0, rc = 0;
+	vaddr_t b = 0, e = 0, saddr = 0;
+
+	b = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) - ASAN_BLOCK_SIZE;
+	e = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) + ASAN_BLOCK_SIZE;
+
+	/* Print shadow map nearby */
+	if (va_range_inside_shadow((void *)b, (void *)e)) {
+		rc = snprintk(buf + r, sizeof(buf) - r, "%lx: ", b);
+		assert(rc > 0);
+		r += rc;
+		for (saddr = b; saddr <= e; saddr += ASAN_BLOCK_SIZE) {
+			int8_t *sbyte = va_to_shadow((void *)saddr);
+
+			rc = snprintk(buf + r, sizeof(buf) - r,
+				      "0x%02x ", (uint8_t)*sbyte);
+			assert(rc > 0);
+			r += rc;
+		}
+		EMSG("%s", buf);
+	}
+#endif
+	EMSG("[ASAN]: access violation, addr: %lx size: %zu\n",
+	     addr, size);
+
+	asan_panic_cb();
+}
+
 static void check_access(vaddr_t addr, size_t size)
 {
 	void *begin = (void *)addr;
@@ -187,11 +231,11 @@ static void check_access(vaddr_t addr, size_t size)
 	e = va_to_shadow((void *)(addr + size - 1));
 	for (a = va_to_shadow(begin); a <= e; a++)
 		if (*a < 0)
-			panic();
+			asan_report(addr, size);
 
 	if (!va_is_well_aligned(end) &&
 	    va_misalignment(end) > (size_t)(*e - ASAN_BLOCK_SIZE))
-		panic();
+		asan_report(addr, size);
 }
 
 static void check_load(vaddr_t addr, size_t size)
