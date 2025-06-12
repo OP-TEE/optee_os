@@ -146,7 +146,7 @@
 		};
 
 		pwr_regulators: pwr@50001000 {
-			compatible = "st,stm32mp1,pwr-reg";
+			compatible = "st,stm32mp1-pwr-reg";
 			reg = <0x50001000 0x10>;
 
 			reg11: reg11 {
@@ -455,7 +455,6 @@
 			ranges = <0 0x50002000 0xa400>;
 			interrupt-parent = <&exti>;
 			st,syscfg = <&exti 0x60 0xff>;
-			pins-are-numbered;
 
 			gpioa: gpio@50002000 {
 				gpio-controller;
@@ -584,7 +583,6 @@
 			#size-cells = <1>;
 			compatible = "st,stm32mp157-z-pinctrl";
 			ranges = <0 0x54004000 0x400>;
-			pins-are-numbered;
 			interrupt-parent = <&exti>;
 			st,syscfg = <&exti 0x60 0xff>;
 
@@ -1864,7 +1862,7 @@
 				reg-names = "qspi", "qspi_mm";
 				interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
 				dmas = <&mdma1 22 0x2 0x10100002 0x0 0x0>,
-				<&mdma1 22 0x2 0x10100008 0x0 0x0>;
+				       <&mdma1 22 0x2 0x10100008 0x0 0x0>;
 				dma-names = "tx", "rx";
 				clocks = <&rcc QSPI_K>;
 				resets = <&rcc QSPI_R>;
