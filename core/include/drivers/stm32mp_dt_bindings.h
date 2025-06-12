@@ -38,6 +38,7 @@
 #include <dt-bindings/firewall/stm32mp25-rif.h>
 #include <dt-bindings/firewall/stm32mp21-rifsc.h>
 #include <dt-bindings/firewall/stm32mp25-risaf.h>
+#include <dt-bindings/tamper/st,stm32mp21-tamp.h>
 #endif
 
 #endif /* __DRIVERS_STM32MP_DT_BINDINGS_H */
