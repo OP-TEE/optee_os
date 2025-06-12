@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (C) 2018-2024, STMicroelectronics
+ * Copyright (C) 2018-2025, STMicroelectronics
  */
 #include <assert.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/rtc.h>
 #include <drivers/stm32_rif.h>
+#include <drivers/stm32_rtc.h>
 #include <io.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <kernel/panic.h>
+#include <kernel/spinlock.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 
@@ -158,6 +160,7 @@ struct rtc_compat {
  * @rtc_ck: RTC kernel clock
  * @conf_data: RTC RIF configuration data, when supported
  * @nb_res: Number of protectible RTC resources
+ * @ts_lock: Lock used for time stamping events handling
  * @flags: RTC driver flags
  * @is_secured: True if the RTC is fully secured
  */
@@ -168,6 +171,7 @@ struct rtc_device {
 	struct clk *rtc_ck;
 	struct rif_conf_data *conf_data;
 	unsigned int nb_res;
+	unsigned int ts_lock;
 	uint8_t flags;
 	bool is_secured;
 };
@@ -426,6 +430,36 @@ static TEE_Result stm32_rtc_wait_sync(void)
 	return TEE_SUCCESS;
 }
 
+static void stm32_rtc_to_tm(uint32_t ssr, uint32_t tr, uint32_t dr,
+			    struct optee_rtc_time *tm)
+{
+	tm->tm_hour = ((tr & RTC_TR_HT_MASK) >> RTC_TR_HT_SHIFT) * 10 +
+		      ((tr & RTC_TR_HU_MASK) >> RTC_TR_HU_SHIFT);
+
+	if (tr & RTC_TR_PM)
+		tm->tm_hour += 12;
+
+	tm->tm_ms = (stm32_rtc_get_subsecond(ssr) * MS_PER_SEC) /
+		    stm32_rtc_get_subsecond_scale();
+
+	tm->tm_sec = ((tr & RTC_TR_ST_MASK) >> RTC_TR_ST_SHIFT) * 10 +
+		     (tr & RTC_TR_SU_MASK);
+
+	tm->tm_min = ((tr & RTC_TR_MNT_MASK) >> RTC_TR_MNT_SHIFT) * 10 +
+		     ((tr & RTC_TR_MNU_MASK) >> RTC_TR_MNU_SHIFT);
+
+	tm->tm_wday = ((dr & RTC_DR_WDU_MASK) >> RTC_DR_WDU_SHIFT) % 7;
+
+	tm->tm_mday = ((dr & RTC_DR_DT_MASK) >> RTC_DR_DT_SHIFT) * 10 +
+		      (dr & RTC_DR_DU_MASK);
+
+	tm->tm_mon = ((dr & RTC_DR_MT_MASK) >> RTC_DR_MT_SHIFT) * 10 +
+		     ((dr & RTC_DR_MU_MASK) >> RTC_DR_MU_SHIFT) - 1;
+
+	tm->tm_year = ((dr & RTC_DR_YT_MASK) >> RTC_DR_YT_SHIFT) * 10 +
+		      ((dr & RTC_DR_YU_MASK) >> RTC_DR_YU_SHIFT) + YEAR_REF;
+}
+
 static TEE_Result stm32_rtc_get_time(struct rtc *rtc __unused,
 				     struct optee_rtc_time *tm)
 {
@@ -460,31 +494,7 @@ static TEE_Result stm32_rtc_get_time(struct rtc *rtc __unused,
 	tr = io_read32(base + RTC_TR);
 	dr = io_read32(base + RTC_DR);
 
-	tm->tm_hour = ((tr & RTC_TR_HT_MASK) >> RTC_TR_HT_SHIFT) * 10 +
-		      ((tr & RTC_TR_HU_MASK) >> RTC_TR_HU_SHIFT);
-
-	if (tr & RTC_TR_PM)
-		tm->tm_hour += 12;
-
-	tm->tm_ms = (stm32_rtc_get_subsecond(ssr) * MS_PER_SEC) /
-		    stm32_rtc_get_subsecond_scale();
-
-	tm->tm_sec = ((tr & RTC_TR_ST_MASK) >> RTC_TR_ST_SHIFT) * 10 +
-		     (tr & RTC_TR_SU_MASK);
-
-	tm->tm_min = ((tr & RTC_TR_MNT_MASK) >> RTC_TR_MNT_SHIFT) * 10 +
-		     ((tr & RTC_TR_MNU_MASK) >> RTC_TR_MNU_SHIFT);
-
-	tm->tm_wday = ((dr & RTC_DR_WDU_MASK) >> RTC_DR_WDU_SHIFT) % 7;
-
-	tm->tm_mday = ((dr & RTC_DR_DT_MASK) >> RTC_DR_DT_SHIFT) * 10 +
-		      (dr & RTC_DR_DU_MASK);
-
-	tm->tm_mon = ((dr & RTC_DR_MT_MASK) >> RTC_DR_MT_SHIFT) * 10 +
-		     ((dr & RTC_DR_MU_MASK) >> RTC_DR_MU_SHIFT) - 1;
-
-	tm->tm_year = ((dr & RTC_DR_YT_MASK) >> RTC_DR_YT_SHIFT) * 10 +
-		      ((dr & RTC_DR_YU_MASK) >> RTC_DR_YU_SHIFT) + YEAR_REF;
+	stm32_rtc_to_tm(ssr, tr, dr, tm);
 
 	return TEE_SUCCESS;
 }
@@ -541,6 +551,83 @@ end:
 	stm32_rtc_write_protect();
 
 	return res;
+}
+
+TEE_Result stm32_rtc_get_timestamp(struct optee_rtc_time *tm)
+{
+	vaddr_t base = get_base();
+	uint32_t exceptions = 0;
+	uint32_t value = 0;
+	uint32_t ssr = 0;
+	uint32_t dr = 0;
+	uint32_t tr = 0;
+
+	exceptions = cpu_spin_lock_xsave(&rtc_dev.ts_lock);
+
+	if (IO_READ32_POLL_TIMEOUT(base + RTC_SR, value,
+				   value & RTC_SR_TSF,
+				   10, TIMEOUT_US_RTC_GENERIC)) {
+		cpu_spin_unlock_xrestore(&rtc_dev.ts_lock, exceptions);
+		return TEE_ERROR_NO_DATA;
+	}
+
+	ssr = io_read32(base + RTC_TSSSR);
+	tr = io_read32(base + RTC_TSTR);
+	dr = io_read32(base + RTC_TSDR);
+
+	io_setbits32(base + RTC_SCR, RTC_SCR_CTSF);
+
+	/* Tamper event overflow detection */
+	if (io_read32(base + RTC_SR) & RTC_SR_TSOVF) {
+		io_setbits32(base + RTC_SCR, RTC_SCR_CTSOVF);
+		DMSG("A timestamp event occurred while handling current event");
+	}
+
+	cpu_spin_unlock_xrestore(&rtc_dev.ts_lock, exceptions);
+
+	stm32_rtc_to_tm(ssr, tr, dr, tm);
+
+	/* No year timestamp available */
+	tm->tm_year = 0;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result stm32_rtc_set_tamper_timestamp(void)
+{
+	vaddr_t base = get_base();
+
+	stm32_rtc_write_unprotect();
+
+	/* Secure Timestamp bit */
+	if (!rtc_dev.compat->has_seccfgr) {
+		/* Inverted logic */
+		io_clrbits32(base + RTC_SMCR, RTC_SMCR_TS_DPROT);
+	} else {
+		io_setbits32(base + RTC_SECCFGR, RTC_SECCFGR_TS_SEC);
+	}
+
+	/* Enable tamper timestamper */
+	io_setbits32(base + RTC_CR, RTC_CR_TAMPTS);
+
+	stm32_rtc_write_protect();
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result stm32_rtc_is_timestamp_enabled(bool *ret)
+{
+	*ret = io_read32(get_base() + RTC_CR) & RTC_CR_TAMPTS;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result stm32_rtc_driver_is_initialized(void)
+{
+	if (rtc_dev.pclk)
+		return TEE_SUCCESS;
+
+	return TEE_ERROR_DEFER_DRIVER_INIT;
 }
 
 static const struct rtc_ops stm32_rtc_ops = {

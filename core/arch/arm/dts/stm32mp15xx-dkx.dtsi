@@ -579,6 +579,11 @@
 	status = "disabled";
 };
 
+&tamp {
+	st,tamp-passive-nb-sample = <4>;
+	st,tamp-passive-sample-clk-div = <16384>;
+};
+
 &timers1 {
 	/* spare dmas for other usage */
 	/delete-property/dmas;
