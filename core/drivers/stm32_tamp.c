@@ -176,6 +176,9 @@
 #define _TAMP_OR_STM32MP15_OUT3RMP_PI8	0U
 #define _TAMP_OR_STM32MP15_OUT3RMP_PC13	BIT(0)
 
+#define _TAMP_STM32MP21_OR_IN1RMP_PC4	0U
+#define _TAMP_STM32MP21_OR_IN1RMP_PI8	BIT(0)
+
 #define _TAMP_OR_STM32MP25_IN1RMP_PC4	0U
 #define _TAMP_OR_STM32MP25_IN1RMP_PI8	BIT(0)
 #define _TAMP_OR_STM32MP25_IN3RMP_PC3	0U
@@ -545,6 +548,53 @@ static const struct stm32_tamp_pin_map pin_map_mp15[] = {
 	{
 		.id = OUT_TAMP3, .bank = GPIO_BANK('I'), .pin = 8,
 		.out = true, .conf = _TAMP_OR_STM32MP15_OUT3RMP_PI8,
+	},
+};
+#endif
+
+#if defined(CFG_STM32MP21)
+static const char * const itamper_name[] = {
+	[INT_TAMP1] = "Backup domain voltage threshold monitoring",
+	[INT_TAMP2] = "Temperature monitoring",
+	[INT_TAMP3] = "LSE monitoring",
+	[INT_TAMP4] = "HSE monitoring",
+	[INT_TAMP5] = "RTC Calendar overflow",
+	[INT_TAMP6] = "JTAG TAP access in secured-closed",
+	[INT_TAMP7] = "ADC2 analog watchdog monitoring1",
+	[INT_TAMP8] = "Monotonic counter 1 overflow",
+	[INT_TAMP9] = "Cryptographic peripherals fault",
+	[INT_TAMP10] = "Monotonic counter 2 overflow",
+	[INT_TAMP11] = "IWDG3 reset",
+	[INT_TAMP12] = "ADC2 analog watchdog monitoring2",
+	[INT_TAMP13] = "ADC2 analog watchdog monitoring3",
+	[INT_TAMP14] = "RIFSC or BSEC or DBGMCU fault",
+	[INT_TAMP15] = "IWDG1_reset",
+	[INT_TAMP16] = "BOOTROM fault",
+};
+
+static struct stm32_tamp_tamper_data int_tamp_mp21[] = {
+	{ .id = INT_TAMP1 }, { .id = INT_TAMP2 }, { .id = INT_TAMP3 },
+	{ .id = INT_TAMP4 }, { .id = INT_TAMP5 }, { .id = INT_TAMP6 },
+	{ .id = INT_TAMP7 }, { .id = INT_TAMP8 }, { .id = INT_TAMP9 },
+	{ .id = INT_TAMP10 }, { .id = INT_TAMP11 }, { .id = INT_TAMP12 },
+	{ .id = INT_TAMP13 }, { .id = INT_TAMP14 }, { .id = INT_TAMP15 },
+	{ .id = INT_TAMP16 },
+};
+
+static struct stm32_tamp_tamper_data ext_tamp_mp21[] = {
+	{ .id = EXT_TAMP1 }, { .id = EXT_TAMP2 }, { .id = EXT_TAMP3 },
+	{ .id = EXT_TAMP4 }, { .id = EXT_TAMP5 }, { .id = EXT_TAMP6 },
+	{ .id = EXT_TAMP7 },
+};
+
+static const struct stm32_tamp_pin_map pin_map_mp21[] = {
+	{
+		.id = EXT_TAMP1, .bank = GPIO_BANK('I'), .pin = 8,
+		.out = false, .conf = _TAMP_STM32MP21_OR_IN1RMP_PI8,
+	},
+	{
+		.id = EXT_TAMP1, .bank = GPIO_BANK('C'), .pin = 4,
+		.out = false, .conf = _TAMP_STM32MP21_OR_IN1RMP_PC4,
 	},
 };
 #endif
@@ -2184,6 +2234,25 @@ static const struct stm32_tamp_compat mp15_compat = {
 #endif
 };
 
+static const struct stm32_tamp_compat mp21_compat = {
+		.nb_monotonic_counter = 2,
+		.tags = TAMP_HAS_REGISTER_SECCFGR |
+			TAMP_HAS_REGISTER_PRIVCFGR |
+			TAMP_HAS_RIF_SUPPORT |
+			TAMP_HAS_REGISTER_ERCFGR |
+			TAMP_HAS_REGISTER_CR3 |
+			TAMP_HAS_REGISTER_ATCR2 |
+			TAMP_HAS_CR2_SECRET_STATUS,
+#if defined(CFG_STM32MP21)
+		.int_tamp = int_tamp_mp21,
+		.int_tamp_size = ARRAY_SIZE(int_tamp_mp21),
+		.ext_tamp = ext_tamp_mp21,
+		.ext_tamp_size = ARRAY_SIZE(ext_tamp_mp21),
+		.pin_map = pin_map_mp21,
+		.pin_map_size = ARRAY_SIZE(pin_map_mp21),
+#endif
+};
+
 static const struct stm32_tamp_compat mp25_compat = {
 	.nb_monotonic_counter = 2,
 	.tags = TAMP_HAS_REGISTER_SECCFGR | TAMP_HAS_REGISTER_PRIVCFGR |
@@ -2202,6 +2271,7 @@ static const struct stm32_tamp_compat mp25_compat = {
 
 static const struct dt_device_match stm32_tamp_match_table[] = {
 	{ .compatible = "st,stm32mp25-tamp", .compat_data = &mp25_compat },
+	{ .compatible = "st,stm32mp21-tamp", .compat_data = &mp21_compat },
 	{ .compatible = "st,stm32mp13-tamp", .compat_data = &mp13_compat },
 	{ .compatible = "st,stm32-tamp", .compat_data = &mp15_compat },
 	{ }
