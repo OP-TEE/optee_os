@@ -218,8 +218,9 @@ static void *maybe_tag_buf(uint8_t *buf, size_t hdr_size, size_t requested_size)
 	COMPILE_TIME_ASSERT(MEMTAG_GRANULE_SIZE <= SizeQuant);
 
 	if (MEMTAG_IS_ENABLED) {
-		size_t sz = ROUNDUP(requested_size, MEMTAG_GRANULE_SIZE);
+		size_t sz = MAX(SizeQuant, requested_size);
 
+		sz = ROUNDUP(sz, MEMTAG_GRANULE_SIZE);
 		/*
 		 * Allocated buffer can be larger than requested when
 		 * allocating with memalign(), but we should never tag more
@@ -230,8 +231,7 @@ static void *maybe_tag_buf(uint8_t *buf, size_t hdr_size, size_t requested_size)
 	}
 
 #if defined(__KERNEL__)
-	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
-		asan_tag_access(buf, buf + hdr_size + requested_size);
+	asan_tag_access(buf, buf + hdr_size + requested_size);
 #endif
 	return buf;
 }
@@ -250,8 +250,7 @@ static void *maybe_untag_buf(void *buf)
 	}
 
 #if defined(__KERNEL__)
-	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
-		asan_tag_heap_free(buf, (uint8_t *)buf + bget_buf_size(buf));
+	asan_tag_heap_free(buf, (uint8_t *)buf + bget_buf_size(buf));
 #endif
 	return buf;
 }
@@ -289,7 +288,7 @@ static void *raw_malloc_return_hook(void *p, size_t hdr_size,
 		}
 	}
 
-	return maybe_tag_buf(p, hdr_size, MAX(SizeQuant, requested_size));
+	return maybe_tag_buf(p, hdr_size, requested_size);
 }
 
 static void gen_malloc_reset_stats(struct malloc_ctx *ctx)
@@ -331,7 +330,7 @@ static void *raw_malloc_return_hook(void *p, size_t hdr_size,
 	if (!p)
 		print_oom(requested_size, ctx);
 
-	return maybe_tag_buf(p, hdr_size, MAX(SizeQuant, requested_size));
+	return maybe_tag_buf(p, hdr_size, requested_size);
 }
 
 #endif /* BufStats */

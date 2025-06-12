@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2018-2020 Maxime Villard, m00nbsd.net
  */
 
 #include <assert.h>
@@ -8,6 +9,8 @@
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/panic.h>
+#include <printk.h>
+#include <setjmp.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
@@ -41,6 +44,13 @@ struct asan_global {
 static vaddr_t asan_va_base;
 static size_t asan_va_size;
 static bool asan_active;
+static asan_panic_cb_t asan_panic_cb = asan_panic;
+
+static inline bool addr_crosses_scale_boundary(uintptr_t addr, size_t size)
+{
+	return (addr >> ASAN_BLOCK_SHIFT) !=
+	       ((addr + size - 1) >> ASAN_BLOCK_SHIFT);
+}
 
 static int8_t *va_to_shadow(const void *va)
 {
@@ -119,7 +129,7 @@ void asan_tag_access(const void *begin, const void *end)
 	asan_memset_unchecked(va_to_shadow(begin), 0,
 			      va_range_to_shadow_size(begin, end));
 	if (!va_is_well_aligned(end))
-		*va_to_shadow(end) = ASAN_BLOCK_SIZE - va_misalignment(end);
+		*va_to_shadow(end) = va_misalignment(end);
 }
 
 void asan_tag_heap_free(const void *begin, const void *end)
@@ -166,14 +176,137 @@ void asan_start(void)
 	asan_active = true;
 }
 
-static void check_access(vaddr_t addr, size_t size)
+void __noreturn asan_panic(void)
 {
+	panic();
+}
+
+void asan_set_panic_cb(asan_panic_cb_t panic_cb)
+{
+	asan_panic_cb = panic_cb;
+}
+
+static void asan_report(vaddr_t addr, size_t size)
+{
+#ifdef KASAN_DUMP_SHADOW
+	char buf[128] = {0};
+	int r = 0, rc = 0;
+	vaddr_t b = 0, e = 0, saddr = 0;
+
+	b = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) - ASAN_BLOCK_SIZE;
+	e = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) + ASAN_BLOCK_SIZE;
+
+	/* Print shadow map nearby */
+	if (va_range_inside_shadow((void *)b, (void *)e)) {
+		rc = snprintk(buf + r, sizeof(buf) - r, "%lx: ", b);
+		assert(rc > 0);
+		r += rc;
+		for (saddr = b; saddr <= e; saddr += ASAN_BLOCK_SIZE) {
+			int8_t *sbyte = va_to_shadow((void *)saddr);
+
+			rc = snprintk(buf + r, sizeof(buf) - r,
+				      "0x%02x ", (uint8_t)*sbyte);
+			assert(rc > 0);
+			r += rc;
+		}
+		EMSG("%s", buf);
+	}
+#endif
+	EMSG("[ASAN]: access violation, addr: %lx size: %zu\n",
+	     addr, size);
+
+	assert(asan_panic_cb);
+	if (asan_panic_cb)
+		asan_panic_cb();
+}
+
+static __always_inline bool asan_shadow_1byte_isvalid(unsigned long addr)
+{
+	int8_t last = (addr & ASAN_BLOCK_MASK) + 1;
+	int8_t *byte = va_to_shadow((void *)addr);
+
+	if (*byte == 0 || last <= *byte)
+		return true;
+
+	return false;
+}
+
+static __always_inline bool asan_shadow_2byte_isvalid(unsigned long addr)
+{
+	int8_t *byte, last;
+
+	if (addr_crosses_scale_boundary(addr, 2)) {
+		return (asan_shadow_1byte_isvalid(addr) &&
+			asan_shadow_1byte_isvalid(addr + 1));
+	}
+
+	byte = va_to_shadow((void *)addr);
+	last = ((addr + 1) & ASAN_BLOCK_MASK) + 1;
+
+	if (*byte == 0 || last <= *byte)
+		return true;
+
+	return false;
+}
+
+static __always_inline bool asan_shadow_4byte_isvalid(unsigned long addr)
+{
+	int8_t *byte, last;
+
+	if (addr_crosses_scale_boundary(addr, 4)) {
+		return (asan_shadow_2byte_isvalid(addr) &&
+			asan_shadow_2byte_isvalid(addr + 2));
+	}
+
+	byte = va_to_shadow((void *)addr);
+	last = ((addr + 3) & ASAN_BLOCK_MASK) + 1;
+
+	if (*byte == 0 || last <= *byte)
+		return true;
+
+	return false;
+}
+
+static __always_inline bool asan_shadow_8byte_isvalid(unsigned long addr)
+{
+	int8_t *byte, last;
+
+	if (addr_crosses_scale_boundary(addr, 8)) {
+		return (asan_shadow_4byte_isvalid(addr) &&
+			asan_shadow_4byte_isvalid(addr + 4));
+	}
+
+	byte = va_to_shadow((void *)addr);
+	last = ((addr + 7) & ASAN_BLOCK_MASK) + 1;
+
+	if (*byte == 0 || last <= *byte)
+		return true;
+
+	return false;
+}
+
+static __always_inline bool asan_shadow_Nbyte_isvalid(unsigned long addr,
+						      size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; i++) {
+		if (!asan_shadow_1byte_isvalid(addr + i))
+			return false;
+	}
+
+	return true;
+}
+
+static __always_inline void check_access(vaddr_t addr, size_t size)
+{
+	bool valid = false;
 	void *begin = (void *)addr;
 	void *end = (void *)(addr + size);
-	int8_t *a;
-	int8_t *e;
 
-	if (!asan_active || !size)
+	if (!asan_active)
+		return;
+	if (size == 0)
 		return;
 	if (va_range_outside_shadow(begin, end))
 		return;
@@ -184,22 +317,38 @@ static void check_access(vaddr_t addr, size_t size)
 	if (!va_range_inside_shadow(begin, end))
 		panic();
 
-	e = va_to_shadow((void *)(addr + size - 1));
-	for (a = va_to_shadow(begin); a <= e; a++)
-		if (*a < 0)
-			panic();
+	if (__builtin_constant_p(size)) {
+		switch (size) {
+		case 1:
+			valid = asan_shadow_1byte_isvalid(addr);
+			break;
+		case 2:
+			valid = asan_shadow_2byte_isvalid(addr);
+			break;
+		case 4:
+			valid = asan_shadow_4byte_isvalid(addr);
+			break;
+		case 8:
+			valid = asan_shadow_8byte_isvalid(addr);
+			break;
+		default:
+			valid = asan_shadow_Nbyte_isvalid(addr, size);
+			break;
+		}
+	} else {
+		valid = asan_shadow_Nbyte_isvalid(addr, size);
+	}
 
-	if (!va_is_well_aligned(end) &&
-	    va_misalignment(end) > (size_t)(*e - ASAN_BLOCK_SIZE))
-		panic();
+	if (!valid)
+		asan_report(addr, size);
 }
 
-static void check_load(vaddr_t addr, size_t size)
+static __always_inline void check_load(vaddr_t addr, size_t size)
 {
 	check_access(addr, size);
 }
 
-static void check_store(vaddr_t addr, size_t size)
+static __always_inline void check_store(vaddr_t addr, size_t size)
 {
 	check_access(addr, size);
 }
@@ -282,4 +431,14 @@ void __asan_unregister_globals(struct asan_global *globals, size_t size);
 void __asan_unregister_globals(struct asan_global *globals __unused,
 			       size_t size __unused)
 {
+}
+
+void asan_handle_longjmp(void *old_sp)
+{
+	int local = 0;
+	void *top = old_sp;
+	void *bottom = (void *)ROUNDDOWN((uintptr_t)&local,
+					 ASAN_BLOCK_SIZE);
+
+	asan_tag_access(bottom, top);
 }

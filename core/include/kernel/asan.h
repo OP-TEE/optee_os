@@ -19,8 +19,12 @@
 #include <string.h>
 #include <types_ext.h>
 
+typedef void (*asan_panic_cb_t)(void);
+
 void asan_set_shadowed(const void *va_begin, const void *va_end);
 void asan_start(void);
+void asan_panic(void);
+void asan_set_panic_cb(asan_panic_cb_t panic_cb);
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
 void asan_tag_no_access(const void *begin, const void *end);
