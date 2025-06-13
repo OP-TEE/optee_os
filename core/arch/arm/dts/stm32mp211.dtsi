@@ -3,12 +3,14 @@
  * Copyright (C) 2025, STMicroelectronics - All Rights Reserved
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
+#include <dt-bindings/clock/st,stm32mp21-rcc.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/firewall/stm32mp21-rifsc.h>
 #include <dt-bindings/firewall/stm32mp25-rif.h>
 #include <dt-bindings/firewall/stm32mp25-risab.h>
 #include <dt-bindings/firewall/stm32mp25-risaf.h>
+#include <dt-bindings/reset/st,stm32mp21-rcc.h>
 
 / {
 	#address-cells = <2>;
@@ -105,6 +107,20 @@
 			compatible = "st,stm32mp25-iac";
 			reg = <0x42090000 0x400>;
 			interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+
+		rcc: clock-controller@44200000 {
+			compatible = "st,stm32mp21-rcc", "syscon";
+			reg = <0x44200000 0x10000>;
+			interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
+
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			clocks = <&clk_hse>, <&clk_hsi>, <&clk_lse>,
+				 <&clk_lsi>, <&clk_msi>, <&clk_i2sin>;
+			clock-names = "clk-hse", "clk-hsi", "clk-lse",
+				      "clk-lsi", "clk-msi", "clk-i2sin";
 		};
 
 		syscfg: syscon@44230000 {

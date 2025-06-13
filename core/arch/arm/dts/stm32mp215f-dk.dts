@@ -5,9 +5,12 @@
 
 /dts-v1/;
 
+#include <dt-bindings/clock/stm32mp21-clksrc.h>
 #include "stm32mp215.dtsi"
 #include "stm32mp21xf.dtsi"
+#include "stm32mp215f-dk-ca35tdcid-rcc.dtsi"
 #include "stm32mp215f-dk-ca35tdcid-rif.dtsi"
+#include "stm32mp21-st-scmi-cfg.dtsi"
 
 / {
 	model = "STMicroelectronics STM32MP215F-DK Discovery Board";
@@ -16,5 +19,24 @@
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>;
+	};
+};
+
+&rcc {
+	st,c1msrd = <2>;
+	st,clk_opp {
+		st,ck_cpu1 {
+			cfg_1 {
+				hz = <1500000000>;
+				st,clksrc = <0>;
+				st,pll = <&pll1_cfg_1500MHz>;
+			};
+
+			cfg_2 {
+				hz = <1200000000>;
+				st,clksrc = <0>;
+				st,pll = <&pll1_cfg_1200MHz>;
+			};
+		};
 	};
 };
