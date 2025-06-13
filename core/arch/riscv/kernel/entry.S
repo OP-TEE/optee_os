@@ -8,6 +8,7 @@
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/thread.h>
+#include <kernel/riscv_elf.h>
 #include <kernel/thread_private.h>
 #include <kernel/thread_private_arch.h>
 #include <mm/core_mmu.h>
@@ -57,33 +58,15 @@
 .endm
 
 .macro set_tp
-	csrr	a3, CSR_XSCRATCH /* a3: hart_index */
-	li	a1, THREAD_CORE_LOCAL_SIZE
+	csrr	t0, CSR_XSCRATCH /* t0: hart_index */
+	li	t1, THREAD_CORE_LOCAL_SIZE
+	mul	t2, t1, t0
 	la	tp, thread_core_local
 	LDR	tp, 0(tp)
-	mul	a2, a1, a3
-	add	tp, tp, a2
-	sw	a0, THREAD_CORE_LOCAL_HART_ID(tp)
-	sw	a3, THREAD_CORE_LOCAL_HART_INDEX(tp)
-.endm
-
-.macro set_satp
-	/*
-	 * a0 = hart_index
-	 * a1 = address of boot_mmu_config.satp[0]
-	 * a2 = size of CSR SATP
-	 *
-	 * This hart's SATP is of value (a1 + (a0 * a2)).
-	 */
-	csrr	a0, CSR_XSCRATCH
-	la	a1, boot_mmu_config
-	addi	a1, a1, CORE_MMU_CONFIG_SATP
-	li	a2, CORE_MMU_CONFIG_SATP_SIZE
-	mul	a0, a0, a2
-	add	a1, a1, a0
-	LDR	a2, 0(a1)
-	csrw	CSR_SATP, a2
-	sfence.vma	zero, zero
+	add	tp, tp, t2
+	/* Save hart_id and hart_index into thread_core_local */
+	sw	s0, THREAD_CORE_LOCAL_HART_ID(tp)
+	sw	t0, THREAD_CORE_LOCAL_HART_INDEX(tp)
 .endm
 
 .macro wait_primary
@@ -130,6 +113,7 @@ FUNC _start , :
 	 * a0	- if non-NULL holds the hart ID
 	 * a1	- if non-NULL holds the system DTB address
 	 *
+	 * s0 - saved a0
 	 * s1 - saved a1
 	 */
 .option push
@@ -139,6 +123,7 @@ FUNC _start , :
 #ifdef CFG_RISCV_M_MODE
 	csrr	a0, CSR_MHARTID
 #endif
+	mv	s0, a0		/* Save hart ID into s0 */
 
 #if defined(CFG_DT_ADDR)
 	li	s1, CFG_DT_ADDR
@@ -159,6 +144,10 @@ END_FUNC _start
 
 LOCAL_FUNC reset_primary , : , .identity_map
 UNWIND(	.cantunwind)
+#ifdef CFG_CORE_ASLR
+	li	a0, 0
+	jal	relocate
+#endif
 	/*
 	 * Zero bss
 	 */
@@ -247,11 +236,27 @@ UNWIND(	.cantunwind)
 	la	a2, __vcore_free_end
 	jal	boot_mem_init
 
+#ifdef CFG_CORE_ASLR
+#ifdef CFG_CORE_ASLR_SEED
+	li	a0, CFG_CORE_ASLR_SEED
+#else
+	jal	get_aslr_seed
+#endif
+#else
 	mv	a0, x0
+#endif
 	la	a1, boot_mmu_config
 	jal	core_init_mmu_map
 
-	set_satp
+#ifdef CFG_CORE_ASLR
+	la	a0, boot_mmu_config
+	LDR	a0, CORE_MMU_CONFIG_MAP_OFFSET(a0)
+	beqz	a0, 1f		/* no offset, skip dynamic relocation */
+	jal	relocate
+1:
+#endif
+
+	jal	enable_mmu
 
 #ifdef CFG_CORE_ASLR
 #if defined(CFG_DYN_CONFIG)
@@ -262,6 +267,29 @@ UNWIND(	.cantunwind)
 	la	t0, thread_core_local
 	STR	tp, 0(t0)
 #endif
+
+	/*
+	 * Update recorded end_va. This must be done before calling into C
+	 * code to make sure that the stack pointer matches what we have in
+	 * thread_core_local[].
+	 */
+	la	a0, boot_mmu_config
+	LDR	a0, CORE_MMU_CONFIG_MAP_OFFSET(a0)
+	LDR	a1, THREAD_CORE_LOCAL_TMP_STACK_VA_END(tp)
+	add	a1, a1, a0
+	STR	a1, THREAD_CORE_LOCAL_TMP_STACK_VA_END(tp)
+	LDR	a1, THREAD_CORE_LOCAL_ABT_STACK_VA_END(tp)
+	add	a1, a1, a0
+	STR	a1, THREAD_CORE_LOCAL_ABT_STACK_VA_END(tp)
+
+	/* Update relocations recorded with boot_mem_add_reloc() */
+	jal	boot_mem_relocate
+	/*
+	 * Reinitialize console, since register_serial_console() has
+	 * previously registered a PA and with ASLR the VA is different
+	 * from the PA.
+	 */
+	jal	console_init
 #endif
 
 	jal	boot_init_primary_early
@@ -358,6 +386,7 @@ LOCAL_FUNC reset_secondary , : , .identity_map
 UNWIND(	.cantunwind)
 	wait_primary
 	csrw	CSR_SATP, zero
+	jal	enable_mmu
 #if defined(CFG_DYN_CONFIG)
 	/*
 	 * Update tp to point the new thread_core_local.
@@ -376,7 +405,6 @@ UNWIND(	.cantunwind)
 	set_sp
 	set_tp
 #endif
-	set_satp
 	cpu_is_ready
 
 	jal	boot_init_secondary
@@ -397,6 +425,90 @@ LOCAL_FUNC unhandled_cpu , :
 	wfi
 	j	unhandled_cpu
 END_FUNC unhandled_cpu
+
+#if defined(CFG_CORE_ASLR)
+/*
+ * void relocate(unsigned long offset);
+ *
+ * This function updates dynamic relocations.
+ */
+LOCAL_FUNC relocate , :
+	/*
+	 * a0 holds relocate offset
+	 */
+	la	t0, __rel_dyn_start
+	la	t1, __rel_dyn_end
+	beq	t0, t1, 5f
+2:
+	LDR	t5, RISCV_XLEN_BYTES(t0)        /* t5: relocation info:type */
+	li	t3, R_RISCV_RELATIVE
+	bne	t5, t3, 3f
+	LDR	t3, 0(t0)                       /* t3: offset */
+	LDR	t5, (RISCV_XLEN_BYTES * 2)(t0)  /* t5: addend */
+	add	t5, t5, a0                      /* t5: add ASLR offset */
+	STR	t5, 0(t3)                       /* update address */
+	j	4f
+
+3:
+	la	t4, __dyn_sym_start
+	srli	t6, t5, SYM_INDEX             /* t6: sym table index */
+	andi	t5, t5, 0xFF                  /* t5: relocation type */
+	li	t3, RELOC_TYPE
+	bne	t5, t3, 4f
+
+	/* address R_RISCV_64 or R_RISCV_32 cases */
+	LDR	t3, 0(t0)
+	li	t5, SYM_SIZE
+	mul	t6, t6, t5
+	add	t5, t4, t6
+	LDR	t6, (RISCV_XLEN_BYTES * 2)(t0)  /* t6: addend */
+	LDR	t5, RISCV_XLEN_BYTES(t5)        /* t5: sym value */
+	add	t5, t5, t6
+	add	t5, t5, a0                      /* t5: add ASLR offset */
+	STR	t5, 0(t3)                       /* update address */
+
+4:
+	addi	t0, t0, (RISCV_XLEN_BYTES * 3)
+	blt	t0, t1, 2b
+5:
+	ret
+END_FUNC relocate
+#endif
+
+/*
+ * void enable_mmu(void);
+ *
+ * Initializes and enables the Memory Management Unit (MMU).
+ * This function is designed to be called while executing in
+ * an identity-mapped region, where physical and virtual
+ * addresses are identical. When CFG_CORE_ASLR=y:
+ *   - Execution is switched to the new virtual address region,
+ *     based on the randomized offset.
+ *   - CPU registers (global pointer, thread pointer, stack
+ *     pointer, return address) are updated so execution
+ *     continue correctly in a new address space.
+ */
+LOCAL_FUNC enable_mmu , : , .identity_map
+	/* Set SATP from boot_mmu_config.satp[hartidx] */
+	csrr	a0, CSR_XSCRATCH
+	la	a1, boot_mmu_config
+	LDR	a3, CORE_MMU_CONFIG_MAP_OFFSET(a1)
+	addi	a1, a1, CORE_MMU_CONFIG_SATP
+	li	a2, CORE_MMU_CONFIG_SATP_SIZE
+	mul	a0, a0, a2
+	add	a1, a1, a0
+	LDR	a2, 0(a1)
+	csrw	CSR_SATP, a2
+	sfence.vma	zero, zero
+#ifdef CFG_CORE_ASLR
+	/* Update CPU registers with the ASLR offset */
+	add	gp, gp, a3
+	add	tp, tp, a3
+	add	sp, sp, a3
+	add	ra, ra, a3
+#endif
+	ret
+END_FUNC enable_mmu
 
 	.section .identity_map.data
 	.balign	8
@@ -421,7 +533,8 @@ LOCAL_DATA stack_tmp_rel , :
 END_DATA stack_tmp_rel
 #endif
 
+	.section .identity_map.data
 	.balign	8
-LOCAL_DATA boot_mmu_config , : /* struct core_mmu_config */
+DATA boot_mmu_config , : /* struct core_mmu_config */
 	.skip	CORE_MMU_CONFIG_SIZE
 END_DATA boot_mmu_config

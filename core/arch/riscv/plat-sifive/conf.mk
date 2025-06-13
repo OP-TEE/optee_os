@@ -14,7 +14,6 @@ CFG_DT ?= y
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
 # Protection flags
-$(call force,CFG_CORE_ASLR,n)
 $(call force,CFG_CORE_SANITIZE_KADDRESS,n)
 
 # Hart-related flags

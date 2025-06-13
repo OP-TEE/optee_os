@@ -103,6 +103,8 @@ DEFINES
 	DEFINE(CORE_MMU_CONFIG_SATP,
 	       offsetof(struct core_mmu_config, satp[0]));
 	DEFINE(CORE_MMU_CONFIG_SATP_SIZE, sizeof(unsigned long));
+	DEFINE(CORE_MMU_CONFIG_MAP_OFFSET,
+	       offsetof(struct core_mmu_config, map_offset));
 
 	/* struct thread_abi_args */
 	DEFINE(THREAD_ABI_ARGS_A0, offsetof(struct thread_abi_args, a0));

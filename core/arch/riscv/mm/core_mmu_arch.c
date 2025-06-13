@@ -717,11 +717,31 @@ bool arch_va2pa_helper(void *va, paddr_t *pa)
 	return false;
 }
 
-vaddr_t arch_aslr_base_addr(vaddr_t start_addr, uint64_t seed __unused,
-			    unsigned int iteration_count __unused)
+vaddr_t arch_aslr_base_addr(vaddr_t start_addr, uint64_t seed,
+			    unsigned int iteration_count)
 {
-	/* Placeholder */
-	return start_addr;
+	const unsigned int va_width = core_mmu_get_va_width();
+	const vaddr_t va_mask = GENMASK_64(63, SMALL_PAGE_SHIFT);
+	const vaddr_t va_width_msb = BIT64(va_width - 1);
+	const vaddr_t va_extended_mask = GENMASK_64(63, va_width);
+	vaddr_t base_addr = start_addr + seed;
+
+	if (iteration_count) {
+		base_addr &= ~GENMASK_64(va_width - 2,
+					 va_width - 1 - iteration_count);
+	}
+
+	/*
+	 * If the MSB is set, map the base address to the top
+	 * half of the virtual address space by extending 1s
+	 * to 64-bit; otherwise, map it to the bottom half.
+	 */
+	if (base_addr & va_width_msb)
+		base_addr |= va_extended_mask;
+	else
+		base_addr &= ~va_extended_mask;
+
+	return base_addr & va_mask;
 }
 
 bool cpu_mmu_enabled(void)
