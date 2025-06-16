@@ -17,4 +17,7 @@
 
 bool stm32mp_allow_probe_shared_device(const void *fdt, int node);
 
+/* Print a message and reset the system */
+void __noreturn do_reset(const char *str);
+
 #endif /*__STM32_UTIL_H__*/
