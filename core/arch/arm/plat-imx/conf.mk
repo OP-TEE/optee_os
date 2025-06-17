@@ -566,6 +566,12 @@ ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7)))
 CFG_IMX_CSU ?= y
 endif
 
+ifneq (,$(filter y, $(CFG_MX8M)))
+ifneq ($(CFG_INSECURE),y)
+$(call force,CFG_TZASC_REGION0_SECURE,y)
+endif
+endif
+
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)
 CFG_HWSUPP_MEM_PERM_WXN = n
 CFG_IMX_WDOG ?= y
