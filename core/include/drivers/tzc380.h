@@ -219,6 +219,7 @@ void tzc_int_clear(void);
 int tzc_auto_configure(vaddr_t addr, vaddr_t rsize, uint32_t attr,
 		       uint8_t region);
 TEE_Result tzc_regions_lockdown(void);
+TEE_Result tzc_verify_region0_secure(void);
 
 #if TRACE_LEVEL >= TRACE_DEBUG
 void tzc_dump_state(void);
