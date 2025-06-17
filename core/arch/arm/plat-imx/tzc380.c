@@ -67,6 +67,20 @@ static TEE_Result imx_configure_tzasc(void)
 
 		tzc_init(addr[i]);
 
+		/*
+		 * TZC380 is not memory alias aware so an attacker could read
+		 * the OP-TEE core memory if the system does support memory
+		 * aliasing.
+		 *
+		 * To fix this region0 needs to be configured as secure access
+		 * only (0xc). This is the default if not changed by the
+		 * previous running firmware. region0 covers the complete
+		 * platform AXI address space.
+		 */
+		if (IS_ENABLED(CFG_TZASC_REGION0_SECURE) &&
+		    tzc_verify_region0_secure() != TEE_SUCCESS)
+			panic("region0 is not secure configured, non-secure memory alias access possible!");
+
 		region = imx_tzc_auto_configure(CFG_DRAM_BASE, CFG_DDR_SIZE,
 						TZC_ATTR_SP_NS_RW, region);
 		region = imx_tzc_auto_configure(CFG_TZDRAM_START,
