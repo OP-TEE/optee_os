@@ -240,8 +240,7 @@ static void *maybe_tag_buf(uint8_t *buf, size_t hdr_size, size_t requested_size)
 	}
 
 #if defined(__KERNEL__)
-	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
-		asan_tag_access(buf, buf + hdr_size + requested_size);
+	asan_tag_access(buf, buf + hdr_size + requested_size);
 #endif
 	return buf;
 }
@@ -260,8 +259,7 @@ static void *maybe_untag_buf(void *buf)
 	}
 
 #if defined(__KERNEL__)
-	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
-		asan_tag_heap_free(buf, (uint8_t *)buf + bget_buf_size(buf));
+	asan_tag_heap_free(buf, (uint8_t *)buf + bget_buf_size(buf));
 #endif
 	return buf;
 }
