@@ -218,7 +218,17 @@ static void *maybe_tag_buf(uint8_t *buf, size_t hdr_size, size_t requested_size)
 	COMPILE_TIME_ASSERT(MEMTAG_GRANULE_SIZE <= SizeQuant);
 
 	if (MEMTAG_IS_ENABLED) {
-		size_t sz = ROUNDUP(requested_size, MEMTAG_GRANULE_SIZE);
+		size_t sz = 0;
+
+		/*
+		 * MEMTAG needs actual allocated size (>= SizeQuant),
+		 * unlike ASan which tags only requested bytes. For
+		 * malloc(0), bget allocates SizeQuant, so we pass
+		 * MAX(requested_size, SizeQuant) to ensure correct tagging.
+		 */
+		requested_size = MAX(requested_size, SizeQuant);
+
+		sz = ROUNDUP(requested_size, MEMTAG_GRANULE_SIZE);
 
 		/*
 		 * Allocated buffer can be larger than requested when
@@ -289,7 +299,7 @@ static void *raw_malloc_return_hook(void *p, size_t hdr_size,
 		}
 	}
 
-	return maybe_tag_buf(p, hdr_size, MAX(SizeQuant, requested_size));
+	return maybe_tag_buf(p, hdr_size, requested_size);
 }
 
 static void gen_malloc_reset_stats(struct malloc_ctx *ctx)
@@ -331,7 +341,7 @@ static void *raw_malloc_return_hook(void *p, size_t hdr_size,
 	if (!p)
 		print_oom(requested_size, ctx);
 
-	return maybe_tag_buf(p, hdr_size, MAX(SizeQuant, requested_size));
+	return maybe_tag_buf(p, hdr_size, requested_size);
 }
 
 #endif /* BufStats */
