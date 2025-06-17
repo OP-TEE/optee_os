@@ -56,7 +56,7 @@ static TEE_Result imx_configure_tzasc(void)
 	addr[0] = core_mmu_get_va(TZASC_BASE, MEM_AREA_IO_SEC, 1);
 
 	if (IS_ENABLED(CFG_MX6Q) || IS_ENABLED(CFG_MX6D) ||
-	    IS_ENABLED(CFG_MX6DL)) {
+	    IS_ENABLED(CFG_MX6DL) || IS_ENABLED(CFG_MX6QP)) {
 		assert(TZASC2_BASE != 0);
 		addr[1] = core_mmu_get_va(TZASC2_BASE, MEM_AREA_IO_SEC, 1);
 		end = 2;
