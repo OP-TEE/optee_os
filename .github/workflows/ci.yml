@@ -570,7 +570,6 @@ jobs:
     name: make check (QEMUv8, Xen FF-A)
     runs-on: ubuntu-latest
     container: jforissier/optee_os_ci:qemu_check
-    if: false # Disabled until https://github.com/OP-TEE/optee_os/issues/7394 is fixed
     steps:
       - name: Remove /__t/*
         run: rm -rf /__t/*
