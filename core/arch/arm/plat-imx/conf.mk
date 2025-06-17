@@ -572,6 +572,15 @@ $(call force,CFG_TZASC_REGION0_SECURE,y)
 endif
 endif
 
+# We can't make it default because of missing i.MX7 and i.MX9 support.
+# Once all platforms are supported we can remove the CFG_TZASC_CHECK_ENABLED
+# and perform the check always.
+ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX8M)))
+ifneq ($(CFG_INSECURE),y)
+$(call force,CFG_TZASC_CHECK_ENABLED,y)
+endif
+endif
+
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)
 CFG_HWSUPP_MEM_PERM_WXN = n
 CFG_IMX_WDOG ?= y

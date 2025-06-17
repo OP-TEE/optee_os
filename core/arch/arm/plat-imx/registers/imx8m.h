@@ -8,6 +8,8 @@
 
 #include <registers/imx8m-crm.h>
 
+#define IOMUXC_GPR_BASE	0x30340000
+#define IOMUXC_SIZE	0x10000
 #define GICD_BASE	0x38800000
 #define GICR_BASE	0x38880000
 #define UART1_BASE	0x30860000
@@ -63,5 +65,7 @@
 #define IOMUXC_I2C1_SCL_MUX_OFF	0x200
 #define IOMUXC_I2C1_SDA_MUX_OFF	0x204
 #endif
+
+#define IOMUXC_GPR_GPR10_OFFSET		0x28
 
 #endif /* __IMX8M_H__ */
