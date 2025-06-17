@@ -315,6 +315,29 @@ TEE_Result tzc_regions_lockdown(void)
 	return TEE_SUCCESS;
 }
 
+/*
+ * `tzc_verify_region0_secure` verifies that default region0 only permitts
+ * secure-world access to overcome memory alias access breaches.
+ *
+ * Return
+ *  - TEE_SUCCESS if region0 is secure world only access
+ *  - TEE_ERROR_SECURITY if region0 can be accessed be non-secure world
+ */
+TEE_Result tzc_verify_region0_secure(void)
+{
+	uint32_t val = 0;
+
+	assert(tzc.base);
+
+	val = tzc_read_region_attributes(tzc.base, 0);
+	val &= TZC_ATTR_SP_ALL;
+
+	if (val != TZC_ATTR_SP_S_RW)
+		return TEE_ERROR_SECURITY;
+
+	return TEE_SUCCESS;
+}
+
 #if TRACE_LEVEL >= TRACE_DEBUG
 
 static uint32_t tzc_read_region_base_low(vaddr_t base, uint32_t region)
