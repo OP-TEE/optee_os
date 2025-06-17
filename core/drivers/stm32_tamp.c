@@ -18,6 +18,7 @@
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
+#include <stm32_util.h>
 
 /* STM32 Registers */
 #define _TAMP_CR1			0x00U
@@ -1067,9 +1068,8 @@ static enum itr_return stm32_tamp_it_handler(struct itr_handler *h __unused)
 				io_setbits32(base + _TAMP_SCR,
 					     _TAMP_SCR_ITAMP(id));
 
-			/* TODO: reset the platform */
 			if (ret & TAMP_CB_RESET)
-				MSG("System will reset");
+				do_reset("Internal tamper event detected");
 		}
 		i++;
 	}
@@ -1093,9 +1093,8 @@ static enum itr_return stm32_tamp_it_handler(struct itr_handler *h __unused)
 				io_setbits32(base + _TAMP_SCR,
 					     _TAMP_SCR_ETAMP(id));
 
-			/* TODO: reset the platform */
 			if (ret & TAMP_CB_RESET)
-				MSG("System will reset");
+				do_reset("External tamper event detected");
 		}
 		i++;
 	}
