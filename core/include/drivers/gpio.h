@@ -95,6 +95,8 @@ struct gpio_ops {
 	/* Enable or disable a GPIO interrupt */
 	void (*set_interrupt)(struct gpio_chip *chip, unsigned int gpio_pin,
 			      enum gpio_interrupt enable_disable);
+	/* Configure GPIO resources, based on dt_flags */
+	TEE_Result (*configure)(struct gpio_chip *chip, struct gpio *gpio);
 	/* Release GPIO resources */
 	void (*put)(struct gpio_chip *chip, struct gpio *gpio);
 };
