@@ -68,6 +68,16 @@ TEE_Result gpio_dt_get_by_index(const void *fdt, int nodeoffset,
 TEE_Result gpio_configure(struct gpio *gpio, enum gpio_flags flags)
 {
 	enum gpio_level value = GPIO_LEVEL_LOW;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	assert(gpio && gpio->chip && gpio->chip->ops);
+
+	/* Configure GPIO with DT flags */
+	if (gpio && gpio->chip->ops->configure) {
+		res = gpio->chip->ops->configure(gpio->chip, gpio);
+		if (res)
+			return res;
+	}
 
 	/* Process requester flags */
 	if (flags & GPIO_FLAGS_BIT_DIR_SET) {
