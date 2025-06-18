@@ -13,12 +13,11 @@
 #include <trace.h>
 
 /* SGI number chosen to halt other cores must be in the secure SGI range */
-static_assert(!IS_ENABLED(CFG_HALT_CORES_ON_PANIC) ||
-	      (CFG_HALT_CORES_ON_PANIC_SGI >= 8 &&
-	       CFG_HALT_CORES_ON_PANIC_SGI < 16));
+static_assert(!IS_ENABLED(CFG_MULTI_CORE_HALTING) ||
+	      (CFG_HALT_CORES_SGI >= 8 && CFG_HALT_CORES_SGI < 16));
 
 static enum itr_return __noreturn
-multi_core_panic_it_handler(struct itr_handler *hdl __unused)
+multi_core_halt_it_handler(struct itr_handler *hdl __unused)
 {
 	IMSG("Halting CPU %zu", get_core_pos());
 
@@ -26,39 +25,39 @@ multi_core_panic_it_handler(struct itr_handler *hdl __unused)
 		cpu_idle();
 }
 
-static struct itr_handler multi_core_panic_handler __nex_data = {
-	.it = CFG_HALT_CORES_ON_PANIC_SGI,
-	.handler = multi_core_panic_it_handler,
+static struct itr_handler multi_core_halt_handler __nex_data = {
+	.it = CFG_HALT_CORES_SGI,
+	.handler = multi_core_halt_it_handler,
 };
-DECLARE_KEEP_PAGER(multi_core_panic_handler);
+DECLARE_KEEP_PAGER(multi_core_halt_handler);
 
-static void notify_other_cores(void)
+static void halt_other_cores(void)
 {
 	struct itr_chip *chip = interrupt_get_main_chip_may_fail();
 
 	if (chip)
-		interrupt_raise_sgi(chip, CFG_HALT_CORES_ON_PANIC_SGI,
+		interrupt_raise_sgi(chip, CFG_HALT_CORES_SGI,
 				    ITR_CPU_MASK_TO_OTHER_CPUS);
 	else
-		EMSG("Can't notify other cores, main interrupt chip not set");
+		EMSG("Can't halt other cores, main interrupt chip not set");
 }
 
-static TEE_Result init_multi_core_panic_handler(void)
+static TEE_Result init_multi_core_halt_handler(void)
 {
-	if (!IS_ENABLED(CFG_HALT_CORES_ON_PANIC) || CFG_TEE_CORE_NB_CORE == 1)
+	if (!IS_ENABLED(CFG_MULTI_CORE_HALTING) || CFG_TEE_CORE_NB_CORE == 1)
 		return TEE_SUCCESS;
 
 	if (interrupt_add_handler_with_chip(interrupt_get_main_chip(),
-					    &multi_core_panic_handler))
+					    &multi_core_halt_handler))
 		panic();
 
 	interrupt_enable(interrupt_get_main_chip(),
-			 multi_core_panic_handler.it);
+			 multi_core_halt_handler.it);
 
 	return TEE_SUCCESS;
 }
 
-nex_driver_init_late(init_multi_core_panic_handler);
+nex_driver_init_late(init_multi_core_halt_handler);
 
 void __do_panic(const char *file __maybe_unused,
 		const int line __maybe_unused,
@@ -80,7 +79,7 @@ void __do_panic(const char *file __maybe_unused,
 	print_kernel_stack();
 
 	if (IS_ENABLED(CFG_HALT_CORES_ON_PANIC) && CFG_TEE_CORE_NB_CORE > 1)
-		notify_other_cores();
+		halt_other_cores();
 
 	/* abort current execution */
 	while (1)
