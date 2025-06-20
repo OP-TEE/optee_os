@@ -15,17 +15,18 @@
 
 #include "stm32_rstctrl.h"
 
-static TEE_Result stm32_reset_update(struct rstctrl *rstctrl, bool status,
+static TEE_Result stm32_reset_update(struct rstctrl *rstctrl, bool state,
 				     unsigned int to_us)
 {
 	unsigned int id = to_stm32_rstline(rstctrl)->id;
-	const struct stm32_reset_data *data = NULL;
+	const struct stm32_reset_data *data = to_stm32_rstline(rstctrl)->data;
 	const struct stm32_reset_cfg *rst_line = NULL;
 	vaddr_t address = stm32_rcc_base();
 	uint32_t bit_mask = 0;
 	uint32_t value = 0;
 
-	data = to_stm32_rstline(rstctrl)->data;
+	if (id >= data->nb_lines)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	rst_line = data->rst_lines[id];
 	if (!rst_line)
@@ -34,12 +35,12 @@ static TEE_Result stm32_reset_update(struct rstctrl *rstctrl, bool status,
 	address += rst_line->offset;
 	bit_mask = BIT(rst_line->bit_index);
 
-	if (!status && rst_line->no_deassert)
+	if (!state && rst_line->no_deassert)
 		return TEE_SUCCESS;
 
-	status = rst_line->inverted ^ status;
+	state = rst_line->inverted ^ state;
 
-	if (status) {
+	if (state) {
 		if (rst_line->set_clr)
 			io_write32(address, bit_mask);
 		else
@@ -54,7 +55,7 @@ static TEE_Result stm32_reset_update(struct rstctrl *rstctrl, bool status,
 	if (to_us && !rst_line->no_timeout) {
 		if (IO_READ32_POLL_TIMEOUT(address, value,
 					   ((value & bit_mask) == bit_mask) ==
-					   status, 0, to_us))
+					   state, 0, to_us))
 			return TEE_ERROR_GENERIC;
 	} else {
 		/* Make sure the above write is performed */
