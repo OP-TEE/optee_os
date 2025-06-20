@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Texas Instruments K3 SA2UL RNG Driver
+ * Texas Instruments K3 EIP76D TRNG Driver
  *
  * Copyright (C) 2022 Texas Instruments Incorporated - https://www.ti.com/
  *	Andrew Davis <afd@ti.com>
@@ -17,7 +17,7 @@
 #include <platform_config.h>
 #include <rng_support.h>
 
-#include "sa2ul.h"
+#include "eip76d_trng.h"
 
 #define	RNG_OUTPUT_0            0x00
 #define	RNG_OUTPUT_1            0x04
@@ -64,12 +64,12 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG_BASE, RNG_REG_SIZE);
 static struct mutex fifo_lock = MUTEX_INITIALIZER;
 static vaddr_t rng;
 
-static bool sa2ul_rng_is_enabled(void)
+static bool eip76d_rng_is_enabled(void)
 {
 	return io_read32(rng + RNG_CONTROL) & ENABLE_TRNG;
 }
 
-static void sa2ul_rng_init_seq(void)
+static void eip76d_rng_init_seq(void)
 {
 	uint32_t val = 0;
 
@@ -87,11 +87,11 @@ static void sa2ul_rng_init_seq(void)
 	io_write32(rng + RNG_CONTROL, ENABLE_TRNG);
 }
 
-static void sa2ul_rng_read128(uint32_t *word0, uint32_t *word1,
-			      uint32_t *word2, uint32_t *word3)
+static void eip76d_rng_read128(uint32_t *word0, uint32_t *word1,
+			       uint32_t *word2, uint32_t *word3)
 {
-	if (!sa2ul_rng_is_enabled())
-		sa2ul_rng_init_seq();
+	if (!eip76d_rng_is_enabled())
+		eip76d_rng_init_seq();
 
 	/* Is the result ready (available)? */
 	while (!(io_read32(rng + RNG_STATUS) & RNG_READY)) {
@@ -137,8 +137,8 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 
 		/* Refill our FIFO */
 		if (fifo_pos == 0)
-			sa2ul_rng_read128(&fifo.val[0], &fifo.val[1],
-					  &fifo.val[2], &fifo.val[3]);
+			eip76d_rng_read128(&fifo.val[0], &fifo.val[1],
+					   &fifo.val[2], &fifo.val[3]);
 
 		buffer[buffer_pos++] = fifo.byte[fifo_pos++];
 		fifo_pos %= 16;
@@ -149,13 +149,13 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	return TEE_SUCCESS;
 }
 
-TEE_Result sa2ul_rng_init(void)
+TEE_Result eip76d_rng_init(void)
 {
 	rng = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC, RNG_REG_SIZE);
 
-	sa2ul_rng_init_seq();
+	eip76d_rng_init_seq();
 
-	IMSG("SA2UL TRNG initialized");
+	IMSG("EIP76D TRNG initialized");
 
 	return TEE_SUCCESS;
 }
