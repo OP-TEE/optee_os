@@ -32,6 +32,7 @@ $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 endif
 
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
+$(call force,CFG_EIP76D_TRNG,y)
 $(call force,CFG_SA2UL,y)
 CFG_HWRNG_QUALITY ?= 1024
 CFG_HWRNG_PTA ?= y

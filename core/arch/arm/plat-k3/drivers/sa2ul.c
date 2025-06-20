@@ -18,7 +18,7 @@
 #include <platform_config.h>
 #include <rng_support.h>
 
-#include "sa2ul.h"
+#include "eip76d_trng.h"
 
 #define	SA2UL_ES                0x0008
 #define SA2UL_ES_TRNG           BIT(3)
@@ -145,7 +145,7 @@ static TEE_Result sa2ul_init(void)
 	}
 
 	/* Initialize the RNG Module */
-	result = sa2ul_rng_init();
+	result = eip76d_rng_init();
 	if (result != TEE_SUCCESS)
 		return result;
 
