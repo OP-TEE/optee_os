@@ -468,6 +468,14 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	if (!utc)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
+#ifdef CFG_TA_PAUTH
+	res = crypto_rng_read(&utc->uctx.keys, sizeof(utc->uctx.keys));
+	if (res) {
+		free(utc);
+		return res;
+	}
+#endif
+
 	TAILQ_INIT(&utc->open_sessions);
 	TAILQ_INIT(&utc->cryp_states);
 	TAILQ_INIT(&utc->objects);
@@ -490,10 +498,6 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	}
 
 	utc->ta_ctx.is_initializing = true;
-
-#ifdef CFG_TA_PAUTH
-	crypto_rng_read(&utc->uctx.keys, sizeof(utc->uctx.keys));
-#endif
 
 	assert(!mutex_trylock(&tee_ta_mutex));
 
