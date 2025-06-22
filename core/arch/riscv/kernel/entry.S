@@ -398,7 +398,7 @@ UNWIND(	.cantunwind)
 	/* tp = t2 * t0(hart index) + t1(thread_core_local) */
 	mul	t2, t2, t0
 	add	tp, t2, t1
-	sw	a0, THREAD_CORE_LOCAL_HART_ID(tp)
+	sw	s0, THREAD_CORE_LOCAL_HART_ID(tp)
 	sw	t0, THREAD_CORE_LOCAL_HART_INDEX(tp)
 	LDR	sp, THREAD_CORE_LOCAL_TMP_STACK_VA_END(tp)
 #else
