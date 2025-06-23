@@ -1214,12 +1214,20 @@ CFG_RSA_PUB_EXPONENT_3 ?= n
 CFG_CRYPTO_HW_PBKDF2 ?= n
 $(eval $(call cfg-depends-all,CFG_CRYPTO_HW_PBKDF2,CFG_CRYPTO_PBKDF2))
 
+# CFG_MULTI_CORE_HALTING, when enabled, registers an interrupt handler for the
+# Software Generated Interrupt(SGI) specified by: CFG_HALT_CORES_SGI. Upon
+# reception of this SGI, the CPU is halted. This feature currently relies on the
+# GIC device.
+CFG_MULTI_CORE_HALTING ?= n
+CFG_HALT_CORES_SGI ?= 15
+$(eval $(call cfg-depends-all,CFG_MULTI_CORE_HALTING,CFG_GIC))
+
 # CFG_HALT_CORES_ON_PANIC, when enabled, makes any call to panic() halt the
-# other cores. The feature currently relies on GIC device to trap the other
-# cores using an SGI interrupt specified by CFG_HALT_CORES_ON_PANIC_SGI.
-CFG_HALT_CORES_ON_PANIC ?= n
-CFG_HALT_CORES_ON_PANIC_SGI ?= 15
-$(eval $(call cfg-depends-all,CFG_HALT_CORES_ON_PANIC,CFG_GIC))
+# other cores. This feature relies on the SGI specified by CFG_HALT_CORES_SGI
+# to halt the other cores.
+CFG_HALT_CORES_ON_PANIC ?= ${CFG_MULTI_CORE_HALTING}
+$(eval $(call cfg-depends-all,CFG_HALT_CORES_ON_PANIC,CFG_MULTI_CORE_HALTING))
+
 
 # Enable automatic discovery of maximal PA supported by the hardware and
 # use that. Provides easier configuration of virtual platforms where the

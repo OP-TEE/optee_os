@@ -6,9 +6,11 @@
 #include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
+#include <drivers/rstctrl.h>
 #include <drivers/stm32_rif.h>
 #include <drivers/stm32_serc.h>
 #include <drivers/stm32_uart.h>
+#include <drivers/stm32mp_dt_bindings.h>
 #include <initcall.h>
 #include <kernel/abort.h>
 #include <kernel/boot.h>
@@ -179,4 +181,28 @@ void plat_external_abort_handler(struct abort_info *ai __unused)
 {
 	/* External abort may be due to SERC events */
 	stm32_serc_handle_ilac();
+}
+
+void __noreturn do_reset(const char *str __maybe_unused)
+{
+	struct rstctrl *rstctrl = NULL;
+
+	if (CFG_TEE_CORE_NB_CORE > 1) {
+		/* Halt execution of other CPUs */
+		interrupt_raise_sgi(interrupt_get_main_chip(),
+				    CFG_HALT_CORES_SGI,
+				    ITR_CPU_MASK_TO_OTHER_CPUS);
+		mdelay(1);
+	}
+
+	IMSG("Forced system reset: %s", str);
+	console_flush();
+
+	/* Request system reset to RCC driver */
+	rstctrl = stm32mp_rcc_reset_id_to_rstctrl(SYS_R);
+	rstctrl_assert(rstctrl);
+	udelay(100);
+
+	/* Cannot occur */
+	panic();
 }
