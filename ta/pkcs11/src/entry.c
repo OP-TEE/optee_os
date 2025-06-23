@@ -17,7 +17,13 @@
 
 TEE_Result TA_CreateEntryPoint(void)
 {
-	return pkcs11_init();
+	TEE_Result ret;
+
+	ret = pkcs11_init();
+	if (ret)
+		TEE_Panic(0);
+
+	return TEE_SUCCESS;
 }
 
 void TA_DestroyEntryPoint(void)
