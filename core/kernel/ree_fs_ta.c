@@ -111,12 +111,8 @@ static TEE_Result check_update_version(const char *db_name,
 		goto out;
 
 	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		res = ops->create(&pobj, false, NULL, 0, NULL, 0, NULL, NULL,
-				   0, &fh);
-		if (res != TEE_SUCCESS)
-			goto out;
-
-		res = ops->write(fh, 0, &db_hdr, NULL, sizeof(db_hdr));
+		res = ops->create(&pobj, false, NULL, 0, NULL, 0, &db_hdr, NULL,
+				   sizeof(db_hdr), &fh);
 		if (res != TEE_SUCCESS)
 			goto out;
 	} else {
