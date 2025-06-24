@@ -195,7 +195,7 @@ UNWIND(	.cantunwind)
 	sub	t2, t0, t2
 	STR	t2, THREAD_CORE_LOCAL_ABT_STACK_VA_END(t1)
 	csrr	t2, CSR_XSCRATCH /* t2: hart_index */
-	sw	a0, THREAD_CORE_LOCAL_HART_ID(t1)
+	sw	s0, THREAD_CORE_LOCAL_HART_ID(t1)
 	sw	t2, THREAD_CORE_LOCAL_HART_INDEX(t1)
 
 	mv	sp, t0
