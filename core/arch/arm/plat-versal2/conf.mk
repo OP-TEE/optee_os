@@ -49,6 +49,10 @@ $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 CFG_TZDRAM_START   ?= 0x1800000
 CFG_TZDRAM_SIZE    ?= 0x8000000
 
+# Maximum size of the Device Tree Blob to accommodate
+# device tree with additional nodes.
+CFG_DTB_MAX_SIZE ?= 0x200000
+
 # Console selection
 # 0 : UART0[pl011, pl011_0] (default)
 # 1 : UART1[pl011_1]
