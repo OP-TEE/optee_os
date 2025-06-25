@@ -9,14 +9,22 @@
 
 static void timer_disable(const struct callout_timer_desc *desc __unused)
 {
-	write_cntps_ctl(0);
+	if (IS_ENABLED(CFG_CORE_SEL2_SPMC))
+		write_cntp_ctl(0);
+	else
+		write_cntps_ctl(0);
 }
 
 static void timer_set_next(const struct callout_timer_desc *desc __unused,
 			   uint64_t ctrval)
 {
-	write_cntps_cval(ctrval);
-	write_cntps_ctl(1);
+	if (IS_ENABLED(CFG_CORE_SEL2_SPMC)) {
+		write_cntp_cval(ctrval);
+		write_cntp_ctl(1);
+	} else {
+		write_cntps_cval(ctrval);
+		write_cntps_ctl(1);
+	}
 }
 
 static uint64_t
