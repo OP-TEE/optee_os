@@ -6,10 +6,12 @@ mx6ul-flavorlist = \
 	mx6ul9x9evk \
 	mx6ulccimx6ulsbcpro \
 	mx6ulccbv2 \
+	mx6ul
 
 mx6ull-flavorlist = \
 	mx6ullevk \
 	mx6ulzevk \
+	mx6ull
 
 mx6q-flavorlist = \
 	mx6qsabrelite \
@@ -17,84 +19,106 @@ mx6q-flavorlist = \
 	mx6qsabresd \
 	mx6qhmbedge \
 	mx6qapalis \
+	mx6q
 
 mx6qp-flavorlist = \
 	mx6qpsabreauto \
 	mx6qpsabresd \
+	mx6qp
 
 mx6sl-flavorlist = \
-	mx6slevk
+	mx6slevk \
+	mx6sl
 
 mx6sll-flavorlist = \
-	mx6sllevk
+	mx6sllevk \
+	mx6sll
 
 mx6sx-flavorlist = \
 	mx6sxsabreauto \
 	mx6sxsabresd \
 	mx6sxudooneofull \
+	mx6sx
 
 mx6d-flavorlist = \
 	mx6dhmbedge \
 	mx6dapalis \
+	mx6d
 
 mx6dl-flavorlist = \
 	mx6dlsabreauto \
 	mx6dlsabresd \
 	mx6dlhmbedge \
+	mx6dl
 
 mx6s-flavorlist = \
 	mx6shmbedge \
 	mx6solosabresd \
 	mx6solosabreauto \
+	mx6s
 
 mx7d-flavorlist = \
 	mx7dsabresd \
 	mx7dpico_mbl \
 	mx7dclsom \
+	mx7d
 
 mx7s-flavorlist = \
 	mx7swarp7 \
 	mx7swarp7_mbl \
+	mx7s
 
 mx7ulp-flavorlist = \
-	mx7ulpevk
+	mx7ulpevk \
+	mx7ulp
 
 mx8mq-flavorlist = \
-	mx8mqevk
+	mx8mqevk \
+	mx8mq
 
 mx8mm-flavorlist = \
 	mx8mmevk \
-	mx8mm_cl_iot_gate
+	mx8mm_cl_iot_gate \
+	mx8mm
 
 mx8mn-flavorlist = \
-	mx8mnevk
+	mx8mnevk \
+	mx8mn
 
 mx8mp-flavorlist = \
 	mx8mpevk \
 	mx8mp_rsb3720_6g \
-	mx8mp_phyboard_pollux
+	mx8mp_phyboard_pollux \
+	mx8mp
 
 mx8qm-flavorlist = \
 	mx8qmmek \
+	mx8qm
 
 mx8qx-flavorlist = \
 	mx8qxpmek \
 	mx8dxmek \
+	mx8qx
 
 mx8dxl-flavorlist = \
 	mx8dxlevk \
+	mx8dxl
 
 mx8ulp-flavorlist = \
 	mx8ulpevk \
+	mx8ulp
 
 mx93-flavorlist = \
 	mx93evk \
+	mx93
 
 mx95-flavorlist = \
 	mx95evk \
+	mx95
 
 mx91-flavorlist = \
 	mx91evk \
+	mx91
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist)))
 $(call force,CFG_MX6,y)
