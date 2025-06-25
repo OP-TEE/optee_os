@@ -438,41 +438,48 @@ enum pkcs11_rc pkcs2tee_algo_ecdsa(uint32_t *tee_id,
 				   struct pkcs11_object *obj)
 {
 	switch (proc_params->id) {
+	/* In case of ECDSA signing without hashing. */
 	case PKCS11_CKM_ECDSA:
-	case PKCS11_CKM_ECDSA_SHA1:
-	case PKCS11_CKM_ECDSA_SHA224:
-	case PKCS11_CKM_ECDSA_SHA256:
-	case PKCS11_CKM_ECDSA_SHA384:
-	case PKCS11_CKM_ECDSA_SHA512:
+		switch (get_object_key_bit_size(obj)) {
+		case 192:
+			*tee_id = TEE_ALG_ECDSA_P192;
+			break;
+		case 224:
+			*tee_id = TEE_ALG_ECDSA_P224;
+			break;
+		case 256:
+			*tee_id = TEE_ALG_ECDSA_P256;
+			break;
+		case 384:
+			*tee_id = TEE_ALG_ECDSA_P384;
+			break;
+		case 521:
+			*tee_id = TEE_ALG_ECDSA_P521;
+			break;
+		default:
+			TEE_Panic(0);
+			break;
+		}
 		break;
-	default:
+    /* In CASE OF ECDSA signing with Hash */
+    case PKCS11_CKM_ECDSA_SHA1:
+		*tee_id = TEE_ALG_ECDSA_SHA1;
+		break;
+    case PKCS11_CKM_ECDSA_SHA224:
+		*tee_id = TEE_ALG_ECDSA_SHA224;
+		break;
+    case PKCS11_CKM_ECDSA_SHA256:
+		*tee_id = TEE_ALG_ECDSA_SHA256;
+		break;
+    case PKCS11_CKM_ECDSA_SHA384:
+		*tee_id = TEE_ALG_ECDSA_SHA384;
+		break;
+    case PKCS11_CKM_ECDSA_SHA512:
+		*tee_id = TEE_ALG_ECDSA_SHA512;
+		break;
+    default:
 		return PKCS11_CKR_GENERAL_ERROR;
-	}
-
-	/*
-	 * TODO: Fixing this in a way to support also other EC curves would
-	 * require OP-TEE to be updated for newer version of GlobalPlatform API
-	 */
-	switch (get_object_key_bit_size(obj)) {
-	case 192:
-		*tee_id = TEE_ALG_ECDSA_P192;
-		break;
-	case 224:
-		*tee_id = TEE_ALG_ECDSA_P224;
-		break;
-	case 256:
-		*tee_id = TEE_ALG_ECDSA_P256;
-		break;
-	case 384:
-		*tee_id = TEE_ALG_ECDSA_P384;
-		break;
-	case 521:
-		*tee_id = TEE_ALG_ECDSA_P521;
-		break;
-	default:
-		TEE_Panic(0);
-		break;
-	}
+    }
 
 	return PKCS11_CKR_OK;
 }
@@ -847,16 +854,20 @@ size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op)
 
 	TEE_GetOperationInfo(op, &info);
 
-	switch (info.algorithm) {
-	case TEE_ALG_ECDSA_P192:
+	/*
+	 *  Determining curve size in bytes with the help of
+	 *  maxkeysize attribute instead of algorithm
+	 */
+	switch (info.maxKeySize) {
+	case 192:
 		return 24;
-	case TEE_ALG_ECDSA_P224:
+	case 224:
 		return 28;
-	case TEE_ALG_ECDSA_P256:
+	case 256:
 		return 32;
-	case TEE_ALG_ECDSA_P384:
+	case 384:
 		return 48;
-	case TEE_ALG_ECDSA_P521:
+	case 521:
 		return 66;
 	default:
 		DMSG("Unexpected ECDSA algorithm %#"PRIx32, info.algorithm);
