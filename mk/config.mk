@@ -1066,11 +1066,13 @@ $(call force,_CFG_CORE_ASYNC_NOTIF_DEFAULT_IMPL,$(CFG_CORE_ASYNC_NOTIF))
 endif
 
 ifeq ($(CFG_CORE_SEL2_SPMC),y)
-$(call force,CFG_CALLOUT,n)
-endif
-
+# Callout by default disabled for SPMC at S-EL2 since Hafnium may crash,
+# but allow it to be overridden for testing
+CFG_CALLOUT ?= n
+else
 # Enable callout service
 CFG_CALLOUT ?= $(CFG_CORE_ASYNC_NOTIF)
+endif
 
 # Enable notification based test watchdog
 CFG_NOTIF_TEST_WD ?= $(call cfg-all-enabled,CFG_ENABLE_EMBEDDED_TESTS \
