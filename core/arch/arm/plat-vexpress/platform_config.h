@@ -72,7 +72,11 @@
 #define UART1_BASE		0x09040000
 
 #define IT_UART1		40
+#if defined(CFG_CORE_SEL2_SPMC)
+#define IT_SEC_PHY_TIMER	3
+#else
 #define IT_SEC_PHY_TIMER	29
+#endif
 
 #define CONSOLE_UART_BASE	UART1_BASE
 #define IT_CONSOLE_UART		IT_UART1
