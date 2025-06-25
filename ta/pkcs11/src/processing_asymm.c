@@ -1179,7 +1179,7 @@ static enum pkcs11_rc unwrap_rsa_aes_key(struct active_processing *proc,
 	struct rsa_aes_key_wrap_processing_ctx *ctx = proc->extra_ctx;
 	mbedtls_nist_kw_context kw_ctx = { };
 	uint8_t aes_key_value[32] = { };
-	size_t aes_key_size = ctx->aes_key_bits / 8;
+	size_t aes_key_size = 0;
 	uint32_t wrapped_key_size = 0;
 	uint32_t rsa_key_size = 0;
 	size_t target_key_size = 0;
@@ -1193,6 +1193,7 @@ static enum pkcs11_rc unwrap_rsa_aes_key(struct active_processing *proc,
 	rsa_key_size = info.keySize / 8;
 	wrapped_key_size = data_sz - rsa_key_size;
 	target_key_size = wrapped_key_size - 8;
+	aes_key_size = rsa_key_size;
 
 	*out_buf = TEE_Malloc(target_key_size, TEE_MALLOC_FILL_ZERO);
 	if (!*out_buf)
