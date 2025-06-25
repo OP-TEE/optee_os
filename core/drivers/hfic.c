@@ -16,13 +16,18 @@
  * https://hafnium.readthedocs.io/en/latest/design/secure-partition-manager.html#paravirtualized-interfaces
  */
 
-#define HF_INTERRUPT_ENABLE	0xff03
-#define HF_INTERRUPT_GET	0xff04
-#define HF_INTERRUPT_DEACTIVATE	0xff08
-#define HF_INTERRUPT_RECONFIGURE 0xff09
+#define HF_INTERRUPT_ENABLE		0xff03
+#define HF_INTERRUPT_GET		0xff04
+#define HF_INTERRUPT_DEACTIVATE		0xff08
+#define HF_INTERRUPT_RECONFIGURE	0xff09
 
-#define HF_INVALID_INTID	0xffffffff
-#define HF_MANAGED_EXIT_INTID	4
+#define HF_INVALID_INTID		0xffffffff
+#define HF_MAILBOX_READABLE_INTID	1
+#define HF_MAILBOX_WRITABLE_INTID	2
+#define HF_VIRTUAL_TIMER_INTID		3
+#define HF_MANAGED_EXIT_INTID		4
+#define HF_NOTIFICATION_PENDING_INTID	5
+#define HF_IPI_INTID			9
 
 #define HF_INTERRUPT_TYPE_IRQ	0
 #define HF_INTERRUPT_TYPE_FIQ	1
@@ -37,6 +42,21 @@ struct hfic_data {
 
 static struct hfic_data hfic_data __nex_bss;
 
+static bool __maybe_unused hfic_static_it(size_t it)
+{
+	switch (it) {
+	case HF_MAILBOX_READABLE_INTID:
+	case HF_MAILBOX_WRITABLE_INTID:
+	case HF_VIRTUAL_TIMER_INTID:
+	case HF_MANAGED_EXIT_INTID:
+	case HF_NOTIFICATION_PENDING_INTID:
+	case HF_IPI_INTID:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void hfic_op_configure(struct itr_chip *chip __unused, size_t it,
 			      uint32_t type __unused, uint32_t prio __unused)
 {
@@ -44,7 +64,7 @@ static void hfic_op_configure(struct itr_chip *chip __unused, size_t it,
 
 	res = thread_hvc(HF_INTERRUPT_ENABLE, it, HF_ENABLE,
 			 HF_INTERRUPT_TYPE_IRQ);
-	assert(!res);
+	assert(!res || hfic_static_it(it));
 }
 
 static void hfic_op_enable(struct itr_chip *chip __unused, size_t it)
@@ -53,7 +73,7 @@ static void hfic_op_enable(struct itr_chip *chip __unused, size_t it)
 
 	res = thread_hvc(HF_INTERRUPT_RECONFIGURE, it,
 			 HF_INT_RECONFIGURE_STATUS, HF_ENABLE);
-	assert(!res);
+	assert(!res || hfic_static_it(it));
 }
 
 static void hfic_op_disable(struct itr_chip *chip __unused, size_t it)
@@ -62,7 +82,7 @@ static void hfic_op_disable(struct itr_chip *chip __unused, size_t it)
 
 	res = thread_hvc(HF_INTERRUPT_RECONFIGURE, it,
 			 HF_INT_RECONFIGURE_STATUS, HF_DISABLE);
-	assert(!res);
+	assert(!res || hfic_static_it(it));
 }
 
 static const struct itr_ops hfic_ops = {
