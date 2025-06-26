@@ -1170,8 +1170,8 @@ static void stm32_parse_gpio_rif_conf(struct stm32_gpio_bank *bank,
 	if (!bank->rif_cfg->sec_conf)
 		panic();
 
-	nb_rif_conf = (unsigned int)(lenp / sizeof(uint32_t));
-	assert(nb_rif_conf <= bank->ngpios);
+	nb_rif_conf = MIN((unsigned int)(lenp / sizeof(uint32_t)),
+			  bank->ngpios);
 
 	bank->rif_cfg->cid_confs = calloc(bank->ngpios, sizeof(uint32_t));
 	bank->rif_cfg->priv_conf = calloc(1, sizeof(uint32_t));
