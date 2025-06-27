@@ -9,8 +9,11 @@
 #include <drivers/stm32_rif.h>
 #include <drivers/stm32_rtc.h>
 #include <io.h>
+#include <keep.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
+#include <kernel/interrupt.h>
+#include <kernel/notif.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <libfdt.h>
@@ -87,6 +90,8 @@
 #define RTC_CR_BYPSHAD			BIT(5)
 #define RTC_CR_BYPSHAD_SHIFT		U(5)
 #define RTC_CR_FMT			BIT(6)
+#define RTC_CR_ALRAE			BIT(8)
+#define RTC_CR_ALRAIE			BIT(12)
 #define RTC_CR_TAMPTS			BIT(25)
 
 #define RTC_PRIVCFGR_VALUES		GENMASK_32(3, 0)
@@ -115,9 +120,32 @@
 #define RTC_TSDR_DU_MASK		GENMASK_32(3, 0)
 #define RTC_TSDR_DU_SHIFT		U(0)
 
+#define RTC_ALRMXR_SEC_UNITS_MASK	GENMASK_32(3, 0)
+#define RTC_ALRMXR_SEC_UNITS_SHIFT	U(0)
+#define RTC_ALRMXR_SEC_TENS_MASK	GENMASK_32(6, 4)
+#define RTC_ALRMXR_SEC_TENS_SHIFT	U(4)
+#define RTC_ALRMXR_SEC_MASK		BIT(7)
+#define RTC_ALRMXR_MIN_UNITS_MASK	GENMASK_32(11, 8)
+#define RTC_ALRMXR_MIN_UNITS_SHIFT	U(8)
+#define RTC_ALRMXR_MIN_TENS_MASK	GENMASK_32(14, 12)
+#define RTC_ALRMXR_MIN_TENS_SHIFT	U(12)
+#define RTC_ALRMXR_MIN_MASK		BIT(15)
+#define RTC_ALRMXR_HOUR_UNITS_MASK	GENMASK_32(19, 16)
+#define RTC_ALRMXR_HOUR_UNITS_SHIFT	U(16)
+#define RTC_ALRMXR_HOUR_TENS_MASK	GENMASK_32(21, 20)
+#define RTC_ALRMXR_HOUR_TENS_SHIFT	U(20)
+#define RTC_ALRMXR_PM			BIT(22)
+#define RTC_ALRMXR_HOUR_MASK		BIT(23)
+#define RTC_ALRMXR_DATE_UNITS_MASK	GENMASK_32(27, 24)
+#define RTC_ALRMXR_DATE_UNITS_SHIFT	U(24)
+#define RTC_ALRMXR_DATE_TENS_MASK	GENMASK_32(29, 28)
+#define RTC_ALRMXR_DATE_TENS_SHIFT	U(28)
+
+#define RTC_SR_ALRAF			BIT(0)
 #define RTC_SR_TSF			BIT(3)
 #define RTC_SR_TSOVF			BIT(4)
 
+#define RTC_SCR_CALRAF			BIT(0)
 #define RTC_SCR_CTSF			BIT(3)
 #define RTC_SCR_CTSOVF			BIT(4)
 
@@ -167,6 +195,11 @@ struct rtc_compat {
  * @ts_lock: Lock used for time stamping events handling
  * @flags: RTC driver flags
  * @is_secured: True if the RTC is fully secured
+ * @itr_chip: Interrupt chip
+ * @itr_num: Interrupt number
+ * @itr_handler: Interrupt handler
+ * @notif_id: Notification ID
+ * @wait_alarm_return_status: Status of the wait alarm thread
  */
 struct rtc_device {
 	struct io_pa_va base;
@@ -178,6 +211,11 @@ struct rtc_device {
 	unsigned int ts_lock;
 	uint8_t flags;
 	bool is_secured;
+	struct itr_chip *itr_chip;
+	size_t itr_num;
+	struct itr_handler *itr_handler;
+	uint32_t notif_id;
+	enum rtc_wait_alarm_status wait_alarm_return_status;
 };
 
 /* Expect a single RTC instance */
@@ -340,6 +378,32 @@ static void apply_rif_config(bool is_tdcid)
 	}
 }
 
+static void stm32_rtc_clear_events(uint32_t flags)
+{
+	io_write32(get_base() + RTC_SCR, flags);
+}
+
+static enum itr_return stm32_rtc_it_handler(struct itr_handler *h __unused)
+{
+	vaddr_t rtc_base = get_base();
+	uint32_t status = io_read32(rtc_base + RTC_SR);
+	uint32_t cr = io_read32(rtc_base + RTC_CR);
+
+	if ((status & RTC_SR_ALRAF) && (cr & RTC_CR_ALRAIE)) {
+		DMSG("Alarm occurred");
+		/* Clear event's flags */
+		stm32_rtc_clear_events(RTC_SCR_CALRAF);
+		/*
+		 * Notify the caller of 'stm32_rtc_wait_alarm' to re-schedule
+		 * the calling thread.
+		 */
+		notif_send_async(rtc_dev.notif_id, 0);
+	}
+
+	return ITRR_HANDLED;
+}
+DECLARE_KEEP_PAGER(stm32_rtc_it_handler);
+
 static TEE_Result parse_dt(const void *fdt, int node)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -361,6 +425,20 @@ static TEE_Result parse_dt(const void *fdt, int node)
 	res = clk_dt_get_by_name(fdt, node, "rtc_ck", &rtc_dev.rtc_ck);
 	if (res)
 		return res;
+
+	if (IS_ENABLED(CFG_RTC_PTA) && IS_ENABLED(CFG_DRIVERS_RTC)) {
+		res = interrupt_dt_get(fdt, node, &rtc_dev.itr_chip,
+				       &rtc_dev.itr_num);
+		if (res)
+			return res;
+		res = interrupt_create_handler(rtc_dev.itr_chip,
+					       rtc_dev.itr_num,
+					       stm32_rtc_it_handler,
+					       &rtc_dev, 0,
+					       &rtc_dev.itr_handler);
+		if (res)
+			return res;
+	}
 
 	if (!rtc_dev.compat->has_rif_support)
 		return TEE_SUCCESS;
@@ -712,9 +790,217 @@ TEE_Result stm32_rtc_driver_is_initialized(void)
 	return TEE_ERROR_DEFER_DRIVER_INIT;
 }
 
+static TEE_Result stm32_rtc_read_alarm(struct rtc *rtc,
+				       struct optee_rtc_alarm *alarm)
+{
+	struct optee_rtc_time *alarm_tm = NULL;
+	struct optee_rtc_time current_tm = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+	vaddr_t rtc_base = get_base();
+	uint32_t alrmar = io_read32(rtc_base + RTC_ALRMAR);
+	uint32_t cr = io_read32(rtc_base + RTC_CR);
+	uint32_t status = io_read32(rtc_base + RTC_SR);
+
+	alarm_tm = &alarm->time;
+
+	res = stm32_rtc_get_time(rtc, &current_tm);
+	if (res)
+		return res;
+
+	alarm_tm->tm_year = current_tm.tm_year;
+	alarm_tm->tm_mon = current_tm.tm_mon;
+	alarm_tm->tm_mday = ((alrmar & RTC_ALRMXR_DATE_UNITS_MASK) >>
+			    RTC_ALRMXR_DATE_UNITS_SHIFT) +
+			    ((alrmar & RTC_ALRMXR_DATE_TENS_MASK) >>
+			    RTC_ALRMXR_DATE_TENS_SHIFT) * 10;
+	alarm_tm->tm_hour = ((alrmar & RTC_ALRMXR_HOUR_UNITS_MASK) >>
+			    RTC_ALRMXR_HOUR_UNITS_SHIFT) +
+			    ((alrmar & RTC_ALRMXR_HOUR_TENS_MASK) >>
+			    RTC_ALRMXR_HOUR_TENS_SHIFT) * 10;
+	alarm_tm->tm_min = ((alrmar & RTC_ALRMXR_MIN_UNITS_MASK) >>
+			    RTC_ALRMXR_MIN_UNITS_SHIFT) +
+			   ((alrmar & RTC_ALRMXR_MIN_TENS_MASK) >>
+			    RTC_ALRMXR_MIN_TENS_SHIFT) * 10;
+	alarm_tm->tm_sec = ((alrmar & RTC_ALRMXR_MIN_UNITS_MASK) >>
+			    RTC_ALRMXR_MIN_UNITS_SHIFT) +
+			   ((alrmar & RTC_ALRMXR_MIN_TENS_MASK) >>
+			    RTC_ALRMXR_MIN_TENS_SHIFT) * 10;
+
+	if (rtc_timecmp(alarm_tm, &current_tm) < 0) {
+		if (current_tm.tm_mon == 11) {
+			alarm_tm->tm_mon = 0;
+			alarm_tm->tm_year += 1;
+		} else {
+			alarm_tm->tm_mon += 1;
+		}
+	}
+
+	alarm->enabled = cr & RTC_CR_ALRAE;
+	alarm->pending = status & RTC_SR_ALRAF;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_rtc_enable_alarm(struct rtc *rtc __unused, bool enabled)
+{
+	vaddr_t rtc_base = get_base();
+
+	stm32_rtc_write_unprotect();
+
+	if (enabled)
+		io_setbits32(rtc_base + RTC_CR, RTC_CR_ALRAIE | RTC_CR_ALRAE);
+	else
+		io_clrbits32(rtc_base + RTC_CR, RTC_CR_ALRAIE | RTC_CR_ALRAE);
+
+	stm32_rtc_clear_events(RTC_SCR_CALRAF);
+
+	stm32_rtc_write_protect();
+
+	return TEE_SUCCESS;
+}
+
+static void stm32_rtc_add_one_month(struct optee_rtc_time *tm)
+{
+	tm->tm_mon++;
+	if (tm->tm_mon > 11) {
+		tm->tm_mon = 0;
+		tm->tm_year++;
+	}
+
+	/* Saturate to the next month last day */
+	tm->tm_mday = MIN(tm->tm_mday,
+			  rtc_get_month_days(tm->tm_mon, tm->tm_year));
+}
+
+static TEE_Result stm32_rtc_valid_alarm_time(struct rtc *rtc,
+					     struct optee_rtc_time *tm)
+{
+	struct optee_rtc_time current_tm = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct optee_rtc_time *max = NULL;
+
+	/*
+	 * Assuming current date is M-D-Y H:M:S.
+	 * RTC alarm can't be set on a specific month and year.
+	 * So the valid alarm range is:
+	 *	M-D-Y H:M:S < alarm <= (M+1)-D-Y H:M:S
+	 */
+
+	res = stm32_rtc_get_time(rtc, &current_tm);
+	if (res)
+		return res;
+
+	/* Don't allow alarm to be set in the past. */
+	if (rtc_timecmp(&current_tm, tm) >= 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	max = &current_tm;
+
+	stm32_rtc_add_one_month(max);
+
+	if (rtc_timecmp(max, tm) <= 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_rtc_set_alarm(struct rtc *rtc,
+				      struct optee_rtc_alarm *alarm)
+{
+	struct optee_rtc_time *alarm_time = &alarm->time;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	vaddr_t rtc_base = get_base();
+	uint32_t alrmar = 0;
+	uint32_t cr = io_read32(rtc_base + RTC_CR);
+	uint32_t prer = io_read32(rtc_base + RTC_PRER);
+	uint32_t prediv_s = prer & RTC_PRER_PREDIV_S_MASK;
+
+	/* tm_year and tm_mon are not used because not supported by RTC */
+	alrmar |= ((alarm_time->tm_mday / 10) << RTC_ALRMXR_DATE_TENS_SHIFT) &
+		  RTC_ALRMXR_DATE_TENS_MASK;
+	alrmar |= ((alarm_time->tm_mday % 10) << RTC_ALRMXR_DATE_UNITS_SHIFT) &
+		  RTC_ALRMXR_DATE_UNITS_MASK;
+	/* 24-hour format */
+	alrmar &= ~RTC_ALRMXR_PM;
+	alrmar |= ((alarm_time->tm_hour / 10) << RTC_ALRMXR_HOUR_TENS_SHIFT) &
+		  RTC_ALRMXR_HOUR_TENS_MASK;
+	alrmar |= ((alarm_time->tm_hour % 10) << RTC_ALRMXR_HOUR_UNITS_SHIFT) &
+		  RTC_ALRMXR_HOUR_UNITS_MASK;
+	alrmar |= ((alarm_time->tm_min / 10) << RTC_ALRMXR_MIN_TENS_SHIFT) &
+		  RTC_ALRMXR_MIN_TENS_MASK;
+	alrmar |= ((alarm_time->tm_min % 10) << RTC_ALRMXR_MIN_UNITS_SHIFT) &
+		  RTC_ALRMXR_MIN_UNITS_MASK;
+	alrmar |= ((alarm_time->tm_sec / 10) << RTC_ALRMXR_SEC_TENS_SHIFT) &
+		  RTC_ALRMXR_SEC_TENS_MASK;
+	alrmar |= ((alarm_time->tm_sec % 10) << RTC_ALRMXR_SEC_UNITS_SHIFT) &
+		  RTC_ALRMXR_SEC_UNITS_MASK;
+
+	if ((alrmar & !RTC_ALRMXR_SEC_MASK) && prediv_s < 3) {
+		EMSG("RTC Alarm conditions not met");
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	stm32_rtc_write_unprotect();
+
+	res = stm32_rtc_valid_alarm_time(rtc, alarm_time);
+	if (res) {
+		stm32_rtc_write_unprotect();
+		return res;
+	}
+
+	/* Disable Alarm */
+	cr &= ~RTC_CR_ALRAE;
+	io_write32(rtc_base + RTC_CR, cr);
+
+	io_write32(rtc_base + RTC_ALRMAR, alrmar);
+
+	stm32_rtc_enable_alarm(rtc, alarm->enabled);
+
+	stm32_rtc_write_protect();
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_rtc_cancel_wait_alarm(struct rtc *rtc __unused)
+{
+	rtc_dev.wait_alarm_return_status = RTC_WAIT_ALARM_CANCELED;
+	notif_send_async(rtc_dev.notif_id, 0);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result
+stm32_rtc_wait_alarm(struct rtc *rtc __unused,
+		     enum rtc_wait_alarm_status *return_status)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	rtc_dev.wait_alarm_return_status = RTC_WAIT_ALARM_RESET;
+
+	/* Wait until a notification arrives - blocking */
+	res = notif_wait(rtc_dev.notif_id);
+	if (res)
+		return res;
+
+	if (rtc_dev.wait_alarm_return_status ==
+		RTC_WAIT_ALARM_CANCELED) {
+		*return_status = RTC_WAIT_ALARM_CANCELED;
+		stm32_rtc_enable_alarm(rtc, 0);
+	} else {
+		*return_status = RTC_WAIT_ALARM_ALARM_OCCURRED;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static const struct rtc_ops stm32_rtc_ops = {
 	.get_time = stm32_rtc_get_time,
 	.set_time = stm32_rtc_set_time,
+	.read_alarm = stm32_rtc_read_alarm,
+	.set_alarm = stm32_rtc_set_alarm,
+	.enable_alarm = stm32_rtc_enable_alarm,
+	.wait_alarm = stm32_rtc_wait_alarm,
+	.cancel_wait = stm32_rtc_cancel_wait_alarm,
 };
 
 static struct rtc stm32_rtc = {
@@ -772,9 +1058,30 @@ static TEE_Result stm32_rtc_probe(const void *fdt, int node,
 	res = stm32_rtc_init();
 	if (res)
 		return res;
+
 	rtc_register(&stm32_rtc);
 
-	return res;
+	if (IS_ENABLED(CFG_RTC_PTA) && IS_ENABLED(CFG_CORE_ASYNC_NOTIF) &&
+	    rtc_dev.is_secured) {
+		res = notif_alloc_async_value(&rtc_dev.notif_id);
+		if (res)
+			return res;
+
+		/* Unbalanced clock enable to ensure IRQ interface is alive */
+		res = clk_enable(rtc_dev.pclk);
+		if (res)
+			goto out_rtc_secured;
+
+		interrupt_enable(rtc_dev.itr_chip, rtc_dev.itr_num);
+
+		return TEE_SUCCESS;
+
+out_rtc_secured:
+		notif_free_async_value(rtc_dev.notif_id);
+		return res;
+	}
+
+	return TEE_SUCCESS;
 }
 
 static const struct rtc_compat mp25_compat = {
