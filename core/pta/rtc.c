@@ -40,6 +40,9 @@ static TEE_Result rtc_pta_get_time(uint32_t types,
 				     TEE_PARAM_TYPE_NONE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (!IS_ALIGNED_WITH_TYPE(params[0].memref.buffer, typeof(*pta_time)))
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	pta_time = params[0].memref.buffer;
 	if (!pta_time || params[0].memref.size != sizeof(*pta_time))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -63,6 +66,9 @@ static TEE_Result rtc_pta_set_time(uint32_t types,
 				     TEE_PARAM_TYPE_NONE,
 				     TEE_PARAM_TYPE_NONE,
 				     TEE_PARAM_TYPE_NONE))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!IS_ALIGNED_WITH_TYPE(params[0].memref.buffer, typeof(*pta_time)))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	pta_time = params[0].memref.buffer;
@@ -129,6 +135,9 @@ static TEE_Result rtc_pta_get_info(uint32_t types,
 				     TEE_PARAM_TYPE_NONE,
 				     TEE_PARAM_TYPE_NONE,
 				     TEE_PARAM_TYPE_NONE))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!IS_ALIGNED_WITH_TYPE(params[0].memref.buffer, typeof(*info)))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	info = params[0].memref.buffer;
