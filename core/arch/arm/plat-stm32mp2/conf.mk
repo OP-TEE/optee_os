@@ -99,6 +99,9 @@ CFG_STM32_SERC ?= y
 CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
 
+# Default RTC accuracy, higher accuracy means higher power consumption
+CFG_STM32_RTC_HIGH_ACCURACY ?= n
+
 CFG_SCMI_PTA ?= y
 CFG_SCMI_SCPFW ?= n
 CFG_SCMI_SCPFW_FROM_DT ?= y
