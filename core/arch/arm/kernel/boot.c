@@ -25,6 +25,7 @@
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
+#include <kernel/thread_private.h>
 #include <kernel/tpm.h>
 #include <kernel/transfer_list.h>
 #include <libfdt.h>
@@ -332,7 +333,9 @@ static void init_asan(void)
 #ifdef CFG_WITH_PAGER
 	asan_tag_access(__pageable_start, __pageable_end);
 #endif /*CFG_WITH_PAGER*/
+#ifndef CFG_DYN_CONFIG
 	asan_tag_access(__nozi_start, __nozi_end);
+#endif
 #ifdef ARM32
 	asan_tag_access(__exidx_start, __exidx_end);
 	asan_tag_access(__extab_start, __extab_end);
@@ -507,12 +510,6 @@ static void init_pager_runtime(unsigned long pageable_part)
 	IMSG("Pager is enabled. Hashes: %zu bytes", hash_size);
 	assert(hashes);
 	asan_memcpy_unchecked(hashes, tmp_hashes, hash_size);
-
-	/*
-	 * The pager is about the be enabled below, eventual temporary boot
-	 * memory allocation must be removed now.
-	 */
-	boot_mem_release_tmp_alloc();
 
 	carve_out_asan_mem();
 
@@ -878,6 +875,15 @@ static bool add_padding_to_pool(vaddr_t va, size_t len, void *ptr __unused)
 	return true;
 }
 
+static bool calc_padding_size(vaddr_t va __unused, size_t len, void *ptr)
+{
+	size_t *tot_size = ptr;
+
+	if (len >= MALLOC_INITIAL_POOL_MIN_SIZE)
+		(*tot_size) += len;
+	return false; /* don't consume */
+}
+
 static void init_primary(unsigned long pageable_part)
 {
 	vaddr_t va = 0;
@@ -905,6 +911,7 @@ static void init_primary(unsigned long pageable_part)
 	 * every virtual partition separately. Core code uses nex_malloc
 	 * instead.
 	 */
+#ifndef CFG_DYN_CONFIG
 #ifdef CFG_WITH_PAGER
 	/* Add heap2 first as heap1 may be too small as initial bget pool */
 	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
@@ -915,12 +922,34 @@ static void init_primary(unsigned long pageable_part)
 #else
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 #endif
+#endif
 	IMSG_RAW("\n");
 	if (IS_ENABLED(CFG_DYN_CONFIG)) {
-		size_t sz = sizeof(struct thread_core_local) *
-			    CFG_TEE_CORE_NB_CORE;
-		void *p = boot_mem_alloc(sz, alignof(void *) * 2);
+		size_t tot_padding_sz = 0;
+		void *p = NULL;
+		size_t sz = 0;
 
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+			sz = CFG_CORE_NEX_HEAP_SIZE;
+		else
+			sz = CFG_CORE_HEAP_SIZE;
+
+		/*
+		 * thread_core_local and threads are allocated from the
+		 * heap so add the needed sizes to the initial heap.
+		 */
+		sz += sizeof(struct thread_core_local) * CFG_TEE_CORE_NB_CORE;
+		if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
+			sz += sizeof(struct thread_ctx) * CFG_NUM_THREADS;
+
+		boot_mem_foreach_padding(calc_padding_size, &tot_padding_sz);
+		if (tot_padding_sz > sz - MALLOC_INITIAL_POOL_MIN_SIZE)
+			sz = MALLOC_INITIAL_POOL_MIN_SIZE;
+		else
+			sz -= tot_padding_sz;
+		sz = ROUNDUP(sz, alignof(void *) * 2);
+		p = boot_mem_alloc(sz, alignof(void *) * 2);
+		boot_mem_foreach_padding(add_padding_to_pool, NULL);
 #ifdef CFG_NS_VIRTUALIZATION
 		nex_malloc_add_pool(p, sz);
 #else
@@ -931,15 +960,6 @@ static void init_primary(unsigned long pageable_part)
 	core_mmu_save_mem_map();
 	core_mmu_init_phys_mem();
 	boot_mem_foreach_padding(add_padding_to_pool, NULL);
-	va = boot_mem_release_unused();
-	if (!IS_ENABLED(CFG_WITH_PAGER)) {
-		/*
-		 * We must update boot_cached_mem_end to reflect the memory
-		 * just unmapped by boot_mem_release_unused().
-		 */
-		assert(va && va <= boot_cached_mem_end);
-		boot_cached_mem_end = va;
-	}
 
 	if (IS_ENABLED(CFG_DYN_CONFIG)) {
 		/*
@@ -961,7 +981,30 @@ static void init_primary(unsigned long pageable_part)
 		 * init_runtime()).
 		 */
 		thread_get_core_local()->curr_thread = 0;
+		if (IS_ENABLED(CFG_DYN_CONFIG)) {
+			threads = calloc(1, sizeof(*threads));
+			if (!threads)
+				panic();
+			thread_count = 1;
+		}
 		init_pager_runtime(pageable_part);
+	}
+
+	va = boot_mem_release_unused();
+	if (IS_ENABLED(CFG_WITH_PAGER)) {
+		/*
+		 * Paging is activated, and anything beyond the start of
+		 * the released unused memory is managed by the pager.
+		 */
+		assert(va && va <= core_mmu_linear_map_end);
+		core_mmu_linear_map_end = va;
+	} else {
+		/*
+		 * We must update boot_cached_mem_end to reflect the memory
+		 * just unmapped by boot_mem_release_unused().
+		 */
+		assert(va && va <= boot_cached_mem_end);
+		boot_cached_mem_end = va;
 	}
 
 	/* Initialize canaries around the stacks */
@@ -1082,9 +1125,7 @@ void __weak boot_init_primary_runtime(void)
 				      ~THREAD_EXCP_NATIVE_INTR);
 		init_tee_runtime();
 	}
-
-	if (!IS_ENABLED(CFG_WITH_PAGER))
-		boot_mem_release_tmp_alloc();
+	boot_mem_release_tmp_alloc();
 }
 
 void __weak boot_init_primary_final(void)
