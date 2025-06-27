@@ -254,6 +254,9 @@ CFG_STM32_UART ?= y
 CFG_STPMIC1 ?= y
 CFG_TZC400 ?= y
 
+# Default RTC accuracy, higher accuracy means higher power consumption
+CFG_STM32_RTC_HIGH_ACCURACY ?= n
+
 CFG_DRIVERS_I2C ?= $(CFG_STM32_I2C)
 CFG_REGULATOR_GPIO ?= $(CFG_STM32_GPIO)
 
