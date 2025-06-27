@@ -18,6 +18,21 @@
  */
 #define PTA_RTC_FEATURE_CORRECTION	BIT(0)
 
+/*
+ * RTC provides set/read/enable/wait alarm and thus
+ * commands:
+ * PTA_CMD_RTC_SET_ALARM, PTA_CMD_RTC_READ_ALARM,
+ * PTA_CMD_RTC_WAIT_ALARM, PTA_CMD_RTC_ENABLE_ALARM
+ * might be called
+ */
+#define PTA_RTC_FEATURE_ALARM		BIT(1)
+
+/*
+ * Command PTA_CMD_RTC_SET_WAKE_ALARM_STATUS can be used to enable/disable the
+ * alarm wake-up capability.
+ */
+#define PTA_RTC_FEATURE_WAKEUP_ALARM	BIT(2)
+
 struct pta_rtc_time {
 	uint32_t tm_sec;
 	uint32_t tm_min;
@@ -26,6 +41,18 @@ struct pta_rtc_time {
 	uint32_t tm_mon;
 	uint32_t tm_year;
 	uint32_t tm_wday;
+};
+
+/*
+ * struct pta_rtc_alarm - State of an RTC alarm
+ * @enabled - 1 if alarm is enabled, 0 if disabled
+ * @pending - 1 if alarm event is pending, 0 if not
+ * @time: Alarm elapsure time
+ */
+struct pta_rtc_alarm {
+	uint8_t enabled;
+	uint8_t pending;
+	struct pta_rtc_time time;
 };
 
 /*
@@ -99,5 +126,76 @@ struct pta_rtc_info {
  * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
  */
 #define PTA_CMD_RTC_SET_OFFSET		0x4
+
+/*
+ * PTA_CMD_RTC_READ_ALARM - Read RTC alarm
+ *
+ * [out]     memref[0]  RTC buffer memory reference containing a struct
+ *                      pta_rtc_alarm
+ *
+ * Return codes:
+ * TEE_SUCCESS - Invoke command success
+ * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
+ */
+#define PTA_CMD_RTC_READ_ALARM		0x5
+
+/*
+ * PTA_CMD_RTC_SET_ALARM - Set RTC alarm
+ *
+ * [in]     memref[0]  RTC buffer memory reference containing a struct
+ *                     pta_rtc_alarm to be used as RTC alarm
+ *
+ * Return codes:
+ * TEE_SUCCESS - Invoke command success
+ * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
+ */
+#define PTA_CMD_RTC_SET_ALARM		0x6
+
+/*
+ * PTA_CMD_RTC_ENABLE_ALARM - Enable Alarm
+ *
+ * [in]     value[0].a  RTC IRQ flag (uint32_t), 0 to disable the alarm, 1 to
+ *                      enable
+ *
+ * Return codes:
+ * TEE_SUCCESS - Invoke command success
+ * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
+ */
+#define PTA_CMD_RTC_ENABLE_ALARM	0x7
+
+/*
+ * PTA_CMD_RTC_WAIT_ALARM - Get alarm event
+ *
+ * [out]     value[0].a  RTC wait alarm return status (uint32_t):
+ *                       - 0: No alarm event
+ *                       - 1: Alarm event occurred
+ *                       - 2: Alarm event canceled
+ *
+ * Return codes:
+ * TEE_SUCCESS - Invoke command success
+ * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
+ */
+#define PTA_CMD_RTC_WAIT_ALARM		0x8
+
+/*
+ * PTA_CMD_RTC_CANCEL_WAIT - Cancel wait for alarm event
+ *
+ * Return codes:
+ * TEE_SUCCESS - Invoke command success
+ * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
+ */
+#define PTA_CMD_RTC_CANCEL_WAIT		0x9
+
+/*
+ * PTA_CMD_RTC_SET_WAKE_ALARM_STATUS - Set RTC wake alarm status flag
+ *
+ * [in]     value[0].a RTC IRQ wake alarm flag (uint32_t), 0 to disable the wake
+ *                     up capability, 1 to enable.
+ *
+ * Return codes:
+ * TEE_SUCCESS - Invoke command success
+ * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
+ */
+#define PTA_CMD_RTC_SET_WAKE_ALARM_STATUS	0xA
 
 #endif /* __PTA_RTC_H */
