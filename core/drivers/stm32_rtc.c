@@ -79,10 +79,14 @@
 #define RTC_ICSR_INITF			BIT(6)
 #define RTC_ICSR_INIT			BIT(7)
 
+#define RTC_PRER_PREDIV_S_SHIFT		U(0)
 #define RTC_PRER_PREDIV_S_MASK		GENMASK_32(14, 0)
+#define RTC_PRER_PREDIV_A_SHIFT		U(16)
+#define RTC_PRER_PREDIV_A_MASK		GENMASK_32(22, 16)
 
 #define RTC_CR_BYPSHAD			BIT(5)
 #define RTC_CR_BYPSHAD_SHIFT		U(5)
+#define RTC_CR_FMT			BIT(6)
 #define RTC_CR_TAMPTS			BIT(25)
 
 #define RTC_PRIVCFGR_VALUES		GENMASK_32(3, 0)
@@ -409,16 +413,13 @@ static TEE_Result stm32_rtc_enter_init_mode(void)
 	return TEE_SUCCESS;
 }
 
-static void stm32_rtc_exit_init_mode(void)
-{
-	io_clrbits32(get_base() + RTC_ICSR, RTC_ICSR_INIT);
-	dsb();
-}
-
-static TEE_Result stm32_rtc_wait_sync(void)
+static TEE_Result stm32_rtc_exit_init_mode(void)
 {
 	vaddr_t base = get_base();
 	uint32_t value = 0;
+
+	io_clrbits32(base + RTC_ICSR, RTC_ICSR_INIT);
+	dsb();
 
 	io_clrbits32(base + RTC_ICSR, RTC_ICSR_RSF);
 
@@ -458,6 +459,89 @@ static void stm32_rtc_to_tm(uint32_t ssr, uint32_t tr, uint32_t dr,
 
 	tm->tm_year = ((dr & RTC_DR_YT_MASK) >> RTC_DR_YT_SHIFT) * 10 +
 		      ((dr & RTC_DR_YU_MASK) >> RTC_DR_YU_SHIFT) + YEAR_REF;
+}
+
+static TEE_Result stm32_rtc_init(void)
+{
+	uint32_t pred_a_max = RTC_PRER_PREDIV_A_MASK >> RTC_PRER_PREDIV_A_SHIFT;
+	uint32_t pred_s_max = RTC_PRER_PREDIV_S_MASK >> RTC_PRER_PREDIV_S_SHIFT;
+	unsigned long rate = clk_get_rate(rtc_dev.rtc_ck);
+	TEE_Result res = TEE_ERROR_GENERIC;
+	vaddr_t base = get_base();
+	uint32_t pred_a = 0;
+	uint32_t pred_s = 0;
+	uint32_t prer = io_read32(base + RTC_PRER);
+	uint32_t cr = io_read32(base + RTC_CR);
+
+	if (rate > (pred_a_max + 1) * (pred_s_max + 1))
+		panic("rtc_ck rate is too high");
+
+	if (cr & RTC_CR_FMT && !IS_ENABLED(CFG_STM32_RTC_HIGH_ACCURACY))
+		return TEE_SUCCESS;
+
+	if (IS_ENABLED(CFG_STM32_RTC_HIGH_ACCURACY)) {
+		/*
+		 * Compute the prescaler values whom divides the clock in order
+		 * to get a * 1 Hz output by maximizing accuracy
+		 * (maximizing PREDIV_S).
+		 */
+		for (pred_a = 0; pred_a <= pred_a_max; pred_a++) {
+			pred_s = (rate / (pred_a + 1)) - 1;
+			if (pred_s <= pred_s_max &&
+			    ((pred_s + 1) * (pred_a + 1)) == rate)
+				break;
+		}
+
+		/*
+		 * 1 Hz output not possible, give priority to RTC power
+		 * consumption by choosing the higher possible value for
+		 * prediv_a
+		 */
+		if (pred_s > pred_s_max || pred_a > pred_a_max) {
+			pred_a = pred_a_max;
+			pred_s = (rate / (pred_a + 1)) - 1;
+
+			DMSG("rtc_ck is %s",
+			     (rate < ((pred_a + 1) * (pred_s + 1))) ?
+			     "fast" : "slow");
+		}
+
+		prer &= RTC_PRER_PREDIV_S_MASK | RTC_PRER_PREDIV_A_MASK;
+		pred_s = SHIFT_U32(pred_s, RTC_PRER_PREDIV_S_SHIFT) &
+			 RTC_PRER_PREDIV_S_MASK;
+		pred_a = SHIFT_U32(pred_a, RTC_PRER_PREDIV_A_SHIFT) &
+			 RTC_PRER_PREDIV_A_MASK;
+
+		/* Return if there is nothing to initialize */
+		if (cr & RTC_CR_FMT && prer == (pred_s | pred_a))
+			return TEE_SUCCESS;
+	}
+
+	stm32_rtc_write_unprotect();
+
+	res = stm32_rtc_enter_init_mode();
+	if (res) {
+		EMSG("Can't enter init mode. Fail to initialize RTC.");
+		stm32_rtc_write_protect();
+		return res;
+	}
+
+	if (IS_ENABLED(CFG_STM32_RTC_HIGH_ACCURACY)) {
+		io_write32(base + RTC_PRER, pred_s);
+		io_write32(base + RTC_PRER, pred_a | pred_s);
+	}
+
+	/* Force 24h time format */
+	cr &= ~RTC_CR_FMT;
+	io_write32(base + RTC_CR, cr);
+
+	res = stm32_rtc_exit_init_mode();
+	if (res)
+		EMSG("Can't exit init mode. Fail to initialize RTC.");
+
+	stm32_rtc_write_protect();
+
+	return res;
 }
 
 static TEE_Result stm32_rtc_get_time(struct rtc *rtc __unused,
@@ -544,9 +628,7 @@ static TEE_Result stm32_rtc_set_time(struct rtc *rtc, struct optee_rtc_time *tm)
 	io_write32(rtc_base + RTC_TR, tr);
 	io_write32(rtc_base + RTC_DR, dr);
 
-	stm32_rtc_exit_init_mode();
-
-	res = stm32_rtc_wait_sync();
+	res = stm32_rtc_exit_init_mode();
 end:
 	stm32_rtc_write_protect();
 
@@ -687,6 +769,9 @@ static TEE_Result stm32_rtc_probe(const void *fdt, int node,
 		clk_disable(rtc_dev.pclk);
 	}
 
+	res = stm32_rtc_init();
+	if (res)
+		return res;
 	rtc_register(&stm32_rtc);
 
 	return res;
