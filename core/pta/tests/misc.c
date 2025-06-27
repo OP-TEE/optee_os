@@ -5,11 +5,13 @@
  */
 #include <assert.h>
 #include <config.h>
+#include <kernel/asan.h>
 #include <kernel/dt_driver.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <malloc.h>
 #include <mm/core_memprot.h>
+#include <setjmp.h>
 #include <stdbool.h>
 #include <trace.h>
 #include <util.h>
@@ -658,6 +660,200 @@ static int self_test_va2pa(void)
 	return ret;
 }
 
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+
+#define ASAN_TEST_SUCCESS 1
+#define ASAN_TEST_BUF_SIZE 15
+
+static char asan_test_sgbuf[ASAN_TEST_BUF_SIZE];
+char asan_test_gbuf[ASAN_TEST_BUF_SIZE];
+
+static jmp_buf asan_test_jmp;
+
+struct asan_test_ctx {
+	char *pmalloc1;
+	char *pmalloc2[3];
+	char write_value;
+	void (*write_func)(char *buf, size_t pos, char value);
+	void *(*memcpy_func)(void *__restrict dst,
+			     const void *__restrict src, size_t size);
+	void *(*memset_func)(void *buf, int val, size_t size);
+};
+
+static void asan_out_of_bounds_write(char *buf, size_t pos,
+				     char value)
+{
+	buf[pos] = value;
+}
+
+static void *asan_out_of_bounds_memcpy(void *__restrict dst,
+				       const void *__restrict src,
+				       size_t size)
+{
+	return memcpy(dst, src, size);
+}
+
+static void *asan_out_of_bounds_memset(void *buf, int val, size_t size)
+{
+	return memset(buf, val, size);
+}
+
+static void asan_panic_test(void)
+{
+	longjmp(asan_test_jmp, ASAN_TEST_SUCCESS);
+}
+
+static void asan_test_cleanup(struct asan_test_ctx *ctx)
+{
+	unsigned int i = 0;
+
+	free(ctx->pmalloc1);
+
+	for (; i < ARRAY_SIZE(ctx->pmalloc2); i++)
+		free(ctx->pmalloc2[i]);
+}
+
+static int asan_call_test(struct asan_test_ctx *ctx,
+			  void (*test)(struct asan_test_ctx *ctx),
+			  const char __maybe_unused *desc)
+{
+	int ret = 0;
+
+	ret = setjmp(asan_test_jmp);
+	if (ret == 0) {
+		test(ctx);
+		ret = -1;
+	} else if (ret == ASAN_TEST_SUCCESS) {
+		ret = 0;
+	} else {
+		panic("Unexpected setjmp return");
+	}
+	LOG("  => [asan] test %s: %s", desc, !ret ? "ok" : "FAILED");
+	return ret;
+}
+
+#ifndef CFG_DYN_CONFIG
+static void asan_stack(struct asan_test_ctx *ctx)
+{
+	char buf[ASAN_TEST_BUF_SIZE] = {0};
+
+	ctx->write_func(buf, ASAN_TEST_BUF_SIZE, ctx->write_value);
+}
+#endif
+
+static void asan_global_stat(struct asan_test_ctx *ctx)
+{
+	ctx->write_func(asan_test_sgbuf, ASAN_TEST_BUF_SIZE,
+			ctx->write_value);
+}
+
+static void asan_global(struct asan_test_ctx *ctx)
+{
+	ctx->write_func(asan_test_gbuf, ASAN_TEST_BUF_SIZE,
+			ctx->write_value);
+}
+
+static void asan_malloc(struct asan_test_ctx *ctx)
+{
+	ctx->pmalloc1 = malloc(ASAN_TEST_BUF_SIZE);
+
+	if (ctx->pmalloc1)
+		ctx->write_func(ctx->pmalloc1, ASAN_TEST_BUF_SIZE,
+				ctx->write_value);
+}
+
+static void asan_malloc2(struct asan_test_ctx *ctx)
+{
+	unsigned int i = 0;
+	char *p = NULL;
+	size_t aligned_size = ROUNDUP(ASAN_TEST_BUF_SIZE, 8);
+
+	for (; i < ARRAY_SIZE(ctx->pmalloc2); i++) {
+		ctx->pmalloc2[i] = malloc(aligned_size);
+		if (!ctx->pmalloc2[i])
+			return;
+	}
+	p = ctx->pmalloc2[1];
+	ctx->write_func(p, aligned_size, ctx->write_value);
+}
+
+static void asan_use_after_free(struct asan_test_ctx *ctx)
+{
+	char *a = malloc(ASAN_TEST_BUF_SIZE);
+
+	if (a) {
+		free(a);
+		ctx->write_func(a, 0, ctx->write_value);
+	}
+}
+
+static void asan_memcpy_dst(struct asan_test_ctx *ctx)
+{
+	static char b[ASAN_TEST_BUF_SIZE + 1];
+	static char a[ASAN_TEST_BUF_SIZE];
+
+	ctx->memcpy_func(a, b, sizeof(b));
+}
+
+static void asan_memcpy_src(struct asan_test_ctx *ctx)
+{
+	static char b[ASAN_TEST_BUF_SIZE];
+	static char a[ASAN_TEST_BUF_SIZE + 1];
+
+	ctx->memcpy_func(a, b, sizeof(a));
+}
+
+static void asan_memset(struct asan_test_ctx *ctx)
+{
+	static char b[ASAN_TEST_BUF_SIZE];
+
+	ctx->memset_func(b, ctx->write_value, ASAN_TEST_BUF_SIZE + 1);
+}
+
+static int self_test_asan(void)
+{
+	uint32_t vfp_state = UINT32_C(0);
+	int ret = 0;
+	struct asan_test_ctx ctx = {0};
+
+	ctx.write_value = 0xab;
+	ctx.write_func = asan_out_of_bounds_write;
+	ctx.memcpy_func = asan_out_of_bounds_memcpy;
+	ctx.memset_func = asan_out_of_bounds_memset;
+
+	asan_set_panic_cb(asan_panic_test);
+	/*
+	 * We need enable access to floating-point registers, in other
+	 * way sync exception during setjmp/longjmp will occur.
+	 */
+	vfp_state = thread_kernel_enable_vfp();
+
+	if (asan_call_test(&ctx, asan_global_stat, "(s) glob overflow") ||
+	    asan_call_test(&ctx, asan_global, "glob overflow") ||
+#ifndef CFG_DYN_CONFIG
+	    asan_call_test(&ctx, asan_stack, "stack overflow") ||
+#endif
+	    asan_call_test(&ctx, asan_malloc, "malloc") ||
+	    asan_call_test(&ctx, asan_malloc2, "malloc2") ||
+	    asan_call_test(&ctx, asan_use_after_free, "use_after_free") ||
+	    asan_call_test(&ctx, asan_memcpy_dst, "memcpy_dst") ||
+	    asan_call_test(&ctx, asan_memcpy_src, "memcpy_src") ||
+	    asan_call_test(&ctx, asan_memset, "memset")) {
+		ret = -1;
+	}
+
+	thread_kernel_disable_vfp(vfp_state);
+	asan_test_cleanup(&ctx);
+	asan_set_panic_cb(asan_panic);
+	return ret;
+}
+#else
+static int self_test_asan(void)
+{
+	return 0;
+}
+#endif
+
 /* exported entry points for some basic test */
 TEE_Result core_self_tests(uint32_t nParamTypes __unused,
 		TEE_Param pParams[TEE_NUM_PARAMS] __unused)
@@ -665,7 +861,8 @@ TEE_Result core_self_tests(uint32_t nParamTypes __unused,
 	if (self_test_mul_signed_overflow() || self_test_add_overflow() ||
 	    self_test_sub_overflow() || self_test_mul_unsigned_overflow() ||
 	    self_test_division() || self_test_malloc() ||
-	    self_test_nex_malloc() || self_test_va2pa()) {
+	    self_test_nex_malloc() || self_test_va2pa() ||
+	    self_test_asan()) {
 		EMSG("some self_test_xxx failed! you should enable local LOG");
 		return TEE_ERROR_GENERIC;
 	}

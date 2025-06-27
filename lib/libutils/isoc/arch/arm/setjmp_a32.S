@@ -252,6 +252,18 @@ SYM (\name):
 	bl		ftrace_longjmp
 	ldmia		sp!, { a1, a2, lr }
 #endif
+#if defined(__KERNEL__) && defined(CFG_CORE_SANITIZE_KADDRESS) && \
+    !defined(CFG_DYN_CONFIG)
+	stmdb		sp!, { a1, a2, a3, lr }
+
+#ifdef __thumb2__
+	ldr		a1, [a1, #32]
+#else
+	ldr		a1, [a1, #36]
+#endif
+	bl		asan_handle_longjmp
+	ldmia		sp!, { a1, a2, a3, lr }
+#endif
 
 	/* Restore the registers, retrieving the state when setjmp() was called.  */
 #ifdef __thumb2__
