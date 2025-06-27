@@ -665,8 +665,8 @@ static int self_test_va2pa(void)
 #define ASAN_TEST_SUCCESS 1
 #define ASAN_TEST_BUF_SIZE 15
 
-static char sgbuf[ASAN_TEST_BUF_SIZE];
-char gbuf[ASAN_TEST_BUF_SIZE];
+static char asan_test_sgbuf[ASAN_TEST_BUF_SIZE];
+char asan_test_gbuf[ASAN_TEST_BUF_SIZE];
 
 static jmp_buf asan_test_jmp;
 
@@ -675,7 +675,6 @@ struct asan_test_ctx {
 	char *pmalloc2[3];
 	char write_value;
 	void (*write_func)(char *buf, size_t pos, char value);
-	char (*read_func)(char *buf, size_t pos);
 	void *(*memcpy_func)(void *__restrict dst,
 			     const void *__restrict src, size_t size);
 	void *(*memset_func)(void *buf, int val, size_t size);
@@ -685,11 +684,6 @@ static void asan_out_of_bounds_write(char *buf, size_t pos,
 				     char value)
 {
 	buf[pos] = value;
-}
-
-static char asan_out_of_bounds_read(char *buf, size_t pos)
-{
-	return buf[pos];
 }
 
 static void *asan_out_of_bounds_memcpy(void *__restrict dst,
@@ -711,22 +705,19 @@ static void asan_panic_test(void)
 
 static void asan_test_cleanup(struct asan_test_ctx *ctx)
 {
-	unsigned int i;
+	unsigned int i = 0;
 
-	if (ctx->pmalloc1)
-		free(ctx->pmalloc1);
+	free(ctx->pmalloc1);
 
-	for (i = 0; i < sizeof(ctx->pmalloc2) / sizeof(uint8_t *); i++) {
-		if (ctx->pmalloc2[i])
-			free(ctx->pmalloc2[i]);
-	}
+	for (; i < ARRAY_SIZE(ctx->pmalloc2); i++)
+		free(ctx->pmalloc2[i]);
 }
 
 static int asan_call_test(struct asan_test_ctx *ctx,
 			  void (*test)(struct asan_test_ctx *ctx),
 			  const char __maybe_unused *desc)
 {
-	int ret;
+	int ret = 0;
 
 	ret = setjmp(asan_test_jmp);
 	if (ret == 0) {
@@ -752,12 +743,14 @@ static void asan_stack(struct asan_test_ctx *ctx)
 
 static void asan_global_stat(struct asan_test_ctx *ctx)
 {
-	ctx->write_func(sgbuf, ASAN_TEST_BUF_SIZE, ctx->write_value);
+	ctx->write_func(asan_test_sgbuf, ASAN_TEST_BUF_SIZE,
+			ctx->write_value);
 }
 
 static void asan_global(struct asan_test_ctx *ctx)
 {
-	ctx->write_func(gbuf, ASAN_TEST_BUF_SIZE, ctx->write_value);
+	ctx->write_func(asan_test_gbuf, ASAN_TEST_BUF_SIZE,
+			ctx->write_value);
 }
 
 static void asan_malloc(struct asan_test_ctx *ctx)
@@ -771,11 +764,11 @@ static void asan_malloc(struct asan_test_ctx *ctx)
 
 static void asan_malloc2(struct asan_test_ctx *ctx)
 {
-	unsigned int i;
-	char *p;
+	unsigned int i = 0;
+	char *p = NULL;
 	size_t aligned_size = ROUNDUP(ASAN_TEST_BUF_SIZE, 8);
 
-	for (i = 0; i < sizeof(ctx->pmalloc2) / sizeof(uint8_t *); i++) {
+	for (; i < ARRAY_SIZE(ctx->pmalloc2); i++) {
 		ctx->pmalloc2[i] = malloc(aligned_size);
 		if (!ctx->pmalloc2[i])
 			return;
@@ -819,14 +812,12 @@ static void asan_memset(struct asan_test_ctx *ctx)
 
 static int self_test_asan(void)
 {
-	uint32_t vfp_state;
+	uint32_t vfp_state = UINT32_C(0);
 	int ret = 0;
-	struct asan_test_ctx ctx;
+	struct asan_test_ctx ctx = {0};
 
-	memset(&ctx, 0, sizeof(ctx));
 	ctx.write_value = 0xab;
 	ctx.write_func = asan_out_of_bounds_write;
-	ctx.read_func = asan_out_of_bounds_read;
 	ctx.memcpy_func = asan_out_of_bounds_memcpy;
 	ctx.memset_func = asan_out_of_bounds_memset;
 

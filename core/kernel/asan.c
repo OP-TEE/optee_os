@@ -215,9 +215,7 @@ static void asan_report(vaddr_t addr, size_t size)
 	EMSG("[ASAN]: access violation, addr: %lx size: %zu\n",
 	     addr, size);
 
-	assert(asan_panic_cb);
-	if (asan_panic_cb)
-		asan_panic_cb();
+	asan_panic_cb();
 }
 
 static __always_inline bool asan_shadow_1byte_isvalid(vaddr_t addr)
@@ -233,64 +231,58 @@ static __always_inline bool asan_shadow_1byte_isvalid(vaddr_t addr)
 
 static __always_inline bool asan_shadow_2byte_isvalid(vaddr_t addr)
 {
-	int8_t *byte, last;
-
 	if (addr_crosses_scale_boundary(addr, 2)) {
 		return (asan_shadow_1byte_isvalid(addr) &&
 			asan_shadow_1byte_isvalid(addr + 1));
+	} else {
+		int8_t last = ((addr + 1) & ASAN_BLOCK_MASK) + 1;
+		int8_t *byte = va_to_shadow((void *)addr);
+
+		if (*byte == 0 || last <= *byte)
+			return true;
+
+		return false;
 	}
-
-	byte = va_to_shadow((void *)addr);
-	last = ((addr + 1) & ASAN_BLOCK_MASK) + 1;
-
-	if (*byte == 0 || last <= *byte)
-		return true;
-
-	return false;
 }
 
 static __always_inline bool asan_shadow_4byte_isvalid(vaddr_t addr)
 {
-	int8_t *byte, last;
-
 	if (addr_crosses_scale_boundary(addr, 4)) {
 		return (asan_shadow_2byte_isvalid(addr) &&
 			asan_shadow_2byte_isvalid(addr + 2));
+	} else {
+		int8_t last = ((addr + 3) & ASAN_BLOCK_MASK) + 1;
+		int8_t *byte = va_to_shadow((void *)addr);
+
+		if (*byte == 0 || last <= *byte)
+			return true;
+
+		return false;
 	}
-
-	byte = va_to_shadow((void *)addr);
-	last = ((addr + 3) & ASAN_BLOCK_MASK) + 1;
-
-	if (*byte == 0 || last <= *byte)
-		return true;
-
-	return false;
 }
 
 static __always_inline bool asan_shadow_8byte_isvalid(vaddr_t addr)
 {
-	int8_t *byte, last;
-
 	if (addr_crosses_scale_boundary(addr, 8)) {
 		return (asan_shadow_4byte_isvalid(addr) &&
 			asan_shadow_4byte_isvalid(addr + 4));
+	} else {
+		int8_t last = ((addr + 7) & ASAN_BLOCK_MASK) + 1;
+		int8_t *byte = va_to_shadow((void *)addr);
+
+		if (*byte == 0 || last <= *byte)
+			return true;
+
+		return false;
 	}
-
-	byte = va_to_shadow((void *)addr);
-	last = ((addr + 7) & ASAN_BLOCK_MASK) + 1;
-
-	if (*byte == 0 || last <= *byte)
-		return true;
-
-	return false;
 }
 
 static __always_inline bool asan_shadow_Nbyte_isvalid(vaddr_t addr,
 						      size_t size)
 {
-	size_t i;
+	size_t i = 0;
 
-	for (i = 0; i < size; i++) {
+	for (; i < size; i++) {
 		if (!asan_shadow_1byte_isvalid(addr + i))
 			return false;
 	}

@@ -84,9 +84,9 @@ BTI(	bti	c)
 	ldp	x0, x1, [sp], #16
 #endif
 #if defined(__KERNEL__) && defined(CFG_CORE_SANITIZE_KADDRESS) && \
-!defined(CFG_DYN_CONFIG)
+    !defined(CFG_DYN_CONFIG)
 	stp	x0, x1, [sp, #-16]!
-	REG_ONE(x0, 96)
+	ldr	x0, [x0, 96]
 	bl	asan_handle_longjmp
 	ldp	x0, x1, [sp], #16
 #endif
