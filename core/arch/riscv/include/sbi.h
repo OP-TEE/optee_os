@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022 NXP
+ * Copyright 2022, 2025 NXP
  */
 
 #ifndef __SBI_H
@@ -18,6 +18,14 @@
 #define SBI_ERR_ALREADY_AVAILABLE	-6
 #define SBI_ERR_ALREADY_STARTED		-7
 #define SBI_ERR_ALREADY_STOPPED		-8
+#define SBI_ERR_NO_SHMEM		-9
+#define SBI_ERR_INVALID_STATE		-10
+#define SBI_ERR_BAD_RANGE		-11
+#define SBI_ERR_TIMEOUT			-12
+#define SBI_ERR_IO			-13
+#define SBI_ERR_DENIED_LOCKED		-14
+
+#define SBI_LAST_ERR			SBI_ERR_DENIED_LOCKED
 
 /* SBI Extension IDs */
 #define SBI_EXT_0_1_CONSOLE_PUTCHAR	0x01
