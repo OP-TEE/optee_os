@@ -33,6 +33,7 @@
 #define SBI_EXT_HSM			0x48534D
 #define SBI_EXT_DBCN			0x4442434E
 #define SBI_EXT_TEE			0x544545
+#define SBI_EXT_MPXY                    0x4D505859
 
 #ifndef __ASSEMBLER__
 
