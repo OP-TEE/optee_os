@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022 NXP
+ * Copyright 2022, 2025 NXP
  */
 
 #ifndef __SBI_H
@@ -151,6 +151,30 @@ struct sbi_mpxy_channel_attrs {
 	uint32_t events_state_ctrl;
 };
 
+/* SBI MPXY channel IDs data in shared memory */
+struct sbi_mpxy_channel_ids_data {
+	/* Remaining number of channel ids */
+	uint32_t remaining;
+	/* Returned channel ids in current function call */
+	uint32_t returned;
+	/* Returned channel id array */
+	uint32_t channel_array[];
+};
+
+/* SBI MPXY notification data in shared memory */
+struct sbi_mpxy_notification_data {
+	/* Remaining number of notification events */
+	uint32_t remaining;
+	/* Number of notification events returned */
+	uint32_t returned;
+	/* Number of notification events lost */
+	uint32_t lost;
+	/* Reserved for future use */
+	uint32_t reserved;
+	/* Returned channel id array */
+	uint8_t events_data[];
+};
+
 #include <compiler.h>
 #include <encoding.h>
 #include <stdint.h>
@@ -163,6 +187,30 @@ void sbi_console_putchar(int ch);
 int sbi_dbcn_write_byte(unsigned char ch);
 int sbi_hsm_hart_start(uint32_t hartid, paddr_t start_addr, unsigned long arg);
 int sbi_hsm_hart_get_status(uint32_t hartid, enum sbi_hsm_hart_state *status);
+
+/*  SBI MPXY */
+int sbi_mpxy_get_shmem_size(unsigned long *shmem_size);
+int sbi_mpxy_set_shmem(void);
+int sbi_mpxy_get_channel_ids(uint32_t channel_count, uint32_t *channel_ids);
+int sbi_mpxy_read_attributes(uint32_t channel_id, uint32_t base_attribute_id,
+			     uint32_t attribute_count, void *attribute_buf);
+int sbi_mpxy_write_attributes(uint32_t channel_id, uint32_t base_attribute_id,
+			      uint32_t attribute_count,
+			      uint32_t *attributes_buf);
+int sbi_mpxy_send_message_with_response(uint32_t channel_id,
+					uint32_t message_id, void *message,
+					unsigned long message_len,
+					void *response,
+					unsigned long max_response_len,
+					unsigned long *response_len);
+int sbi_mpxy_send_message_without_response(uint32_t channel_id,
+					   uint32_t message_id, void *message,
+					   unsigned long message_len);
+int sbi_mpxy_get_channel_count(uint32_t *channel_count);
+int
+sbi_mpxy_get_notification_events(uint32_t channel_id,
+				 struct sbi_mpxy_notification_data *notif_data,
+				 unsigned long *events_data_len);
 
 #endif /*__ASSEMBLER__*/
 #endif /*defined(CFG_RISCV_SBI)*/
