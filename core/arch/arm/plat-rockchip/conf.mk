@@ -1,7 +1,6 @@
 PLATFORM_FLAVOR ?= rk322x
 
-# No GIC for rk3399
-$(call force,CFG_GIC,$(if $(filter rk3399,$(PLATFORM_FLAVOR)),n,y))
+$(call force,CFG_GIC,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_8250_UART,y)
 
