@@ -516,10 +516,6 @@
 	clock-error-detect;
 };
 
-&rtc {
-	status = "okay";
-};
-
 &saes {
 	status = "okay";
 };
