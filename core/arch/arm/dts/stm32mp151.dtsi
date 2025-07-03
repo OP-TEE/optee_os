@@ -392,7 +392,6 @@
 			clocks = <&rcc RTCAPB>, <&rcc RTC>;
 			clock-names = "pclk", "rtc_ck";
 			interrupts-extended = <&exti 19 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
 		};
 
 		bsec: efuse@5c005000 {
