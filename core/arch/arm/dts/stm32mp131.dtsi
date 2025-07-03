@@ -353,7 +353,6 @@
 			reg = <0x5c004000 0x400>;
 			clocks = <&rcc RTCAPB>, <&rcc RTC>;
 			clock-names = "pclk", "rtc_ck";
-			status = "disabled";
 		};
 
 		bsec: efuse@5c005000 {
