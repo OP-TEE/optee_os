@@ -9,6 +9,7 @@
 #include <console.h>
 #include <drivers/firewall_device.h>
 #include <drivers/gic.h>
+#include <drivers/rstctrl.h>
 #include <drivers/pinctrl.h>
 #include <drivers/stm32_bsec.h>
 #include <drivers/stm32_gpio.h>
@@ -741,4 +742,28 @@ bool stm32mp_supports_second_core(void)
 	default:
 		return true;
 	}
+}
+
+void __noreturn do_reset(const char *str __maybe_unused)
+{
+	struct rstctrl *rstctrl = NULL;
+
+	if (CFG_TEE_CORE_NB_CORE > 1) {
+		/* Halt execution of other CPUs */
+		interrupt_raise_sgi(interrupt_get_main_chip(),
+				    CFG_HALT_CORES_SGI,
+				    ITR_CPU_MASK_TO_OTHER_CPUS);
+		mdelay(1);
+	}
+
+	IMSG("Forced system reset %s", str);
+	console_flush();
+
+	/* Request system reset to RCC driver */
+	rstctrl = stm32mp_rcc_reset_id_to_rstctrl(MPSYST_R);
+	rstctrl_assert(rstctrl);
+	udelay(100);
+
+	/* Cannot occur */
+	panic();
 }
