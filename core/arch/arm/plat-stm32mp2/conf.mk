@@ -36,6 +36,8 @@ include core/arch/arm/cpu/cortex-armv8-0.mk
 supported-ta-targets ?= ta_arm64
 
 $(call force,CFG_ARM64_core,y)
+$(call force,CFG_CORE_ASYNC_NOTIF,y)
+$(call force,CFG_CORE_ASYNC_NOTIF_GIC_INTID,31)
 $(call force,CFG_DRIVERS_CLK,y)
 $(call force,CFG_DRIVERS_CLK_DT,y)
 $(call force,CFG_DRIVERS_GPIO,y)
@@ -97,6 +99,9 @@ CFG_STM32_SERC ?= y
 CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
 
+# Default RTC accuracy, higher accuracy means higher power consumption
+CFG_STM32_RTC_HIGH_ACCURACY ?= n
+
 CFG_SCMI_PTA ?= y
 CFG_SCMI_SCPFW ?= n
 CFG_SCMI_SCPFW_FROM_DT ?= y
@@ -150,6 +155,7 @@ endif
 # Enable RTC
 ifeq ($(CFG_STM32_RTC),y)
 $(call force,CFG_DRIVERS_RTC,y)
+$(call force,CFG_RTC_PTA,y)
 endif
 
 ifeq ($(CFG_STM32_SERC),y)
