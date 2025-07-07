@@ -54,6 +54,7 @@
 #define SEC_PROXY_REQUEST_THREAD        11
 #endif
 #define OPTEE_HOST_ID                   11
+#define TI_SCI_HOST_ID			10
 #define SEC_PROXY_TIMEOUT_US            1000000
 #define GICC_BASE       (SCU_BASE + GICC_OFFSET)
 #define GICD_BASE       (SCU_BASE + GICD_OFFSET)
