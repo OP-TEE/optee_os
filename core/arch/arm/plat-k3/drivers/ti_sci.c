@@ -16,10 +16,9 @@
 #include <tee_api_defines.h>
 #include <trace.h>
 
-#include "sec_proxy.h"
 #include "ti_sci.h"
 #include "ti_sci_protocol.h"
-
+#include "ti_sci_transport.h"
 
 /**
  * struct ti_sci_xfer - Structure representing a message flow
@@ -27,8 +26,8 @@
  * @rx_message:	Receive message
  */
 struct ti_sci_xfer {
-	struct k3_sec_proxy_msg tx_message;
-	struct k3_sec_proxy_msg rx_message;
+	struct ti_sci_msg tx_message;
+	struct ti_sci_msg rx_message;
 };
 
 /**
@@ -57,8 +56,8 @@ static int ti_sci_setup_xfer(uint16_t msg_type, uint32_t msg_flags,
 	struct ti_sci_msg_hdr *hdr = NULL;
 
 	/* Ensure we have sane transfer sizes */
-	if (rx_message_size > SEC_PROXY_MAX_MSG_SIZE ||
-	    tx_message_size > SEC_PROXY_MAX_MSG_SIZE ||
+	if (rx_message_size > TI_SCI_MAX_MESSAGE_SIZE ||
+	    tx_message_size > TI_SCI_MAX_MESSAGE_SIZE ||
 	    rx_message_size < sizeof(*hdr) ||
 	    tx_message_size < sizeof(*hdr)) {
 		EMSG("Message transfer size not sane");
@@ -88,14 +87,14 @@ static int ti_sci_setup_xfer(uint16_t msg_type, uint32_t msg_flags,
  */
 static int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 {
-	struct k3_sec_proxy_msg *txmsg = &xfer->tx_message;
-	struct k3_sec_proxy_msg *rxmsg = &xfer->rx_message;
+	struct ti_sci_msg *txmsg = &xfer->tx_message;
+	struct ti_sci_msg *rxmsg = &xfer->rx_message;
 	struct ti_sci_msg_hdr *txhdr = (struct ti_sci_msg_hdr *)txmsg->buf;
 	struct ti_sci_msg_hdr *rxhdr = (struct ti_sci_msg_hdr *)rxmsg->buf;
 	static uint8_t message_sequence;
 	static struct mutex ti_sci_mutex_lock = MUTEX_INITIALIZER;
 	unsigned int retry = 5;
-	int ret = 0;
+	TEE_Result ret = 0;
 
 	mutex_lock(&ti_sci_mutex_lock);
 
@@ -103,7 +102,7 @@ static int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 	txhdr->seq = message_sequence;
 
 	/* Send the message */
-	ret = k3_sec_proxy_send(txmsg);
+	ret = ti_sci_transport_send(txmsg);
 	if (ret) {
 		EMSG("Message sending failed (%d)", ret);
 		goto unlock;
@@ -115,7 +114,7 @@ static int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 	/* Get the response */
 	for (; retry > 0; retry--) {
 		/* Receive the response */
-		ret = k3_sec_proxy_recv(rxmsg);
+		ret = ti_sci_transport_recv(rxmsg);
 		if (ret) {
 			EMSG("Message receive failed (%d)", ret);
 			goto unlock;
