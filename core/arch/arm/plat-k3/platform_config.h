@@ -43,6 +43,7 @@
 #define SEC_PROXY_RT_SIZE               0x100000
 #define SEC_PROXY_RESPONSE_THREAD       6
 #define SEC_PROXY_REQUEST_THREAD        7
+#define OPTEE_HOST_ID                   11
 #else
 #define SEC_PROXY_DATA_BASE             0x4d000000
 #define SEC_PROXY_DATA_SIZE             0x80000
@@ -52,8 +53,8 @@
 #define SEC_PROXY_RT_SIZE               0x80000
 #define SEC_PROXY_RESPONSE_THREAD       10
 #define SEC_PROXY_REQUEST_THREAD        11
-#endif
 #define OPTEE_HOST_ID                   11
+#endif
 #define SEC_PROXY_TIMEOUT_US            1000000
 #define GICC_BASE       (SCU_BASE + GICC_OFFSET)
 #define GICD_BASE       (SCU_BASE + GICD_OFFSET)
