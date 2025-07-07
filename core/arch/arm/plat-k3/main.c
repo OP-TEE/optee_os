@@ -56,7 +56,6 @@ void plat_console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-#ifndef PLATFORM_FLAVOR_am62lx
 static TEE_Result init_ti_sci(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
@@ -119,4 +118,3 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 
 	return TEE_SUCCESS;
 }
-#endif /* PLATFORM_FLAVOR_am62lx */
