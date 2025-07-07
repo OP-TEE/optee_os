@@ -6,9 +6,9 @@
 
 #include <console.h>
 #include <drivers/gic.h>
-#include <drivers/sec_proxy.h>
 #include <drivers/serial8250_uart.h>
 #include <drivers/ti_sci.h>
+#include <drivers/ti_sci_transport.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/tee_common_otp.h>
@@ -54,7 +54,7 @@ static TEE_Result init_ti_sci(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
 
-	ret = k3_sec_proxy_init();
+	ret = ti_sci_transport_init();
 	if (ret != TEE_SUCCESS)
 		return ret;
 
