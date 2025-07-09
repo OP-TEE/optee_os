@@ -8,12 +8,13 @@ TA_SIGN_KEY ?= $(ta-dev-kit-dir$(sm))/keys/default_ta.pem
 ifeq ($(CFG_ENCRYPT_TA),y)
 # Default TA encryption key is a dummy key derived from default
 # hardware unique key (an array of 16 zero bytes) to demonstrate
-# usage of REE-FS TAs encryption feature.
+# usage of REE-FS TAs encryption feature. It should match the key
+# returned by tee_otp_get_ta_enc_key().
 #
 # Note that a user of this TA encryption feature needs to provide
 # encryption key and its handling corresponding to their security
 # requirements.
-TA_ENC_KEY ?= 'b64d239b1f3c7d3b06506229cd8ff7c8af2bb4db2168621ac62c84948468c4f4'
+TA_ENC_KEY ?= 'e3ff381eb7859bb961c52f9b78b693f725c261e75eb488ef5893d6de5d097e6a'
 endif
 
 all: $(link-out-dir$(sm))/$(user-ta-uuid).dmp \
