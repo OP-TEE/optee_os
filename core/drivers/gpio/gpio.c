@@ -69,7 +69,7 @@ TEE_Result gpio_configure(struct gpio *gpio, enum gpio_flags flags)
 {
 	enum gpio_level value = GPIO_LEVEL_LOW;
 
-	assert(!gpio || (gpio->chip && gpio->chip->ops));
+	assert(gpio && gpio->chip && gpio->chip->ops);
 
 	/* Configure GPIO with DT flags */
 	if (gpio && gpio->chip->ops->configure)
