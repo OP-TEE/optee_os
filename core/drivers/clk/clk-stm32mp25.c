@@ -1304,9 +1304,9 @@ static int stm32_clk_parse_fdt(const void *fdt, int node,
 static void stm32mp2_a35_ss_on_bypass(void)
 {
 	uint64_t timeout = 0;
-	uint32_t chgclkreq = stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ);
+	uint32_t chgclkreq = stm32mp_syscfg_read(CA35SS_SSC_CHGCLKREQ);
 
-	if (chgclkreq & A35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK) {
+	if (chgclkreq & CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK) {
 		/* Nothing to do, clock source is already set on bypass clock */
 		return;
 	}
@@ -1315,37 +1315,37 @@ static void stm32mp2_a35_ss_on_bypass(void)
 	 * for clkext2f frequency at 400MHZ, the default flexgen63 config,
 	 * divider by 2 is required with ARM_DIVSEL=0
 	 */
-	if (chgclkreq & A35SS_SSC_CHGCLKREQ_ARM_DIVSEL) {
-		stm32mp_syscfg_write(A35SS_SSC_CHGCLKREQ,
+	if (chgclkreq & CA35SS_SSC_CHGCLKREQ_ARM_DIVSEL) {
+		stm32mp_syscfg_write(CA35SS_SSC_CHGCLKREQ,
 				     0U,
-				     A35SS_SSC_CHGCLKREQ_ARM_DIVSEL);
+				     CA35SS_SSC_CHGCLKREQ_ARM_DIVSEL);
 		timeout = timeout_init_us(CLKSRC_TIMEOUT);
 		while (!timeout_elapsed(timeout))
-			if (!(stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ) &
-			      A35SS_SSC_CHGCLKREQ_ARM_DIVSELACK))
+			if (!(stm32mp_syscfg_read(CA35SS_SSC_CHGCLKREQ) &
+			      CA35SS_SSC_CHGCLKREQ_ARM_DIVSELACK))
 				break;
-		if (stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ) &
-		    A35SS_SSC_CHGCLKREQ_ARM_DIVSELACK)
+		if (stm32mp_syscfg_read(CA35SS_SSC_CHGCLKREQ) &
+		    CA35SS_SSC_CHGCLKREQ_ARM_DIVSELACK)
 			panic("Cannot set div on A35 bypass clock");
 	}
 
-	stm32mp_syscfg_write(A35SS_SSC_CHGCLKREQ,
-			     A35SS_SSC_CHGCLKREQ_ARM_CHGCLKREQ_EN,
-			     A35SS_SSC_CHGCLKREQ_ARM_CHGCLKREQ_MASK);
+	stm32mp_syscfg_write(CA35SS_SSC_CHGCLKREQ,
+			     CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKREQ,
+			     CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKREQ_MASK);
 
 	timeout = timeout_init_us(CLKSRC_TIMEOUT);
 	while (!timeout_elapsed(timeout))
-		if (stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ) &
-		    A35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK)
+		if (stm32mp_syscfg_read(CA35SS_SSC_CHGCLKREQ) &
+		    CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK)
 			break;
 
-	if (!(stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ) &
-	      A35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK))
+	if (!(stm32mp_syscfg_read(CA35SS_SSC_CHGCLKREQ) &
+	      CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK))
 		panic("Cannot switch A35 to bypass clock");
 
-	stm32mp_syscfg_write(A35SS_SSC_PLL_EN,
+	stm32mp_syscfg_write(CA35SS_SSC_PLL_EN,
 			     0,
-			     A35SS_SSC_PLL_ENABLE_NRESET_SWPLL_FF_MASK);
+			     CA35SS_SSC_PLL_EN_NRESET_SWPLL_MASK);
 }
 
 static void stm32mp2_clk_xbar_on_hsi(struct clk_stm32_priv *priv)
@@ -1362,42 +1362,42 @@ static int stm32mp2_a35_pll1_start(void)
 {
 	uint64_t timeout = 0;
 
-	stm32mp_syscfg_write(A35SS_SSC_PLL_EN,
-			     A35SS_SSC_PLL_ENABLE_PD_EN,
-			     A35SS_SSC_PLL_ENABLE_PD_EN);
+	stm32mp_syscfg_write(CA35SS_SSC_PLL_EN,
+			     CA35SS_SSC_PLL_EN_PLL_EN,
+			     CA35SS_SSC_PLL_EN_PLL_EN);
 
 	/* Wait PLL lock */
 	timeout = timeout_init_us(PLLRDY_TIMEOUT);
 	while (!timeout_elapsed(timeout))
-		if (stm32mp_syscfg_read(A35SS_SSC_PLL_EN) &
-		    A35SS_SSC_PLL_ENABLE_LOCKP_MASK)
+		if (stm32mp_syscfg_read(CA35SS_SSC_PLL_EN) &
+		    CA35SS_SSC_PLL_EN_LOCKP_MASK)
 			break;
 
-	if (!(stm32mp_syscfg_read(A35SS_SSC_PLL_EN) &
-	      A35SS_SSC_PLL_ENABLE_LOCKP_MASK)) {
+	if (!(stm32mp_syscfg_read(CA35SS_SSC_PLL_EN) &
+	      CA35SS_SSC_PLL_EN_LOCKP_MASK)) {
 		EMSG("PLL1 not locked");
 		return -1;
 	}
 
 	/* De-assert reset on PLL output clock path */
-	stm32mp_syscfg_write(A35SS_SSC_PLL_EN,
-			     A35SS_SSC_PLL_ENABLE_NRESET_SWPLL_FF_EN,
-			     A35SS_SSC_PLL_ENABLE_NRESET_SWPLL_FF_MASK);
+	stm32mp_syscfg_write(CA35SS_SSC_PLL_EN,
+			     CA35SS_SSC_PLL_EN_NRESET_SWPLL,
+			     CA35SS_SSC_PLL_EN_NRESET_SWPLL_MASK);
 
 	/* Switch CPU clock to PLL clock */
-	stm32mp_syscfg_write(A35SS_SSC_CHGCLKREQ,
+	stm32mp_syscfg_write(CA35SS_SSC_CHGCLKREQ,
 			     0,
-			     A35SS_SSC_CHGCLKREQ_ARM_CHGCLKREQ_MASK);
+			     CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKREQ_MASK);
 
 	/* Wait for clock change acknowledge */
 	timeout = timeout_init_us(CLKSRC_TIMEOUT);
 	while (!timeout_elapsed(timeout))
-		if (!(stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ) &
-		      A35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK))
+		if (!(stm32mp_syscfg_read(CA35SS_SSC_CHGCLKREQ) &
+		      CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK))
 			break;
 
-	if (stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ) &
-	    A35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK) {
+	if (stm32mp_syscfg_read(CA35SS_SSC_CHGCLKREQ) &
+	    CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK) {
 		EMSG("A35 switch to PLL1 failed");
 		return -1;
 	}
@@ -1408,18 +1408,18 @@ static int stm32mp2_a35_pll1_start(void)
 static void stm32mp2_a35_pll1_config(uint32_t fbdiv, uint32_t refdiv,
 				     uint32_t postdiv1, uint32_t postdiv2)
 {
-	stm32mp_syscfg_write(A35SS_SSC_PLL_FREQ1,
+	stm32mp_syscfg_write(CA35SS_SSC_PLL_FREQ1,
 			     SHIFT_U32(refdiv,
-				       A35SS_SSC_PLL_FREQ1_REFDIV_SHIFT) |
-			     SHIFT_U32(fbdiv, A35SS_SSC_PLL_FREQ1_FBDIV_SHIFT),
-			     A35SS_SSC_PLL_FREQ1_MASK);
+				       CA35SS_SSC_PLL_FREQ1_REFDIV_SHIFT) |
+			     SHIFT_U32(fbdiv, CA35SS_SSC_PLL_FREQ1_FBDIV_SHIFT),
+			     CA35SS_SSC_PLL_FREQ1_MASK);
 
-	stm32mp_syscfg_write(A35SS_SSC_PLL_FREQ2,
+	stm32mp_syscfg_write(CA35SS_SSC_PLL_FREQ2,
 			     SHIFT_U32(postdiv1,
-				       A35SS_SSC_PLL_FREQ2_POSTDIV1_SHIFT) |
+				       CA35SS_SSC_PLL_FREQ2_POSTDIV1_SHIFT) |
 			     SHIFT_U32(postdiv2,
-				       A35SS_SSC_PLL_FREQ2_POSTDIV2_SHIFT),
-			     A35SS_SSC_PLL_FREQ2_MASK);
+				       CA35SS_SSC_PLL_FREQ2_POSTDIV2_SHIFT),
+			     CA35SS_SSC_PLL_FREQ2_MASK);
 }
 
 static void clk_stm32_pll_config_output(struct clk_stm32_priv *priv,
@@ -2063,16 +2063,16 @@ struct clk_stm32_pll_cfg {
 
 static unsigned long clk_get_pll1_fvco_rate(unsigned long refclk)
 {
-	uint32_t reg = stm32mp_syscfg_read(A35SS_SSC_PLL_FREQ1);
+	uint32_t reg = stm32mp_syscfg_read(CA35SS_SSC_PLL_FREQ1);
 	uint32_t fbdiv = 0;
 	uint32_t refdiv = 0;
 	unsigned long freq = 0;
 
-	fbdiv = (reg & A35SS_SSC_PLL_FREQ1_FBDIV_MASK) >>
-		A35SS_SSC_PLL_FREQ1_FBDIV_SHIFT;
+	fbdiv = (reg & CA35SS_SSC_PLL_FREQ1_FBDIV_MASK) >>
+		CA35SS_SSC_PLL_FREQ1_FBDIV_SHIFT;
 
-	refdiv = (reg & A35SS_SSC_PLL_FREQ1_REFDIV_MASK) >>
-		 A35SS_SSC_PLL_FREQ1_REFDIV_SHIFT;
+	refdiv = (reg & CA35SS_SSC_PLL_FREQ1_REFDIV_MASK) >>
+		 CA35SS_SSC_PLL_FREQ1_REFDIV_SHIFT;
 
 	if (!refdiv || MUL_OVERFLOW(refclk, fbdiv, &freq))
 		panic();
@@ -2083,16 +2083,16 @@ static unsigned long clk_get_pll1_fvco_rate(unsigned long refclk)
 static unsigned long clk_stm32_pll1_get_rate(struct clk *clk __unused,
 					     unsigned long prate)
 {
-	uint32_t reg = stm32mp_syscfg_read(A35SS_SSC_PLL_FREQ2);
+	uint32_t reg = stm32mp_syscfg_read(CA35SS_SSC_PLL_FREQ2);
 	unsigned long dfout = 0;
 	uint32_t postdiv1 = 0;
 	uint32_t postdiv2 = 0;
 
-	postdiv1 = (reg & A35SS_SSC_PLL_FREQ2_POSTDIV1_MASK) >>
-		   A35SS_SSC_PLL_FREQ2_POSTDIV1_SHIFT;
+	postdiv1 = (reg & CA35SS_SSC_PLL_FREQ2_POSTDIV1_MASK) >>
+		   CA35SS_SSC_PLL_FREQ2_POSTDIV1_SHIFT;
 
-	postdiv2 = (reg & A35SS_SSC_PLL_FREQ2_POSTDIV2_MASK) >>
-		   A35SS_SSC_PLL_FREQ2_POSTDIV2_SHIFT;
+	postdiv2 = (reg & CA35SS_SSC_PLL_FREQ2_POSTDIV2_MASK) >>
+		   CA35SS_SSC_PLL_FREQ2_POSTDIV2_SHIFT;
 
 	if (!postdiv1 || !postdiv2)
 		dfout = prate;
@@ -2488,10 +2488,10 @@ static const struct clk_ops clk_stm32_flexgen_ops = {
 
 static size_t clk_cpu1_get_parent(struct clk *clk __unused)
 {
-	uint32_t reg = stm32mp_syscfg_read(A35SS_SSC_CHGCLKREQ);
+	uint32_t reg = stm32mp_syscfg_read(CA35SS_SSC_CHGCLKREQ);
 
-	return (reg & A35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK) >>
-		A35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_SHIFT;
+	return (reg & CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_MASK) >>
+		CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_SHIFT;
 }
 
 static const struct clk_ops clk_stm32_cpu1_ops = {
