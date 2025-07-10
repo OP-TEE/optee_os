@@ -204,12 +204,15 @@ TEE_Result gpio_dt_get_by_index(const void *fdt, int nodeoffset,
 
 /**
  * gpio_dt_cfg_by_index() - Get a GPIO controller at a specific index in
- * 'gpios' property and configure with provided flags
+ * 'gpios' or 'gpio' properties with or without suffixes configure with provided
+ * flags.
  *
  * @fdt: Device tree to work on
- * @nodeoffset: Node offset of the subnode containing a 'gpios' property
- * @index: GPIO pin index in '*-gpios' property
- * @gpio_name: Prefix of the GPIO properties in device tree, can be NULL
+ * @nodeoffset: Node offset of the subnode containing a 'gpios' or 'gpio'
+ *		property.
+ * @index: GPIO pin index in 'gpios' property find in device tree.
+ * @gpio_name: Prefix of a '-gpios' or '-gpio' properties in device tree,
+ *	       can be NULL to search for 'gpios' or 'gpio' properties
  * @flags: requester flags of GPIO
  * @gpio: Output GPIO pin reference upon success
  *
@@ -222,6 +225,15 @@ TEE_Result gpio_dt_cfg_by_index(const void *fdt, int nodeoffset,
 				enum gpio_flags mode,
 				struct gpio **gpio);
 #else
+static inline TEE_Result gpio_dt_get_by_index(const void *fdt __unused,
+					      int nodeoffset __unused,
+					      unsigned int index __unused,
+					      const char *gpio_name __unused,
+					      struct gpio **gpio __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
 static inline TEE_Result gpio_dt_cfg_by_index(const void *fdt __unused,
 					      int nodeoffset __unused,
 					      unsigned int index  __unused,
@@ -231,8 +243,6 @@ static inline TEE_Result gpio_dt_cfg_by_index(const void *fdt __unused,
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
-
-static inline gpio_configure(struct gpio *gpio, enum gpio_flags mode);
 
 static inline TEE_Result gpio_dt_alloc_pin(struct dt_pargs *pargs __unused,
 					   struct gpio **gpio __unused)
