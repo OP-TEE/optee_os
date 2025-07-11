@@ -92,7 +92,8 @@ size_t _DEFUN(strlen, (str), _CONST char *str)
 {
 	_CONST char *start = str;
 
-#if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__)
+#if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && \
+    !defined(CFG_CORE_SANITIZE_KADDRESS)
 	unsigned long *aligned_addr;
 
 	/* Align the pointer, so we can search a word at a time.  */
