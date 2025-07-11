@@ -411,11 +411,17 @@ void __asan_handle_no_return(void)
 void __asan_register_globals(struct asan_global *globals, size_t size);
 void __asan_register_globals(struct asan_global *globals, size_t size)
 {
-	size_t n;
+	size_t n = 0;
 
-	for (n = 0; n < size; n++)
-		asan_tag_access((void *)globals[n].beg,
-				(void *)(globals[n].beg + globals[n].size));
+	for (n = 0; n < size; n++) {
+		vaddr_t begin = globals[n].beg;
+		vaddr_t end = begin + globals[n].size;
+		vaddr_t end_align = ROUNDUP(end, ASAN_BLOCK_SIZE);
+		vaddr_t end_rz = begin + globals[n].size_with_redzone;
+
+		asan_tag_access((void *)begin, (void *)end);
+		asan_tag_no_access((void *)end_align, (void *)end_rz);
+	}
 }
 DECLARE_KEEP_INIT(__asan_register_globals);
 
