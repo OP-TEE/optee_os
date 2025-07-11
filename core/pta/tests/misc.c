@@ -667,6 +667,7 @@ static int self_test_va2pa(void)
 
 static char asan_test_sgbuf[ASAN_TEST_BUF_SIZE];
 char asan_test_gbuf[ASAN_TEST_BUF_SIZE];
+static const char asan_test_sgbuf_ro[ASAN_TEST_BUF_SIZE + 1];
 
 static jmp_buf asan_test_jmp;
 
@@ -675,6 +676,7 @@ struct asan_test_ctx {
 	char *pmalloc2[3];
 	char write_value;
 	void (*write_func)(char *buf, size_t pos, char value);
+	char (*read_func)(char *buf, size_t pos);
 	void *(*memcpy_func)(void *__restrict dst,
 			     const void *__restrict src, size_t size);
 	void *(*memset_func)(void *buf, int val, size_t size);
@@ -684,6 +686,11 @@ static void asan_out_of_bounds_write(char *buf, size_t pos,
 				     char value)
 {
 	buf[pos] = value;
+}
+
+static char asan_out_of_bounds_read(char *buf, size_t pos)
+{
+	return buf[pos];
 }
 
 static void *asan_out_of_bounds_memcpy(void *__restrict dst,
@@ -745,6 +752,12 @@ static void asan_global_stat(struct asan_test_ctx *ctx)
 {
 	ctx->write_func(asan_test_sgbuf, ASAN_TEST_BUF_SIZE,
 			ctx->write_value);
+}
+
+static void asan_global_ro(struct asan_test_ctx *ctx)
+{
+	ctx->read_func((char *)asan_test_sgbuf_ro,
+		       ASAN_TEST_BUF_SIZE + 1);
 }
 
 static void asan_global(struct asan_test_ctx *ctx)
@@ -818,6 +831,7 @@ static int self_test_asan(void)
 
 	ctx.write_value = 0xab;
 	ctx.write_func = asan_out_of_bounds_write;
+	ctx.read_func = asan_out_of_bounds_read;
 	ctx.memcpy_func = asan_out_of_bounds_memcpy;
 	ctx.memset_func = asan_out_of_bounds_memset;
 
@@ -830,6 +844,7 @@ static int self_test_asan(void)
 
 	if (asan_call_test(&ctx, asan_global_stat, "(s) glob overflow") ||
 	    asan_call_test(&ctx, asan_global, "glob overflow") ||
+	    asan_call_test(&ctx, asan_global_ro, "glob ro overflow") ||
 #ifndef CFG_DYN_CONFIG
 	    asan_call_test(&ctx, asan_stack, "stack overflow") ||
 #endif
