@@ -95,7 +95,8 @@ QUICKREF
 
 int _DEFUN(strcmp, (s1, s2), _CONST char *s1 _AND _CONST char *s2)
 {
-#if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
+#if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__) || \
+    defined(CFG_CORE_SANITIZE_KADDRESS)
 	while (*s1 != '\0' && *s1 == *s2) {
 		s1++;
 		s2++;
