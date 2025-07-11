@@ -58,7 +58,7 @@
 #define GICC_BASE       (SCU_BASE + GICC_OFFSET)
 #define GICD_BASE       (SCU_BASE + GICD_OFFSET)
 
-/* SA2UL */
+/* SA2UL and DTHEV2 */
 #if defined(PLATFORM_FLAVOR_am65x)
 #define SA2UL_BASE		0x04e00000
 #define SA2UL_TI_SCI_DEV_ID	136
@@ -86,6 +86,8 @@
 #define SA2UL_TI_SCI_DEV_ID	-1
 #define SA2UL_TI_SCI_FW_ID	66
 #define SA2UL_TI_SCI_FW_RGN_ID	1
+#elif defined(PLATFORM_FLAVOR_am62lx)
+#define EIP76D_TRNG_BASE	0x3B100000
 #elif !defined(CFG_WITH_SOFTWARE_PRNG)
 /*
  * If we got here we're trying to build a hardware based RNG driver
@@ -97,8 +99,14 @@
 #define SA2UL_REG_SIZE		0x1000
 
 /* RNG */
+#if defined(PLATFORM_FLAVOR_am62lx)
+#define RNG_BASE		(EIP76D_TRNG_BASE)
+#define RNG_REG_SIZE		0x80
+#else
 #define RNG_BASE		(SA2UL_BASE + 0x10000)
 #define RNG_REG_SIZE		0x1000
+#endif
+
 #if defined(PLATFORM_FLAVOR_am62x) || \
 	defined(PLATFORM_FLAVOR_am62ax) || \
 	defined(PLATFORM_FLAVOR_am62px)
