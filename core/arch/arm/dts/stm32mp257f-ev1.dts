@@ -58,6 +58,11 @@
 	status = "okay";
 };
 
+&iwdg1 {
+	timeout-sec = <32>;
+	status = "okay";
+};
+
 &ommanager {
 	memory-region = <&mm_ospi1>;
 	memory-region-names = "mm_ospi1";
