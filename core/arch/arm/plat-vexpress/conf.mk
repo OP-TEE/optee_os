@@ -25,6 +25,10 @@ include core/arch/arm/cpu/cortex-armv8-0.mk
 CFG_ARM64_core ?= y
 supported-ta-targets ?= ta_arm64 ta_arm32
 endif
+ifeq ($(PLATFORM_FLAVOR),qemu_sbsa)
+include core/arch/arm/cpu/cortex-armv8-0.mk
+CFG_ARM64_core ?= y
+endif
 
 
 ifeq ($(platform-debugger-arm),1)
@@ -169,6 +173,21 @@ else ifneq ($(CFG_CORE_SEL2_SPMC),y)
 CFG_CORE_ASYNC_NOTIF_GIC_INTID ?= 219
 endif
 endif #PLATFORM_FLAVOR==qemu_armv8a
+
+ifeq ($(PLATFORM_FLAVOR),qemu_sbsa)
+CFG_CORE_HEAP_SIZE ?= 196608
+CFG_HALT_CORES_ON_PANIC ?= y
+CFG_TEE_CORE_NB_CORE ?= 4
+CFG_AUTO_MAX_PA_BITS ?= y
+CFG_CORE_RESERVED_SHM ?= n
+ifeq ($(CFG_CORE_SEL2_SPMC),y)
+else
+$(call force,CFG_ARM_GICV3,y)
+$(call force,CFG_DT_ADDR,0)
+$(call force,CFG_DT,y)
+CFG_DTB_MAX_SIZE ?= 0x100000
+endif
+endif #PLATFORM==qemu_sbsa
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),qemu_virt qemu_armv8a))
 CFG_DT_DRIVER_EMBEDDED_TEST ?= y
