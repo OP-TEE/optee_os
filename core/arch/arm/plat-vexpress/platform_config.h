@@ -81,6 +81,13 @@
 #define CONSOLE_UART_BASE	UART1_BASE
 #define IT_CONSOLE_UART		IT_UART1
 
+#elif defined(PLATFORM_FLAVOR_qemu_sbsa)
+#define GIC_BASE		0x40060000
+#define SECURE_UART_BASE	0x60030000
+#define IT_SECURE_UART		40
+
+#define CONSOLE_UART_BASE	SECURE_UART_BASE
+#define IT_CONSOLE_UART		IT_SECURE_UART
 #else
 #error "Unknown platform flavor"
 #endif
@@ -140,6 +147,11 @@
 #define GIC_REDIST_SIZE		0x00F60000
 #endif
 
+#elif defined(PLATFORM_FLAVOR_qemu_sbsa)
+#define GICD_OFFSET		0
+#define GICC_OFFSET		0x10000
+#define GIC_REDIST_BASE		0x40080000
+#define GIC_REDIST_SIZE		0x04000000
 #else
 #error "Unknown platform flavor"
 #endif
