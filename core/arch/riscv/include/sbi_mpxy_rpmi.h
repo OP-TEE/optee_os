@@ -73,6 +73,22 @@ struct sbi_mpxy_rpmi_message {
 	int error;
 };
 
+/*
+ * struct sbi_mpxy_rpmi_channel - RPMI-capable MPXY channel descriptor
+ * @hart_id:        Logical hart ID associated with the channel (if applicable)
+ * @channel_id:     MPXY channel ID as returned by SBI
+ * @attrs:          Basic MPXY channel attributes (protocol ID, max len, etc.)
+ * @rpmi_attrs:     RPMI-specific channel attributes (service group, MSI, etc.)
+ * @notif:          Pointer to allocated buffer for receiving notifications
+ */
+struct sbi_mpxy_rpmi_channel {
+	uint32_t hart_id;
+	uint32_t channel_id;
+	struct sbi_mpxy_channel_attrs attrs;
+	struct sbi_mpxy_rpmi_channel_attrs rpmi_attrs;
+	struct sbi_mpxy_notification_data *notif;
+};
+
 /* An instance of RPMI-over-MPXY channel group */
 struct sbi_mpxy_rpmi_context {
 	uint32_t channel_count;
@@ -135,6 +151,10 @@ sbi_mpxy_rpmi_init_send_without_response(struct sbi_mpxy_rpmi_message *message,
 	message->data.response_len = 0;
 	message->error = 0;
 }
+
+void sbi_mpxy_rpmi_probe_channels(void);
+int sbi_mpxy_rpmi_read_attributes(struct sbi_mpxy_rpmi_channel *channel);
+int sbi_mpxy_rpmi_send_data(struct sbi_mpxy_rpmi_channel *channel, void *data);
 
 #endif /*__ASSEMBLER__*/
 #endif /*defined(CFG_RISCV_SBI_MPXY_RPMI)*/
