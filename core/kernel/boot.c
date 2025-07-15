@@ -38,8 +38,11 @@ static uint64_t get_dt_val_and_advance(const void *data, size_t *offs,
  * World is ignored since it could not be mapped to be used as dynamic shared
  * memory.
  */
-static int __maybe_unused get_nsec_memory_helper(void *fdt, struct core_mmu_phys_mem *mem)
+static int __maybe_unused get_nsec_memory_helper(void *fdt,
+						 struct core_mmu_phys_mem *mem,
+						 const char *dev_type)
 {
+	size_t dev_type_size = strlen(dev_type) + 1;
 	const uint8_t *prop = NULL;
 	uint64_t a = 0;
 	uint64_t l = 0;
@@ -62,8 +65,7 @@ static int __maybe_unused get_nsec_memory_helper(void *fdt, struct core_mmu_phys
 
 	while (true) {
 		offs = fdt_node_offset_by_prop_value(fdt, offs, "device_type",
-						     "memory",
-						     sizeof("memory"));
+						     dev_type, dev_type_size);
 		if (offs < 0)
 			break;
 
@@ -99,12 +101,13 @@ static int __maybe_unused get_nsec_memory_helper(void *fdt, struct core_mmu_phys
 }
 
 #ifdef CFG_DT
-static struct core_mmu_phys_mem *get_nsec_memory(void *fdt, size_t *nelems)
+static struct core_mmu_phys_mem *get_nsec_memory(void *fdt, size_t *nelems,
+						 const char *dev_type)
 {
 	struct core_mmu_phys_mem *mem = NULL;
 	int elems_total = 0;
 
-	elems_total = get_nsec_memory_helper(fdt, NULL);
+	elems_total = get_nsec_memory_helper(fdt, NULL, dev_type);
 	if (elems_total <= 0)
 		return NULL;
 
@@ -112,7 +115,7 @@ static struct core_mmu_phys_mem *get_nsec_memory(void *fdt, size_t *nelems)
 	if (!mem)
 		panic();
 
-	elems_total = get_nsec_memory_helper(fdt, mem);
+	elems_total = get_nsec_memory_helper(fdt, mem, dev_type);
 	assert(elems_total > 0);
 
 	*nelems = elems_total;
@@ -121,7 +124,8 @@ static struct core_mmu_phys_mem *get_nsec_memory(void *fdt, size_t *nelems)
 }
 #else /*CFG_DT*/
 static struct core_mmu_phys_mem *get_nsec_memory(void *fdt __unused,
-						 size_t *nelems __unused)
+						 size_t *nelems __unused,
+						 const char *dev_type __unused)
 {
 	return NULL;
 }
@@ -129,15 +133,29 @@ static struct core_mmu_phys_mem *get_nsec_memory(void *fdt __unused,
 
 void discover_nsec_memory(void)
 {
-	struct core_mmu_phys_mem *mem;
+	struct core_mmu_phys_mem *mem = NULL;
 	const struct core_mmu_phys_mem *mem_begin = NULL;
 	const struct core_mmu_phys_mem *mem_end = NULL;
-	size_t nelems;
-	void *fdt = get_external_dt();
+	size_t nelems = 0;
+	void *fdt = NULL;
 
+	fdt = get_manifest_dt();
 	if (fdt) {
-		mem = get_nsec_memory(fdt, &nelems);
+		mem = get_nsec_memory(fdt, &nelems, "ns-memory");
 		if (mem) {
+			DMSG("Non-secure memory found in manifest DT");
+			core_mmu_set_discovered_nsec_ddr(mem, nelems);
+			return;
+		}
+
+		DMSG("No non-secure memory found in manifest DT");
+	}
+
+	fdt = get_external_dt();
+	if (fdt) {
+		mem = get_nsec_memory(fdt, &nelems, "memory");
+		if (mem) {
+			DMSG("Non-secure memory found in extern DT");
 			core_mmu_set_discovered_nsec_ddr(mem, nelems);
 			return;
 		}
@@ -147,8 +165,9 @@ void discover_nsec_memory(void)
 
 	fdt = get_embedded_dt();
 	if (fdt) {
-		mem = get_nsec_memory(fdt, &nelems);
+		mem = get_nsec_memory(fdt, &nelems, "memory");
 		if (mem) {
+			DMSG("Non-secure memory found in embedded DT");
 			core_mmu_set_discovered_nsec_ddr(mem, nelems);
 			return;
 		}
