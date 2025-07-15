@@ -36,6 +36,7 @@ CFG_16550_UART ?= y
 
 # SBI extensions
 CFG_RISCV_SBI_MPXY ?= y
+CFG_RISCV_SBI_MPXY_RPMI ?= y
 
 $(call force,CFG_RISCV_M_MODE,n)
 $(call force,CFG_RISCV_S_MODE,y)
