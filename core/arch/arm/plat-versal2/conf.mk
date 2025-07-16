@@ -33,6 +33,7 @@ CFG_CORE_RESERVED_SHM	?= n
 CFG_CORE_DYN_SHM	?= y
 CFG_WITH_STATS		?= y
 CFG_ARM64_core		?= y
+CFG_AUTO_MAX_PA_BITS	?= y
 
 # Enable ARM Crypto Extensions(CE)
 CFG_CRYPTO_WITH_CE ?= y
@@ -64,11 +65,6 @@ CFG_AMD_PS_GPIO ?= n
 ifeq ($(CFG_AMD_PS_GPIO),y)
 $(call force,CFG_MAP_EXT_DT_SECURE,y)
 $(call force,CFG_DRIVERS_GPIO,y)
-endif
-
-ifeq ($(CFG_ARM64_core),y)
-$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
-$(call force,CFG_CORE_ARM64_PA_BITS,43)
 endif
 
 CFG_CORE_HEAP_SIZE ?= 262144
