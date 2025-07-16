@@ -474,7 +474,10 @@ struct transfer_list_entry *transfer_list_add(struct transfer_list_header *tl,
 
 	max_tl_ev = (vaddr_t)tl + tl->max_size;
 	tl_ev = (vaddr_t)tl + tl->size;
-	ev = tl_ev;
+	if (ROUNDUP_OVERFLOW(tl_ev, TRANSFER_LIST_GRANULE, &ev))
+		return NULL;
+
+	tl_e = (struct transfer_list_entry *)ev;
 
 	/*
 	 * Skip the step 1 (optional step).
@@ -487,7 +490,6 @@ struct transfer_list_entry *transfer_list_add(struct transfer_list_header *tl,
 		return NULL;
 	}
 
-	tl_e = (struct transfer_list_entry *)tl_ev;
 	*tl_e = (struct transfer_list_entry){
 		.tag_id = tag_id,
 		.hdr_size = sizeof(*tl_e),
