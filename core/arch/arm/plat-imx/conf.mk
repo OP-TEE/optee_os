@@ -74,7 +74,8 @@ mx8mn-flavorlist = \
 mx8mp-flavorlist = \
 	mx8mpevk \
 	mx8mp_rsb3720_6g \
-	mx8mp_phyboard_pollux
+	mx8mp_phyboard_pollux \
+	mx8mp_libra_fpsc
 
 mx8qm-flavorlist = \
 	mx8qmmek \
@@ -432,8 +433,15 @@ $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
 endif
 
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mp_libra_fpsc))
+CFG_DDR_SIZE ?= 0x40000000
+CFG_UART_BASE ?= UART4_BASE
+$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,36)
+endif
+
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mp_phyboard_pollux))
-CFG_DDR_SIZE ?= 0x80000000
+CFG_DDR_SIZE ?= 0x40000000
 CFG_UART_BASE ?= UART1_BASE
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
