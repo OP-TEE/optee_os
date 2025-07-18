@@ -524,34 +524,6 @@ static void iwdg_wdt_get_version_and_status(struct stm32_iwdg_device *iwdg)
 	DMSG("Watchdog is %sabled", iwdg_wdt_is_enabled(iwdg) ? "en" : "dis");
 }
 
-static TEE_Result stm32_iwdg_setup(struct stm32_iwdg_device *iwdg,
-				   const void *fdt, int node)
-{
-	TEE_Result res = TEE_SUCCESS;
-
-	res = stm32_iwdg_parse_fdt(iwdg, fdt, node);
-	if (res)
-		return res;
-
-	/* Enable watchdog source and bus clocks once for all */
-	if (clk_enable(iwdg->clk_lsi))
-		panic();
-
-	if (clk_enable(iwdg->clk_pclk))
-		panic();
-
-	iwdg_wdt_get_version_and_status(iwdg);
-
-	res = iwdg_wdt_set_timeout(&iwdg->wdt_chip, iwdg->timeout);
-	if (res)
-		panic();
-
-	if (iwdg_wdt_is_enabled(iwdg))
-		iwdg_wdt_refresh(&iwdg->wdt_chip);
-
-	return TEE_SUCCESS;
-}
-
 static TEE_Result stm32_iwdg_pm(enum pm_op op, unsigned int pm_hint __unused,
 				const struct pm_callback_handle *pm_handle)
 {
@@ -579,9 +551,25 @@ static TEE_Result stm32_iwdg_probe(const void *fdt, int node,
 	if (!iwdg)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = stm32_iwdg_setup(iwdg, fdt, node);
+	res = stm32_iwdg_parse_fdt(iwdg, fdt, node);
 	if (res)
 		goto out_free;
+
+	/* Enable watchdog source and bus clocks once for all */
+	if (clk_enable(iwdg->clk_lsi))
+		panic();
+
+	if (clk_enable(iwdg->clk_pclk))
+		panic();
+
+	iwdg_wdt_get_version_and_status(iwdg);
+
+	res = iwdg_wdt_set_timeout(&iwdg->wdt_chip, iwdg->timeout);
+	if (res)
+		panic();
+
+	if (iwdg_wdt_is_enabled(iwdg))
+		iwdg_wdt_refresh(&iwdg->wdt_chip);
 
 	iwdg->wdt_chip.ops = &stm32_iwdg_ops;
 
