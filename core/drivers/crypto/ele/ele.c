@@ -375,7 +375,7 @@ int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 /*
  * Initialize EdgeLock Enclave services
  */
-static TEE_Result imx_ele_sab_init(void)
+static TEE_Result __maybe_unused imx_ele_sab_init(void)
 {
 	struct imx_mu_msg msg = {
 		.header.version = ELE_VERSION_HSM,
@@ -386,8 +386,6 @@ static TEE_Result imx_ele_sab_init(void)
 
 	return imx_ele_call(&msg);
 }
-
-driver_init(imx_ele_sab_init);
 
 #if defined(CFG_MX93) || defined(CFG_MX91) || defined(CFG_MX95)
 static TEE_Result imx_ele_derive_key(const uint8_t *ctx, size_t ctx_size,
