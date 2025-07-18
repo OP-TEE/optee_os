@@ -77,6 +77,10 @@ ifeq ($(CFG_RISCV_SBI_CONSOLE),y)
 $(call force,CFG_RISCV_SBI,y)
 endif
 
+ifeq ($(CFG_RISCV_SBI_MPXY),y)
+$(call force,CFG_RISCV_SBI,y)
+endif
+
 # 'y' to let M-mode secure monitor handle the communication between OP-TEE OS
 # and untrusted domain.
 CFG_RISCV_WITH_M_MODE_SM ?= n
