@@ -59,8 +59,14 @@ struct get_info_rsp {
 	uint32_t oem_srkh[16];
 	uint8_t trng_state;
 	uint8_t csal_state;
+#ifndef CFG_MX95
 	uint8_t imem_state;
 	uint8_t unused_2;
+#else
+	uint8_t unused_2[2];
+	uint32_t oem_pqc_srkh[16];
+	uint32_t rsvd[8];
+#endif
 } __packed;
 
 struct response_code {
