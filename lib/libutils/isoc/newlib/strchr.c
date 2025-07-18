@@ -99,7 +99,8 @@ _DEFUN (strchr, (s1, i),
   _CONST unsigned char *s = (_CONST unsigned char *)s1;
   unsigned char c = i;
 
-#if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__)
+#if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && \
+    !defined(CFG_CORE_SANITIZE_KADDRESS)
   unsigned long mask,j;
   unsigned long *aligned_addr;
 
