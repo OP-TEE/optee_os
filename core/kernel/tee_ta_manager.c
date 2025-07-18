@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020, Arm Limited
+ * Copyright (c) 2025, NVIDIA Corporation & AFFILIATES.
  */
 
 #include <assert.h>
@@ -663,21 +664,35 @@ err_mutex_unlock:
 	return res;
 }
 
-static void release_ta_ctx(struct tee_ta_ctx *ctx)
+static void maybe_release_ta_ctx(struct tee_ta_ctx *ctx)
 {
 	bool was_releasing = false;
+	bool keep_crashed = false;
+	bool keep_alive = false;
 
-	mutex_lock(&tee_ta_mutex);
-	was_releasing = ctx->is_releasing;
-	ctx->is_releasing = true;
-	if (!was_releasing) {
-		DMSG("Releasing panicked TA ctx");
-		TAILQ_REMOVE(&tee_ctxes, ctx, link);
+	if (ctx->flags & TA_FLAG_SINGLE_INSTANCE)
+		keep_alive = ctx->flags & TA_FLAG_INSTANCE_KEEP_ALIVE;
+	if (keep_alive)
+		keep_crashed = ctx->flags & TA_FLAG_INSTANCE_KEEP_CRASHED;
+
+	/*
+	 * Keep panicked TAs with SINGLE_INSTANCE, KEEP_ALIVE, and KEEP_CRASHED
+	 * flags in the context list to maintain their panicked status and
+	 * prevent respawning.
+	 */
+	if (!keep_crashed) {
+		mutex_lock(&tee_ta_mutex);
+		was_releasing = ctx->is_releasing;
+		ctx->is_releasing = true;
+		if (!was_releasing) {
+			DMSG("Releasing panicked TA ctx");
+			TAILQ_REMOVE(&tee_ctxes, ctx, link);
+		}
+		mutex_unlock(&tee_ta_mutex);
+
+		if (!was_releasing)
+			ctx->ts_ctx.ops->release_state(&ctx->ts_ctx);
 	}
-	mutex_unlock(&tee_ta_mutex);
-
-	if (!was_releasing)
-		ctx->ts_ctx.ops->release_state(&ctx->ts_ctx);
 }
 
 TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
@@ -719,7 +734,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 
 		panicked = ctx->panicked;
 		if (panicked) {
-			release_ta_ctx(ctx);
+			maybe_release_ta_ctx(ctx);
 			res = TEE_ERROR_TARGET_DEAD;
 		}
 
@@ -782,7 +797,7 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 
 	panicked = ta_ctx->panicked;
 	if (panicked) {
-		release_ta_ctx(ta_ctx);
+		maybe_release_ta_ctx(ta_ctx);
 		res = TEE_ERROR_TARGET_DEAD;
 	}
 
@@ -832,7 +847,7 @@ static TEE_Result dump_ta_memstats(struct tee_ta_session *s,
 
 		panicked = ctx->panicked;
 		if (panicked) {
-			release_ta_ctx(ctx);
+			maybe_release_ta_ctx(ctx);
 			res = TEE_ERROR_TARGET_DEAD;
 		}
 
