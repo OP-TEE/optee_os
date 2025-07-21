@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+/*
+ * Copyright (C) 2025, STMicroelectronics
+ */
+
+/ {
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* Internal RAM reserved memory declaration */
+		tfa_bl31: tfa-bl31@a000000 {
+			reg = <0x0 0xa000000 0x0 0x20000>;
+			no-map;
+		};
+
+		hpdma_lli: hpdma-lli@a020000 {
+			reg = <0x0 0xa020000 0x0 0x20000>;
+			no-map;
+		};
+
+		bsec_mirror: bsec-mirror@a040000 {
+			reg = <0x0 0xa040000 0x0 0x1000>;
+			no-map;
+		};
+
+		scmi_cid2_s: scmi-cid2-s@a041000 {
+			reg = <0x0 0xa041000 0x0 0x1000>;
+			no-map;
+		};
+
+		scmi_cid2_ns: scmi-cid2-ns@a042000 {
+			reg = <0x0 0xa042000 0x0 0x1000>;
+			no-map;
+		};
+
+		cm33_sram1: cm33-sram1@a043000 {
+			reg = <0x0 0xa043000 0x0 0x1d000>;
+			no-map;
+		};
+
+		cm33_sram2: cm33-sram2@a060000 {
+			reg = <0x0 0xa060000 0x0 0x20000>;
+			no-map;
+		};
+
+		cm33_retram: cm33-retram@a080000 {
+			reg = <0x0 0xa080000 0x0 0x1f000>;
+			no-map;
+		};
+
+		ddr_param: ddr-param@a09f000 {
+			reg = <0x0 0xa09f000 0x0 0x1000>;
+			no-map;
+		};
+
+		/* PCIe reserved memory declaration */
+		pcie_device: pcie-device@10000000 {
+			reg = <0x0 0x10000000 0x0 0x10000000>;
+			no-map;
+		};
+
+		/* Backup RAM reserved memory declaration */
+		bl31_lowpower: bl31-lowpower@42000000 {
+			reg = <0x0 0x42000000 0x0 0x1000>;
+			no-map;
+		};
+
+		tfm_its: tfm-its@42001000 {
+			reg = <0x0 0x42001000 0x0 0x1000>;
+			no-map;
+		};
+
+		/* Octo Memory Manager reserved memory declaration */
+		mm_ospi1: mm-ospi@60000000 {
+			reg = <0x0 0x60000000 0x0 0x10000000>;
+			no-map;
+		};
+
+		/* DDR reserved memory declaration */
+		tfm_code: tfm-code@80000000 {
+			reg = <0x0 0x80000000 0x0 0x100000>;
+			no-map;
+		};
+
+		cm33_cube_fw: cm33-cube-fw@80100000 {
+			reg = <0x0 0x80100000 0x0 0x800000>;
+			no-map;
+		};
+
+		tfm_data: tfm-data@80900000 {
+			reg = <0x0 0x80900000 0x0 0x100000>;
+			no-map;
+		};
+
+		cm33_cube_data: cm33-cube-data@80a00000 {
+			reg = <0x0 0x80a00000 0x0 0x800000>;
+			no-map;
+		};
+
+		ipc_shmem: ipc-shmem@81200000 {
+			reg = <0x0 0x81200000 0x0 0x100000>;
+			no-map;
+		};
+
+		spare1: spare1@81300000 {
+			reg = <0x0 0x81300000 0x0 0xcc0000>;
+			no-map;
+		};
+
+		bl31_context: bl31-context@81fc0000 {
+			reg = <0x0 0x81fc0000 0x0 0x40000>;
+			no-map;
+		};
+
+		op_tee: op-tee@82000000 {
+			reg = <0x0 0x82000000 0x0 0x2000000>;
+			no-map;
+		};
+
+		linuxkernel1: linuxkernel1@84000000 {
+			reg = <0x0 0x84000000 0x0 0x76800000>;
+			no-map;
+		};
+
+		gpu_reserved: gpu-reserved@fa800000 {
+			reg = <0x0 0xfa800000 0x0 0x4000000>;
+			no-map;
+		};
+
+		ltdc_sec_layer: ltdc-sec-layer@fe800000 {
+			reg = <0x0 0xfe800000 0x0 0x800000>;
+			no-map;
+		};
+
+		ltdc_sec_rotation: ltdc-sec-rotation@ff000000 {
+			reg = <0x0 0xff000000 0x0 0x1000000>;
+			no-map;
+		};
+
+		linuxkernel2: linuxkernel2@100000000 {
+			reg = <0x1 0x00000000 0x0 0x80000000>;
+			no-map;
+		};
+	};
+};
