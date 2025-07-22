@@ -112,13 +112,23 @@ TEE_Result versal_puf_register(struct versal_puf_data *buf,
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t err = 0;
 
-	versal_mbox_alloc(sizeof(buf->puf_id), buf->puf_id, &puf_id_addr);
-	versal_mbox_alloc(sizeof(buf->chash), &buf->chash, &hash_addr);
-	versal_mbox_alloc(sizeof(buf->aux), &buf->aux, &aux_addr);
-	versal_mbox_alloc(sizeof(buf->efuse_syn_data), buf->efuse_syn_data,
-			  &efuse_syn_data_addr);
-	versal_mbox_alloc(sizeof(buf->syndrome_data), buf->syndrome_data,
-			  &syndrome_data_addr);
+	ret = versal_mbox_alloc(sizeof(buf->puf_id), buf->puf_id, &puf_id_addr);
+	if (ret)
+		return ret;
+	ret = versal_mbox_alloc(sizeof(buf->chash), &buf->chash, &hash_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->aux), &buf->aux, &aux_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->efuse_syn_data),
+				buf->efuse_syn_data, &efuse_syn_data_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->syndrome_data), buf->syndrome_data,
+				&syndrome_data_addr);
+	if (ret)
+		goto out;
 
 	arg.ibuf[0].mem = request;
 	arg.ibuf[1].mem = syndrome_data_addr;
@@ -143,7 +153,7 @@ TEE_Result versal_puf_register(struct versal_puf_data *buf,
 	reg_pair_from_64(virt_to_phys(arg.ibuf[0].mem.buf),
 			 &arg.data[2], &arg.data[1]);
 
-	if (versal_mbox_notify(&arg, NULL, &err)) {
+	if (versal_mbox_notify_pmc(&arg, NULL, &err)) {
 		EMSG("Versal, failed to register the PUF [%s]",
 		     versal_puf_error(err));
 
@@ -159,11 +169,12 @@ TEE_Result versal_puf_register(struct versal_puf_data *buf,
 	memcpy(buf->syndrome_data, syndrome_data_addr.buf,
 	       sizeof(buf->syndrome_data));
 
-	free(syndrome_data_addr.buf);
-	free(hash_addr.buf);
-	free(aux_addr.buf);
-	free(puf_id_addr.buf);
-	free(efuse_syn_data_addr.buf);
+out:
+	versal_mbox_free(&syndrome_data_addr);
+	versal_mbox_free(&efuse_syn_data_addr);
+	versal_mbox_free(&aux_addr);
+	versal_mbox_free(&hash_addr);
+	versal_mbox_free(&puf_id_addr);
 
 	return ret;
 }
@@ -192,13 +203,23 @@ TEE_Result versal_puf_regenerate(struct versal_puf_data *buf,
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t err = 0;
 
-	versal_mbox_alloc(sizeof(buf->puf_id), buf->puf_id, &puf_id_addr);
-	versal_mbox_alloc(sizeof(buf->chash), &buf->chash, &hash_addr);
-	versal_mbox_alloc(sizeof(buf->aux), &buf->aux, &aux_addr);
-	versal_mbox_alloc(sizeof(buf->efuse_syn_data), buf->efuse_syn_data,
-			  &efuse_syn_data_addr);
-	versal_mbox_alloc(sizeof(buf->syndrome_data), buf->syndrome_data,
-			  &syndrome_data_addr);
+	ret = versal_mbox_alloc(sizeof(buf->puf_id), buf->puf_id, &puf_id_addr);
+	if (ret)
+		return ret;
+	ret = versal_mbox_alloc(sizeof(buf->chash), &buf->chash, &hash_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->aux), &buf->aux, &aux_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->efuse_syn_data),
+				buf->efuse_syn_data, &efuse_syn_data_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->syndrome_data), buf->syndrome_data,
+				&syndrome_data_addr);
+	if (ret)
+		goto out;
 
 	arg.ibuf[0].mem = request;
 	arg.ibuf[1].mem = syndrome_data_addr;
@@ -223,7 +244,7 @@ TEE_Result versal_puf_regenerate(struct versal_puf_data *buf,
 	reg_pair_from_64(virt_to_phys(arg.ibuf[0].mem.buf),
 			 &arg.data[2], &arg.data[1]);
 
-	if (versal_mbox_notify(&arg, NULL, &err)) {
+	if (versal_mbox_notify_pmc(&arg, NULL, &err)) {
 		EMSG("Versal, failed to regenerate the PUF [%s]",
 		     versal_puf_error(err));
 
@@ -233,11 +254,12 @@ TEE_Result versal_puf_regenerate(struct versal_puf_data *buf,
 	/* Return the updated PUF_ID */
 	memcpy(buf->puf_id, puf_id_addr.buf, sizeof(buf->puf_id));
 
-	free(syndrome_data_addr.buf);
-	free(hash_addr.buf);
-	free(aux_addr.buf);
-	free(puf_id_addr.buf);
-	free(efuse_syn_data_addr.buf);
+out:
+	versal_mbox_free(&syndrome_data_addr);
+	versal_mbox_free(&efuse_syn_data_addr);
+	versal_mbox_free(&aux_addr);
+	versal_mbox_free(&hash_addr);
+	versal_mbox_free(&puf_id_addr);
 
 	return ret;
 }
@@ -253,7 +275,7 @@ TEE_Result versal_puf_clear_id(void)
 
 	arg.data[0] = PUF_API_ID(VERSAL_PUF_CLEAR_ID);
 
-	if (versal_mbox_notify(&arg, NULL, NULL)) {
+	if (versal_mbox_notify_pmc(&arg, NULL, NULL)) {
 		EMSG("Versal, failed to clear the PUF_ID");
 
 		return TEE_ERROR_GENERIC;
@@ -270,7 +292,7 @@ TEE_Result versal_puf_check_api(enum versal_puf_api id)
 	arg.data[0] = PUF_API_ID(VERSAL_PUF_API_FEATURES);
 	arg.data[1] = id;
 
-	if (versal_mbox_notify(&arg, NULL, NULL))
+	if (versal_mbox_notify_pmc(&arg, NULL, NULL))
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
