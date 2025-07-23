@@ -64,7 +64,9 @@ mx8mq-flavorlist = \
 
 mx8mm-flavorlist = \
 	mx8mmevk \
-	mx8mm_cl_iot_gate
+	mx8mm_cl_iot_gate \
+	mx8mm_phyboard_polis \
+	mx8mm_phygate_tauri_l
 
 mx8mn-flavorlist = \
 	mx8mnevk
@@ -72,7 +74,8 @@ mx8mn-flavorlist = \
 mx8mp-flavorlist = \
 	mx8mpevk \
 	mx8mp_rsb3720_6g \
-	mx8mp_phyboard_pollux
+	mx8mp_phyboard_pollux \
+	mx8mp_libra_fpsc
 
 mx8qm-flavorlist = \
 	mx8qmmek \
@@ -404,6 +407,20 @@ CFG_NSEC_DDR_1_BASE ?= 0x80000000UL
 CFG_NSEC_DDR_1_SIZE ?= 0x40000000UL
 endif
 
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mm_phyboard_polis))
+CFG_DDR_SIZE ?= 0x40000000
+CFG_UART_BASE ?= UART3_BASE
+$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,36)
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mm_phygate_tauri_l))
+CFG_DDR_SIZE ?= 0x80000000
+CFG_UART_BASE ?= UART3_BASE
+$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,36)
+endif
+
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mnevk))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART2_BASE
@@ -416,8 +433,15 @@ $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
 endif
 
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mp_libra_fpsc))
+CFG_DDR_SIZE ?= 0x40000000
+CFG_UART_BASE ?= UART4_BASE
+$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,36)
+endif
+
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mp_phyboard_pollux))
-CFG_DDR_SIZE ?= 0x80000000
+CFG_DDR_SIZE ?= 0x40000000
 CFG_UART_BASE ?= UART1_BASE
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
