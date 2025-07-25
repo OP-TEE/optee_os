@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022 NXP
+ * Copyright 2022, 2025 NXP
  */
 
 #ifndef __SBI_H
@@ -18,6 +18,14 @@
 #define SBI_ERR_ALREADY_AVAILABLE	-6
 #define SBI_ERR_ALREADY_STARTED		-7
 #define SBI_ERR_ALREADY_STOPPED		-8
+#define SBI_ERR_NO_SHMEM		-9
+#define SBI_ERR_INVALID_STATE		-10
+#define SBI_ERR_BAD_RANGE		-11
+#define SBI_ERR_TIMEOUT			-12
+#define SBI_ERR_IO			-13
+#define SBI_ERR_DENIED_LOCKED		-14
+
+#define SBI_LAST_ERR			SBI_ERR_DENIED_LOCKED
 
 /* SBI Extension IDs */
 #define SBI_EXT_0_1_CONSOLE_PUTCHAR	0x01
@@ -25,8 +33,32 @@
 #define SBI_EXT_HSM			0x48534D
 #define SBI_EXT_DBCN			0x4442434E
 #define SBI_EXT_TEE			0x544545
+#define SBI_EXT_MPXY                    0x4D505859
 
 #ifndef __ASSEMBLER__
+
+struct sbiret {
+	long error;
+	long value;
+};
+
+#define _sbi_ecall(ext, fid, arg0, arg1, arg2, arg3, arg4, arg5, ...) ({  \
+	register unsigned long a0 asm("a0") = (unsigned long)arg0; \
+	register unsigned long a1 asm("a1") = (unsigned long)arg1; \
+	register unsigned long a2 asm("a2") = (unsigned long)arg2; \
+	register unsigned long a3 asm("a3") = (unsigned long)arg3; \
+	register unsigned long a4 asm("a4") = (unsigned long)arg4; \
+	register unsigned long a5 asm("a5") = (unsigned long)arg5; \
+	register unsigned long a6 asm("a6") = (unsigned long)fid;  \
+	register unsigned long a7 asm("a7") = (unsigned long)ext;  \
+	asm volatile ("ecall" \
+		: "+r" (a0), "+r" (a1) \
+		: "r" (a2), "r" (a3), "r" (a4), "r" (a5), "r"(a6), "r"(a7) \
+		: "memory"); \
+	(struct sbiret){ .error = a0, .value = a1 }; \
+})
+
+#define sbi_ecall(...) _sbi_ecall(__VA_ARGS__, 0, 0, 0, 0, 0, 0, 0)
 
 /* SBI function IDs for Base extension */
 enum sbi_ext_base_fid {
