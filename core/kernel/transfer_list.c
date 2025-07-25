@@ -484,11 +484,8 @@ struct transfer_list_entry *transfer_list_add(struct transfer_list_header *tl,
 	 * New transfer entry will be added into the tail
 	 */
 	if (ADD_OVERFLOW(sizeof(*tl_e), data_size, &sz) ||
-	    ADD_OVERFLOW(ev, sz, &ev) ||
-	    ROUNDUP_OVERFLOW(ev, TRANSFER_LIST_GRANULE, &ev) ||
-	    ev > max_tl_ev) {
+	    ADD_OVERFLOW(ev, sz, &ev) || ev > max_tl_ev)
 		return NULL;
-	}
 
 	*tl_e = (struct transfer_list_entry){
 		.tag_id = tag_id,
@@ -532,6 +529,9 @@ transfer_list_add_with_align(struct transfer_list_header *tl, uint16_t tag_id,
 		return NULL;
 
 	tl_ev = (vaddr_t)tl + tl->size;
+	if (ROUNDUP_OVERFLOW(tl_ev, TRANSFER_LIST_GRANULE, &tl_ev))
+		return NULL;
+
 	ev = tl_ev + sizeof(struct transfer_list_entry);
 
 	if (!IS_ALIGNED(ev, TL_ALIGNMENT_FROM_ORDER(alignment))) {
