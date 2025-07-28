@@ -33,7 +33,12 @@
 #define GICD_OFFSET     0x0
 #define GICD_SIZE       0x10000
 #endif
-#if defined(PLATFORM_FLAVOR_am65x) || defined(PLATFORM_FLAVOR_j721e) || \
+#if defined(PLATFORM_FLAVOR_am62lx)
+#define TI_MAILBOX_TX_BASE		0x44240000UL
+#define TI_MAILBOX_RX_BASE		0x44250000UL
+#define MAILBOX_TX_START_REGION		0x70814000UL
+#define MAILBOX_RX_START_REGION		0x70815000UL
+#elif defined(PLATFORM_FLAVOR_am65x) || defined(PLATFORM_FLAVOR_j721e) || \
 	defined(PLATFORM_FLAVOR_j784s4)
 #define SEC_PROXY_DATA_BASE             0x32c00000
 #define SEC_PROXY_DATA_SIZE             0x100000

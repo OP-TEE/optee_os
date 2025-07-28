@@ -24,11 +24,18 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GICC_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GICD_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 		  SERIAL8250_UART_REG_SIZE);
+#if defined(PLATFORM_FLAVOR_am62lx)
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, TI_MAILBOX_TX_BASE, 0x1000);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, TI_MAILBOX_RX_BASE, 0x1000);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, MAILBOX_TX_START_REGION, 0x1000);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, MAILBOX_RX_START_REGION, 0x1000);
+#else
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SEC_PROXY_DATA_BASE,
 			SEC_PROXY_DATA_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SEC_PROXY_SCFG_BASE,
 			SEC_PROXY_SCFG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SEC_PROXY_RT_BASE, SEC_PROXY_RT_SIZE);
+#endif
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
 
