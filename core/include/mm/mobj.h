@@ -227,6 +227,9 @@ static inline bool mobj_check_offset_and_len(struct mobj *mobj, size_t offset,
 
 struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 			     enum buf_is_attr battr);
+struct mobj *mobj_phys_alloc_flags(vaddr_t va, paddr_t pa, size_t size,
+				   enum teecore_memtypes memtype,
+				   enum buf_is_attr battr, uint32_t flags);
 
 #if defined(CFG_CORE_FFA)
 struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,

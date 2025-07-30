@@ -15,6 +15,7 @@
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tlb_helpers.h>
+#include <kernel/user_access.h>
 #include <kernel/user_mode_ctx.h>
 #include <kernel/virtualization.h>
 #include <libfdt.h>
@@ -43,6 +44,14 @@ tee_mm_pool_t core_virt_mem_pool;
 
 /* Virtual memory pool for shared memory mappings */
 tee_mm_pool_t core_virt_shm_pool;
+
+#ifdef CFG_WITH_PAGER
+/* this is synced with the generic linker file kern.ld.S */
+vaddr_t core_mmu_linear_map_end = (vaddr_t)__init_start;
+#else
+/* Not used, but needed to avoid a few #ifdefs */
+vaddr_t core_mmu_linear_map_end;
+#endif
 
 #ifdef CFG_CORE_PHYS_RELOCATABLE
 unsigned long core_mmu_tee_load_pa __nex_bss;
@@ -1473,6 +1482,29 @@ static bool mem_map_add_id_map(struct memory_map *mem_map,
 	return true;
 }
 
+static vaddr_t get_uref_base(struct memory_map *mem_map)
+{
+	vaddr_t va = SIZE_MAX;
+	size_t n = 0;
+
+	/* Find the lowest address possible for core data mappings */
+	for (n = 0; n < mem_map->count; n++) {
+		switch (mem_map->map[n].type) {
+		case MEM_AREA_TEE_RAM:
+		case MEM_AREA_TEE_RAM_RX:
+		case MEM_AREA_TEE_DYN_VASPACE:
+		case MEM_AREA_NEX_DYN_VASPACE:
+			va = MIN(va, mem_map->map[n].va);
+			break;
+		default:
+			break;
+		}
+	}
+
+	assert(va);
+	return va;
+}
+
 static struct memory_map *init_mem_map(struct memory_map *mem_map,
 				       unsigned long seed,
 				       unsigned long *ret_offs)
@@ -1528,6 +1560,7 @@ out:
 	      cmp_mmap_by_lower_va);
 
 	dump_mmap_table(mem_map);
+	uref_base_init(get_uref_base(mem_map));
 
 	*ret_offs = offs;
 	return mem_map;
@@ -1598,12 +1631,7 @@ static void check_mem_map(struct memory_map *mem_map)
  */
 void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 {
-#ifndef CFG_NS_VIRTUALIZATION
-	vaddr_t start = ROUNDDOWN((vaddr_t)__nozi_start, SMALL_PAGE_SIZE);
-#else
-	vaddr_t start = ROUNDDOWN((vaddr_t)__vcore_nex_rw_start,
-				  SMALL_PAGE_SIZE);
-#endif
+	vaddr_t start = ROUNDDOWN((vaddr_t)__text_start, SMALL_PAGE_SIZE);
 #ifdef CFG_DYN_CONFIG
 	vaddr_t len = ROUNDUP(VCORE_FREE_END_PA, SMALL_PAGE_SIZE) - start;
 #else
@@ -2435,15 +2463,9 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 }
 
 #ifdef CFG_WITH_PAGER
-static vaddr_t get_linear_map_end_va(void)
-{
-	/* this is synced with the generic linker file kern.ld.S */
-	return (vaddr_t)__heap2_end;
-}
-
 static paddr_t get_linear_map_end_pa(void)
 {
-	return get_linear_map_end_va() - boot_mmu_config.map_offset;
+	return core_mmu_linear_map_end - boot_mmu_config.map_offset;
 }
 #endif
 
@@ -2674,16 +2696,25 @@ bool is_unpaged(const void *va)
 {
 	vaddr_t v = (vaddr_t)va;
 
-	return v >= VCORE_START_VA && v < get_linear_map_end_va();
+	return v >= VCORE_START_VA && v < core_mmu_linear_map_end;
 }
 #endif
 
 #ifdef CFG_NS_VIRTUALIZATION
 bool is_nexus(const void *va)
 {
+	struct tee_mmap_region *mm = NULL;
 	vaddr_t v = (vaddr_t)va;
 
-	return v >= VCORE_START_VA && v < VCORE_NEX_RW_PA + VCORE_NEX_RW_SZ;
+	if (v >= VCORE_START_VA && v < VCORE_NEX_RW_PA + VCORE_NEX_RW_SZ)
+		return true;
+
+	mm = find_map_by_va((void *)v);
+	if (mm && (mm->type == MEM_AREA_NEX_RAM_RW ||
+		   mm->type == MEM_AREA_NEX_DYN_VASPACE))
+		return virt_to_phys((void *)v); /* it must be mapped */
+
+	return false;
 }
 #endif
 
