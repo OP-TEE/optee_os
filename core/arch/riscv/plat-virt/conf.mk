@@ -34,6 +34,9 @@ CFG_RISCV_IMSIC ?= n
 CFG_RISCV_SBI_CONSOLE ?= n
 CFG_16550_UART ?= y
 
+# SBI extensions
+CFG_RISCV_SBI_MPXY ?= y
+
 $(call force,CFG_RISCV_M_MODE,n)
 $(call force,CFG_RISCV_S_MODE,y)
 $(call force,CFG_RISCV_TIME_SOURCE_RDTIME,y)
