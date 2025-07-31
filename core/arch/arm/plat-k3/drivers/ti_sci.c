@@ -20,7 +20,7 @@
 #include "ti_sci_protocol.h"
 #include "ti_sci_transport.h"
 
-#define TI_SCI_MAX_MESSAGE_SIZE		60
+#define TI_SCI_MAX_MESSAGE_SIZE		56
 
 /**
  * struct ti_sci_xfer - Structure representing a message flow
