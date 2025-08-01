@@ -90,7 +90,10 @@
 #define SA2UL_REG_SIZE		0x1000
 
 /* RNG */
-#if defined(SA2UL_BASE)
+#if defined(PLATFORM_FLAVOR_am62lx)
+#define RNG_BASE		0x3B100000
+#define RNG_REG_SIZE		0x80
+#elif defined(SA2UL_BASE)
 #define RNG_BASE		(SA2UL_BASE + 0x10000)
 #define RNG_REG_SIZE		0x1000
 #elif !defined(CFG_WITH_SOFTWARE_PRNG)
