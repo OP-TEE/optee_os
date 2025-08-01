@@ -86,19 +86,22 @@
 #define SA2UL_TI_SCI_DEV_ID	-1
 #define SA2UL_TI_SCI_FW_ID	66
 #define SA2UL_TI_SCI_FW_RGN_ID	1
+#endif
+#define SA2UL_REG_SIZE		0x1000
+
+/* RNG */
+#if defined(SA2UL_BASE)
+#define RNG_BASE		(SA2UL_BASE + 0x10000)
+#define RNG_REG_SIZE		0x1000
 #elif !defined(CFG_WITH_SOFTWARE_PRNG)
 /*
  * If we got here we're trying to build a hardware based RNG driver
  * but are missing some crticial definitions. This is usually because
  * we're using the wrong platform flavor.
  */
-#error "Unknown platform flavor! No SA2UL_BASE address is defined"
+#error "Unknown platform flavor! No base address is defined for RNG"
 #endif
-#define SA2UL_REG_SIZE		0x1000
 
-/* RNG */
-#define RNG_BASE		(SA2UL_BASE + 0x10000)
-#define RNG_REG_SIZE		0x1000
 #if defined(PLATFORM_FLAVOR_am62x) || \
 	defined(PLATFORM_FLAVOR_am62ax) || \
 	defined(PLATFORM_FLAVOR_am62px)
