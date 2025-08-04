@@ -16,7 +16,9 @@
 #include <string.h>
 #include <trace.h>
 
-#include "sec_proxy.h"
+#include "ti_sci_transport.h"
+
+#define SEC_PROXY_MAX_MSG_SIZE		60
 
 /* SEC PROXY RT THREAD STATUS */
 #define RT_THREAD_STATUS_REG            0x0
@@ -57,13 +59,13 @@ struct k3_sec_proxy_thread {
 } spts[SEC_PROXY_MAX_THREADS];
 
 /**
- * k3_sec_proxy_verify_thread() - Verify thread status before
- *				  sending/receiving data
- * @dir: Direction of the thread
+ * ti_sci_transport_clear_thread() - Verify thread status before
+ *				  sending/receiving data and clear it
+ * @chan_id:	Channel ID to clear
  */
-static TEE_Result k3_sec_proxy_verify_thread(uint32_t dir)
+TEE_Result ti_sci_transport_clear_thread(uint32_t chan_id)
 {
-	struct k3_sec_proxy_thread *spt = &spts[dir];
+	struct k3_sec_proxy_thread *spt = &spts[chan_id];
 	uint64_t timeout = 0;
 	uint32_t val = 0;
 	unsigned int retry = 2;
@@ -88,8 +90,9 @@ static TEE_Result k3_sec_proxy_verify_thread(uint32_t dir)
 	FMSG("Check for thread direction");
 	/* Make sure thread is configured for right direction */
 	if ((io_read32(spt->scfg + SCFG_THREAD_CTRL_REG) &
-	     SCFG_THREAD_CTRL_DIR_MASK) >> SCFG_THREAD_CTRL_DIR_SHIFT != dir) {
-		if (dir == SEC_PROXY_TX_THREAD)
+	     SCFG_THREAD_CTRL_DIR_MASK) >> SCFG_THREAD_CTRL_DIR_SHIFT !=
+	     chan_id) {
+		if (chan_id == SEC_PROXY_TX_THREAD)
 			EMSG("Trying to receive data on tx Thread %s",
 			     spt->name);
 		else
@@ -103,7 +106,7 @@ static TEE_Result k3_sec_proxy_verify_thread(uint32_t dir)
 	while (!(io_read32(spt->rt + RT_THREAD_STATUS_REG) &
 		 RT_THREAD_STATUS_CUR_CNT_MASK)) {
 		DMSG("Waiting for thread %s to %s", spt->name,
-		     (dir == THREAD_DIR_TX) ? "empty" : "fill");
+		     (chan_id == THREAD_DIR_TX) ? "empty" : "fill");
 		if (timeout_elapsed(timeout)) {
 			EMSG("Queue is busy");
 			return TEE_ERROR_BUSY;
@@ -115,10 +118,10 @@ static TEE_Result k3_sec_proxy_verify_thread(uint32_t dir)
 }
 
 /**
- * k3_sec_proxy_send() - Send data over a Secure Proxy thread
- * @msg: Pointer to k3_sec_proxy_msg
+ * ti_sci_transport_send() - Send data over a TISCI transport
+ * @msg: Pointer to ti_sci_msg
  */
-TEE_Result k3_sec_proxy_send(const struct k3_sec_proxy_msg *msg)
+TEE_Result ti_sci_transport_send(const struct ti_sci_msg *msg)
 {
 	struct k3_sec_proxy_thread *spt = &spts[SEC_PROXY_TX_THREAD];
 	int num_words = 0;
@@ -126,14 +129,6 @@ TEE_Result k3_sec_proxy_send(const struct k3_sec_proxy_msg *msg)
 	int i = 0;
 	uintptr_t data_reg = 0;
 	uint32_t data_word = 0;
-	TEE_Result ret = TEE_SUCCESS;
-
-	FMSG("Verifying the thread");
-	ret = k3_sec_proxy_verify_thread(THREAD_DIR_TX);
-	if (ret) {
-		EMSG("Thread %s verification failed. ret = %d", spt->name, ret);
-		return ret;
-	}
 
 	/* Check the message size. */
 	if (msg->len > SEC_PROXY_MAX_MSG_SIZE) {
@@ -176,10 +171,10 @@ TEE_Result k3_sec_proxy_send(const struct k3_sec_proxy_msg *msg)
 }
 
 /**
- * k3_sec_proxy_recv() - Receive data from a Secure Proxy thread
- * @msg: Pointer to k3_sec_proxy_msg
+ * ti_sci_transport_recv() - Receive data from a TISCI transport
+ * @msg: Pointer to ti_sci_msg
  */
-TEE_Result k3_sec_proxy_recv(struct k3_sec_proxy_msg *msg)
+TEE_Result ti_sci_transport_recv(struct ti_sci_msg *msg)
 {
 	struct k3_sec_proxy_thread *spt = &spts[SEC_PROXY_RX_THREAD];
 	int num_words = 0;
@@ -188,14 +183,8 @@ TEE_Result k3_sec_proxy_recv(struct k3_sec_proxy_msg *msg)
 	uint32_t data_trail = 0;
 	uint32_t data_word = 0;
 	uintptr_t data_reg = 0;
-	TEE_Result ret = TEE_SUCCESS;
 
 	FMSG("Verifying thread");
-	ret = k3_sec_proxy_verify_thread(THREAD_DIR_RX);
-	if (ret) {
-		EMSG("Thread %s verification failed. ret = %d", spt->name, ret);
-		return ret;
-	}
 
 	/* Receive the message */
 	data_reg = spt->data + SEC_PROXY_DATA_START_OFFS;
@@ -229,9 +218,9 @@ TEE_Result k3_sec_proxy_recv(struct k3_sec_proxy_msg *msg)
 }
 
 /**
- * k3_sec_proxy_init() - Initialize the secure proxy threads
+ * ti_sci_transport_init() - Initialize the ti_sci transport threads
  */
-TEE_Result k3_sec_proxy_init(void)
+TEE_Result ti_sci_transport_init(void)
 {
 	struct k3_sec_proxy_thread *thread;
 	int rx_thread = SEC_PROXY_RESPONSE_THREAD;

@@ -33,7 +33,18 @@
 #define GICD_OFFSET     0x0
 #define GICD_SIZE       0x10000
 #endif
-#if defined(PLATFORM_FLAVOR_am65x) || defined(PLATFORM_FLAVOR_j721e) || \
+#if defined(PLATFORM_FLAVOR_am62lx)
+#define TI_MAILBOX_SYSC			0x10UL
+#define TI_MAILBOX_MSG			0x40UL
+#define TI_MAILBOX_FIFO_STATUS		0x80UL
+#define TI_MAILBOX_MSG_STATUS		0xc0UL
+#define TI_MAILBOX_TX_BASE		0x44240000UL
+#define TI_MAILBOX_RX_BASE		0x44250000UL
+#define MAILBOX_TX_START_REGION		0x70814000UL
+#define MAILBOX_RX_START_REGION		0x70815000UL
+#define MAILBOX_MAX_MESSAGE_SIZE	56U
+#define OPTEE_HOST_ID			10
+#elif defined(PLATFORM_FLAVOR_am65x) || defined(PLATFORM_FLAVOR_j721e) || \
 	defined(PLATFORM_FLAVOR_j784s4)
 #define SEC_PROXY_DATA_BASE             0x32c00000
 #define SEC_PROXY_DATA_SIZE             0x100000
@@ -43,6 +54,7 @@
 #define SEC_PROXY_RT_SIZE               0x100000
 #define SEC_PROXY_RESPONSE_THREAD       6
 #define SEC_PROXY_REQUEST_THREAD        7
+#define OPTEE_HOST_ID                   11
 #else
 #define SEC_PROXY_DATA_BASE             0x4d000000
 #define SEC_PROXY_DATA_SIZE             0x80000
@@ -52,8 +64,8 @@
 #define SEC_PROXY_RT_SIZE               0x80000
 #define SEC_PROXY_RESPONSE_THREAD       10
 #define SEC_PROXY_REQUEST_THREAD        11
-#endif
 #define OPTEE_HOST_ID                   11
+#endif
 #define SEC_PROXY_TIMEOUT_US            1000000
 #define GICC_BASE       (SCU_BASE + GICC_OFFSET)
 #define GICD_BASE       (SCU_BASE + GICD_OFFSET)
