@@ -252,6 +252,8 @@ $(call force,CFG_NXP_SNVS,n)
 $(call force,CFG_IMX_OCOTP,n)
 $(call force,CFG_TZC380,n)
 $(call force,CFG_NXP_CAAM,n)
+CFG_IMX_MU ?= y
+CFG_IMX_ELE ?= y
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx91-flavorlist)))
 $(call force,CFG_MX91,y)
 $(call force,CFG_ARM64_core,y)
