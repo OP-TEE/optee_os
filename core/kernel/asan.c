@@ -413,9 +413,16 @@ void __asan_register_globals(struct asan_global *globals, size_t size)
 {
 	size_t n;
 
-	for (n = 0; n < size; n++)
-		asan_tag_access((void *)globals[n].beg,
-				(void *)(globals[n].beg + globals[n].size));
+	for (n = 0; n < size; n++) {
+		vaddr_t end = globals[n].beg + globals[n].size,
+			end_align = ROUNDUP(end, ASAN_BLOCK_SIZE),
+			end_rz = globals[n].beg
+				+ globals[n].size_with_redzone,
+			begin = globals[n].beg;
+
+		asan_tag_access((void *)begin, (void *)end);
+		asan_tag_no_access((void *)end_align, (void *)end_rz);
+	}
 }
 DECLARE_KEEP_INIT(__asan_register_globals);
 
