@@ -19,6 +19,7 @@ subdirs-y += bcm
 subdirs-y += stm32mp
 subdirs-y += imx
 subdirs-y += k3
+subdirs-y += rockchip
 subdirs-y += veraison_attestation
 
 ifeq ($(CFG_REMOTEPROC_PTA),y)
