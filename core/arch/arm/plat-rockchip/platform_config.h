@@ -118,6 +118,9 @@
 #define OTP_S_BASE		0xfe3a0000
 #define OTP_S_SIZE		SIZE_K(64)
 
+#define ROCKCHIP_OTP_HUK_INDEX	0x104
+#define ROCKCHIP_OTP_HUK_SIZE	0x4
+
 #else
 #error "Unknown platform flavor"
 #endif

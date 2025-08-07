@@ -62,6 +62,7 @@ $(call force,CFG_TEE_CORE_NB_CORE,8)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_AUTO_MAX_PA_BITS,y)
 $(call force,CFG_CRYPTO_WITH_CE,y)
+$(call force,CFG_ROCKCHIP_OTP,y)
 
 CFG_TZDRAM_START ?= 0x30000000
 CFG_TZDRAM_SIZE ?= 0x02000000
