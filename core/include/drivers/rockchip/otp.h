@@ -8,7 +8,15 @@
 
 #include <tee_api_types.h>
 
-#define HW_UNIQUE_KEY_INDEX	0x104
+#define SECURE_BOOT_STATUS_INDEX	0x8
+#define SECURE_BOOT_STATUS_LENGTH	1
+#define SECURE_BOOT_STATUS_ENABLE	0xff
+#define SECURE_BOOT_STATUS_RSA4096	0x3000
+
+#define HW_UNIQUE_KEY_INDEX		0x104
+
+#define RSA_HASH_INDEX			0x270
+#define RSA_HASH_LENGTH			8
 
 /*
  * Read the OTP fuses at index
