@@ -232,6 +232,7 @@ CFG_IMX_ELE ?= n
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx93-flavorlist)))
 $(call force,CFG_MX93,y)
 $(call force,CFG_ARM64_core,y)
+CFG_TZDRAM_START ?= 0x96000000
 CFG_IMX_LPUART ?= y
 CFG_DRAM_BASE ?= 0x80000000
 CFG_TEE_CORE_NB_CORE ?= 2
