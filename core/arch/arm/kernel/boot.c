@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2015-2023, Linaro Limited
  * Copyright (c) 2023, Arm Limited
+ * Copyright (c) 2025, NVIDIA Corporation & AFFILIATES.
  */
 
 #include <arm.h>
@@ -1014,7 +1015,7 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 
 	init_external_dt(boot_arg_fdt, fdt_size);
 	reinit_manifest_dt();
-#ifdef CFG_CORE_SEL1_SPMC
+#ifdef CFG_CORE_FFA
 	tpm_map_log_area(get_manifest_dt());
 #else
 	tpm_map_log_area(get_external_dt());
