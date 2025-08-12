@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
  * Copyright (c) 2020-2023, ARM Limited. All rights reserved.
+ * Copyright (c) 2025, NVIDIA Corporation & AFFILIATES.
  */
 
 #include <compiler.h>
@@ -47,7 +48,7 @@ static int read_dt_tpm_log_info(void *fdt, int node, paddr_t *buf,
 
 	log_addr = fdt32_to_cpu(property[1]);
 
-	if (!IS_ENABLED(CFG_CORE_SEL1_SPMC)) {
+	if (!IS_ENABLED(CFG_CORE_FFA)) {
 		err = fdt_setprop(fdt, node, dt_tpm_event_log_addr, &zero_addr,
 				  sizeof(uint32_t) * 2);
 		if (err < 0) {
