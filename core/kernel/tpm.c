@@ -46,7 +46,8 @@ static int read_dt_tpm_log_info(void *fdt, int node, paddr_t *buf,
 	if (!property  || len_prop != sizeof(uint32_t) * 2)
 		return -1;
 
-	log_addr = fdt32_to_cpu(property[1]);
+	log_addr = reg_pair_to_64(fdt32_to_cpu(property[0]),
+				  fdt32_to_cpu(property[1]));
 
 	if (!IS_ENABLED(CFG_CORE_FFA)) {
 		err = fdt_setprop(fdt, node, dt_tpm_event_log_addr, &zero_addr,
