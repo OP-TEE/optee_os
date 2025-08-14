@@ -32,6 +32,28 @@
 		.probe = __probe, \
 	}
 
+#define GPIO_FLAGS_BIT_DIR_SET		BIT(0)
+#define GPIO_FLAGS_BIT_DIR_OUT		BIT(1)
+#define GPIO_FLAGS_BIT_DIR_VAL		BIT(2)
+
+/**
+ * enum gpio_flags - Optional flags that are used to configure direction and
+ *                   output value. These values cannot be OR'd.
+ *
+ * @GPIOD_ASIS:		Don't change anything
+ * @GPIO_IN:		Set line to input mode
+ * @GPIO_OUT_LOW:	Set line to output and drive it low
+ * @GPIO_OUT_HIGH:	Set line to output and drive it high
+
+ */
+enum gpio_flags {
+	GPIO_ASIS	= 0,
+	GPIO_IN		= GPIO_FLAGS_BIT_DIR_SET,
+	GPIO_OUT_LOW	= GPIO_FLAGS_BIT_DIR_SET | GPIO_FLAGS_BIT_DIR_OUT,
+	GPIO_OUT_HIGH	= GPIO_FLAGS_BIT_DIR_SET | GPIO_FLAGS_BIT_DIR_OUT |
+			  GPIO_FLAGS_BIT_DIR_VAL,
+};
+
 enum gpio_dir {
 	GPIO_DIR_OUT,
 	GPIO_DIR_IN
@@ -134,28 +156,6 @@ static inline void gpio_put(struct gpio *gpio)
 	if (gpio && gpio->chip->ops->put)
 		gpio->chip->ops->put(gpio->chip, gpio);
 }
-
-#define GPIO_FLAGS_BIT_DIR_SET		BIT(0)
-#define GPIO_FLAGS_BIT_DIR_OUT		BIT(1)
-#define GPIO_FLAGS_BIT_DIR_VAL		BIT(2)
-
-/**
- * enum gpio_flags - Optional flags that are used to configure direction and
- *                   output value. These values cannot be OR'd.
- *
- * @GPIOD_ASIS:		Don't change anything
- * @GPIO_IN:		Set line to input mode
- * @GPIO_OUT_LOW:	Set line to output and drive it low
- * @GPIO_OUT_HIGH:	Set line to output and drive it high
-
- */
-enum gpio_flags {
-	GPIO_ASIS	= 0,
-	GPIO_IN		= GPIO_FLAGS_BIT_DIR_SET,
-	GPIO_OUT_LOW	= GPIO_FLAGS_BIT_DIR_SET | GPIO_FLAGS_BIT_DIR_OUT,
-	GPIO_OUT_HIGH	= GPIO_FLAGS_BIT_DIR_SET | GPIO_FLAGS_BIT_DIR_OUT |
-			  GPIO_FLAGS_BIT_DIR_VAL,
-};
 
 /**
  * gpio_configure() - Configure a GPIO controller
