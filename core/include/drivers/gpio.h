@@ -206,16 +206,16 @@ TEE_Result gpio_dt_get_by_index(const void *fdt, int nodeoffset,
 
 /**
  * gpio_dt_cfg_by_index() - Get a GPIO controller at a specific index in
- * 'gpios' or 'gpio' properties with or without suffixes configure with provided
+ * 'gpios' or 'gpio' properties (possibly prefixed) and configure it with
  * flags.
  *
  * @fdt: Device tree to work on
  * @nodeoffset: Node offset of the subnode containing a 'gpios' or 'gpio'
  *		property.
- * @index: GPIO pin index in 'gpios' property find in device tree.
+ * @index: GPIO pin index in 'gpios' property to get in device tree.
  * @gpio_name: Prefix of a '-gpios' or '-gpio' properties in device tree,
  *	       can be NULL to search for 'gpios' or 'gpio' properties
- * @flags: requester flags of GPIO
+ * @flags: Configuration flags for the GPIO
  * @gpio: Output GPIO pin reference upon success
  *
  * Return TEE_SUCCESS in case of success

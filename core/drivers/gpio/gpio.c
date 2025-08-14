@@ -98,8 +98,9 @@ TEE_Result gpio_dt_cfg_by_index(const void *fdt, int nodeoffset,
 				unsigned int index, const char *gpio_name,
 				enum gpio_flags flags, struct gpio **gpio)
 {
-	TEE_Result res = gpio_dt_get_by_index(fdt, nodeoffset, index, gpio_name,
-					      gpio);
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = gpio_dt_get_by_index(fdt, nodeoffset, index, gpio_name, gpio);
 	if (!res)
 		return gpio_configure(*gpio, flags);
 
