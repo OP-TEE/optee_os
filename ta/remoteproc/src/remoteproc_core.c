@@ -232,28 +232,32 @@ static TEE_Result remoteproc_get_tlv(void *tlv_chunk, size_t tlv_size,
 	uint32_t tlv_type = 0;
 	uint32_t tlv_length = 0;
 	uint32_t tlv_v = 0;
+	uintptr_t tmp_p_tlv = 0;
 
 	*value = NULL;
 	*length = 0;
 
 	/* Parse the TLV area */
-	while (p_tlv < p_end_tlv) {
+	while (p_tlv + RPROC_TLV_VALUE_OF < p_end_tlv) {
 		memcpy(&tlv_v, p_tlv, sizeof(tlv_v));
 		tlv_type = TEE_U32_FROM_LITTLE_ENDIAN(tlv_v);
 		memcpy(&tlv_v, p_tlv + RPROC_TLV_LENGTH_OF, sizeof(tlv_v));
+		p_tlv += RPROC_TLV_VALUE_OF;
 		tlv_length = TEE_U32_FROM_LITTLE_ENDIAN(tlv_v);
-		if (tlv_type == type) {
+		if (ADD_OVERFLOW((uintptr_t)p_tlv, tlv_length, &tmp_p_tlv))
+			break;
+		if (tmp_p_tlv <= (uintptr_t)p_end_tlv && tlv_type == type) {
 			/* The specified TLV has been found */
 			DMSG("TLV type %#"PRIx32" found, size %#"PRIx32,
 			     type, tlv_length);
-			*value = &p_tlv[RPROC_TLV_VALUE_OF];
+			*value = p_tlv;
 			*length = tlv_length;
 			if (tlv_length)
 				return TEE_SUCCESS;
 			else
 				return TEE_ERROR_NO_DATA;
 		}
-		p_tlv += ROUNDUP_64(sizeof(struct remoteproc_tlv) + tlv_length);
+		p_tlv += ROUNDUP_64(tlv_length);
 	}
 
 	return TEE_ERROR_NO_DATA;
