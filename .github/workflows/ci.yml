@@ -141,6 +141,7 @@ jobs:
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SANITIZE_UNDEFINED=y CFG_TA_SANITIZE_UNDEFINED=y CFG_TEE_RAM_VA_SIZE=0x00400000
           dd if=/dev/urandom of=BL32_AP_MM.fd bs=2621440 count=1 && _make PLATFORM=vexpress-qemu_armv8a CFG_STMM_PATH=BL32_AP_MM.fd CFG_RPMB_FS=y CFG_CORE_HEAP_SIZE=524288 CFG_TEE_RAM_VA_SIZE=0x00400000
           if [ -d $HOME/scp-firmware ]; then _make PLATFORM=vexpress-qemu_armv8a CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
+          _make PLATFORM=vexpress-qemu_sbsa CFG_CORE_SEL1_SPMC=y CFG_TZDRAM_START=0x20002000 CFG_TZDRAM_SIZE=0x1fbcf000
           _make PLATFORM=stm-b2260
           _make PLATFORM=stm-cannes
           _make PLATFORM=stm32mp1
