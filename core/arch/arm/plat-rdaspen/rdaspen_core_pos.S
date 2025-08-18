@@ -8,7 +8,6 @@
 #include "platform_config.h"
 
 FUNC get_core_pos_mpidr , :
-	mrs	x0, mpidr_el1
 	tst	x0, #MPIDR_MT_MASK
 	lsl	x3, x0, #MPIDR_AFFINITY_BITS
 	csel	x3, x3, x0, eq
