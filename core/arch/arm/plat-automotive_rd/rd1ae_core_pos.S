@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2024, Arm Limited
+ * Copyright (c) 2024 - 2025, Arm Limited
  */
 
 #include <asm.S>
@@ -11,7 +11,7 @@ FUNC get_core_pos_mpidr , :
         mov     x4, x0
 
         /*
-         * The MT bit in MPIDR is always set for n1sdp and the
+         * The MT bit in MPIDR is always set and the
          * affinity level 0 corresponds to thread affinity level.
          */
 

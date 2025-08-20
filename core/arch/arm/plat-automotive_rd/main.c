@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2024, Arm Limited
+ * Copyright (c) 2024 - 2025, Arm Limited
  */
 
 #include <console.h>
@@ -19,17 +19,33 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
+
+#if defined(PLATFORM_FLAVOR_rd1ae)
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
+#endif
+
+#if defined(PLATFORM_FLAVOR_rdaspen)
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE, GICR_SIZE);
+#endif
 
 void boot_primary_init_intc(void)
 {
+#if defined(PLATFORM_FLAVOR_rd1ae)
 	gic_init(GICC_BASE, GICD_BASE);
+#endif
+
+#if defined(PLATFORM_FLAVOR_rdaspen)
+	/* GICC_BASE is not required for GICv3 */
+	gic_init_v3(0, GICD_BASE, GICR_BASE);
+#endif
 }
 
+#if defined(PLATFORM_FLAVOR_rd1ae)
 void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
 }
+#endif
 
 void plat_console_init(void)
 {
