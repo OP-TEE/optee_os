@@ -975,10 +975,14 @@ static bool spm_handle_scall(struct thread_scall_regs *regs)
 		DMSG("Received FFA mem perm set");
 		spm_handle_set_mem_attr(regs);
 		return true;
-	default:
-		EMSG("Undefined syscall %#"PRIx32, (uint32_t)*a0);
+	case FFA_ERROR:
+		EMSG("Received FFA error");
 		return_from_sp_helper(true /*panic*/, 0xabcd, regs);
 		return false;
+	default:
+		DMSG("Undefined syscall %#"PRIx32, (uint32_t)*a0);
+		spm_eret_error(FFA_NOT_SUPPORTED, regs);
+		return true;
 	}
 }
 
