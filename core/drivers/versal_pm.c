@@ -19,10 +19,17 @@
 #include <utee_defines.h>
 
 /* VERSAL_SIP_UID: 2ab9e4ec-93b9-11e7-a019dfe0dbad0ae0 */
+#if defined(PLATFORM_FLAVOR_net)
+#define VERSAL_SIP_UID_0 U(0x5ac2d480)
+#define VERSAL_SIP_UID_1 U(0xeb11afeb)
+#define VERSAL_SIP_UID_2 U(0x4e0b6894)
+#define VERSAL_SIP_UID_3 U(0x60c38f3b)
+#else
 #define VERSAL_SIP_UID_0 U(0xece4b92a)
 #define VERSAL_SIP_UID_1 U(0xe711b993)
 #define VERSAL_SIP_UID_2 U(0xe0df19a0)
 #define VERSAL_SIP_UID_3 U(0xe00aaddb)
+#endif
 #define VERSAL_SIP_MAJOR  0
 #define VERSAL_SIP_MINOR  1
 
@@ -36,8 +43,8 @@
 #define PM_MODULE_SHIFT		8
 #define PM_MODULE		2
 #define PM_API_ID(x)		((PM_MODULE << PM_MODULE_SHIFT) | (x))
-#define VERSAL_PM_MAJOR		0
-#define VERSAL_PM_MINOR		1
+#define VERSAL_PM_MAJOR		1
+#define VERSAL_PM_MINOR		0
 
 /* PM API ids */
 #define PM_GET_API_VERSION		1
@@ -140,7 +147,7 @@ TEE_Result versal_write_fpga(paddr_t pa)
 	cmd.data[1] = PDI_SRC_DDR;
 	reg_pair_from_64(pa, &cmd.data[2], &cmd.data[3]);
 
-	if (versal_mbox_notify(&cmd, NULL, NULL))
+	if (versal_mbox_notify_pmc(&cmd, NULL, NULL))
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
@@ -199,12 +206,12 @@ static TEE_Result versal_check_pm_abi(void)
 	}
 
 	cmd.data[0] = PM_API_ID(PM_GET_API_VERSION);
-	if (versal_mbox_notify(&cmd, &rsp, NULL))
+	if (versal_mbox_notify_pmc(&cmd, &rsp, NULL))
 		return TEE_ERROR_GENERIC;
 
-	major = rsp.data[1] & 0xFFFF;
-	minor = rsp.data[1] >> 16;
-	if (major != VERSAL_PM_MAJOR || minor < VERSAL_PM_MINOR) {
+	minor = rsp.data[1] & 0xFFFF;
+	major = rsp.data[1] >> 16;
+	if (major != VERSAL_PM_MAJOR || minor != VERSAL_PM_MINOR) {
 		EMSG("Invalid PM version: Major %d, Minor %d", major, minor);
 		return TEE_ERROR_GENERIC;
 	}
