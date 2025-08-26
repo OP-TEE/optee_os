@@ -342,17 +342,44 @@ static TEE_Result tee_otp_write_secure(const uint32_t *value, uint32_t index,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+static TEE_Result tee_rockchip_generate_huk(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t buffer[HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t)] = { };
-	bool key_is_empty = true;
+
+	/* Generate random 128-bit key from TRNG */
+	res = hw_get_random_bytes(buffer, sizeof(buffer));
+	if (res)
+		return res;
+
+	memcpy(hwkey->data, buffer, HW_UNIQUE_KEY_LENGTH);
+
+	return res;
+}
+
+static TEE_Result tee_rockchip_persist_huk(struct tee_hw_unique_key *hwkey)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t buffer[HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t)] = { };
+
+	memcpy(buffer, hwkey->data, HW_UNIQUE_KEY_LENGTH);
+
+	/* Write the new HUK into OTP at HW_UNIQUE_KEY_INDEX */
+	res = tee_otp_write_secure(buffer, HW_UNIQUE_KEY_INDEX,
+				   HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t));
+
+	/* Clear buffer memory */
+	memzero_explicit(buffer, sizeof(buffer));
+
+	return res;
+}
+
+static TEE_Result tee_rockchip_read_huk(struct tee_hw_unique_key *hwkey)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t buffer[HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t)] = { };
 	size_t i = 0;
-
-	if (!hwkey)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	mutex_lock(&huk_mutex);
+	bool key_is_empty = true;
 
 	/* Read 4 words (16 bytes) from OTP at HW_UNIQUE_KEY_INDEX */
 	res = tee_otp_read_secure(buffer,
@@ -368,18 +395,8 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	}
 
 	if (key_is_empty) {
-		/* Generate random 128-bit key from TRNG */
-		res = hw_get_random_bytes(buffer, sizeof(buffer));
-		if (res)
-			goto out;
-
-		/* Write the new HUK into OTP at HW_UNIQUE_KEY_INDEX */
-		res = tee_otp_write_secure(buffer,
-					   HW_UNIQUE_KEY_INDEX,
-					   HW_UNIQUE_KEY_LENGTH /
-					   sizeof(uint32_t));
-		if (res)
-			goto out;
+		res = TEE_ERROR_NO_DATA;
+		goto out;
 	}
 
 	/* Copy HUK into hwkey->data */
@@ -388,6 +405,30 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 out:
 	/* Clear buffer memory */
 	memzero_explicit(buffer, sizeof(buffer));
+
+	return res;
+}
+
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!hwkey)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mutex_lock(&huk_mutex);
+
+	res = tee_rockchip_read_huk(hwkey);
+	if (res == TEE_ERROR_NO_DATA) {
+		res = tee_rockchip_generate_huk(hwkey);
+		if (res != TEE_SUCCESS)
+			goto out;
+		res = tee_rockchip_persist_huk(hwkey);
+	}
+
+out:
+	if (res != TEE_SUCCESS)
+		memzero_explicit(hwkey->data, HW_UNIQUE_KEY_LENGTH);
 
 	mutex_unlock(&huk_mutex);
 
