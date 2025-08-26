@@ -166,17 +166,44 @@ TEE_Result hw_get_random_bytes(void *buf, size_t blen)
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+static TEE_Result generate_huk(struct tee_hw_unique_key *hwkey)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint8_t buffer[HW_UNIQUE_KEY_LENGTH] = { };
+
+	/* Generate random 128-bit key from TRNG */
+	res = hw_get_random_bytes(buffer, sizeof(buffer));
+	if (res)
+		return res;
+
+	memcpy(hwkey->data, buffer, HW_UNIQUE_KEY_LENGTH);
+
+	return res;
+}
+
+static TEE_Result persist_huk(struct tee_hw_unique_key *hwkey)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t buffer[ROCKCHIP_OTP_HUK_SIZE] = { };
+
+	memcpy(buffer, hwkey->data, HW_UNIQUE_KEY_LENGTH);
+
+	/* Write the new HUK into OTP at ROCKCHIP_OTP_HUK_INDEX */
+	res = rockchip_otp_write_secure(buffer, ROCKCHIP_OTP_HUK_INDEX,
+					ROCKCHIP_OTP_HUK_SIZE);
+
+	/* Clear buffer memory */
+	memzero_explicit(buffer, sizeof(buffer));
+
+	return res;
+}
+
+static TEE_Result read_huk(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t buffer[ROCKCHIP_OTP_HUK_SIZE] = { };
 	bool key_is_empty = true;
 	size_t i = 0;
-
-	if (!hwkey)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	mutex_lock(&huk_mutex);
 
 	/* Read 4 words (16 bytes) from OTP at ROCKCHIP_OTP_HUK_INDEX */
 	res = rockchip_otp_read_secure(buffer,
@@ -190,20 +217,8 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 		if (buffer[i] != 0)
 			key_is_empty = false;
 	}
-
-	if (key_is_empty) {
-		/* Generate random 128-bit key from TRNG */
-		res = hw_get_random_bytes(buffer, sizeof(buffer));
-		if (res)
-			goto out;
-
-		/* Write the new HUK into OTP at ROCKCHIP_OTP_HUK_INDEX */
-		res = rockchip_otp_write_secure(buffer,
-						ROCKCHIP_OTP_HUK_INDEX,
-						ROCKCHIP_OTP_HUK_SIZE);
-		if (res)
-			goto out;
-	}
+	if (key_is_empty)
+		return TEE_ERROR_NO_DATA;
 
 	/* Copy HUK into hwkey->data */
 	memcpy(hwkey->data, buffer, HW_UNIQUE_KEY_LENGTH);
@@ -211,6 +226,33 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 out:
 	/* Clear buffer memory */
 	memzero_explicit(buffer, sizeof(buffer));
+
+	return res;
+}
+
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!hwkey)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mutex_lock(&huk_mutex);
+
+	/* Try to read and cache the HUK persisted in the OTP */
+	res = read_huk(hwkey);
+	if (res != TEE_ERROR_NO_DATA)
+		goto out;
+
+	/* Try to generate and use a new HUK and persist it in the OTP */
+	res = generate_huk(hwkey);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = persist_huk(hwkey);
+
+out:
+	if (res != TEE_SUCCESS)
+		memzero_explicit(hwkey->data, HW_UNIQUE_KEY_LENGTH);
 
 	mutex_unlock(&huk_mutex);
 
