@@ -14,6 +14,7 @@
 #include <platform.h>
 #include <platform_config.h>
 #include <rng_support.h>
+#include <stdlib_ext.h>
 #include <string.h>
 #include <string_ext.h>
 #include <utee_defines.h>
@@ -56,6 +57,9 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, TRNG_S_BASE, TRNG_S_SIZE);
 
 static struct mutex trng_mutex = MUTEX_INITIALIZER;
 static struct mutex huk_mutex = MUTEX_INITIALIZER;
+
+/* Cache the HUK in memory */
+static struct tee_hw_unique_key *huk;
 
 int platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
 {
@@ -239,20 +243,34 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 
 	mutex_lock(&huk_mutex);
 
+	/* Try to use the cached HUK from memory */
+	if (huk)
+		goto out;
+
+	huk = malloc(sizeof(*huk));
+	if (!huk) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
 	/* Try to read and cache the HUK persisted in the OTP */
-	res = read_huk(hwkey);
+	res = read_huk(huk);
 	if (res != TEE_ERROR_NO_DATA)
 		goto out;
 
 	/* Try to generate and use a new HUK and persist it in the OTP */
-	res = generate_huk(hwkey);
+	res = generate_huk(huk);
 	if (res != TEE_SUCCESS)
 		goto out;
-	res = persist_huk(hwkey);
+	res = persist_huk(huk);
 
 out:
-	if (res != TEE_SUCCESS)
-		memzero_explicit(hwkey->data, HW_UNIQUE_KEY_LENGTH);
+	if (res == TEE_SUCCESS) {
+		memcpy(hwkey->data, huk->data, HW_UNIQUE_KEY_LENGTH);
+	} else if (huk) {
+		free_wipe(huk);
+		huk = NULL;
+	}
 
 	mutex_unlock(&huk_mutex);
 
