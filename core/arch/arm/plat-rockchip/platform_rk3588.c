@@ -84,6 +84,9 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, OTP_S_BASE, OTP_S_SIZE);
 static struct mutex trng_mutex = MUTEX_INITIALIZER;
 static struct mutex huk_mutex = MUTEX_INITIALIZER;
 
+/* Cache the HUK in memory */
+struct tee_hw_unique_key *huk;
+
 int platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
 {
 	vaddr_t fw_ddr_base = (vaddr_t)phys_to_virt_io(FIREWALL_DDR_BASE,
@@ -418,6 +421,9 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 
 	mutex_lock(&huk_mutex);
 
+	if (huk)
+		goto cached;
+
 	res = tee_rockchip_read_huk(hwkey);
 	if (res == TEE_ERROR_NO_DATA) {
 		res = tee_rockchip_generate_huk(hwkey);
@@ -426,6 +432,16 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 		res = tee_rockchip_persist_huk(hwkey);
 	}
 
+	huk = malloc(sizeof(*huk));
+	if (!huk) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+	memcpy(huk->data, hwkey->data, HW_UNIQUE_KEY_LENGTH);
+
+cached:
+	/* Copy HUK into hwkey->data */
+	memcpy(hwkey->data, huk->data, HW_UNIQUE_KEY_LENGTH);
 out:
 	if (res != TEE_SUCCESS)
 		memzero_explicit(hwkey->data, HW_UNIQUE_KEY_LENGTH);
