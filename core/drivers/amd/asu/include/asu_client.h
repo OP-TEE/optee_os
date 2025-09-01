@@ -1,0 +1,65 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright (c) 2024 - 2025 Advanced Micro Devices, Inc. All Rights Reserved.
+ *
+ */
+
+#ifndef _ASU_CLIENT_H_
+#define _ASU_CLIENT_H_
+
+#include "asu_sharedmem.h"
+
+#define ASU_PRIORITY_LOW		1
+#define ASU_PRIORITY_HIGH		0
+#define ASU_TRUE				1U
+#define ASU_FALSE				0U
+#define ASU_MODULE_SHA2_ID		1U
+#define ASU_MODULE_SHA3_ID		2U
+
+struct asu_client_params {
+	void (*cbhandler)(void *cbrefptr, uint32_t status);
+	void *cbrefptr;
+	uint8_t priority;
+};
+
+static inline uint8_t asu_get_unique_id(uint32_t header)
+{
+	return (uint8_t)((header & ASU_UNIQUE_REQ_ID_MASK) >>
+			 ASU_UNIQUE_REQ_ID_SHIFT);
+}
+
+static inline uint32_t asu_create_header(uint8_t cmd_id,
+					 uint8_t unique_id,
+					 uint8_t module_id,
+					 uint8_t command_len)
+{
+	uint32_t header = 0;
+
+	header = (cmd_id & ASU_COMMAND_ID_MASK) |
+		(unique_id << ASU_UNIQUE_REQ_ID_SHIFT) |
+		(module_id << ASU_MODULE_ID_SHIFT) |
+		(command_len << ASU_COMMAND_LENGTH_SHIFT);
+
+	return header;
+}
+
+TEE_Result asu_validate_client_parameters(struct asu_client_params *param_ptr);
+TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
+					      void *req_buffer,
+					      uint32_t size,
+					      uint32_t header,
+					      void *hashaddr,
+					      int *status,
+					      uint32_t bufsize);
+uint8_t asu_reg_callback_n_get_unique_id(struct asu_client_params *param,
+					 uint8_t *resp_buffer_ptr,
+					 uint32_t size);
+void asu_update_callback_details(uint8_t unique_id,
+				 uint8_t *resp_buffer_ptr,
+				 uint32_t size);
+uint8_t alloc_unique_id(void);
+void free_unique_id(uint8_t uniqueid);
+void *asu_update_n_get_ctx(uint8_t unique_id);
+TEE_Result asu_verify_n_get_unique_id_ctx(const void *context,
+					  uint8_t *unique_id);
+#endif /* _ASU_CLIENT_H_ */
