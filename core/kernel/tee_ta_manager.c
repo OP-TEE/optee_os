@@ -295,17 +295,23 @@ static void tee_ta_unlink_session(struct tee_ta_session *s,
 	mutex_unlock(&tee_ta_mutex);
 }
 
-static void destroy_session(struct tee_ta_session *s,
-			    struct tee_ta_session_head *open_sessions)
+static void dump_ftrace(struct tee_ta_session *s __maybe_unused)
 {
 #if defined(CFG_FTRACE_SUPPORT)
-	if (s->ts_sess.ctx && s->ts_sess.ctx->ops->dump_ftrace) {
+	struct ts_ctx *ts_ctx = s->ts_sess.ctx;
+
+	if (ts_ctx && ts_ctx->ops->dump_ftrace) {
 		ts_push_current_session(&s->ts_sess);
-		s->ts_sess.fbuf = NULL;
-		s->ts_sess.ctx->ops->dump_ftrace(s->ts_sess.ctx);
+		ts_ctx->ops->dump_ftrace(ts_ctx);
 		ts_pop_current_session();
 	}
 #endif
+}
+
+static void destroy_session(struct tee_ta_session *s,
+			    struct tee_ta_session_head *open_sessions)
+{
+	dump_ftrace(s);
 
 	tee_ta_unlink_session(s, open_sessions);
 #if defined(CFG_TA_GPROF_SUPPORT)
@@ -736,6 +742,9 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 		if (panicked) {
 			maybe_release_ta_ctx(ctx);
 			res = TEE_ERROR_TARGET_DEAD;
+		} else {
+			if (IS_ENABLED(CFG_FTRACE_DUMP_EVERY_ENTRY))
+				dump_ftrace(s);
 		}
 
 		tee_ta_clear_busy(ctx);
@@ -799,6 +808,9 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 	if (panicked) {
 		maybe_release_ta_ctx(ta_ctx);
 		res = TEE_ERROR_TARGET_DEAD;
+	} else {
+		if (IS_ENABLED(CFG_FTRACE_DUMP_EVERY_ENTRY))
+			dump_ftrace(sess);
 	}
 
 	tee_ta_clear_busy(ta_ctx);
