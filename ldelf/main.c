@@ -103,9 +103,18 @@ static void __noreturn ftrace_dump(void *buf, size_t *blen)
 {
 	struct print_buf_ctx pbuf = { .buf = buf, .blen = *blen };
 
-	ta_elf_print_mappings(&pbuf, print_to_pbuf, &main_elf_queue,
-			      0, NULL, mpool_base);
+	/* only print the header when this is a new dump */
+	if (!ftrace_get_dump_id())
+		ta_elf_print_mappings(&pbuf, print_to_pbuf, &main_elf_queue,
+				      0, NULL, mpool_base);
 	ftrace_copy_buf(&pbuf, copy_to_pbuf);
+	/*
+	 * Reset the buffer after dump if this is the actual write
+	 * The OS may call this function with buf == NULL,
+	 * in order to get the length required to write ftrace data.
+	 */
+	if (buf)
+		ftrace_reset_buf();
 	*blen = pbuf.ret;
 	sys_return_cleanup();
 }

@@ -638,6 +638,18 @@ CFG_FTRACE_SUPPORT ?= n
 CFG_SYSCALL_FTRACE ?= n
 $(call cfg-depends-all,CFG_SYSCALL_FTRACE,CFG_FTRACE_SUPPORT)
 
+# Dump ftrace buffer to tee-supplicant after every TA entry.
+# When this option is enabled, OP-TEE outputs the ftrace buffer to
+# tee-supplicant after every time TA returns from the entrypoint
+# calling. Instead of writing function tracing information after
+# the session is closed.
+# By enabling this option, developer can use smaller ftrace buffer
+# and reduce the chance of getting truncated ftrace information.
+# However, developer still needs to ensure the ftrace buffer is large
+# enough to hold the data generated in single TA entry.
+CFG_FTRACE_DUMP_EVERY_ENTRY ?= $(CFG_FTRACE_SUPPORT)
+$(call cfg-depends-all,CFG_FTRACE_DUMP_EVERY_ENTRY,CFG_FTRACE_SUPPORT)
+
 # Enable to compile user TA libraries with profiling (-pg).
 # Depends on CFG_TA_GPROF_SUPPORT or CFG_FTRACE_SUPPORT.
 CFG_ULIBS_MCOUNT ?= n
