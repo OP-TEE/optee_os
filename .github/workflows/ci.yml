@@ -278,6 +278,8 @@ jobs:
               _make PLATFORM=vexpress-qemu_armv8a CFG_CRYPTO_WITH_CE=y CFG_CRYPTOLIB_NAME=mbedtls CFG_CRYPTOLIB_DIR=lib/libmbedtls
               _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SANITIZE_UNDEFINED=y CFG_TA_SANITIZE_UNDEFINED=y CFG_TEE_RAM_VA_SIZE=0x00400000
               dd if=/dev/urandom of=BL32_AP_MM.fd bs=2621440 count=1 && _make PLATFORM=vexpress-qemu_armv8a CFG_STMM_PATH=BL32_AP_MM.fd CFG_RPMB_FS=y CFG_CORE_HEAP_SIZE=524288 CFG_TEE_RAM_VA_SIZE=0x00400000
+              _make PLATFORM=vexpress-qemu_armv8a CFG_SECURE_DATA_PATH=y CFG_CORE_DYN_PROTMEM=y
+              _make PLATFORM=vexpress-qemu_armv8a CFG_SECURE_DATA_PATH=y CFG_CORE_DYN_PROTMEM=y CFG_CORE_SEL1_SPMC=y
           - name: arm vexpress-qemu_sbsa
             make_commands: |
               _make PLATFORM=vexpress-qemu_sbsa CFG_CORE_SEL1_SPMC=y CFG_TZDRAM_START=0x20002000 CFG_TZDRAM_SIZE=0x1fbcf000
