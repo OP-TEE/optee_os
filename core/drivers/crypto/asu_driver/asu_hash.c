@@ -139,10 +139,6 @@ static TEE_Result asu_hash_initialize(struct crypto_hash_ctx *ctx)
 
 	asu_hashctx = to_hash_ctx(ctx);
 	asu_hashctx->shastart = ASU_SHA_START;
-	asu_hashctx->uniqueid = alloc_unique_id();
-
-	if (asu_hashctx->uniqueid == ASU_UNIQUE_ID_MAX)
-		return TEE_ERROR_BAD_PARAMETERS;
 
 	return TEE_SUCCESS;
 }
@@ -290,8 +286,6 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 	ret = asu_sha_op(asu_hashctx, &op,
 			 asu_hashctx->module, digest);
 	cache_operation(TEE_CACHEFLUSH, digest, op.hashbufsize);
-	free_unique_id(asu_hashctx->uniqueid);
-	asu_hashctx->uniqueid = ASU_UNIQUE_ID_MAX;
 
 	return ret;
 }
@@ -322,7 +316,9 @@ static void asu_hash_ctx_free(struct crypto_hash_ctx *ctx)
 
 	if (!ctx)
 		return;
-	asu_hashctx  = to_hash_ctx(ctx);
+	asu_hashctx = to_hash_ctx(ctx);
+	free_unique_id(asu_hashctx->uniqueid);
+	asu_hashctx->uniqueid = ASU_UNIQUE_ID_MAX;
 	mutex_lock(&asu_shadev->engine_lock);
 	if (asu_hashctx->module == ASU_MODULE_SHA2_ID &&
 	    !asu_shadev->sha2_available)
@@ -394,13 +390,36 @@ static TEE_Result asu_hash_ctx_allocate(struct crypto_hash_ctx **ctx,
 	asu_hashctx = calloc(1, sizeof(*asu_hashctx));
 	if (!asu_hashctx) {
 		EMSG("Fail to alloc hash");
-		return TEE_ERROR_OUT_OF_MEMORY;
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto free_dev_mem;
 	}
 
 	asu_hashctx->module = module;
 	asu_hashctx->shamode = shamode;
+	asu_hashctx->uniqueid = alloc_unique_id();
+
+	if (asu_hashctx->uniqueid == ASU_UNIQUE_ID_MAX) {
+		EMSG("Fail to get unique ID");
+		ret = TEE_ERROR_BAD_PARAMETERS;
+		goto free_dev_mem;
+	}
 	asu_hashctx->hash_ctx.ops = &asu_hash_ops;
 	*ctx = &asu_hashctx->hash_ctx;
+
+	return ret;
+
+free_dev_mem:
+	mutex_lock(&asu_shadev->engine_lock);
+	if (asu_hashctx->module == ASU_MODULE_SHA2_ID &&
+	    !asu_shadev->sha2_available)
+		asu_shadev->sha2_available = 1;
+	else if (asu_hashctx->module == ASU_MODULE_SHA3_ID &&
+		 !asu_shadev->sha3_available)
+		asu_shadev->sha3_available = 1;
+	mutex_unlock(&asu_shadev->engine_lock);
+
+	if (asu_hashctx)
+		free(asu_hashctx);
 
 	return ret;
 }
