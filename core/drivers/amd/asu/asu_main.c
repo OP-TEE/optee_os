@@ -289,9 +289,7 @@ static TEE_Result send_doorbell(void)
  * @req_buffer: Request buffer containing command data
  * @size: Size of request data
  * @header: Command header information
- * @hashaddr: Output Hash
  * @status: FW return status
- * @len: Size of output hash
  *
  * Places a command in the appropriate priority queue buffer, updates
  * queue status, and sends an IPI to notify ASU of the pending command.
@@ -302,9 +300,7 @@ TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
 					      void *req_buffer,
 					      uint32_t size,
 					      uint32_t header,
-					      void *hashaddr,
-					      int *status,
-					      uint32_t len)
+					      int *status)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	uint8_t freeindex = 0U;
@@ -357,17 +353,12 @@ TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
 		wfe();
 	}
 
-	if (hashaddr) {
-		void *src_addr =
-			(void *)(&bufptr->resp_buf.arg
-				 [ASU_RESPONSE_BUFF_ADDR_INDEX]
-				 );
-		memcpy(hashaddr, src_addr, len);
-	}
 	*status = bufptr->resp_buf.arg[ASU_RESPONSE_STATUS_INDEX];
+	if (param->cbhandler && !(*status))
+		ret = param->cbhandler(param->cbrefptr, &bufptr->resp_buf);
 	put_free_index(bufptr);
 
-	return TEE_SUCCESS;
+	return ret;
 }
 
 static void asu_clear_intr(void)

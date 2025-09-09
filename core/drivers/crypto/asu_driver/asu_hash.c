@@ -16,6 +16,7 @@
 #include <stdbool.h>
 #include <asu_client.h>
 #include <stdio.h>
+#include <string.h>
 #include <tee/cache.h>
 #include <kernel/unwind.h>
 
@@ -65,6 +66,11 @@ struct asu_hash_ctx {
 	uint32_t shastart;
 	uint8_t uniqueid;
 	uint8_t module;
+};
+
+struct asu_hash_cbctx {
+	uint8_t *digest;
+	size_t len;
 };
 
 static struct asu_shadev *asu_shadev;
@@ -156,8 +162,8 @@ static TEE_Result asu_hash_initialize(struct crypto_hash_ctx *ctx)
  */
 
 static TEE_Result asu_sha_op(struct asu_hash_ctx *asu_hashctx,
-			     struct asu_sha_op_cmd *op,
-			     uint8_t module, void *data)
+			    struct asu_sha_op_cmd *op,
+			    uint8_t module)
 {
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t header;
@@ -167,8 +173,7 @@ static TEE_Result asu_sha_op(struct asu_hash_ctx *asu_hashctx,
 				   asu_hashctx->uniqueid, module, 0U);
 	ret = asu_update_queue_buffer_n_send_ipi(&asu_hashctx->cparam, op,
 						 sizeof(*op), header,
-						 data, &status,
-						 op->hashbufsize);
+						 &status);
 	if (status) {
 		EMSG("FW error 0x%x\n", status);
 		ret = TEE_ERROR_GENERIC;
@@ -200,7 +205,7 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 	/* Inputs of client request */
 	cparam = &asu_hashctx->cparam;
 	cparam->priority = ASU_PRIORITY_HIGH;
-	cparam->cbrefptr = asu_hashctx;
+	cparam->cbhandler = NULL;
 
 	/* Inputs of SHA request */
 	cache_operation(TEE_CACHEFLUSH, data, len);
@@ -208,7 +213,6 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 	op.hashbufsize = 0;
 	op.shamode = asu_hashctx->shamode;
 	op.islast = 0;
-
 	processed = 0;
 	remaining = len;
 	while (remaining) {
@@ -219,8 +223,7 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 		op.dataaddr = (uint64_t)virt_to_phys(data + processed);
 		remaining -= op.datasize;
 		processed += op.datasize;
-		ret = asu_sha_op(asu_hashctx, &op,
-				 asu_hashctx->module, NULL);
+		ret = asu_sha_op(asu_hashctx, &op, asu_hashctx->module);
 		if (ret)
 			break;
 		asu_hashctx->shastart = 0;
@@ -251,6 +254,18 @@ static TEE_Result asu_hash_do_update(struct crypto_hash_ctx *ctx,
 	return asu_hash_update(asu_hashctx, (uint8_t *)data, len);
 }
 
+static TEE_Result asu_hash_cb(void *cbrefptr, struct asu_resp_buf *resp_buf)
+{
+	struct asu_hash_cbctx *cbctx;
+	uint8_t *src_addr;
+
+	cbctx = cbrefptr;
+	src_addr = (uint8_t *)&resp_buf->arg[ASU_RESPONSE_BUFF_ADDR_INDEX];
+	memcpy(cbctx->digest, src_addr, cbctx->len);
+
+	return TEE_SUCCESS;
+}
+
 /**
  * asu_hash_final() - Send final request to engine.
  * @asu_hashctx:Request private hash context
@@ -268,23 +283,34 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 	TEE_Result ret = TEE_SUCCESS;
 	struct asu_sha_op_cmd op;
 	struct asu_client_params *cparam;
+	struct asu_hash_cbctx cbctx;
 
 	if (!digest || len == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	cbctx.digest = digest;
+	cbctx.len = len;
 	cparam = &asu_hashctx->cparam;
 	cparam->priority = ASU_PRIORITY_HIGH;
-	cparam->cbrefptr = asu_hashctx;
+	cparam->cbrefptr = &cbctx;
+	cparam->cbhandler = asu_hash_cb;
 
 	/* Inputs of SHA request */
 	op.dataaddr = 0;
 	op.datasize = 0;
 	op.hashaddr = (uint64_t)virt_to_phys((void *)digest);
 	op.hashbufsize = len;
+	if (asu_hashctx->shamode == ASU_SHA_MODE_SHA256)
+		op.hashbufsize = ASU_SHA_256_HASH_LEN;
+	else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA384)
+		op.hashbufsize = ASU_SHA_384_HASH_LEN;
+	else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA512)
+		op.hashbufsize = ASU_SHA_512_HASH_LEN;
+
 	op.shamode = asu_hashctx->shamode;
 	op.islast = 1;
 	op.opflags =  ASU_SHA_FINISH | asu_hashctx->shastart;
-	ret = asu_sha_op(asu_hashctx, &op,
-			 asu_hashctx->module, digest);
+	ret = asu_sha_op(asu_hashctx, &op, asu_hashctx->module);
 	cache_operation(TEE_CACHEFLUSH, digest, op.hashbufsize);
 
 	return ret;

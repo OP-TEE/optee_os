@@ -17,7 +17,7 @@
 #define ASU_MODULE_SHA3_ID		2U
 
 struct asu_client_params {
-	void (*cbhandler)(void *cbrefptr, uint32_t status);
+	TEE_Result (*cbhandler)(void *cbrefptr, struct asu_resp_buf *resp_buf);
 	void *cbrefptr;
 	uint8_t priority;
 };
@@ -48,9 +48,7 @@ TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
 					      void *req_buffer,
 					      uint32_t size,
 					      uint32_t header,
-					      void *hashaddr,
-					      int *status,
-					      uint32_t bufsize);
+					      int *status);
 uint8_t asu_reg_callback_n_get_unique_id(struct asu_client_params *param,
 					 uint8_t *resp_buffer_ptr,
 					 uint32_t size);
