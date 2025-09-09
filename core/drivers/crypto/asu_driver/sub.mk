@@ -1,3 +1,3 @@
 incdirs-y += ../../amd/asu/include/
 
-srcs-y += asu_hash.c
+srcs-$(CFG_AMD_ASU_HASH) += asu_hash.c

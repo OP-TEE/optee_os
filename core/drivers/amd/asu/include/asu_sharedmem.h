@@ -8,6 +8,7 @@
 #define _ASU_SHAREDMEM_H_
 
 #include <stdint.h>
+#include <util.h>
 
 #define ASU_MAX_BUFFERS			8U
 #define ASU_CHANNEL_RESERVED_MEM	1188U
@@ -18,7 +19,7 @@
 #define ASU_COMMAND_ID_MASK		0x0000003FU
 #define ASU_UNIQUE_REQ_ID_MASK		0x00000FC0U
 #define ASU_UNIQUE_REQ_ID_SHIFT		6U
-#define ASU_UNIQUE_ID_MAX		(ASU_MAX_BUFFERS << 1U)
+#define ASU_UNIQUE_ID_MAX		SHIFT_U32(ASU_MAX_BUFFERS, 1U)
 #define ASU_MODULE_ID_MASK		0x0003F000U
 #define ASU_MODULE_ID_SHIFT		12U
 #define ASU_COMMAND_LENGTH_SHIFT	18U
@@ -50,12 +51,12 @@ struct asu_channel_queue_buf {
 	uint8_t reqbufstatus;
 	uint8_t respbufstatus;
 	uint16_t reserved;
-	struct asu_req_buf req_buf;
-	struct asu_resp_buf resp_buf;
+	struct asu_req_buf req;
+	struct asu_resp_buf resp;
 };
 
 struct asu_channel_queue {
-	uint32_t is_cmd_present;
+	bool cmd_is_present;
 	uint32_t req_sent;
 	uint32_t req_served;
 	struct asu_channel_queue_buf queue_bufs[ASU_MAX_BUFFERS];

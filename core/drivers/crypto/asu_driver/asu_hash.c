@@ -5,20 +5,20 @@
  */
 
 #include <assert.h>
-#include <initcall.h>
+#include <drivers/amd/asu_client.h>
 #include <drvcrypt_hash.h>
-#include <kernel/panic.h>
-#include <util.h>
-#include <kernel/mutex.h>
-#include <trace.h>
+#include <initcall.h>
 #include <io.h>
+#include <kernel/mutex.h>
+#include <kernel/panic.h>
+#include <kernel/unwind.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
-#include <asu_client.h>
 #include <stdio.h>
 #include <string.h>
 #include <tee/cache.h>
-#include <kernel/unwind.h>
+#include <trace.h>
+#include <util.h>
 
 #define ASU_SHA_OPERATION_CMD_ID		(0U)
 /* SHA modes */
@@ -162,8 +162,8 @@ static TEE_Result asu_hash_initialize(struct crypto_hash_ctx *ctx)
  */
 
 static TEE_Result asu_sha_op(struct asu_hash_ctx *asu_hashctx,
-			    struct asu_sha_op_cmd *op,
-			    uint8_t module)
+			     struct asu_sha_op_cmd *op,
+			     uint8_t module)
 {
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t header;
@@ -292,7 +292,7 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 	cbctx.len = len;
 	cparam = &asu_hashctx->cparam;
 	cparam->priority = ASU_PRIORITY_HIGH;
-	cparam->cbrefptr = &cbctx;
+	cparam->cbptr = &cbctx;
 	cparam->cbhandler = asu_hash_cb;
 
 	/* Inputs of SHA request */
@@ -343,7 +343,7 @@ static void asu_hash_ctx_free(struct crypto_hash_ctx *ctx)
 	if (!ctx)
 		return;
 	asu_hashctx = to_hash_ctx(ctx);
-	free_unique_id(asu_hashctx->uniqueid);
+	asu_free_unique_id(asu_hashctx->uniqueid);
 	asu_hashctx->uniqueid = ASU_UNIQUE_ID_MAX;
 	mutex_lock(&asu_shadev->engine_lock);
 	if (asu_hashctx->module == ASU_MODULE_SHA2_ID &&
@@ -422,7 +422,7 @@ static TEE_Result asu_hash_ctx_allocate(struct crypto_hash_ctx **ctx,
 
 	asu_hashctx->module = module;
 	asu_hashctx->shamode = shamode;
-	asu_hashctx->uniqueid = alloc_unique_id();
+	asu_hashctx->uniqueid = asu_alloc_unique_id();
 
 	if (asu_hashctx->uniqueid == ASU_UNIQUE_ID_MAX) {
 		EMSG("Fail to get unique ID");

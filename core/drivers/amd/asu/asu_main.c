@@ -5,6 +5,8 @@
  */
 
 #include <assert.h>
+#include <asu_doorbell.h>
+#include <drivers/amd/asu_client.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/delay.h>
@@ -20,21 +22,18 @@
 #include <trace.h>
 #include <util.h>
 
-#include <asu_client.h>
-#include <asu_doorbell.h>
-
 #define ASU_QUEUE_BUFFER_FULL		0xFFU
 #define ASU_CLIENT_READY		0xFFFFFFFFU
 #define ASU_TARGET_IPI_INT_MASK		1U
 
-#define ASU_GLOBAL_BASEADDR		0xEBF80000U
-#define ASU_GLOBAL_GLOBAL_CNTRL		(ASU_GLOBAL_BASEADDR + 0x00000000U)
+#define ASU_BASEADDR			0xEBF80000U
+#define ASU_GLOBAL_CNTRL		(ASU_BASEADDR + 0x00000000U)
 
-#define ASU_GLOBAL_BASEADDR_SIZE	0x10000U
+#define ASU_BASEADDR_SIZE		0x10000U
 #define ASU_GLOBAL_ADDR_LIMIT		0x1000U
 
-#define ASU_GLOBAL_GLOBAL_CNTRL_FW_IS_PRESENT_MASK	0x10U
-#define ASU_ASUFW_BIT_CHECK_TIMEOUT_VALUE		0xFFFFFU
+#define ASU_GLOBAL_CNTRL_FW_IS_PRESENT_MASK	0x10U
+#define ASU_ASUFW_BIT_CHECK_TIMEOUT_VALUE	0xFFFFFU
 
 #define ASU_CHNL_IPI_BITMASK		GENMASK_32(31, 16)
 
@@ -53,14 +52,14 @@ struct asu_ref_to_callback {
 };
 
 struct asu_ids {
-	uint8_t id_array[ASU_UNIQUE_ID_MAX];
+	uint8_t ids[ASU_UNIQUE_ID_MAX];
 	unsigned int slock;          /* id array spin lock */
 };
 
-static struct asu_ids ids;
+static struct asu_ids asuid;
 static struct asu_client *asu;
 
-/**
+/*
  * asu_fwcheck() - Check if ASU firmware is present and ready
  * Polls the ASU global control register to verify if the HSM firmware
  * is present and ready for interaction. Uses a timeout of approximately
@@ -71,9 +70,9 @@ static struct asu_client *asu;
 static TEE_Result asu_fwcheck(void)
 {
 	uint64_t timeout = 0;
-	bool fw_state = false;
 
-	/* Timeout is set to ~1sec.
+	/*
+	 * Timeout is set to ~1sec.
 	 * This is the worst case time within which ASUFW ready for interaction
 	 * with components requests.
 	 */
@@ -81,27 +80,21 @@ static TEE_Result asu_fwcheck(void)
 
 	do {
 		if (io_read32((vaddr_t)asu->global_ctrl) &
-			      ASU_GLOBAL_GLOBAL_CNTRL_FW_IS_PRESENT_MASK) {
-			fw_state = true;
-			DMSG("Got the HSM FW");
-			break;
+			      ASU_GLOBAL_CNTRL_FW_IS_PRESENT_MASK) {
+			DMSG("ASU FW is ready!");
+			return TEE_SUCCESS;
 		}
 	} while (!timeout_elapsed(timeout));
-
-	if (fw_state) {
-		DMSG("ASU FW is ready!");
-		return TEE_SUCCESS;
-	}
 
 	EMSG("ASU FW is NOT Present!");
 
 	return TEE_ERROR_BAD_STATE;
 }
 
-/**
+/*
  * asu_get_channelID() - Determine the ASU channel ID for APU communication
  *
- * Maps the Runtime Configuration Area (RTCA) to identify which ASU channel
+ * Maps the Runtime Configuration Area (RTCA) to find which ASU channel
  * should be used by the APU for communication. Searches through available
  * channels to find one matching the APU's local IPI ID.
  *
@@ -113,9 +106,11 @@ static uint32_t asu_get_channelID(void)
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	void *comm_chnl_info = NULL;
 	uint32_t channel_id = ASU_MAX_IPI_CHANNELS;
-	uintptr_t membase = 0;
+	vaddr_t membase = 0;
+	uint32_t id = 0;
 
-	/* RTCA is mapped only to identify the ASU Channel ID
+	/*
+	 * RTCA is mapped only to find the ASU Channel ID
 	 * to be used by APU.
 	 * After reading the information RTCA region is unmapped.
 	 */
@@ -127,10 +122,10 @@ static uint32_t asu_get_channelID(void)
 		return channel_id;
 	}
 
-	for (uint32_t id = 0; id < ASU_MAX_IPI_CHANNELS; id++) {
-		membase = (uintptr_t)comm_chnl_info +
-			ASU_RTCA_CHANNEL_BASE_OFFSET +
-			ASU_RTCA_CHANNEL_INFO_LEN * id;
+	for (id = 0; id < ASU_MAX_IPI_CHANNELS; id++) {
+		membase = (vaddr_t)comm_chnl_info +
+			  ASU_RTCA_CHANNEL_BASE_OFFSET +
+			  ASU_RTCA_CHANNEL_INFO_LEN * id;
 		if ((io_read32(membase) & ASU_CHNL_IPI_BITMASK) ==
 		    (CFG_AMD_APU_LCL_IPI_ID << 16)) {
 			channel_id = id;
@@ -144,14 +139,14 @@ static uint32_t asu_get_channelID(void)
 
 	ret = core_mmu_remove_mapping(MEM_AREA_IO_SEC,
 				      comm_chnl_info, ASU_GLOBAL_ADDR_LIMIT);
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		EMSG("Failed to unmap RTCA");
 
 	return channel_id;
 }
 
-/**
- * alloc_unique_id() - Generate a unique identifier for ASU operations
+/*
+ * asu_alloc_unique_id() - Generate a unique identifier for ASU operations
  *
  * Creates a unique ID by cycling through available IDs in the callback
  * reference array. Ensures no ID collision by checking if the slot is
@@ -160,35 +155,44 @@ static uint32_t asu_get_channelID(void)
  * Return: Unique ID (1 to ASU_UNIQUE_ID_MAX-1) or ASU_UNIQUE_ID_MAX if none
  *	   available
  */
-uint8_t alloc_unique_id(void)
+uint8_t asu_alloc_unique_id(void)
 {
 	uint8_t unqid = 0;
 	uint32_t state = 0;
 
-	state = cpu_spin_lock_xsave(&ids.slock);
+	state = cpu_spin_lock_xsave(&asuid.slock);
 	while (unqid < ASU_UNIQUE_ID_MAX) {
-		if (ids.id_array[unqid] == ASU_UNIQUE_ID_MAX) {
-			ids.id_array[unqid] = unqid;
+		if (asuid.ids[unqid] == ASU_UNIQUE_ID_MAX) {
+			asuid.ids[unqid] = unqid;
 			DMSG("Got unique ID %"PRIu8, unqid);
 			break;
 		}
 		unqid++;
 	};
-	cpu_spin_unlock_xrestore(&ids.slock, state);
+	cpu_spin_unlock_xrestore(&asuid.slock, state);
 
 	return unqid;
 }
 
-void free_unique_id(uint8_t uniqueid)
+/**
+ * asu_free_unique_id() - Release a previously allocated unique ID
+ * @uniqueid: The unique ID to be freed
+ *
+ * Marks the specified unique ID as available for reuse.
+ * The released ID is set to ASU_UNIQUE_ID_MAX
+ * to indicate its availability. Intended to be used in environments where
+ * concurrent access to the unique ID pool occurs.
+ */
+void asu_free_unique_id(uint8_t uniqueid)
 {
 	uint32_t state = 0;
 
-	state = cpu_spin_lock_xsave(&ids.slock);
-	ids.id_array[uniqueid] = ASU_UNIQUE_ID_MAX;
-	cpu_spin_unlock_xrestore(&ids.slock, state);
+	state = cpu_spin_lock_xsave(&asuid.slock);
+	asuid.ids[uniqueid] = ASU_UNIQUE_ID_MAX;
+	cpu_spin_unlock_xrestore(&asuid.slock, state);
 }
 
-/**
+/*
  * get_free_index() - Find a free buffer index in the specified priority queue
  * @priority: Priority level (ASU_PRIORITY_HIGH or ASU_PRIORITY_LOW)
  *
@@ -237,7 +241,7 @@ static void put_free_index(struct asu_channel_queue_buf *bufptr)
 	cpu_spin_unlock_xrestore(&asu->slock, state);
 }
 
-/**
+/*
  * asu_validate_client_parameters() - Validate client parameter structure
  * @param_ptr: Pointer to client parameters to validate
  *
@@ -253,7 +257,7 @@ TEE_Result asu_validate_client_parameters(struct asu_client_params *param_ptr)
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	if (!param_ptr->cbrefptr) {
+	if (!param_ptr->cbptr) {
 		EMSG("Callback function not available");
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
@@ -267,7 +271,7 @@ TEE_Result asu_validate_client_parameters(struct asu_client_params *param_ptr)
 	return TEE_SUCCESS;
 }
 
-/**
+/*
  * send_doorbell() - Send IPI doorbell interrupt to ASU
  *
  * Triggers an Inter-Processor Interrupt (IPI) to notify the ASU
@@ -283,7 +287,7 @@ static TEE_Result send_doorbell(void)
 	return TEE_SUCCESS;
 }
 
-/**
+/*
  * asu_update_queue_buffer_n_send_ipi() - Queue command and send IPI
  * @param: Client parameters including priority
  * @req_buffer: Request buffer containing command data
@@ -331,13 +335,13 @@ TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
 		qptr = &asu->chnl_memptr->p1_chnl_q;
 	}
 
-	bufptr->req_buf.header = header;
+	bufptr->req.header = header;
 	if (req_buffer && size != 0U)
-		memcpy(bufptr->req_buf.arg, req_buffer, size);
+		memcpy(bufptr->req.arg, req_buffer, size);
 
 	bufptr->respbufstatus = 0U;
 
-	qptr->is_cmd_present = ASU_TRUE;
+	qptr->cmd_is_present = true;
 	qptr->req_sent++;
 	ret = send_doorbell();
 	if (ret != TEE_SUCCESS) {
@@ -353,9 +357,9 @@ TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
 		wfe();
 	}
 
-	*status = bufptr->resp_buf.arg[ASU_RESPONSE_STATUS_INDEX];
+	*status = bufptr->resp.arg[ASU_RESPONSE_STATUS_INDEX];
 	if (param->cbhandler && !(*status))
-		ret = param->cbhandler(param->cbrefptr, &bufptr->resp_buf);
+		ret = param->cbhandler(param->cbptr, &bufptr->resp);
 	put_free_index(bufptr);
 
 	return ret;
@@ -370,7 +374,7 @@ static void asu_clear_intr(void)
 		   status & IPIPSU_ALL_MASK);
 }
 
-/**
+/*
  * asu_resp_handler() - Interrupt handler for ASU responses
  * @handler: Interrupt handler structure (unused)
  *
@@ -393,7 +397,7 @@ static struct itr_handler doorbell_handler = {
 	.handler = asu_resp_handler,
 };
 
-/**
+/*
  * setup_doorbell() - Initialize doorbell interrupt handling
  *
  * Maps the doorbell register region, configures interrupt settings,
@@ -409,7 +413,7 @@ static void *setup_doorbell(void)
 
 	dbell = core_mmu_add_mapping(MEM_AREA_IO_SEC,
 				     configtable.baseaddr,
-				     ASU_GLOBAL_BASEADDR_SIZE);
+				     ASU_BASEADDR_SIZE);
 	if (!dbell) {
 		EMSG("Failed to Map Door Bell register");
 		return dbell;
@@ -424,7 +428,7 @@ static void *setup_doorbell(void)
 					      IRQ_TYPE_LEVEL_HIGH, 7);
 	if (res) {
 		core_mmu_remove_mapping(MEM_AREA_IO_SEC, dbell,
-					ASU_GLOBAL_BASEADDR_SIZE);
+					ASU_BASEADDR_SIZE);
 		panic();
 	}
 
@@ -437,12 +441,12 @@ static void asu_init_unique_id(void)
 {
 	uint32_t idx = 0;
 
-	ids.slock = SPINLOCK_UNLOCK;
-	for (idx = 0; idx < ASU_UNIQUE_ID_MAX; idx++)
-		ids.id_array[idx] = ASU_UNIQUE_ID_MAX;
+	asuid.slock = SPINLOCK_UNLOCK;
+	for (idx = 0; idx < ARRAY_SIZE(asuid.ids); idx++)
+		asuid.ids[idx] = ASU_UNIQUE_ID_MAX;
 }
 
-/**
+/*
  * asu_init() - Initialize the ASU driver and communication channel
  *
  * Performs complete ASU driver initialization including memory allocation,
@@ -466,8 +470,8 @@ static TEE_Result asu_init(void)
 	}
 
 	asu->global_ctrl = core_mmu_add_mapping(MEM_AREA_IO_SEC,
-						ASU_GLOBAL_BASEADDR,
-						ASU_GLOBAL_BASEADDR_SIZE);
+						ASU_BASEADDR,
+						ASU_BASEADDR_SIZE);
 	if (!asu->global_ctrl) {
 		EMSG("Failed to initialized ASU");
 		goto free;
@@ -514,7 +518,7 @@ sh_unmap:
 				ASU_GLOBAL_ADDR_LIMIT);
 global_unmap:
 	core_mmu_remove_mapping(MEM_AREA_IO_SEC, asu->global_ctrl,
-				ASU_GLOBAL_BASEADDR_SIZE);
+				ASU_BASEADDR_SIZE);
 free:
 	free(asu);
 
