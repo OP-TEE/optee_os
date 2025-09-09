@@ -332,7 +332,6 @@ static void apply_rif_config(bool is_tdcid)
 	/* Check if all resources must be secured */
 	if (seccfgr == RTC_RIF_FULL_SECURED) {
 		io_setbits32(base + RTC_SECCFGR, RTC_SECCFGR_FULL_SEC);
-		rtc_dev.is_secured = true;
 
 		if (!(io_read32(base + RTC_SECCFGR) & RTC_SECCFGR_FULL_SEC))
 			panic("Bad RTC seccfgr configuration");
@@ -430,49 +429,75 @@ static TEE_Result parse_dt(const void *fdt, int node)
 	if (res)
 		return res;
 
-	res = interrupt_dt_get(fdt, node, &rtc_dev.itr_chip,
-			       &rtc_dev.itr_num);
-	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
-		return res;
+	if (rtc_dev.compat->has_rif_support)
+		cuint = fdt_getprop(fdt, node, "st,protreg", &lenp);
 
-	if (fdt_getprop(fdt, node, "wakeup-source", NULL)) {
-		if (res != TEE_ERROR_ITEM_NOT_FOUND &&
-		    interrupt_can_set_wake(rtc_dev.itr_chip))
-			rtc_dev.rtc->is_wakeup_source = true;
-		else
-			DMSG("RTC wakeup source ignored");
+	if (cuint) {
+		rtc_dev.conf_data = calloc(1, sizeof(*rtc_dev.conf_data));
+		if (!rtc_dev.conf_data)
+			panic();
+
+		rtc_dev.nb_res = (unsigned int)(lenp / sizeof(uint32_t));
+		assert(rtc_dev.nb_res <= RTC_NB_RIF_RESOURCES);
+
+		rtc_dev.conf_data->cid_confs = calloc(RTC_NB_RIF_RESOURCES,
+						      sizeof(uint32_t));
+		rtc_dev.conf_data->sec_conf = calloc(1, sizeof(uint32_t));
+		rtc_dev.conf_data->priv_conf = calloc(1, sizeof(uint32_t));
+		rtc_dev.conf_data->access_mask = calloc(1, sizeof(uint32_t));
+		if (!rtc_dev.conf_data->cid_confs ||
+		    !rtc_dev.conf_data->sec_conf ||
+		    !rtc_dev.conf_data->priv_conf ||
+		    !rtc_dev.conf_data->access_mask)
+			panic("Not enough memory capacity for RTC RIF config");
+
+		for (i = 0; i < rtc_dev.nb_res; i++)
+			stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]),
+					    rtc_dev.conf_data,
+					    RTC_NB_RIF_RESOURCES);
+
+		if (rtc_dev.conf_data->sec_conf[0] == RTC_RIF_FULL_SECURED)
+			rtc_dev.is_secured = true;
 	}
 
-	if (!rtc_dev.compat->has_rif_support)
+	cuint = fdt_getprop(fdt, node, "wakeup-source", NULL);
+	/*
+	 * if the wakeup-source property is not present in the DT
+	 *    AND
+	 *    the RTC_PTA is disable or ASYNC_NOTIF are disable
+	 *    or the RTC is not secured.
+	 * Then we should not register the interrupt line.
+	 */
+	if (!cuint && !(IS_ENABLED(CFG_RTC_PTA) &&
+			IS_ENABLED(CFG_CORE_ASYNC_NOTIF) && rtc_dev.is_secured))
 		return TEE_SUCCESS;
 
-	cuint = fdt_getprop(fdt, node, "st,protreg", &lenp);
-	if (!cuint) {
-		DMSG("No RIF configuration available");
-		return TEE_SUCCESS;
+	res = interrupt_dt_get(fdt, node, &rtc_dev.itr_chip, &rtc_dev.itr_num);
+	if (res)
+		goto err;
+
+	if (cuint) {
+		if (!interrupt_can_set_wake(rtc_dev.itr_chip)) {
+			EMSG("%s does not have wakeup capabilities",
+			     rtc_dev.itr_chip->name);
+			res = TEE_ERROR_NOT_SUPPORTED;
+			goto err;
+		}
+		rtc_dev.rtc->is_wakeup_source = true;
 	}
-
-	rtc_dev.conf_data = calloc(1, sizeof(*rtc_dev.conf_data));
-	if (!rtc_dev.conf_data)
-		panic();
-
-	rtc_dev.nb_res = (unsigned int)(lenp / sizeof(uint32_t));
-	assert(rtc_dev.nb_res <= RTC_NB_RIF_RESOURCES);
-
-	rtc_dev.conf_data->cid_confs = calloc(RTC_NB_RIF_RESOURCES,
-					      sizeof(uint32_t));
-	rtc_dev.conf_data->sec_conf = calloc(1, sizeof(uint32_t));
-	rtc_dev.conf_data->priv_conf = calloc(1, sizeof(uint32_t));
-	rtc_dev.conf_data->access_mask = calloc(1, sizeof(uint32_t));
-	if (!rtc_dev.conf_data->cid_confs || !rtc_dev.conf_data->sec_conf ||
-	    !rtc_dev.conf_data->priv_conf || !rtc_dev.conf_data->access_mask)
-		panic("Not enough memory capacity for RTC RIF config");
-
-	for (i = 0; i < rtc_dev.nb_res; i++)
-		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), rtc_dev.conf_data,
-				    RTC_NB_RIF_RESOURCES);
 
 	return TEE_SUCCESS;
+
+err:
+	if (rtc_dev.conf_data) {
+		free(rtc_dev.conf_data->cid_confs);
+		free(rtc_dev.conf_data->sec_conf);
+		free(rtc_dev.conf_data->priv_conf);
+		free(rtc_dev.conf_data->access_mask);
+		free(rtc_dev.conf_data);
+	}
+
+	return res;
 }
 
 static TEE_Result stm32_rtc_enter_init_mode(void)
