@@ -430,19 +430,6 @@ static TEE_Result parse_dt(const void *fdt, int node)
 	if (res)
 		return res;
 
-	res = interrupt_dt_get(fdt, node, &rtc_dev.itr_chip,
-			       &rtc_dev.itr_num);
-	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
-		return res;
-
-	if (fdt_getprop(fdt, node, "wakeup-source", NULL)) {
-		if (res != TEE_ERROR_ITEM_NOT_FOUND &&
-		    interrupt_can_set_wake(rtc_dev.itr_chip))
-			rtc_dev.rtc->is_wakeup_source = true;
-		else
-			DMSG("RTC wakeup source ignored");
-	}
-
 	if (!rtc_dev.compat->has_rif_support)
 		return TEE_SUCCESS;
 
@@ -471,6 +458,60 @@ static TEE_Result parse_dt(const void *fdt, int node)
 	for (i = 0; i < rtc_dev.nb_res; i++)
 		stm32_rif_parse_cfg(fdt32_to_cpu(cuint[i]), rtc_dev.conf_data,
 				    RTC_NB_RIF_RESOURCES);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_rtc_register_dt_interrupt(const void *fdt, int node)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (fdt_get_property(fdt, node, "wakeup-source", NULL))
+		rtc_dev.rtc->is_wakeup_source = true;
+
+	if (!rtc_dev.rtc->is_wakeup_source &&
+	    !(IS_ENABLED(CFG_RTC_PTA) && IS_ENABLED(CFG_CORE_ASYNC_NOTIF) &&
+	      rtc_dev.is_secured))
+		return TEE_SUCCESS;
+
+	res = interrupt_dt_get(fdt, node, &rtc_dev.itr_chip, &rtc_dev.itr_num);
+	if (res)
+		return res;
+
+	if (rtc_dev.rtc->is_wakeup_source &&
+	    !interrupt_can_set_wake(rtc_dev.itr_chip)) {
+		EMSG("IRQ controller %s does not has wakeup capabilities",
+		     rtc_dev.itr_chip->name);
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	if (IS_ENABLED(CFG_RTC_PTA) && IS_ENABLED(CFG_CORE_ASYNC_NOTIF) &&
+	    rtc_dev.is_secured) {
+		res = notif_alloc_async_value(&rtc_dev.notif_id);
+		if (res)
+			return res;
+
+		res = interrupt_create_handler(rtc_dev.itr_chip,
+					       rtc_dev.itr_num,
+					       stm32_rtc_it_handler, &rtc_dev,
+					       0, &rtc_dev.itr_handler);
+		if (res)
+			goto out_rtc_secured_and_itr_chip;
+
+		/* Unbalanced clock enable to ensure IRQ interface is alive */
+		res = clk_enable(rtc_dev.pclk);
+		if (res)
+			goto out_rtc_secured_and_itr_chip;
+
+		interrupt_enable(rtc_dev.itr_chip, rtc_dev.itr_num);
+
+		return TEE_SUCCESS;
+
+out_rtc_secured_and_itr_chip:
+		interrupt_remove_handler(rtc_dev.itr_handler);
+		notif_free_async_value(rtc_dev.notif_id);
+		return res;
+	}
 
 	return TEE_SUCCESS;
 }
@@ -1077,36 +1118,7 @@ static TEE_Result stm32_rtc_probe(const void *fdt, int node,
 
 	rtc_register(&stm32_rtc);
 
-	if (IS_ENABLED(CFG_RTC_PTA) && IS_ENABLED(CFG_CORE_ASYNC_NOTIF) &&
-	    rtc_dev.is_secured && rtc_dev.itr_chip) {
-		res = notif_alloc_async_value(&rtc_dev.notif_id);
-		if (res)
-			return res;
-
-		res = interrupt_create_handler(rtc_dev.itr_chip,
-					       rtc_dev.itr_num,
-					       stm32_rtc_it_handler,
-					       &rtc_dev, 0,
-					       &rtc_dev.itr_handler);
-		if (res)
-			goto out_rtc_secured_and_itr_chip;
-
-		/* Unbalanced clock enable to ensure IRQ interface is alive */
-		res = clk_enable(rtc_dev.pclk);
-		if (res)
-			goto out_rtc_secured_and_itr_chip;
-
-		interrupt_enable(rtc_dev.itr_chip, rtc_dev.itr_num);
-
-		return TEE_SUCCESS;
-
-out_rtc_secured_and_itr_chip:
-		interrupt_remove_handler(rtc_dev.itr_handler);
-		notif_free_async_value(rtc_dev.notif_id);
-		return res;
-	}
-
-	return TEE_SUCCESS;
+	return stm32_rtc_register_dt_interrupt(fdt, node);
 }
 
 static const struct rtc_compat mp25_compat = {
