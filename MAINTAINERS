@@ -52,6 +52,11 @@ R:	Emekcan.Aras@arm.com <emekcan.aras@arm.com> [@ememarar]
 S:	Maintained
 F:	core/arch/arm/plat-corstone1000/
 
+Arm Automotive Reference Design
+R:	Ahmed Tiba <ahmed.tiba@arm.org> [@ahmedtiba]
+S:	Maintained
+F:	core/arch/plat-automotive_rd
+
 AllWinner sun8i H2+
 R:	Ying-Chun Liu (PaulLiu) <paul.liu@linaro.org> [@grandpaul]
 S:	Maintained
