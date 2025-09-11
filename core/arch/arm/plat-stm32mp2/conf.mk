@@ -1,13 +1,17 @@
 flavor_dts_file-215F_DK = stm32mp215f-dk.dts
+flavor_dts_file-235F_DK = stm32mp235f-dk.dts
 flavor_dts_file-257F_DK = stm32mp257f-dk.dts
 flavor_dts_file-257F_EV1 = stm32mp257f-ev1.dts
 
 flavorlist-MP21 = $(flavor_dts_file-215F_DK)
+
+flavorlist-MP23 = $(flavor_dts_file-235F_DK)
+
 flavorlist-MP25 = $(flavor_dts_file-257F_DK) \
 		  $(flavor_dts_file-257F_EV1)
 
 # List of all DTS for this PLATFORM
-ALL_DTS = $(flavorlist-MP21) $(flavorlist-MP25)
+ALL_DTS = $(flavorlist-MP21) $(flavorlist-MP23) $(flavorlist-MP25)
 
 ifneq ($(PLATFORM_FLAVOR),)
 ifeq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
@@ -20,17 +24,26 @@ CFG_EMBED_DTB_SOURCE_FILE ?= stm32mp257f-ev1.dts
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP21)),)
 $(call force,CFG_STM32MP21,y)
 endif
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP23)),)
+$(call force,CFG_STM32MP23,y)
+endif
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP25)),)
 $(call force,CFG_STM32MP25,y)
 endif
 
 # CFG_STM32MP2x switches are exclusive.
 # - CFG_STM32MP21 is enabled for STM32MP21x-* targets
+# - CFG_STM32MP23 is enabled for STM32MP23x-* targets
 # - CFG_STM32MP25 is enabled for STM32MP25x-* targets (default)
 ifeq ($(CFG_STM32MP21),y)
+$(call force,CFG_STM32MP23,n)
+$(call force,CFG_STM32MP25,n)
+else ifeq ($(CFG_STM32MP23),y)
+$(call force,CFG_STM32MP21,n)
 $(call force,CFG_STM32MP25,n)
 else
 $(call force,CFG_STM32MP21,n)
+$(call force,CFG_STM32MP23,n)
 $(call force,CFG_STM32MP25,y)
 endif
 
