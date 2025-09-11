@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+/*
+ * Copyright (C) STMicroelectronics 2025 - All Rights Reserved
+ * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/clock/stm32mp25-clksrc.h>
+#include <dt-bindings/tamper/st,stm32mp25-tamp.h>
+#include "stm32mp235.dtsi"
+#include "stm32mp235f-dk-ca35tdcid-rcc.dtsi"
+#include "stm32mp235f-dk-ca35tdcid-resmem.dtsi"
+#include "stm32mp235f-dk-ca35tdcid-rif.dtsi"
+#include "stm32mp23xf.dtsi"
+#include "stm32mp25-pinctrl.dtsi"
+#include "stm32mp23-st-scmi-cfg.dtsi"
+#include "stm32mp25xxal-pinctrl.dtsi"
+
+/ {
+	model = "STMicroelectronics STM32MP235F-DK Discovery Board";
+	compatible = "st,stm32mp235f-dk", "st,stm32mp235";
+
+	aliases {
+		serial0 = &usart2;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x80000000>;
+	};
+};
+
+&hpdma1 {
+	status = "okay";
+};
+
+&hpdma2 {
+	status = "okay";
+};
+
+&hpdma3 {
+	status = "okay";
+};
+
+&hsem {
+	status = "okay";
+};
+
+&ipcc1 {
+	status = "okay";
+};
+
+&iwdg1 {
+	timeout-sec = <32>;
+	status = "okay";
+};
+
+&risaf2 {
+	status = "okay";
+};
+
+&tamp {
+	st,tamp-passive-precharge = <2>;
+	st,tamp-passive-nb-sample = <4>;
+	st,tamp-passive-sample-clk-div = <16384>;
+	wakeup-source;
+
+	/* Tamper button */
+	tamp-button {
+		tamper-gpios = <&gpioz 2 0>;
+		st,tamp-mode = <TAMPER_CONFIRMED_MODE>;
+		st,tamp-id = <3>;
+		status = "okay";
+	};
+};
+
+&usart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usart2_pins_a>;
+	status = "okay";
+};
