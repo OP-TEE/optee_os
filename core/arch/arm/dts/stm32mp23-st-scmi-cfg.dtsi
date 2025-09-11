@@ -1,0 +1,728 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+/*
+ * Copyright (C) STMicroelectronics 2025 - All Rights Reserved
+ *
+ * SCMI server (based on SCP) configuration in OP-TEE for STMicroelectronics
+ * boards when CA35 is TDCID
+ */
+
+#include <dt-bindings/scmi/scmi-clock.h>
+
+/ {
+	scmi {
+		compatible = "optee,scmi-server";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* SCMI agent for cortex A35 non-secure */
+		agent@1 {
+			compatible = "linaro,scmi-optee";
+			reg = <1>;
+			scmi-channel-id = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			scmi_clock: protocol@14 {
+				reg = <0x14>;
+
+				clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					clock@0 {
+						reg = <CK_SCMI_ICN_HS_MCU>;
+						domain-name = "ck_icn_hs_mcu";
+						clocks = <&rcc CK_ICN_HS_MCU>;
+					};
+
+					clock@1 {
+						reg = <CK_SCMI_ICN_SDMMC>;
+						domain-name = "ck_icn_sdmmc";
+						clocks = <&rcc CK_ICN_SDMMC>;
+					};
+
+					clock@2 {
+						reg = <CK_SCMI_ICN_DDR>;
+						domain-name = "ck_icn_ddr";
+						clocks = <&rcc CK_ICN_DDR>;
+					};
+
+					clock@3 {
+						reg = <CK_SCMI_ICN_DISPLAY>;
+						domain-name = "ck_icn_display";
+						clocks = <&rcc CK_ICN_DISPLAY>;
+					};
+
+					clock@4 {
+						reg = <CK_SCMI_ICN_HSL>;
+						domain-name = "ck_icn_hsl";
+						clocks = <&rcc CK_ICN_HSL>;
+					};
+
+					clock@5 {
+						reg = <CK_SCMI_ICN_NIC>;
+						domain-name = "ck_icn_nic";
+						clocks = <&rcc CK_ICN_NIC>;
+					};
+
+					clock@6 {
+						reg = <CK_SCMI_ICN_VID>;
+						domain-name = "ck_icn_vid";
+						clocks = <&rcc CK_ICN_VID>;
+					};
+
+					clock@7 {
+						reg = <CK_SCMI_FLEXGEN_07>;
+						domain-name = "ck_flexgen_07";
+						clocks = <&rcc CK_FLEXGEN_07>;
+					};
+
+					clock@8 {
+						reg = <CK_SCMI_FLEXGEN_08>;
+						domain-name = "ck_flexgen_08";
+						clocks = <&rcc CK_FLEXGEN_08>;
+					};
+
+					clock@9 {
+						reg = <CK_SCMI_FLEXGEN_09>;
+						domain-name = "ck_flexgen_09";
+						clocks = <&rcc CK_FLEXGEN_09>;
+					};
+
+					clock@a {
+						reg = <CK_SCMI_FLEXGEN_10>;
+						domain-name = "ck_flexgen_10";
+						clocks = <&rcc CK_FLEXGEN_10>;
+						flags = <SCMI_CLOCK_ALLOW_SET_RATE>;
+					};
+
+					clock@b {
+						reg = <CK_SCMI_FLEXGEN_11>;
+						domain-name = "ck_flexgen_11";
+						clocks = <&rcc CK_FLEXGEN_11>;
+					};
+
+					clock@c {
+						reg = <CK_SCMI_FLEXGEN_12>;
+						domain-name = "ck_flexgen_12";
+						clocks = <&rcc CK_FLEXGEN_12>;
+					};
+
+					clock@d {
+						reg = <CK_SCMI_FLEXGEN_13>;
+						domain-name = "ck_flexgen_13";
+						clocks = <&rcc CK_FLEXGEN_13>;
+					};
+
+					clock@e {
+						reg = <CK_SCMI_FLEXGEN_14>;
+						domain-name = "ck_flexgen_14";
+						clocks = <&rcc CK_FLEXGEN_14>;
+					};
+
+					clock@f {
+						reg = <CK_SCMI_FLEXGEN_15>;
+						domain-name = "ck_flexgen_15";
+						clocks = <&rcc CK_FLEXGEN_15>;
+					};
+
+					clock@10 {
+						reg = <CK_SCMI_FLEXGEN_16>;
+						domain-name = "ck_flexgen_16";
+						clocks = <&rcc CK_FLEXGEN_16>;
+						flags = <SCMI_CLOCK_ALLOW_SET_RATE>;
+					};
+
+					clock@11 {
+						reg = <CK_SCMI_FLEXGEN_17>;
+						domain-name = "ck_flexgen_17";
+						clocks = <&rcc CK_FLEXGEN_17>;
+					};
+
+					clock@12 {
+						reg = <CK_SCMI_FLEXGEN_18>;
+						domain-name = "ck_flexgen_18";
+						clocks = <&rcc CK_FLEXGEN_18>;
+					};
+
+					clock@13 {
+						reg = <CK_SCMI_FLEXGEN_19>;
+						domain-name = "ck_flexgen_19";
+						clocks = <&rcc CK_FLEXGEN_19>;
+					};
+
+					clock@14 {
+						reg = <CK_SCMI_FLEXGEN_20>;
+						domain-name = "ck_flexgen_20";
+						clocks = <&rcc CK_FLEXGEN_20>;
+					};
+
+					clock@15 {
+						reg = <CK_SCMI_FLEXGEN_21>;
+						domain-name = "ck_flexgen_21";
+						clocks = <&rcc CK_FLEXGEN_21>;
+					};
+
+					clock@16 {
+						reg = <CK_SCMI_FLEXGEN_22>;
+						domain-name = "ck_flexgen_22";
+						clocks = <&rcc CK_FLEXGEN_22>;
+					};
+
+					clock@17 {
+						reg = <CK_SCMI_FLEXGEN_23>;
+						domain-name = "ck_flexgen_23";
+						clocks = <&rcc CK_FLEXGEN_23>;
+						flags = <SCMI_CLOCK_ALLOW_SET_RATE>;
+					};
+
+					clock@18 {
+						reg = <CK_SCMI_FLEXGEN_24>;
+						domain-name = "ck_flexgen_24";
+						clocks = <&rcc CK_FLEXGEN_24>;
+						flags = <SCMI_CLOCK_ALLOW_SET_RATE>;
+					};
+
+					clock@19 {
+						reg = <CK_SCMI_FLEXGEN_25>;
+						domain-name = "ck_flexgen_25";
+						clocks = <&rcc CK_FLEXGEN_25>;
+						flags = <SCMI_CLOCK_ALLOW_SET_RATE>;
+					};
+
+					clock@1a {
+						reg = <CK_SCMI_FLEXGEN_26>;
+						domain-name = "ck_flexgen_26";
+						clocks = <&rcc CK_FLEXGEN_26>;
+					};
+
+					clock@1b {
+						reg = <CK_SCMI_FLEXGEN_27>;
+						domain-name = "ck_flexgen_27";
+						clocks = <&rcc CK_FLEXGEN_27>;
+						flags = <SCMI_CLOCK_ALLOW_SET_RATE>;
+					};
+
+					clock@1c {
+						reg = <CK_SCMI_FLEXGEN_28>;
+						domain-name = "ck_flexgen_28";
+						clocks = <&rcc CK_FLEXGEN_28>;
+					};
+
+					clock@1d {
+						reg = <CK_SCMI_FLEXGEN_29>;
+						domain-name = "ck_flexgen_29";
+						clocks = <&rcc CK_FLEXGEN_29>;
+					};
+
+					clock@1e {
+						reg = <CK_SCMI_FLEXGEN_30>;
+						domain-name = "ck_flexgen_30";
+						clocks = <&rcc CK_FLEXGEN_30>;
+					};
+
+					clock@1f {
+						reg = <CK_SCMI_FLEXGEN_31>;
+						domain-name = "ck_flexgen_31";
+						clocks = <&rcc CK_FLEXGEN_31>;
+					};
+
+					clock@20 {
+						reg = <CK_SCMI_FLEXGEN_32>;
+						domain-name = "ck_flexgen_32";
+						clocks = <&rcc CK_FLEXGEN_32>;
+					};
+
+					clock@21 {
+						reg = <CK_SCMI_FLEXGEN_33>;
+						domain-name = "ck_flexgen_33";
+						clocks = <&rcc CK_FLEXGEN_33>;
+					};
+
+					clock@22 {
+						reg = <CK_SCMI_FLEXGEN_34>;
+						domain-name = "ck_flexgen_34";
+						clocks = <&rcc CK_FLEXGEN_34>;
+					};
+
+					clock@23 {
+						reg = <CK_SCMI_FLEXGEN_35>;
+						domain-name = "ck_flexgen_35";
+						clocks = <&rcc CK_FLEXGEN_35>;
+					};
+
+					clock@24 {
+						reg = <CK_SCMI_FLEXGEN_36>;
+						domain-name = "ck_flexgen_36";
+						clocks = <&rcc CK_FLEXGEN_36>;
+					};
+
+					clock@25 {
+						reg = <CK_SCMI_FLEXGEN_37>;
+						domain-name = "ck_flexgen_37";
+						clocks = <&rcc CK_FLEXGEN_37>;
+					};
+
+					clock@26 {
+						reg = <CK_SCMI_FLEXGEN_38>;
+						domain-name = "ck_flexgen_38";
+						clocks = <&rcc CK_FLEXGEN_38>;
+					};
+
+					clock@27 {
+						reg = <CK_SCMI_FLEXGEN_39>;
+						domain-name = "ck_flexgen_39";
+						clocks = <&rcc CK_FLEXGEN_39>;
+					};
+
+					clock@28 {
+						reg = <CK_SCMI_FLEXGEN_40>;
+						domain-name = "ck_flexgen_40";
+						clocks = <&rcc CK_FLEXGEN_40>;
+					};
+
+					clock@29 {
+						reg = <CK_SCMI_FLEXGEN_41>;
+						domain-name = "ck_flexgen_41";
+						clocks = <&rcc CK_FLEXGEN_41>;
+					};
+
+					clock@2a {
+						reg = <CK_SCMI_FLEXGEN_42>;
+						domain-name = "ck_flexgen_42";
+						clocks = <&rcc CK_FLEXGEN_42>;
+					};
+
+					clock@2b {
+						reg = <CK_SCMI_FLEXGEN_43>;
+						domain-name = "ck_flexgen_43";
+						clocks = <&rcc CK_FLEXGEN_43>;
+					};
+
+					clock@2c {
+						reg = <CK_SCMI_FLEXGEN_44>;
+						domain-name = "ck_flexgen_44";
+						clocks = <&rcc CK_FLEXGEN_44>;
+					};
+
+					clock@2d {
+						reg = <CK_SCMI_FLEXGEN_45>;
+						domain-name = "ck_flexgen_45";
+						clocks = <&rcc CK_FLEXGEN_45>;
+					};
+
+					clock@2e {
+						reg = <CK_SCMI_FLEXGEN_46>;
+						domain-name = "ck_flexgen_46";
+						clocks = <&rcc CK_FLEXGEN_46>;
+					};
+
+					clock@2f {
+						reg = <CK_SCMI_FLEXGEN_47>;
+						domain-name = "ck_flexgen_47";
+						clocks = <&rcc CK_FLEXGEN_47>;
+					};
+
+					clock@30 {
+						reg = <CK_SCMI_FLEXGEN_48>;
+						domain-name = "ck_flexgen_48";
+						clocks = <&rcc CK_FLEXGEN_48>;
+					};
+
+					clock@31 {
+						reg = <CK_SCMI_FLEXGEN_49>;
+						domain-name = "ck_flexgen_49";
+						clocks = <&rcc CK_FLEXGEN_49>;
+					};
+
+					clock@32 {
+						reg = <CK_SCMI_FLEXGEN_50>;
+						domain-name = "ck_flexgen_50";
+						clocks = <&rcc CK_FLEXGEN_50>;
+					};
+
+					clock@33 {
+						reg = <CK_SCMI_FLEXGEN_51>;
+						domain-name = "ck_flexgen_51";
+						clocks = <&rcc CK_FLEXGEN_51>;
+					};
+
+					clock@34 {
+						reg = <CK_SCMI_FLEXGEN_52>;
+						domain-name = "ck_flexgen_52";
+						clocks = <&rcc CK_FLEXGEN_52>;
+					};
+
+					clock@35 {
+						reg = <CK_SCMI_FLEXGEN_53>;
+						domain-name = "ck_flexgen_53";
+						clocks = <&rcc CK_FLEXGEN_53>;
+					};
+
+					clock@36 {
+						reg = <CK_SCMI_FLEXGEN_54>;
+						domain-name = "ck_flexgen_54";
+						clocks = <&rcc CK_FLEXGEN_54>;
+					};
+
+					clock@37 {
+						reg = <CK_SCMI_FLEXGEN_55>;
+						domain-name = "ck_flexgen_55";
+						clocks = <&rcc CK_FLEXGEN_55>;
+					};
+
+					clock@38 {
+						reg = <CK_SCMI_FLEXGEN_56>;
+						domain-name = "ck_flexgen_56";
+						clocks = <&rcc CK_FLEXGEN_56>;
+					};
+
+					clock@39 {
+						reg = <CK_SCMI_FLEXGEN_57>;
+						domain-name = "ck_flexgen_57";
+						clocks = <&rcc CK_FLEXGEN_57>;
+					};
+
+					clock@3a {
+						reg = <CK_SCMI_FLEXGEN_58>;
+						domain-name = "ck_flexgen_58";
+						clocks = <&rcc CK_FLEXGEN_58>;
+					};
+
+					clock@3b {
+						reg = <CK_SCMI_FLEXGEN_59>;
+						domain-name = "ck_flexgen_59";
+						clocks = <&rcc CK_FLEXGEN_59>;
+					};
+
+					clock@3c {
+						reg = <CK_SCMI_FLEXGEN_60>;
+						domain-name = "ck_flexgen_60";
+						clocks = <&rcc CK_FLEXGEN_60>;
+					};
+
+					clock@3d {
+						reg = <CK_SCMI_FLEXGEN_61>;
+						domain-name = "ck_flexgen_61";
+						clocks = <&rcc CK_FLEXGEN_61>;
+					};
+
+					clock@3e {
+						reg = <CK_SCMI_FLEXGEN_62>;
+						domain-name = "ck_flexgen_62";
+						clocks = <&rcc CK_FLEXGEN_62>;
+					};
+
+					clock@3f {
+						reg = <CK_SCMI_FLEXGEN_63>;
+						domain-name = "ck_flexgen_63";
+						clocks = <&rcc CK_FLEXGEN_63>;
+					};
+
+					clock@40 {
+						reg = <CK_SCMI_ICN_LS_MCU>;
+						domain-name = "ck_icn_ls_mcu";
+						clocks = <&rcc CK_ICN_LS_MCU>;
+					};
+
+					clock@41 {
+						reg = <CK_SCMI_HSE>;
+						domain-name = "hse_ck";
+						clocks = <&rcc HSE_CK>;
+					};
+
+					clock@42 {
+						reg = <CK_SCMI_LSE>;
+						domain-name = "lse_ck";
+						clocks = <&rcc LSE_CK>;
+					};
+
+					clock@43 {
+						reg = <CK_SCMI_HSI>;
+						domain-name = "hsi_ck";
+						clocks = <&rcc HSI_CK>;
+					};
+
+					clock@44 {
+						reg = <CK_SCMI_LSI>;
+						domain-name = "lsi_ck";
+						clocks = <&rcc LSI_CK>;
+					};
+
+					clock@45 {
+						reg = <CK_SCMI_MSI>;
+						domain-name = "msi_ck";
+						clocks = <&rcc MSI_CK>;
+					};
+
+					clock@46 {
+						reg = <CK_SCMI_HSE_DIV2>;
+						domain-name = "hse_div2_ck";
+						clocks = <&rcc HSE_DIV2_CK>;
+					};
+
+					clock@4a {
+						reg = <CK_SCMI_PLL3>;
+						domain-name = "ck_pll3";
+						clocks = <&rcc PLL3_CK>;
+					};
+
+					clock@4b {
+						reg = <CK_SCMI_RTC>;
+						domain-name = "ck_bus_rtc";
+						clocks = <&rcc CK_BUS_RTC>;
+					};
+
+					clock@4c {
+						reg = <CK_SCMI_RTCCK>;
+						domain-name = "rtc_ck";
+						clocks = <&rcc RTC_CK>;
+					};
+
+					clock@4d {
+						reg = <CK_SCMI_ICN_APB1>;
+						domain-name = "ck_icn_apb1";
+						clocks = <&rcc CK_ICN_APB1>;
+					};
+
+					clock@4e {
+						reg = <CK_SCMI_ICN_APB2>;
+						domain-name = "ck_icn_apb2";
+						clocks = <&rcc CK_ICN_APB2>;
+					};
+
+					clock@4f {
+						reg = <CK_SCMI_ICN_APB3>;
+						domain-name = "ck_icn_apb3";
+						clocks = <&rcc CK_ICN_APB3>;
+					};
+
+					clock@50 {
+						reg = <CK_SCMI_ICN_APB4>;
+						domain-name = "ck_icn_apb4";
+						clocks = <&rcc CK_ICN_APB4>;
+					};
+
+					clock@51 {
+						reg = <CK_SCMI_ICN_APBDBG>;
+						domain-name = "ck_icn_apbdbg";
+						clocks = <&rcc CK_ICN_APBDBG>;
+					};
+
+					clock@52 {
+						reg = <CK_SCMI_TIMG1>;
+						domain-name = "timg1_ck";
+						clocks = <&rcc TIMG1_CK>;
+					};
+
+					clock@53 {
+						reg = <CK_SCMI_TIMG2>;
+						domain-name = "timg2_ck";
+						clocks = <&rcc TIMG2_CK>;
+					};
+
+					clock@57 {
+						reg = <CK_SCMI_BUS_ETR>;
+						domain-name = "ck_icn_p_etr";
+						clocks = <&rcc CK_BUS_ETR>;
+					};
+
+					clock@58 {
+						reg = <CK_SCMI_FMC>;
+						domain-name = "ck_ker_fmc";
+						clocks = <&rcc CK_KER_FMC>;
+					};
+
+					clock@59 {
+						reg = <CK_SCMI_GPIOA>;
+						domain-name = "ck_bus_gpioa";
+						clocks = <&rcc CK_BUS_GPIOA>;
+					};
+
+					clock@5a {
+						reg = <CK_SCMI_GPIOB>;
+						domain-name = "ck_bus_gpiob";
+						clocks = <&rcc CK_BUS_GPIOB>;
+					};
+
+					clock@5b {
+						reg = <CK_SCMI_GPIOC>;
+						domain-name = "ck_bus_gpioc";
+						clocks = <&rcc CK_BUS_GPIOC>;
+					};
+
+					clock@5c {
+						reg = <CK_SCMI_GPIOD>;
+						domain-name = "ck_bus_gpiod";
+						clocks = <&rcc CK_BUS_GPIOD>;
+					};
+
+					clock@5d {
+						reg = <CK_SCMI_GPIOE>;
+						domain-name = "ck_bus_gpioe";
+						clocks = <&rcc CK_BUS_GPIOE>;
+					};
+
+					clock@5e {
+						reg = <CK_SCMI_GPIOF>;
+						domain-name = "ck_bus_gpiof";
+						clocks = <&rcc CK_BUS_GPIOF>;
+					};
+
+					clock@5f {
+						reg = <CK_SCMI_GPIOG>;
+						domain-name = "ck_bus_gpiog";
+						clocks = <&rcc CK_BUS_GPIOG>;
+					};
+
+					clock@60 {
+						reg = <CK_SCMI_GPIOH>;
+						domain-name = "ck_bus_gpioh";
+						clocks = <&rcc CK_BUS_GPIOH>;
+					};
+
+					clock@61 {
+						reg = <CK_SCMI_GPIOI>;
+						domain-name = "ck_bus_gpioi";
+						clocks = <&rcc CK_BUS_GPIOI>;
+					};
+
+					clock@62 {
+						reg = <CK_SCMI_GPIOJ>;
+						domain-name = "ck_bus_gpioj";
+						clocks = <&rcc CK_BUS_GPIOJ>;
+					};
+
+					clock@63 {
+						reg = <CK_SCMI_GPIOK>;
+						domain-name = "ck_bus_gpiok";
+						clocks = <&rcc CK_BUS_GPIOK>;
+					};
+
+					clock@64 {
+						reg = <CK_SCMI_GPIOZ>;
+						domain-name = "ck_bus_gpioz";
+						clocks = <&rcc CK_BUS_GPIOZ>;
+					};
+
+					clock@65 {
+						reg = <CK_SCMI_HPDMA1>;
+						domain-name = "ck_bus_hpdma1";
+						clocks = <&rcc CK_BUS_HPDMA1>;
+					};
+
+					clock@66 {
+						reg = <CK_SCMI_HPDMA2>;
+						domain-name = "ck_bus_hpdma2";
+						clocks = <&rcc CK_BUS_HPDMA2>;
+					};
+
+					clock@67 {
+						reg = <CK_SCMI_HPDMA3>;
+						domain-name = "ck_bus_hpdma3";
+						clocks = <&rcc CK_BUS_HPDMA3>;
+					};
+
+					clock@69 {
+						reg = <CK_SCMI_IPCC1>;
+						domain-name = "ck_bus_ipcc1";
+						clocks = <&rcc CK_BUS_IPCC1>;
+					};
+
+					clock@6a {
+						reg = <CK_SCMI_IPCC2>;
+						domain-name = "ck_bus_ipcc2";
+						clocks = <&rcc CK_BUS_IPCC2>;
+					};
+
+					clock@74 {
+						reg = <CK_SCMI_OSPI1>;
+						domain-name = "ck_ker_ospi1";
+						clocks = <&rcc CK_KER_OSPI1>;
+					};
+
+					clock@75 {
+						reg = <CK_SCMI_OSPI2>;
+						domain-name = "ck_ker_ospi2";
+						clocks = <&rcc CK_KER_OSPI2>;
+					};
+
+					clock@76 {
+						reg = <CK_SCMI_TPIU>;
+						domain-name = "ck_ker_tpiu";
+						clocks = <&rcc CK_KER_TPIU>;
+					};
+
+					clock@77 {
+						reg = <CK_SCMI_SYSDBG>;
+						domain-name = "ck_sys_dbg";
+						clocks = <&rcc CK_SYSDBG>;
+					};
+
+					clock@78 {
+						reg = <CK_SCMI_SYSATB>;
+						domain-name = "ck_sys_atb";
+						clocks = <&rcc CK_BUS_SYSATB>;
+					};
+
+					clock@7a {
+						reg = <CK_SCMI_BUS_STM>;
+						domain-name = "ck_icn_p_stm";
+						clocks = <&rcc CK_BUS_STM>;
+					};
+
+					clock@7b {
+						reg = <CK_SCMI_KER_STM>;
+						domain-name = "ck_icn_s_stm";
+						clocks = <&rcc CK_KER_STM>;
+					};
+
+					clock@7c {
+						reg = <CK_SCMI_KER_ETR>;
+						domain-name = "ck_icn_m_etr";
+						clocks = <&rcc CK_KER_ETR>;
+					};
+				};
+			};
+
+			scmi_reset: protocol@16 {
+				reg = <0x16>;
+
+				resets {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					reset@4 {
+						reg = <RST_SCMI_FMC>;
+						domain-name = "fmc";
+						resets = <&rcc FMC_R>;
+					};
+
+					reset@5 {
+						reg = <RST_SCMI_OSPI1>;
+						domain-name = "ospi1";
+						resets = <&rcc OSPI1_R>;
+					};
+
+					reset@6 {
+						reg = <RST_SCMI_OSPI1DLL>;
+						domain-name = "ospi1_ddl";
+						resets = <&rcc OSPI1DLL_R>;
+					};
+
+					reset@7 {
+						reg = <RST_SCMI_OSPI2>;
+						domain-name = "ospi2";
+						resets = <&rcc OSPI2_R>;
+					};
+
+					reset@8 {
+						reg = <RST_SCMI_OSPI2DLL>;
+						domain-name = "ospi2_ddl";
+						resets = <&rcc OSPI2DLL_R>;
+					};
+				};
+			};
+		};
+	};
+};
