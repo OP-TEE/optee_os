@@ -1292,6 +1292,12 @@ CFG_SEMIHOSTING ?= n
 # like hafnium.
 CFG_FFA_CONSOLE ?= n
 
+# CFG_CONSOLE_RUNTIME_DISABLE, when enabled, reduces the trace LOG_LEVEL to 0
+# after OP-TEE has finished booting. This allows for higher trace levels during
+# boot then quieting output during normal runtime operation. This is useful
+# in cases where the console may become unavailable after boot.
+CFG_CONSOLE_RUNTIME_DISABLE ?= n
+
 # CFG_CORE_UNSAFE_MODEXP, when enabled, makes modular exponentiation on TEE
 # core use 'unsafe' algorithm having better performance. To resist against
 # timing attacks, 'safe' one is designed to take constant-time that is

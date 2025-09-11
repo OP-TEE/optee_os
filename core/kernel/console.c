@@ -9,6 +9,7 @@
 #include <drivers/semihosting_console.h>
 #include <drivers/ffa_console.h>
 #include <drivers/serial.h>
+#include <initcall.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <kernel/panic.h>
@@ -56,6 +57,17 @@ void register_serial_console(struct serial_chip *chip)
 {
 	serial_console = chip;
 }
+
+#ifdef CFG_CONSOLE_RUNTIME_DISABLE
+static TEE_Result console_runtime_disable(void)
+{
+	/* Do not print trace messages after this point */
+	trace_set_level(TRACE_MIN);
+
+	return TEE_SUCCESS;
+}
+boot_final(console_runtime_disable);
+#endif
 
 #ifdef CFG_DT
 static int find_chosen_node(void *fdt)
