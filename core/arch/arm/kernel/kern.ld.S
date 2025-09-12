@@ -49,6 +49,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <generated/asm-defines.h>
+#include <kernel/thread_private_arch.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <util.h>
@@ -187,6 +189,7 @@ SECTIONS
 		__nex_bss_end = .;
 	}
 
+#ifndef CFG_DYN_CONFIG
 	/*
 	 * We want to keep all nexus memory in one place, because
 	 * it should be always mapped and it is easier to map one
@@ -212,6 +215,7 @@ SECTIONS
 		ASSERT(!(ABSOLUTE(.) & (16 * 1024 - 1)), "align nozi to 16kB");
 		KEEP(*(.nozi.mmu.base_table .nozi.mmu.l2))
 	}
+#endif
 
 	. = ALIGN(SMALL_PAGE_SIZE);
 
@@ -242,6 +246,12 @@ SECTIONS
 		__bss_end = .;
 	}
 
+#if defined(CFG_DYN_CONFIG) && !defined(CFG_WITH_PAGER)
+	. = ALIGN(SMALL_PAGE_SIZE);
+	__flatmap_free_start = .;
+#endif
+
+#ifndef CFG_DYN_CONFIG
 	.heap1 (NOLOAD) : {
 		/*
 		 * We're keeping track of the padding added before the
@@ -279,11 +289,7 @@ SECTIONS
 		. = ALIGN(8);
 		__nozi_stack_end = .;
 	}
-#ifndef CFG_WITH_PAGER
-	. = ALIGN(SMALL_PAGE_SIZE);
-	__flatmap_free_start = .;
-	__flatmap_unpg_rw_size = __flatmap_free_start - __flatmap_unpg_rw_start;
-#else
+#ifdef CFG_WITH_PAGER
 	.heap2 (NOLOAD) : {
 		__heap2_start = .;
 		/*
@@ -295,6 +301,53 @@ SECTIONS
 		. = ALIGN(SMALL_PAGE_SIZE);
 		__heap2_end = .;
 	}
+#endif
+#ifndef CFG_WITH_PAGER
+	. = ALIGN(SMALL_PAGE_SIZE);
+	__flatmap_free_start = .;
+#endif
+#endif /*!CFG_DYN_CONFIG*/
+
+#ifdef CFG_WITH_PAGER
+	/*
+	 * This memory is used by the boot_mem*() functions during boot.
+	 * Enough memory must be carved out to support the worst case
+	 * memory allocation, but the remaining unused memory will be
+	 * returned to be managed by the pager at end of boot. The tradeoff
+	 * is that the init code follows this section and must also fit in
+	 * the physical memory.
+	 */
+	.pager_boot_mem (NOLOAD): {
+#ifdef CFG_DYN_CONFIG
+#ifdef CFG_WITH_LPAE
+		XLAT_TABLE_SIZE = SMALL_PAGE_SIZE;
+#ifndef MAX_XLAT_TABLES
+		MAX_XLAT_TABLES = 3 /* ASLR_EXTRA */ + 5 /* TEE_EXTRA */;
+#endif
+		/* Base tables */
+		. += 4 * 2 * CFG_TEE_CORE_NB_CORE * XLAT_TABLE_SIZE;
+		/* Per thread EL0 tables */
+		. += CFG_NUM_THREADS * XLAT_TABLE_SIZE;
+#else
+		XLAT_TABLE_SIZE = 1024;
+#ifndef MAX_XLAT_TABLES
+		MAX_XLAT_TABLES = 6 + 2 /* ASLR_EXTRA */;
+#endif
+		. += 16 * 1024; /* Main L1 table */
+		. += 64 * 4 * CFG_NUM_THREADS; /* L1 table for TAs */
+#endif
+		. += MAX_XLAT_TABLES * XLAT_TABLE_SIZE;
+		. += CFG_CORE_HEAP_SIZE;
+		. += CFG_NUM_THREADS * THREAD_CTX_SIZE;
+		. += CFG_TEE_CORE_NB_CORE * THREAD_CORE_LOCAL_SIZE;
+		. += THREAD_BOOT_INIT_TMP_ALLOC;
+#else
+		. += SMALL_PAGE_SIZE;
+#endif
+		. = ALIGN(SMALL_PAGE_SIZE);
+	}
+	__flatmap_free_start = ADDR(.pager_boot_mem);
+	__flatmap_free_size = SIZEOF(.pager_boot_mem);
 
 	/* Start page aligned read-only memory */
 	__flatmap_unpg_rw_size = . - __flatmap_unpg_rw_start;
@@ -381,9 +434,11 @@ SECTIONS
 		(__pageable_end - __pageable_start) / 4096 * 32 +
 		SIZEOF(.rel) / 2 + SIZEOF(.rela) / 3 ,
 		"Too few free pages to initialize paging")
-
-
 #endif /*CFG_WITH_PAGER*/
+
+#ifndef CFG_WITH_PAGER
+	__flatmap_free_start = .;
+#endif
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
 	/*
@@ -426,6 +481,7 @@ SECTIONS
 #ifndef CFG_CORE_SANITIZE_KADDRESS
 	__flatmap_free_size = _end_of_ram - __flatmap_free_start;
 #endif
+	__flatmap_unpg_rw_size = __flatmap_free_start - __flatmap_unpg_rw_start;
 #endif
 
 	/*
@@ -476,11 +532,9 @@ __vcore_unpg_rw_start = __flatmap_unpg_rw_start;
 __vcore_unpg_rw_size = __flatmap_unpg_rw_size;
 __vcore_unpg_rw_end = __vcore_unpg_rw_start + __vcore_unpg_rw_size;
 
-#ifndef CFG_WITH_PAGER
 __vcore_free_start = __flatmap_free_start;
 __vcore_free_size = __flatmap_free_size;
 __vcore_free_end = __flatmap_free_start + __flatmap_free_size;
-#endif
 
 #ifdef CFG_NS_VIRTUALIZATION
 /* Nexus read-write memory */
