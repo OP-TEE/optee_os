@@ -648,7 +648,8 @@ bool pkcs2tee_load_attr(TEE_Attribute *tee_ref, uint32_t tee_id,
 		break;
 	}
 
-	if (get_attribute_ptr(obj->attributes, pkcs11_id, &a_ptr, &a_size))
+	if (get_attribute_ptr(obj->attributes, pkcs11_id, &a_ptr, &a_size) ||
+	    !a_ptr || !a_size)
 		return false;
 
 	TEE_InitRefAttribute(tee_ref, tee_id, a_ptr, a_size);
