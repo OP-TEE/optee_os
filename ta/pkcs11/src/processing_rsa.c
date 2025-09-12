@@ -511,7 +511,6 @@ enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
 	TEE_Attribute *attrs = NULL;
 	size_t count = 0;
 	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
-	void *a_ptr = NULL;
 
 	assert(get_key_type(obj->attributes) == PKCS11_CKK_RSA);
 
@@ -559,18 +558,13 @@ enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
 		if (count != 3)
 			break;
 
-		/* If pre-computed values are present load those */
-		rc = get_attribute_ptr(obj->attributes, PKCS11_CKA_PRIME_1,
-				       &a_ptr, NULL);
-		if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
-			break;
-		if (rc == PKCS11_RV_NOT_FOUND || !a_ptr) {
-			rc = PKCS11_CKR_OK;
-			break;
-		}
 
-		rc = PKCS11_CKR_GENERAL_ERROR;
-
+		/*
+		 * If pre-computed values are present load those
+		 * but only if they are all present since the GP TEE
+		 * specification expects either the 5 are present
+		 * or none is present.
+		 */
 		if (pkcs2tee_load_attr(&attrs[count], TEE_ATTR_RSA_PRIME1, obj,
 				       PKCS11_CKA_PRIME_1))
 			count++;
@@ -591,9 +585,15 @@ enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
 				       obj, PKCS11_CKA_COEFFICIENT))
 			count++;
 
-		if (count == 8)
-			rc = PKCS11_CKR_OK;
+		/*
+		 * As mentioned above, if at least 1of these optional
+		 * attribute is missing, keep only the 3 first already
+		 * loaded above.
+		 */
+		if (count != 8)
+			count = 3;
 
+		rc = PKCS11_CKR_OK;
 		break;
 
 	default:
