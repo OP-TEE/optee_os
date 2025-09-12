@@ -10,6 +10,7 @@
 #include <ffa.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+#include <mm/mobj.h>
 #include <sys/queue.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -74,8 +75,14 @@ thread_spmc_set_async_notif_intid(int intid __unused)
 {
 	panic();
 }
-struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie);
+
+struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
+						   enum mobj_use_case use_case);
 void thread_spmc_relinquish(uint64_t memory_region_handle);
 #endif
+
+TEE_Result thread_spmc_get_protmem_config(uint64_t use_case, void *buf,
+					  size_t *buf_sz, size_t *min_mem_sz,
+					  size_t *min_mem_align);
 
 #endif /* __KERNEL_THREAD_SPMC_H */
