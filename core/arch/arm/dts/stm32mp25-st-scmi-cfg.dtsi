@@ -16,8 +16,8 @@
 
 		/* SCMI agent for cortex A35 non-secure */
 		agent@1 {
-			reg = <1>;
 			compatible = "linaro,scmi-optee";
+			reg = <1>;
 			scmi-channel-id = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
