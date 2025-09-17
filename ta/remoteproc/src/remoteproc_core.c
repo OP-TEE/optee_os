@@ -238,7 +238,7 @@ static TEE_Result remoteproc_get_tlv(void *tlv_chunk, size_t tlv_size,
 	*length = 0;
 
 	/* Parse the TLV area */
-	while (p_tlv + RPROC_TLV_VALUE_OF < p_end_tlv) {
+	while (p_tlv + RPROC_TLV_VALUE_OF <= p_end_tlv) {
 		memcpy(&tlv_v, p_tlv, sizeof(tlv_v));
 		tlv_type = TEE_U32_FROM_LITTLE_ENDIAN(tlv_v);
 		memcpy(&tlv_v, p_tlv + RPROC_TLV_LENGTH_OF, sizeof(tlv_v));
