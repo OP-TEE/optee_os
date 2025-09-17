@@ -111,6 +111,7 @@ static TEE_Result check_update_version(const char *db_name,
 		goto out;
 
 	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+		/* Database does not exist: create and initialize header */
 		res = ops->create(&pobj, false, NULL, 0, NULL, 0, &db_hdr, NULL,
 				   sizeof(db_hdr), &fh);
 		if (res != TEE_SUCCESS)
@@ -119,8 +120,17 @@ static TEE_Result check_update_version(const char *db_name,
 		len = sizeof(db_hdr);
 
 		res = ops->read(fh, 0, &db_hdr, NULL, &len);
-		if (res != TEE_SUCCESS) {
+		if (res != TEE_SUCCESS)
 			goto out;
+		/*
+		 * If a power loss occurred during database creation, the
+		 * header may not have been written. Write the header to
+		 * complete initialization.
+		 */
+		if (len == 0) {
+			res = ops->write(fh, 0, &db_hdr, NULL, sizeof(db_hdr));
+			if (res != TEE_SUCCESS)
+				goto out;
 		} else if (len != sizeof(db_hdr)) {
 			res = TEE_ERROR_BAD_STATE;
 			goto out;
