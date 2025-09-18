@@ -461,17 +461,26 @@ static TEE_Result parse_dt(const void *fdt, int node)
 	}
 
 	cuint = fdt_getprop(fdt, node, "wakeup-source", NULL);
+	/*
+	 * if the wakeup-source property is not present in the DT
+	 *    AND
+	 *    the RTC_PTA is disable or ASYNC_NOTIF are disable
+	 *    or the rtc in not secured
+	 * Then we should not register the interrupt line.
+	 */
 	if (!cuint && !(IS_ENABLED(CFG_RTC_PTA) &&
 			IS_ENABLED(CFG_CORE_ASYNC_NOTIF) && rtc_dev.is_secured))
 		return TEE_SUCCESS;
 
 	res = interrupt_dt_get(fdt, node, &rtc_dev.itr_chip, &rtc_dev.itr_num);
 	if (res) {
-		free(rtc_dev.conf_data->cid_confs);
-		free(rtc_dev.conf_data->sec_conf);
-		free(rtc_dev.conf_data->priv_conf);
-		free(rtc_dev.conf_data->access_mask);
-		free(rtc_dev.conf_data);
+		if (rtc_dev.conf_data) {
+			free(rtc_dev.conf_data->cid_confs);
+			free(rtc_dev.conf_data->sec_conf);
+			free(rtc_dev.conf_data->priv_conf);
+			free(rtc_dev.conf_data->access_mask);
+			free(rtc_dev.conf_data);
+		}
 		return res;
 	}
 
