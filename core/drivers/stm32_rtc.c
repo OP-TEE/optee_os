@@ -465,7 +465,7 @@ static TEE_Result parse_dt(const void *fdt, int node)
 	 * if the wakeup-source property is not present in the DT
 	 *    AND
 	 *    the RTC_PTA is disable or ASYNC_NOTIF are disable
-	 *    or the rtc in not secured
+	 *    or the RTC is not secured.
 	 * Then we should not register the interrupt line.
 	 */
 	if (!cuint && !(IS_ENABLED(CFG_RTC_PTA) &&
