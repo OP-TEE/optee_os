@@ -1,14 +1,14 @@
-// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /*
- * Copyright (C) STMicroelectronics 2023-2025 - All Rights Reserved
+ * Copyright (C) 2025, STMicroelectronics - All Rights Reserved
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
 
 #include <dt-bindings/clock/st,stm32mp25-rcc.h>
 #include <dt-bindings/firewall/stm32mp25-rif.h>
 #include <dt-bindings/firewall/stm32mp25-rifsc.h>
-#include <dt-bindings/firewall/stm32mp25-risaf.h>
 #include <dt-bindings/firewall/stm32mp25-risab.h>
+#include <dt-bindings/firewall/stm32mp25-risaf.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/st,stm32mp25-rcc.h>
 
@@ -161,7 +161,7 @@
 			};
 		};
 
-		rifsc: rifsc@42080000 {
+		rifsc: bus@42080000 {
 			compatible = "st,stm32mp25-rifsc", "simple-bus";
 			reg = <0x42080000 0x1000>;
 			#address-cells = <1>;
@@ -237,15 +237,6 @@
 			clocks = <&rcc CK_BUS_RISAF4>;
 			st,mem-map = <0x0 0x80000000 0x1 0x00000000>;
 			#access-controller-cells = <1>;
-		};
-
-		risaf5: risaf@420e0000 {
-			compatible = "st,stm32mp25-risaf";
-			reg = <0x420e0000 0x1000>;
-			clocks = <&rcc CK_BUS_PCIE>;
-			st,mem-map = <0x0 0x10000000 0x0 0x10000000>;
-			#access-controller-cells = <1>;
-			status = "disabled";
 		};
 
 		risab1: risab@420f0000 {
@@ -540,30 +531,6 @@
 				st,bank-name = "GPIOI";
 				status = "disabled";
 			};
-
-			gpioj: gpio@442d0000 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-				#access-controller-cells = <1>;
-				reg = <0x90000 0x400>;
-				clocks = <&rcc CK_BUS_GPIOJ>;
-				st,bank-name = "GPIOJ";
-				status = "disabled";
-			};
-
-			gpiok: gpio@442e0000 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-				#access-controller-cells = <1>;
-				reg = <0xa0000 0x400>;
-				clocks = <&rcc CK_BUS_GPIOK>;
-				st,bank-name = "GPIOK";
-				status = "disabled";
-			};
 		};
 
 		rtc: rtc@46000000 {
@@ -576,7 +543,7 @@
 		};
 
 		tamp: tamp@46010000 {
-			compatible = "st,stm32mp25-tamp";
+			compatible = "st,stm32mp23-tamp";
 			reg = <0x46010000 0x400>;
 			clocks = <&rcc CK_BUS_RTC>;
 			interrupts-extended = <&exti2 21 IRQ_TYPE_EDGE_RISING>;
@@ -690,14 +657,6 @@
 			reg = <0x46240000 0x400>;
 			interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc CK_BUS_HSEM>;
-			status = "disabled";
-		};
-
-		ipcc2: mailbox@46250000 {
-			compatible = "st,stm32mp25-ipcc";
-			reg = <0x46250000 0x400>;
-			clocks = <&rcc CK_BUS_IPCC2>;
-			status = "disabled";
 		};
 
 		stgenc: stgen@48080000 {

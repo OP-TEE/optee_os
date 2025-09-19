@@ -24,7 +24,7 @@
 #include <dt-bindings/tamper/st,stm32-tamp.h>
 #endif
 
-#ifdef CFG_STM32MP25
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23)
 #include <dt-bindings/clock/st,stm32mp25-rcc.h>
 #include <dt-bindings/clock/stm32mp25-clksrc.h>
 #include <dt-bindings/firewall/stm32mp25-rif.h>

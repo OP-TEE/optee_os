@@ -182,7 +182,7 @@ struct rimu_risup_pairs {
 	uint32_t risup_id;
 };
 
-#if defined(CFG_STM32MP25)
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23)
 static const struct rimu_risup_pairs rimu_risup[] = {
 	[0] = {
 		.rimu_id = 0,
@@ -249,7 +249,7 @@ static const struct rimu_risup_pairs rimu_risup[] = {
 		.risup_id = STM32MP25_RIFSC_VENC_ID,
 	},
 };
-#endif /* CFG_STM32MP25 */
+#endif /* CFG_STM32MP25 || CFG_STM32MP23 */
 #if defined(CFG_STM32MP21)
 static const struct rimu_risup_pairs rimu_risup[] = {
 	[0] = {
