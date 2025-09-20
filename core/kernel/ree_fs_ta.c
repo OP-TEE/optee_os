@@ -119,8 +119,13 @@ static TEE_Result check_update_version(const char *db_name,
 		len = sizeof(db_hdr);
 
 		res = ops->read(fh, 0, &db_hdr, NULL, &len);
-		if (res != TEE_SUCCESS) {
+		if (res != TEE_SUCCESS)
 			goto out;
+		// This flow is to handle an eventual power loss
+		if (len == 0) {
+			res = ops->write(fh, 0, &db_hdr, NULL, sizeof(db_hdr));
+			if (res != TEE_SUCCESS)
+				goto out;
 		} else if (len != sizeof(db_hdr)) {
 			res = TEE_ERROR_BAD_STATE;
 			goto out;
