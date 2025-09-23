@@ -217,12 +217,12 @@ __gcm_update_payload(struct internal_aes_gcm_state *state,
 						     state->buf_cryp);
 
 			xor_buf(state->buf_cryp + state->buf_pos, s, n);
-			memcpy(d, state->buf_cryp + state->buf_pos, n);
 			if (mode == TEE_MODE_ENCRYPT)
 				memcpy(state->buf_hash + state->buf_pos,
 				       state->buf_cryp + state->buf_pos, n);
 			else
 				memcpy(state->buf_hash + state->buf_pos, s, n);
+			memcpy(d, state->buf_cryp + state->buf_pos, n);
 
 			state->buf_pos += n;
 
