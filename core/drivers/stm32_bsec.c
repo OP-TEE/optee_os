@@ -94,6 +94,15 @@
 #define BSEC_MODE_PWR			BIT(5)
 #define BSEC_MODE_CLOSED		BIT(8)
 
+/* BSEC_DENR register fields */
+#define BSEC_DENR_DBGEN			BIT(1)
+#define BSEC_DENR_NIDEN			BIT(2)
+#define BSEC_DENR_DEVICEEN		BIT(3)
+#define BSEC_DENR_HDPEN			BIT(4)
+#define BSEC_DENR_SPIDEN		BIT(5)
+#define BSEC_DENR_SPNIDEN		BIT(6)
+#define BSEC_DENR_DBGSWEN		BIT(10)
+
 /* BSEC_DEBUG bitfields */
 #ifdef CFG_STM32MP13
 #define BSEC_DEN_ALL_MSK		(GENMASK_32(11, 10) | GENMASK_32(8, 1))
@@ -711,6 +720,20 @@ TEE_Result stm32_bsec_get_state(enum stm32_bsec_sec_state *state)
 	}
 
 	return TEE_SUCCESS;
+}
+
+bool stm32_bsec_hdp_is_enabled(void)
+{
+	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DENR_HDPEN;
+}
+
+bool stm32_bsec_coresight_is_enabled(void)
+{
+	uint32_t denr = io_read32(bsec_base() + BSEC_DEN_OFF);
+	uint32_t coresight_mask = BSEC_DENR_DBGEN | BSEC_DENR_DEVICEEN |
+				  BSEC_DENR_DBGSWEN;
+
+	return (denr & coresight_mask) == coresight_mask;
 }
 
 static void enable_nsec_access(unsigned int otp_id)
