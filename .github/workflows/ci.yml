@@ -567,7 +567,8 @@ jobs:
           ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
-          make -j$(nproc) check XEN_BOOT=y
+          # Rust disabled due to disk space limitations
+          make -j$(nproc) check XEN_BOOT=y RUST_ENABLE=n
 
   QEMUv8_Xen_ffa_check:
     name: make check (QEMUv8, Xen FF-A)
@@ -603,7 +604,8 @@ jobs:
           ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
-          make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1
+          # Rust disabled due to disk space limitations
+          make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1 RUST_ENABLE=n
 
   QEMUv8_Hafnium_check:
     name: make check (QEMUv8, Hafnium)
