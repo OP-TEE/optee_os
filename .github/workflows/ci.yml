@@ -642,7 +642,8 @@ jobs:
           ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
-          make -j$(nproc) check SPMC_AT_EL=2
+          # Rust disabled due to disk space limitations
+          make -j$(nproc) check SPMC_AT_EL=2 RUST_ENABLE=n
 
   QEMUv8_check_BTI_MTE_PAC:
     name: make check (QEMUv8, BTI+MTE+PAC)
