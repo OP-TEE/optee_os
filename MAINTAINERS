@@ -238,6 +238,12 @@ R:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
 S:	Maintained
 F:	core/arch/arm/plat-vexpress/
 
+Qualcomm
+R:	Sumit Garg <sumit.garg@oss.qualcomm.com> [@b49020]
+S:	Maintained
+F:	core/arch/arm/plat-qcom/
+F:	core/drivers/qcom_geni_uart.c
+
 Raspberry Pi3
 R:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]
 S:	Maintained
