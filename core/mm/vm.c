@@ -1262,6 +1262,9 @@ TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,
 	    (flags & TEE_MEMORY_ACCESS_SECURE))
 		return TEE_ERROR_ACCESS_DENIED;
 
+	if (len == 0)
+		return TEE_SUCCESS;
+
 	/*
 	 * Rely on TA private memory test to check if address range is private
 	 * to TA or not.
