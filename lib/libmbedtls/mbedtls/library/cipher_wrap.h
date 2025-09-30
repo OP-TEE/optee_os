@@ -134,9 +134,6 @@ struct mbedtls_cipher_base_t {
     /** Allocate a new context */
     void * (*ctx_alloc_func)(void);
 
-    /** Clone context **/
-    void (*ctx_clone_func)( void *dst, const void *src );
-
     /** Free the given context */
     void (*ctx_free_func)(void *ctx);
 
@@ -172,7 +169,7 @@ extern const mbedtls_cipher_definition_t mbedtls_cipher_definitions[];
 
 extern int mbedtls_cipher_supported[];
 
-extern const mbedtls_cipher_base_t *mbedtls_cipher_base_lookup_table[];
+extern const mbedtls_cipher_base_t * const mbedtls_cipher_base_lookup_table[];
 
 #ifdef __cplusplus
 }

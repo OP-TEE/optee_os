@@ -14,6 +14,7 @@
 #if defined(MBEDTLS_CIPHER_C)
 
 #include "mbedtls/cipher.h"
+#include "cipher_invasive.h"
 #include "cipher_wrap.h"
 #include "mbedtls/platform_util.h"
 #include "mbedtls/error.h"
@@ -242,35 +243,6 @@ void mbedtls_cipher_free(mbedtls_cipher_context_t *ctx)
     mbedtls_platform_zeroize(ctx, sizeof(mbedtls_cipher_context_t));
 }
 
-int mbedtls_cipher_clone(mbedtls_cipher_context_t *dst,
-                         const mbedtls_cipher_context_t *src)
-{
-    if (dst == NULL || dst->cipher_info == NULL ||
-        src == NULL || src->cipher_info == NULL) {
-        return MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA;
-    }
-
-    dst->cipher_info = src->cipher_info;
-    dst->key_bitlen = src->key_bitlen;
-    dst->operation = src->operation;
-#if defined(MBEDTLS_CIPHER_MODE_WITH_PADDING)
-    dst->add_padding = src->add_padding;
-    dst->get_padding = src->get_padding;
-#endif
-    memcpy(dst->unprocessed_data, src->unprocessed_data, MBEDTLS_MAX_BLOCK_LENGTH);
-    dst->unprocessed_len = src->unprocessed_len;
-    memcpy(dst->iv, src->iv, MBEDTLS_MAX_IV_LENGTH);
-    dst->iv_size = src->iv_size;
-    if (mbedtls_cipher_get_base(dst->cipher_info)->ctx_clone_func)
-        mbedtls_cipher_get_base(dst->cipher_info)->ctx_clone_func(dst->cipher_ctx, src->cipher_ctx);
-
-#if defined(MBEDTLS_CMAC_C)
-    if (dst->cmac_ctx != NULL && src->cmac_ctx != NULL)
-        memcpy(dst->cmac_ctx, src->cmac_ctx, sizeof(mbedtls_cmac_context_t));
-#endif
-    return 0;
-}
-
 int mbedtls_cipher_setup(mbedtls_cipher_context_t *ctx,
                          const mbedtls_cipher_info_t *cipher_info)
 {
@@ -327,16 +299,6 @@ int mbedtls_cipher_setup_psa(mbedtls_cipher_context_t *ctx,
     return 0;
 }
 #endif /* MBEDTLS_USE_PSA_CRYPTO && !MBEDTLS_DEPRECATED_REMOVED */
-
-int mbedtls_cipher_setup_info(mbedtls_cipher_context_t *ctx,
-                              const mbedtls_cipher_info_t *cipher_info )
-{
-    if (NULL == cipher_info || NULL == ctx)
-        return MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA;
-
-    ctx->cipher_info = cipher_info;
-    return 0;
-}
 
 int mbedtls_cipher_setkey(mbedtls_cipher_context_t *ctx,
                           const unsigned char *key,
@@ -877,8 +839,14 @@ static void add_pkcs_padding(unsigned char *output, size_t output_len,
     }
 }
 
-static int get_pkcs_padding(unsigned char *input, size_t input_len,
-                            size_t *data_len)
+/*
+ * Get the length of the PKCS7 padding.
+ *
+ * Note: input_len must be the block size of the cipher.
+ */
+MBEDTLS_STATIC_TESTABLE int mbedtls_get_pkcs_padding(unsigned char *input,
+                                                     size_t input_len,
+                                                     size_t *data_len)
 {
     size_t i, pad_idx;
     unsigned char padding_len;
@@ -888,10 +856,6 @@ static int get_pkcs_padding(unsigned char *input, size_t input_len,
     }
 
     padding_len = input[input_len - 1];
-    if (padding_len == 0 || padding_len > input_len) {
-        return MBEDTLS_ERR_CIPHER_INVALID_PADDING;
-    }
-    *data_len = input_len - padding_len;
 
     mbedtls_ct_condition_t bad = mbedtls_ct_uint_gt(padding_len, input_len);
     bad = mbedtls_ct_bool_or(bad, mbedtls_ct_uint_eq(padding_len, 0));
@@ -904,6 +868,9 @@ static int get_pkcs_padding(unsigned char *input, size_t input_len,
         mbedtls_ct_condition_t different  = mbedtls_ct_uint_ne(input[i], padding_len);
         bad = mbedtls_ct_bool_or(bad, mbedtls_ct_bool_and(in_padding, different));
     }
+
+    /* If the padding is invalid, set the output length to 0 */
+    *data_len = mbedtls_ct_if(bad, 0, input_len - padding_len);
 
     return mbedtls_ct_error_if_else_0(bad, MBEDTLS_ERR_CIPHER_INVALID_PADDING);
 }
@@ -1183,7 +1150,7 @@ int mbedtls_cipher_set_padding_mode(mbedtls_cipher_context_t *ctx,
 #if defined(MBEDTLS_CIPHER_PADDING_PKCS7)
         case MBEDTLS_PADDING_PKCS7:
             ctx->add_padding = add_pkcs_padding;
-            ctx->get_padding = get_pkcs_padding;
+            ctx->get_padding = mbedtls_get_pkcs_padding;
             break;
 #endif
 #if defined(MBEDTLS_CIPHER_PADDING_ONE_AND_ZEROS)
