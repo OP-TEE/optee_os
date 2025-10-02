@@ -418,29 +418,36 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 
 	mutex_lock(&huk_mutex);
 
+	/* Try to use the cached HUK from memory */
 	if (huk)
-		goto cached;
-
-	res = read_huk(hwkey);
-	if (res == TEE_ERROR_NO_DATA) {
-		res = generate_huk(hwkey);
-		if (res != TEE_SUCCESS)
-			goto out;
-		res = persist_huk(hwkey);
-	}
+		goto out;
 
 	huk = malloc(sizeof(*huk));
 	if (!huk) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
-	memcpy(huk->data, hwkey->data, HW_UNIQUE_KEY_LENGTH);
 
-cached:
-	memcpy(hwkey->data, huk->data, HW_UNIQUE_KEY_LENGTH);
-out:
+	/* Try to read and cache the HUK persisted in the OTP */
+	res = read_huk(huk);
+	if (res != TEE_ERROR_NO_DATA)
+		goto out;
+
+	/* Try to generate and use a new HUK and persist it in the OTP */
+	res = generate_huk(huk);
 	if (res != TEE_SUCCESS)
-		memzero_explicit(hwkey->data, HW_UNIQUE_KEY_LENGTH);
+		goto out;
+	res = persist_huk(huk);
+
+out:
+	if (res == TEE_SUCCESS) {
+		memcpy(hwkey->data, huk->data, HW_UNIQUE_KEY_LENGTH);
+	} else if (huk) {
+		/* Get rid of cached HUK in case of an error */
+		memzero_explicit(huk, sizeof(*huk));
+		free(huk);
+		huk = NULL;
+	}
 
 	mutex_unlock(&huk_mutex);
 
