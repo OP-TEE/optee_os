@@ -437,7 +437,6 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	memcpy(huk->data, hwkey->data, HW_UNIQUE_KEY_LENGTH);
 
 cached:
-	/* Copy HUK into hwkey->data */
 	memcpy(hwkey->data, huk->data, HW_UNIQUE_KEY_LENGTH);
 out:
 	if (res != TEE_SUCCESS)
