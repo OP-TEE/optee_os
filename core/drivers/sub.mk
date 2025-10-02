@@ -88,6 +88,7 @@ srcs-$(CFG_RISCV_APLIC) += aplic_priv.c aplic_direct.c
 srcs-$(CFG_RISCV_APLIC_MSI) += aplic_priv.c aplic_msi.c
 srcs-$(CFG_RISCV_IMSIC) += imsic.c
 srcs-$(CFG_RISCV_ZKR_RNG) += riscv_zkr_rng.c
+srcs-$(CFG_ROCKCHIP_OTP) += rockchip_otp.c
 srcs-$(CFG_SIFIVE_UART) += sifive_uart.c
 srcs-$(CFG_HISILICON_CRYPTO_DRIVER) += hisi_trng.c
 srcs-$(CFG_WIDEVINE_HUK) += widevine_huk.c
