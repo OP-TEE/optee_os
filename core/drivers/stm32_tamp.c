@@ -608,7 +608,7 @@ static const struct stm32_tamp_pin_map pin_map_mp21[] = {
 };
 #endif
 
-#if defined(CFG_STM32MP25)
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23)
 static const char * const itamper_name[] = {
 	[INT_TAMP1] = "Backup domain voltage threshold monitoring",
 	[INT_TAMP2] = "Temperature monitoring",
@@ -635,11 +635,19 @@ static struct stm32_tamp_tamper_data int_tamp_mp25[] = {
 	{ .id = INT_TAMP15 },
 };
 
+#ifdef CFG_STM32MP25
 static struct stm32_tamp_tamper_data ext_tamp_mp25[] = {
 	{ .id = EXT_TAMP1 }, { .id = EXT_TAMP2 }, { .id = EXT_TAMP3 },
 	{ .id = EXT_TAMP4 }, { .id = EXT_TAMP5 }, { .id = EXT_TAMP6 },
 	{ .id = EXT_TAMP7 }, { .id = EXT_TAMP8 },
 };
+#else
+static struct stm32_tamp_tamper_data ext_tamp_mp23[] = {
+	{ .id = EXT_TAMP1 }, { .id = EXT_TAMP2 }, { .id = EXT_TAMP3 },
+	{ .id = EXT_TAMP4 }, { .id = EXT_TAMP5 }, { .id = EXT_TAMP6 },
+	{ .id = EXT_TAMP7 },
+};
+#endif
 
 static const struct stm32_tamp_pin_map pin_map_mp25[] = {
 	{
@@ -1652,7 +1660,7 @@ stm32_tamp_configure_pin_from_dt(const void *fdt, int node,
 	 * If only one GPIO is defined, the tamper control is a passive tamper.
 	 * Else, it is an active tamper.
 	 */
-	res = gpio_dt_get_by_index(fdt, node, 1, "tamper", &gpio_out);
+	res = gpio_dt_cfg_by_index(fdt, node, 1, "tamper", GPIO_IN, &gpio_out);
 	if (res && res != TEE_ERROR_ITEM_NOT_FOUND)
 		return res;
 
@@ -1667,7 +1675,7 @@ stm32_tamp_configure_pin_from_dt(const void *fdt, int node,
 		stm32_tamp_configure_pin(out_id, gpio_out, true, pdata);
 	}
 
-	res = gpio_dt_get_by_index(fdt, node, 0, "tamper", &gpio_ext);
+	res = gpio_dt_cfg_by_index(fdt, node, 0, "tamper", GPIO_IN, &gpio_ext);
 	if (res) {
 		gpio_put(gpio_out);
 		return res;
@@ -2277,8 +2285,28 @@ static const struct stm32_tamp_compat mp25_compat = {
 #endif
 };
 
+static const struct stm32_tamp_compat mp23_compat = {
+		.nb_monotonic_counter = 2,
+		.tags = TAMP_HAS_REGISTER_SECCFGR |
+			TAMP_HAS_REGISTER_PRIVCFGR |
+			TAMP_HAS_RIF_SUPPORT |
+			TAMP_HAS_REGISTER_ERCFGR |
+			TAMP_HAS_REGISTER_CR3 |
+			TAMP_HAS_REGISTER_ATCR2 |
+			TAMP_HAS_CR2_SECRET_STATUS,
+#if defined(CFG_STM32MP23)
+		.int_tamp = int_tamp_mp25,
+		.int_tamp_size = ARRAY_SIZE(int_tamp_mp25),
+		.ext_tamp = ext_tamp_mp23,
+		.ext_tamp_size = ARRAY_SIZE(ext_tamp_mp23),
+		.pin_map = pin_map_mp25,
+		.pin_map_size = ARRAY_SIZE(pin_map_mp25),
+#endif
+};
+
 static const struct dt_device_match stm32_tamp_match_table[] = {
 	{ .compatible = "st,stm32mp25-tamp", .compat_data = &mp25_compat },
+	{ .compatible = "st,stm32mp23-tamp", .compat_data = &mp23_compat },
 	{ .compatible = "st,stm32mp21-tamp", .compat_data = &mp21_compat },
 	{ .compatible = "st,stm32mp13-tamp", .compat_data = &mp13_compat },
 	{ .compatible = "st,stm32-tamp", .compat_data = &mp15_compat },

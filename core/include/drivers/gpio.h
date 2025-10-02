@@ -32,6 +32,28 @@
 		.probe = __probe, \
 	}
 
+#define GPIO_FLAGS_BIT_DIR_SET		BIT(0)
+#define GPIO_FLAGS_BIT_DIR_OUT		BIT(1)
+#define GPIO_FLAGS_BIT_DIR_VAL		BIT(2)
+
+/**
+ * enum gpio_flags - Optional flags that are used to configure direction and
+ *                   output value. These values cannot be OR'd.
+ *
+ * @GPIOD_ASIS:		Don't change anything
+ * @GPIO_IN:		Set line to input mode
+ * @GPIO_OUT_LOW:	Set line to output and drive it low
+ * @GPIO_OUT_HIGH:	Set line to output and drive it high
+
+ */
+enum gpio_flags {
+	GPIO_ASIS	= 0,
+	GPIO_IN		= GPIO_FLAGS_BIT_DIR_SET,
+	GPIO_OUT_LOW	= GPIO_FLAGS_BIT_DIR_SET | GPIO_FLAGS_BIT_DIR_OUT,
+	GPIO_OUT_HIGH	= GPIO_FLAGS_BIT_DIR_SET | GPIO_FLAGS_BIT_DIR_OUT |
+			  GPIO_FLAGS_BIT_DIR_VAL,
+};
+
 enum gpio_dir {
 	GPIO_DIR_OUT,
 	GPIO_DIR_IN
@@ -73,6 +95,8 @@ struct gpio_ops {
 	/* Enable or disable a GPIO interrupt */
 	void (*set_interrupt)(struct gpio_chip *chip, unsigned int gpio_pin,
 			      enum gpio_interrupt enable_disable);
+	/* Configure GPIO resources, based on dt_flags */
+	TEE_Result (*configure)(struct gpio_chip *chip, struct gpio *gpio);
 	/* Release GPIO resources */
 	void (*put)(struct gpio_chip *chip, struct gpio *gpio);
 };
@@ -133,6 +157,17 @@ static inline void gpio_put(struct gpio *gpio)
 		gpio->chip->ops->put(gpio->chip, gpio);
 }
 
+/**
+ * gpio_configure() - Configure a GPIO controller
+ *
+ * @gpio: GPIO pin
+ * @flags: requester flags of GPIO
+ *
+ * Return TEE_SUCCESS in case of success
+ * Return a TEE_Result compliant code in case of error
+ */
+TEE_Result gpio_configure(struct gpio *gpio, enum gpio_flags flags);
+
 #if defined(CFG_DT) && defined(CFG_DRIVERS_GPIO)
 /**
  * gpio_dt_alloc_pin() - Get an allocated GPIO instance from its DT phandle
@@ -151,12 +186,14 @@ TEE_Result gpio_dt_alloc_pin(struct dt_pargs *pargs, struct gpio **gpio);
 
 /**
  * gpio_dt_get_by_index() - Get a GPIO controller at a specific index in
- * 'gpios' property
+ * 'gpios' or 'gpio' properties with or without prefixes.
  *
  * @fdt: Device tree to work on
- * @nodeoffset: Node offset of the subnode containing a 'gpios' property
- * @index: GPIO pin index in '*-gpios' property
- * @gpio_name: Name of the GPIO pin
+ * @nodeoffset: Node offset of the subnode containing a 'gpios' or 'gpio'
+ *		property.
+ * @index: GPIO pin index in 'gpios' property find in device tree.
+ * @gpio_name: Prefix of a '-gpios' or '-gpio' properties in device tree,
+ *	       can be NULL to search for 'gpios' or 'gpio' properties
  * @gpio: Output GPIO pin reference upon success
  *
  * Return TEE_SUCCESS in case of success
@@ -166,11 +203,43 @@ TEE_Result gpio_dt_alloc_pin(struct dt_pargs *pargs, struct gpio **gpio);
 TEE_Result gpio_dt_get_by_index(const void *fdt, int nodeoffset,
 				unsigned int index, const char *gpio_name,
 				struct gpio **gpio);
+
+/**
+ * gpio_dt_cfg_by_index() - Get a GPIO controller at a specific index in
+ * 'gpios' or 'gpio' properties (possibly prefixed) and configure it with
+ * flags.
+ *
+ * @fdt: Device tree to work on
+ * @nodeoffset: Node offset of the subnode containing a 'gpios' or 'gpio'
+ *		property.
+ * @index: GPIO pin index in 'gpios' property to get in device tree.
+ * @gpio_name: Prefix of a '-gpios' or '-gpio' properties in device tree,
+ *	       can be NULL to search for 'gpios' or 'gpio' properties
+ * @flags: Configuration flags for the GPIO
+ * @gpio: Output GPIO pin reference upon success
+ *
+ * Return TEE_SUCCESS in case of success
+ * Return TEE_ERROR_DEFER_DRIVER_INIT if GPIO controller is not initialized
+ * Return a TEE_Result compliant code in case of error
+ */
+TEE_Result gpio_dt_cfg_by_index(const void *fdt, int nodeoffset,
+				unsigned int index, const char *gpio_name,
+				enum gpio_flags flags, struct gpio **gpio);
 #else
 static inline TEE_Result gpio_dt_get_by_index(const void *fdt __unused,
 					      int nodeoffset __unused,
+					      unsigned int index __unused,
+					      const char *gpio_name __unused,
+					      struct gpio **gpio __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result gpio_dt_cfg_by_index(const void *fdt __unused,
+					      int nodeoffset __unused,
 					      unsigned int index  __unused,
 					      const char *gpio_name  __unused,
+					      enum gpio_flags flags __unused,
 					      struct gpio **gpio __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;

@@ -157,6 +157,12 @@ static TEE_Result get_enable_gpio(const void *fdt, int node,
 	if (cuint)
 		regu->enable_delay = fdt32_to_cpu(*cuint);
 
+	/* Low level initialisation with updated dt_flags */
+	res = gpio_configure(gpio, GPIO_ASIS);
+	if (res)
+		return res;
+
+	/* Configure output, don't change level */
 	gpio_set_direction(gpio, GPIO_DIR_OUT);
 
 	regu->enable_gpio = gpio;
@@ -169,14 +175,17 @@ static TEE_Result get_voltage_level_gpio(const void *fdt, int node,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const fdt32_t *cuint = NULL;
+	enum gpio_flags gpios_state = GPIO_OUT_HIGH;
 	struct gpio *gpio = NULL;
-	void *gpio_ref = &gpio;
 	int level0 = 0;
 	int level1 = 0;
 	int len = 0;
 
-	res = dt_driver_device_from_node_idx_prop("gpios", fdt, node, 0,
-						  DT_DRIVER_GPIO, gpio_ref);
+	cuint = fdt_getprop(fdt, node, "gpios-states", NULL);
+	if (cuint && *cuint == 0)
+		gpios_state = GPIO_OUT_LOW;
+
+	res = gpio_dt_cfg_by_index(fdt, node, 0, NULL, gpios_state, &gpio);
 	if (res)
 		return res;
 
@@ -186,8 +195,7 @@ static TEE_Result get_voltage_level_gpio(const void *fdt, int node,
 	 * this implementation is simplified to support only 2 voltage
 	 * levels controlled with a single GPIO.
 	 */
-	if (dt_driver_device_from_node_idx_prop("gpios", fdt, node, 1,
-						DT_DRIVER_GPIO, gpio_ref) !=
+	if (gpio_dt_cfg_by_index(fdt, node, 1, NULL, GPIO_OUT_HIGH, &gpio) !=
 	    TEE_ERROR_ITEM_NOT_FOUND) {
 		EMSG("Multiple GPIOs not supported for level control");
 		return TEE_ERROR_GENERIC;
@@ -222,8 +230,6 @@ static TEE_Result get_voltage_level_gpio(const void *fdt, int node,
 		regu->voltage_levels_uv[1] = level0;
 		regu->voltage_level_high = false;
 	}
-
-	gpio_set_direction(gpio, GPIO_DIR_OUT);
 
 	regu->voltage_gpio = gpio;
 

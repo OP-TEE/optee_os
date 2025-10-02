@@ -2,6 +2,11 @@ CFG_WITH_STATS ?= y
 CFG_CRYPTO_WITH_CE ?= y
 CFG_CONSOLE_UART ?= 0
 
+# Disable console output after boot as the UART may
+# become unavailable due to runtime power management
+CFG_CONSOLE_RUNTIME_SET ?= y
+CFG_CONSOLE_RUNTIME_LOG_LEVEL ?= 0
+
 ifeq ($(PLATFORM_FLAVOR),am62lx)
 CFG_TZDRAM_START ?= 0x80200000
 CFG_TZDRAM_SIZE ?= 0x00400000 # 20MB

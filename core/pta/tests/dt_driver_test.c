@@ -282,7 +282,7 @@ static TEE_Result probe_test_gpios(const void *fdt, int node)
 	DT_TEST_MSG("Probe GPIO controllers");
 	dt_test_state.probe_gpios = IN_PROGRESS;
 
-	res = gpio_dt_get_by_index(fdt, node, 0, "test", &gpio);
+	res = gpio_dt_cfg_by_index(fdt, node, 0, "test", GPIO_IN, &gpio);
 	if (res)
 		goto err;
 
@@ -299,7 +299,7 @@ static TEE_Result probe_test_gpios(const void *fdt, int node)
 		goto err;
 	}
 
-	res = gpio_dt_get_by_index(fdt, node, 1, "test", &gpio);
+	res = gpio_dt_cfg_by_index(fdt, node, 1, "test", GPIO_IN, &gpio);
 	if (res)
 		goto err;
 

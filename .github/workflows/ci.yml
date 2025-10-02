@@ -150,9 +150,9 @@ jobs:
           _make PLATFORM=stm32mp1 CFG_STM32MP1_OPTEE_IN_SYSRAM=y CFG_STM32MP_REMOTEPROC=y
           # Don't build stm32mp1 with SCP-Firmware until its support is fixed in SCP-Firmware source tree
           # if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp1-157C_DK2 CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
-          _make PLATFORM=stm32mp2
-          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp2 CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
-          _make PLATFORM=stm32mp2-215F_DK
+          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp2 CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
+          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp2-235F_DK CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
+          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp2-215F_DK CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
           _make PLATFORM=vexpress-fvp
           _make PLATFORM=vexpress-fvp CFG_ARM64_core=y
           _make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_CORE_SEL1_SPMC=y CFG_SECURE_PARTITION=y
@@ -568,7 +568,8 @@ jobs:
           ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
-          make -j$(nproc) check XEN_BOOT=y
+          # Rust disabled due to disk space limitations
+          make -j$(nproc) check XEN_BOOT=y RUST_ENABLE=n
 
   QEMUv8_Xen_ffa_check:
     name: make check (QEMUv8, Xen FF-A)
@@ -604,7 +605,8 @@ jobs:
           ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
-          make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1
+          # Rust disabled due to disk space limitations
+          make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1 RUST_ENABLE=n
 
   QEMUv8_Hafnium_check:
     name: make check (QEMUv8, Hafnium)
