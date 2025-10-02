@@ -174,11 +174,21 @@ static TEE_Result generate_huk(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint8_t buffer[HW_UNIQUE_KEY_LENGTH] = { };
+	size_t i = 0;
+	bool key_is_zero = true;
 
 	/* Generate random 128-bit key from TRNG */
 	res = hw_get_random_bytes(buffer, sizeof(buffer));
 	if (res)
 		return res;
+
+	/* All zero HUK cannot be written to OTP and indicates TRNG failure */
+	for (i = 0; i < ARRAY_SIZE(buffer); i++) {
+		if (buffer[i] != 0)
+			key_is_zero = false;
+	}
+	if (key_is_zero)
+		return TEE_ERROR_NO_DATA;
 
 	memcpy(hwkey->data, buffer, HW_UNIQUE_KEY_LENGTH);
 
