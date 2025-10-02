@@ -345,7 +345,7 @@ static TEE_Result tee_otp_write_secure(const uint32_t *value, uint32_t index,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result tee_rockchip_generate_huk(struct tee_hw_unique_key *hwkey)
+static TEE_Result generate_huk(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t buffer[HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t)] = { };
@@ -360,7 +360,7 @@ static TEE_Result tee_rockchip_generate_huk(struct tee_hw_unique_key *hwkey)
 	return res;
 }
 
-static TEE_Result tee_rockchip_persist_huk(struct tee_hw_unique_key *hwkey)
+static TEE_Result persist_huk(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t buffer[HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t)] = { };
@@ -377,7 +377,7 @@ static TEE_Result tee_rockchip_persist_huk(struct tee_hw_unique_key *hwkey)
 	return res;
 }
 
-static TEE_Result tee_rockchip_read_huk(struct tee_hw_unique_key *hwkey)
+static TEE_Result read_huk(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t buffer[HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t)] = { };
@@ -424,12 +424,12 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	if (huk)
 		goto cached;
 
-	res = tee_rockchip_read_huk(hwkey);
+	res = read_huk(hwkey);
 	if (res == TEE_ERROR_NO_DATA) {
-		res = tee_rockchip_generate_huk(hwkey);
+		res = generate_huk(hwkey);
 		if (res != TEE_SUCCESS)
 			goto out;
-		res = tee_rockchip_persist_huk(hwkey);
+		res = persist_huk(hwkey);
 	}
 
 	huk = malloc(sizeof(*huk));
