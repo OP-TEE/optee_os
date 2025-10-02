@@ -396,11 +396,8 @@ static TEE_Result read_huk(struct tee_hw_unique_key *hwkey)
 		if (buffer[i] != 0)
 			key_is_empty = false;
 	}
-
-	if (key_is_empty) {
-		res = TEE_ERROR_NO_DATA;
-		goto out;
-	}
+	if (key_is_empty)
+		return TEE_ERROR_NO_DATA;
 
 	/* Copy HUK into hwkey->data */
 	memcpy(hwkey->data, buffer, HW_UNIQUE_KEY_LENGTH);
