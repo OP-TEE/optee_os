@@ -84,6 +84,9 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, OTP_S_BASE, OTP_S_SIZE);
 static struct mutex trng_mutex = MUTEX_INITIALIZER;
 static struct mutex huk_mutex = MUTEX_INITIALIZER;
 
+/* Cache the HUK in memory */
+struct tee_hw_unique_key *huk;
+
 int platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
 {
 	vaddr_t fw_ddr_base = (vaddr_t)phys_to_virt_io(FIREWALL_DDR_BASE,
@@ -342,17 +345,54 @@ static TEE_Result tee_otp_write_secure(const uint32_t *value, uint32_t index,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+static TEE_Result generate_huk(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t buffer[HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t)] = { };
-	bool key_is_empty = true;
 	size_t i = 0;
+	bool key_is_zero = true;
 
-	if (!hwkey)
-		return TEE_ERROR_BAD_PARAMETERS;
+	/* Generate random 128-bit key from TRNG */
+	res = hw_get_random_bytes(buffer, sizeof(buffer));
+	if (res)
+		return res;
 
-	mutex_lock(&huk_mutex);
+	/* All zero HUK cannot be written to OTP and indicates TRNG failure */
+	for (i = 0; i < ARRAY_SIZE(buffer); i++) {
+		if (buffer[i] != 0)
+			key_is_zero = false;
+	}
+	if (key_is_zero)
+		return TEE_ERROR_NO_DATA;
+
+	memcpy(hwkey->data, buffer, HW_UNIQUE_KEY_LENGTH);
+
+	return res;
+}
+
+static TEE_Result persist_huk(struct tee_hw_unique_key *hwkey)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t buffer[HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t)] = { };
+
+	memcpy(buffer, hwkey->data, HW_UNIQUE_KEY_LENGTH);
+
+	/* Write the new HUK into OTP at HW_UNIQUE_KEY_INDEX */
+	res = tee_otp_write_secure(buffer, HW_UNIQUE_KEY_INDEX,
+				   HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t));
+
+	/* Clear buffer memory */
+	memzero_explicit(buffer, sizeof(buffer));
+
+	return res;
+}
+
+static TEE_Result read_huk(struct tee_hw_unique_key *hwkey)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t buffer[HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t)] = { };
+	size_t i = 0;
+	bool key_is_empty = true;
 
 	/* Read 4 words (16 bytes) from OTP at HW_UNIQUE_KEY_INDEX */
 	res = tee_otp_read_secure(buffer,
@@ -366,21 +406,8 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 		if (buffer[i] != 0)
 			key_is_empty = false;
 	}
-
-	if (key_is_empty) {
-		/* Generate random 128-bit key from TRNG */
-		res = hw_get_random_bytes(buffer, sizeof(buffer));
-		if (res)
-			goto out;
-
-		/* Write the new HUK into OTP at HW_UNIQUE_KEY_INDEX */
-		res = tee_otp_write_secure(buffer,
-					   HW_UNIQUE_KEY_INDEX,
-					   HW_UNIQUE_KEY_LENGTH /
-					   sizeof(uint32_t));
-		if (res)
-			goto out;
-	}
+	if (key_is_empty)
+		return TEE_ERROR_NO_DATA;
 
 	/* Copy HUK into hwkey->data */
 	memcpy(hwkey->data, buffer, HW_UNIQUE_KEY_LENGTH);
@@ -388,6 +415,49 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 out:
 	/* Clear buffer memory */
 	memzero_explicit(buffer, sizeof(buffer));
+
+	return res;
+}
+
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!hwkey)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mutex_lock(&huk_mutex);
+
+	/* Try to use the cached HUK from memory */
+	if (huk)
+		goto out;
+
+	huk = malloc(sizeof(*huk));
+	if (!huk) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	/* Try to read and cache the HUK persisted in the OTP */
+	res = read_huk(huk);
+	if (res != TEE_ERROR_NO_DATA)
+		goto out;
+
+	/* Try to generate and use a new HUK and persist it in the OTP */
+	res = generate_huk(huk);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = persist_huk(huk);
+
+out:
+	if (res == TEE_SUCCESS) {
+		memcpy(hwkey->data, huk->data, HW_UNIQUE_KEY_LENGTH);
+	} else if (huk) {
+		/* Get rid of cached HUK in case of an error */
+		memzero_explicit(huk, sizeof(*huk));
+		free(huk);
+		huk = NULL;
+	}
 
 	mutex_unlock(&huk_mutex);
 
