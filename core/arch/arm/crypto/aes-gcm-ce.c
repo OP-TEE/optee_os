@@ -122,9 +122,9 @@ static void decrypt_pl(struct internal_aes_gcm_state *state,
 		       const uint8_t *src, size_t num_blocks, uint8_t *dst)
 {
 	while (num_blocks) {
+		pmull_ghash_update(1, dg, src, &state->ghash_key, NULL);
 		ce_aes_ctr_encrypt(dst, src, (const uint8_t *)ek->data,
 				   ek->rounds, 1, (uint8_t *)state->ctr, 1);
-		pmull_ghash_update(1, dg, src, &state->ghash_key, NULL);
 
 		src += TEE_AES_BLOCK_SIZE;
 		dst += TEE_AES_BLOCK_SIZE;
