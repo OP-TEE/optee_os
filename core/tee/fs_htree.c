@@ -361,7 +361,7 @@ static TEE_Result init_head_from_data(struct tee_fs_htree *ht,
 		ht->head = head[idx];
 	}
 
-	if (ht->head.counter < min_counter)
+	if (ht->head.counter != 0 && ht->head.counter < min_counter)
 		return TEE_ERROR_SECURITY;
 
 	ht->root.id = 1;
@@ -630,6 +630,39 @@ static TEE_Result init_root_node(struct tee_fs_htree *ht)
 	return res;
 }
 
+static TEE_Result tee_fs_htree_create_and_sync(struct tee_fs_htree *ht,
+					       uint8_t *hash, uint32_t min_counter)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	const struct tee_fs_htree_image dummy_head = {
+		.counter = min_counter,
+	};
+
+	if (!ht)
+		return TEE_ERROR_GENERIC;
+
+	res = crypto_rng_read(ht->fek, sizeof(ht->fek));
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = tee_fs_fek_crypt(ht->uuid, TEE_MODE_ENCRYPT, ht->fek,
+			       sizeof(ht->fek), ht->head.enc_fek);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = init_root_node(ht);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	ht->dirty = true;
+	res = tee_fs_htree_sync_to_storage(&ht, hash, NULL);
+	if (res != TEE_SUCCESS)
+		return res;
+	res = rpc_write_head(ht, 0, &dummy_head);
+
+	return res;
+}
+
 TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, uint32_t min_counter,
 			     const TEE_UUID *uuid,
 			     const struct tee_fs_htree_storage *stor,
@@ -646,32 +679,22 @@ TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, uint32_t min_counter,
 	ht->stor_aux = stor_aux;
 
 	if (create) {
-		const struct tee_fs_htree_image dummy_head = {
-			.counter = min_counter,
-		};
-
-		res = crypto_rng_read(ht->fek, sizeof(ht->fek));
-		if (res != TEE_SUCCESS)
-			goto out;
-
-		res = tee_fs_fek_crypt(ht->uuid, TEE_MODE_ENCRYPT, ht->fek,
-				       sizeof(ht->fek), ht->head.enc_fek);
-		if (res != TEE_SUCCESS)
-			goto out;
-
-		res = init_root_node(ht);
-		if (res != TEE_SUCCESS)
-			goto out;
-
-		ht->dirty = true;
-		res = tee_fs_htree_sync_to_storage(&ht, hash, NULL);
-		if (res != TEE_SUCCESS)
-			goto out;
-		res = rpc_write_head(ht, 0, &dummy_head);
+		/* This flow is critical and need to resislience to power loss  */
+		res = tee_fs_htree_create_and_sync(ht, hash, min_counter);
 	} else {
 		res = init_head_from_data(ht, hash, min_counter);
 		if (res != TEE_SUCCESS)
 			goto out;
+		/*
+		 * If a power loss occurred during hash tree creation, the
+		 * head may not have been written and counter is still 0.
+		 * Re-initialze the hash tree.
+		 */
+		if (ht->head.counter == 0) {
+			res = tee_fs_htree_create_and_sync(ht, hash, min_counter);
+			if (res != TEE_SUCCESS)
+				goto out;
+		}
 
 		res = verify_root(ht);
 		if (res != TEE_SUCCESS)
