@@ -18,6 +18,8 @@
 /*
  * SYSCFG register offsets (base relative)
  */
+#define SYSCFG_SRAM3ERASER			U(0x10)
+#define SYSCFG_SRAM3KR				U(0x14)
 #define SYSCFG_IOCTRLSETR			U(0x18)
 #define SYSCFG_CMPCR				U(0x20)
 #define SYSCFG_CMPENSETR			U(0x24)
@@ -37,6 +39,17 @@
 #define SYSCFG_IOCTRLSETR_HSLVEN_SPI		BIT(4)
 
 /*
+ * SYSCFG_SRAM3ERASE Register
+ */
+#define SYSCFG_SRAM3KR_KEY1			U(0xCA)
+#define SYSCFG_SRAM3KR_KEY2			U(0x53)
+
+#define SYSCFG_SRAM3ERASER_SRAM3EO		BIT(1)
+#define SYSCFG_SRAM3ERASER_SRAM3ER		BIT(0)
+
+#define SYSCFG_SRAM3ERASE_TIMEOUT_US		U(1000)
+
+/*
  * SYSCFG_CMPCR Register
  */
 #define SYSCFG_CMPCR_SW_CTRL			BIT(1)
@@ -46,7 +59,7 @@
 #define SYSCFG_CMPCR_RAPSRC			GENMASK_32(23, 20)
 #define SYSCFG_CMPCR_ANSRC_SHIFT		U(24)
 
-#define SYSCFG_CMPCR_READY_TIMEOUT_US		U(1000)
+#define SYSCFG_CMPCR_READY_TIMEOUT_US		U(10000)
 
 #define CMPENSETR_OFFSET			U(0x4)
 #define CMPENCLRR_OFFSET			U(0x8)
@@ -139,6 +152,9 @@ static TEE_Result stm32mp1_iocomp(void)
 
 	enable_io_compensation(SYSCFG_CMPCR);
 
+	/* Make sure the write above is visible */
+	dsb();
+
 	return TEE_SUCCESS;
 }
 
@@ -148,6 +164,9 @@ driver_init(stm32mp1_iocomp);
 void stm32mp_set_vddsd_comp_state(enum stm32mp13_vddsd_comp_id id, bool enable)
 {
 	int cmpcr_offset = 0;
+
+	/* Make sure the previous operations are visible */
+	dsb();
 
 	switch (id) {
 	case SYSCFG_IO_COMP_IDX_SD1:
@@ -164,12 +183,18 @@ void stm32mp_set_vddsd_comp_state(enum stm32mp13_vddsd_comp_id id, bool enable)
 		enable_io_compensation(cmpcr_offset);
 	else
 		disable_io_compensation(cmpcr_offset);
+
+	/* Make sure the write above is visible */
+	dsb();
 }
 
 void stm32mp_set_hslv_state(enum stm32mp13_hslv_id id, bool enable)
 {
 	size_t hslvenxr_offset = 0;
 	uint32_t hlvs_value = 0;
+
+	/* Make sure the previous operations are visible */
+	dsb();
 
 	assert(id < SYSCFG_HSLV_COUNT);
 
@@ -214,3 +239,30 @@ void stm32mp_enable_fixed_vdd_hslv(void)
 		   SYSCFG_IOCTRLSETR_HSLVEN_SPI);
 }
 #endif
+
+TEE_Result stm32mp_syscfg_erase_sram3(void)
+{
+	vaddr_t base = get_syscfg_base();
+	uint32_t value = 0;
+
+	if (!IS_ENABLED(CFG_STM32MP13))
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	/* Unlock SYSCFG_SRAM3ERASER_SRAM3ER */
+	io_write32(base + SYSCFG_SRAM3KR, SYSCFG_SRAM3KR_KEY1);
+	io_write32(base + SYSCFG_SRAM3KR, SYSCFG_SRAM3KR_KEY2);
+
+	/* Request SRAM3 erase */
+	io_setbits32(base + SYSCFG_SRAM3ERASER, SYSCFG_SRAM3ERASER_SRAM3ER);
+
+	/* Lock SYSCFG_SRAM3ERASER_SRAM3ER */
+	io_write32(base + SYSCFG_SRAM3KR, 0);
+
+	/* Wait end of SRAM3 erase */
+	if (IO_READ32_POLL_TIMEOUT(base + SYSCFG_SRAM3ERASER, value,
+				   !(value & SYSCFG_SRAM3ERASER_SRAM3EO), 0,
+				   SYSCFG_SRAM3ERASE_TIMEOUT_US))
+		return TEE_ERROR_BUSY;
+
+	return TEE_SUCCESS;
+}
