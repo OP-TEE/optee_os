@@ -630,6 +630,47 @@ static TEE_Result init_root_node(struct tee_fs_htree *ht)
 	return res;
 }
 
+static TEE_Result create_and_sync(struct tee_fs_htree *ht,
+				  uint8_t *hash,
+				  uint32_t min_counter)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	const struct tee_fs_htree_image dummy_head = {
+		.counter = min_counter,
+	};
+
+	if (!ht)
+		return TEE_ERROR_GENERIC;
+
+	res = crypto_rng_read(ht->fek, sizeof(ht->fek));
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = tee_fs_fek_crypt(ht->uuid, TEE_MODE_ENCRYPT, ht->fek,
+			       sizeof(ht->fek), ht->head.enc_fek);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = init_root_node(ht);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	ht->dirty = true;
+	res = tee_fs_htree_sync_to_storage(&ht, hash, NULL);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	return rpc_write_head(ht, 0, &dummy_head);
+}
+
+static bool ht_head_is_partially_done(const struct tee_fs_htree_image *head)
+{
+	uint8_t zero_tag[TEE_FS_HTREE_TAG_SIZE] = {0};
+
+	return head->counter == 0 &&
+	       !memcmp(head->tag, zero_tag, sizeof(head->tag));
+}
+
 TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, uint32_t min_counter,
 			     const TEE_UUID *uuid,
 			     const struct tee_fs_htree_storage *stor,
@@ -646,32 +687,22 @@ TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, uint32_t min_counter,
 	ht->stor_aux = stor_aux;
 
 	if (create) {
-		const struct tee_fs_htree_image dummy_head = {
-			.counter = min_counter,
-		};
-
-		res = crypto_rng_read(ht->fek, sizeof(ht->fek));
-		if (res != TEE_SUCCESS)
-			goto out;
-
-		res = tee_fs_fek_crypt(ht->uuid, TEE_MODE_ENCRYPT, ht->fek,
-				       sizeof(ht->fek), ht->head.enc_fek);
-		if (res != TEE_SUCCESS)
-			goto out;
-
-		res = init_root_node(ht);
-		if (res != TEE_SUCCESS)
-			goto out;
-
-		ht->dirty = true;
-		res = tee_fs_htree_sync_to_storage(&ht, hash, NULL);
-		if (res != TEE_SUCCESS)
-			goto out;
-		res = rpc_write_head(ht, 0, &dummy_head);
+		res = create_and_sync(ht, hash, min_counter);
 	} else {
 		res = init_head_from_data(ht, hash, min_counter);
 		if (res != TEE_SUCCESS)
 			goto out;
+
+		/*
+		 * If a power loss occurred during hash tree creation, the
+		 * head may not have been written and counter is still 0.
+		 * Re-initialze the hash tree.
+		 */
+		if (ht_head_is_partially_done(&ht->head)) {
+			res = create_and_sync(ht, hash, min_counter);
+			if (res != TEE_SUCCESS)
+				goto out;
+		}
 
 		res = verify_root(ht);
 		if (res != TEE_SUCCESS)
