@@ -26,9 +26,14 @@
  * DT property: regulator-boot-on
  */
 #define REGULATOR_BOOT_ON	BIT(2)
+/*
+ * Enables over current protection.
+ * DT property: regulator-over-current-protection
+ */
+#define REGULATOR_OVER_CURRENT	BIT(3)
 
 #define REGULATOR_FLAGS_MASK	(REGULATOR_ALWAYS_ON | REGULATOR_PULL_DOWN | \
-				 REGULATOR_BOOT_ON)
+				 REGULATOR_BOOT_ON | REGULATOR_OVER_CURRENT)
 
 struct regulator_ops;
 
@@ -85,6 +90,8 @@ struct regulator_voltages_desc {
  * @name: Regulator string name for debug purpose or NULL
  * @min_uv: Min possible voltage level in microvolt (uV)
  * @max_uv: Max possible voltage level in microvolt (uV)
+ * @ramp_delay_uv_per_us: Voltage level change delay in uV/s
+ * @enable_ramp_delay_us: Delay after enable, in microseconds (us)
  * @flags: REGULATOR_* property flags
  * @refcount: Regulator enable request reference counter
  * @mutex: Concurrent access protection considering PM context sequences
@@ -99,6 +106,8 @@ struct regulator {
 	char *name;
 	int min_uv;
 	int max_uv;
+	unsigned int ramp_delay_uv_per_us;
+	unsigned int enable_ramp_delay_us;
 	/* Fields internal to regulator framework */
 	unsigned int flags;
 	unsigned int refcount;

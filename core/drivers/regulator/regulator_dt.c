@@ -40,6 +40,10 @@ static struct regulator_property flag_prop[] = {
 		.name = "regulator-boot-on",
 		.flag = REGULATOR_BOOT_ON,
 	},
+	{
+		.name = "regulator-over-current-protection",
+		.flag = REGULATOR_OVER_CURRENT,
+	},
 };
 
 /*
@@ -309,6 +313,22 @@ static TEE_Result parse_dt(const void *fdt, int node,
 		panic();
 	} else {
 		regulator->max_uv = INT_MAX;
+	}
+
+	cuint = fdt_getprop(fdt, node, "regulator-ramp-delay", NULL);
+	if (cuint) {
+		regulator->ramp_delay_uv_per_us = fdt32_to_cpu(*cuint);
+		FMSG("%s: ramp delay = %"PRIu32" (uV/us)",
+		     regulator_name(regulator),
+		     regulator->ramp_delay_uv_per_us);
+	}
+
+	cuint = fdt_getprop(fdt, node, "regulator-enable-ramp-delay", NULL);
+	if (cuint) {
+		regulator->enable_ramp_delay_us = fdt32_to_cpu(*cuint);
+		FMSG("%s: enable ramp delay = %u (us)",
+		     regulator_name(regulator),
+		     regulator->enable_ramp_delay_us);
 	}
 
 	return TEE_SUCCESS;
