@@ -40,10 +40,9 @@
 #define ASU_SHAKE_256_MAX_HASH_LEN		(136U)
 #define ASU_DATA_CHUNK_LEN			(4096U)
 
-static struct crypto_hash_ops asu_hash_ops;
 struct asu_shadev {
-	uint32_t sha2_available;
-	uint32_t sha3_available;
+	bool sha2_available;
+	bool sha3_available;
 	/* Control access to engine*/
 	struct mutex engine_lock;
 };
@@ -57,7 +56,7 @@ struct asu_sha_op_cmd {
 	uint8_t islast;
 	uint8_t opflags;
 	uint8_t shakereserved;
-} asu_ShaOpCmd;
+};
 
 struct asu_hash_ctx {
 	struct crypto_hash_ctx hash_ctx; /* Crypto Hash API context */
@@ -73,8 +72,8 @@ struct asu_hash_cbctx {
 	size_t len;
 };
 
+static struct crypto_hash_ops asu_hash_ops;
 static struct asu_shadev *asu_shadev;
-
 static struct asu_hash_ctx *to_hash_ctx(struct crypto_hash_ctx *ctx);
 
 /**
@@ -198,8 +197,7 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 {
 	TEE_Result ret = TEE_SUCCESS;
 	struct asu_sha_op_cmd op = {};
-	struct asu_client_params *cparam;
-	uint32_t processed;
+	struct asu_client_params *cparam = NULL;
 	uint32_t remaining;
 
 	/* Inputs of client request */
@@ -213,16 +211,13 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 	op.hashbufsize = 0;
 	op.shamode = asu_hashctx->shamode;
 	op.islast = 0;
-	processed = 0;
 	remaining = len;
 	while (remaining) {
-		op.datasize = remaining > ASU_DATA_CHUNK_LEN ?
-				     ASU_DATA_CHUNK_LEN : remaining;
-		op.opflags = ASU_SHA_UPDATE |
-					   asu_hashctx->shastart;
-		op.dataaddr = (uint64_t)virt_to_phys(data + processed);
+		op.datasize = MIN(remaining, ASU_DATA_CHUNK_LEN);
+		op.opflags = ASU_SHA_UPDATE | asu_hashctx->shastart;
+		op.dataaddr = virt_to_phys(data);
 		remaining -= op.datasize;
-		processed += op.datasize;
+		data += op.datasize;
 		ret = asu_sha_op(asu_hashctx, &op, asu_hashctx->module);
 		if (ret)
 			break;
@@ -238,7 +233,7 @@ static TEE_Result asu_hash_do_update(struct crypto_hash_ctx *ctx,
 	struct asu_hash_ctx *asu_hashctx = NULL;
 
 	if (!len) {
-		IMSG("This is 0 len task, skip");
+		DMSG("This is 0 len task, skip");
 		return TEE_SUCCESS;
 	}
 
@@ -281,9 +276,9 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 				 uint8_t *digest, size_t len)
 {
 	TEE_Result ret = TEE_SUCCESS;
-	struct asu_sha_op_cmd op;
-	struct asu_client_params *cparam;
-	struct asu_hash_cbctx cbctx;
+	struct asu_sha_op_cmd op = {};
+	struct asu_client_params *cparam = NULL;
+	struct asu_hash_cbctx cbctx = {};
 
 	if (!digest || len == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -298,7 +293,7 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 	/* Inputs of SHA request */
 	op.dataaddr = 0;
 	op.datasize = 0;
-	op.hashaddr = (uint64_t)virt_to_phys((void *)digest);
+	op.hashaddr = virt_to_phys((void *)digest);
 	op.hashbufsize = len;
 	if (asu_hashctx->shamode == ASU_SHA_MODE_SHA256)
 		op.hashbufsize = ASU_SHA_256_HASH_LEN;
@@ -309,7 +304,7 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 
 	op.shamode = asu_hashctx->shamode;
 	op.islast = 1;
-	op.opflags =  ASU_SHA_FINISH | asu_hashctx->shastart;
+	op.opflags = ASU_SHA_FINISH | asu_hashctx->shastart;
 	ret = asu_sha_op(asu_hashctx, &op, asu_hashctx->module);
 	cache_operation(TEE_CACHEFLUSH, digest, op.hashbufsize);
 
@@ -319,7 +314,7 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 static TEE_Result asu_hash_do_final(struct crypto_hash_ctx *ctx,
 				    uint8_t *digest, size_t len)
 {
-	struct asu_hash_ctx *asu_hashctx;
+	struct asu_hash_ctx *asu_hashctx = NULL;
 
 	if (!ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
