@@ -19,6 +19,19 @@
 /* This PTA only works with hardware random number generators */
 static_assert(!IS_ENABLED(CFG_WITH_SOFTWARE_PRNG));
 
+#if defined(CFG_WITH_DUMMY_HWRNG)
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
+{
+    uint8_t *b = buf;
+    for (size_t i = 0; i < len; i++) {
+        uint64_t cnt = read_cntpct();  // read QEMU virtual timer
+        b[i] = (uint8_t)(cnt & 0xFF);
+    }
+
+    return TEE_SUCCESS;
+}
+#endif
+
 static TEE_Result rng_get_entropy(uint32_t types,
 				  TEE_Param params[TEE_NUM_PARAMS])
 {

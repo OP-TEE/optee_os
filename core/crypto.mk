@@ -79,6 +79,12 @@ endif
 # Otherwise, you need to implement hw_get_random_bytes() for your platform
 CFG_WITH_SOFTWARE_PRNG ?= y
 
+# dummy hwrng
+# this config adds a dummy hwrng to be used 
+# with qemu to expose a hwrng interface to
+# bootloaders or other non secure firmwares
+CFG_WITH_DUMMY_HWRNG ?= n
+
 # Define the maximum size, in bits, for big numbers in the TEE core (privileged
 # layer).
 # This value is an upper limit for the key size in any cryptographic algorithm
