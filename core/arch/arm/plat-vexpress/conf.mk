@@ -1,5 +1,7 @@
 PLATFORM_FLAVOR ?= qemu_virt
 
+CFG_CORE_WORKAROUND_ARM_TLBI ?= n
+
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
 include core/arch/arm/cpu/cortex-a15.mk
 endif

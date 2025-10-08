@@ -92,6 +92,21 @@ endif
 # FIQ is enabled in critical places.
 CFG_CORE_WORKAROUND_ARM_NMFI ?= n
 
+# Adds mitigation against the CVE-2025-10263 CPU vulnerability
+# A broadcast TLBI on another PE may complete before affected memory accesses
+# are globally observed. This may permit bypass of Stage-1 translation, Stage-2
+# translation, or GPT protection.
+# Affected CPUs are:
+# - Canyon
+# - Arm C1-Ultra, C1-Premium
+# - Neoverse V3 & V3AE, Neoverse V2, Neoverse V1, Neoverse N2, Neoverse N1
+# - Cortex-X925, Cortex-X4, Cortex-X3, Cortex-X2, Cortex-X1 & X1C, Cortex-A710,
+#   Cortex-A78, A78AE & A78C, Cortex-A77, Cortex-A76 & A76AE
+# This is enabled by default for all Aarch64 CPUs but if your Aarch64 platform
+# is not affected, you may set CFG_CORE_WORKAROUND_ARM_TLBI ?= n in
+# core/arch/arm/plat-$(PLATFORM)/conf.mk.
+CFG_CORE_WORKAROUND_ARM_TLBI ?= $(CFG_ARM64_core)
+
 CFG_CORE_RWDATA_NOEXEC ?= y
 CFG_CORE_RODATA_NOEXEC ?= n
 ifeq ($(CFG_CORE_RODATA_NOEXEC),y)

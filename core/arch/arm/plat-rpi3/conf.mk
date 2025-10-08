@@ -27,3 +27,5 @@ $(call force,CFG_CRYPTO_SHA256_ARM64_CE,n)
 $(call force,CFG_CRYPTO_SHA1_ARM32_CE,n)
 $(call force,CFG_CRYPTO_SHA1_ARM64_CE,n)
 $(call force,CFG_CRYPTO_AES_ARM64_CE,n)
+
+CFG_CORE_WORKAROUND_ARM_TLBI ?= n
