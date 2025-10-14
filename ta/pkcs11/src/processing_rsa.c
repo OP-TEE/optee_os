@@ -504,6 +504,33 @@ pkcs2tee_algo_rsa_aes_wrap(uint32_t *tee_id, uint32_t *tee_hash_id,
 	return PKCS11_CKR_OK;
 }
 
+static enum pkcs11_rc contains_all_rsa_crt_parameters(struct pkcs11_object *obj)
+{
+	const uint32_t crt_attr[] = {
+		PKCS11_CKA_PRIME_1, PKCS11_CKA_PRIME_2, PKCS11_CKA_EXPONENT_1,
+		PKCS11_CKA_EXPONENT_2, PKCS11_CKA_COEFFICIENT,
+	};
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	uint32_t a_size = 0;
+	void *a_ptr = NULL;
+	size_t count = 0;
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(crt_attr); n++) {
+		rc = get_attribute_ptr(obj->attributes, crt_attr[n], &a_ptr,
+				       &a_size);
+		if (rc != PKCS11_CKR_OK)
+			return rc;
+		if (a_ptr && a_size)
+			count++;
+	}
+
+	if (count != ARRAY_SIZE(crt_attr))
+		return PKCS11_RV_NOT_FOUND;
+
+	return PKCS11_CKR_OK;
+}
+
 enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
 				      size_t *tee_count,
 				      struct pkcs11_object *obj)
@@ -511,7 +538,6 @@ enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
 	TEE_Attribute *attrs = NULL;
 	size_t count = 0;
 	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
-	void *a_ptr = NULL;
 
 	assert(get_key_type(obj->attributes) == PKCS11_CKK_RSA);
 
@@ -559,13 +585,16 @@ enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
 		if (count != 3)
 			break;
 
-		/* If pre-computed values are present load those */
-		rc = get_attribute_ptr(obj->attributes, PKCS11_CKA_PRIME_1,
-				       &a_ptr, NULL);
-		if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
-			break;
-		if (rc == PKCS11_RV_NOT_FOUND || !a_ptr) {
-			rc = PKCS11_CKR_OK;
+		/*
+		 * If the pre-computed CRT parameters are present load them
+		 * but only if they are all present since the GP TEE
+		 * specification expects either the 5 are present
+		 * or none is present.
+		 */
+		rc = contains_all_rsa_crt_parameters(obj);
+		if (rc != PKCS11_CKR_OK) {
+			if (rc == PKCS11_RV_NOT_FOUND)
+				rc = PKCS11_CKR_OK;
 			break;
 		}
 
