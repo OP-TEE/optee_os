@@ -223,6 +223,11 @@ static void remoteproc_header_dump(struct remoteproc_fw_hdr __maybe_unused *hdr)
 	DMSG("img_len :\t%#"PRIx32, hdr->img_len);
 }
 
+/*
+ * This function loads output data in @value and @length in 2 cases.
+ * Upon TEE_SUCCESS, output arguments provide the requested TLV information.
+ * Upon TEE_ERROR_NO_DATA, @value is set to NULL and @length to 0.
+ */
 static TEE_Result remoteproc_get_tlv(void *tlv_chunk, size_t tlv_size,
 				     uint16_t type, uint8_t **value,
 				     size_t *length)
