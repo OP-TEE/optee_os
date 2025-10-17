@@ -4,6 +4,7 @@
  * Copyright (c) 2024, Rockchip, Inc. All rights reserved.
  */
 
+#include <assert.h>
 #include <common.h>
 #include <drivers/rockchip_otp.h>
 #include <io.h>
@@ -199,6 +200,7 @@ static TEE_Result persist_huk(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t buffer[ROCKCHIP_OTP_HUK_SIZE] = { };
+	static_assert(sizeof(buffer) == sizeof(hwkey->data));
 
 	memcpy(buffer, hwkey->data, HW_UNIQUE_KEY_LENGTH);
 
@@ -216,6 +218,7 @@ static TEE_Result read_huk(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t buffer[ROCKCHIP_OTP_HUK_SIZE] = { };
+	static_assert(sizeof(buffer) == sizeof(hwkey->data));
 	bool key_is_empty = true;
 	size_t i = 0;
 
