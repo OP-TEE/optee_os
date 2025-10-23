@@ -2,6 +2,9 @@ name: CI
 on: [push, pull_request]
 permissions:
   contents: read # to fetch code (actions/checkout)
+env:
+  # Workaround disk space limitations ("no space left on device...")
+  RUST_ENABLE: "n"
 jobs:
   code_style:
     name: Code style
@@ -568,8 +571,7 @@ jobs:
           ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
-          # Rust disabled due to disk space limitations
-          make -j$(nproc) check XEN_BOOT=y RUST_ENABLE=n
+          make -j$(nproc) check XEN_BOOT=y
 
   QEMUv8_Xen_ffa_check:
     name: make check (QEMUv8, Xen FF-A)
@@ -605,8 +607,7 @@ jobs:
           ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
-          # Rust disabled due to disk space limitations
-          make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1 RUST_ENABLE=n
+          make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1
 
   QEMUv8_Hafnium_check:
     name: make check (QEMUv8, Hafnium)
@@ -642,8 +643,7 @@ jobs:
           ln -s ${OPTEE_OS_TO_TEST} ${TOP}/optee_os
           cd ${TOP}/build
 
-          # Rust disabled due to disk space limitations
-          make -j$(nproc) check SPMC_AT_EL=2 RUST_ENABLE=n
+          make -j$(nproc) check SPMC_AT_EL=2
 
   QEMUv8_check_BTI_MTE_PAC:
     name: make check (QEMUv8, BTI+MTE+PAC)
