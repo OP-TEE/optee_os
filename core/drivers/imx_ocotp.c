@@ -394,6 +394,7 @@ static const struct ocotp_instance ocotp_imx6ull = {
 	.nb_banks = 8,
 	.nb_words = 8,
 	.get_die_id = ocotp_get_die_id_mx,
+	.write_fuse = ocotp_mx8m_write_fuse,
 };
 
 static const struct ocotp_instance ocotp_imx7d = {
