@@ -941,12 +941,13 @@ static void handle_direct_request(struct thread_smc_1_2_regs *args)
 	if (lsp) {
 		lsp->direct_req(args);
 	} else {
-		spmc_sp_start_thread(args);
+		int rc = spmc_sp_start_thread(args);
+
 		/*
-		 * spmc_sp_start_thread() returns here if the SP ID is
-		 * invalid.
+		 * spmc_sp_start_thread() returns here if the SPs aren't
+		 * supported or if all threads are busy.
 		 */
-		set_simple_ret_val(args, FFA_INVALID_PARAMETERS);
+		set_simple_ret_val(args, rc);
 	}
 }
 
