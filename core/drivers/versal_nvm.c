@@ -5,8 +5,8 @@
  */
 
 #include <arm.h>
-#include <drivers/versal_mbox.h>
 #include <drivers/versal_nvm.h>
+#include <drivers/versal_pmc.h>
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
@@ -149,7 +149,7 @@ static TEE_Result efuse_req(enum versal_nvm_api_id efuse,
 	if (ret)
 		return ret;
 
-	ret = versal_mbox_notify(&cmd, NULL, NULL);
+	ret = versal_pmc_notify(&cmd, NULL, NULL);
 	if (ret)
 		EMSG("Mailbox error");
 

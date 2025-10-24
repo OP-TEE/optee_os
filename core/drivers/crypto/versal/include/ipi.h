@@ -7,7 +7,7 @@
 #ifndef IPI_H
 #define IPI_H
 
-#include <drivers/versal_mbox.h>
+#include <drivers/versal_pmc.h>
 
 struct versal_rsa_input_param {
 	uint64_t key_addr;

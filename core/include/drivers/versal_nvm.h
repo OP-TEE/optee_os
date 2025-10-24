@@ -6,7 +6,7 @@
 #ifndef __DRIVERS_VERSAL_NVM_H__
 #define __DRIVERS_VERSAL_NVM_H__
 
-#include <drivers/versal_mbox.h>
+#include <drivers/versal_pmc.h>
 #include <platform_config.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
