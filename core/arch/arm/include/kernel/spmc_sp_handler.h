@@ -21,16 +21,17 @@ bool ffa_mem_reclaim(struct thread_smc_1_2_regs *args,
 		     struct sp_session *caller_sp);
 
 #ifdef CFG_SECURE_PARTITION
-void spmc_sp_start_thread(struct thread_smc_1_2_regs *args);
+int spmc_sp_start_thread(struct thread_smc_1_2_regs *args);
 int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 		      struct ffa_rxtx *rxtx, size_t blen, size_t flen,
 		      uint64_t *global_handle, struct sp_session *owner_sp);
 void spmc_sp_set_to_preempted(struct ts_session *ts_sess);
 int spmc_sp_resume_from_preempted(uint16_t endpoint_id);
 #else
-static inline void
+static inline int
 spmc_sp_start_thread(struct thread_smc_1_2_regs *args __unused)
 {
+	return FFA_INVALID_PARAMETERS;
 }
 
 static inline int
