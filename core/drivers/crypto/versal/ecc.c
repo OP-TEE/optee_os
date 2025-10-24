@@ -180,7 +180,10 @@ static TEE_Result verify(uint32_t algo, struct ecc_public_key *key,
 	if (ret)
 		return ret;
 
-	versal_mbox_alloc(bytes * 2, NULL, &x);
+	ret = versal_mbox_alloc(bytes * 2, NULL, &x);
+	if (ret)
+		goto out;
+
 	crypto_bignum_bn2bin_eswap(key->curve, key->x, x.buf);
 	crypto_bignum_bn2bin_eswap(key->curve, key->y,
 				   (uint8_t *)x.buf + bytes);
@@ -196,12 +199,17 @@ static TEE_Result verify(uint32_t algo, struct ecc_public_key *key,
 	}
 	memset(&arg, 0, sizeof(arg));
 
-	versal_mbox_alloc(sig_len, NULL, &s);
+	ret = versal_mbox_alloc(sig_len, NULL, &s);
+	if (ret)
+		goto out;
+
 	/* Swap the {R,S} components */
 	memcpy_swp(s.buf, sig, sig_len / 2);
 	memcpy_swp((uint8_t *)s.buf + sig_len / 2, sig + sig_len / 2,
 		   sig_len / 2);
-	versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
+	ret = versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
+	if (ret)
+		goto out;
 
 	cmd = cmd_buf.buf;
 	cmd->signature_addr = virt_to_phys(s.buf);
@@ -221,10 +229,10 @@ static TEE_Result verify(uint32_t algo, struct ecc_public_key *key,
 		ret = TEE_ERROR_GENERIC;
 	}
 out:
-	free(p.buf);
-	free(x.buf);
-	free(s.buf);
-	free(cmd);
+	versal_mbox_free(&cmd_buf);
+	versal_mbox_free(&s);
+	versal_mbox_free(&x);
+	versal_mbox_free(&p);
 
 	return ret;
 }
@@ -265,31 +273,38 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 					      TEE_TYPE_ECDSA_KEYPAIR, bits);
 	if (ret) {
 		EMSG("Versal, can't allocate the ephemeral key");
-		return ret;
+		goto out;
 	}
 
 	ephemeral.curve = key->curve;
 	ret = crypto_acipher_gen_ecc_key(&ephemeral, bits);
 	if (ret) {
 		EMSG("Versal, can't generate the ephemeral key");
-		return ret;
+		goto out;
 	}
 
-	versal_mbox_alloc(bytes, NULL, &k);
+	ret = versal_mbox_alloc(bytes, NULL, &k);
+	if (ret)
+		goto out;
+
 	crypto_bignum_bn2bin_eswap(key->curve, ephemeral.d, k.buf);
-	crypto_bignum_free(&ephemeral.d);
-	crypto_bignum_free(&ephemeral.x);
-	crypto_bignum_free(&ephemeral.y);
 
 	/* Private key*/
-	versal_mbox_alloc(bytes, NULL, &d);
+	ret = versal_mbox_alloc(bytes, NULL, &d);
+	if (ret)
+		goto out;
+
 	crypto_bignum_bn2bin_eswap(key->curve, key->d, d.buf);
 
 	/* Signature */
-	versal_mbox_alloc(*sig_len, NULL, &s);
+	ret = versal_mbox_alloc(*sig_len, NULL, &s);
+	if (ret)
+		goto out;
 
 	/* IPI command */
-	versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
+	ret = versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
+	if (ret)
+		goto out;
 
 	cmd = cmd_buf.buf;
 	cmd->priv_key_addr = virt_to_phys(d.buf);
@@ -317,11 +332,16 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 	memcpy_swp(sig + *sig_len / 2, (uint8_t *)s.buf + *sig_len / 2,
 		   *sig_len / 2);
 out:
-	free(cmd);
-	free(k.buf);
-	free(p.buf);
-	free(s.buf);
-	free(d.buf);
+	versal_mbox_free(&cmd_buf);
+	versal_mbox_free(&s);
+	versal_mbox_free(&d);
+	versal_mbox_free(&k);
+
+	crypto_bignum_free(&ephemeral.d);
+	crypto_bignum_free(&ephemeral.x);
+	crypto_bignum_free(&ephemeral.y);
+
+	versal_mbox_free(&p);
 
 	return ret;
 }

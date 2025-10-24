@@ -112,13 +112,23 @@ TEE_Result versal_puf_register(struct versal_puf_data *buf,
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t err = 0;
 
-	versal_mbox_alloc(sizeof(buf->puf_id), NULL, &puf_id_addr);
-	versal_mbox_alloc(sizeof(buf->chash), NULL, &hash_addr);
-	versal_mbox_alloc(sizeof(buf->aux), NULL, &aux_addr);
-	versal_mbox_alloc(sizeof(buf->efuse_syn_data), NULL,
-			  &efuse_syn_data_addr);
-	versal_mbox_alloc(sizeof(buf->syndrome_data), NULL,
-			  &syndrome_data_addr);
+	ret = versal_mbox_alloc(sizeof(buf->puf_id), NULL, &puf_id_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->chash), NULL, &hash_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->aux), NULL, &aux_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->efuse_syn_data), NULL,
+				&efuse_syn_data_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->syndrome_data), NULL,
+				&syndrome_data_addr);
+	if (ret)
+		goto out;
 
 	arg.ibuf[0].mem = request;
 	arg.ibuf[1].mem = syndrome_data_addr;
@@ -158,11 +168,12 @@ TEE_Result versal_puf_register(struct versal_puf_data *buf,
 	memcpy(buf->syndrome_data, syndrome_data_addr.buf,
 	       sizeof(buf->syndrome_data));
 
-	free(syndrome_data_addr.buf);
-	free(hash_addr.buf);
-	free(aux_addr.buf);
-	free(puf_id_addr.buf);
-	free(efuse_syn_data_addr.buf);
+out:
+	versal_mbox_free(&syndrome_data_addr);
+	versal_mbox_free(&efuse_syn_data_addr);
+	versal_mbox_free(&aux_addr);
+	versal_mbox_free(&hash_addr);
+	versal_mbox_free(&puf_id_addr);
 
 	return ret;
 }
@@ -190,11 +201,19 @@ TEE_Result versal_puf_regenerate(struct versal_puf_data *buf,
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t err = 0;
 
-	versal_mbox_alloc(sizeof(buf->puf_id), NULL, &puf_id_addr);
-	versal_mbox_alloc(sizeof(buf->chash), &buf->chash, &hash_addr);
-	versal_mbox_alloc(sizeof(buf->aux), &buf->aux, &aux_addr);
-	versal_mbox_alloc(sizeof(buf->syndrome_data), buf->syndrome_data,
-			  &syndrome_data_addr);
+	ret = versal_mbox_alloc(sizeof(buf->puf_id), NULL, &puf_id_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->chash), &buf->chash, &hash_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->aux), &buf->aux, &aux_addr);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(buf->syndrome_data), buf->syndrome_data,
+				&syndrome_data_addr);
+	if (ret)
+		goto out;
 
 	arg.ibuf[0].mem = request;
 	arg.ibuf[1].mem = syndrome_data_addr;
@@ -226,10 +245,11 @@ TEE_Result versal_puf_regenerate(struct versal_puf_data *buf,
 	/* Return the updated PUF_ID */
 	memcpy(buf->puf_id, puf_id_addr.buf, sizeof(buf->puf_id));
 
-	free(syndrome_data_addr.buf);
-	free(hash_addr.buf);
-	free(aux_addr.buf);
-	free(puf_id_addr.buf);
+out:
+	versal_mbox_free(&syndrome_data_addr);
+	versal_mbox_free(&aux_addr);
+	versal_mbox_free(&hash_addr);
+	versal_mbox_free(&puf_id_addr);
 
 	return ret;
 }

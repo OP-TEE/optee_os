@@ -275,7 +275,7 @@ TEE_Result versal_mbox_alloc(size_t len, const void *init,
 {
 	mem->buf = memalign(CACHELINE_LEN, ROUNDUP(len, CACHELINE_LEN));
 	if (!mem->buf)
-		panic();
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	memset(mem->buf, 0, ROUNDUP(len, CACHELINE_LEN));
 
@@ -286,6 +286,12 @@ TEE_Result versal_mbox_alloc(size_t len, const void *init,
 	mem->len = len;
 
 	return TEE_SUCCESS;
+}
+
+void versal_mbox_free(struct versal_mbox_mem *mem)
+{
+	free(mem->buf);
+	mem->buf = NULL;
 }
 
 TEE_Result versal_mbox_notify(struct versal_ipi_cmd *cmd,
