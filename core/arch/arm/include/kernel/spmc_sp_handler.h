@@ -26,7 +26,7 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 		      struct ffa_rxtx *rxtx, size_t blen, size_t flen,
 		      uint64_t *global_handle, struct sp_session *owner_sp);
 void spmc_sp_set_to_preempted(struct ts_session *ts_sess);
-int spmc_sp_resume_from_preempted(uint16_t endpoint_id);
+int spmc_sp_resume_from_preempted(uint16_t endpoint_id, uint16_t thread_id);
 #else
 static inline int
 spmc_sp_start_thread(struct thread_smc_1_2_regs *args __unused)
@@ -47,7 +47,8 @@ static inline void spmc_sp_set_to_preempted(struct ts_session *ts_sess __unused)
 {
 }
 
-static inline int spmc_sp_resume_from_preempted(uint16_t endpoint_id __unused)
+static inline int spmc_sp_resume_from_preempted(uint16_t endpoint_id __unused,
+						uint16_t thread_id __unused)
 {
 	return FFA_NOT_SUPPORTED;
 }
