@@ -136,6 +136,7 @@ TEE_Result sp_partition_info_get(uint32_t ffa_vers, void *buf, size_t buf_size,
 	struct sp_session *s = NULL;
 	TEE_UUID uuid = { };
 	TEE_UUID *ffa_uuid = NULL;
+	enum sp_status st = sp_idle;
 
 	if (ffa_uuid_words) {
 		tee_uuid_from_octets(&uuid, (void *)ffa_uuid_words);
@@ -147,8 +148,12 @@ TEE_Result sp_partition_info_get(uint32_t ffa_vers, void *buf, size_t buf_size,
 		    memcmp(&s->ffa_uuid, ffa_uuid, sizeof(*ffa_uuid)))
 			continue;
 
-		if (s->state == sp_dead)
+		cpu_spin_lock(&s->spinlock);
+		st = s->state;
+		cpu_spin_unlock(&s->spinlock);
+		if (st == sp_dead)
 			continue;
+
 		if (!count_only && !res) {
 			uint32_t uuid_words[4] = { 0 };
 
