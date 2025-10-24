@@ -18,9 +18,14 @@
 
 static unsigned int mem_ref_lock = SPINLOCK_UNLOCK;
 
-void spmc_sp_start_thread(struct thread_smc_1_2_regs *args)
+int spmc_sp_start_thread(struct thread_smc_1_2_regs *args)
 {
 	thread_sp_alloc_and_run(&args->arg11);
+	/*
+	 * thread_sp_alloc_and_run() only returns if all threads are busy.
+	 * The caller must try again.
+	 */
+	return FFA_BUSY;
 }
 
 static void ffa_set_error(struct thread_smc_1_2_regs *args, uint32_t error)
