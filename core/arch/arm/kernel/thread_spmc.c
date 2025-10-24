@@ -676,16 +676,7 @@ static void spmc_handle_run(struct thread_smc_1_2_regs *args)
 	 * The endpoint should be a S-EL0 SP, try to resume the SP from
 	 * preempted into busy state.
 	 */
-	rc = spmc_sp_resume_from_preempted(endpoint);
-	if (rc)
-		goto out;
-	thread_resume_from_rpc(thread_id, 0, 0, 0, 0);
-	/*
-	 * thread_resume_from_rpc() only returns if the thread_id
-	 * is invalid.
-	 */
-	rc = FFA_INVALID_PARAMETERS;
-
+	rc = spmc_sp_resume_from_preempted(endpoint, thread_id);
 out:
 	set_simple_ret_val(args, rc);
 }

@@ -432,19 +432,20 @@ void spmc_sp_set_to_preempted(struct ts_session *ts_sess)
 	}
 }
 
-int spmc_sp_resume_from_preempted(uint16_t endpoint_id)
+int spmc_sp_resume_from_preempted(uint16_t endpoint_id, uint16_t thread_id)
 {
 	struct sp_session *sp_sess = sp_get_session(endpoint_id);
 
 	if (!sp_sess)
 		return FFA_INVALID_PARAMETERS;
 
-	if (sp_sess->state != sp_preempted)
+	if (sp_sess->state != sp_preempted || sp_sess->thread_id != thread_id)
 		return FFA_DENIED;
 
 	sp_sess->state = sp_busy;
 
-	return FFA_OK;
+	thread_resume_from_rpc(thread_id, 0, 0, 0, 0);
+	panic();
 }
 
 static bool check_rxtx(struct ffa_rxtx *rxtx)

@@ -1789,7 +1789,6 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	struct sp_session *sp_s = to_sp_session(s);
 	struct ts_session *sess = NULL;
 	struct thread_ctx_regs *sp_regs = NULL;
-	uint32_t thread_id = THREAD_ID_INVALID;
 	struct ts_session *caller = NULL;
 	uint32_t rpc_target_info = 0;
 	uint32_t panicked = false;
@@ -1809,12 +1808,13 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	 * as w1 in FFA_INTERRUPT in case of a foreign interrupt.
 	 */
 	rpc_target_info = thread_get_tsd()->rpc_target_info;
-	thread_id = thread_get_id();
-	assert(thread_id <= UINT16_MAX);
+	sp_s->thread_id = thread_get_id();
 	thread_get_tsd()->rpc_target_info =
-		FFA_TARGET_INFO_SET(sp_s->endpoint_id, thread_id);
+		FFA_TARGET_INFO_SET(sp_s->endpoint_id, sp_s->thread_id);
 
 	__thread_enter_user_mode(sp_regs, &panicked, &panic_code);
+
+	sp_s->thread_id = THREAD_ID_INVALID;
 
 	/* Restore rpc_target_info */
 	thread_get_tsd()->rpc_target_info = rpc_target_info;
