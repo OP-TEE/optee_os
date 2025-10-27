@@ -97,6 +97,16 @@ static TEE_Result do_gen_keypair(struct ecc_keypair *s, size_t size_bits)
 		/* Fallback to software */
 		return pair_ops->generate(s, size_bits);
 
+#ifdef CFG_VERSAL_PKI_PWCT
+	if (ret)
+		return ret;
+
+	/* Perform a pairwise consistencty test on the generated key pair */
+	ret = versal_ecc_keypair_pwct(s);
+	if (ret)
+		DMSG("Pair-wise consistency test failed (0x%" PRIx32 ")", ret);
+#endif
+
 	return ret;
 }
 
