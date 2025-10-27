@@ -762,7 +762,8 @@ TEE_Result versal_efuse_read_offchip_revoke_id(uint32_t *buf, size_t len,
 		return TEE_ERROR_GENERIC;
 	}
 
-	memcpy(buf, versal_get_read_buffer(&req), EFUSE_REVOCATION_ID_LEN);
+	memcpy(buf, versal_get_read_buffer(&req),
+	       EFUSE_OFFCHIP_REVOCATION_ID_LEN);
 	versal_free_read_buffer(&req);
 
 	return TEE_SUCCESS;
