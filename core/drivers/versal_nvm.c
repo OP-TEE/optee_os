@@ -234,6 +234,8 @@ static TEE_Result versal_nvm_write(struct versal_nvm_write_req *req)
 		val = req->bbram.aes_key_len;
 		arg = &val;
 		break;
+	case BBRAM_ZEROIZE:
+		break;
 	case BBRAM_WRITE_USER_DATA:
 		val = req->bbram.user_data;
 		arg = &val;
