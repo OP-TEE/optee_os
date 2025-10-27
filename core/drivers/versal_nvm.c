@@ -5,8 +5,8 @@
  */
 
 #include <arm.h>
-#include <drivers/versal_nvm.h>
 #include <drivers/versal_mbox.h>
+#include <drivers/versal_nvm.h>
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
@@ -14,14 +14,12 @@
 #include <string.h>
 #include <tee/cache.h>
 
-#include "drivers/versal_nvm.h"
-
 #define NVM_WORD_LEN 4
 
 /* Protocol API with the remote processor */
 #define NVM_MODULE_SHIFT		8
 #define NVM_MODULE			11
-#define NVM_API_ID(_id) ((NVM_MODULE << NVM_MODULE_SHIFT) | (_id))
+#define NVM_API_ID(_id) (SHIFT_U32(NVM_MODULE, NVM_MODULE_SHIFT) | (_id))
 
 #define __aligned_efuse			__aligned(CACHELINE_LEN)
 
