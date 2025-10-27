@@ -14,7 +14,12 @@
 
 #define PUF_EFUSES_WORDS		(128)
 #define PUF_SYN_DATA_WORDS		(127)
+
+#if defined(PLATFORM_FLAVOR_net)
+#define EFUSE_MAX_USER_FUSES		(48)
+#else
 #define EFUSE_MAX_USER_FUSES		(64)
+#endif
 
 #define EFUSE_OFFCHIP_REVOCATION_ID_LEN	(4)
 #define EFUSE_REVOCATION_ID_LEN		(4)
@@ -22,6 +27,7 @@
 #define EFUSE_DNA_LEN			(16)
 #define EFUSE_PPK_LEN			(32)
 #define EFUSE_IV_LEN			(12)
+#define EFUSE_AES_KEY_LEN		(32)
 
 enum versal_nvm_iv_type {
 	EFUSE_META_HEADER_IV_RANGE = 0,
@@ -58,6 +64,11 @@ enum versal_nvm_offchip_id {
 	EFUSE_OFFCHIP_REVOKE_ID_6,
 	EFUSE_OFFCHIP_REVOKE_ID_7
 };
+
+#if defined(PLATFORM_FLAVOR_net)
+#define VERSAL_NET_REVOKE_EFUSE_MIN	1
+#define VERSAL_NET_REVOKE_EFUSE_MAX	256
+#endif
 
 /*
  * All structures mapped to the PLM processor must be address_and_size aligned
