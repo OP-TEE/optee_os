@@ -1692,6 +1692,7 @@ static const struct dt_device_match stm32_i2c_match_table[] = {
 		.compatible = "st,stm32mp15-i2c-non-secure",
 		.compat_data = &non_secure_bus,
 	},
+	{ .compatible = "st,stm32mp25-i2c" },
 	{ }
 };
 
