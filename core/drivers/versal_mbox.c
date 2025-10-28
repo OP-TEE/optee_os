@@ -15,8 +15,13 @@
 #include "drivers/versal_mbox.h"
 
 
+#if defined(PLATFORM_FLAVOR_net)
+#define IPI_REG_BASEADDR		0xEB300000
+#define IPI_BUFFER_BASEADDR		0xEB3F0000
+#else
 #define IPI_REG_BASEADDR		0xFF300000
 #define IPI_BUFFER_BASEADDR		0xFF3F0000
+#endif
 
 #define IPI_SIZE			0x10000
 
