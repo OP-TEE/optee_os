@@ -6,6 +6,23 @@
 #include <dt-bindings/pinctrl/stm32-pinfunc.h>
 
 &pinctrl {
+	i2c7_pins_a: i2c7-0 {
+		pins {
+			pinmux = <STM32_PINMUX('D', 15, AF10)>, /* I2C7_SCL */
+				 <STM32_PINMUX('D', 14, AF10)>; /* I2C7_SDA */
+			bias-disable;
+			drive-open-drain;
+			slew-rate = <0>;
+		};
+	};
+
+	i2c7_sleep_pins_a: i2c7-sleep-0 {
+		pins {
+			pinmux = <STM32_PINMUX('D', 15, ANALOG)>, /* I2C7_SCL */
+				 <STM32_PINMUX('D', 14, ANALOG)>; /* I2C7_SDA */
+		};
+	};
+
 	usart2_pins_a: usart2-0 {
 		pins1 {
 			pinmux = <STM32_PINMUX_NSEC('A', 4, AF6)>; /* USART2_TX */
