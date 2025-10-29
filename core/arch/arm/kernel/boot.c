@@ -993,14 +993,13 @@ static void init_primary(unsigned long pageable_part)
 		 */
 		assert(va && va <= core_mmu_linear_map_end);
 		core_mmu_linear_map_end = va;
-	} else {
-		/*
-		 * We must update boot_cached_mem_end to reflect the memory
-		 * just unmapped by boot_mem_release_unused().
-		 */
-		assert(va && va <= boot_cached_mem_end);
-		boot_cached_mem_end = va;
 	}
+	/*
+	 * We must update boot_cached_mem_end to reflect the memory
+	 * just unmapped by boot_mem_release_unused().
+	 */
+	assert(va && va <= boot_cached_mem_end);
+	boot_cached_mem_end = va;
 
 	/* Initialize canaries around the stacks */
 	thread_init_canaries();
