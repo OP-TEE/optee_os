@@ -94,10 +94,10 @@ TEE_Result imx_ocotp_read(unsigned int bank, unsigned int word, uint32_t *val)
 	if (!val)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	assert(g_base_addr && g_ocotp);
+
 	if (bank > g_ocotp->nb_banks || word > g_ocotp->nb_words)
 		return TEE_ERROR_BAD_PARAMETERS;
-
-	assert(g_base_addr && g_ocotp);
 
 	mutex_lock(&fuse_read);
 
