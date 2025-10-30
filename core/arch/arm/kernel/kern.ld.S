@@ -325,7 +325,7 @@ SECTIONS
 		MAX_XLAT_TABLES = 3 /* ASLR_EXTRA */ + 5 /* TEE_EXTRA */;
 #endif
 		/* Base tables */
-		. += 4 * 2 * CFG_TEE_CORE_NB_CORE * XLAT_TABLE_SIZE;
+		. += CORE_MMU_BASE_TABLE_OFFSET * CFG_TEE_CORE_NB_CORE;
 		/* Per thread EL0 tables */
 		. += CFG_NUM_THREADS * XLAT_TABLE_SIZE;
 #else
@@ -429,6 +429,8 @@ SECTIONS
 		"Load address before start of physical memory")
 	ASSERT(TEE_LOAD_ADDR < (TEE_RAM_START + TEE_RAM_PH_SIZE),
 		"Load address after end of physical memory")
+	ASSERT(TEE_RAM_START + TEE_RAM_PH_SIZE > __init_end,
+		"TEE_RAM_PH_SIZE too small")
 	ASSERT((TEE_RAM_START + TEE_RAM_PH_SIZE - __init_end) >
 		SMALL_PAGE_SIZE * 2 +
 		(__pageable_end - __pageable_start) / 4096 * 32 +
