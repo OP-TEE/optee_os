@@ -382,6 +382,8 @@ jobs:
           - name: 2
             make_commands: |
               make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n XTEST_ARGS="n_1001 n_1003 n_1004"
+          - name: 3
+            make_commands: |
               make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n CFG_DYN_CONFIG=n XTEST_ARGS="n_1001 n_1003 n_1004"
     steps:
       - name: Checkout
@@ -438,22 +440,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: 1
-            make_commands: |
-              make -j$(nproc) check
-              make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
-          - name: 2
-            make_commands: |
-              make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n RUST_ENABLE=n MEASURED_BOOT_FTPM=n XTEST_ARGS="n_1001 n_1003 n_1004"
-              make -j$(nproc) check CFG_DYN_CONFIG=n
-          - name: 3
-            make_commands: |
-              make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001 RUST_ENABLE=n MEASURED_BOOT_FTPM=n
-              make -j$(nproc) check CFG_WITH_PAGER=y MEASURED_BOOT_FTPM=n
-          - name: 4
-            make_commands: |
-              make -j$(nproc) check CFG_PAN=y
-              make -j$(nproc) check CFG_ULIBS_SHARED=y
           - name: BTI+MTE+PAC
             make_commands: |
               # The BTI-enabled toolchain is aarch64-unknown-linux-uclibc-gcc in /usr/local/bin
@@ -463,14 +449,38 @@ jobs:
               # xtest 1031 is excluded because 1031.4 (C++ exception from shared library) fails with this cross-compiler
               # Rust is disabled because of a link error in the examples with this toolchain
               make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y SEL0_SPS=y MEMTAG=y PAUTH=y RUST_ENABLE=n XTEST_ARGS="-x n_1031" check
+          - name: CE82
+            make_commands: |
+              make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
           - name: Clang
             make_commands: |
               export COMPILER=clang
               make -j$(nproc) check
+          - name: Clang ULIBS_SHARED=y
+            make_commands: |
+              export COMPILER=clang
               make -j$(nproc) check CFG_ULIBS_SHARED=y
+          - name: default
+            make_commands: |
+              make -j$(nproc) check
+          - name: DYN_CONFIG=n
+            make_commands: |
+              make -j$(nproc) check CFG_DYN_CONFIG=n
+          - name: ftrace
+            make_commands: |
+              make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001 RUST_ENABLE=n MEASURED_BOOT_FTPM=n
           - name: FW handoff
             make_commands: |
               make -j$(nproc) check ARM_FIRMWARE_HANDOFF=y
+          - name: KASAN
+            make_commands: |
+              make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n RUST_ENABLE=n MEASURED_BOOT_FTPM=n XTEST_ARGS="n_1001 n_1003 n_1004"
+          - name: pager
+            make_commands: |
+              make -j$(nproc) check CFG_WITH_PAGER=y MEASURED_BOOT_FTPM=n
+          - name: PAN=y
+            make_commands: |
+              make -j$(nproc) check CFG_PAN=y
           - name: SPMC_AT_EL=1
             make_commands: |
               make -j$(nproc) check SPMC_AT_EL=1 CFG_SECURE_PARTITION=y CFG_SPMC_TESTS=y
@@ -480,6 +490,9 @@ jobs:
           - name: SPMC_AT_EL=3
             make_commands: |
               make -j$(nproc) check SPMC_AT_EL=3
+          - name: ULIBS_SHARED=y
+            make_commands: |
+              make -j$(nproc) check CFG_ULIBS_SHARED=y
           - name: Xen
             make_commands: |
               make -j$(nproc) check XEN_BOOT=y
@@ -546,7 +559,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: 1
+          - name: CFG_CORE_UNSAFE_MODEXP=y
             make_commands: |
               # CFG_CORE_UNSAFE_MODEXP=y to speed up regression_4011
               make -j$(nproc) check CFG_CORE_UNSAFE_MODEXP=y
