@@ -119,6 +119,15 @@
 #error "Unknown platform flavor! No base address is defined for RNG"
 #endif
 
+/* Firewall bitmaps */
+#define FW_ENABLE_REGION        0x0a
+#define FW_BACKGROUND_REGION    BIT(8)
+#define FW_BIG_ARM_PRIVID       0x01
+#define FW_TIFS_PRIVID          0xca
+#define FW_WILDCARD_PRIVID      0xc3
+#define FW_SECURE_ONLY          GENMASK_32(7, 0)
+#define FW_NON_SECURE           GENMASK_32(15, 0)
+
 #if defined(PLATFORM_FLAVOR_am62x) || \
 	defined(PLATFORM_FLAVOR_am62ax) || \
 	defined(PLATFORM_FLAVOR_am62px)
