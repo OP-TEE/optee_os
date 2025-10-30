@@ -1,5 +1,5 @@
 
-srcs-y += ti_sci.c
+srcs-y += ti_sci.c ti_crypto.c
 srcs-$(CFG_EIP76D_TRNG) += eip76d_trng.c
 ifeq ($(PLATFORM_FLAVOR),am62lx)
 srcs-y += mailbox.c
