@@ -369,8 +369,30 @@ jobs:
           ccache -s -v
           eval "$MAKE_COMMANDS"
           ccache -s -v
+  QEMUv7_checks_image_build:
+    name: Build QEMUv7 image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Dockerfile
+        run: |
+          cat > Dockerfile <<'EOF'
+          FROM jforissier/optee_os_ci:qemu_check
+          RUN /root/get_optee.sh default /root/optee_repo_qemu
+          EOF
+      - name: Build Docker image
+        run: |
+          docker build -t qemuv7_image .
+          docker save qemuv7_image | zstd -T0 -o qemuv7_image.tar.zst
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemuv7_image
+          path: qemuv7_image.tar.zst
+          retention-days: 5
   QEMUv7_checks:
     name: Run (QEMUv7) (${{ matrix.name }})
+    needs: QEMUv7_checks_image_build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -390,6 +412,14 @@ jobs:
         uses: actions/checkout@v4
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: qemuv7_image
+          path: .
+      - name: Load Docker image
+        run: |
+          zstd -d qemuv7_image.tar.zst -c | docker load
       - name: Generate cache key
         run: |
           HASH=$(echo -n "${{ matrix.name }}" | sha256sum | cut -c1-16)
@@ -413,7 +443,7 @@ jobs:
             -v /home/runner/work/ccache:/root/.cache/ccache \
             -w /root \
             -e MAKE_COMMANDS="$MAKE_COMMANDS" \
-            jforissier/optee_os_ci:qemu_check \
+            qemuv7_image \
             bash -c '
               set -e -v
 
@@ -421,20 +451,39 @@ jobs:
               export FORCE_UNSAFE_CONFIGURE=1
               export CFG_TEE_CORE_LOG_LEVEL=2
 
-              # Prepare OP-TEE repo layout
-              cd /root
               TOP=/root/optee_repo_qemu
-              /root/get_optee.sh default "$TOP"
-              mv "$TOP/optee_os" "$TOP/optee_os_old" || true
-              ln -s /runner/optee_os "$TOP/optee_os"
-              cd "$TOP/build"
+              mv $TOP/optee_os $TOP/optee_os_old
+              ln -s /runner/optee_os $TOP/optee_os
+              cd $TOP/build
 
               ccache -s -v
               eval "$MAKE_COMMANDS"
               ccache -s -v
             '
+  QEMUv8_checks_image_build:
+    name: Build QEMUv8 image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Dockerfile
+        run: |
+          cat > Dockerfile <<'EOF'
+          FROM jforissier/optee_os_ci:qemu_check
+          RUN /root/get_optee.sh qemu_v8 /root/optee_repo_qemu_v8
+          EOF
+      - name: Build Docker image
+        run: |
+          docker build -t qemuv8_image .
+          docker save qemuv8_image | zstd -T0 -o qemuv8_image.tar.zst
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemuv8_image
+          path: qemuv8_image.tar.zst
+          retention-days: 5
   QEMUv8_checks:
     name: Run (QEMUv8) (${{ matrix.name }})
+    needs: QEMUv8_checks_image_build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -504,6 +553,14 @@ jobs:
         uses: actions/checkout@v4
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: qemuv8_image
+          path: .
+      - name: Load Docker image
+        run: |
+          zstd -d qemuv8_image.tar.zst -c | docker load
       - name: Generate cache key
         run: |
           HASH=$(echo -n "${{ matrix.name }}" | sha256sum | cut -c1-16)
@@ -527,7 +584,7 @@ jobs:
             -v /home/runner/work/ccache:/root/.cache/ccache \
             -w /root \
             -e MAKE_COMMANDS="$MAKE_COMMANDS" \
-            jforissier/optee_os_ci:qemu_check \
+            qemuv8_image \
             bash -c '
               set -e -v
 
@@ -537,23 +594,39 @@ jobs:
               export CFG_ATTESTATION_PTA=y
               export CFG_ATTESTATION_PTA_KEY_SIZE=1024
 
-              # Prepare OP-TEE repo layout
-              cd /root
               TOP=/root/optee_repo_qemu_v8
-              /root/get_optee.sh qemu_v8 "$TOP"
-              mv "$TOP/optee_os" "$TOP/optee_os_old" || true
-              ln -s /runner/optee_os "$TOP/optee_os"
-              cd "$TOP/build"
+              mv $TOP/optee_os $TOP/optee_os_old
+              ln -s /runner/optee_os $TOP/optee_os
+              cd $TOP/build
 
               ccache -s -v
-
-              # Run job-specific commands from matrix
               eval "$MAKE_COMMANDS"
-
               ccache -s -v
             '
+  QEMUv8_arm64_image_build:
+    name: Build QEMUv8 arm64 image
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Dockerfile
+        run: |
+          cat > Dockerfile <<'EOF'
+          FROM jforissier/optee_os_ci:qemu_check_arm64
+          RUN /root/get_optee.sh qemu_v8 /root/optee_repo_qemu_v8
+          EOF
+      - name: Build Docker image
+        run: |
+          docker build -t qemuv8_arm64_image .
+          docker save qemuv8_arm64_image | zstd -T0 -o qemuv8_arm64_image.tar.zst
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemuv8_arm64_image
+          path: qemuv8_arm64_image.tar.zst
+          retention-days: 5
   QEMUv8_checks_arm64:
     name: Run (QEMUv8 on arm64) (${{ matrix.name }})
+    needs: QEMUv8_arm64_image_build
     runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false
@@ -568,6 +641,14 @@ jobs:
         uses: actions/checkout@v4
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: qemuv8_arm64_image
+          path: .
+      - name: Load Docker image
+        run: |
+          zstd -d qemuv8_arm64_image.tar.zst -c | docker load
       - name: Generate cache key
         run: |
           HASH=$(echo -n "${{ matrix.name }}" | sha256sum | cut -c1-16)
@@ -591,7 +672,7 @@ jobs:
             -v /home/runner/work/ccache:/root/.cache/ccache \
             -w /root \
             -e MAKE_COMMANDS="$MAKE_COMMANDS" \
-            jforissier/optee_os_ci:qemu_check_arm64 \
+            qemuv8_arm64_image \
             bash -c '
               set -e -v
 
@@ -601,18 +682,12 @@ jobs:
               export CFG_ATTESTATION_PTA=y
               export CFG_ATTESTATION_PTA_KEY_SIZE=1024
 
-              # Prepare OP-TEE repo layout
-              cd /root
               TOP=/root/optee_repo_qemu_v8
-              /root/get_optee.sh qemu_v8 "$TOP"
-              mv "$TOP/optee_os" "$TOP/optee_os_old" || true
-              ln -s /runner/optee_os "$TOP/optee_os"
-              cd "$TOP/build"
+              mv $TOP/optee_os $TOP/optee_os_old
+              ln -s /runner/optee_os $TOP/optee_os
+              cd $TOP/build
 
               ccache -s -v
-
-              # Run job-specific commands from matrix
               eval "$MAKE_COMMANDS"
-
               ccache -s -v
             '
