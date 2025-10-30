@@ -100,6 +100,9 @@
 #define SA2UL_TI_SCI_DEV_ID	-1
 #define SA2UL_TI_SCI_FW_ID	66
 #define SA2UL_TI_SCI_FW_RGN_ID	1
+#elif defined(PLATFORM_FLAVOR_am62lx)
+#define DTHEv2_TI_SCI_FW_ID	11
+#define DTHEv2_TI_SCI_FW_RGN_ID 0
 #endif
 #define SA2UL_REG_SIZE		0x1000
 
@@ -122,11 +125,15 @@
 /* Firewall bitmaps */
 #define FW_ENABLE_REGION        0x0a
 #define FW_BACKGROUND_REGION    BIT(8)
-#define FW_BIG_ARM_PRIVID       0x01
 #define FW_TIFS_PRIVID          0xca
 #define FW_WILDCARD_PRIVID      0xc3
 #define FW_SECURE_ONLY          GENMASK_32(7, 0)
 #define FW_NON_SECURE           GENMASK_32(15, 0)
+#if defined(PLATFORM_FLAVOR_am62lx)
+#define FW_BIG_ARM_PRIVID       0x04
+#else
+#define FW_BIG_ARM_PRIVID       0x01
+#endif
 
 #if defined(PLATFORM_FLAVOR_am62x) || \
 	defined(PLATFORM_FLAVOR_am62ax) || \
