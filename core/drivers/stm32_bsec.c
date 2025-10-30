@@ -545,21 +545,47 @@ out:
 }
 #endif /*CFG_STM32_BSEC_WRITE*/
 
-TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
+static uint32_t parse_permission(uint32_t perm_mask)
+{
+	uint32_t denr_val = 0U;
+
+	if (!(perm_mask & STM32_BSEC_DEBUG_CORTEX_A_NSDDIS)) {
+		if (perm_mask & STM32_BSEC_DEBUG_CORTEX_A_NSTO)
+			denr_val |= BSEC_DENR_NIDEN;
+		if (perm_mask & STM32_BSEC_DEBUG_CORTEX_A_NSFD)
+			denr_val |= BSEC_DENR_NIDEN | BSEC_DENR_DBGEN;
+	}
+
+	if (!(perm_mask & STM32_BSEC_DEBUG_CORTEX_A_SDDIS)) {
+		if (perm_mask & STM32_BSEC_DEBUG_CORTEX_A_STO)
+			denr_val |= BSEC_DENR_SPNIDEN;
+		if (perm_mask & STM32_BSEC_DEBUG_CORTEX_A_SFD)
+			denr_val |= BSEC_DENR_SPNIDEN | BSEC_DENR_SPIDEN;
+	}
+
+	if (denr_val != 0)
+		denr_val |= BSEC_DENR_DEVICEEN | BSEC_DENR_HDPEN |
+			    BSEC_DENR_DBGSWEN;
+
+	return denr_val;
+}
+
+TEE_Result stm32_bsec_write_debug_conf(uint32_t perm_mask)
 {
 	TEE_Result result = TEE_ERROR_GENERIC;
 	uint32_t exceptions = 0;
-
-	assert(!(value & ~BSEC_DEN_ALL_MSK));
+	uint32_t denr = 0;
 
 	if (state_is_invalid_mode())
 		return TEE_ERROR_SECURITY;
 
+	denr = parse_permission(perm_mask);
+
 	exceptions = bsec_lock();
 
-	io_clrsetbits32(bsec_base() + BSEC_DEN_OFF, BSEC_DEN_ALL_MSK, value);
+	io_clrsetbits32(bsec_base() + BSEC_DEN_OFF, BSEC_DEN_ALL_MSK, denr);
 
-	if (stm32_bsec_read_debug_conf() == value)
+	if ((io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DEN_ALL_MSK) == denr)
 		result = TEE_SUCCESS;
 
 	bsec_unlock(exceptions);
@@ -567,14 +593,23 @@ TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 	return result;
 }
 
-uint32_t stm32_bsec_read_debug_conf(void)
-{
-	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DEN_ALL_MSK;
-}
-
 bool stm32_bsec_self_hosted_debug_is_enabled(void)
 {
-	return stm32_bsec_read_debug_conf() & BSEC_DENR_DBGSWEN;
+	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DENR_DBGSWEN;
+}
+
+bool stm32_bsec_hdp_is_enabled(void)
+{
+	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DENR_HDPEN;
+}
+
+bool stm32_bsec_coresight_is_enabled(void)
+{
+	uint32_t denr = io_read32(bsec_base() + BSEC_DEN_OFF);
+	uint32_t coresight_mask = BSEC_DENR_DBGEN | BSEC_DENR_DEVICEEN |
+				  BSEC_DENR_DBGSWEN;
+
+	return (denr & coresight_mask) == coresight_mask;
 }
 
 static TEE_Result set_bsec_lock(uint32_t otp_id, size_t lock_offset)
@@ -783,20 +818,6 @@ TEE_Result stm32_bsec_get_state(enum stm32_bsec_sec_state *state)
 	return TEE_SUCCESS;
 }
 
-bool stm32_bsec_hdp_is_enabled(void)
-{
-	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DENR_HDPEN;
-}
-
-bool stm32_bsec_coresight_is_enabled(void)
-{
-	uint32_t denr = io_read32(bsec_base() + BSEC_DEN_OFF);
-	uint32_t coresight_mask = BSEC_DENR_DBGEN | BSEC_DENR_DEVICEEN |
-				  BSEC_DENR_DBGSWEN;
-
-	return (denr & coresight_mask) == coresight_mask;
-}
-
 static void enable_nsec_access(unsigned int otp_id)
 {
 	unsigned int idx = (otp_id - otp_upper_base()) / BSEC_BITS_PER_WORD;
@@ -1002,9 +1023,9 @@ static TEE_Result bsec_pm(enum pm_op op, uint32_t pm_hint __unused,
 	assert(op == PM_OP_SUSPEND || op == PM_OP_RESUME);
 
 	if (op == PM_OP_SUSPEND)
-		debug_conf = stm32_bsec_read_debug_conf();
+		debug_conf = io_read32(bsec_base() + BSEC_DEN_OFF);
 	else
-		stm32_bsec_write_debug_conf(debug_conf);
+		io_write32(bsec_base() + BSEC_DEN_OFF, debug_conf);
 
 	return TEE_SUCCESS;
 }

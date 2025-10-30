@@ -518,7 +518,6 @@ static bool __maybe_unused bank_is_valid(unsigned int bank)
 static TEE_Result init_debug(void)
 {
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t conf = stm32_bsec_read_debug_conf();
 	struct clk *dbg_clk = stm32mp_rcc_clock_id_to_clk(CK_DBG);
 	uint32_t state = 0;
 
@@ -526,11 +525,11 @@ static TEE_Result init_debug(void)
 	if (res)
 		return res;
 
-	if (state != BSEC_STATE_SEC_CLOSED && conf) {
+	if (state != BSEC_STATE_SEC_CLOSED) {
 		if (IS_ENABLED(CFG_INSECURE))
 			IMSG("WARNING: All debug accesses are allowed");
 
-		res = stm32_bsec_write_debug_conf(conf | BSEC_DEBUG_ALL);
+		res = stm32_bsec_write_debug_conf(STM32_BSEC_DEBUG_ALL);
 		if (res)
 			return res;
 

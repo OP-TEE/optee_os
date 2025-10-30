@@ -158,9 +158,6 @@ static inline TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id __unused)
  */
 TEE_Result stm32_bsec_write_debug_conf(uint32_t value);
 
-/* Return debug configuration read from BSEC */
-uint32_t stm32_bsec_read_debug_conf(void);
-
 /*
  * Write shadow-read lock
  * @otp_id: OTP number
