@@ -19,10 +19,20 @@
 #include <rng_support.h>
 
 #include "eip76d_trng.h"
+#include "ti_crypto.h"
 
 static TEE_Result dthev2_init(void)
 {
 	TEE_Result result = TEE_SUCCESS;
+
+	result = ti_crypto_init_rng_fwl(DTHEv2_TI_SCI_FW_ID,
+					DTHEv2_TI_SCI_FW_RGN_ID);
+	if (result != TEE_SUCCESS) {
+		EMSG("Failed to enable firewalls for TRNG device");
+		return result;
+	}
+
+	IMSG("Enabled firewalls for DTHEv2 TRNG device");
 
 	/* Initialize the RNG Module */
 	result = eip76d_rng_init();

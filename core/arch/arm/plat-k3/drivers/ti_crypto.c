@@ -28,12 +28,18 @@ TEE_Result ti_crypto_init_rng_fwl(uint16_t fwl_id, uint16_t fwl_region)
 	ret = ti_sci_change_fwl_owner(fwl_id, fwl_region, owner_index,
 				      &owner_privid, &owner_permission_bits);
 	if (ret) {
+#if !defined(PLATFORM_FLAVOR_am62lx)
 		/*
-		 * This is not fatal, it just means we are on an HS device
-		 * where the DMSC already owns the accelerator. On GP we need
-		 * to do additional setup for access permissions below.
+		 * In devices that use SA2UL, this is not fatal. It just means
+		 * we are on an HS device where the DMSC already owns the
+		 * accelerator. On GP we need to do additional setup for access
+		 * permissions below.
 		 */
 		DMSG("Could not change Security Accelerator firewall owner");
+#else
+		EMSG("Could not set firewall region information");
+		return TEE_ERROR_GENERIC;
+#endif
 	} else {
 		IMSG("Fixing background firewall owner");
 
@@ -49,7 +55,6 @@ TEE_Result ti_crypto_init_rng_fwl(uint16_t fwl_id, uint16_t fwl_region)
 			return TEE_ERROR_GENERIC;
 		}
 	}
-
 	/* Claim the TRNG firewall configurations */
 	ret = ti_sci_change_fwl_owner(fwl_id, rng_region, owner_index,
 				      &owner_privid, &owner_permission_bits);
