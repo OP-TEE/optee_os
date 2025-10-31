@@ -18,9 +18,14 @@
 
 static unsigned int mem_ref_lock = SPINLOCK_UNLOCK;
 
-void spmc_sp_start_thread(struct thread_smc_1_2_regs *args)
+int spmc_sp_start_thread(struct thread_smc_1_2_regs *args)
 {
 	thread_sp_alloc_and_run(&args->arg11);
+	/*
+	 * thread_sp_alloc_and_run() only returns if all threads are busy.
+	 * The caller must try again.
+	 */
+	return FFA_BUSY;
 }
 
 static void ffa_set_error(struct thread_smc_1_2_regs *args, uint32_t error)
@@ -422,24 +427,29 @@ void spmc_sp_set_to_preempted(struct ts_session *ts_sess)
 	if (ts_sess && is_sp_ctx(ts_sess->ctx)) {
 		struct sp_session *sp_sess = to_sp_session(ts_sess);
 
+		cpu_spin_lock(&sp_sess->spinlock);
 		assert(sp_sess->state == sp_busy);
 		sp_sess->state = sp_preempted;
+		cpu_spin_unlock(&sp_sess->spinlock);
 	}
 }
 
-int spmc_sp_resume_from_preempted(uint16_t endpoint_id)
+int spmc_sp_resume_from_preempted(uint16_t endpoint_id, uint16_t thread_id)
 {
 	struct sp_session *sp_sess = sp_get_session(endpoint_id);
 
 	if (!sp_sess)
 		return FFA_INVALID_PARAMETERS;
 
-	if (sp_sess->state != sp_preempted)
+	if (sp_sess->state != sp_preempted || sp_sess->thread_id != thread_id)
 		return FFA_DENIED;
 
+	cpu_spin_lock(&sp_sess->spinlock);
 	sp_sess->state = sp_busy;
+	cpu_spin_unlock(&sp_sess->spinlock);
 
-	return FFA_OK;
+	thread_resume_from_rpc(thread_id, 0, 0, 0, 0);
+	panic();
 }
 
 static bool check_rxtx(struct ffa_rxtx *rxtx)
@@ -970,6 +980,7 @@ ffa_handle_sp_direct_resp(struct thread_smc_1_2_regs *args,
 			  struct sp_session *caller_sp)
 {
 	struct sp_session *dst = NULL;
+	enum sp_status st = sp_idle;
 	TEE_Result res = FFA_OK;
 
 	if (!caller_sp) {
@@ -1022,10 +1033,16 @@ ffa_handle_sp_direct_resp(struct thread_smc_1_2_regs *args,
 		return caller_sp;
 	}
 
-	if (dst && dst->state != sp_busy) {
-		EMSG("SP is not waiting for a request");
-		ffa_set_error(args, FFA_INVALID_PARAMETERS);
-		return caller_sp;
+	if (dst) {
+		cpu_spin_lock(&dst->spinlock);
+		st = dst->state;
+		cpu_spin_unlock(&dst->spinlock);
+
+		if (st != sp_busy) {
+			EMSG("SP is not waiting for a request");
+			ffa_set_error(args, FFA_INVALID_PARAMETERS);
+			return caller_sp;
+		}
 	}
 
 	if (caller_sp->caller_id != FFA_DST(args->a1)) {
@@ -1066,7 +1083,9 @@ ffa_handle_sp_error(struct thread_smc_1_2_regs *args,
 		 * We can not return the error. Unwind the call chain with one
 		 * link. Set the state of the SP to dead.
 		 */
+		cpu_spin_lock(&caller_sp->spinlock);
 		caller_sp->state = sp_dead;
+		cpu_spin_unlock(&caller_sp->spinlock);
 		/* Create error. */
 		ffa_set_error(args, FFA_ABORTED);
 		return  sp_get_session(caller_sp->caller_id);

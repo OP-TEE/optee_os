@@ -136,6 +136,7 @@ TEE_Result sp_partition_info_get(uint32_t ffa_vers, void *buf, size_t buf_size,
 	struct sp_session *s = NULL;
 	TEE_UUID uuid = { };
 	TEE_UUID *ffa_uuid = NULL;
+	enum sp_status st = sp_idle;
 
 	if (ffa_uuid_words) {
 		tee_uuid_from_octets(&uuid, (void *)ffa_uuid_words);
@@ -147,8 +148,12 @@ TEE_Result sp_partition_info_get(uint32_t ffa_vers, void *buf, size_t buf_size,
 		    memcmp(&s->ffa_uuid, ffa_uuid, sizeof(*ffa_uuid)))
 			continue;
 
-		if (s->state == sp_dead)
+		cpu_spin_lock(&s->spinlock);
+		st = s->state;
+		cpu_spin_unlock(&s->spinlock);
+		if (st == sp_dead)
 			continue;
+
 		if (!count_only && !res) {
 			uint32_t uuid_words[4] = { 0 };
 
@@ -1789,7 +1794,6 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	struct sp_session *sp_s = to_sp_session(s);
 	struct ts_session *sess = NULL;
 	struct thread_ctx_regs *sp_regs = NULL;
-	uint32_t thread_id = THREAD_ID_INVALID;
 	struct ts_session *caller = NULL;
 	uint32_t rpc_target_info = 0;
 	uint32_t panicked = false;
@@ -1809,12 +1813,14 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	 * as w1 in FFA_INTERRUPT in case of a foreign interrupt.
 	 */
 	rpc_target_info = thread_get_tsd()->rpc_target_info;
-	thread_id = thread_get_id();
-	assert(thread_id <= UINT16_MAX);
+	sp_s->thread_id = thread_get_id();
+	assert(sp_s->thread_id <= UINT16_MAX);
 	thread_get_tsd()->rpc_target_info =
-		FFA_TARGET_INFO_SET(sp_s->endpoint_id, thread_id);
+		FFA_TARGET_INFO_SET(sp_s->endpoint_id, sp_s->thread_id);
 
 	__thread_enter_user_mode(sp_regs, &panicked, &panic_code);
+
+	sp_s->thread_id = THREAD_ID_INVALID;
 
 	/* Restore rpc_target_info */
 	thread_get_tsd()->rpc_target_info = rpc_target_info;
