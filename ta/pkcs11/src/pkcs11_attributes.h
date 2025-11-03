@@ -134,6 +134,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
  * - create a new object in the current token state
  * - use a parent object in the processing
  * - use a mechanism with provided configuration
+ * - use of indestructible attribute only if it is a token object
  */
 enum pkcs11_rc check_created_attrs_against_token(struct pkcs11_session *session,
 						 struct obj_attrs *head);
@@ -143,6 +144,8 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 
 enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 				   struct obj_attrs *key2);
+
+enum pkcs11_rc check_attrs_misc_integrity(struct obj_attrs *head);
 
 /*
  * Check the attributes of the parent secret (key) used in the processing
