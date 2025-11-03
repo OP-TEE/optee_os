@@ -630,11 +630,12 @@ static TEE_Result init_root_node(struct tee_fs_htree *ht)
 	return res;
 }
 
-static TEE_Result create_and_sync(struct tee_fs_htree *ht,
+static TEE_Result create_and_sync(struct tee_fs_htree **ht_arg,
 				  uint8_t *hash,
 				  uint32_t min_counter)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	struct tee_fs_htree *ht = *ht_arg;
 	const struct tee_fs_htree_image dummy_head = {
 		.counter = min_counter,
 	};
@@ -656,11 +657,11 @@ static TEE_Result create_and_sync(struct tee_fs_htree *ht,
 		return res;
 
 	ht->dirty = true;
-	res = tee_fs_htree_sync_to_storage(&ht, hash, NULL);
+	res = tee_fs_htree_sync_to_storage(ht_arg, hash, NULL);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	return rpc_write_head(ht, 0, &dummy_head);
+	return rpc_write_head(*ht_arg, 0, &dummy_head);
 }
 
 static bool ht_head_is_partially_done(const struct tee_fs_htree_image *head)
@@ -687,7 +688,7 @@ TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, uint32_t min_counter,
 	ht->stor_aux = stor_aux;
 
 	if (create) {
-		res = create_and_sync(ht, hash, min_counter);
+		res = create_and_sync(&ht, hash, min_counter);
 	} else {
 		res = init_head_from_data(ht, hash, min_counter);
 		if (res != TEE_SUCCESS)
@@ -699,7 +700,7 @@ TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, uint32_t min_counter,
 		 * Re-initialze the hash tree.
 		 */
 		if (ht_head_is_partially_done(&ht->head)) {
-			res = create_and_sync(ht, hash, min_counter);
+			res = create_and_sync(&ht, hash, min_counter);
 			if (res != TEE_SUCCESS)
 				goto out;
 		}
