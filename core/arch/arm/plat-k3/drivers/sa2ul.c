@@ -121,12 +121,7 @@ static TEE_Result sa2ul_init(void)
 	start_address = RNG_BASE;
 	end_address = RNG_BASE + RNG_REG_SIZE - 1;
 	permissions[num_perm++] = (FW_BIG_ARM_PRIVID << 16) | FW_SECURE_ONLY;
-#if defined(PLATFORM_FLAVOR_am62x) || \
-	defined(PLATFORM_FLAVOR_am62ax) || \
-	defined(PLATFORM_FLAVOR_am62px)
-
 	permissions[num_perm++] = (FW_TIFS_PRIVID << 16) | FW_NON_SECURE;
-#endif
 	ret = ti_sci_set_fwl_region(fwl_id, rng_region, num_perm,
 				    control, permissions,
 				    start_address, end_address);
