@@ -164,6 +164,15 @@ static void imx_tzc_auto_configure(vaddr_t addr, vaddr_t rsize, uint32_t attr)
 	imx_tzasc_region_set(region);
 }
 
+static TEE_Result
+imx_tzc_auto_configure_ddr(const struct core_mmu_phys_mem *ddr_mem,
+			   void *ptr __unused)
+{
+	imx_tzc_auto_configure(ddr_mem->addr, ddr_mem->size, TZC_ATTR_SP_NS_RW);
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result imx_configure_tzasc(void)
 {
 	vaddr_t addr[2] = {0};
@@ -185,6 +194,8 @@ static TEE_Result imx_configure_tzasc(void)
 	imx_tzasc_region_init();
 
 	for (i = 0; i < end; i++) {
+		TEE_Result res;
+
 		tzc_init(addr[i]);
 
 		/*
@@ -201,8 +212,19 @@ static TEE_Result imx_configure_tzasc(void)
 		    tzc_verify_region0_secure() != TEE_SUCCESS)
 			panic("region0 is not secure configured, non-secure memory alias access possible!");
 
-		imx_tzc_auto_configure(CFG_DRAM_BASE, CFG_DDR_SIZE,
-				       TZC_ATTR_SP_NS_RW);
+		res = core_mmu_for_each_nsec_ddr(NULL,
+						 imx_tzc_auto_configure_ddr);
+#if defined(CFG_DDR_SIZE)
+		/* Fallback to static configuration if possible */
+		if (res == TEE_ERROR_NOT_SUPPORTED) {
+			imx_tzc_auto_configure(CFG_DRAM_BASE, CFG_DDR_SIZE,
+					       TZC_ATTR_SP_NS_RW);
+			res = TEE_SUCCESS;
+		}
+#endif
+		if (res != TEE_SUCCESS)
+			panic("NS-RW DRAM setup failed!");
+
 		imx_tzc_auto_configure(CFG_TZDRAM_START, CFG_TZDRAM_SIZE,
 				       TZC_ATTR_SP_S_RW);
 		imx_tzc_auto_configure(CFG_SHMEM_START, CFG_SHMEM_SIZE,
