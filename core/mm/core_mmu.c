@@ -578,6 +578,28 @@ bool core_mmu_nsec_ddr_is_defined(void)
 
 	return start != end;
 }
+
+TEE_Result
+core_mmu_for_each_nsec_ddr(void *ptr,
+			   TEE_Result (*fn)(const struct core_mmu_phys_mem *m,
+					    void *ptr))
+{
+	const struct core_mmu_phys_mem *start = NULL;
+	const struct core_mmu_phys_mem *end = NULL;
+	const struct core_mmu_phys_mem *mem = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!get_discovered_nsec_ddr(&start, &end))
+		return TEE_ERROR_GENERIC;
+
+	for (mem = start; mem < end; mem++) {
+		res = fn(mem, ptr);
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
 #else
 static bool pbuf_is_nsec_ddr(paddr_t pbuf __unused, size_t len __unused)
 {
