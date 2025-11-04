@@ -925,6 +925,7 @@ int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 	if (IS_ENABLED2(_CFG_USE_DTB_OVERLAY)) {
 		len_size = sizeof(paddr_t) / sizeof(uint32_t);
 		addr_size = sizeof(paddr_t) / sizeof(uint32_t);
+		found = false;
 	} else {
 		len_size = fdt_size_cells(dt->blob, offs);
 		if (len_size < 0)
