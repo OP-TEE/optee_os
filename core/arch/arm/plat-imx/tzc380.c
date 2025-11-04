@@ -60,6 +60,27 @@ register_phys_mem(MEM_AREA_IO_SEC, IOMUXC_GPR_BASE, IOMUXC_SIZE);
 #define IMX8M_TZASC_ID_SWAP_BYPASS	BIT32(1)
 #define IMX8M_TZASC_EN			BIT32(0)
 
+static uint8_t cur_tzasc_region;
+
+static void imx_tzasc_region_init(void)
+{
+	/*
+	 * Always start with region1, since region0 can't be
+	 * configured in size
+	 */
+	cur_tzasc_region = 1;
+}
+
+static void imx_tzasc_region_set(uint8_t new_region)
+{
+	cur_tzasc_region = new_region;
+}
+
+static uint8_t imx_tzasc_region_get(void)
+{
+	return cur_tzasc_region;
+}
+
 static bool imx6_tzasc_is_enabled(void)
 {
 	uint32_t mask = 0;
@@ -123,10 +144,10 @@ static bool imx_tzasc_is_enabled(void)
 	return false;
 }
 
-static int imx_tzc_auto_configure(vaddr_t addr, vaddr_t rsize, uint32_t attr,
-				  uint8_t region)
+static void imx_tzc_auto_configure(vaddr_t addr, vaddr_t rsize, uint32_t attr)
 {
 	vaddr_t addr_imx = 0;
+	uint8_t region = 0;
 
 	/*
 	 * On 8mscale platforms, the TZASC controller for the DRAM protection,
@@ -138,7 +159,9 @@ static int imx_tzc_auto_configure(vaddr_t addr, vaddr_t rsize, uint32_t attr,
 	else
 		addr_imx = addr;
 
-	return tzc_auto_configure(addr_imx, rsize, attr, region);
+	region = imx_tzasc_region_get();
+	region = tzc_auto_configure(addr_imx, rsize, attr, region);
+	imx_tzasc_region_set(region);
 }
 
 static TEE_Result imx_configure_tzasc(void)
@@ -159,9 +182,9 @@ static TEE_Result imx_configure_tzasc(void)
 		end = 2;
 	}
 
-	for (i = 0; i < end; i++) {
-		uint8_t region = 1;
+	imx_tzasc_region_init();
 
+	for (i = 0; i < end; i++) {
 		tzc_init(addr[i]);
 
 		/*
@@ -178,13 +201,12 @@ static TEE_Result imx_configure_tzasc(void)
 		    tzc_verify_region0_secure() != TEE_SUCCESS)
 			panic("region0 is not secure configured, non-secure memory alias access possible!");
 
-		region = imx_tzc_auto_configure(CFG_DRAM_BASE, CFG_DDR_SIZE,
-						TZC_ATTR_SP_NS_RW, region);
-		region = imx_tzc_auto_configure(CFG_TZDRAM_START,
-						CFG_TZDRAM_SIZE,
-						TZC_ATTR_SP_S_RW, region);
-		region = imx_tzc_auto_configure(CFG_SHMEM_START, CFG_SHMEM_SIZE,
-						TZC_ATTR_SP_ALL, region);
+		imx_tzc_auto_configure(CFG_DRAM_BASE, CFG_DDR_SIZE,
+				       TZC_ATTR_SP_NS_RW);
+		imx_tzc_auto_configure(CFG_TZDRAM_START, CFG_TZDRAM_SIZE,
+				       TZC_ATTR_SP_S_RW);
+		imx_tzc_auto_configure(CFG_SHMEM_START, CFG_SHMEM_SIZE,
+				       TZC_ATTR_SP_ALL);
 
 		if (tzc_regions_lockdown() != TEE_SUCCESS)
 			panic("Region lockdown failed!");
