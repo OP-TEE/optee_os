@@ -109,7 +109,7 @@ struct i2c_cfg {
  * @link: Link in registered consumer list
  *
  * Consumer requesting interrupt accesses to the I2C bus
- * while exucting in interrupt context, to handle external
+ * while executing in interrupt context, to handle external
  * device events before a thread context like the bottom
  * half is ready.
  */
@@ -133,7 +133,7 @@ struct stm32_itr_dep {
  * @pinctrl_sleep: Pin control configuration for the I2C bus in standby state
  * @mu: Protection on concurrent access to the I2C bus considering PM context
  * @i2c_secure: Indicates that the I2C is secure
- * @consumer_itr_lock: 1 when an interrupt handler accesses the I2C bus
+ * @consumer_itr_lock: 1 when an interrupt handler accesses the bus, 0 if not
  * @consumer_itr_head: List head of interrupts registered for interrupt accesses
  * @consumer_itr_masked: True if consumer interrupts were masked
  */

@@ -783,7 +783,7 @@ static void lock_i2c_bus_access(struct i2c_handle_s *hi2c)
 
 		/* Lock thread access */
 		mutex_pm_aware_lock(&hi2c->mu);
-		FMSG("thread access");
+		FMSG("Thread access");
 
 		/*
 		 * When async notif is not started, mask registered consumer
@@ -811,12 +811,12 @@ static void lock_i2c_bus_access(struct i2c_handle_s *hi2c)
 				break;
 
 		if (atomic_load_int(&hi2c->consumer_itr_lock)) {
-			DMSG("Unexpected lengthy I2C xfer, base PA %"PRIxPA,
+			EMSG("Unexpected lengthy I2C xfer, base PA %"PRIxPA,
 			     hi2c->base.pa);
 			panic();
 		}
 	} else {
-		FMSG("interrupt access");
+		FMSG("Interrupt access");
 		atomic_store_int(&hi2c->consumer_itr_lock, 1);
 	}
 }
@@ -824,7 +824,7 @@ static void lock_i2c_bus_access(struct i2c_handle_s *hi2c)
 static void unlock_i2c_bus_access(struct i2c_handle_s *hi2c)
 {
 	if (is_thread_context()) {
-		FMSG("thread access completed");
+		FMSG("Thread access completed");
 
 		if (hi2c->consumer_itr_masked) {
 			struct stm32_itr_dep *itr_dep = NULL;
@@ -839,7 +839,7 @@ static void unlock_i2c_bus_access(struct i2c_handle_s *hi2c)
 		/* Unlock thread access */
 		mutex_pm_aware_unlock(&hi2c->mu);
 	} else {
-		FMSG("interrupt access completed");
+		FMSG("Interrupt access completed");
 		atomic_store_int(&hi2c->consumer_itr_lock, 0);
 	}
 }
