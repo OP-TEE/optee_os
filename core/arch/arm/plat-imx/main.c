@@ -90,10 +90,10 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			CORE_MMU_PGDIR_SIZE);
 #endif
 
-#ifdef CFG_DRAM_BASE
+#if defined(CFG_DRAM_BASE) && defined(CFG_DDR_SIZE)
 register_ddr(CFG_DRAM_BASE, CFG_DDR_SIZE);
 #endif
-#ifdef CFG_NSEC_DDR_1_BASE
+#if defined(CFG_NSEC_DDR_1_BASE) && defined(CFG_NSEC_DDR_1_SIZE)
 register_ddr(CFG_NSEC_DDR_1_BASE, CFG_NSEC_DDR_1_SIZE);
 #endif
 
