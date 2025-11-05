@@ -35,8 +35,9 @@
 #include <imx-regs.h>
 #include <imx.h>
 
-#ifndef CFG_DDR_SIZE
-#error "CFG_DDR_SIZE not defined"
+#if !defined(CFG_DDR_SIZE) && !defined(CFG_EXTERNAL_DT)
+#error "Static CFG_DDR_SIZE not defined nor " \
+	"dynamic CFG_EXTERNAL_DT support enabled"
 #endif
 
 #define STACK_ALIGNMENT			64
