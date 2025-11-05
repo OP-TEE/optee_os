@@ -894,6 +894,31 @@ int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
 	return fdt_add_subnode(dt->blob, offs, subnode);
 }
 
+int add_dt_node_overlay_fragment(int node)
+{
+	struct dt_descriptor *dt = NULL;
+	char full_node_name[256] = {};
+	int root = 0;
+	int ret = 0;
+
+	/* Fragments make only sense with an external DT */
+	dt = get_external_dt_desc();
+	if (!dt)
+		return 0;
+
+	ret = fdt_get_path(dt->blob, node, full_node_name,
+			   sizeof(full_node_name));
+	if (ret)
+		return ret;
+
+	/* Overlay fragments are always added to the root-node */
+	root = fdt_path_offset(dt->blob, "/");
+	if (root < 0)
+		return root;
+
+	return add_dt_overlay_fragment(dt, root, full_node_name);
+}
+
 static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
 {
 	if (cell_size == 1) {
