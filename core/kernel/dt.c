@@ -718,7 +718,8 @@ void *get_embedded_dt(void)
 #endif /*CFG_EMBED_DTB*/
 
 #ifdef _CFG_USE_DTB_OVERLAY
-static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
+static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs,
+				   const char *target_path)
 {
 	char frag[32] = { };
 	int offs = 0;
@@ -734,7 +735,7 @@ static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
 
 	dt->frag_id += 1;
 
-	ret = fdt_setprop_string(dt->blob, offs, "target-path", "/");
+	ret = fdt_setprop_string(dt->blob, offs, "target-path", target_path);
 	if (ret < 0)
 		return ret;
 
@@ -756,7 +757,8 @@ static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
 	return fdt_create_empty_tree(dt->blob, dt_size);
 }
 #else
-static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs)
+static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs,
+				   const char *target_path __unused)
 {
 	return offs;
 }
@@ -886,7 +888,7 @@ int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
 	offs = fdt_path_offset(dt->blob, path);
 	if (offs < 0)
 		return offs;
-	offs = add_dt_overlay_fragment(dt, offs);
+	offs = add_dt_overlay_fragment(dt, offs, "/");
 	if (offs < 0)
 		return offs;
 	return fdt_add_subnode(dt->blob, offs, subnode);
