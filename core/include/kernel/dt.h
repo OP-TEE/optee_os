@@ -306,6 +306,16 @@ int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
 			const char *subnode);
 
 /*
+ * add_dt_node_overlay_fragmet() - Add a overlay node fragment for a node.
+ * @subnode:	Offset of the node, the overlay uses as "target-path".
+ *
+ * Returns the offset into the __overlay__ child node which can be used
+ * by the caller to add properties on success or a negative libfdt
+ * error number.
+ */
+int add_dt_node_overlay_fragmet(int node);
+
+/*
  * add_res_mem_dt_node() - Create "reserved-memory" parent and child nodes.
  * @dt:		Pointer to a device tree descriptor which has DTB.
  * @name:	Name of the child node.
@@ -482,6 +492,11 @@ static inline void *get_external_dt(void)
 static inline int add_dt_path_subnode(struct dt_descriptor *dt __unused,
 				      const char *path __unused,
 				      const char *subnode __unused)
+{
+	return -1;
+}
+
+static inline int add_dt_node_overlay_fragmet(int node)
 {
 	return -1;
 }
