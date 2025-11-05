@@ -84,6 +84,27 @@ int dt_disable_status(void *fdt, int node)
 	return 0;
 }
 
+static int dt_enable_secure_status_frag(void *fdt, int node)
+{
+	int overlay = 0;
+
+	overlay = add_dt_node_overlay_fragment(node);
+	if (overlay < 0)
+		return overlay;
+
+	if (fdt_setprop_string(fdt, overlay, "status", "disabled")) {
+		EMSG("Unable to disable Normal Status via fragment");
+		return -1;
+	}
+
+	if (fdt_setprop_string(fdt, overlay, "secure-status", "okay")) {
+		EMSG("Unable to enable Secure Status via fragment");
+		return -1;
+	}
+
+	return 0;
+}
+
 int dt_enable_secure_status(void *fdt, int node)
 {
 	if (dt_disable_status(fdt, node)) {
@@ -93,6 +114,9 @@ int dt_enable_secure_status(void *fdt, int node)
 
 	if (fdt_setprop_string(fdt, node, "secure-status", "okay"))
 		return -1;
+
+	if (IS_ENABLED2(_CFG_USE_DTB_OVERLAY))
+		return dt_enable_secure_status_frag(fdt, node);
 
 	return 0;
 }
