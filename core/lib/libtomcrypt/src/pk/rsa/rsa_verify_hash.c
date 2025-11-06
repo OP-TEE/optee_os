@@ -164,20 +164,23 @@ int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  sigle
       if ((reallen == outlen) &&
           (digestinfo[0].size == hash_descriptor[hash_idx]->OIDlen) &&
         (XMEMCMP(digestinfo[0].data, hash_descriptor[hash_idx]->OID, sizeof(unsigned long) * hash_descriptor[hash_idx]->OIDlen) == 0) &&
-          (siginfo[1].size == hashlen) &&
-        (ftmn_set_check_res_memcmp(&ftmn, FTMN_INCR1, XMEMCMP,
-				   siginfo[1].data, hash, hashlen) == 0)) {
-         *stat = 1;
+          (siginfo[1].size == hashlen)) {
+
+        if (ftmn_set_check_res_memcmp(&ftmn, FTMN_INCR1, XMEMCMP,
+            siginfo[1].data, hash, hashlen) == 0) {
+          *stat = 1;
+        }
+        inc1 = 1;
       }
-      inc1 = 1;
     } else {
       /* only check if the hash is equal */
-      if ((hashlen == outlen) &&
-          (ftmn_set_check_res_memcmp(&ftmn, FTMN_INCR1, XMEMCMP,
-				     out, hash, hashlen) == 0)) {
-        *stat = 1;
+      if (hashlen == outlen) {
+        if (ftmn_set_check_res_memcmp(&ftmn, FTMN_INCR1, XMEMCMP,
+				     out, hash, hashlen) == 0) {
+          *stat = 1;
+        }
+        inc1 = 1;
       }
-      inc1 = 1;
     }
 
     if (!*stat) {
