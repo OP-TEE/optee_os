@@ -532,6 +532,9 @@ jobs:
           - name: PAN=y
             make_commands: |
               make -j$(nproc) check CFG_PAN=y
+          - name: RPMB
+            make_commands: |
+              make -j$(nproc) check CFG_REE_FS=n CFG_RPMB_FS=y CFG_RPMB_TESTKEY=y CHECK_TESTS=xtest XTEST_ARGS="regression_6"
           - name: SPMC_AT_EL=1
             make_commands: |
               make -j$(nproc) check SPMC_AT_EL=1 CFG_SECURE_PARTITION=y CFG_SPMC_TESTS=y
