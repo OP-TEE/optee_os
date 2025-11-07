@@ -1179,4 +1179,4 @@ static TEE_Result trng_hrng_mode_init(void)
 	return TEE_SUCCESS;
 }
 
-driver_init(trng_hrng_mode_init);
+early_init(trng_hrng_mode_init);
