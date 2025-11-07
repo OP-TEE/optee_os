@@ -11,15 +11,48 @@
 #include <tee_api.h>
 #include <types_ext.h>
 
-/* BSEC_DEBUG */
-#define BSEC_HDPEN			BIT(4)
-#define BSEC_SPIDEN			BIT(5)
-#define BSEC_SPINDEN			BIT(6)
-#define BSEC_DBGSWGEN			BIT(10)
-#define BSEC_DEBUG_ALL			(BSEC_HDPEN | \
-					 BSEC_SPIDEN | \
-					 BSEC_SPINDEN | \
-					 BSEC_DBGSWGEN)
+/* Debug permission mask */
+/* Cortex A Non-Secure Trace-only */
+#define STM32_BSEC_DEBUG_CORTEX_A_NSTO		BIT(0)
+/* Cortex A Non-Secure Full-Debug */
+#define STM32_BSEC_DEBUG_CORTEX_A_NSFD		BIT(1)
+/* Cortex A Secure Trace-only */
+#define STM32_BSEC_DEBUG_CORTEX_A_STO		BIT(2)
+/* Cortex A Secure Full-Debug */
+#define STM32_BSEC_DEBUG_CORTEX_A_SFD		BIT(3)
+/* Cortex M Non-Secure Trace-only */
+#define STM32_BSEC_DEBUG_CORTEX_M_NSTO		BIT(4)
+/* Cortex M Non-Secure Full-Debug */
+#define STM32_BSEC_DEBUG_CORTEX_M_NSFD		BIT(5)
+/* Cortex M Secure Trace-only */
+#define STM32_BSEC_DEBUG_CORTEX_M_STO		BIT(6)
+/* Cortex M Secure Full-Debug */
+#define STM32_BSEC_DEBUG_CORTEX_M_SFD		BIT(7)
+/* Cortex A Minimal Debug HDP level */
+#define STM32_BSEC_DEBUG_CORTEX_A_HDPL		BIT(8)
+#define STM32_BSEC_DEBUG_CORTEX_A_HDP(lvl) \
+	(STM32_BSEC_DEBUG_CORTEX_A_HDPL << (lvl))
+/* Cortex M Minimal Debug HDP level */
+#define STM32_BSEC_DEBUG_CORTEX_M_HDPL		BIT(12)
+#define STM32_BSEC_DEBUG_CORTEX_M_HDP(lvl) \
+	(STM32_BSEC_DEBUG_CORTEX_M_HDPL << (lvl))
+/* Cortex A Secure Debug Disabled */
+#define STM32_BSEC_DEBUG_CORTEX_A_SDDIS		BIT(16)
+/* Cortex A Non-Sec Debug Disabled */
+#define STM32_BSEC_DEBUG_CORTEX_A_NSDDIS	BIT(17)
+/* Cortex M Secure Debug Disabled */
+#define STM32_BSEC_DEBUG_CORTEX_M_SDDIS		BIT(18)
+/* Cortex M Non-Sec Debug Disabled */
+#define STM32_BSEC_DEBUG_CORTEX_M_NSDDIS	BIT(19)
+/* Wait for attach at boot time */
+#define STM32_BSEC_DEBUG_WAITATTACH		BIT(31)
+
+#define STM32_BSEC_DEBUG_ALL (STM32_BSEC_DEBUG_CORTEX_A_NSFD | \
+			      STM32_BSEC_DEBUG_CORTEX_A_SFD | \
+			      STM32_BSEC_DEBUG_CORTEX_M_NSFD | \
+			      STM32_BSEC_DEBUG_CORTEX_M_SFD | \
+			      STM32_BSEC_DEBUG_CORTEX_A_HDP(0) | \
+			      STM32_BSEC_DEBUG_CORTEX_M_HDP(0))
 
 #define BSEC_BITS_PER_WORD		(8U * sizeof(uint32_t))
 #define BSEC_BYTES_PER_WORD		sizeof(uint32_t)
