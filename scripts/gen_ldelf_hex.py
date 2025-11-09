@@ -78,7 +78,10 @@ def emit_load_segments(elffile, outf):
             pad_size.append(pad)
         prev_segment = segment
         n = n + 1
-    pad_size.append(0)
+    # Last padding is actual memsz and filesz difference
+    # The .bss section may typically be here
+    last_pad = segment['p_memsz'] - segment['p_filesz']
+    pad_size.append(last_pad)
     n = 0
     # Compute code_size, data_size and load_size
     for segment in load_segments:
