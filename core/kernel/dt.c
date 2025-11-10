@@ -781,8 +781,8 @@ static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
 	return fdt_create_empty_tree(dt->blob, dt_size);
 }
 #else
-static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs,
-				   const char *target_path)
+static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs,
+				   const char *target_path __unused)
 {
 	return offs;
 }
