@@ -496,7 +496,7 @@ static inline int add_dt_path_subnode(struct dt_descriptor *dt __unused,
 	return -1;
 }
 
-static inline int add_dt_node_overlay_fragmet(int node)
+static inline int add_dt_node_overlay_fragmet(int node __unused)
 {
 	return -1;
 }
