@@ -41,6 +41,8 @@ struct boot_embdata {
 	uint32_t reloc_len;
 };
 
+extern unsigned long boot_arg_nsec_entry;
+
 extern const struct core_mmu_config boot_mmu_config;
 
 void boot_init_primary_early(void);
