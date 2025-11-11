@@ -194,8 +194,7 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	memset(src, 0, sizeof(src));
 	/* Ignore the tag data from the dst buffer - pass a smaller size */
 	ret = zynqmp_csu_aes_decrypt_data(dst, sizeof(src), src, sizeof(src),
-					  tag, sizeof(tag), iv,
-					  ZYNQMP_EFUSE_LEN(DNA),
+					  tag, sizeof(tag), iv, sizeof(iv),
 					  ZYNQMP_CSU_AES_KEY_SRC_DEV);
 	if (ret) {
 		EMSG("Can't decrypt DNA, please make sure PUF was registered");
