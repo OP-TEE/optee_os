@@ -10,9 +10,11 @@
 #include <drivers/zynqmp_huk.h>
 #include <drivers/zynqmp_pm.h>
 #include <io.h>
+#include <kernel/delay.h>
 #include <kernel/tee_common_otp.h>
 #include <mm/core_memprot.h>
 #include <string_ext.h>
+#include <tee/cache.h>
 #include <tee/tee_cryp_utl.h>
 #include <trace.h>
 #include <utee_defines.h>
@@ -114,6 +116,7 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	uint8_t dst[ZYNQMP_CSU_AES_DST_LEN(sizeof(src))]
 		__aligned_csuaes = { 0 };
 	TEE_Result ret = TEE_ERROR_GENERIC;
+	uint32_t retry_counter = 0;
 	uint32_t status = 0;
 
 	static_assert(sizeof(device_dna) == ZYNQMP_GCM_IV_SIZE);
@@ -201,11 +204,47 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 		goto cleanup;
 	}
 
-	if (memcmp(src, sha, sizeof(sha))) {
-		EMSG("PUF not ready, can't create HUK");
-		ret = TEE_ERROR_GENERIC;
-		goto cleanup;
-	}
+	/*
+	 * This retry loop here is a workaround for hardware issue where
+	 * CSU-DMA transfer is not yet delivered to DDR memory (in variable
+	 * 'src').
+	 *
+	 * CSU-AES/CSU-DMA code is implemented in a way that it waits for DONE
+	 * signal which indicates that memory transfer has left the DMA engine.
+	 */
+	retry_counter = 0;
+	do {
+		if (memcmp(src, sha, sizeof(sha)) == 0)
+			break;
+
+		/*
+		 * If the transfer is not completed within 1 second then there
+		 * is a real failure.
+		 */
+		if (retry_counter >= 1000) {
+			EMSG("PUF not ready, can't create HUK");
+			ret = TEE_ERROR_GENERIC;
+			goto cleanup;
+		}
+
+		/*
+		 * Give CPU's internal fifos some time to transfer data to the
+		 * DDR memory.
+		 */
+		mdelay(1);
+
+		/*
+		 * Invalidate src buffer from caches as memcmp above has
+		 * already loaded data from DDR to cache so that next compare
+		 * will be with fresh data.
+		 */
+		ret = cache_operation(TEE_CACHEINVALIDATE, src, sizeof(src));
+		if (ret) {
+			EMSG("Failed to invalidate cache");
+			goto cleanup;
+		}
+		retry_counter++;
+	} while (1);
 
 	IMSG("HUK ready");
 
