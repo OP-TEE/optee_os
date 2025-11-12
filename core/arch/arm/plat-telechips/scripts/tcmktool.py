@@ -111,7 +111,7 @@ def main(argc, argv):
             print(e)
 
     if ret == 0:
-        print("{} was generated successfilly\n".format(argv[2]))
+        print("{} was generated successfully\n".format(argv[2]))
     else:
         print("Failed to generate output file (error code: {})\n".format(ret))
 
