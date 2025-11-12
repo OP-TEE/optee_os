@@ -67,7 +67,8 @@ struct ocotp_instance {
 	unsigned char nb_banks;
 	unsigned char nb_words;
 	TEE_Result (*get_die_id)(uint64_t *ret_uid);
-	TEE_Result (*write_fuse)(unsigned int bank, unsigned int word, uint32_t val);
+	TEE_Result (*write_fuse)(unsigned int bank, unsigned int word,
+				 uint32_t val);
 };
 
 static vaddr_t g_base_addr;
@@ -240,9 +241,11 @@ static TEE_Result ocotp_mx8m_set_timing(void)
 
 	relax = DIV_ROUND_UP(clk_rate * TIMING_RELAX_NS, 1000000000) - 1;
 
-	strobe_read = DIV_ROUND_UP(clk_rate * TIMING_STROBE_READ_NS, 1000000000);
+	strobe_read = DIV_ROUND_UP(clk_rate * TIMING_STROBE_READ_NS,
+				   1000000000);
 	strobe_read += 2 * (relax + 1) - 1;
-	strobe_prog = UDIV_ROUND_NEAREST(clk_rate * TIMING_STROBE_PROG_US, 1000000);
+	strobe_prog = UDIV_ROUND_NEAREST(clk_rate * TIMING_STROBE_PROG_US,
+					 1000000);
 	strobe_prog += 2 * (relax + 1) - 1;
 
 	timing = io_read32(g_base_addr + OCOTP_TIMING) & OCOTP_TIMING_WAIT;
