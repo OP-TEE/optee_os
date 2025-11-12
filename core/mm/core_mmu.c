@@ -580,13 +580,13 @@ bool core_mmu_nsec_ddr_is_defined(void)
 }
 
 TEE_Result
-core_mmu_for_each_nsec_ddr(void *ptr, TEE_Result (*fn)
-			   (const struct core_mmu_phys_mem *nsec_ddr_mem,
-			    void *ptr))
+core_mmu_for_each_nsec_ddr(void *ptr,
+                           TEE_Result (*fn)(const struct core_mmu_phys_mem *m,
+                                            void *ptr))
 {
-	const struct core_mmu_phys_mem *start;
-	const struct core_mmu_phys_mem *end;
-	const struct core_mmu_phys_mem *mem;
+	const struct core_mmu_phys_mem *start = NULL;
+	const struct core_mmu_phys_mem *end = NULL;
+	const struct core_mmu_phys_mem *mem = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!get_discovered_nsec_ddr(&start, &end))

@@ -653,14 +653,14 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 
 /* Run fn() for each configured or runtime discovered nsec_ddr chunk. */
 TEE_Result
-core_mmu_for_each_nsec_ddr(void *ptr, TEE_Result (*fn)
-			   (const struct core_mmu_phys_mem *nsec_ddr_mem,
-			    void *ptr));
+core_mmu_for_each_nsec_ddr(void *ptr,
+                           TEE_Result (*fn)(const struct core_mmu_phys_mem *m,
+                                            void *ptr));
 #else
 static inline TEE_Result
-core_mmu_for_each_nsec_ddr(void *ptr __unused, TEE_Result (*fn)
-			   (const struct core_mmu_phys_mem *nsec_ddr_mem,
-			    void *ptr) __unused)
+core_mmu_for_each_nsec_ddr(void *ptr __unused,
+                           TEE_Result (*fn)(const struct core_mmu_phys_mem *m,
+                                            void *ptr) __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
