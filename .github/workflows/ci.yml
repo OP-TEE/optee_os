@@ -2,7 +2,7 @@ name: CI
 on: [push, pull_request]
 permissions:
   contents: read
-  pull-requests: write # to post comments to the PR (notify_maintainers.py)
+  issues: write # to post comments to the PR (notify_maintainers.py)
 concurrency:
   group: ci-${{ github.ref }}  # unique per branch
   cancel-in-progress: true     # cancel previous runs on the same branch
