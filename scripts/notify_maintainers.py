@@ -129,7 +129,7 @@ def main():
             existing_handles.update(re.findall(r"@(\w+)", comment.body))
         if existing_handles:
             print("Already mentioned: " +
-                  " ".join(f"@{h}" for h in new_handles))
+                  " ".join(f"@{h}" for h in existing_handles))
 
         # Skip PR author, assignees, and requested reviewers
         skip_handles = {pr.user.login}
