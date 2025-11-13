@@ -84,6 +84,10 @@ static const char *versal_ecc_error(uint8_t err)
 static TEE_Result ecc_get_key_size(uint32_t curve, size_t *bytes, size_t *bits)
 {
 	switch (curve) {
+	case TEE_ECC_CURVE_NIST_P256:
+		*bits = 256;
+		*bytes = 32;
+		break;
 	case TEE_ECC_CURVE_NIST_P384:
 		*bits = 384;
 		*bytes = 48;
@@ -131,7 +135,9 @@ static TEE_Result ecc_prepare_msg(uint32_t algo, const uint8_t *msg,
 	if (msg_len > TEE_SHA512_HASH_SIZE + 2)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (algo == TEE_ALG_ECDSA_SHA384)
+	if (algo == TEE_ALG_ECDSA_SHA256)
+		len = TEE_SHA256_HASH_SIZE;
+	else if (algo == TEE_ALG_ECDSA_SHA384)
 		len = TEE_SHA384_HASH_SIZE;
 	else if (algo == TEE_ALG_ECDSA_SHA512)
 		len = TEE_SHA512_HASH_SIZE + 2;
