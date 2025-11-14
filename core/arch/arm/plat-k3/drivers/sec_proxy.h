@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <tee_api_types.h>
 
-#define SEC_PROXY_MAX_MSG_SIZE 60
+#define SEC_PROXY_MAX_MSG_SIZE 56
 
 /**
  * struct k3_sec_proxy_msg - Secure proxy message structure
