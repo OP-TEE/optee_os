@@ -26,7 +26,7 @@ ifneq ($(SOURCE_DATE_EPOCH),)
 date-opts = -d @$(SOURCE_DATE_EPOCH)
 endif
 DATE_STR = `LC_ALL=C date -u $(date-opts)`
-CORE_CC_VERSION = `$(CCcore) -v 2>&1 | grep "version " | sed 's/ *$$//'`
+CORE_CC_VERSION = `$(CCcore) -v 2>&1 | grep -m1 "version " | sed 's/ *$$//'`
 define gen-version-o
 	$(call update-buildcount,$(link-out-dir)/.buildcount)
 	@$(cmd-echo-silent) '  GEN     $(link-out-dir)/version.o'
