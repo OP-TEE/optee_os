@@ -32,12 +32,14 @@
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/imx_uart.h>
+#include <drivers/imx_ocotp.h>
 #include <imx.h>
 #include <kernel/boot.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <stdint.h>
+#include <tee/tee_fs.h>
 
 static struct imx_uart_data console_data __nex_bss;
 
@@ -118,5 +120,34 @@ void boot_primary_init_intc(void)
 void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
+}
+#endif
+
+#if defined(CFG_RPMB_FS) && defined(CFG_IMX_OCOTP_RPMB_WRITTEN_BANK) && \
+	defined(CFG_IMX_OCOTP_RPMB_WRITTEN_BIT)
+bool plat_rpmb_key_was_written(void)
+{
+	TEE_Result res;
+	uint32_t val = 0;
+
+	res = imx_ocotp_read(CFG_IMX_OCOTP_RPMB_WRITTEN_BANK,
+			     CFG_IMX_OCOTP_RPMB_WRITTEN_WORD, &val);
+	if (res) {
+		EMSG("Failed to read RPMB written fuse. Assuming already written.");
+		return true;
+	}
+
+	return val & BIT(CFG_IMX_OCOTP_RPMB_WRITTEN_BIT);
+}
+
+void plat_notify_tee_rpmb_key_write_key_post(TEE_Result res)
+{
+	if (res != TEE_SUCCESS)
+		return;
+
+	if (IS_ENABLED(CFG_IMX_OCOTP_RPMB_WRITTEN_WRITE))
+		imx_ocotp_write(CFG_IMX_OCOTP_RPMB_WRITTEN_BANK,
+				CFG_IMX_OCOTP_RPMB_WRITTEN_WORD,
+				BIT(CFG_IMX_OCOTP_RPMB_WRITTEN_BIT));
 }
 #endif
