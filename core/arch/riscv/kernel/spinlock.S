@@ -10,16 +10,16 @@
 /* void __cpu_spin_lock(unsigned int *lock) */
 FUNC __cpu_spin_lock , :
 	addi	sp, sp, -(RISCV_XLEN_BYTES * 2)
-	STR	s0, 0(sp)
-	STR	ra, 8(sp)
+	STR	s0, REGOFF(0)(sp)
+	STR	ra, REGOFF(1)(sp)
 	mv	s0, a0
 1:
 	mv	a0, s0
 	jal	__cpu_spin_trylock
 	addiw	a0, a0, 0
 	bnez	a0, 1b
-	LDR	ra, 8(sp)
-	LDR	s0, 0(sp)
+	LDR	ra, REGOFF(1)(sp)
+	LDR	s0, REGOFF(0)(sp)
 	addi	sp, sp, (RISCV_XLEN_BYTES * 2)
 	ret
 END_FUNC __cpu_spin_lock
