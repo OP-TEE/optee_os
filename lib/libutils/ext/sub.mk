@@ -20,6 +20,15 @@ build-ubsan := $(CFG_TA_SANITIZE_UNDEFINED)
 endif
 srcs-$(build-ubsan) += ubsan.c
 cflags-remove-ubsan.c-y += -fsanitize=undefined
+
+build-asan := n
+ifneq (,$(filter $(sm)-$(CFG_CORE_SANITIZE_KADDRESS),core-y))
+build-asan := y
+endif
+srcs-$(build-asan) += asan.c asan_test.c
+cflags-remove-asan.c-y += $(finstrument-functions)
+cflags-remove-asan.c-y += $(cflags_kasan)
+
 ifneq (,$(filter ta_%,$(sm)))
 srcs-y += pthread_stubs.c
 endif

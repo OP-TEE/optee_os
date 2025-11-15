@@ -4,10 +4,10 @@
  * Copyright (c) 2018-2020 Maxime Villard, m00nbsd.net
  */
 
+#include <asan.h>
 #include <assert.h>
 #include <compiler.h>
 #include <keep.h>
-#include <kernel/asan.h>
 #include <kernel/panic.h>
 #include <printk.h>
 #include <setjmp.h>
