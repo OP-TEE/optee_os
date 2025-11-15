@@ -101,6 +101,7 @@ CFG_STM32_FMC ?= y
 CFG_STM32_GPIO ?= y
 CFG_STM32_HPDMA ?= y
 CFG_STM32_HSEM ?= y
+CFG_STM32_I2C ?= y
 CFG_STM32_IAC ?= y
 CFG_STM32_IPCC ?= y
 CFG_STM32_IWDG ?= y
@@ -114,6 +115,8 @@ CFG_STM32_RTC ?= y
 CFG_STM32_SERC ?= y
 CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
+
+CFG_DRIVERS_I2C ?= $(CFG_STM32_I2C)
 
 # Default RTC accuracy, higher accuracy means higher power consumption
 CFG_STM32_RTC_HIGH_ACCURACY ?= n
