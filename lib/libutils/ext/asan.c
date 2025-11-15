@@ -4,10 +4,10 @@
  * Copyright (c) 2018-2020 Maxime Villard, m00nbsd.net
  */
 
+#include <asan.h>
 #include <assert.h>
 #include <compiler.h>
-#include <keep.h>
-#include <kernel/asan.h>
+#include <keep_init.h>
 #include <kernel/panic.h>
 #include <printk.h>
 #include <setjmp.h>
@@ -15,7 +15,6 @@
 #include <trace.h>
 #include <types_ext.h>
 #include <util.h>
-
 #if __GCC_VERSION >= 70000
 #define ASAN_ABI_VERSION 7
 #else
