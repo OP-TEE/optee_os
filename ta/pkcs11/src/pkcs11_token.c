@@ -831,6 +831,7 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 	uint32_t pin_size = 0;
 	void *pin = NULL;
 	struct pkcs11_object *obj = NULL;
+	struct pkcs11_object *tvar = NULL;
 
 	if (ptypes != exp_pt)
 		return PKCS11_CKR_ARGUMENTS_BAD;
@@ -956,9 +957,20 @@ inited:
 	while (!LIST_EMPTY(&token->object_list)) {
 		obj = LIST_FIRST(&token->object_list);
 
+		if (!obj->attributes) {
+			rc = load_persistent_object_attributes(obj);
+			if (rc)
+				TEE_Panic(rc);
+		}
+
+		if (get_bool(obj->attributes, PKCS11_CKA_INDESTRUCTIBLE)) {
+			// Skip deletion for indestructible objects
+			LIST_REMOVE(obj, link);
+			continue;
+		}
 		/* Try twice otherwise panic! */
 		if (unregister_persistent_object(token, obj->uuid) &&
-		    unregister_persistent_object(token, obj->uuid))
+			unregister_persistent_object(token, obj->uuid))
 			TEE_Panic(0);
 
 		cleanup_persistent_object(obj, token);
