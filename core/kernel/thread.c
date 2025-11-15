@@ -5,9 +5,9 @@
  * Copyright (c) 2020-2021, Arm Limited
  */
 
+#include <asan.h>
 #include <config.h>
 #include <crypto/crypto.h>
-#include <kernel/asan.h>
 #include <kernel/boot.h>
 #include <kernel/lockdep.h>
 #include <kernel/misc.h>

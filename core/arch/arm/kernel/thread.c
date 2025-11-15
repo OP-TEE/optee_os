@@ -8,11 +8,11 @@
 #include <platform_config.h>
 
 #include <arm.h>
+#include <asan.h>
 #include <assert.h>
 #include <config.h>
 #include <io.h>
 #include <keep.h>
-#include <kernel/asan.h>
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/linker.h>
