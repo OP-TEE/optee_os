@@ -6,10 +6,10 @@
 
 #include <arm.h>
 #include <arm32_macros.S>
+#include <asan.h>
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
-#include <kernel/asan.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>

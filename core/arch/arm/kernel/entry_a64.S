@@ -8,10 +8,10 @@
 
 #include <arm.h>
 #include <arm64_macros.S>
+#include <asan.h>
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
-#include <kernel/asan.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <kernel/thread_private_arch.h>

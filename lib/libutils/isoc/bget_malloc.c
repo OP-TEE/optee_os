@@ -93,7 +93,7 @@
 
 #if defined(__KERNEL__)
 /* Compiling for TEE Core */
-#include <kernel/asan.h>
+#include <asan.h>
 #include <kernel/spinlock.h>
 #include <kernel/unwind.h>
 

@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2016, Linaro Limited
  */
-#ifndef __KERNEL_ASAN_H
-#define __KERNEL_ASAN_H
+#ifndef __ASAN_H
+#define __ASAN_H
 
 #include <stdint.h>
 
@@ -61,4 +61,4 @@ static inline void *asan_memcpy_unchecked(void *__restrict s1,
 #endif
 
 #endif /*__ASSEMBLER__*/
-#endif /*__KERNEL_ASAN_H*/
+#endif /*__ASAN_H*/

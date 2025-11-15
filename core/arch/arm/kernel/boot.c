@@ -6,6 +6,7 @@
  */
 
 #include <arm.h>
+#include <asan.h>
 #include <assert.h>
 #include <compiler.h>
 #include <config.h>
@@ -18,7 +19,6 @@
 #include <inttypes.h>
 #include <io.h>
 #include <keep.h>
-#include <kernel/asan.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/linker.h>

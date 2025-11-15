@@ -5,11 +5,11 @@
  */
 
 #include <arm.h>
+#include <asan.h>
 #include <assert.h>
 #include <io.h>
 #include <keep.h>
 #include <kernel/abort.h>
-#include <kernel/asan.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
