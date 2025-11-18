@@ -148,8 +148,9 @@ def main():
             return
 
         message = ("FYI " + " ".join(f"@{h}" for h in new_handles))
+        print(f"Comment to add to PR: '{message}'")
         pr.create_issue_comment(message)
-        print(f"Comment added to PR: '{message}'")
+        print(f"Comment added")
     else:
         message = ("FYI " + " ".join(f"@{h}" for h in handles_to_mention))
         print(f"Comment added to PR would be: '{message}'")
