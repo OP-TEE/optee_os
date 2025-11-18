@@ -9,6 +9,7 @@ import subprocess
 import argparse
 import re
 from github import Github
+from github import Auth
 
 
 def parse_get_maintainer_output(output: str):
@@ -119,7 +120,8 @@ def main():
               " ".join(f"@{h}" for h in handles_to_mention))
 
     if github_env:
-        g = Github(token)
+        auth = Auth.Token(token)
+        g = Github(auth=auth)
         repo = g.get_repo(repo_name)
         pr = repo.get_pull(int(pr_number))
 
