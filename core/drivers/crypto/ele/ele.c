@@ -52,20 +52,20 @@ struct get_info_rsp {
 	uint16_t soc_rev;
 	uint16_t lifecycle;
 	uint8_t sssm_state;
-	uint8_t unused_1;
+	uint8_t attest_api_version;
 	uint32_t uid[4];
 	uint32_t sha256_rom_patch[8];
 	uint32_t sha256_firmware[8];
 	uint32_t oem_srkh[16];
 	uint8_t trng_state;
 	uint8_t csal_state;
-#ifndef CFG_MX95
-	uint8_t imem_state;
-	uint8_t unused_2;
-#else
-	uint8_t unused_2[2];
+#if defined(CFG_MX95) || defined(CFG_MX943)
+	uint8_t reserved[2];
 	uint32_t oem_pqc_srkh[16];
 	uint32_t rsvd[8];
+#else
+	uint8_t imem_state;
+	uint8_t unused_2;
 #endif
 } __packed;
 
