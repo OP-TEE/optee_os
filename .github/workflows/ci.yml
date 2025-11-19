@@ -126,6 +126,7 @@ jobs:
               _make PLATFORM=imx-mx91evk
               _make PLATFORM=imx-mx93evk
               _make PLATFORM=imx-mx95evk
+              _make PLATFORM=imx-mx943evk
           - name: arm k3
             make_commands: |
               _make PLATFORM=k3-j721e
