@@ -38,7 +38,7 @@ jobs:
           fetch-depth: 0
       - name: Get changed files between base and PR head
         id: files
-        uses: tj-actions/changed-files@v44
+        uses: tj-actions/changed-files@v46
         with:
           # Compare the base SHA (trusted) against the PR head SHA (untrusted)
           base_sha: ${{ github.event.pull_request.base.sha }}
