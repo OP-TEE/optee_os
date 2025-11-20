@@ -36,6 +36,10 @@ jobs:
         with:
           # Checkout the trusted base branch code
           fetch-depth: 0
+      - name: Fetch PR head ref
+        run: |
+          # Also fetch the head of the PR branch
+          git fetch origin pull/${{ github.event.pull_request.number }}/head
       - name: Get changed files between base and PR head
         id: files
         uses: tj-actions/changed-files@v46
