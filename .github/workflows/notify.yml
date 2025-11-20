@@ -67,11 +67,8 @@ jobs:
       (needs.check_sensitive_files.outputs.script_modified == 'false' ||
        github.run_attempt > 1)
     steps:
-      # Checkout the untrusted code from the PR Branch
       - name: Checkout PR code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python3-github
         run: |
           sudo apt-get update
@@ -79,4 +76,7 @@ jobs:
       - name: Run scripts/notify_maintainers.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/notify_maintainers.py
+        run: |
+          # Checkout the untrusted code from the PR Branch
+          git fetch origin pull/${PR_NUMBER}/head && git checkout FETCH_HEAD
+          scripts/notify_maintainers.py
