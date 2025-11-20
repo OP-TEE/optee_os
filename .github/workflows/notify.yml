@@ -40,8 +40,9 @@ jobs:
         id: files
         uses: tj-actions/changed-files@v46
         with:
-          # Compare the base SHA (trusted) against the PR head SHA (untrusted)
-          base_sha: ${{ github.event.pull_request.base.sha }}
+          # Compare the checked out version (PR target branch, trusted) against
+          # the PR head SHA (untrusted)
+          base_sha: ${{ github.event.pull_request.head.sha }}
           files: |
             .github/workflows/notify.yml
             scripts/notify_maintainers.py
