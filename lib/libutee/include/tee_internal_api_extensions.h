@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <tee_api_defines_extensions.h>
 #include <tee_api_types.h>
+#include <types_ext.h>
 
 void tee_user_mem_mark_heap(void);
 size_t tee_user_mem_check_heap(void);
@@ -43,6 +44,16 @@ TEE_Result TEE_CacheInvalidate(char *buf, size_t len);
  * Returns valid pointer on success or NULL on error.
  */
 void *tee_map_zi(size_t len, uint32_t flags);
+
+/*
+ * tee_map_zi_va() - Map zero initialized memory with hint va
+ * @va		Hint address for the mapping
+ * @len:	Number of bytes
+ * @flags:	0 or TEE_MEMORY_ACCESS_ANY_OWNER to allow sharing with other TAs
+ *
+ * Returns valid pointer on success or NULL on error.
+ */
+void *tee_map_zi_va(vaddr_t va, size_t len, uint32_t flags);
 
 /*
  * tee_unmap() - Unmap previously mapped memory
