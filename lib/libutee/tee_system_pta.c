@@ -29,7 +29,7 @@ static TEE_Result invoke_system_pta(uint32_t cmd_id, uint32_t param_types,
 				   param_types, params, NULL);
 }
 
-void *tee_map_zi(size_t len, uint32_t flags)
+void *tee_map_zi_va(vaddr_t va, size_t len, uint32_t flags)
 {
 	uint32_t param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 					       TEE_PARAM_TYPE_VALUE_INOUT,
@@ -50,6 +50,8 @@ void *tee_map_zi(size_t len, uint32_t flags)
 	default:
 		return NULL;
 	}
+	params[1].value.a = high32_from_64(va);
+	params[1].value.b = low32_from_64(va);
 
 	res = invoke_system_pta(PTA_SYSTEM_MAP_ZI, param_types, params);
 	if (res)
@@ -57,6 +59,11 @@ void *tee_map_zi(size_t len, uint32_t flags)
 
 	return (void *)(vaddr_t)reg_pair_to_64(params[1].value.a,
 					       params[1].value.b);
+}
+
+void *tee_map_zi(size_t len, uint32_t flags)
+{
+	return tee_map_zi_va((vaddr_t)0, len, flags);
 }
 
 TEE_Result tee_unmap(void *buf, size_t len)
