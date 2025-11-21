@@ -10,6 +10,7 @@
 #include <keep.h>
 #include <kernel/abort.h>
 #include <kernel/asan.h>
+#include <kernel/boot.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
@@ -226,38 +227,48 @@ static void pager_unlock(uint32_t exceptions)
 
 void *tee_pager_phys_to_virt(paddr_t pa, size_t len)
 {
-	struct core_mmu_table_info ti;
-	unsigned idx;
-	uint32_t a;
-	paddr_t p;
-	vaddr_t v;
-	size_t n;
+	struct core_mmu_table_info ti = { };
+	unsigned long map_offs = 0;
+	unsigned int page_offs = 0;
+	unsigned int idx = 0;
+	uint32_t a = 0;
+	paddr_t p = 0;
+	vaddr_t v = 0;
+	size_t n = 0;
 
-	if (pa & SMALL_PAGE_MASK || len > SMALL_PAGE_SIZE)
+	if (IS_ENABLED(CFG_CORE_ASLR))
+		map_offs = boot_mmu_config.map_offset;
+
+	page_offs = pa & SMALL_PAGE_MASK;
+	pa &= ~(paddr_t)SMALL_PAGE_MASK;
+
+	if (len > SMALL_PAGE_SIZE || len + page_offs > SMALL_PAGE_SIZE)
 		return NULL;
 
 	/*
-	 * Most addresses are mapped lineary, try that first if possible.
+	 * Most addresses are mapped linearly (+ map_offs, with ASLR). Try
+	 * that first, if possible.
 	 */
-	if (!tee_pager_get_table_info(pa, &ti))
+	if (!tee_pager_get_table_info(pa + map_offs, &ti))
 		return NULL; /* impossible pa */
-	idx = core_mmu_va2idx(&ti, pa);
+	idx = core_mmu_va2idx(&ti, pa + map_offs);
 	core_mmu_get_entry(&ti, idx, &p, &a);
 	if ((a & TEE_MATTR_VALID_BLOCK) && p == pa)
-		return (void *)core_mmu_idx2va(&ti, idx);
+		return (void *)(core_mmu_idx2va(&ti, idx) + page_offs);
 
 	n = 0;
-	idx = core_mmu_va2idx(&pager_tables[n].tbl_info, TEE_RAM_START);
+	idx = core_mmu_va2idx(&pager_tables[n].tbl_info,
+			      TEE_RAM_START + map_offs);
 	while (true) {
 		while (idx < TBL_NUM_ENTRIES) {
 			v = core_mmu_idx2va(&pager_tables[n].tbl_info, idx);
-			if (v >= (TEE_RAM_START + TEE_RAM_VA_SIZE))
+			if (v >= (TEE_RAM_START + TEE_RAM_VA_SIZE + map_offs))
 				return NULL;
 
 			core_mmu_get_entry(&pager_tables[n].tbl_info,
 					   idx, &p, &a);
 			if ((a & TEE_MATTR_VALID_BLOCK) && p == pa)
-				return (void *)v;
+				return (void *)(v + page_offs);
 			idx++;
 		}
 
