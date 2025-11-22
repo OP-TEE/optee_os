@@ -72,6 +72,8 @@ uint32_t imx_get_digprog(void)
 		imx_digprog = SOC_MX91 << 16;
 	else if (IS_ENABLED(CFG_MX95))
 		imx_digprog = SOC_MX95 << 16;
+	else if (IS_ENABLED(CFG_MX943))
+		imx_digprog = SOC_MX943 << 16;
 
 	return imx_digprog;
 }
