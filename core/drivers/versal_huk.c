@@ -52,8 +52,9 @@ enum versal_aes_key_src {
 	VERSAL_AES_USER_KEY_6,
 	VERSAL_AES_USER_KEY_7,
 	VERSAL_AES_EXPANDED_KEYS,
-	VERSAL_AES_ALL_KEYS,
 };
+
+#define VERSAL_AES_MAX_KEY_SOURCES VERSAL_AES_USER_KEY_7
 
 enum versal_crypto_api {
 	VERSAL_AES_INIT = 9U,
@@ -179,7 +180,7 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 	size_t i = 0;
 	uint32_t key_id = CFG_VERSAL_HUK_KEY;
 
-	if (key_id > VERSAL_AES_ALL_KEYS)
+	if (key_id > VERSAL_AES_MAX_KEY_SOURCES)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	cmd.data[0] = API_ID(VERSAL_AES_INIT);
