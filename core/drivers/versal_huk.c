@@ -119,6 +119,10 @@ static bool versal_persistent_key(enum versal_aes_key_src src, bool *secure)
 		.read_option = VERSAL_PUF_READ_FROM_EFUSE_CACHE,
 		.puf_operation = VERSAL_PUF_REGEN_ON_DEMAND,
 		.shutter_value = VERSAL_PUF_SHUTTER_VALUE,
+#if defined(PLATFORM_FLAVOR_net)
+		.ro_swap_value = VERSAL_PUF_RO_SWAP_VALUE,
+#endif
+
 	};
 
 	switch (src) {

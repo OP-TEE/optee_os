@@ -15,7 +15,12 @@
 #define VERSAL_PUF_REGISTRATION			0x0
 #define VERSAL_PUF_REGEN_ON_DEMAND		0x1
 #define VERSAL_PUF_REGEN_ID_ONLY		0x2
+#if defined(PLATFORM_FLAVOR_net)
+#define VERSAL_PUF_SHUTTER_VALUE		0x01000080
+#define VERSAL_PUF_RO_SWAP_VALUE		0x0
+#else
 #define VERSAL_PUF_SHUTTER_VALUE		0x81000100
+#endif
 #define VERSAL_PUF_GLBL_VAR_FLTR_OPTION		1
 #define VERSAL_PUF_READ_FROM_RAM		0
 #define VERSAL_PUF_READ_FROM_EFUSE_CACHE	1
@@ -40,6 +45,9 @@ struct versal_puf_cfg {
 	uint8_t global_var_filter;
 	uint8_t read_option;
 	uint32_t shutter_value;
+#if defined(PLATFORM_FLAVOR_net)
+	uint32_t ro_swap_value;
+#endif
 };
 
 struct versal_puf_data_req {
@@ -53,7 +61,12 @@ struct versal_puf_data_req {
 	uint64_t puf_id_addr;
 	uint64_t syndrome_addr;
 	uint64_t efuse_syn_data_addr;
+#if defined(PLATFORM_FLAVOR_net)
+	uint32_t ro_swap_value;
+	uint8_t pad[4];
+#else
 	uint8_t pad[8];
+#endif
 };
 
 enum versal_puf_api {
