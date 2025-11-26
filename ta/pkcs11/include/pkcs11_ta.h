@@ -1188,6 +1188,7 @@ enum pkcs11_attr_id {
 						  0x0600,
 
 	/* Vendor specific attributes */
+	PKCS11_CKA_INDESTRUCTIBLE = 0x80000010,
 
 	/**
 	 * TEE Internal API requires to have EC public key information
