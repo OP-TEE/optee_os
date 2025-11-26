@@ -278,11 +278,28 @@ struct ffa_mem_access_perm {
 	uint8_t flags;
 };
 
-/* Endpoint memory access descriptor */
-struct ffa_mem_access {
+/* Endpoint memory access descriptor up to version 1.1 */
+struct ffa_mem_access_1_0 {
 	struct ffa_mem_access_perm access_perm;
 	uint32_t region_offs;
 	uint64_t reserved;
+};
+
+/* Endpoint memory access descriptor from version 1.2 */
+struct ffa_mem_access_1_2 {
+	struct ffa_mem_access_perm access_perm;
+	uint32_t region_offs;
+	uint8_t impdef[16];
+	uint64_t reserved;
+};
+
+/*
+ * A common memory access descriptor where only the first two fields need
+ * to be accessed.
+ */
+struct ffa_mem_access_common {
+	struct ffa_mem_access_perm access_perm;
+	uint32_t region_offs;
 };
 
 /* Lend, donate or share memory transaction descriptor */
@@ -295,7 +312,7 @@ struct ffa_mem_transaction_1_0 {
 	uint64_t tag;
 	uint32_t reserved1;
 	uint32_t mem_access_count;
-	struct ffa_mem_access mem_access_array[];
+	struct ffa_mem_access_1_0 mem_access_array[];
 };
 
 struct ffa_mem_transaction_1_1 {
