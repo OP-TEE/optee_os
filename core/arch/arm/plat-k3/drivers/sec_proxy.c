@@ -16,7 +16,7 @@
 #include <string.h>
 #include <trace.h>
 
-#include "sec_proxy.h"
+#include "ti_sci_transport.h"
 
 /* SEC PROXY RT THREAD STATUS */
 #define RT_THREAD_STATUS_REG            0x0
@@ -41,6 +41,8 @@ enum threads {
 
 #define THREAD_DIR_TX (0)
 #define THREAD_DIR_RX (1)
+
+#define SEC_PROXY_MAX_MSG_SIZE 56
 
 /**
  * struct k3_sec_proxy_thread - Description of a Secure Proxy Thread
@@ -115,10 +117,10 @@ static TEE_Result k3_sec_proxy_verify_thread(uint32_t dir)
 }
 
 /**
- * k3_sec_proxy_send() - Send data over a Secure Proxy thread
- * @msg: Pointer to k3_sec_proxy_msg
+ * ti_sci_transport_send() - Send data over a TISCI transport
+ * @msg: Pointer to ti_sci_msg
  */
-TEE_Result k3_sec_proxy_send(const struct k3_sec_proxy_msg *msg)
+TEE_Result ti_sci_transport_send(const struct ti_sci_msg *msg)
 {
 	struct k3_sec_proxy_thread *spt = &spts[SEC_PROXY_TX_THREAD];
 	int num_words = 0;
@@ -176,10 +178,10 @@ TEE_Result k3_sec_proxy_send(const struct k3_sec_proxy_msg *msg)
 }
 
 /**
- * k3_sec_proxy_recv() - Receive data from a Secure Proxy thread
- * @msg: Pointer to k3_sec_proxy_msg
+ * ti_sci_transport_recv() - Receive data from a TISCI transport
+ * @msg: Pointer to ti_sci_msg
  */
-TEE_Result k3_sec_proxy_recv(struct k3_sec_proxy_msg *msg)
+TEE_Result ti_sci_transport_recv(struct ti_sci_msg *msg)
 {
 	struct k3_sec_proxy_thread *spt = &spts[SEC_PROXY_RX_THREAD];
 	int num_words = 0;
@@ -229,9 +231,9 @@ TEE_Result k3_sec_proxy_recv(struct k3_sec_proxy_msg *msg)
 }
 
 /**
- * k3_sec_proxy_init() - Initialize the secure proxy threads
+ * ti_sci_transport_init() - Initialize the TISCI transport threads
  */
-TEE_Result k3_sec_proxy_init(void)
+TEE_Result ti_sci_transport_init(void)
 {
 	struct k3_sec_proxy_thread *thread;
 	int rx_thread = SEC_PROXY_RESPONSE_THREAD;
