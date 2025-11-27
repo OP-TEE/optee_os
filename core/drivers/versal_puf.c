@@ -112,12 +112,12 @@ TEE_Result versal_puf_register(struct versal_puf_data *buf,
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t err = 0;
 
-	versal_mbox_alloc(sizeof(buf->puf_id), buf->puf_id, &puf_id_addr);
-	versal_mbox_alloc(sizeof(buf->chash), &buf->chash, &hash_addr);
-	versal_mbox_alloc(sizeof(buf->aux), &buf->aux, &aux_addr);
-	versal_mbox_alloc(sizeof(buf->efuse_syn_data), buf->efuse_syn_data,
+	versal_mbox_alloc(sizeof(buf->puf_id), NULL, &puf_id_addr);
+	versal_mbox_alloc(sizeof(buf->chash), NULL, &hash_addr);
+	versal_mbox_alloc(sizeof(buf->aux), NULL, &aux_addr);
+	versal_mbox_alloc(sizeof(buf->efuse_syn_data), NULL,
 			  &efuse_syn_data_addr);
-	versal_mbox_alloc(sizeof(buf->syndrome_data), buf->syndrome_data,
+	versal_mbox_alloc(sizeof(buf->syndrome_data), NULL,
 			  &syndrome_data_addr);
 
 	arg.ibuf[0].mem = request;
@@ -182,7 +182,6 @@ TEE_Result versal_puf_regenerate(struct versal_puf_data *buf,
 		.len = sizeof(req),
 		.buf = &req,
 	};
-	struct versal_mbox_mem efuse_syn_data_addr = { };
 	struct versal_mbox_mem syndrome_data_addr = { };
 	struct versal_mbox_mem puf_id_addr = { };
 	struct versal_mbox_mem hash_addr = { };
@@ -191,11 +190,9 @@ TEE_Result versal_puf_regenerate(struct versal_puf_data *buf,
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t err = 0;
 
-	versal_mbox_alloc(sizeof(buf->puf_id), buf->puf_id, &puf_id_addr);
+	versal_mbox_alloc(sizeof(buf->puf_id), NULL, &puf_id_addr);
 	versal_mbox_alloc(sizeof(buf->chash), &buf->chash, &hash_addr);
 	versal_mbox_alloc(sizeof(buf->aux), &buf->aux, &aux_addr);
-	versal_mbox_alloc(sizeof(buf->efuse_syn_data), buf->efuse_syn_data,
-			  &efuse_syn_data_addr);
 	versal_mbox_alloc(sizeof(buf->syndrome_data), buf->syndrome_data,
 			  &syndrome_data_addr);
 
@@ -204,9 +201,7 @@ TEE_Result versal_puf_regenerate(struct versal_puf_data *buf,
 	arg.ibuf[2].mem = hash_addr;
 	arg.ibuf[3].mem = aux_addr;
 	arg.ibuf[4].mem = puf_id_addr;
-	arg.ibuf[5].mem = efuse_syn_data_addr;
 
-	req.efuse_syn_data_addr = virt_to_phys(efuse_syn_data_addr.buf);
 	req.syndrome_addr = virt_to_phys(syndrome_data_addr.buf);
 	req.puf_id_addr = virt_to_phys(puf_id_addr.buf);
 	req.hash_addr = virt_to_phys(hash_addr.buf);
@@ -235,7 +230,6 @@ TEE_Result versal_puf_regenerate(struct versal_puf_data *buf,
 	free(hash_addr.buf);
 	free(aux_addr.buf);
 	free(puf_id_addr.buf);
-	free(efuse_syn_data_addr.buf);
 
 	return ret;
 }
