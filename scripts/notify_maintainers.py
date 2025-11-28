@@ -97,10 +97,10 @@ def main():
     pr_number = os.getenv("PR_NUMBER")
     token = os.getenv("GITHUB_TOKEN")
 
+    message = ""
     handles_to_mention = get_handles_for_pr(pr_number)
     if not handles_to_mention:
         print("# No maintainers or reviewers to mention.")
-        message = ""
     else:
         print("# Final list of subsystem/platform maintainers/reviewers: " +
               " ".join(f"@{h}" for h in handles_to_mention))
@@ -128,11 +128,11 @@ def main():
 
         # Exclude all these from new notifications
         new_handles = handles_to_mention - existing_handles - skip_handles
-        if not new_handles:
+        if new_handles:
+            message = "FYI " + " ".join(f"@{h}" for h in new_handles)
+        else:
             print("# All relevant handles have already been mentioned "
                   "or are already notified by GitHub.")
-
-        message = "FYI " + " ".join(f"@{h}" for h in new_handles)
 
     print(f"message={message}")
 
