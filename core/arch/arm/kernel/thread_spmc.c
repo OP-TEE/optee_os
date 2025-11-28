@@ -994,7 +994,7 @@ int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
 		trans->tag = READ_ONCE(descr->tag);
 
 		count = READ_ONCE(descr->mem_access_count);
-		size = sizeof(struct ffa_mem_access);
+		size = sizeof(descr->mem_access_array[0]);
 		offs = offsetof(struct ffa_mem_transaction_1_0,
 				mem_access_array);
 	}
@@ -1021,8 +1021,8 @@ static int get_acc_perms(vaddr_t mem_acc_base, unsigned int mem_access_size,
 			 unsigned int mem_access_count, uint8_t *acc_perms,
 			 unsigned int *region_offs)
 {
+	struct ffa_mem_access_common *mem_acc = NULL;
 	struct ffa_mem_access_perm *descr = NULL;
-	struct ffa_mem_access *mem_acc = NULL;
 	unsigned int n = 0;
 
 	for (n = 0; n < mem_access_count; n++) {
@@ -1145,8 +1145,8 @@ static int add_mem_op_frag(struct mem_frag_state *s, void *buf, size_t flen)
 
 static bool is_sp_op(struct ffa_mem_transaction_x *mem_trans, void *buf)
 {
+	struct ffa_mem_access_common *mem_acc = NULL;
 	struct ffa_mem_access_perm *perm = NULL;
-	struct ffa_mem_access *mem_acc = NULL;
 
 	if (!IS_ENABLED(CFG_SECURE_PARTITION))
 		return false;
@@ -2607,20 +2607,26 @@ static uint32_t get_ffa_version(uint32_t my_version)
 static void *spmc_retrieve_req(struct ffa_mem_transaction_x *trans)
 {
 	uint64_t cookie __maybe_unused = trans->global_handle;
-	struct ffa_mem_access *acc_descr_array = NULL;
+	struct ffa_mem_access_common *mem_acc = NULL;
 	struct ffa_mem_access_perm *perm_descr = NULL;
 	struct thread_smc_args args = {
 		.a0 = FFA_MEM_RETRIEVE_REQ_32,
 		.a3 =	0,	/* Address, Using TX -> MBZ */
 		.a4 =   0,	/* Using TX -> MBZ */
 	};
+	size_t mem_acc_size = 0;
 	size_t size = 0;
 	int rc = 0;
+
+	if (my_rxtx.ffa_vers <= FFA_VERSION_1_1)
+		mem_acc_size = sizeof(struct ffa_mem_access_1_0);
+	else
+		mem_acc_size = sizeof(struct ffa_mem_access_1_2);
 
 	if (my_rxtx.ffa_vers == FFA_VERSION_1_0) {
 		struct ffa_mem_transaction_1_0 *trans_descr = my_rxtx.tx;
 
-		size = sizeof(*trans_descr) + 1 * sizeof(struct ffa_mem_access);
+		size = sizeof(*trans_descr) + 1 * mem_acc_size;
 		memset(trans_descr, 0, size);
 		trans_descr->sender_id = trans->sender_id;
 		trans_descr->mem_reg_attr = trans->mem_reg_attr;
@@ -2628,11 +2634,11 @@ static void *spmc_retrieve_req(struct ffa_mem_transaction_x *trans)
 		trans_descr->tag = trans->tag;
 		trans_descr->flags = trans->flags;
 		trans_descr->mem_access_count = 1;
-		acc_descr_array = trans_descr->mem_access_array;
+		mem_acc = (void *)trans_descr->mem_access_array;
 	} else {
 		struct ffa_mem_transaction_1_1 *trans_descr = my_rxtx.tx;
 
-		size = sizeof(*trans_descr) + 1 * sizeof(struct ffa_mem_access);
+		size = sizeof(*trans_descr) + 1 * mem_acc_size;
 		memset(trans_descr, 0, size);
 		trans_descr->sender_id = trans->sender_id;
 		trans_descr->mem_reg_attr = trans->mem_reg_attr;
@@ -2641,13 +2647,11 @@ static void *spmc_retrieve_req(struct ffa_mem_transaction_x *trans)
 		trans_descr->flags = trans->flags;
 		trans_descr->mem_access_count = 1;
 		trans_descr->mem_access_offs = sizeof(*trans_descr);
-		trans_descr->mem_access_size = sizeof(struct ffa_mem_access);
-		acc_descr_array = (void *)((vaddr_t)my_rxtx.tx +
-					   sizeof(*trans_descr));
+		trans_descr->mem_access_size = mem_acc_size;
+		mem_acc = (void *)((vaddr_t)my_rxtx.tx + sizeof(*trans_descr));
 	}
-	acc_descr_array->region_offs = 0;
-	acc_descr_array->reserved = 0;
-	perm_descr = &acc_descr_array->access_perm;
+	mem_acc->region_offs = 0;
+	perm_descr = &mem_acc->access_perm;
 	perm_descr->endpoint_id = optee_core_lsp.sp_id;
 	perm_descr->perm = FFA_MEM_ACC_RW;
 	perm_descr->flags = 0;
@@ -2718,7 +2722,7 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
 {
 	struct mobj_ffa *ret = NULL;
 	struct ffa_mem_transaction_x retrieve_desc = { .tag = use_case};
-	struct ffa_mem_access *descr_array = NULL;
+	struct ffa_mem_access_common *mem_acc = NULL;
 	struct ffa_mem_region *descr = NULL;
 	struct mobj_ffa *mf = NULL;
 	unsigned int num_pages = 0;
@@ -2748,8 +2752,8 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
 		return NULL;
 	}
 
-	descr_array = (void *)((vaddr_t)buf + retrieve_desc.mem_access_offs);
-	offs = READ_ONCE(descr_array->region_offs);
+	mem_acc = (void *)((vaddr_t)buf + retrieve_desc.mem_access_offs);
+	offs = READ_ONCE(mem_acc->region_offs);
 	descr = (struct ffa_mem_region *)((vaddr_t)buf + offs);
 
 	num_pages = READ_ONCE(descr->total_page_count);

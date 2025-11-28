@@ -89,10 +89,9 @@ static struct sp_mem_receiver *find_sp_mem_receiver(struct sp_session *s,
 	return receiver;
 }
 
-static int add_mem_region_to_sp(struct ffa_mem_access *mem_acc,
+static int add_mem_region_to_sp(struct ffa_mem_access_perm *access_perm,
 				struct sp_mem *smem)
 {
-	struct ffa_mem_access_perm *access_perm = &mem_acc->access_perm;
 	struct sp_session *s = NULL;
 	struct sp_mem_receiver *receiver = NULL;
 	uint8_t perm = READ_ONCE(access_perm->perm);
@@ -288,7 +287,7 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 	int res = FFA_INVALID_PARAMETERS;
 	unsigned int num_mem_accs = 0;
 	unsigned int i = 0;
-	struct ffa_mem_access *mem_acc = NULL;
+	struct ffa_mem_access_common *mem_acc = NULL;
 	size_t needed_size = 0;
 	size_t addr_range_offs = 0;
 	struct ffa_mem_region *mem_reg = NULL;
@@ -299,6 +298,8 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 	struct ffa_address_range *addr_range = NULL;
 	size_t total_page_count = 0;
 	size_t page_count_sum = 0;
+	vaddr_t mem_acc_base = 0;
+	size_t mem_acc_size = 0;
 
 	if (blen != flen) {
 		DMSG("Fragmented memory share is not supported for SPs");
@@ -315,8 +316,9 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 		goto cleanup;
 	}
 
+	mem_acc_size = mem_trans->mem_access_size;
 	num_mem_accs = mem_trans->mem_access_count;
-	mem_acc = (void *)((vaddr_t)rxtx->rx + mem_trans->mem_access_offs);
+	mem_acc_base = (vaddr_t)rxtx->rx + mem_trans->mem_access_offs;
 
 	if (!num_mem_accs) {
 		res = FFA_INVALID_PARAMETERS;
@@ -329,18 +331,20 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 	smem->flags = mem_trans->flags;
 	smem->tag = mem_trans->tag;
 
-	if (MUL_OVERFLOW(num_mem_accs, sizeof(*mem_acc), &needed_size) ||
+	if (MUL_OVERFLOW(num_mem_accs, mem_acc_size, &needed_size) ||
 	    ADD_OVERFLOW(needed_size, mem_trans->mem_access_offs,
 			 &needed_size) || needed_size > blen) {
 		res = FFA_INVALID_PARAMETERS;
 		goto cleanup;
 	}
 
-	for (i = 0; i < num_mem_accs; i++)
-		highest_permission |= READ_ONCE(mem_acc[i].access_perm.perm);
+	for (i = 0; i < num_mem_accs; i++) {
+		mem_acc = (void *)(mem_acc_base + i * mem_acc_size);
+		highest_permission |= READ_ONCE(mem_acc->access_perm.perm);
+	}
 
 	/* Check if the memory region array fits into the buffer */
-	addr_range_offs = READ_ONCE(mem_acc[0].region_offs);
+	addr_range_offs = READ_ONCE(mem_acc->region_offs);
 
 	if (ADD_OVERFLOW(addr_range_offs, sizeof(*mem_reg), &needed_size) ||
 	    needed_size > blen) {
@@ -408,7 +412,8 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 
 	/* Add the memory address to the SP */
 	for (i = 0; i < num_mem_accs; i++) {
-		res = add_mem_region_to_sp(&mem_acc[i], smem);
+		mem_acc = (void *)(mem_acc_base + i * mem_acc_size);
+		res = add_mem_region_to_sp(&mem_acc->access_perm, smem);
 		if (res)
 			goto cleanup;
 	}
@@ -462,7 +467,7 @@ check_retrieve_request(struct sp_mem_receiver *receiver, uint32_t ffa_vers,
 		       struct ffa_mem_transaction_x *mem_trans,
 		       void *rx, struct sp_mem *smem, int64_t tx_len)
 {
-	struct ffa_mem_access *retr_access = NULL;
+	struct ffa_mem_access_common *retr_access = NULL;
 	uint8_t share_perm = receiver->perm.perm;
 	uint32_t retr_perm = 0;
 	uint32_t retr_flags = mem_trans->flags;
@@ -511,8 +516,7 @@ check_retrieve_request(struct sp_mem_receiver *receiver, uint32_t ffa_vers,
 		tx_len -= sizeof(struct ffa_mem_transaction_1_0);
 	else
 		tx_len -= sizeof(struct ffa_mem_transaction_1_1);
-	tx_len -= sizeof(struct ffa_mem_access) +
-		  sizeof(struct ffa_mem_region);
+	tx_len -= mem_trans->mem_access_size + sizeof(struct ffa_mem_region);
 
 	if (tx_len < 0)
 		return FFA_NO_MEMORY;
@@ -534,7 +538,13 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 	struct ffa_mem_region *dst_region =  NULL;
 	struct ffa_address_range *addr_dst = NULL;
 	struct sp_mem_map_region *reg = NULL;
-	struct ffa_mem_access *mem_acc = NULL;
+	struct ffa_mem_access_common *mem_acc = NULL;
+	size_t mem_acc_size = 0;
+
+	if (ffa_vers <= FFA_VERSION_1_1)
+		mem_acc_size = sizeof(struct ffa_mem_access_1_0);
+	else
+		mem_acc_size = sizeof(struct ffa_mem_access_1_2);
 
 	/*
 	 * we respond with a ffa_mem_retrieve_resp which defines the
@@ -549,7 +559,7 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 		memset(d_ds, 0, sizeof(*d_ds));
 
 		off = sizeof(*d_ds);
-		mem_acc = d_ds->mem_access_array;
+		mem_acc = (void *)d_ds->mem_access_array;
 
 		/* copy the mem_transaction_descr */
 		d_ds->sender_id = receiver->smem->sender_id;
@@ -569,17 +579,17 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 		d_ds->mem_reg_attr = receiver->smem->mem_reg_attr;
 		d_ds->flags = FFA_MEMORY_TRANSACTION_TYPE_SHARE;
 		d_ds->tag = receiver->smem->tag;
-		d_ds->mem_access_size = sizeof(*mem_acc);
+		d_ds->mem_access_size = mem_acc_size;
 		d_ds->mem_access_count = 1;
 		d_ds->mem_access_offs = off;
 	}
 
-	off += sizeof(struct ffa_mem_access);
-	dst_region = (struct ffa_mem_region *)(mem_acc + 1);
+	off += mem_acc_size;
+	dst_region = (struct ffa_mem_region *)((vaddr_t)dst_buffer + off);
 
 	/* Copy the mem_accsess_descr */
-	mem_acc[0].region_offs = off;
-	memcpy(&mem_acc[0].access_perm, &receiver->perm,
+	mem_acc->region_offs = off;
+	memcpy(&mem_acc->access_perm, &receiver->perm,
 	       sizeof(struct ffa_mem_access_perm));
 
 	/* Copy the mem_region_descr */
@@ -612,7 +622,7 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 	uint32_t frag_len = args->a2;
 	int ret = FFA_OK;
 	size_t tx_len = 0;
-	struct ffa_mem_access *mem_acc = NULL;
+	struct ffa_mem_access_common *mem_acc = NULL;
 	struct ffa_mem_region *mem_region = NULL;
 	uint64_t va = 0;
 	struct sp_mem *smem = NULL;
@@ -652,8 +662,7 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 	receiver = sp_mem_get_receiver(caller_sp->endpoint_id, smem);
 
 	mem_acc = (void *)((vaddr_t)rxtx->rx + mem_trans.mem_access_offs);
-
-	address_offset = READ_ONCE(mem_acc[0].region_offs);
+	address_offset = READ_ONCE(mem_acc->region_offs);
 
 	if (ADD_OVERFLOW(address_offset, sizeof(struct ffa_mem_region),
 			 &needed_size) || needed_size > tx_len) {
