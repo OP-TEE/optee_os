@@ -1,13 +1,8 @@
+# Default CPU core for Corstone1000 platform; override for other cores (e.g. cortex-a320)
+arm64-platform-cpuarch ?= cortex-a35
+include core/arch/arm/cpu/$(arm64-platform-cpuarch).mk
+
 PLATFORM_FLAVOR ?= mps3
-
-# ARM debugger needs this
-platform-cflags-debug-info = -gdwarf-2
-platform-aflags-debug-info = -gdwarf-2
-
-$(call force,CFG_HWSUPP_MEM_PERM_WXN,y)
-$(call force,CFG_HWSUPP_MEM_PERM_PXN,y)
-$(call force,CFG_ENABLE_SCTLR_RR,n)
-$(call force,CFG_ENABLE_SCTLR_Z,n)
 
 $(call force,CFG_WITH_LPAE,y)
 $(call force,CFG_PSCI_ARM64,y)
@@ -22,10 +17,6 @@ $(call force,CFG_GIC,y)
 $(call force,CFG_PL011,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_ARM64_core,y)
-
-arm64-platform-cpuarch := cortex-a35
-arm64-platform-cflags += -mcpu=$(arm64-platform-cpuarch)
-arm64-platform-aflags += -mcpu=$(arm64-platform-cpuarch)
 
 CFG_WITH_STATS ?= y
 CFG_WITH_ARM_TRUSTED_FW ?= y
