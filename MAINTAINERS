@@ -240,9 +240,12 @@ F:	core/arch/arm/plat-vexpress/
 
 Qualcomm
 R:	Sumit Garg <sumit.garg@oss.qualcomm.com> [@b49020]
+R:	Jorge Ramirez <jorge.ramirez@oss.qualcomm.com> [@ldts]
 S:	Maintained
 F:	core/arch/arm/plat-qcom/
+F:	core/drivers/qcom/
 F:	core/drivers/qcom_geni_uart.c
+F:	core/include/drivers/qcom/
 
 Raspberry Pi3
 R:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]
