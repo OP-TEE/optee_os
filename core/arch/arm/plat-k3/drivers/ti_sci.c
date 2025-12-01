@@ -522,6 +522,27 @@ int ti_sci_set_keyrev(uint32_t keyrev,
 	return 0;
 }
 
+int ti_sci_get_soc_uid(uint32_t soc_uid[UID_LEN_WORDS])
+{
+	struct ti_sci_msg_req_get_soc_uid req = { };
+	struct ti_sci_msg_resp_get_soc_uid resp = { };
+	struct ti_sci_xfer xfer = { };
+	int ret = 0;
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_GET_SOC_UID, 0,
+				&req, sizeof(req), &resp, sizeof(resp), &xfer);
+	if (ret)
+		return ret;
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		return ret;
+
+	memcpy(soc_uid, resp.soc_uid, sizeof(resp.soc_uid));
+	memzero_explicit(&resp, sizeof(resp));
+	return 0;
+}
+
 int ti_sci_init(void)
 {
 	struct ti_sci_msg_resp_version rev_info = { };

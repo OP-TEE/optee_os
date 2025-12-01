@@ -209,6 +209,18 @@ int ti_sci_set_keyrev(uint32_t keyrev,
 		      uint32_t cert_addr_hi);
 
 /**
+ * ti_sci_get_soc_uid - Get the SoC UID
+ * @soc_uid:	Array to store the SoC UID
+ *
+ * Reads the SOC UID value from the device.
+ * SOC UID is a unique identifier for the SOC calculated on the device by the
+ * Boot ROM.
+ *
+ * Return: 0 if all goes well, else appropriate error message
+ */
+int ti_sci_get_soc_uid(uint32_t soc_uid[UID_LEN_WORDS]);
+
+/**
  * ti_sci_init() - Basic initialization
  *
  * Return: 0 if all goes well, else appropriate error message

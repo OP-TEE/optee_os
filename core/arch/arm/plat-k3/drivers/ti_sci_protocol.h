@@ -23,6 +23,7 @@
 #define TI_SCI_MSG_FWL_GET               0x9001
 #define TI_SCI_MSG_FWL_CHANGE_OWNER      0x9002
 #define TI_SCI_MSG_SA2UL_GET_DKEK        0x9029
+#define TI_SCI_MSG_GET_SOC_UID		 0x9021
 #define TI_SCI_MSG_READ_OTP_MMR          0x9022
 #define TI_SCI_MSG_WRITE_OTP_ROW         0x9023
 #define TI_SCI_MSG_LOCK_OTP_ROW          0x9024
@@ -503,6 +504,28 @@ struct ti_sci_msq_req_set_keyrev {
  */
 struct ti_sci_msq_resp_set_keyrev {
 	struct ti_sci_msg_hdr hdr;
+} __packed;
+
+/**
+ * struct ti_sci_msq_req_get_soc_uid - Request for reading the SoC UID
+ * @hdr:	Generic header
+ *
+ * Request for TI_SCI_MSG_GET_SOC_UID
+ */
+struct ti_sci_msg_req_get_soc_uid {
+	struct ti_sci_msg_hdr hdr;
+} __packed;
+
+/**
+ * struct ti_sci_msq_resp_get_soc_uid - Response for reading the SoC UID
+ * @hdr:	Generic header
+ *
+ * Response for TI_SCI_MSG_GET_SOC_UID
+ */
+struct ti_sci_msg_resp_get_soc_uid {
+	struct ti_sci_msg_hdr hdr;
+#define UID_LEN_WORDS	8U
+	uint32_t soc_uid[UID_LEN_WORDS];
 } __packed;
 
 #endif
