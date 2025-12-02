@@ -52,17 +52,20 @@
  * external seed registers which provide seed to the DRBG.
  */
 
+#include <drivers/versal_pmc.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/panic.h>
 #include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <rng_support.h>
 #include <stdint.h>
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
 #include <util.h>
 
+#if !defined(PLATFORM_FLAVOR_net)
 #define TRNG_BASE            0xF1230000
 #define TRNG_SIZE            0x10000
 
@@ -1127,10 +1130,6 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	return TEE_SUCCESS;
 }
 
-void plat_rng_init(void)
-{
-}
-
 static TEE_Result trng_hrng_mode_init(void)
 {
 	/* configure in hybrid mode with derivative function enabled */
@@ -1178,3 +1177,62 @@ static TEE_Result trng_hrng_mode_init(void)
 }
 
 early_init(trng_hrng_mode_init);
+
+#else
+
+#define SEC_MODULE_SHIFT 8
+#define SEC_MODULE_ID 5
+
+#define CRYPTO_API_ID(__x) ((SEC_MODULE_ID << SEC_MODULE_SHIFT) | (__x))
+
+#define VERSAL_TRNG_GENERATE 22
+
+#define TRNG_SEC_STRENGTH_LEN 32
+
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
+{
+	uint32_t low = 0;
+	uint32_t hi = 0;
+	struct versal_ipi_cmd cmd = { };
+	struct versal_mbox_mem p = { };
+	TEE_Result ret = TEE_SUCCESS;
+	uint32_t status = 0;
+	uint32_t offset = 0;
+
+	ret = versal_mbox_alloc(TRNG_SEC_STRENGTH_LEN, NULL, &p);
+	if (ret)
+		return ret;
+
+	cmd.data[0] = CRYPTO_API_ID(VERSAL_TRNG_GENERATE);
+	cmd.ibuf[0].mem = p;
+
+	reg_pair_from_64(virt_to_phys(p.buf), &hi, &low);
+	cmd.data[1] = low;
+	cmd.data[2] = hi;
+
+	while (len) {
+		uint32_t _len = (uint32_t)TRNG_SEC_STRENGTH_LEN;
+
+		if (len < TRNG_SEC_STRENGTH_LEN)
+			_len = (uint32_t)len;
+
+		cmd.data[3] = _len;
+
+		ret = versal_pmc_notify(&cmd, NULL, &status);
+		if (ret)
+			panic();
+
+		memcpy((uint8_t *)buf + offset, p.buf, _len);
+
+		offset += TRNG_SEC_STRENGTH_LEN;
+		len -= _len;
+	}
+
+	versal_mbox_free(&p);
+	return ret;
+}
+#endif
+
+void plat_rng_init(void)
+{
+}
