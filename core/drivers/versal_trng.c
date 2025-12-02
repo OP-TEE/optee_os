@@ -51,19 +51,17 @@
  * The entropy data is fed to the DF to produce seed. This seed is loaded to the
  * external seed registers which provide seed to the DRBG.
  */
-#include <arm.h>
-#include <crypto/crypto.h>
+
 #include <initcall.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/panic.h>
 #include <mm/core_mmu.h>
-#include <platform_config.h>
 #include <rng_support.h>
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
-#include <trace.h>
+#include <util.h>
 
 #define TRNG_BASE            0xF1230000
 #define TRNG_SIZE            0x10000
