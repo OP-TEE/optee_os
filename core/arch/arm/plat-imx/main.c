@@ -114,6 +114,12 @@ void boot_primary_init_intc(void)
 #endif
 }
 
+unsigned long plat_get_freq(void)
+{
+	// Standard i.MX6 boot frequency set by ROM code
+	return 792000000;
+}
+
 #if CFG_TEE_CORE_NB_CORE > 1
 void boot_secondary_init_intc(void)
 {
