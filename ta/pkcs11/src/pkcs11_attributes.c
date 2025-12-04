@@ -181,6 +181,7 @@ static uint8_t *pkcs11_object_default_boolprop(uint32_t attribute)
 	case PKCS11_CKA_WRAP:
 	case PKCS11_CKA_UNWRAP:
 	case PKCS11_CKA_EXTRACTABLE:
+	case PKCS11_CKA_INDESTRUCTIBLE:
 	case PKCS11_CKA_TRUSTED:
 		return (uint8_t *)&bool_false;
 	default:
@@ -1186,6 +1187,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	struct obj_attrs *attrs = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	uint8_t local = 0;
+	uint8_t indestructible = 0;
 	uint8_t always_sensitive = 0;
 	uint8_t never_extract = 0;
 	uint8_t extractable = 0;
@@ -1389,6 +1391,13 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
 		break;
 	}
+	if (rc)
+		goto out;
+
+	/* Extracting the value of indestructible boolean, adding attribute */
+	indestructible = get_bool(temp, PKCS11_CKA_INDESTRUCTIBLE);
+	rc = add_attribute(&attrs, PKCS11_CKA_INDESTRUCTIBLE,
+			   &indestructible, sizeof(indestructible));
 	if (rc)
 		goto out;
 
@@ -1605,6 +1614,23 @@ enum pkcs11_rc check_created_attrs_against_token(struct pkcs11_session *session,
 		DMSG("Can't create persistent object");
 
 		return PKCS11_CKR_SESSION_READ_ONLY;
+	}
+
+	return PKCS11_CKR_OK;
+}
+
+/*
+ * Check if the indestructible attribute of a to-be-created
+ * object is present only if it is a token object
+ */
+enum pkcs11_rc check_indestructible_access(struct pkcs11_session *session,
+					   struct obj_attrs *head)
+{
+	if (get_bool(head, PKCS11_CKA_INDESTRUCTIBLE) &&
+	    !get_bool(head, PKCS11_CKA_TOKEN)) {
+		DMSG("Can't create a non-token Indestructible object");
+
+		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 	}
 
 	return PKCS11_CKR_OK;

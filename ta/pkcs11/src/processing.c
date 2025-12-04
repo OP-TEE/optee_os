@@ -292,6 +292,11 @@ enum pkcs11_rc entry_generate_secret(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+	/* Ensure that only token objects can be indestructible */
+	rc = check_indestructible_access(session, head);
+	if (rc)
+		goto out;
+
 	/*
 	 * Execute target processing and add value as attribute
 	 * PKCS11_CKA_VALUE. Symm key generation: depends on target
@@ -514,6 +519,15 @@ enum pkcs11_rc entry_generate_key_pair(struct pkcs11_client *client,
 		goto out;
 
 	rc = check_access_attrs_against_token(session, priv_head);
+	if (rc)
+		goto out;
+
+	/* Ensure that only token objects can be indestructible */
+	rc = check_indestructible_access(session, pub_head);
+	if (rc)
+		goto out;
+
+	rc = check_indestructible_access(session, priv_head);
 	if (rc)
 		goto out;
 
@@ -971,6 +985,11 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 		goto out;
 
 	rc = check_access_attrs_against_token(session, head);
+	if (rc)
+		goto out;
+
+	/* Ensure that only token objects can be indestructible */
+	rc = check_indestructible_access(session, head);
 	if (rc)
 		goto out;
 
