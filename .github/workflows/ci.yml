@@ -336,6 +336,7 @@ jobs:
               _make PLATFORM=virt CFG_RISCV_PLIC=n CFG_RISCV_APLIC=y
               _make PLATFORM=virt CFG_RISCV_PLIC=n CFG_RISCV_APLIC_MSI=y CFG_RISCV_IMSIC=y
               _make PLATFORM=sifive
+              _make PLATFORM=cva6
     steps:
       - name: Checkout
         uses: actions/checkout@v4
