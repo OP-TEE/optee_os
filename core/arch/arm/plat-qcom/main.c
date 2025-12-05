@@ -10,6 +10,7 @@
 #include <kernel/boot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
+#include <util.h>
 
 /*
  * Register the physical memory area for peripherals etc. Here we are
@@ -33,6 +34,14 @@ void plat_console_init(void)
 	qcom_geni_uart_init(&console_data, GENI_UART_REG_BASE);
 	register_serial_console(&console_data.chip);
 }
+
+static TEE_Result platform_banner(void)
+{
+	IMSG("Platform Qualcomm: Flavor %s", TO_STR(PLATFORM_FLAVOR));
+
+	return TEE_SUCCESS;
+}
+service_init(platform_banner);
 
 void boot_primary_init_intc(void)
 {
