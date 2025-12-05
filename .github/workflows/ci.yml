@@ -378,7 +378,10 @@ jobs:
     name: Build QEMUv7 image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Host cleanup
+        run: |
+          wget https://raw.githubusercontent.com/OP-TEE/optee_os/refs/heads/master/scripts/ci-host-cleanup.sh
+          bash ci-host-cleanup.sh
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
@@ -417,6 +420,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
+      - name: Host cleanup
+        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
@@ -437,8 +442,6 @@ jobs:
           key: ${{ env.CACHE_KEY }}
           restore-keys: |
             ${{ env.CACHE_RESTORE_KEY }}
-      - name: Host setup
-        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Run 'make check' tasks in container
         env:
           MAKE_COMMANDS: "${{ matrix.make_commands }}"
@@ -469,7 +472,10 @@ jobs:
     name: Build QEMUv8 image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Host cleanup
+        run: |
+          wget https://raw.githubusercontent.com/OP-TEE/optee_os/refs/heads/master/scripts/ci-host-cleanup.sh
+          bash ci-host-cleanup.sh
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
@@ -558,6 +564,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
+      - name: Host cleanup
+        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
@@ -578,8 +586,6 @@ jobs:
           key: ${{ env.CACHE_KEY }}
           restore-keys: |
             ${{ env.CACHE_RESTORE_KEY }}
-      - name: Host setup
-        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Run 'make check' tasks in container
         env:
           MAKE_COMMANDS: "${{ matrix.make_commands }}"
@@ -612,7 +618,10 @@ jobs:
     name: Build QEMUv8 arm64 image
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - name: Host cleanup
+        run: |
+          wget https://raw.githubusercontent.com/OP-TEE/optee_os/refs/heads/master/scripts/ci-host-cleanup.sh
+          bash ci-host-cleanup.sh
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
@@ -646,6 +655,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
+      - name: Host setup
+        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
@@ -666,8 +677,6 @@ jobs:
           key: ${{ env.CACHE_KEY }}
           restore-keys: |
             ${{ env.CACHE_RESTORE_KEY }}
-      - name: Host setup
-        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Run 'make check' tasks in container
         env:
           MAKE_COMMANDS: "${{ matrix.make_commands }}"
