@@ -659,6 +659,17 @@ static TEE_Result trng_reseed_internal_nodf(struct versal_trng *trng,
 
 	switch (trng->usr_cfg.mode) {
 	case TRNG_HRNG:
+		/*
+		 * Versal TRNG IP doesn't recognize alternate 1 and 0 pattern,
+		 * hence the entropy output need to be monitored before using it
+		 * as seed. This means, TRNG couldn't be configured for entropy
+		 * source as seed source. Instead, entropy data is collected as
+		 * random data, and after inspecting for pattern, is fed again
+		 * to the external seed registers. This is essentially similar
+		 * to HRNG + DF case except that there is no DF involved. This
+		 * actually is configuration for PTRNG mode (not for reseed) to
+		 * collect random output data from entropy source.
+		 */
 		trng_write32(trng->cfg.addr, TRNG_OSC_EN, TRNG_OSC_EN_VAL_MASK);
 		trng_soft_reset(trng);
 		trng_write32(trng->cfg.addr, TRNG_CTRL,
@@ -695,6 +706,7 @@ static TEE_Result trng_reseed_internal_df(struct versal_trng *trng,
 
 	switch (trng->usr_cfg.mode) {
 	case TRNG_HRNG:
+		/* see comment in _nodf() */
 		trng_write32(trng->cfg.addr, TRNG_OSC_EN, TRNG_OSC_EN_VAL_MASK);
 		trng_soft_reset(trng);
 		trng_write32(trng->cfg.addr, TRNG_CTRL,
@@ -741,6 +753,11 @@ static TEE_Result trng_reseed_internal(struct versal_trng *trng,
 			goto error;
 	}
 
+	/*
+	 * Set PRNGMODE to reseed and seed source (PRNGXS) to
+	 * TRNG_EXT_SEED_*; the latter especially also for HRNG due to
+	 * not being able to selected entropy source as seed source.
+	 */
 	trng_write32(trng->cfg.addr, TRNG_CTRL,
 		     PRNGMODE_RESEED | TRNG_CTRL_PRNGXS_MASK);
 
