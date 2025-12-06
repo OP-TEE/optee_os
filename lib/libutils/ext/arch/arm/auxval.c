@@ -6,7 +6,13 @@
 #include <compiler.h>
 
 unsigned long int __getauxval (unsigned long int type);
+unsigned long int getauxval (unsigned long int type);
 unsigned long int __getauxval (unsigned long int type __unused)
 {
-	return 0;
+	return 0UL;
+}
+
+unsigned long getauxval(unsigned long type)
+{
+    return __getauxval(type);
 }
