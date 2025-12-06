@@ -133,6 +133,7 @@
 #define PRNGMODE_RESEED		0
 #define PRNGMODE_GEN		TRNG_CTRL_PRNGMODE_MASK
 #define RESET_DELAY		10
+#define TRNG_ENTROPY_SEED_LEN	64
 #define TRNG_SEC_STRENGTH_LEN	32
 #define TRNG_PERS_STR_REGS	12
 #define TRNG_PERS_STR_LEN	48
@@ -654,7 +655,7 @@ static TEE_Result trng_collect_random(struct versal_trng *trng, uint8_t *dst,
 static TEE_Result trng_reseed_internal_nodf(struct versal_trng *trng,
 					    uint8_t *eseed, uint8_t *str)
 {
-	uint8_t entropy[TRNG_SEED_LEN] = { 0 };
+	uint8_t entropy[TRNG_ENTROPY_SEED_LEN] = { 0 };
 	uint8_t *seed = NULL;
 
 	switch (trng->usr_cfg.mode) {
@@ -675,10 +676,10 @@ static TEE_Result trng_reseed_internal_nodf(struct versal_trng *trng,
 		trng_write32(trng->cfg.addr, TRNG_CTRL,
 			     TRNG_CTRL_EUMODE_MASK | TRNG_CTRL_TRSSEN_MASK);
 
-		if (trng_collect_random(trng, entropy, TRNG_SEED_LEN))
+		if (trng_collect_random(trng, entropy, TRNG_ENTROPY_SEED_LEN))
 			return TEE_ERROR_GENERIC;
 
-		if (trng_check_seed(entropy, TRNG_SEED_LEN))
+		if (trng_check_seed(entropy, TRNG_ENTROPY_SEED_LEN))
 			return TEE_ERROR_GENERIC;
 
 		seed = entropy;
@@ -870,7 +871,8 @@ static TEE_Result trng_reseed(struct versal_trng *trng, uint8_t *eseed,
 	if (trng->usr_cfg.df_disable && mul)
 		goto error;
 
-	if (eseed && !memcmp(eseed, trng->usr_cfg.init_seed, trng->len))
+	if (eseed && (trng->len > TRNG_SEED_LEN ||
+		      !memcmp(eseed, trng->usr_cfg.init_seed, trng->len)))
 		goto error;
 
 	if (trng_reseed_internal(trng, eseed, NULL, mul))
@@ -918,16 +920,22 @@ static TEE_Result trng_generate(struct versal_trng *trng, uint8_t *buf,
 				goto error;
 		}
 
-		trng_write32(trng->cfg.addr, TRNG_CTRL, PRNGMODE_GEN);
+		trng_write32(trng->cfg.addr, TRNG_CTRL,
+			     PRNGMODE_GEN | TRNG_CTRL_PRNGXS_MASK);
 		break;
 	case TRNG_DRNG:
-		if (trng->stats.elapsed_seed_life > trng->usr_cfg.seed_life)
+		if (trng->stats.elapsed_seed_life > trng->usr_cfg.seed_life) {
+			EMSG("Reseeding required");
 			goto error;
+		}
 
-		if (predict && trng->stats.elapsed_seed_life > 0)
+		if (predict && trng->stats.elapsed_seed_life > 0) {
+			EMSG("Reseeding required");
 			goto error;
+		}
 
-		trng_write32(trng->cfg.addr, TRNG_CTRL, PRNGMODE_GEN);
+		trng_write32(trng->cfg.addr, TRNG_CTRL,
+			     PRNGMODE_GEN | TRNG_CTRL_PRNGXS_MASK);
 		break;
 	default:
 		if (!trng->usr_cfg.df_disable) {
@@ -1155,7 +1163,8 @@ static TEE_Result trng_hrng_mode_init(void)
 		panic();
 	}
 
-	if (trng_reseed(&versal_trng, NULL, usr_cfg.dfmul)) {
+	if (versal_trng.usr_cfg.mode == TRNG_HRNG &&
+	    trng_reseed(&versal_trng, NULL, versal_trng.usr_cfg.dfmul)) {
 		EMSG("Reseed Failed");
 		panic();
 	}
