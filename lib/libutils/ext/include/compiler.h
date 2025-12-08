@@ -102,6 +102,14 @@
 #define __HAVE_BUILTIN_OVERFLOW 1
 #endif
 
+#ifdef __has_builtin
+#if __has_builtin(__builtin_add_overflow) && \
+    __has_builtin(__builtin_sub_overflow) && \
+    __has_builtin(__builtin_mul_overflow)
+#define __HAVE_BUILTIN_OVERFLOW 1
+#endif
+#endif
+
 #if __GCC_VERSION >= 90100 && !defined(__CHECKER__)
 #define __HAVE_SINGLE_ARGUMENT_STATIC_ASSERT 1
 #endif
