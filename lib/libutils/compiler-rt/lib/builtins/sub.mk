@@ -4,5 +4,6 @@ cflags-y += -Wno-missing-prototypes
 cflags-y += -Wno-missing-declarations
 
 srcs-y += ashlti3.c
+srcs-y += mulodi4.c
 srcs-y += udivmodti4.c
 srcs-y += udivti3.c
