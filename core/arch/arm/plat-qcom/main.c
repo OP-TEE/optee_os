@@ -34,6 +34,15 @@ void plat_console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
+static TEE_Result platform_banner(void)
+{
+	IMSG("Platform Qualcomm: Flavor %s", TO_STR(PLATFORM_FLAVOR));
+
+	return TEE_SUCCESS;
+}
+
+boot_final(platform_banner);
+
 void boot_primary_init_intc(void)
 {
 	gic_init_v3(0, GICD_BASE, GICR_BASE);
