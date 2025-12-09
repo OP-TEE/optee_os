@@ -4,4 +4,6 @@
 #
 #
 
+subdirs-$(CFG_AMD_ASU_SUPPORT) += asu
+
 srcs-$(CFG_AMD_PS_GPIO) += gpio_common.c ps_gpio_driver.c
