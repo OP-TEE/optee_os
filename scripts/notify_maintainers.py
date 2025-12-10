@@ -113,6 +113,8 @@ def main():
         existing_handles = set()
         for comment in pr.get_issue_comments():
             existing_handles.update(re.findall(r"@([\w-]+)", comment.body))
+            if comment.user:
+                existing_handles.add(comment.user.login)
         if existing_handles:
             print("# Already mentioned: " +
                   " ".join(f"@{h}" for h in existing_handles))
