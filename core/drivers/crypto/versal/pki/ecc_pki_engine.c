@@ -5,6 +5,7 @@
 
 #include <config.h>
 #include <crypto/crypto_impl.h>
+#include <drivers/versal_trng.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
 #include <ecc.h>
@@ -19,6 +20,51 @@
 #include <tee/cache.h>
 #include <tee/tee_cryp_utl.h>
 #include <util.h>
+
+#ifdef CFG_VERSAL_RNG_DRV
+/* PKI Engine, first TRNG instance */
+#define FPD_PKI_CSR_BASE	UINT64_C(0x20400050000)
+#define FPD_PKI_TRNG0_BASE	(FPD_PKI_CSR_BASE + 0x1000)
+#define FPD_PKI_TRNG0_SIZE	0x1000
+
+static struct versal_trng ecc_pki_trng = {
+	.cfg.base = FPD_PKI_TRNG0_BASE,
+	.cfg.len = FPD_PKI_TRNG0_SIZE,
+	.cfg.version = TRNG_V2,
+};
+
+static TEE_Result versal_ecc_trng_init(void)
+{
+	/* configure in hybrid mode with derivative function enabled */
+	struct trng_usr_cfg usr_cfg = {
+		.mode = TRNG_HRNG,
+		.seed_life = CFG_VERSAL_TRNG_SEED_LIFE,
+		.predict_en = false,
+		.df_disable = false,
+		.dfmul = CFG_VERSAL_TRNG_DF_MUL,
+		.iseed_en = false,
+		.pstr_en = true,
+	};
+
+	memcpy(usr_cfg.pstr, trng_pers_str, sizeof(trng_pers_str));
+	return versal_trng_hw_init(&ecc_pki_trng, &usr_cfg);
+}
+
+static inline TEE_Result versal_ecc_trng_get_random_bytes(void *buf, size_t len)
+{
+	return versal_trng_get_random_bytes(&ecc_pki_trng, buf, len);
+}
+#else
+static TEE_Result versal_ecc_trng_init(void)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result versal_ecc_trng_get_random_bytes(void *buf, size_t len)
+{
+	return crypto_rng_read(buf, len);
+}
+#endif
 
 #define FPD_SLCR_BASEADDR		0xEC8C0000
 #define FPD_SLCR_SIZE			0x4000
@@ -668,7 +714,7 @@ static TEE_Result versal_ecc_gen_private_key(uint32_t curve, uint8_t *priv,
 	addr += bytes;
 
 	/* Copy A = random */
-	ret = crypto_rng_read(addr, bytes);
+	ret = versal_ecc_trng_get_random_bytes(addr, bytes);
 	if (ret)
 		return ret;
 	addr += bytes;
@@ -897,6 +943,12 @@ TEE_Result versal_ecc_hw_init(void)
 	ret = versal_pki_engine_config();
 	if (ret)
 		return ret;
+
+	if (IS_ENABLED(CFG_VERSAL_RNG_DRV)) {
+		ret = versal_ecc_trng_init();
+		if (ret)
+			return ret;
+	}
 
 	versal_pki.regs = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
 							FPD_PKI_CRYPTO_BASEADDR,

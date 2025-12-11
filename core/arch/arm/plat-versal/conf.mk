@@ -70,8 +70,13 @@ $(call force, CFG_VERSAL_RNG_DRV,y)
 $(call force, CFG_WITH_SOFTWARE_PRNG,n)
 
 # TRNG configuration
+ifeq ($(PLATFORM_FLAVOR),net)
+CFG_VERSAL_TRNG_SEED_LIFE ?= 256
+CFG_VERSAL_TRNG_DF_MUL ?= 7
+else
 CFG_VERSAL_TRNG_SEED_LIFE ?= 3
 CFG_VERSAL_TRNG_DF_MUL ?= 2
+endif
 
 # eFuse and BBRAM driver
 ifeq ($(PLATFORM_FLAVOR),net)
