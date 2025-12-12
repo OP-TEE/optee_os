@@ -19,6 +19,23 @@
 #include <string.h>
 #include <types_ext.h>
 
+#define ASAN_VA_REGS_MAX 32
+
+/* Represents memory mapped region */
+struct asan_va_reg {
+	vaddr_t lo;
+	vaddr_t hi;
+};
+
+/* Global structure with ASan metadata */
+struct asan_global_info {
+	/* Virtual memory regions allowed for ASan checks */
+	size_t regs_count;
+	struct asan_va_reg regs[ASAN_VA_REGS_MAX];
+};
+
+#define GET_ASAN_INFO() (&__asan_global_info)
+
 typedef void (*asan_panic_cb_t)(void);
 
 void asan_set_shadowed(const void *va_begin, const void *va_end);
