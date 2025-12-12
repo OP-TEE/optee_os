@@ -321,7 +321,7 @@ static void init_asan(void)
 	 * Assign area covered by the shadow area, everything from start up
 	 * to the beginning of the shadow area.
 	 */
-	asan_set_shadowed((void *)TEE_LOAD_ADDR, &__asan_shadow_start);
+	asan_add_shadowed((void *)TEE_LOAD_ADDR, &__asan_shadow_start);
 
 	/*
 	 * Add access to areas that aren't opened automatically by a
