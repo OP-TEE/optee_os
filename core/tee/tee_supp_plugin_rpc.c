@@ -77,10 +77,15 @@ TEE_Result tee_invoke_supp_plugin_rpc(const TEE_UUID *uuid, uint32_t cmd,
 		*outlen = params[2].u.value.b;
 
 	if (len && outlen && *outlen) {
+		size_t resp_len = *outlen;
+
+		if (resp_len > len)
+			resp_len = len;
+
 		if (buf_core)
-			memcpy(buf_core, va, *outlen <= len ? *outlen : len);
+			memcpy(buf_core, va, resp_len);
 		if (buf_user)
-			res = copy_to_user(buf_user, va, len);
+			res = copy_to_user(buf_user, va, resp_len);
 	}
 
 out:
