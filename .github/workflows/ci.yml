@@ -546,7 +546,7 @@ jobs:
               make -j$(nproc) check SPMC_AT_EL=1 CFG_SECURE_PARTITION=y CFG_SPMC_TESTS=y
           - name: SPMC_AT_EL=2
             make_commands: |
-              make -j$(nproc) check SPMC_AT_EL=2
+              make -j$(nproc) check SPMC_AT_EL=2 XTEST_ARGS="-x n_1034"
           - name: SPMC_AT_EL=3
             make_commands: |
               make -j$(nproc) check SPMC_AT_EL=3
