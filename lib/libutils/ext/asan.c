@@ -40,8 +40,9 @@ struct asan_global {
 #endif
 };
 
-static vaddr_t asan_va_base;
-static size_t asan_va_size;
+static struct asan_global_info __asan_global_info;
+static struct asan_global_info *asan_info = GET_ASAN_INFO();
+
 static bool asan_active;
 static asan_panic_cb_t asan_panic_cb = asan_panic;
 
@@ -65,22 +66,41 @@ static size_t va_range_to_shadow_size(const void *begin, const void *end)
 
 static bool va_range_inside_shadow(const void *begin, const void *end)
 {
+	unsigned i = 0;
+	struct asan_va_reg *regs = asan_info->regs;
 	vaddr_t b = (vaddr_t)begin;
 	vaddr_t e = (vaddr_t)end;
 
 	if (b >= e)
 		return false;
-	return (b >= asan_va_base) && (e <= (asan_va_base + asan_va_size));
+
+	for (i = 0; i < asan_info->regs_count; i++) {
+		if ((b >= regs[i].lo) && (e <= (regs[i].hi))) {
+			/* Access is covered fully by at least
+			 * one region */
+			return true;
+		}
+	}
+	return false;
 }
 
 static bool va_range_outside_shadow(const void *begin, const void *end)
 {
+	unsigned i = 0;
+	struct asan_va_reg *regs = asan_info->regs;
 	vaddr_t b = (vaddr_t)begin;
 	vaddr_t e = (vaddr_t)end;
 
 	if (b >= e)
 		return false;
-	return (e <= asan_va_base) || (b >= (asan_va_base + asan_va_size));
+
+	for (i = 0; i < asan_info->regs_count; i++) {
+		if ((b < regs[i].hi) && (e > (regs[i].lo))) {
+			/* Access covers region at least partly */
+			return false;
+		}
+	}
+	return true;
 }
 
 static size_t va_misalignment(const void *va)
@@ -95,16 +115,17 @@ static bool va_is_well_aligned(const void *va)
 
 void asan_set_shadowed(const void *begin, const void *end)
 {
-	vaddr_t b = (vaddr_t)begin;
-	vaddr_t e = (vaddr_t)end;
+	struct asan_va_reg reg = {(vaddr_t)begin, (vaddr_t)end};
 
-	assert(!asan_va_base);
 	assert(va_is_well_aligned(begin));
 	assert(va_is_well_aligned(end));
-	assert(b < e);
-
-	asan_va_base = b;
-	asan_va_size = e - b;
+	assert(reg.lo < reg.hi);
+	if (asan_info->regs_count < ASAN_VA_REGS_MAX) {
+		asan_info->regs[asan_info->regs_count++] = reg;
+	} else {
+		EMSG("No free regions to allocate");
+		asan_panic();
+	}
 }
 
 void asan_tag_no_access(const void *begin, const void *end)
@@ -119,7 +140,7 @@ void asan_tag_no_access(const void *begin, const void *end)
 
 void asan_tag_access(const void *begin, const void *end)
 {
-	if (!asan_va_base || (begin == end))
+	if (!asan_info->regs_count || (begin == end))
 		return;
 
 	assert(va_range_inside_shadow(begin, end));
@@ -133,7 +154,7 @@ void asan_tag_access(const void *begin, const void *end)
 
 void asan_tag_heap_free(const void *begin, const void *end)
 {
-	if (!asan_va_base)
+	if (!asan_info->regs_count)
 		return;
 
 	assert(va_range_inside_shadow(begin, end));
@@ -171,7 +192,7 @@ void *asan_memcpy_unchecked(void *__restrict dst, const void *__restrict src,
 
 void asan_start(void)
 {
-	assert(asan_va_base && !asan_active);
+	assert((asan_info->regs_count > 0) && !asan_active);
 	asan_active = true;
 }
 
