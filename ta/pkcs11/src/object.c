@@ -374,6 +374,11 @@ enum pkcs11_rc entry_create_object(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+	/* Ensure that only token objects can be indestructible */
+	rc = check_attrs_misc_integrity(head);
+	if (rc)
+		goto out;
+
 	/*
 	 * At this stage the object is almost created: all its attributes are
 	 * referenced in @head, including the key value and are assumed
@@ -457,6 +462,11 @@ enum pkcs11_rc entry_destroy_object(struct pkcs11_client *client,
 	if (!get_bool(object->attributes, PKCS11_CKA_DESTROYABLE))
 		return PKCS11_CKR_ACTION_PROHIBITED;
 
+	/* Objects with PKCS11_CKA_OPTEE_INDESTRUCTIBLE as true aren't destroyable */
+	if (get_bool(object->attributes, PKCS11_CKA_OPTEE_INDESTRUCTIBLE)) {
+		DMSG("Object is indestructible");
+		return PKCS11_CKR_ACTION_PROHIBITED;
+	}
 	destroy_object(session, object, false);
 
 	DMSG("PKCS11 session %"PRIu32": destroy object %#"PRIx32,
