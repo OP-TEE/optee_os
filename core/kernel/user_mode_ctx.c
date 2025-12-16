@@ -11,7 +11,7 @@ void user_mode_ctx_print_mappings(struct user_mode_ctx *uctx)
 {
 	struct vm_region *r = NULL;
 	char flags[7] = { '\0', };
-	size_t n = 0;
+	size_t __maybe_unused n = 0;
 
 	TAILQ_FOREACH(r, &uctx->vm_info.regions, link) {
 		paddr_t pa = 0;
