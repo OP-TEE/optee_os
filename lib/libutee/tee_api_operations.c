@@ -586,17 +586,14 @@ void TEE_ResetOperation(TEE_OperationHandle operation)
 	reset_operation_state(operation);
 }
 
-TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
-			       TEE_ObjectHandle key)
+static TEE_Result set_operation_key(TEE_OperationHandle operation,
+				    TEE_ObjectHandle key)
 {
 	TEE_Result res;
 	uint32_t key_size = 0;
 	TEE_ObjectInfo key_info;
 
-	if (operation == TEE_HANDLE_NULL) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	assert(operation);
 
 	if (key == TEE_HANDLE_NULL) {
 		/* Operation key cleared */
@@ -662,6 +659,16 @@ out:
 	return res;
 }
 
+TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
+			       TEE_ObjectHandle key)
+{
+	if (operation == TEE_HANDLE_NULL ||
+	    operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED)
+		TEE_Panic(0);
+
+	return set_operation_key(operation, key);
+}
+
 TEE_Result __GP11_TEE_SetOperationKey(TEE_OperationHandle operation,
 				      TEE_ObjectHandle key)
 {
@@ -669,7 +676,7 @@ TEE_Result __GP11_TEE_SetOperationKey(TEE_OperationHandle operation,
 	    operation->operationState != TEE_OPERATION_STATE_INITIAL)
 		TEE_Panic(0);
 
-	return TEE_SetOperationKey(operation, key);
+	return set_operation_key(operation, key);
 }
 
 static TEE_Result set_operation_key2(TEE_OperationHandle operation,
@@ -837,7 +844,12 @@ void TEE_CopyOperation(TEE_OperationHandle dst_op, TEE_OperationHandle src_op)
 
 		if ((src_op->info.handleState &
 		     TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) == 0) {
-			TEE_SetOperationKey(dst_op, key1);
+			/*
+			 * TEE_SetOperationKey() cannot operate on an operation
+			 * that has TEE_HANDLE_FLAG_INITIALIZED. Use the
+			 * internal function.
+			 */
+			set_operation_key(dst_op, key1);
 		} else {
 			TEE_SetOperationKey2(dst_op, key1, key2);
 		}
