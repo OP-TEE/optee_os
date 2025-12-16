@@ -602,8 +602,10 @@ TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 		/* Operation key cleared */
 		TEE_ResetTransientObject(operation->key1);
 		operation->info.handleState &= ~TEE_HANDLE_FLAG_KEY_SET;
-		if (operation->operationState != TEE_OPERATION_STATE_INITIAL)
+		if (operation->operationState != TEE_OPERATION_STATE_INITIAL ||
+		    operation->info.operationClass == TEE_OPERATION_AE) {
 			reset_operation_state(operation);
+		}
 		return TEE_SUCCESS;
 	}
 
@@ -650,8 +652,10 @@ TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 
 	operation->info.keySize = key_size;
 
-	if (operation->operationState != TEE_OPERATION_STATE_INITIAL)
+	if (operation->operationState != TEE_OPERATION_STATE_INITIAL ||
+	    operation->info.operationClass == TEE_OPERATION_AE) {
 		reset_operation_state(operation);
+	}
 
 out:
 	if (res != TEE_SUCCESS  &&
