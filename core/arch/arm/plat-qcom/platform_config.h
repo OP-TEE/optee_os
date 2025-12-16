@@ -24,6 +24,7 @@
 
 #define GENI_UART_REG_BASE		UL(0x994000)
 #define RAMBLUR_PIMEM_REG_BASE		UL(0x610000)
+#define SEC_PRNG_REG_BASE		UL(0x010D1000)
 
 /* GIC related constants */
 #define GICD_BASE			UL(0x17a00000)
