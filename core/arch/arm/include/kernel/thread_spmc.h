@@ -50,6 +50,7 @@ TEE_Result spmc_fill_partition_entry(uint32_t ffa_vers, void *buf, size_t blen,
 				     uint32_t part_props,
 				     const uint32_t uuid_words[4]);
 int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
+			      uint32_t tot_len, uint32_t frag_len,
 			      struct ffa_mem_transaction_x *trans);
 
 bool spmc_is_reserved_id(uint16_t id);

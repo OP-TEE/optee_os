@@ -952,6 +952,7 @@ static void handle_direct_request(struct thread_smc_1_2_regs *args)
 }
 
 int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
+			      uint32_t tot_len, uint32_t frag_len,
 			      struct ffa_mem_transaction_x *trans)
 {
 	uint16_t mem_reg_attr = 0;
@@ -961,13 +962,14 @@ int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
 	uint32_t size = 0;
 	size_t n = 0;
 
-	if (!IS_ALIGNED_WITH_TYPE(buf, uint64_t))
+	if (!IS_ALIGNED_WITH_TYPE(buf, uint64_t) || frag_len > tot_len ||
+	    frag_len > blen)
 		return FFA_INVALID_PARAMETERS;
 
 	if (ffa_vers >= FFA_VERSION_1_1) {
 		struct ffa_mem_transaction_1_1 *descr = NULL;
 
-		if (blen < sizeof(*descr))
+		if (frag_len < sizeof(*descr))
 			return FFA_INVALID_PARAMETERS;
 
 		descr = buf;
@@ -983,7 +985,7 @@ int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
 	} else {
 		struct ffa_mem_transaction_1_0 *descr = NULL;
 
-		if (blen < sizeof(*descr))
+		if (frag_len < sizeof(*descr))
 			return FFA_INVALID_PARAMETERS;
 
 		descr = buf;
@@ -1000,12 +1002,13 @@ int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
 	}
 
 	if (mem_reg_attr > UINT8_MAX || flags > UINT8_MAX ||
-	    size > UINT8_MAX || count > UINT8_MAX || offs > UINT16_MAX)
+	    size > UINT8_MAX || count > UINT8_MAX || offs > UINT16_MAX ||
+	    offs % 16)
 		return FFA_INVALID_PARAMETERS;
 
 	/* Check that the endpoint memory access descriptor array fits */
 	if (MUL_OVERFLOW(size, count, &n) || ADD_OVERFLOW(offs, n, &n) ||
-	    n > blen)
+	    n > frag_len)
 		return FFA_INVALID_PARAMETERS;
 
 	trans->mem_reg_attr = mem_reg_attr;
@@ -1241,8 +1244,8 @@ err:
 	return rc;
 }
 
-static int handle_mem_op_tmem(bool share_mem, paddr_t pbuf, size_t blen,
-			      size_t flen, unsigned int page_count,
+static int handle_mem_op_tmem(bool share_mem, paddr_t pbuf, size_t tot_len,
+			      size_t frag_len, unsigned int page_count,
 			      uint64_t *global_handle, struct ffa_rxtx *rxtx)
 {
 	struct ffa_mem_transaction_x mem_trans = { };
@@ -1261,7 +1264,7 @@ static int handle_mem_op_tmem(bool share_mem, paddr_t pbuf, size_t blen,
 	 * Check that the length reported in flen is covered by len even
 	 * if the offset is taken into account.
 	 */
-	if (len < flen || len - offs < flen)
+	if (len < frag_len || len - offs < frag_len)
 		return FFA_INVALID_PARAMETERS;
 
 	mm = tee_mm_alloc(&core_virt_shm_pool, len);
@@ -1276,7 +1279,8 @@ static int handle_mem_op_tmem(bool share_mem, paddr_t pbuf, size_t blen,
 	buf = (void *)(tee_mm_get_smem(mm) + offs);
 
 	cpu_spin_lock(&rxtx->spinlock);
-	rc = spmc_read_mem_transaction(rxtx->ffa_vers, buf, flen, &mem_trans);
+	rc = spmc_read_mem_transaction(rxtx->ffa_vers, buf, len - offs,
+				       frag_len, tot_len, &mem_trans);
 	if (rc)
 		goto unlock;
 
@@ -1285,7 +1289,7 @@ static int handle_mem_op_tmem(bool share_mem, paddr_t pbuf, size_t blen,
 			rc = FFA_DENIED;
 			goto unlock;
 		}
-		rc = spmc_sp_add_share(&mem_trans, buf, blen, flen,
+		rc = spmc_sp_add_share(&mem_trans, buf, tot_len, frag_len,
 				       global_handle, NULL);
 		goto unlock;
 	}
@@ -1296,7 +1300,7 @@ static int handle_mem_op_tmem(bool share_mem, paddr_t pbuf, size_t blen,
 		goto unlock;
 	}
 
-	rc = add_mem_op(share_mem, &mem_trans, mm, buf, blen, flen,
+	rc = add_mem_op(share_mem, &mem_trans, mm, buf, tot_len, frag_len,
 			global_handle);
 
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
@@ -1313,7 +1317,7 @@ out:
 	return rc;
 }
 
-static int handle_mem_op_rxbuf(bool share_mem, size_t blen, size_t flen,
+static int handle_mem_op_rxbuf(bool share_mem, size_t tot_len, size_t frag_len,
 			       uint64_t *global_handle, struct ffa_rxtx *rxtx)
 {
 	struct ffa_mem_transaction_x mem_trans = { };
@@ -1321,11 +1325,11 @@ static int handle_mem_op_rxbuf(bool share_mem, size_t blen, size_t flen,
 
 	cpu_spin_lock(&rxtx->spinlock);
 
-	if (!rxtx->rx || flen > rxtx->size)
+	if (!rxtx->rx || frag_len > rxtx->size)
 		goto out;
 
-	rc = spmc_read_mem_transaction(rxtx->ffa_vers, rxtx->rx, flen,
-				       &mem_trans);
+	rc = spmc_read_mem_transaction(rxtx->ffa_vers, rxtx->rx, rxtx->size,
+				       frag_len, tot_len, &mem_trans);
 	if (rc)
 		goto out;
 	if (is_sp_op(&mem_trans, rxtx->rx)) {
@@ -1333,7 +1337,7 @@ static int handle_mem_op_rxbuf(bool share_mem, size_t blen, size_t flen,
 			rc = FFA_DENIED;
 			goto out;
 		}
-		rc = spmc_sp_add_share(&mem_trans, rxtx, blen, flen,
+		rc = spmc_sp_add_share(&mem_trans, rxtx, tot_len, frag_len,
 				       global_handle, NULL);
 		goto out;
 	}
@@ -1342,8 +1346,8 @@ static int handle_mem_op_rxbuf(bool share_mem, size_t blen, size_t flen,
 	    virt_set_guest(mem_trans.sender_id))
 		goto out;
 
-	rc = add_mem_op(share_mem, &mem_trans, NULL, rxtx->rx, blen, flen,
-			global_handle);
+	rc = add_mem_op(share_mem, &mem_trans, NULL, rxtx->rx, tot_len,
+			frag_len, global_handle);
 
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
@@ -2604,7 +2608,8 @@ static uint32_t get_ffa_version(uint32_t my_version)
 	return args.a0;
 }
 
-static void *spmc_retrieve_req(struct ffa_mem_transaction_x *trans)
+static void *spmc_retrieve_req(struct ffa_mem_transaction_x *trans,
+			       uint32_t *tot_len, uint32_t *frag_len)
 {
 	uint64_t cookie __maybe_unused = trans->global_handle;
 	struct ffa_mem_access_common *mem_acc = NULL;
@@ -2669,12 +2674,16 @@ static void *spmc_retrieve_req(struct ffa_mem_transaction_x *trans)
 		return NULL;
 	}
 	rc = spmc_read_mem_transaction(my_rxtx.ffa_vers, my_rxtx.rx,
-				       my_rxtx.size, trans);
+				       my_rxtx.size, args.a1, args.a2, trans);
 	if (rc) {
+		ffa_simple_call(FFA_RX_RELEASE, 0, 0, 0, 0);
 		EMSG("Memory transaction failure for cookie %#"PRIx64" rc %d",
 		     cookie, rc);
 		return NULL;
 	}
+
+	*tot_len = args.a1;
+	*frag_len = args.a2;
 
 	return my_rxtx.rx;
 }
@@ -2724,13 +2733,12 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
 	struct ffa_mem_transaction_x retrieve_desc = { .tag = use_case};
 	struct ffa_mem_access_common *mem_acc = NULL;
 	struct ffa_mem_region *descr = NULL;
+	uint32_t total_page_count = 0;
 	struct mobj_ffa *mf = NULL;
-	unsigned int num_pages = 0;
 	unsigned int offs = 0;
+	uint32_t frag_len = 0;
+	uint32_t tot_len = 0;
 	void *buf = NULL;
-	struct thread_smc_args ffa_rx_release_args = {
-		.a0 = FFA_RX_RELEASE
-	};
 
 	if (use_case == MOBJ_USE_CASE_NS_SHM)
 		retrieve_desc.flags = FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE;
@@ -2745,24 +2753,39 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
 	 * OP-TEE is only supporting a single mem_region while the
 	 * specification allows for more than one.
 	 */
-	buf = spmc_retrieve_req(&retrieve_desc);
+	buf = spmc_retrieve_req(&retrieve_desc, &tot_len, &frag_len);
 	if (!buf) {
 		EMSG("Failed to retrieve cookie from rx buffer %#"PRIx64,
 		     cookie);
 		return NULL;
 	}
 
+	/* Only supports non-fragmented memory transactions. */
+	if (frag_len != tot_len)
+		goto out;
+	/*
+	 * We assume that the returned buffer ends with a complete struct
+	 * ffa_address_range.
+	 */
+	if (!IS_ALIGNED_WITH_TYPE(frag_len, struct ffa_address_range))
+		goto out;
 	mem_acc = (void *)((vaddr_t)buf + retrieve_desc.mem_access_offs);
+	/*
+	 * We assume struct ffa_mem_region is well aligned.
+	 */
 	offs = READ_ONCE(mem_acc->region_offs);
+	if (!IS_ALIGNED_WITH_TYPE(offs, struct ffa_mem_region))
+		goto out;
 	descr = (struct ffa_mem_region *)((vaddr_t)buf + offs);
 
-	num_pages = READ_ONCE(descr->total_page_count);
-	mf = mobj_ffa_spmc_new(cookie, num_pages, use_case);
+	total_page_count = READ_ONCE(descr->total_page_count);
+	mf = mobj_ffa_spmc_new(cookie, total_page_count, use_case);
 	if (!mf)
 		goto out;
 
 	if (set_pages(descr->address_range_array,
-		      READ_ONCE(descr->address_range_count), num_pages, mf)) {
+		      READ_ONCE(descr->address_range_count),
+		      total_page_count, mf)) {
 		mobj_ffa_spmc_delete(mf);
 		goto out;
 	}
@@ -2771,7 +2794,7 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
 
 out:
 	/* Release RX buffer after the mem retrieve request. */
-	thread_smccc(&ffa_rx_release_args);
+	ffa_simple_call(FFA_RX_RELEASE, 0, 0, 0, 0);
 
 	return ret;
 }
