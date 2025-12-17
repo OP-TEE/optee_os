@@ -69,7 +69,7 @@ static TEE_Result bytes_to_otp(uint8_t *bytes, size_t bytes_size,
 	return TEE_SUCCESS;
 }
 
-#define HASH_STRING_SIZE 87
+#define HASH_STRING_SIZE 88
 static TEE_Result otp_to_string(uint32_t *otp, size_t otp_size,
 				char *str, size_t str_size)
 {
