@@ -2705,25 +2705,73 @@ void thread_spmc_relinquish(uint64_t cookie)
 		EMSG("Failed to relinquish cookie %#"PRIx64, cookie);
 }
 
-static int set_pages(struct ffa_address_range *regions,
-		     unsigned int num_regions, unsigned int num_pages,
-		     struct mobj_ffa *mf)
+static int set_pages(struct mobj_ffa *mf, uint64_t cookie, void *buf,
+		     struct ffa_address_range *addr_range,
+		     uint32_t total_addr_range_count, uint32_t total_page_count,
+		     uint32_t tot_len, uint32_t frag_len)
 {
-	unsigned int n = 0;
+	uint32_t next_frag_offs = frag_len;
 	unsigned int idx = 0;
+	uint32_t n = 0;
+	int ret = 0;
 
-	for (n = 0; n < num_regions; n++) {
-		unsigned int page_count = READ_ONCE(regions[n].page_count);
-		uint64_t addr = READ_ONCE(regions[n].address);
+	while (true) {
+		struct thread_smc_args args = {
+			.a0 = FFA_MEM_FRAG_RX,
+			.a1 = low32_from_64(cookie),
+			.a2 = high32_from_64(cookie),
+			.a3 = next_frag_offs,
+		};
 
-		if (mobj_ffa_add_pages_at(mf, &idx, addr, page_count))
+		for (n = 0; n < total_addr_range_count; n++) {
+			unsigned int page_count = 0;
+			uint64_t addr = 0;
+
+			if ((void *)(n + addr_range + 1) >
+			    (void *)((vaddr_t)buf + frag_len))
+				break;
+
+			page_count = READ_ONCE(addr_range[n].page_count);
+			addr = READ_ONCE(addr_range[n].address);
+			ret = mobj_ffa_add_pages_at(mf, &idx, addr, page_count);
+			if (ret)
+				return ret;
+		}
+		total_addr_range_count -= n;
+		if (!total_addr_range_count) {
+			if (idx != total_page_count)
+				return FFA_INVALID_PARAMETERS;
+			return FFA_OK;
+		}
+
+		ret = ffa_simple_call(FFA_RX_RELEASE, 0, 0, 0, 0);
+		if (ret)
+			return ret;
+
+		DMSG("hej FFA_MEM_FRAG_RX");
+		thread_smccc(&args);
+		if (args.a0 == FFA_ERROR) {
+			EMSG("FFA_MEM_FRAG_RX: ret %d", (int)args.a2);
+			return args.a2;
+		}
+		if (args.a0 != FFA_MEM_FRAG_TX) {
+			EMSG("Bad tx fid 0x%lx", args.a0);
 			return FFA_INVALID_PARAMETERS;
+		}
+		if (reg_pair_to_64(args.a2, args.a1) != cookie) {
+			EMSG("Bad cookie 0x%"PRIx64" expected 0x%"PRIx64,
+			     reg_pair_to_64(args.a2, args.a1), cookie);
+			return FFA_INVALID_PARAMETERS;
+		}
+		frag_len = args.a3;
+		next_frag_offs += frag_len;
+		if (next_frag_offs > tot_len ||
+		    frag_len % sizeof(*addr_range)) {
+			EMSG("Bad frag_len 0x%"PRIx32, frag_len);
+			return FFA_INVALID_PARAMETERS;
+		}
+		addr_range = buf;
 	}
-
-	if (idx != num_pages)
-		return FFA_INVALID_PARAMETERS;
-
-	return 0;
 }
 
 struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
@@ -2760,14 +2808,12 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
 		return NULL;
 	}
 
-	/* Only supports non-fragmented memory transactions. */
-	if (frag_len != tot_len)
-		goto out;
 	/*
 	 * We assume that the returned buffer ends with a complete struct
 	 * ffa_address_range.
 	 */
-	if (!IS_ALIGNED_WITH_TYPE(frag_len, struct ffa_address_range))
+	if (!IS_ALIGNED_WITH_TYPE(frag_len, struct ffa_address_range) ||
+	    !IS_ALIGNED_WITH_TYPE(tot_len, struct ffa_address_range))
 		goto out;
 	mem_acc = (void *)((vaddr_t)buf + retrieve_desc.mem_access_offs);
 	/*
@@ -2783,9 +2829,9 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
 	if (!mf)
 		goto out;
 
-	if (set_pages(descr->address_range_array,
-		      READ_ONCE(descr->address_range_count),
-		      total_page_count, mf)) {
+	if (set_pages(mf, cookie, buf, descr->address_range_array,
+		      READ_ONCE(descr->address_range_count), total_page_count,
+		      tot_len, frag_len)) {
 		mobj_ffa_spmc_delete(mf);
 		goto out;
 	}
