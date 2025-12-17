@@ -688,10 +688,7 @@ static TEE_Result set_operation_key2(TEE_OperationHandle operation,
 	TEE_ObjectInfo key_info1;
 	TEE_ObjectInfo key_info2;
 
-	if (operation == TEE_HANDLE_NULL) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	assert(operation);
 
 	/*
 	 * Key1/Key2 and/or are not initialized and
@@ -803,15 +800,6 @@ out:
 	return res;
 }
 
-TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
-				TEE_ObjectHandle key1, TEE_ObjectHandle key2)
-{
-	if (operation != TEE_HANDLE_NULL && key1 && key1 == key2)
-		return TEE_ERROR_SECURITY;
-
-	return set_operation_key2(operation, key1, key2);
-}
-
 TEE_Result __GP11_TEE_SetOperationKey2(TEE_OperationHandle operation,
 				       TEE_ObjectHandle key1,
 				       TEE_ObjectHandle key2)
@@ -821,6 +809,15 @@ TEE_Result __GP11_TEE_SetOperationKey2(TEE_OperationHandle operation,
 		TEE_Panic(0);
 
 	return set_operation_key2(operation, key1, key2);
+}
+
+TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
+				TEE_ObjectHandle key1, TEE_ObjectHandle key2)
+{
+	if (operation != TEE_HANDLE_NULL && key1 && key1 == key2)
+		return TEE_ERROR_SECURITY;
+
+	return __GP11_TEE_SetOperationKey2(operation, key1, key2);
 }
 
 void TEE_CopyOperation(TEE_OperationHandle dst_op, TEE_OperationHandle src_op)
