@@ -212,7 +212,7 @@ caam_ae_update_aad(struct drvcrypt_authenc_update_aad *dupdate)
 	if (!caam_ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (dupdate->aad.data) {
+	if (dupdate->aad.data && dupdate->aad.length) {
 		retstatus = caam_cpy_buf(&aad, dupdate->aad.data,
 					 dupdate->aad.length);
 		if (retstatus) {
