@@ -284,11 +284,12 @@ static TEE_Result lockdown_device(uint32_t param_types,
 	status = ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE;
 
 	if (simulation) {
-		IMSG("Simulation mode: Skip writing secure boot status: %x", status);
+		IMSG("Simulation mode: Skip writing status: %" PRIx32,
+		     status);
 		return TEE_SUCCESS;
 	}
 
-	IMSG("Writing secure boot status: %x", status);
+	IMSG("Writing secure boot status: %" PRIx32, status);
 	res = rockchip_otp_write_secure(&status,
 					ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX,
 					ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
