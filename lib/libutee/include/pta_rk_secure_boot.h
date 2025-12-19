@@ -25,14 +25,16 @@ struct pta_rk_secure_boot_info {
 /*
  * PTA_RK_SECURE_BOOT_GET_INFO - Get secure boot status info
  *
- * [out]    memref[0]   buffer memory reference containing a struct pta_rk_secure_boot_info
+ * [out]    memref[0]   buffer memory reference containing a struct
+ *                      pta_rk_secure_boot_info
  */
 #define PTA_RK_SECURE_BOOT_GET_INFO		0x0
 
 /*
  * PTA_RK_SECURE_BOOT_BURN_HASH - Burn the RSA key hash to fuses
  *
- * [in]    memref[0]   buffer memory reference containing a struct pta_rk_secure_boot_hash
+ * [in]    memref[0]   buffer memory reference containing a struct
+ *                     pta_rk_secure_boot_hash
  * [in]    value[1].a  bit length of signing key
  */
 #define PTA_RK_SECURE_BOOT_BURN_HASH		0x1
