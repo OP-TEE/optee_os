@@ -27,7 +27,9 @@
 # include <ldelf_syscalls.h>
 # include <ldelf.h>
 #else
-#error "Not implemented"
+# include <utee_syscalls.h>
+# include <tee_internal_api_extensions.h>
+# include <pta_system.h>
 #endif
 
 #define SMALL_PAGE_SIZE 4096
@@ -66,10 +68,10 @@ void __noreturn asan_panic(void)
 #elif defined(__LDELF__)
 	_ldelf_panic(2);
 #else
-#error "Not implemented"
+	_utee_panic(TEE_ERROR_GENERIC);
 #endif
 	/*
-	 * _ldelf_panic is not marked as noreturn,
+	 * _ldelf_panic and _utee_panic are not marked as noreturn,
 	 * however they should be. To prevent "‘noreturn’ function
 	 * does return" warning the while loop is used.
 	 */
@@ -505,8 +507,7 @@ static int asan_map_shadow_region(vaddr_t lo, vaddr_t hi)
 #if defined(__LDELF__)
 	rc = _ldelf_map_zi(&req, sz, 0, 0, 0);
 #else
-#else
-#error "Not implemented"
+	req = (vaddr_t) tee_map_fixed_zi(req, sz, 0);
 #endif
 	if (rc)
 		return rc;
@@ -524,6 +525,9 @@ int asan_user_map_shadow(void *lo, void *hi)
 	vaddr_t hi_s = ROUNDUP((vaddr_t)va_to_shadow(hi), SMALL_PAGE_SIZE);
 
 	if (lo_s >= hi_s)
+		return -1;
+
+	if (hi >= (void *)GET_ASAN_INFO())
 		return -1;
 
 	/* Add region to allowed regions list */

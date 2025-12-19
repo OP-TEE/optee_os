@@ -309,7 +309,7 @@
 
 
 #ifndef __no_asan
-#if defined(CFG_CORE_SANITIZE_KADDRESS)
+#if defined(CFG_CORE_SANITIZE_KADDRESS) || defined(CFG_TA_SANITIZE_KADDRESS)
 #define __no_asan __attribute__((no_sanitize_address))
 #else
 #define __no_asan
