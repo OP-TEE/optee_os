@@ -57,18 +57,15 @@ ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
 ifeq ($(CFG_ASAN_SHADOW_OFFSET),)
 $(error error: CFG_CORE_SANITIZE_KADDRESS not supported by platform (flavor))
 endif
-ifeq ($(COMPILER),clang)
-$(error error: CFG_CORE_SANITIZE_KADDRESS not supported with Clang)
-endif
-cflags_kasan	+= -fsanitize=kernel-address \
-		   -fasan-shadow-offset=$(CFG_ASAN_SHADOW_OFFSET)\
-		   --param asan-globals=1 \
-		   --param asan-instrumentation-with-call-threshold=0
+cflags$(sm)	+= -fsanitize=kernel-address \
+		   -fasan-shadow-offset=$(CFG_ASAN_SHADOW_OFFSET) \
+		   --param=asan-globals=1 \
+		   --param=asan-instrumentation-with-call-threshold=0
 ifneq ($(CFG_DYN_CONFIG),y)
-cflags_kasan	+= --param asan-stack=1
+cflags$(sm)	+= --param=asan-stack=1
 endif
-cflags$(sm)	+= $(cflags_kasan)
 endif
+
 ifeq ($(CFG_CORE_DEBUG_CHECK_STACKS),y)
 finstrument-functions := $(call cc-option,-finstrument-functions)
 ifeq (,$(finstrument-functions))

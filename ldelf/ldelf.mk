@@ -32,6 +32,16 @@ cppflags$(sm)	+= -D__LDELF__
 ifeq ($(CFG_CORE_SANITIZE_UNDEFINED),y)
 cflags$(sm)	+= -fsanitize=undefined
 endif
+ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
+ifeq ($(CFG_USER_ASAN_SHADOW_OFFSET),)
+$(error error: CFG_USER_ASAN_SHADOW_OFFSET was not set)
+endif
+cflags$(sm)	+= -fsanitize=kernel-address \
+		   -fasan-shadow-offset=$(CFG_USER_ASAN_SHADOW_OFFSET) \
+		   --param=asan-globals=1 \
+		   --param=asan-instrumentation-with-call-threshold=0 \
+		   --param=asan-stack=1
+endif
 
 # Use same compiler as for core
 CROSS_COMPILE_$(sm)	:= $(CROSS_COMPILE_core)

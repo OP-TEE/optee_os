@@ -79,6 +79,18 @@ SECTIONS {
 
 	/* Page align to allow dropping execute bit for RW data */
 	. = ALIGN(4096);
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+	.init_array : ALIGN(8) {
+		__init_array_start = .;
+		KEEP(*(.init_array .init_array.*))
+		 __init_array_end = .;
+	}
+	.fini_array : ALIGN(8) {
+		 __fini_array_start = .;
+		KEEP(*(.fini_array .fini_array.*))
+		__fini_array_end = .;
+	}
+#endif
 
 	.dynamic : { *(.dynamic) }
 	.got : { *(.got.plt) *(.got) }
@@ -87,4 +99,5 @@ SECTIONS {
 	.bss : { *(.bss .bss.* .gnu.linkonce.b.* COMMON) }
 
 	/DISCARD/ : { *(.interp) }
+	__end = .;
 }
