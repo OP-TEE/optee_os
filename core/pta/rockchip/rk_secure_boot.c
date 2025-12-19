@@ -44,25 +44,6 @@ static TEE_Result otp_to_string(uint32_t *otp, size_t otp_size,
 	return TEE_SUCCESS;
 }
 
-/* Test if the two passed public root key hashes are equal. */
-static TEE_Result hashcmp(uint32_t *a, uint32_t *b, size_t s)
-{
-	size_t i;
-
-	if (!a || !b)
-		return TEE_ERROR_GENERIC;
-
-	for (i = 0; i < s; i++)
-		if (a[i] != b[i])
-			break;
-	if (i != s) {
-		EMSG("Burned hash differs from new hash");
-		return TEE_ERROR_GENERIC;
-	}
-
-	return TEE_SUCCESS;
-}
-
 static TEE_Result write_key_size(uint32_t key_size_bits)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -119,8 +100,7 @@ static TEE_Result write_hash(uint32_t *hash, size_t size)
 				       ROCKCHIP_OTP_RSA_HASH_SIZE);
 	if (res != TEE_SUCCESS)
 		return res;
-	res = hashcmp(tmp, hash, size);
-	if (res != TEE_SUCCESS) {
+	if (memcmp(tmp, hash, sizeof(tmp)) != 0) {
 		otp_to_string(tmp, ARRAY_SIZE(tmp), str, sizeof(str));
 		EMSG("Failed to burn hash. OTP is %s", str);
 		return res;
@@ -210,8 +190,7 @@ static TEE_Result burn_hash(uint32_t param_types,
 				       ROCKCHIP_OTP_RSA_HASH_SIZE);
 	if (res)
 		return res;
-	res = hashcmp(old_hash, new_hash, ARRAY_SIZE(new_hash));
-	if (res != TEE_SUCCESS) {
+	if (memcmp(old_hash, new_hash, sizeof(new_hash)) != 0) {
 		char str[HASH_STRING_SIZE];
 
 		otp_to_string(new_hash, ARRAY_SIZE(new_hash), str, sizeof(str));
@@ -282,8 +261,7 @@ static TEE_Result lockdown_device(uint32_t param_types,
 				       ROCKCHIP_OTP_RSA_HASH_SIZE);
 	if (res != TEE_SUCCESS)
 		return res;
-	res = hashcmp(zero, hash, ARRAY_SIZE(hash));
-	if (res == TEE_SUCCESS) {
+	if (memcmp(zero, hash, sizeof(hash)) == 0) {
 		EMSG("OTP hash is all zeros. Refuse lockdown.");
 		return TEE_ERROR_GENERIC;
 	}
