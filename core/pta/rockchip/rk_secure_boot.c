@@ -29,46 +29,6 @@ static inline bool bit_test(uint32_t value, uint32_t bit)
 	return (value & bit) == bit;
 }
 
-/* Convert hash from 32 bit words in OTP into a byte array */
-static TEE_Result otp_to_bytes(uint32_t *otp, size_t otp_size,
-			       uint8_t *bytes, size_t bytes_size)
-{
-	uint32_t *u32 = otp;
-	uint8_t *u8 = bytes;
-	size_t i;
-	size_t j;
-
-	if (bytes_size * sizeof(*bytes) != otp_size * sizeof(*otp))
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	for (i = 0; i < otp_size; i++, u32++)
-		for (j = 0; j < sizeof(*u32); j++, u8++)
-			*u8 = (uint8_t)(*u32 >> (j * 8));
-
-	return TEE_SUCCESS;
-}
-
-/* Convert hash from byte array into 32 bit words for OTP */
-static TEE_Result bytes_to_otp(uint8_t *bytes, size_t bytes_size,
-			       uint32_t *otp, size_t otp_size)
-{
-	uint32_t *u32 = otp;
-	uint8_t *u8 = bytes;
-	size_t i;
-	size_t j;
-
-	if (bytes_size * sizeof(*bytes) != otp_size * sizeof(*otp))
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	for (i = 0; i < otp_size; i++, u32++) {
-		*u32 = 0;
-		for (j = 0; j < sizeof(*u32); j++, u8++)
-			*u32 += (uint32_t)*u8 << (j * 8);
-	}
-
-	return TEE_SUCCESS;
-}
-
 #define HASH_STRING_SIZE 88
 static TEE_Result otp_to_string(uint32_t *otp, size_t otp_size,
 				char *str, size_t str_size)
@@ -211,8 +171,7 @@ static TEE_Result get_info(uint32_t param_types,
 	info->enabled = bit_test(status,
 				 ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE);
 	info->simulation = simulation;
-	otp_to_bytes(hash, ARRAY_SIZE(hash),
-		     info->hash.value, sizeof(info->hash.value));
+	memcpy(info->hash.value, hash, sizeof(info->hash.value));
 
 	return TEE_SUCCESS;
 }
@@ -238,7 +197,7 @@ static TEE_Result burn_hash(uint32_t param_types,
 	hash_sz = params[0].memref.size;
 	if (!hash || hash_sz != sizeof(*hash))
 		return TEE_ERROR_BAD_PARAMETERS;
-	bytes_to_otp(hash->value, hash_sz, new_hash, ARRAY_SIZE(new_hash));
+	memcpy(new_hash, hash->value, sizeof(new_hash));
 
 	key_size_bits = params[1].value.a;
 	if (key_size_bits != 4096 && key_size_bits != 2048) {
