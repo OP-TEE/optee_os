@@ -40,6 +40,10 @@
 #define SMALL_PAGE_SIZE 4096
 #endif
 
+#if TRACE_LEVEL >= TRACE_DEBUG
+#define KASAN_DUMP_SHADOW
+#endif
+
 struct asan_source_location {
 	const char *file_name;
 	int line_no;
@@ -252,8 +256,8 @@ static void asan_report(vaddr_t addr, size_t size)
 	int r = 0, rc = 0;
 	vaddr_t b = 0, e = 0, saddr = 0;
 
-	b = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) - ASAN_BLOCK_SIZE;
-	e = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) + ASAN_BLOCK_SIZE;
+	b = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) - ASAN_BLOCK_SIZE * 2;
+	e = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) + ASAN_BLOCK_SIZE * 2;
 
 	/* Print shadow map nearby */
 	if (va_range_inside_shadow((void *)b, (void *)e)) {
@@ -271,8 +275,8 @@ static void asan_report(vaddr_t addr, size_t size)
 		EMSG("%s", buf);
 	}
 #endif
-	EMSG("[ASAN]: access violation, addr: %lx size: %zu\n",
-	     addr, size);
+	EMSG("[ASAN]: access violation, addr: %#"PRIxVA" size: %zu",
+	      addr, size);
 
 	asan_panic_cb();
 }
