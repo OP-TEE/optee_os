@@ -29,9 +29,11 @@ endif
 srcs-$(build-ubsan) += ubsan.c
 cflags-remove-ubsan.c-y += -fsanitize=undefined
 
-build-asan := n
 ifneq (,$(filter $(sm)-$(CFG_CORE_SANITIZE_KADDRESS),core-y ldelf-y))
 build-asan := y
+endif
+ifeq (,$(filter $(sm),core ldelf))
+build-asan := $(CFG_TA_SANITIZE_KADDRESS)
 endif
 
 srcs-$(build-asan) += asan.c asan_test.c

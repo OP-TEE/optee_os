@@ -83,6 +83,16 @@ ifeq ($(CFG_TA_SANITIZE_UNDEFINED),y)
 cflags$(sm) += -fsanitize=undefined
 endif
 
+ifeq ($(CFG_TA_SANITIZE_KADDRESS),y)
+cflags$(sm) += \
+        -fsanitize=kernel-address \
+        -fasan-shadow-offset=$(CFG_USER_ASAN_SHADOW_OFFSET) \
+        --param=asan-globals=1 \
+        --param=asan-instrumentation-with-call-threshold=0 \
+        --param=asan-stack=1
+endif
+
+
 libdirs += $(ta-dev-kit-dir$(sm))/lib
 libnames += utils
 libdeps += $(ta-dev-kit-dir$(sm))/lib/libutils.a

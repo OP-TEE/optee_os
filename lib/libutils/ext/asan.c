@@ -27,7 +27,8 @@
 # include <ldelf_syscalls.h>
 # include <ldelf.h>
 #else
-# error "Not implemented"
+# include <tee_internal_api_extensions.h>
+# include <utee_syscalls.h>
 #endif
 
 #ifndef __KERNEL__
@@ -72,10 +73,10 @@ void __noreturn asan_panic(void)
 #elif defined(__LDELF__)
 	_ldelf_panic(2);
 #else
-#error "Not implemented"
+	_utee_panic(TEE_ERROR_GENERIC);
 #endif
 	/*
-	 * _utee_panic (which will be used here) is not marked as noreturn.
+	 * _utee_panic is not marked as noreturn.
 	 * See _utee_panic prototype in utee_syscalls.h for reasoning. To
 	 * prevent "‘noreturn’ function does return" warning the while loop
 	 * is used.
@@ -513,7 +514,7 @@ static int asan_map_shadow_region(vaddr_t lo, vaddr_t hi)
 #if defined(__LDELF__)
 	rc = _ldelf_map_zi(&req, sz, 0, 0, 0);
 #else
-#error "Not implemented"
+	req = (vaddr_t)tee_map_zi_va(req, sz, 0);
 #endif
 	if (rc != TEE_SUCCESS)
 		return -1;
