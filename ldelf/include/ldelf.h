@@ -120,7 +120,7 @@ struct dl_entry_arg {
  *
  * Only called from assembly
  */
-void __noreturn ldelf(struct ldelf_arg *arg);
+void __noreturn __no_asan ldelf(struct ldelf_arg *arg);
 
 #endif /*!__ASSEMBLER__*/
 

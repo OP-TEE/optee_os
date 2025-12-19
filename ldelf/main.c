@@ -15,6 +15,7 @@
 #include <types_ext.h>
 #include <util.h>
 
+#include "asan.h"
 #include "dl.h"
 #include "ftrace.h"
 #include "sys.h"
@@ -141,6 +142,12 @@ void ldelf(struct ldelf_arg *arg)
 	TEE_Result res = TEE_SUCCESS;
 	struct ta_elf *elf = NULL;
 
+	res = asan_init_ldelf();
+	if (res) {
+		EMSG("asan_init_ldelf result %"PRIx32, res);
+		panic();
+	}
+
 	DMSG("Loading TS %pUl", (void *)&arg->uuid);
 	res = sys_map_zi(mpool_size, 0, &mpool_base, 0, 0);
 	if (res) {
@@ -148,6 +155,8 @@ void ldelf(struct ldelf_arg *arg)
 		panic();
 	}
 	malloc_add_pool((void *)mpool_base, mpool_size);
+
+	asan_start();
 
 	/* Load the main binary and get a list of dependencies, if any. */
 	ta_elf_load_main(&arg->uuid, &arg->is_32bit, &arg->stack_ptr,
