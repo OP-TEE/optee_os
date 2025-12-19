@@ -190,9 +190,22 @@ void ldelf(struct ldelf_arg *arg)
 		arg->ftrace_entry = (vaddr_t)(void *)ftrace_dump;
 #endif
 
-	TAILQ_FOREACH(elf, &main_elf_queue, link)
+	TAILQ_FOREACH(elf, &main_elf_queue, link) {
+#ifdef CFG_TA_SANITIZE_KADDRESS
+		TEE_Result rc = TEE_ERROR_GENERIC;
+
+		assert(elf->max_addr < (vaddr_t)GET_ASAN_INFO());
+		rc = asan_user_map_shadow((void *)elf->load_addr,
+					  (void *)elf->max_addr);
+		if (rc) {
+			EMSG("Failed to map shadow for ELF (%pUl)",
+			     (void *)&elf->uuid);
+			panic();
+		}
+#endif
 		DMSG("ELF (%pUl) at %#"PRIxVA,
 		     (void *)&elf->uuid, elf->load_addr);
+	}
 
 #if TRACE_LEVEL >= TRACE_ERROR
 	arg->dump_entry = (vaddr_t)(void *)dump_ta_state;
