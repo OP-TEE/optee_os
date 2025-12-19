@@ -30,18 +30,19 @@ static inline bool bit_test(uint32_t value, uint32_t bit)
 }
 
 #define HASH_STRING_SIZE 88
-static TEE_Result otp_to_string(uint32_t *otp, size_t otp_size,
-				char *str, size_t str_size)
+static char *otp_to_string(uint32_t *otp, size_t otp_size,
+			   char *str, size_t str_size)
 {
 	if (otp_size != 8 || str_size != HASH_STRING_SIZE)
-		return TEE_ERROR_BAD_PARAMETERS;
+		return NULL;
 
 	snprintf(str, str_size,
-		 "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x",
+		 "0x%" PRIx32 " 0x%" PRIx32 " 0x%" PRIx32 " 0x%" PRIx32
+		 " 0x%" PRIx32 " 0x%" PRIx32 " 0x%" PRIx32 " 0x%" PRIx32,
 		 otp[0], otp[1], otp[2], otp[3],
 		 otp[4], otp[5], otp[6], otp[7]);
 
-	return TEE_SUCCESS;
+	return str;
 }
 
 static TEE_Result write_key_size(uint32_t key_size_bits)
@@ -86,8 +87,7 @@ static TEE_Result write_hash(uint32_t *hash, size_t size)
 	uint32_t tmp[ROCKCHIP_OTP_RSA_HASH_SIZE];
 	char str[HASH_STRING_SIZE];
 
-	otp_to_string(hash, size, str, sizeof(str));
-	IMSG("Burning hash %s", str);
+	IMSG("Burning hash %s", otp_to_string(hash, size, str, sizeof(str)));
 
 	res = rockchip_otp_write_secure(hash,
 					ROCKCHIP_OTP_RSA_HASH_INDEX,
@@ -101,8 +101,8 @@ static TEE_Result write_hash(uint32_t *hash, size_t size)
 	if (res != TEE_SUCCESS)
 		return res;
 	if (memcmp(tmp, hash, sizeof(tmp)) != 0) {
-		otp_to_string(tmp, ARRAY_SIZE(tmp), str, sizeof(str));
-		EMSG("Failed to burn hash. OTP is %s", str);
+		EMSG("Failed to burn hash. OTP is %s",
+		     otp_to_string(tmp, ARRAY_SIZE(tmp), str, sizeof(str)));
 		return res;
 	}
 
@@ -145,8 +145,8 @@ static TEE_Result get_info(uint32_t param_types,
 	if (res)
 		return res;
 
-	otp_to_string(hash, ARRAY_SIZE(hash), str, sizeof(str));
-	DMSG("Current hash: %s", str);
+	DMSG("Current hash: %s",
+	     otp_to_string(hash, ARRAY_SIZE(hash), str, sizeof(str)));
 
 	info->enabled = bit_test(status,
 				 ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE);
@@ -193,11 +193,12 @@ static TEE_Result burn_hash(uint32_t param_types,
 	if (memcmp(old_hash, new_hash, sizeof(new_hash)) != 0) {
 		char str[HASH_STRING_SIZE];
 
-		otp_to_string(new_hash, ARRAY_SIZE(new_hash), str, sizeof(str));
-		EMSG("Refusing to burn hash %s", str);
-
-		otp_to_string(old_hash, ARRAY_SIZE(old_hash), str, sizeof(str));
-		EMSG("OTP hash is %s", str);
+		EMSG("Refusing to burn hash %s",
+		     otp_to_string(new_hash, ARRAY_SIZE(new_hash),
+				   str, sizeof(str)));
+		EMSG("OTP hash is %s",
+		     otp_to_string(old_hash, ARRAY_SIZE(old_hash),
+				   str, sizeof(str)));
 
 		return res;
 	}
@@ -220,9 +221,10 @@ static TEE_Result burn_hash(uint32_t param_types,
 	if (simulation) {
 		char str[HASH_STRING_SIZE];
 
-		otp_to_string(new_hash, ARRAY_SIZE(new_hash), str, sizeof(str));
 		IMSG("Simulation mode: Skip burning hash %s, key size %d",
-		     str, key_size_bits);
+		     otp_to_string(new_hash, ARRAY_SIZE(new_hash),
+				   str, sizeof(str)),
+		     key_size_bits);
 
 		return TEE_SUCCESS;
 	}
