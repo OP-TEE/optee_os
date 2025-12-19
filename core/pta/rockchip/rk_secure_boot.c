@@ -87,6 +87,9 @@ static TEE_Result write_hash(uint32_t *hash, size_t size)
 	uint32_t tmp[ROCKCHIP_OTP_RSA_HASH_SIZE];
 	char str[HASH_STRING_SIZE];
 
+	if (size != ROCKCHIP_OTP_RSA_HASH_SIZE)
+		return TEE_ERROR_GENERIC;
+
 	IMSG("Burning hash %s", otp_to_string(hash, size, str, sizeof(str)));
 
 	res = rockchip_otp_write_secure(hash,
