@@ -32,6 +32,10 @@
 # include <pta_system.h>
 #endif
 
+#if TRACE_LEVEL >= TRACE_DEBUG
+#define KASAN_DUMP_SHADOW
+#endif
+
 #define SMALL_PAGE_SIZE 4096
 
 struct asan_source_location {
@@ -60,6 +64,17 @@ static struct asan_global_info *asan_info = GET_ASAN_INFO();
 
 static bool asan_active;
 static asan_panic_cb_t asan_panic_cb = asan_panic;
+
+static inline const char *asan_get_mode(void)
+{
+#ifdef __KERNEL__
+	return "core";
+#elif defined(__LDELF__)
+	return "ldelf";
+#else
+	return "user";
+#endif
+}
 
 void __noreturn asan_panic(void)
 {
@@ -244,8 +259,8 @@ static void asan_report(vaddr_t addr, size_t size)
 	int r = 0, rc = 0;
 	vaddr_t b = 0, e = 0, saddr = 0;
 
-	b = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) - ASAN_BLOCK_SIZE;
-	e = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) + ASAN_BLOCK_SIZE;
+	b = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) - ASAN_BLOCK_SIZE * 2;
+	e = ROUNDDOWN(addr, ASAN_BLOCK_SIZE) + ASAN_BLOCK_SIZE * 2;
 
 	/* Print shadow map nearby */
 	if (va_range_inside_shadow((void *)b, (void *)e)) {
@@ -263,8 +278,8 @@ static void asan_report(vaddr_t addr, size_t size)
 		EMSG("%s", buf);
 	}
 #endif
-	EMSG("[ASAN]: access violation, addr: %lx size: %zu\n",
-	     addr, size);
+	EMSG("[ASAN-%s]: access violation, addr: %#"PRIxVA" size: %zu",
+	      asan_get_mode(), addr, size);
 
 	asan_panic_cb();
 }
