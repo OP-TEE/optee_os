@@ -8,18 +8,29 @@
 #include <assert.h>
 #include <compiler.h>
 #include <keep_init.h>
-#include <kernel/panic.h>
 #include <printk.h>
 #include <setjmp.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
 #include <util.h>
+
 #if __GCC_VERSION >= 70000
 #define ASAN_ABI_VERSION 7
 #else
 #define ASAN_ABI_VERSION 6
 #endif
+
+#if defined(__KERNEL__)
+# include <kernel/panic.h>
+#elif defined(__LDELF__)
+# include <ldelf_syscalls.h>
+# include <ldelf.h>
+#else
+#error "Not implemented"
+#endif
+
+#define SMALL_PAGE_SIZE 4096
 
 struct asan_source_location {
 	const char *file_name;
@@ -40,11 +51,31 @@ struct asan_global {
 #endif
 };
 
+#ifdef __KERNEL__
 static struct asan_global_info __asan_global_info;
+#endif
 static struct asan_global_info *asan_info = GET_ASAN_INFO();
 
 static bool asan_active;
 static asan_panic_cb_t asan_panic_cb = asan_panic;
+
+void __noreturn asan_panic(void)
+{
+#if defined(__KERNEL__)
+	panic();
+#elif defined(__LDELF__)
+	_ldelf_panic(2);
+#else
+#error "Not implemented"
+#endif
+	/*
+	 * _ldelf_panic is not marked as noreturn,
+	 * however they should be. To prevent "‘noreturn’ function
+	 * does return" warning the while loop is used.
+	 */
+	while (1)
+		;
+}
 
 static bool addr_crosses_scale_boundary(vaddr_t addr, size_t size)
 {
@@ -54,8 +85,11 @@ static bool addr_crosses_scale_boundary(vaddr_t addr, size_t size)
 
 static int8_t *va_to_shadow(const void *va)
 {
+#if defined(__KERNEL__)
 	vaddr_t sa = ((vaddr_t)va / ASAN_BLOCK_SIZE) + CFG_ASAN_SHADOW_OFFSET;
-
+#else
+	vaddr_t sa = ((vaddr_t)va / ASAN_BLOCK_SIZE) + CFG_TA_ASAN_SHADOW_OFFSET;
+#endif
 	return (int8_t *)sa;
 }
 
@@ -196,11 +230,6 @@ void asan_start(void)
 	asan_active = true;
 }
 
-void __noreturn asan_panic(void)
-{
-	panic();
-}
-
 void asan_set_panic_cb(asan_panic_cb_t panic_cb)
 {
 	asan_panic_cb = panic_cb;
@@ -327,7 +356,7 @@ static __always_inline void check_access(vaddr_t addr, size_t size)
 	 * problem.
 	 */
 	if (!va_range_inside_shadow(begin, end))
-		panic();
+		asan_panic();
 
 	if (__builtin_constant_p(size)) {
 		switch (size) {
@@ -367,12 +396,12 @@ static __always_inline void check_store(vaddr_t addr, size_t size)
 
 static void __noreturn report_load(vaddr_t addr __unused, size_t size __unused)
 {
-	panic();
+	asan_panic();
 }
 
 static void __noreturn report_store(vaddr_t addr __unused, size_t size __unused)
 {
-	panic();
+	asan_panic();
 }
 
 
@@ -459,3 +488,94 @@ void asan_handle_longjmp(void *old_sp)
 
 	asan_tag_access(bottom, top);
 }
+
+#if !defined(__KERNEL__)
+
+static int asan_map_shadow_region(vaddr_t lo, vaddr_t hi)
+{
+	int rc = 0;
+	size_t sz = (size_t)(hi - lo);
+	vaddr_t req = lo;
+
+	assert(hi > lo);
+
+	if (asan_info->s_regs_count >= ASAN_VA_REGS_MAX)
+		return -1;
+
+#if defined(__LDELF__)
+	rc = _ldelf_map_zi(&req, sz, 0, 0, 0);
+#else
+#else
+#error "Not implemented"
+#endif
+	if (rc)
+		return rc;
+	if (req != lo)
+		return -1;
+
+	asan_info->s_regs[asan_info->s_regs_count++] = (struct asan_va_reg){ lo, hi };
+	return rc;
+}
+
+int asan_user_map_shadow(void *lo, void *hi)
+{
+	int rc = 0;
+	vaddr_t lo_s = ROUNDDOWN((vaddr_t)va_to_shadow(lo), SMALL_PAGE_SIZE);
+	vaddr_t hi_s = ROUNDUP((vaddr_t)va_to_shadow(hi), SMALL_PAGE_SIZE);
+
+	if (lo_s >= hi_s)
+		return -1;
+
+	/* Add region to allowed regions list */
+	asan_set_shadowed(lo, hi);
+
+	for (size_t i = 0; i < asan_info->s_regs_count; i++) {
+		vaddr_t reg_lo_s = asan_info->s_regs[i].lo;
+		vaddr_t reg_hi_s = asan_info->s_regs[i].hi;
+
+		/* (1) no overlap */
+		if ((reg_hi_s <= lo_s) || (reg_lo_s >= hi_s)) {
+			continue;
+		/* (2) existing fully covers the requested interval */
+		} else if (reg_lo_s <= lo_s && reg_hi_s >= hi_s) {
+			return 0;
+		/* (3) left overlap */
+		} else if (reg_lo_s <= lo_s && reg_hi_s < hi_s) {
+			lo_s = reg_hi_s;
+			continue;
+		/* (4) right overlap */
+		} else if (reg_lo_s > lo_s && reg_hi_s >= hi_s) {
+			hi_s = reg_lo_s;
+			continue;
+		/* (5) existing fully inside requested interval */
+		} else if (reg_lo_s >= lo_s && reg_hi_s <= hi_s) {
+			rc = asan_map_shadow_region(reg_hi_s, hi_s);
+			if (rc) {
+				EMSG("%s: Failed to map shadow region",
+				     __func__);
+				asan_panic();
+			}
+			hi_s = reg_lo_s;
+			continue;
+		} else {
+			EMSG("%s: can't handle: reg_lo_s %#"PRIxVA
+			     " reg_hi_s %#"PRIxVA" lo_s %#"PRIxVA" hi_s %#"
+			     PRIxVA, __func__, reg_lo_s, reg_hi_s, lo_s,
+			     hi_s);
+			asan_panic();
+		}
+	}
+
+	/* By invariant, something must remain to be mapped here. */
+	rc = asan_map_shadow_region(lo_s, hi_s);
+	assert(!rc);
+	return rc;
+}
+
+#else
+
+int asan_user_map_shadow(void *lo __maybe_unused, void *hi __maybe_unused)
+{
+	return 0;
+}
+#endif

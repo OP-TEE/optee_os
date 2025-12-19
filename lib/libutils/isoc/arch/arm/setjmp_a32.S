@@ -252,8 +252,7 @@ SYM (\name):
 	bl		ftrace_longjmp
 	ldmia		sp!, { a1, a2, lr }
 #endif
-#if defined(__KERNEL__) && defined(CFG_CORE_SANITIZE_KADDRESS) && \
-    !defined(CFG_DYN_CONFIG)
+#if (CFG_ASAN_ENABLED == 1) && (!defined(CFG_DYN_CONFIG))
 	stmdb		sp!, { a1, a2, a3, lr }
 
 #ifdef __thumb2__
