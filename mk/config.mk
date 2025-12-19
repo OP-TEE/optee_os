@@ -473,6 +473,14 @@ CFG_TA_SANITIZE_UNDEFINED ?= n
 # lot of memory and need platform specific adaptations, can't be enabled by
 # default
 CFG_CORE_SANITIZE_KADDRESS ?= n
+CFG_TA_SANITIZE_KADDRESS ?= n
+
+# At the moment TA build requires core build
+ifeq ($(CFG_TA_SANITIZE_KADDRESS),y)
+ifeq ($(CFG_CORE_SANITIZE_KADDRESS),n)
+$(error CFG_TA_SANITIZE_KADDRESS requires CFG_CORE_SANITIZE_KADDRESS=y)
+endif
+endif
 
 ifeq (y-y,$(CFG_CORE_SANITIZE_KADDRESS)-$(CFG_CORE_ASLR))
 $(error CFG_CORE_SANITIZE_KADDRESS and CFG_CORE_ASLR are not compatible)

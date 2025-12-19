@@ -44,8 +44,10 @@ struct asan_global_info {
 	(CFG_USER_ASAN_SHADOW_OFFSET - SMALL_PAGE_SIZE))
 #endif
 
-#if ((defined(__KERNEL__) || defined(__LDELF__)) && \
-     defined(CFG_CORE_SANITIZE_KADDRESS))
+#if ((!defined(__KERNEL__) && !defined(__LDELF__)) && \
+     defined(CFG_TA_SANITIZE_KADDRESS)) || \
+	((defined(__KERNEL__) || defined(__LDELF__)) && \
+	 defined(CFG_CORE_SANITIZE_KADDRESS))
 #define ASAN_IS_ENABLED 1
 #else
 #define ASAN_IS_ENABLED 0

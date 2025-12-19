@@ -3,6 +3,7 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2022, Linaro Limited.
  */
+#include <asan.h>
 #include <compiler.h>
 #include <link.h>
 #include <malloc.h>
@@ -191,6 +192,8 @@ static TEE_Result init_instance(void)
 	_TEE_MathAPI_Init();
 	__utee_tcb_init();
 	__utee_call_elf_init_fn();
+	asan_start();
+
 	internal_init_done = true;
 
 create_entrypoint:

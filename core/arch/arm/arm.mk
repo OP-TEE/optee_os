@@ -432,7 +432,7 @@ ta-mk-file-export-add-ta_arm64 += COMPILER_ta_arm64 ?= $$(COMPILER)_nl_
 ta-mk-file-export-add-ta_arm64 += PYTHON3 ?= python3_nl_
 endif
 
-ifneq (,$(filter y,$(CFG_CORE_SANITIZE_KADDRESS)))
+ifneq (,$(filter y,$(CFG_CORE_SANITIZE_KADDRESS) $(CFG_TA_SANITIZE_KADDRESS)))
 ifeq ($(CFG_ARM64_ta_arm64),y)
 CFG_USER_ASAN_SHADOW_OFFSET ?= 0x70000000
 endif
