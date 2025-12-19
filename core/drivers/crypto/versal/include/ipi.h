@@ -15,6 +15,35 @@ struct versal_rsa_input_param {
 	uint32_t key_len;
 };
 
+#if defined(PLATFORM_FLAVOR_net)
+enum versal_rsa_opmode {
+	VERSAL_RSA_OPMODE_EXPQ = 0,
+	VERSAL_RSA_OPMODE_CRT,
+	VERSAL_RSA_OPMODE_EXPORT,
+};
+
+struct versal_rsa_key_param {
+	uint64_t exp_addr;
+	uint64_t mod_addr;
+	uint64_t p_addr;
+	uint64_t q_addr;
+	uint64_t dp_addr;
+	uint64_t dq_addr;
+	uint64_t qinv_addr;
+	uint64_t tot_addr;
+	uint64_t rn_addr;
+	uint64_t rrn_addr;
+	uint32_t p_size;
+	uint32_t q_size;
+	uint32_t pubexp;
+	uint32_t is_prime_avail;
+	uint32_t is_privexp_avail;
+	uint32_t is_tot_avail;
+	uint32_t is_pubexp_avail;
+	enum versal_rsa_opmode opmode;
+};
+#endif
+
 struct versal_rsa_sign_param {
 	uint64_t sign_addr;
 	uint64_t hash_addr;

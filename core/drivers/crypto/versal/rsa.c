@@ -139,6 +139,10 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 	struct versal_cmd_args arg = { };
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t err = 0;
+#if defined(PLATFORM_FLAVOR_net)
+	struct versal_rsa_key_param *keyp = NULL;
+	struct versal_mbox_mem keyp_buf = { };
+#endif
 
 	switch (rsa_data->rsa_id) {
 	case DRVCRYPT_RSA_PKCS_V1_5:
@@ -185,6 +189,12 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 	crypto_bignum_bn2bin_pad(rsa_data->key.n_size, p->d,
 				 (uint8_t *)key.buf + rsa_data->key.n_size);
 
+#if defined(PLATFORM_FLAVOR_net)
+	ret = versal_mbox_alloc(sizeof(*keyp), NULL, &keyp_buf);
+	if (ret)
+		goto out;
+#endif
+
 	ret = versal_mbox_alloc(rsa_data->cipher.length, rsa_data->cipher.data,
 				&cipher);
 	if (ret)
@@ -199,12 +209,25 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 	cmd = cmd_buf.buf;
 	cmd->key_len = rsa_data->key.n_size;
 	cmd->data_addr = virt_to_phys(cipher.buf);
+#if !defined(PLATFORM_FLAVOR_net)
 	cmd->key_addr = virt_to_phys(key.buf);
+#else
+	keyp = keyp_buf.buf;
+	memset(keyp, 0, sizeof(*keyp));
+	keyp->exp_addr = virt_to_phys((uint8_t *)key.buf +
+				      rsa_data->key.n_size);
+	keyp->mod_addr = virt_to_phys(key.buf);
+	keyp->opmode = VERSAL_RSA_OPMODE_EXPQ;
+	cmd->key_addr = virt_to_phys(keyp_buf.buf);
+#endif
 
 	arg.ibuf[0].mem = cmd_buf;
 	arg.ibuf[1].mem = msg;
 	arg.ibuf[2].mem = cipher;
 	arg.ibuf[3].mem = key;
+#if defined(PLATFORM_FLAVOR_net)
+	arg.ibuf[4].mem = keyp_buf;
+#endif
 
 	if (versal_crypto_request(VERSAL_RSA_PRIVATE_DECRYPT, &arg, &err)) {
 		EMSG("Versal RSA: decrypt: error 0x%x [id:0x%x, len:%zu]",
@@ -221,6 +244,9 @@ out:
 	versal_mbox_free(&cmd_buf);
 	versal_mbox_free(&msg);
 	versal_mbox_free(&cipher);
+#if defined(PLATFORM_FLAVOR_net)
+	versal_mbox_free(&keyp_buf);
+#endif
 	versal_mbox_free(&key);
 
 	return ret;
