@@ -956,12 +956,24 @@ inited:
 	while (!LIST_EMPTY(&token->object_list)) {
 		obj = LIST_FIRST(&token->object_list);
 
+		if (!obj->attributes) {
+			rc = load_persistent_object_attributes(obj);
+			if (rc)
+				TEE_Panic(rc);
+		}
+
+		if (get_bool(obj->attributes, PKCS11_CKA_OPTEE_INDESTRUCTIBLE)) {
+			// Skip deletion for indestructible objects
+			LIST_REMOVE(obj, link);
+			continue;
+		}
 		/* Try twice otherwise panic! */
-		if (unregister_persistent_object(token, obj->uuid) &&
-		    unregister_persistent_object(token, obj->uuid))
+		if (unregister_persistent_object(token, obj->uuid) && 
+			unregister_persistent_object(token, obj->uuid))
 			TEE_Panic(0);
 
 		cleanup_persistent_object(obj, token);
+		token_invalidate_object_handles(obj);
 	}
 
 	IMSG("PKCS11 token %"PRIu32": initialized", token_id);
