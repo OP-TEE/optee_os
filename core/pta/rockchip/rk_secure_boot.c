@@ -47,6 +47,8 @@ static char *otp_to_string(uint32_t *otp, size_t otp_size,
 
 static TEE_Result write_key_size(uint32_t key_size_bits)
 {
+	uint32_t idx = ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX;
+	uint32_t sz = ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE;
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t status = 0;
 
@@ -56,15 +58,11 @@ static TEE_Result write_key_size(uint32_t key_size_bits)
 	case 4096:
 		status |= ROCKCHIP_OTP_SECURE_BOOT_STATUS_RSA4096;
 
-		res = rockchip_otp_write_secure(&status,
-				ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX,
-				ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
+		res = rockchip_otp_write_secure(&status, idx, sz);
 		if (res)
 			return res;
 
-		res = rockchip_otp_read_secure(&status,
-				ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX,
-				ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
+		res = rockchip_otp_read_secure(&status, idx, sz);
 		if (res)
 			return res;
 		if (!bit_test(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_RSA4096))
