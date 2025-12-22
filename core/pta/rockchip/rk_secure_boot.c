@@ -24,6 +24,13 @@
  */
 static const int simulation = IS_ENABLED2(CFG_RK_SECURE_BOOT_SIMULATION);
 
+/*
+ * The hash is stored in OTP in little endian. The PTA assumes that OP-TEE is
+ * in little endian and may copy the hash from memory to OTP without ensuring
+ * the byte order.
+ */
+static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__);
+
 static inline bool bit_test(uint32_t value, uint32_t bit)
 {
 	return (value & bit) == bit;
