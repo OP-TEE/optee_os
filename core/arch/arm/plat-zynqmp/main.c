@@ -108,3 +108,12 @@ bool plat_rpmb_key_is_ready(void)
 	return false;
 }
 #endif
+
+static TEE_Result platform_banner(void)
+{
+	IMSG("OP-TEE OS Running on Platform AMD ZynqMP");
+
+	return TEE_SUCCESS;
+}
+
+service_init(platform_banner);

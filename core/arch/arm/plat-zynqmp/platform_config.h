@@ -58,6 +58,9 @@
 	defined(PLATFORM_FLAVOR_zcu102) || \
 	defined(PLATFORM_FLAVOR_zcu104) || \
 	defined(PLATFORM_FLAVOR_zcu106) || \
+	defined(PLATFORM_FLAVOR_kd240) || \
+	defined(PLATFORM_FLAVOR_kr260) || \
+	defined(PLATFORM_FLAVOR_kv260) || \
 	defined(PLATFORM_FLAVOR_ultra96)
 
 #define GIC_BASE		0xF9010000
