@@ -65,6 +65,9 @@ $(call force,CFG_CRYPTO_WITH_CE,y)
 $(call force,CFG_ROCKCHIP_OTP,y)
 
 CFG_RK_SECURE_BOOT ?= y
+# Disable CFG_RK_SECURE_BOOT_SIMULATION to actually fuse the hash into the OTP.
+# Enabling this option is necessary to actually enable secure boot, but may
+# potentially brick your device.
 CFG_RK_SECURE_BOOT_SIMULATION ?= y
 
 CFG_TZDRAM_START ?= 0x30000000

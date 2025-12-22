@@ -18,13 +18,6 @@
 #define PTA_NAME "rk_secure_boot.pta"
 
 /*
- * Disable simulation to actually fusing the hash into the OTP. Enabling this
- * option is necessary to actually enable secure boot with PTA, but may
- * potentially brick your device.
- */
-static const int simulation = IS_ENABLED2(CFG_RK_SECURE_BOOT_SIMULATION);
-
-/*
  * The hash is stored in OTP in little endian. The PTA assumes that OP-TEE is
  * in little endian and may copy the hash from memory to OTP without ensuring
  * the byte order.
@@ -160,7 +153,7 @@ static TEE_Result get_info(uint32_t param_types,
 
 	info->enabled = bit_test(status,
 				 ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE);
-	info->simulation = simulation;
+	info->simulation = IS_ENABLED(CFG_RK_SECURE_BOOT_SIMULATION);
 	memcpy(info->hash.value, hash, sizeof(info->hash.value));
 
 	return TEE_SUCCESS;
@@ -228,7 +221,7 @@ static TEE_Result burn_hash(uint32_t param_types,
 		return TEE_SUCCESS;
 	}
 
-	if (simulation) {
+	if (IS_ENABLED(CFG_RK_SECURE_BOOT_SIMULATION)) {
 		char str[HASH_STRING_SIZE];
 
 		IMSG("Simulation mode: Skip burning hash %s, key size %d",
@@ -290,7 +283,7 @@ static TEE_Result lockdown_device(uint32_t param_types,
 
 	status = ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE;
 
-	if (simulation) {
+	if (IS_ENABLED(CFG_RK_SECURE_BOOT_SIMULATION)) {
 		IMSG("Simulation mode: Skip writing status: %" PRIx32,
 		     status);
 		return TEE_SUCCESS;
