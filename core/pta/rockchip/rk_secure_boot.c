@@ -59,13 +59,13 @@ static TEE_Result write_key_size(uint32_t key_size_bits)
 		res = rockchip_otp_write_secure(&status,
 				ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX,
 				ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
-		if (res != TEE_SUCCESS)
+		if (res)
 			return res;
 
 		res = rockchip_otp_read_secure(&status,
 				ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX,
 				ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
-		if (res != TEE_SUCCESS)
+		if (res)
 			return res;
 		if (!bit_test(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_RSA4096))
 			return TEE_ERROR_GENERIC;
@@ -95,13 +95,13 @@ static TEE_Result write_hash(uint32_t *hash, size_t size)
 	res = rockchip_otp_write_secure(hash,
 					ROCKCHIP_OTP_RSA_HASH_INDEX,
 					ROCKCHIP_OTP_RSA_HASH_SIZE);
-	if (res != TEE_SUCCESS)
+	if (res)
 		return res;
 
 	res = rockchip_otp_read_secure(tmp,
 				       ROCKCHIP_OTP_RSA_HASH_INDEX,
 				       ROCKCHIP_OTP_RSA_HASH_SIZE);
-	if (res != TEE_SUCCESS)
+	if (res)
 		return res;
 	if (memcmp(tmp, hash, sizeof(tmp)) != 0) {
 		EMSG("Failed to burn hash. OTP is %s",
@@ -214,7 +214,7 @@ static TEE_Result burn_hash(uint32_t param_types,
 	res = rockchip_otp_read_secure(&status,
 				       ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX,
 				       ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
-	if (res != TEE_SUCCESS)
+	if (res)
 		return res;
 	if (bit_test(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE)) {
 		DMSG("Secure boot already enabled");
@@ -233,13 +233,13 @@ static TEE_Result burn_hash(uint32_t param_types,
 	}
 
 	res = write_hash(new_hash, ARRAY_SIZE(new_hash));
-	if (res != TEE_SUCCESS) {
+	if (res) {
 		EMSG("Failed to write hash");
 		return res;
 	}
 
 	res = write_key_size(key_size_bits);
-	if (res != TEE_SUCCESS) {
+	if (res) {
 		EMSG("Failed to write key size");
 		return res;
 	}
@@ -264,7 +264,7 @@ static TEE_Result lockdown_device(uint32_t param_types,
 	res = rockchip_otp_read_secure(hash,
 				       ROCKCHIP_OTP_RSA_HASH_INDEX,
 				       ROCKCHIP_OTP_RSA_HASH_SIZE);
-	if (res != TEE_SUCCESS)
+	if (res)
 		return res;
 	if (memcmp(zero, hash, sizeof(hash)) == 0) {
 		EMSG("OTP hash is all zeros. Refuse lockdown.");
@@ -274,7 +274,7 @@ static TEE_Result lockdown_device(uint32_t param_types,
 	res = rockchip_otp_read_secure(&status,
 				       ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX,
 				       ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
-	if (res != TEE_SUCCESS)
+	if (res)
 		return res;
 	if (bit_test(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE)) {
 		DMSG("Secure boot already enabled");
@@ -293,13 +293,13 @@ static TEE_Result lockdown_device(uint32_t param_types,
 	res = rockchip_otp_write_secure(&status,
 					ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX,
 					ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
-	if (res != TEE_SUCCESS)
+	if (res)
 		return res;
 
 	res = rockchip_otp_read_secure(&status,
 				       ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX,
 				       ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
-	if (res != TEE_SUCCESS)
+	if (res)
 		return res;
 	if (bit_test(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE)) {
 		EMSG("Failed to write secure boot status");
