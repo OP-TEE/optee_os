@@ -37,8 +37,8 @@ static char *otp_to_string(uint32_t *otp, size_t otp_size,
 		return NULL;
 
 	snprintf(str, str_size,
-		 "0x%" PRIx32 " 0x%" PRIx32 " 0x%" PRIx32 " 0x%" PRIx32
-		 " 0x%" PRIx32 " 0x%" PRIx32 " 0x%" PRIx32 " 0x%" PRIx32,
+		 "0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32
+		 " 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32,
 		 otp[0], otp[1], otp[2], otp[3],
 		 otp[4], otp[5], otp[6], otp[7]);
 
@@ -50,7 +50,7 @@ static TEE_Result write_key_size(uint32_t key_size_bits)
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t status = 0;
 
-	IMSG("Setting key size to %d", key_size_bits);
+	IMSG("Setting key size to %"PRId32, key_size_bits);
 
 	switch (key_size_bits) {
 	case 4096:
@@ -184,7 +184,7 @@ static TEE_Result burn_hash(uint32_t param_types,
 
 	key_size_bits = params[1].value.a;
 	if (key_size_bits != 4096 && key_size_bits != 2048) {
-		EMSG("Invalid key size: %d", key_size_bits);
+		EMSG("Invalid key size: %"PRId32, key_size_bits);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -224,7 +224,7 @@ static TEE_Result burn_hash(uint32_t param_types,
 	if (IS_ENABLED(CFG_RK_SECURE_BOOT_SIMULATION)) {
 		char str[HASH_STRING_SIZE];
 
-		IMSG("Simulation mode: Skip burning hash %s, key size %d",
+		IMSG("Simulation mode: Skip burning hash %s, key size %"PRId32,
 		     otp_to_string(new_hash, ARRAY_SIZE(new_hash),
 				   str, sizeof(str)),
 		     key_size_bits);
@@ -284,12 +284,12 @@ static TEE_Result lockdown_device(uint32_t param_types,
 	status = ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE;
 
 	if (IS_ENABLED(CFG_RK_SECURE_BOOT_SIMULATION)) {
-		IMSG("Simulation mode: Skip writing status: %" PRIx32,
+		IMSG("Simulation mode: Skip writing status: %"PRIx32,
 		     status);
 		return TEE_SUCCESS;
 	}
 
-	IMSG("Writing secure boot status: %" PRIx32, status);
+	IMSG("Writing secure boot status: %"PRIx32, status);
 	res = rockchip_otp_write_secure(&status,
 					ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX,
 					ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
