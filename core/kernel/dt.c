@@ -918,14 +918,14 @@ int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
 	return fdt_add_subnode(dt->blob, offs, subnode);
 }
 
-int add_dt_node_overlay_fragmet(int node)
+int add_dt_node_overlay_fragment(int node)
 {
 	struct dt_descriptor *dt = NULL;
 	char full_node_name[1024] = {};
 	int root = 0;
 	int ret = 0;
 
-	/* Fragments make only sense with an external dt */
+	/* Fragments make only sense with an external DT */
 	dt = get_external_dt_desc();
 	if (!dt)
 		return 0;
