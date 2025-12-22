@@ -88,7 +88,7 @@ static int dt_enable_secure_status_frag(void *fdt, int node)
 {
 	int overlay = 0;
 
-	overlay = add_dt_node_overlay_fragmet(node);
+	overlay = add_dt_node_overlay_fragment(node);
 	if (overlay < 0)
 		return overlay;
 
