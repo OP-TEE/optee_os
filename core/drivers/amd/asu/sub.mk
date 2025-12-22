@@ -4,6 +4,4 @@
 #
 #
 
-incdirs-y += include
-
 srcs-y += asu_main.c

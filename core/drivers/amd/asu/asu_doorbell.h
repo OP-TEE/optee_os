@@ -4,8 +4,8 @@
  *
  */
 
-#ifndef _ASU_DOORBELL_H_
-#define _ASU_DOORBELL_H_
+#ifndef __ASU_DOORBELL_H__
+#define __ASU_DOORBELL_H__
 
 #include <stdint.h>
 
@@ -34,7 +34,7 @@
 #define IPIPSU_IMR_OFFSET	0x14U
 #define IPIPSU_IER_OFFSET	0x18U
 
-struct doorbell_config {
+struct asu_doorbell_config {
 	uint32_t deviceid;
 	uintptr_t baseaddr;
 	uint32_t bitmask;
@@ -44,7 +44,7 @@ struct doorbell_config {
 	uint32_t target_mask[PAR_IPIPSU_NUM_TARGETS];
 };
 
-struct doorbell_config configtable = {
+struct asu_doorbell_config asu_configtable = {
 	.deviceid = PAR_IPIPSU_0_DEVICE_ID,
 	.baseaddr = PAR_IPIPSU_0_BASEADDR,
 	.bitmask = PAR_IPIPSU_0_BIT_MASK,
@@ -63,4 +63,4 @@ struct doorbell_config configtable = {
 	}
 };
 
-#endif /* _ASU_DOORBELL_H_ */
+#endif /* __ASU_DOORBELL_H__ */

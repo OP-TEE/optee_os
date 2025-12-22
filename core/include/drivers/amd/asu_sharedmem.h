@@ -4,8 +4,8 @@
  *
  */
 
-#ifndef _ASU_SHAREDMEM_H_
-#define _ASU_SHAREDMEM_H_
+#ifndef __ASU_SHAREDMEM_H_
+#define __ASU_SHAREDMEM_H_
 
 #include <stdint.h>
 #include <util.h>
@@ -69,4 +69,4 @@ struct asu_channel_memory {
 	struct asu_channel_queue p1_chnl_q;
 };
 
-#endif /* ASU_SHAREDMEM_H_ */
+#endif /* __ASU_SHAREDMEM_H_ */

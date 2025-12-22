@@ -4,10 +4,10 @@
  *
  */
 
-#ifndef _ASU_CLIENT_H_
-#define _ASU_CLIENT_H_
+#ifndef __ASU_CLIENT_H_
+#define __ASU_CLIENT_H_
 
-#include <asu_sharedmem.h>
+#include <drivers/amd/asu_sharedmem.h>
 #include <tee_api_types.h>
 #include <util.h>
 
@@ -60,4 +60,4 @@ void asu_free_unique_id(uint8_t uniqueid);
 void *asu_update_n_get_ctx(uint8_t unique_id);
 TEE_Result asu_verify_n_get_unique_id_ctx(const void *context,
 					  uint8_t *unique_id);
-#endif /* _ASU_CLIENT_H_ */
+#endif /* __ASU_CLIENT_H_ */

@@ -72,7 +72,7 @@ struct asu_hash_cbctx {
 	size_t len;
 };
 
-static struct crypto_hash_ops asu_hash_ops;
+static const struct crypto_hash_ops asu_hash_ops;
 static struct asu_shadev *asu_shadev;
 static struct asu_hash_ctx *to_hash_ctx(struct crypto_hash_ctx *ctx);
 
@@ -135,15 +135,7 @@ static TEE_Result asu_hash_get_alg(uint32_t algo,
 
 static TEE_Result asu_hash_initialize(struct crypto_hash_ctx *ctx)
 {
-	struct asu_hash_ctx *asu_hashctx = NULL;
-
-	if (!ctx) {
-		EMSG("Input ctx is NULL");
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	asu_hashctx = to_hash_ctx(ctx);
-	asu_hashctx->shastart = ASU_SHA_START;
+	to_hash_ctx(ctx)->shastart = ASU_SHA_START;
 
 	return TEE_SUCCESS;
 }
@@ -165,8 +157,8 @@ static TEE_Result asu_sha_op(struct asu_hash_ctx *asu_hashctx,
 			     uint8_t module)
 {
 	TEE_Result ret = TEE_SUCCESS;
-	uint32_t header;
-	int status;
+	uint32_t header = U(0);
+	int status = TEE_ERROR_GENERIC;
 
 	header = asu_create_header(ASU_SHA_OPERATION_CMD_ID,
 				   asu_hashctx->uniqueid, module, 0U);
@@ -198,7 +190,7 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 	TEE_Result ret = TEE_SUCCESS;
 	struct asu_sha_op_cmd op = {};
 	struct asu_client_params *cparam = NULL;
-	uint32_t remaining;
+	uint32_t remaining = U(0);
 
 	/* Inputs of client request */
 	cparam = &asu_hashctx->cparam;
@@ -237,7 +229,7 @@ static TEE_Result asu_hash_do_update(struct crypto_hash_ctx *ctx,
 		return TEE_SUCCESS;
 	}
 
-	if (!ctx || (!data && len)) {
+	if (!data && len) {
 		EMSG("Invalid input parameters");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -251,8 +243,8 @@ static TEE_Result asu_hash_do_update(struct crypto_hash_ctx *ctx,
 
 static TEE_Result asu_hash_cb(void *cbrefptr, struct asu_resp_buf *resp_buf)
 {
-	struct asu_hash_cbctx *cbctx;
-	uint8_t *src_addr;
+	struct asu_hash_cbctx *cbctx = NULL;
+	uint8_t *src_addr = NULL;
 
 	cbctx = cbrefptr;
 	src_addr = (uint8_t *)&resp_buf->arg[ASU_RESPONSE_BUFF_ADDR_INDEX];
@@ -316,8 +308,6 @@ static TEE_Result asu_hash_do_final(struct crypto_hash_ctx *ctx,
 {
 	struct asu_hash_ctx *asu_hashctx = NULL;
 
-	if (!ctx)
-		return TEE_ERROR_BAD_PARAMETERS;
 	asu_hashctx = to_hash_ctx(ctx);
 
 	return asu_hash_final(asu_hashctx, digest, len);
@@ -335,24 +325,21 @@ static void asu_hash_ctx_free(struct crypto_hash_ctx *ctx)
 {
 	struct asu_hash_ctx *asu_hashctx = NULL;
 
-	if (!ctx)
-		return;
 	asu_hashctx = to_hash_ctx(ctx);
 	asu_free_unique_id(asu_hashctx->uniqueid);
 	asu_hashctx->uniqueid = ASU_UNIQUE_ID_MAX;
 	mutex_lock(&asu_shadev->engine_lock);
 	if (asu_hashctx->module == ASU_MODULE_SHA2_ID &&
 	    !asu_shadev->sha2_available)
-		asu_shadev->sha2_available = 1;
+		asu_shadev->sha2_available = true;
 	else if (asu_hashctx->module == ASU_MODULE_SHA3_ID &&
 		 !asu_shadev->sha3_available)
-		asu_shadev->sha3_available = 1;
+		asu_shadev->sha3_available = true;
 	mutex_unlock(&asu_shadev->engine_lock);
-	asu_hashctx = to_hash_ctx(ctx);
 	free(asu_hashctx);
 }
 
-static struct crypto_hash_ops asu_hash_ops = {
+static const struct crypto_hash_ops asu_hash_ops = {
 	.init = asu_hash_initialize,
 	.update = asu_hash_do_update,
 	.final = asu_hash_do_final,
@@ -385,23 +372,18 @@ static TEE_Result asu_hash_ctx_allocate(struct crypto_hash_ctx **ctx,
 					uint32_t algo)
 {
 	struct asu_hash_ctx *asu_hashctx = NULL;
-	uint32_t module;
-	uint32_t shamode;
+	uint32_t module = U(0);
+	uint32_t shamode = U(0);
 	TEE_Result ret = TEE_SUCCESS;
-
-	if (!ctx) {
-		EMSG("ctx is NULL");
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
 
 	ret = asu_hash_get_alg(algo, &module, &shamode);
 	if (ret)
 		return ret;
 	mutex_lock(&asu_shadev->engine_lock);
 	if (module == ASU_MODULE_SHA2_ID && asu_shadev->sha2_available) {
-		asu_shadev->sha2_available = 0;
+		asu_shadev->sha2_available = false;
 	} else if (module == ASU_MODULE_SHA3_ID && asu_shadev->sha3_available) {
-		asu_shadev->sha3_available = 0;
+		asu_shadev->sha3_available = false;
 	} else {
 		mutex_unlock(&asu_shadev->engine_lock);
 		return TEE_ERROR_NOT_IMPLEMENTED;
@@ -433,10 +415,10 @@ free_dev_mem:
 	mutex_lock(&asu_shadev->engine_lock);
 	if (asu_hashctx->module == ASU_MODULE_SHA2_ID &&
 	    !asu_shadev->sha2_available)
-		asu_shadev->sha2_available = 1;
+		asu_shadev->sha2_available = true;
 	else if (asu_hashctx->module == ASU_MODULE_SHA3_ID &&
 		 !asu_shadev->sha3_available)
-		asu_shadev->sha3_available = 1;
+		asu_shadev->sha3_available = true;
 	mutex_unlock(&asu_shadev->engine_lock);
 
 	if (asu_hashctx)
@@ -451,8 +433,8 @@ static TEE_Result asu_hash_init(void)
 
 	asu_shadev = calloc(1, sizeof(*asu_shadev));
 	mutex_init(&asu_shadev->engine_lock);
-	asu_shadev->sha2_available = 1;
-	asu_shadev->sha3_available = 1;
+	asu_shadev->sha2_available = true;
+	asu_shadev->sha3_available = true;
 	ret = drvcrypt_register_hash(&asu_hash_ctx_allocate);
 	if (ret)
 		EMSG("ASU hash register to crypto fail ret=%#"PRIx32, ret);
