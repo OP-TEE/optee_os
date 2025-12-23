@@ -24,9 +24,9 @@
  */
 static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__);
 
-static inline bool bit_test(uint32_t value, uint32_t bit)
+static inline bool test_bit_mask(uint32_t value, uint32_t mask)
 {
-	return (value & bit) == bit;
+	return (value & mask) == mask;
 }
 
 #define HASH_STRING_SIZE 88
@@ -65,7 +65,8 @@ static TEE_Result write_key_size(uint32_t key_size_bits)
 		res = rockchip_otp_read_secure(&status, idx, sz);
 		if (res)
 			return res;
-		if (!bit_test(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_RSA4096))
+		if (!test_bit_mask(status,
+				   ROCKCHIP_OTP_SECURE_BOOT_STATUS_RSA4096))
 			return TEE_ERROR_GENERIC;
 		break;
 	case 2048:
@@ -149,8 +150,8 @@ static TEE_Result get_info(uint32_t param_types,
 	DMSG("Current hash: %s",
 	     otp_to_string(hash, ARRAY_SIZE(hash), str, sizeof(str)));
 
-	info->enabled = bit_test(status,
-				 ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE);
+	info->enabled = test_bit_mask(status,
+				      ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE);
 	info->simulation = IS_ENABLED(CFG_RK_SECURE_BOOT_SIMULATION);
 	memcpy(info->hash.value, hash, sizeof(info->hash.value));
 
@@ -214,7 +215,7 @@ static TEE_Result burn_hash(uint32_t param_types,
 				       ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
 	if (res)
 		return res;
-	if (bit_test(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE)) {
+	if (test_bit_mask(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE)) {
 		DMSG("Secure boot already enabled");
 		return TEE_SUCCESS;
 	}
@@ -274,7 +275,7 @@ static TEE_Result lockdown_device(uint32_t param_types,
 				       ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
 	if (res)
 		return res;
-	if (bit_test(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE)) {
+	if (test_bit_mask(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE)) {
 		DMSG("Secure boot already enabled");
 		return TEE_SUCCESS;
 	}
@@ -299,7 +300,7 @@ static TEE_Result lockdown_device(uint32_t param_types,
 				       ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
 	if (res)
 		return res;
-	if (bit_test(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE)) {
+	if (test_bit_mask(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE)) {
 		EMSG("Failed to write secure boot status");
 		return TEE_ERROR_GENERIC;
 	}
