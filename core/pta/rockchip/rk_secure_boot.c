@@ -79,9 +79,9 @@ static TEE_Result write_key_size(uint32_t key_size_bits)
 
 static TEE_Result write_hash(uint32_t *hash, size_t size)
 {
+	uint32_t tmp[ROCKCHIP_OTP_RSA_HASH_SIZE] = {};
+	char str[HASH_STRING_SIZE] = {};
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t tmp[ROCKCHIP_OTP_RSA_HASH_SIZE];
-	char str[HASH_STRING_SIZE];
 
 	if (size != ROCKCHIP_OTP_RSA_HASH_SIZE)
 		return TEE_ERROR_GENERIC;
@@ -111,11 +111,11 @@ static TEE_Result write_hash(uint32_t *hash, size_t size)
 static TEE_Result get_info(uint32_t param_types,
 			   TEE_Param params[TEE_NUM_PARAMS])
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t hash[ROCKCHIP_OTP_RSA_HASH_SIZE] = {};
 	struct pta_rk_secure_boot_info *info = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	char str[HASH_STRING_SIZE] = {};
 	uint32_t status = 0;
-	uint32_t hash[ROCKCHIP_OTP_RSA_HASH_SIZE];
-	char str[HASH_STRING_SIZE];
 
 	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_OUTPUT,
 					   TEE_PARAM_TYPE_NONE,
@@ -157,13 +157,13 @@ static TEE_Result get_info(uint32_t param_types,
 static TEE_Result burn_hash(uint32_t param_types,
 			    TEE_Param params[TEE_NUM_PARAMS])
 {
+	uint32_t new_hash[ROCKCHIP_OTP_RSA_HASH_SIZE] = {};
+	uint32_t old_hash[ROCKCHIP_OTP_RSA_HASH_SIZE] = {};
+	struct pta_rk_secure_boot_hash *hash = NULL;
 	TEE_Result res = TEE_SUCCESS;
-	struct pta_rk_secure_boot_hash *hash;
-	size_t hash_sz;
-	uint32_t status;
-	uint32_t new_hash[ROCKCHIP_OTP_RSA_HASH_SIZE];
-	uint32_t old_hash[ROCKCHIP_OTP_RSA_HASH_SIZE];
-	uint32_t key_size_bits;
+	uint32_t key_size_bits = 0;
+	uint32_t status = 0;
+	size_t hash_sz = 0;
 
 	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 					   TEE_PARAM_TYPE_VALUE_INPUT,
@@ -241,10 +241,10 @@ static TEE_Result burn_hash(uint32_t param_types,
 static TEE_Result lockdown_device(uint32_t param_types,
 				  TEE_Param params[TEE_NUM_PARAMS] __unused)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
-	uint32_t status;
 	uint32_t hash[ROCKCHIP_OTP_RSA_HASH_SIZE] = {};
 	uint32_t zero[ROCKCHIP_OTP_RSA_HASH_SIZE] = {};
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t status = 0;
 
 	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_NONE,
 					   TEE_PARAM_TYPE_NONE,
@@ -305,8 +305,8 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
-	TEE_Result res2 = TEE_ERROR_GENERIC;
 	TEE_Param bparams[TEE_NUM_PARAMS] = { };
+	TEE_Result res2 = TEE_ERROR_GENERIC;
 	TEE_Param *eparams = NULL;
 
 	res = to_bounce_params(param_types, params, bparams, &eparams);
