@@ -30,12 +30,9 @@ static inline bool test_bit_mask(uint32_t value, uint32_t mask)
 }
 
 #define HASH_STRING_SIZE 88
-static char *otp_to_string(uint32_t *otp, size_t otp_size,
-			   char *str, size_t str_size)
+static_assert(ROCKCHIP_OTP_RSA_HASH_SIZE == 8);
+static char *otp_to_string(uint32_t *otp, char *str, size_t str_size)
 {
-	if (otp_size != 8 || str_size != HASH_STRING_SIZE)
-		return NULL;
-
 	snprintf(str, str_size,
 		 "0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32
 		 " 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32,
@@ -89,7 +86,7 @@ static TEE_Result write_hash(uint32_t *hash, size_t size)
 	if (size != ROCKCHIP_OTP_RSA_HASH_SIZE)
 		return TEE_ERROR_GENERIC;
 
-	IMSG("Burning hash %s", otp_to_string(hash, size, str, sizeof(str)));
+	IMSG("Burning hash %s", otp_to_string(hash, str, sizeof(str)));
 
 	res = rockchip_otp_write_secure(hash,
 					ROCKCHIP_OTP_RSA_HASH_INDEX,
@@ -104,7 +101,7 @@ static TEE_Result write_hash(uint32_t *hash, size_t size)
 		return res;
 	if (memcmp(tmp, hash, sizeof(tmp)) != 0) {
 		EMSG("Failed to burn hash. OTP is %s",
-		     otp_to_string(tmp, ARRAY_SIZE(tmp), str, sizeof(str)));
+		     otp_to_string(tmp, str, sizeof(str)));
 		return res;
 	}
 
@@ -147,8 +144,7 @@ static TEE_Result get_info(uint32_t param_types,
 	if (res)
 		return res;
 
-	DMSG("Current hash: %s",
-	     otp_to_string(hash, ARRAY_SIZE(hash), str, sizeof(str)));
+	DMSG("Current hash: %s", otp_to_string(hash, str, sizeof(str)));
 
 	info->enabled = test_bit_mask(status,
 				      ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE);
@@ -196,11 +192,9 @@ static TEE_Result burn_hash(uint32_t param_types,
 		char str[HASH_STRING_SIZE];
 
 		EMSG("Refusing to burn hash %s",
-		     otp_to_string(new_hash, ARRAY_SIZE(new_hash),
-				   str, sizeof(str)));
+		     otp_to_string(new_hash, str, sizeof(str)));
 		EMSG("OTP hash is %s",
-		     otp_to_string(old_hash, ARRAY_SIZE(old_hash),
-				   str, sizeof(str)));
+		     otp_to_string(old_hash, str, sizeof(str)));
 
 		return res;
 	}
@@ -224,9 +218,7 @@ static TEE_Result burn_hash(uint32_t param_types,
 		char str[HASH_STRING_SIZE];
 
 		IMSG("Simulation mode: Skip burning hash %s, key size %"PRId32,
-		     otp_to_string(new_hash, ARRAY_SIZE(new_hash),
-				   str, sizeof(str)),
-		     key_size_bits);
+		     otp_to_string(new_hash, str, sizeof(str)), key_size_bits);
 
 		return TEE_SUCCESS;
 	}
