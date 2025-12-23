@@ -178,10 +178,8 @@ void abort_print_current_ts(void)
 	s->ctx->ops->dump_state(s->ctx);
 
 #if defined(CFG_FTRACE_SUPPORT)
-	if (s->ctx->ops->dump_ftrace) {
-		s->fbuf = NULL;
+	if (s->ctx->ops->dump_ftrace)
 		s->ctx->ops->dump_ftrace(s->ctx);
-	}
 #endif
 }
 

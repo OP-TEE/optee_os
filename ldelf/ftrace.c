@@ -107,13 +107,30 @@ void ftrace_copy_buf(void *pctx, void (*copy_func)(void *pctx, void *b,
 		end = hstart + dump_size;
 
 		/* Header */
-		copy_func(pctx, hstart, fbuf->buf_off - fbuf->head_off);
+		if (!fbuf->dump_id)
+			copy_func(pctx, hstart, fbuf->buf_off - fbuf->head_off);
 		if (fbuf->overflow) {
 			/* From current index to end of circular buffer */
 			copy_func(pctx, ccurr, end - ccurr);
 		}
 		/* From start of circular buffer to current index */
 		copy_func(pctx, cstart, ccurr - cstart);
+	}
+}
+
+uint32_t ftrace_get_dump_id(void)
+{
+	if (fbuf)
+		return fbuf->dump_id;
+	else
+		return 0;
+}
+
+void ftrace_reset_buf(void)
+{
+	if (fbuf) {
+		fbuf->curr_idx = 0;
+		fbuf->overflow = false;
 	}
 }
 

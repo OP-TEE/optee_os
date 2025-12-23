@@ -288,6 +288,7 @@ static void user_ta_dump_state(struct ts_ctx *ctx)
 static void user_ta_dump_ftrace(struct ts_ctx *ctx)
 {
 	uint32_t prot = TEE_MATTR_URW;
+	struct ts_session *sess = ts_get_current_session();
 	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 	struct thread_param params[3] = { };
 	TEE_Result res = TEE_SUCCESS;
@@ -296,6 +297,7 @@ static void user_ta_dump_ftrace(struct ts_ctx *ctx)
 	void *buf = NULL;
 	size_t pl_sz = 0;
 	size_t blen = 0, ld_addr_len = 0;
+	uint32_t dump_id = 0;
 	vaddr_t va = 0;
 
 	res = ldelf_dump_ftrace(&utc->uctx, NULL, &blen);
@@ -325,9 +327,13 @@ static void user_ta_dump_ftrace(struct ts_ctx *ctx)
 	memcpy(ubuf, &ctx->uuid, sizeof(TEE_UUID));
 	ubuf += sizeof(TEE_UUID);
 
-	ld_addr_len = snprintk((char *)ubuf, LOAD_ADDR_DUMP_SIZE,
-			       "TEE load address @ %#"PRIxVA"\n",
-			       VCORE_START_VA);
+	if (sess->fbuf)
+		dump_id = sess->fbuf->dump_id;
+	/* only print the header when this is a new dump */
+	if (!dump_id)
+		ld_addr_len = snprintk((char *)ubuf, LOAD_ADDR_DUMP_SIZE,
+				       "TEE load address @ %#"PRIxVA"\n",
+				       VCORE_START_VA);
 	ubuf += ld_addr_len;
 
 	res = ldelf_dump_ftrace(&utc->uctx, ubuf, &blen);
@@ -336,14 +342,18 @@ static void user_ta_dump_ftrace(struct ts_ctx *ctx)
 		goto out_unmap_pl;
 	}
 
-	params[0] = THREAD_PARAM_VALUE(INOUT, 0, 0, 0);
+	params[0] = THREAD_PARAM_VALUE(INOUT, dump_id, 0, 0);
 	params[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, sizeof(TEE_UUID));
 	params[2] = THREAD_PARAM_MEMREF(IN, mobj, sizeof(TEE_UUID),
 					blen + ld_addr_len);
 
 	res = thread_rpc_cmd(OPTEE_RPC_CMD_FTRACE, 3, params);
-	if (res)
+	if (res) {
 		EMSG("Ftrace thread_rpc_cmd res: %#"PRIx32, res);
+		goto out_unmap_pl;
+	}
+	if (sess->fbuf)
+		sess->fbuf->dump_id = params[0].u.value.a;
 
 out_unmap_pl:
 	res = vm_unmap(&utc->uctx, va, mobj->size);

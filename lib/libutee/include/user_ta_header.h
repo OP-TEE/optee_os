@@ -94,6 +94,7 @@ struct ftrace_buf {
 	uint32_t max_size;	/* Max allowed size of ftrace buffer */
 	uint32_t head_off;	/* Ftrace buffer header offset */
 	uint32_t buf_off;	/* Ftrace buffer offset */
+	uint32_t dump_id;	/* Dump ID returned by the supplicant */
 	bool syscall_trace_enabled; /* Some syscalls are never traced */
 	bool syscall_trace_suspended; /* By foreign interrupt or RPC */
 	bool overflow;		/* Circular buffer has wrapped */
