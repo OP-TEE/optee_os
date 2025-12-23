@@ -37,15 +37,6 @@ TEE_Result ti_crypto_init_rng_fwl(uint16_t fwl_id, uint16_t fwl_region)
 	} else {
 		IMSG("Fixing background firewall owner");
 
-		/* Get current firewall configuration */
-		ret = ti_sci_get_fwl_region(fwl_id, fwl_region, 1,
-					    &control, permissions,
-					    &start_address, &end_address);
-		if (ret) {
-			EMSG("Could not get firewall region information");
-			return TEE_ERROR_GENERIC;
-		}
-
 		/* Modify current firewall configuration */
 		control = FW_BACKGROUND_REGION | FW_ENABLE_REGION;
 		permissions[0] = (FW_WILDCARD_PRIVID << 16) | FW_NON_SECURE;
@@ -64,15 +55,6 @@ TEE_Result ti_crypto_init_rng_fwl(uint16_t fwl_id, uint16_t fwl_region)
 				      &owner_privid, &owner_permission_bits);
 	if (ret) {
 		EMSG("Could not change TRNG firewall owner");
-		return TEE_ERROR_GENERIC;
-	}
-
-	/* Get current TRNG firewall configuration */
-	ret = ti_sci_get_fwl_region(fwl_id, rng_region, 1,
-				    &control, permissions,
-				    &start_address, &end_address);
-	if (ret) {
-		EMSG("Could not get firewall region information");
 		return TEE_ERROR_GENERIC;
 	}
 
