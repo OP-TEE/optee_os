@@ -15,7 +15,7 @@ $(call force,CFG_QCOM_GENI_UART,y)
 ta-targets = ta_arm64
 supported-ta-targets ?= ta_arm64
 
-ifeq ($(PLATFORM_FLAVOR),kodiak)
+ifneq (,$(filter $(PLATFORM_FLAVOR),kodiak lemans))
 include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_TEE_CORE_NB_CORE,8)
 
