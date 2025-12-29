@@ -130,7 +130,7 @@ CFG_OS_REV_REPORTS_GIT_SHA1 ?= y
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 4
-CFG_OPTEE_REVISION_MINOR ?= 8
+CFG_OPTEE_REVISION_MINOR ?= 9
 CFG_OPTEE_REVISION_EXTRA ?=
 
 # Trusted OS implementation version
