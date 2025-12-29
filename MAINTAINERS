@@ -11,7 +11,7 @@ Note that OP-TEE development mainly occurs on GitHub [2] so this file should be
 used a bit differently compared to the Linux MAINTAINERS file:
 
 1. GitHub accounts may be given in square brackets, starting with an @ sign.
-For example, [@jbech-linaro].
+For example, [@jockebech].
 
 2. Patches should generally be submitted as GitHub pull requests (more details
 in documentation/github.md). Therefore, please do NOT send patches to the
@@ -248,7 +248,7 @@ F:	core/drivers/qcom_geni_uart.c
 F:	core/include/drivers/qcom/
 
 Raspberry Pi3
-R:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]
+R:	Joakim Bech <joakim.bech@gmail.com> [@jockebech]
 S:	Maintained
 F:	core/arch/arm/plat-rpi3/
 
@@ -362,7 +362,7 @@ F:	lib/libutils/isoc/arch/riscv/
 F:	ta/arch/riscv/
 
 THE REST
-M:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]
+M:	Joakim Bech <joakim.bech@gmail.com> [@jockebech]
 M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
 M:	Jerome Forissier <jerome@forissier.org> [@jforissier]
 R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
