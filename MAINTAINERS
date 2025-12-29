@@ -53,7 +53,7 @@ S:	Maintained
 F:	core/arch/arm/plat-corstone1000/
 
 Arm Automotive Reference Design
-R:	Ahmed Tiba <ahmed.tiba@arm.org> [@ahmedtiba]
+R:	Ahmed Tiba <ahmed.tiba@arm.com> [@ahmedtiba]
 S:	Maintained
 F:	core/arch/plat-automotive_rd
 
