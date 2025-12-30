@@ -57,7 +57,4 @@ void asu_update_callback_details(uint8_t unique_id,
 				 uint32_t size);
 uint8_t asu_alloc_unique_id(void);
 void asu_free_unique_id(uint8_t uniqueid);
-void *asu_update_n_get_ctx(uint8_t unique_id);
-TEE_Result asu_verify_n_get_unique_id_ctx(const void *context,
-					  uint8_t *unique_id);
 #endif /* __ASU_CLIENT_H_ */
