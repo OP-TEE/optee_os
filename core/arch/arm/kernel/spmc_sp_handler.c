@@ -144,7 +144,8 @@ static void spmc_sp_handle_mem_share(struct thread_smc_1_2_regs *args,
 		res = FFA_INVALID_PARAMETERS;
 	else
 		res = spmc_read_mem_transaction(rxtx->ffa_vers, rxtx->rx,
-						frag_len, &mem_trans);
+						rxtx->size,
+						frag_len, tot_len, &mem_trans);
 	if (!res)
 		res = spmc_sp_add_share(&mem_trans, rxtx, tot_len, frag_len,
 					&global_handle, owner_sp);
@@ -647,8 +648,8 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 
 	tx_len = rxtx->size;
 
-	ret = spmc_read_mem_transaction(rxtx->ffa_vers, rxtx->rx, frag_len,
-					&mem_trans);
+	ret = spmc_read_mem_transaction(rxtx->ffa_vers, rxtx->rx, rxtx->size,
+					tot_len, frag_len, &mem_trans);
 	if (ret)
 		goto err;
 
