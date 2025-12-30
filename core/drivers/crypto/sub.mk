@@ -12,6 +12,8 @@ subdirs-$(CFG_ASPEED_CRYPTO_DRIVER) += aspeed
 
 subdirs-$(CFG_VERSAL_CRYPTO_DRIVER) += versal
 
+subdirs-$(CFG_AMD_ASU_SUPPORT) += asu_driver
+
 subdirs-$(CFG_HISILICON_CRYPTO_DRIVER) += hisilicon
 
 subdirs-$(CFG_IMX_ELE) += ele
