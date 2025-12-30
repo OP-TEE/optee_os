@@ -20,25 +20,25 @@
 #include <trace.h>
 #include <util.h>
 
-#define ASU_SHA_OPERATION_CMD_ID		(0U)
+#define ASU_SHA_OPERATION_CMD_ID		0U
 /* SHA modes */
-#define ASU_SHA_MODE_SHA256			(0U)
-#define ASU_SHA_MODE_SHA384			(1U)
-#define ASU_SHA_MODE_SHA512			(2U)
-#define ASU_SHA_MODE_SHAKE256			(4U)
+#define ASU_SHA_MODE_SHA256			0U
+#define ASU_SHA_MODE_SHA384			1U
+#define ASU_SHA_MODE_SHA512			2U
+#define ASU_SHA_MODE_SHAKE256			4U
 
 /* SHA operation mode */
-#define ASU_SHA_START				(0x1U)
-#define ASU_SHA_UPDATE				(0x2U)
-#define ASU_SHA_FINISH				(0x4U)
+#define ASU_SHA_START				0x1U
+#define ASU_SHA_UPDATE				0x2U
+#define ASU_SHA_FINISH				0x4U
 
 /* SHA hash lengths */
-#define ASU_SHA_256_HASH_LEN			(32U)
-#define ASU_SHA_384_HASH_LEN			(48U)
-#define ASU_SHA_512_HASH_LEN			(64U)
-#define ASU_SHAKE_256_HASH_LEN			(32U)
-#define ASU_SHAKE_256_MAX_HASH_LEN		(136U)
-#define ASU_DATA_CHUNK_LEN			(4096U)
+#define ASU_SHA_256_HASH_LEN			32U
+#define ASU_SHA_384_HASH_LEN			48U
+#define ASU_SHA_512_HASH_LEN			64U
+#define ASU_SHAKE_256_HASH_LEN			32U
+#define ASU_SHAKE_256_MAX_HASH_LEN		136U
+#define ASU_DATA_CHUNK_LEN			4096U
 
 struct asu_shadev {
 	bool sha2_available;
@@ -157,7 +157,7 @@ static TEE_Result asu_sha_op(struct asu_hash_ctx *asu_hashctx,
 			     uint8_t module)
 {
 	TEE_Result ret = TEE_SUCCESS;
-	uint32_t header = U(0);
+	uint32_t header = 0;
 	int status = TEE_ERROR_GENERIC;
 
 	header = asu_create_header(ASU_SHA_OPERATION_CMD_ID,
@@ -190,7 +190,7 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 	TEE_Result ret = TEE_SUCCESS;
 	struct asu_sha_op_cmd op = {};
 	struct asu_client_params *cparam = NULL;
-	uint32_t remaining = U(0);
+	uint32_t remaining = 0;
 
 	/* Inputs of client request */
 	cparam = &asu_hashctx->cparam;
@@ -372,8 +372,8 @@ static TEE_Result asu_hash_ctx_allocate(struct crypto_hash_ctx **ctx,
 					uint32_t algo)
 {
 	struct asu_hash_ctx *asu_hashctx = NULL;
-	uint32_t module = U(0);
-	uint32_t shamode = U(0);
+	uint32_t module = 0;
+	uint32_t shamode = 0;
 	TEE_Result ret = TEE_SUCCESS;
 
 	ret = asu_hash_get_alg(algo, &module, &shamode);

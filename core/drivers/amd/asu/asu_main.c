@@ -302,7 +302,7 @@ TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
 					      int *status)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
-	uint8_t freeindex = 0U;
+	uint8_t freeindex = 0;
 	struct asu_channel_queue_buf *bufptr = NULL;
 	struct asu_channel_queue *qptr = NULL;
 
@@ -334,7 +334,7 @@ TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
 	if (req_buffer && size != 0U)
 		memcpy(bufptr->req.arg, req_buffer, size);
 
-	bufptr->respbufstatus = 0U;
+	bufptr->respbufstatus = 0;
 
 	qptr->cmd_is_present = true;
 	qptr->req_sent++;
@@ -362,7 +362,7 @@ TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
 
 static void asu_clear_intr(void)
 {
-	uint32_t status;
+	uint32_t status = 0;
 
 	status = io_read32((vaddr_t)asu->doorbell + IPIPSU_ISR_OFFSET);
 	io_write32((vaddr_t)asu->doorbell + IPIPSU_ISR_OFFSET,
@@ -451,9 +451,9 @@ static void asu_init_unique_id(void)
 static TEE_Result asu_init(void)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
-	uint32_t channel_id = 0U;
+	uint32_t channel_id = 0;
 	void *asu_shmem = NULL;
-	uint64_t membase = UINT64_C(0);
+	uint64_t membase = 0;
 
 	asu = calloc(1, sizeof(struct asu_client));
 	if (!asu) {
