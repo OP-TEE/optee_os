@@ -84,6 +84,27 @@ int dt_disable_status(void *fdt, int node)
 	return 0;
 }
 
+static int dt_enable_secure_status_frag(void *fdt, int node)
+{
+	int overlay = 0;
+
+	overlay = add_dt_node_overlay_fragment(node);
+	if (overlay < 0)
+		return overlay;
+
+	if (fdt_setprop_string(fdt, overlay, "status", "disabled")) {
+		EMSG("Unable to disable Normal Status via fragment");
+		return -1;
+	}
+
+	if (fdt_setprop_string(fdt, overlay, "secure-status", "okay")) {
+		EMSG("Unable to enable Secure Status via fragment");
+		return -1;
+	}
+
+	return 0;
+}
+
 int dt_enable_secure_status(void *fdt, int node)
 {
 	if (dt_disable_status(fdt, node)) {
@@ -93,6 +114,9 @@ int dt_enable_secure_status(void *fdt, int node)
 
 	if (fdt_setprop_string(fdt, node, "secure-status", "okay"))
 		return -1;
+
+	if (IS_ENABLED2(_CFG_USE_DTB_OVERLAY))
+		return dt_enable_secure_status_frag(fdt, node);
 
 	return 0;
 }
@@ -718,7 +742,8 @@ void *get_embedded_dt(void)
 #endif /*CFG_EMBED_DTB*/
 
 #ifdef _CFG_USE_DTB_OVERLAY
-static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
+static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs,
+				   const char *target_path)
 {
 	char frag[32] = { };
 	int offs = 0;
@@ -734,7 +759,7 @@ static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
 
 	dt->frag_id += 1;
 
-	ret = fdt_setprop_string(dt->blob, offs, "target-path", "/");
+	ret = fdt_setprop_string(dt->blob, offs, "target-path", target_path);
 	if (ret < 0)
 		return ret;
 
@@ -756,7 +781,8 @@ static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
 	return fdt_create_empty_tree(dt->blob, dt_size);
 }
 #else
-static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs)
+static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs,
+				   const char *target_path __unused)
 {
 	return offs;
 }
@@ -886,10 +912,35 @@ int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
 	offs = fdt_path_offset(dt->blob, path);
 	if (offs < 0)
 		return offs;
-	offs = add_dt_overlay_fragment(dt, offs);
+	offs = add_dt_overlay_fragment(dt, offs, "/");
 	if (offs < 0)
 		return offs;
 	return fdt_add_subnode(dt->blob, offs, subnode);
+}
+
+int add_dt_node_overlay_fragment(int node)
+{
+	struct dt_descriptor *dt = NULL;
+	char full_node_name[1024] = {};
+	int root = 0;
+	int ret = 0;
+
+	/* Fragments make only sense with an external DT */
+	dt = get_external_dt_desc();
+	if (!dt)
+		return 0;
+
+	ret = fdt_get_path(dt->blob, node, full_node_name,
+			   sizeof(full_node_name));
+	if (ret)
+		return ret;
+
+	/* Overlay fragments are always added to the root-node */
+	root = fdt_path_offset(dt->blob, "/");
+	if (root < 0)
+		return root;
+
+	return add_dt_overlay_fragment(dt, root, full_node_name);
 }
 
 static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
@@ -925,6 +976,8 @@ int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 	if (IS_ENABLED2(_CFG_USE_DTB_OVERLAY)) {
 		len_size = sizeof(paddr_t) / sizeof(uint32_t);
 		addr_size = sizeof(paddr_t) / sizeof(uint32_t);
+		 /* Enforce adding a reserved-memory node */
+		found = false;
 	} else {
 		len_size = fdt_size_cells(dt->blob, offs);
 		if (len_size < 0)
