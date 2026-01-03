@@ -19,8 +19,8 @@
  * @shmem_size:  Size in bytes of MPXY shared memory
  * @shmem_active:Indicates whether shared memory is active for this hart
  *
- * Holds MPXY-related per-hart data required for message exchange via
- * the SBI MPXY extension.
+ * Holds MPXY-related per-hart data (indexed by hart_index) required
+ * for message exchange via the SBI MPXY extension.
  */
 struct mpxy_core_local {
 	void *shmem;
@@ -34,13 +34,12 @@ static struct mpxy_core_local mpxy_core_local_array[CFG_TEE_CORE_NB_CORE];
 static struct mpxy_core_local *mpxy_get_core_local(void)
 {
 	struct mpxy_core_local *mpxy = NULL;
-	uint32_t hart_id = 0;
+	size_t hartidx = 0;
 
 	assert((thread_get_exceptions() & THREAD_EXCP_ALL) == THREAD_EXCP_ALL);
 
-	hart_id = thread_get_hartid();
-
-	mpxy = &mpxy_core_local_array[hart_id];
+	hartidx = get_core_pos();
+	mpxy = &mpxy_core_local_array[hartidx];
 
 	return mpxy;
 }
