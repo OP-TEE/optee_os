@@ -236,7 +236,7 @@ void __weak boot_init_primary_runtime(void)
 		IMSG("WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html");
 	}
 	IMSG("Primary CPU0 (hart%"PRIu32") initializing",
-	     thread_get_hartid_by_hartindex(pos));
+	     thread_get_hartid());
 #ifdef CFG_CORE_ASLR
 	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
 	     (unsigned long)boot_mmu_config.map_offset, VCORE_START_VA);
@@ -249,12 +249,10 @@ void __weak boot_init_primary_runtime(void)
 
 void __weak boot_init_primary_final(void)
 {
-	size_t pos = get_core_pos();
-
 	call_driver_initcalls();
 	call_finalcalls();
 	IMSG("Primary CPU0 (hart%"PRIu32") initialized",
-	     thread_get_hartid_by_hartindex(pos));
+	     thread_get_hartid());
 
 #ifdef CFG_RISCV_S_MODE
 	start_secondary_cores();
@@ -266,7 +264,7 @@ static void init_secondary_helper(void)
 	size_t pos = get_core_pos();
 
 	IMSG("Secondary CPU%zu (hart%"PRIu32") initializing",
-	     pos, thread_get_hartid_by_hartindex(pos));
+	     pos, thread_get_hartid());
 
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -281,7 +279,7 @@ static void init_secondary_helper(void)
 	boot_secondary_init_intc();
 
 	IMSG("Secondary CPU%zu (hart%"PRIu32") initialized",
-	     pos, thread_get_hartid_by_hartindex(pos));
+	     pos, thread_get_hartid());
 }
 
 void boot_init_secondary(unsigned long nsec_entry __unused)

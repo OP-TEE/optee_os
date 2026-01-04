@@ -326,9 +326,9 @@ vaddr_t thread_get_saved_thread_sp(void)
 	return threads[ct].kern_sp;
 }
 
-uint32_t thread_get_hartid_by_hartindex(uint32_t hartidx)
+uint32_t thread_get_hartid(void)
 {
-	assert(hartidx < CFG_TEE_CORE_NB_CORE);
+	size_t hartidx = get_core_pos();
 
 	return thread_core_local[hartidx].hart_id;
 }
