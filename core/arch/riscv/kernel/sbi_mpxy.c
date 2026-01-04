@@ -29,13 +29,11 @@ static struct mpxy_core_local mpxy_core_local_array[CFG_TEE_CORE_NB_CORE];
 static struct mpxy_core_local *mpxy_get_core_local(void)
 {
 	struct mpxy_core_local *mpxy = NULL;
-	size_t pos = 0;
 	uint32_t hart_id = 0;
 
 	assert((thread_get_exceptions() & THREAD_EXCP_ALL) == THREAD_EXCP_ALL);
 
-	pos = get_core_pos();
-	hart_id = thread_get_hartid_by_hartindex(pos);
+	hart_id = thread_get_hartid();
 
 	mpxy = &mpxy_core_local_array[hart_id];
 
