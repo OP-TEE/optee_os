@@ -300,7 +300,8 @@ static void dump_ftrace(struct tee_ta_session *s __maybe_unused)
 #if defined(CFG_FTRACE_SUPPORT)
 	struct ts_ctx *ts_ctx = s->ts_sess.ctx;
 
-	if (ts_ctx && ts_ctx->ops->dump_ftrace) {
+	if (ts_ctx && ts_ctx->ops->dump_ftrace &&
+	    core_mmu_user_mapping_is_active()) {
 		ts_push_current_session(&s->ts_sess);
 		ts_ctx->ops->dump_ftrace(ts_ctx);
 		ts_pop_current_session();
