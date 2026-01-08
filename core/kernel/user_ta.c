@@ -33,6 +33,7 @@
 #include <printk.h>
 #include <signed_hdr.h>
 #include <stdlib.h>
+#include <string_ext.h>
 #include <sys/queue.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_obj.h>
@@ -467,6 +468,9 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct user_ta_ctx *utc = NULL;
+#ifdef CFG_TA_PAUTH
+	uint8_t pauth_keys[sizeof(utc->uctx.keys)] = { };
+#endif
 
 	/*
 	 * Caller is expected to hold tee_ta_mutex for safe changes
@@ -479,7 +483,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 #ifdef CFG_TA_PAUTH
-	res = crypto_rng_read(&utc->uctx.keys, sizeof(utc->uctx.keys));
+	res = crypto_rng_read(pauth_keys, sizeof(pauth_keys));
 	if (res) {
 		free(utc);
 		return res;
@@ -510,6 +514,11 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	utc->ta_ctx.is_initializing = true;
 
 	assert(!mutex_trylock(&tee_ta_mutex));
+
+#ifdef CFG_TA_PAUTH
+	memcpy(&utc->uctx.keys, pauth_keys, sizeof(pauth_keys));
+	memzero_explicit(pauth_keys, sizeof(pauth_keys));
+#endif
 
 	s->ts_sess.ctx = &utc->ta_ctx.ts_ctx;
 	s->ts_sess.handle_scall = s->ts_sess.ctx->ops->handle_scall;
