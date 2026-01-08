@@ -162,16 +162,23 @@ static bool va_is_well_aligned(const void *va)
 	return !va_misalignment(va);
 }
 
-void asan_add_shadowed(const void *begin, const void *end)
+void asan_add_shadowed(const void *begin, const void *end,
+		       enum asan_va_reg_type type)
 {
-	struct asan_va_reg reg = {(vaddr_t)begin, (vaddr_t)end};
 	struct asan_global_info *asan_info = GET_ASAN_INFO();
+	struct asan_va_reg reg = {
+		.lo = (vaddr_t)begin,
+		.hi = (vaddr_t)end,
+	};
+	size_t idx = 0;
 
 	assert(va_is_well_aligned(begin));
 	assert(va_is_well_aligned(end));
 	assert(reg.lo < reg.hi);
 	if (asan_info->regs_count < ASAN_VA_REGS_MAX) {
-		asan_info->regs[asan_info->regs_count++] = reg;
+		idx = asan_info->regs_count++;
+		asan_info->regs[idx] = reg;
+		asan_info->type[idx] = type;
 	} else {
 		EMSG("No free regions to allocate");
 		asan_panic();
@@ -200,6 +207,21 @@ void asan_tag_access(const void *begin, const void *end)
 			      va_range_to_shadow_size(begin, end));
 	if (!va_is_well_aligned(end))
 		*va_to_shadow(end) = va_misalignment(end);
+}
+
+static bool mpool_exists_in_range(vaddr_t begin, vaddr_t end)
+{
+	struct asan_global_info *asan_info = GET_ASAN_INFO();
+	struct asan_va_reg *regs = asan_info->regs;
+	unsigned int i = 0;
+
+	for (i = 0; i < asan_info->regs_count; i++) {
+		if (asan_info->type[i] == ASAN_REG_MEM_POOL &&
+		    regs[i].hi <= end && regs[i].lo >= begin)
+			return true;
+	}
+
+	return false;
 }
 
 void asan_tag_heap_free(const void *begin, const void *end)
@@ -484,7 +506,8 @@ void __asan_register_globals(struct asan_global *globals, size_t size)
 		vaddr_t end_align = ROUNDUP(end, ASAN_BLOCK_SIZE);
 		vaddr_t end_rz = begin + globals[n].size_with_redzone;
 
-		asan_tag_access((void *)begin, (void *)end);
+		if (!mpool_exists_in_range(begin, end))
+			asan_tag_access((void *)begin, (void *)end);
 		asan_tag_no_access((void *)end_align, (void *)end_rz);
 	}
 }
@@ -533,7 +556,7 @@ static int asan_map_shadow_region(vaddr_t lo, vaddr_t hi)
 	return 0;
 }
 
-int asan_user_map_shadow(void *lo, void *hi)
+int asan_user_map_shadow(void *lo, void *hi, enum asan_va_reg_type type)
 {
 	vaddr_t lo_s = 0;
 	vaddr_t hi_s = 0;
@@ -609,13 +632,14 @@ int asan_user_map_shadow(void *lo, void *hi)
 	}
 out:
 	/* Remember the original VA range as checked by ASan. */
-	asan_add_shadowed(lo, hi);
+	asan_add_shadowed(lo, hi, type);
 	return 0;
 }
 
 #else
 
-int asan_user_map_shadow(void *lo __unused, void *hi __unused)
+int asan_user_map_shadow(void *lo __unused, void *hi __unused,
+			 enum asan_va_reg_type type __unused)
 {
 	return 0;
 }
