@@ -125,6 +125,10 @@ ifneq ($(CFG_VERSAL_HUK_KEY),$(filter 6 7 11 12,$(firstword $(CFG_VERSAL_HUK_KEY
 $(error Invalid value: CFG_VERSAL_HUK_KEY=$(CFG_VERSAL_HUK_KEY))
 endif
 
+ifeq ($(PLATFORM_FLAVOR),net)
+CFG_VERSAL_OCP ?= y
+endif
+
 CFG_VERSAL_LOADER_PTA ?= y
 
 CFG_TEE_RAM_VA_SIZE ?= 4194304

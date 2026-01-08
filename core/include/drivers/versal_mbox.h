@@ -11,6 +11,7 @@
 #include <util.h>
 
 #define VERSAL_MAX_IPI_BUF 7
+#define VERSAL_MAX_IPI_DATA 8
 
 struct versal_mbox_mem {
 	size_t alloc_len;
@@ -24,8 +25,17 @@ struct versal_ipi_buf {
 };
 
 struct versal_ipi_cmd {
-	uint32_t data[8];
+	uint32_t data[VERSAL_MAX_IPI_DATA];
 	struct versal_ipi_buf ibuf[VERSAL_MAX_IPI_BUF];
+
+#ifdef CFG_VERSAL_OCP
+	/* newer fields, used by versal_ipi_cmd_*() functions, only: */
+
+	/* number of valid entries in data[] */
+	size_t data_count;
+	/* number of valid entries in ibuf[] */
+	size_t ibuf_count;
+#endif
 };
 
 /* IPI IDs */

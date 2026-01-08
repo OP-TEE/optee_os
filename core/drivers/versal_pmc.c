@@ -111,10 +111,31 @@ static const char *const module[] = {
 	[7] = "FPGA",
 	[11] = "NVM",
 	[12] = "PUF",
+	[13] = "OCP",
 };
 
 static const char *const fpga_id[] = {
 	[1] = "LOAD",
+};
+
+static const char *const ocp_id[] = {
+	[0] = "API_FEATURES",
+	[1] = "EXTEND_HWPCR",
+	[2] = "GET_HWPCR",
+	[3] = "GET_HWPCRLOG",
+	[4] = "GENDMERESP",
+	[5] = "DEVAKINPUT",
+	[6] = "GETCERTUSERCFG",
+	[7] = "GETX509CERT",
+	[8] = "ATTESTWITHDEVAK",
+	[9] = "SET_SWPCRCONFIG",
+	[10] = "EXTEND_SWPCR",
+	[11] = "GET_SWPCR",
+	[12] = "GET_SWPCRLOG",
+	[13] = "GET_SWPCRDATA",
+	[14] = "GEN_SHARED_SECRET",
+	[15] = "ATTEST_WITH_KEYWRAP_DEVAK",
+	[16] = "API_MAX",
 };
 
 static void versal_pmc_call_trace(uint32_t call)
@@ -142,6 +163,11 @@ static void versal_pmc_call_trace(uint32_t call)
 	case 12:
 		if (api < ARRAY_SIZE(puf_id))
 			val = puf_id[api];
+
+		break;
+	case 13:
+		if (api < ARRAY_SIZE(ocp_id))
+			val = ocp_id[api];
 
 		break;
 	default:
