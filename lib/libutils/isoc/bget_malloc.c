@@ -252,7 +252,7 @@ static void *maybe_untag_buf(void *buf)
 		return memtag_set_tags(buf, sz, 0);
 	}
 
-	asan_tag_heap_free(buf, (uint8_t *)buf + bget_buf_size(buf));
+	asan_tag_heap_free(buf, (uint8_t *)buf + bget_buf_size(buf), false);
 
 	return buf;
 }
@@ -264,9 +264,9 @@ static void *strip_tag(void *buf)
 	return buf;
 }
 
-static void tag_asan_free(void *buf __maybe_unused, size_t len __maybe_unused)
+static void tag_asan_pool_free(void *buf __maybe_unused, size_t len __maybe_unused)
 {
-	asan_tag_heap_free(buf, (uint8_t *)buf + len);
+	asan_tag_heap_free(buf, (uint8_t *)buf + len, true);
 }
 
 #ifdef BufStats
@@ -823,7 +823,7 @@ void raw_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
 		EMSG("Failed to map ASAN shadow memory");
 		bget_panic();
 	}
-	tag_asan_free((void *)start, end - start);
+	tag_asan_pool_free((void *)start, end - start);
 
 	bpool((void *)start, end - start, &ctx->poolset);
 	l = ctx->pool_len + 1;

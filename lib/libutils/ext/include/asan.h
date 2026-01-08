@@ -21,6 +21,7 @@
 #include <types_ext.h>
 
 #define ASAN_VA_REGS_MAX 32
+#define ASAN_POOLS_MAX 32
 
 /* Represent shadow memory mapped region */
 struct asan_va_reg {
@@ -36,6 +37,9 @@ struct asan_global_info {
 	/* Shadow memory regions */
 	size_t s_regs_count;
 	struct asan_va_reg s_regs[ASAN_VA_REGS_MAX];
+	/* Tracked memory pools */
+	struct asan_va_reg mem_pools[ASAN_POOLS_MAX];
+	size_t pool_count;
 };
 
 #ifdef __KERNEL__
@@ -56,7 +60,7 @@ void asan_set_panic_cb(asan_panic_cb_t panic_cb);
 
 void asan_tag_no_access(const void *begin, const void *end);
 void asan_tag_access(const void *begin, const void *end);
-void asan_tag_heap_free(const void *begin, const void *end);
+void asan_tag_heap_free(const void *begin, const void *end, bool is_pool);
 void *asan_memset_unchecked(void *s, int c, size_t n);
 void *asan_memcpy_unchecked(void *__restrict s1, const void *__restrict s2,
 			    size_t n);
@@ -71,7 +75,8 @@ static inline void asan_tag_access(const void *begin __unused,
 {
 }
 static inline void asan_tag_heap_free(const void *begin __unused,
-				      const void *end __unused)
+				      const void *end __unused,
+				      bool is_pool __unused)
 {
 }
 

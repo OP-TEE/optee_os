@@ -203,10 +203,40 @@ void asan_tag_access(const void *begin, const void *end)
 		*va_to_shadow(end) = va_misalignment(end);
 }
 
-void asan_tag_heap_free(const void *begin, const void *end)
+static void asan_track_pool(const void *begin, const void *end)
+{
+	struct asan_va_reg reg = {(vaddr_t)begin, (vaddr_t)end};
+
+	if (asan_info->pool_count < ASAN_POOLS_MAX) {
+		asan_info->mem_pools[asan_info->pool_count++] = reg;
+	} else {
+		EMSG("No free regions to allocate");
+		asan_panic();
+	}
+}
+
+static bool is_mpool_in_range(vaddr_t begin, vaddr_t end)
+{
+	unsigned i;
+
+	for (i = 0; i < asan_info->pool_count; i++) {
+		if ((asan_info->mem_pools[i].hi <= end)
+		    && (asan_info->mem_pools[i].lo >= begin)) {
+		    return true;
+		}
+	}
+	return false;
+}
+
+void asan_tag_heap_free(const void *begin, const void *end,
+			bool is_pool)
 {
 	if (!asan_info->regs_count)
 		return;
+
+	if (is_pool) {
+		asan_track_pool(begin, end);
+	}
 
 	assert(va_range_inside_shadow(begin, end));
 	assert(va_is_well_aligned(begin));
@@ -485,7 +515,8 @@ void __asan_register_globals(struct asan_global *globals, size_t size)
 		vaddr_t end_align = ROUNDUP(end, ASAN_BLOCK_SIZE);
 		vaddr_t end_rz = begin + globals[n].size_with_redzone;
 
-		asan_tag_access((void *)begin, (void *)end);
+		if (!is_mpool_in_range(begin, end))
+			asan_tag_access((void *)begin, (void *)end);
 		asan_tag_no_access((void *)end_align, (void *)end_rz);
 	}
 }
