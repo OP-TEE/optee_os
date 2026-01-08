@@ -27,7 +27,8 @@ static int asan_ldelf_map_stack(size_t size)
 	stack_top = ROUNDUP(stack_top, SMALL_PAGE_SIZE);
 	stack_base = stack_top - size;
 
-	return asan_user_map_shadow((void *)stack_base, (void *)stack_top);
+	return asan_user_map_shadow((void *)stack_base, (void *)stack_top,
+				    ASAN_REG_STACK);
 }
 
 TEE_Result asan_init_ldelf(void)
@@ -49,7 +50,8 @@ TEE_Result asan_init_ldelf(void)
 		/* Map shadow memory for ldelf binary sections */
 		rc = asan_user_map_shadow((void *)__text_start,
 					  (void *)ROUNDUP((vaddr_t)__end,
-					  SMALL_PAGE_SIZE));
+					  SMALL_PAGE_SIZE),
+					  ASAN_REG_ELF);
 		if (rc) {
 			EMSG("%s: failed to map ldelf shadow elf sections",
 			     __func__);

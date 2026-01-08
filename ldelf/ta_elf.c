@@ -1293,7 +1293,8 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 	if (IS_ENABLED(CFG_TA_SANITIZE_KADDRESS)) {
 		res = asan_user_map_shadow((void *)ta_stack,
 					   (void *)(ta_stack +
-					   roundup(ta_stack_size)));
+					   roundup(ta_stack_size)),
+					   ASAN_REG_STACK);
 		if (res) {
 			EMSG("Failed to map shadow stack for ELF (%pUl)",
 			     (void *)&elf->uuid);
@@ -1646,7 +1647,8 @@ TEE_Result ta_elf_add_library(const TEE_UUID *uuid)
 			int rc;
 
 			rc = asan_user_map_shadow((void *)elf->load_addr,
-						  (void *)elf->max_addr);
+						  (void *)elf->max_addr,
+						  ASAN_REG_ELF);
 			if (rc) {
 				EMSG("Failed to map shadow for ELF (%pUl)",
 				     (void *)&elf->uuid);

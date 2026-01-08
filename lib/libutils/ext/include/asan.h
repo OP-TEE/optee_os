@@ -21,6 +21,13 @@
 
 #define ASAN_VA_REGS_MAX 32
 
+enum asan_va_reg_type {
+	ASAN_REG_NO_TYPE,
+	ASAN_REG_STACK,
+	ASAN_REG_MEM_POOL,
+	ASAN_REG_ELF
+};
+
 /* Represents memory mapped region */
 struct asan_va_reg {
 	vaddr_t lo;
@@ -32,6 +39,7 @@ struct asan_global_info {
 	/* Virtual memory regions allowed for ASan checks */
 	size_t regs_count;
 	struct asan_va_reg regs[ASAN_VA_REGS_MAX];
+	enum asan_va_reg_type type[ASAN_VA_REGS_MAX];
 	/* Shadow memory regions */
 	size_t s_regs_count;
 	struct asan_va_reg s_regs[ASAN_VA_REGS_MAX];
@@ -55,7 +63,8 @@ struct asan_global_info {
 /* ASAN enabled */
 typedef void (*asan_panic_cb_t)(void);
 
-void asan_set_shadowed(const void *va_begin, const void *va_end);
+void asan_set_shadowed(const void *va_begin, const void *va_end,
+		       enum asan_va_reg_type type);
 void asan_start(void);
 void asan_panic(void);
 void asan_set_panic_cb(asan_panic_cb_t panic_cb);
@@ -66,7 +75,7 @@ void asan_tag_heap_free(const void *begin, const void *end);
 void *asan_memset_unchecked(void *s, int c, size_t n);
 void *asan_memcpy_unchecked(void *__restrict s1, const void *__restrict s2,
 			    size_t n);
-int asan_user_map_shadow(void *lo, void *hi);
+int asan_user_map_shadow(void *lo, void *hi, enum asan_va_reg_type type);
 #else
 static inline void asan_tag_no_access(const void *begin __unused,
 				      const void *end __unused)
@@ -96,9 +105,10 @@ static inline void asan_start(void)
 {
 }
 
-static inline int asan_user_map_shadow(void *lo __unused, void *hi __unused)
+static inline int asan_user_map_shadow(void *lo __unused, void *hi __unused,
+				       enum asan_va_reg_type type __unused)
 {
-    return 0;
+	return 0;
 }
 #endif /* IS_ASAN_ENABLED */
 

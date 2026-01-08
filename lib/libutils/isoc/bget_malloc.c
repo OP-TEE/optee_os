@@ -818,7 +818,8 @@ void raw_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
 		DMSG("Skipping too small initial pool");
 		return;
 	}
-	rc = asan_user_map_shadow((void *)start, (void *)end);
+	rc = asan_user_map_shadow((void *)start, (void *)end,
+				  ASAN_REG_MEM_POOL);
 	if (rc) {
 		EMSG("Failed to map ASAN shadow memory");
 		bget_panic();

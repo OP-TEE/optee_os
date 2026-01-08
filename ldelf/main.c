@@ -189,7 +189,8 @@ void ldelf(struct ldelf_arg *arg)
 			TEE_Result rc = TEE_ERROR_GENERIC;
 
 			rc = asan_user_map_shadow((void *)elf->load_addr,
-						  (void *)elf->max_addr);
+						  (void *)elf->max_addr,
+						  ASAN_REG_ELF);
 			if (rc) {
 				EMSG("Failed to map shadow for ELF (%pUl)",
 				     (void *)&elf->uuid);
