@@ -226,7 +226,7 @@ S:	Maintained
 F:	core/arch/arm/plat-imx/conf.mk
 
 PKCS#11 TA
-R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
+R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 R:	Ruchika Gupta <gupta.ruchika@gmail.com> [@ruchi393]
 R:	Vesa Jääskeläinen <vesa.jaaskelainen@vaisala.com> [@vesajaaskelainen]
 S:	Maintained
@@ -288,25 +288,25 @@ S:	Orphan
 F:	core/arch/arm/plat-sprd/
 
 STMicroelectronics b2260-h410, b2120-h310/h410
-R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
+R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 S:	Maintained
 F:	core/arch/arm/plat-stm/
 
 STMicroelectronics drivers
-R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
+R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 R:	Gatien Chevallier <gatien.chevallier@foss.st.com> [@GseoC]
 S:	Maintained
 F:	core/drivers/stm32_*
 
 STMicroelectronics stm32mp1
-R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
+R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 S:	Maintained
 F:	core/arch/arm/plat-stm32mp1/
 F:	core/drivers/stm32mp15_huk.c
 F:	core/drivers/stpmic1.c
 
 STMicroelectronics stm32mp2
-R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
+R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 R:	Gatien Chevallier <gatien.chevallier@foss.st.com> [@GseoC]
 S:	Maintained
 F:	core/arch/arm/plat-stm32mp2/*
@@ -364,7 +364,7 @@ THE REST
 M:	Joakim Bech <joakim.bech@gmail.com> [@jockebech]
 M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
 M:	Jerome Forissier <jerome@forissier.org> [@jforissier]
-R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
+R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 L:	op-tee@lists.trustedfirmware.org
 S:	Maintained
 F:	*
