@@ -36,13 +36,28 @@ CFG_DDR_SIZE ?= 0x80000000
 endif
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),ultra96))
+ifneq (,$(filter $(PLATFORM_FLAVOR),kr260 kv260))
 
 CFG_UART_BASE ?= UART1_BASE
 CFG_UART_IT ?= IT_UART1
 CFG_UART_CLK_HZ ?= UART1_CLK_IN_HZ
 
-# Ultra96 features 2 GiB of DDR
+# kr260 and kv260 feature 4 GiB of DDR
+ifeq ($(CFG_ARM64_core),y)
+CFG_DDR_SIZE ?= 0x100000000
+else
+# On 32 bit build limit to 2 GiB of RAM
+CFG_DDR_SIZE ?= 0x80000000
+endif
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),ultra96 kd240))
+
+CFG_UART_BASE ?= UART1_BASE
+CFG_UART_IT ?= IT_UART1
+CFG_UART_CLK_HZ ?= UART1_CLK_IN_HZ
+
+# Ultra96 and kd240 feature 2 GiB of DDR
 CFG_DDR_SIZE ?= 0x80000000
 endif
 
