@@ -25,14 +25,15 @@
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <kernel/user_access.h>
-#include <kernel/user_mode_ctx_struct.h>
+#include <kernel/user_mode_ctx.h>
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
-#include <smccc.h>
+#include <mm/vm.h>
 #include <sm/sm.h>
+#include <smccc.h>
 #include <trace.h>
 #include <util.h>
 
@@ -332,17 +333,33 @@ static bool is_from_user(uint32_t cpsr)
 static void __noprof ftrace_suspend(void)
 {
 	struct ts_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+	TEE_Result res = TEE_SUCCESS;
 
-	if (s && s->fbuf)
-		s->fbuf->syscall_trace_suspended = true;
+	if (s && s->fbuf) {
+		res = vm_check_access_rights(to_user_mode_ctx(s->ctx),
+					     TEE_MEMORY_ACCESS_WRITE |
+					     TEE_MEMORY_ACCESS_ANY_OWNER,
+					     (uaddr_t)s->fbuf,
+					     sizeof(*s->fbuf));
+		if (!res)
+			s->fbuf->syscall_trace_suspended = true;
+	}
 }
 
 static void __noprof ftrace_resume(void)
 {
 	struct ts_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+	TEE_Result res = TEE_SUCCESS;
 
-	if (s && s->fbuf)
-		s->fbuf->syscall_trace_suspended = false;
+	if (s && s->fbuf) {
+		res = vm_check_access_rights(to_user_mode_ctx(s->ctx),
+					     TEE_MEMORY_ACCESS_WRITE |
+					     TEE_MEMORY_ACCESS_ANY_OWNER,
+					     (uaddr_t)s->fbuf,
+					     sizeof(*s->fbuf));
+		if (!res)
+			s->fbuf->syscall_trace_suspended = false;
+	}
 }
 #else
 static void __noprof ftrace_suspend(void)
