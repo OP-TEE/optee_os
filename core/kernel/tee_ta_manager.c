@@ -1137,6 +1137,7 @@ static void ftrace_update_times(bool suspend)
 {
 	struct ts_session *s = ts_get_current_session_may_fail();
 	struct ftrace_buf *fbuf = NULL;
+	TEE_Result res = TEE_SUCCESS;
 	uint64_t now = 0;
 	uint32_t i = 0;
 
@@ -1147,6 +1148,13 @@ static void ftrace_update_times(bool suspend)
 
 	fbuf = s->fbuf;
 	if (!fbuf)
+		return;
+
+	res = vm_check_access_rights(to_user_mode_ctx(s->ctx),
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)fbuf, sizeof(*fbuf));
+	if (res)
 		return;
 
 	if (suspend) {
