@@ -86,17 +86,15 @@ static TEE_Result ocotp_ctrl_wait_for(uint32_t mask)
 #else
 static TEE_Result ocotp_ctrl_wait_for(uint32_t mask)
 {
-	unsigned int loop = 0;
+	uint32_t delay_us = OCOTP_OP_BUSY_TIMEOUT_US;
 	uint32_t reg = 0;
 
 	assert(g_base_addr);
-
-	/* 20us delay assuming the CPU clock running at 500MHz */
-	for (loop = 10000; loop > 0; loop--) {
+	for (; delay_us > 0; delay_us--) {
 		reg = io_read32(g_base_addr + OCOTP_CTRL) & mask;
 		if (!reg)
 			return TEE_SUCCESS;
-		dsb();
+		udelay(1);
 		isb();
 	}
 
