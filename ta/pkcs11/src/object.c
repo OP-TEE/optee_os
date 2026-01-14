@@ -457,6 +457,14 @@ enum pkcs11_rc entry_destroy_object(struct pkcs11_client *client,
 	if (!get_bool(object->attributes, PKCS11_CKA_DESTROYABLE))
 		return PKCS11_CKR_ACTION_PROHIBITED;
 
+	#if defined(CFG_PKCS11_TA_INDESTRUCTIBLE_OBJECT_ATTR)
+	/* Objects with PKCS11_CKA_OPTEE_INDESTRUCTIBLE as true aren't destroyable */
+	if (get_bool(object->attributes, PKCS11_CKA_OPTEE_INDESTRUCTIBLE)) {
+		DMSG("Object is indestructible");
+		return PKCS11_CKR_ACTION_PROHIBITED;
+	}
+	#endif
+	
 	destroy_object(session, object, false);
 
 	DMSG("PKCS11 session %"PRIu32": destroy object %#"PRIx32,
