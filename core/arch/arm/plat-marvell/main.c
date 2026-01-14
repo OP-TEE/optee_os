@@ -60,6 +60,13 @@ static struct pl011_data console_data;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE,
 			CORE_MMU_PGDIR_SIZE);
+
+/* Non-secure DDR for dynamic shared memory (after OP-TEE reserved region) */
+#ifdef CFG_DDR_SIZE
+#define NSEC_DDR_BASE	(CFG_SHMEM_START + CFG_SHMEM_SIZE)
+#define NSEC_DDR_SIZE	(CFG_DDR_SIZE - NSEC_DDR_BASE)
+register_ddr(NSEC_DDR_BASE, NSEC_DDR_SIZE);
+#endif
 #ifdef CFG_HW_UNQ_KEY_SUPPORT
 register_phys_mem(MEM_AREA_IO_SEC, PLAT_MARVELL_FUSF_FUSE_BASE,
 		  SMALL_PAGE_SIZE);
