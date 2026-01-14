@@ -63,7 +63,7 @@ CFG_VERSAL_PMC_IPI_ID ?= 3
 endif
 
 # IPI timeout in microseconds
-CFG_VERSAL_MBOX_TIMEOUT ?= 100000
+CFG_VERSAL_MBOX_TIMEOUT ?= 200000
 
 ifeq ($(PLATFORM_FLAVOR),net)
 else
