@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2022, 2025 Arm Limited
+ * Copyright (c) 2022, 2025-2026 Arm Limited
  */
 
 #ifndef PLATFORM_CONFIG_H
@@ -20,13 +20,7 @@
 #define DRAM0_BASE		0x80000000
 #define DRAM0_SIZE		CFG_DDR_SIZE
 
-#ifdef CFG_ARM_GICV3
-#define GICR_SIZE_PER_CORE	0x20000
-#define GIC_REDIST_REG_SIZE	(GICR_SIZE_PER_CORE * CFG_TEE_CORE_NB_CORE)
-#endif
-
-#ifdef CFG_ARM_GICV3
-/* Corstone-1000 with Cortex-A320 uses GIC-v3 which supports GICR */
+#ifdef _CFG_ARM_V3_OR_V4
 #define GICD_OFFSET		0x00000
 #define GICR_OFFSET		0x40000
 #else
@@ -34,7 +28,7 @@
 #define GICC_OFFSET		0x2F000
 #endif
 
-#ifdef CFG_ARM_GICV3
+#ifdef _CFG_ARM_V3_OR_V4
 #define GICR_BASE		(GIC_BASE + GICR_OFFSET)
 #else
 #define GICC_BASE		(GIC_BASE + GICC_OFFSET)
