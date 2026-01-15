@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2026, Arm Limited
  */
 
 #ifndef __ARM32_H
@@ -165,7 +166,7 @@
 
 #ifndef __ASSEMBLER__
 #include <generated/arm32_sysreg.h>
-#ifdef CFG_ARM_GICV3
+#if defined(CFG_ARM_GICV3) || defined(CFG_ARM_GICV4)
 #include <generated/arm32_gicv3_sysreg.h>
 #endif
 

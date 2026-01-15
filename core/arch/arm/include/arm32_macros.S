@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2026, Arm Limited
  */
 
 #include <generated/arm32_sysreg.S>
-#ifdef CFG_ARM_GICV3
+#if defined(CFG_ARM_GICV3) || defined(CFG_ARM_GICV4)
 #include <generated/arm32_gicv3_sysreg.S>
 #endif
 

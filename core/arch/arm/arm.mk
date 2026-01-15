@@ -152,7 +152,7 @@ ifeq ($(CFG_CORE_FFA)-$(CFG_WITH_PAGER),y-y)
 $(error CFG_CORE_FFA and CFG_WITH_PAGER are not compatible)
 endif
 ifeq ($(CFG_GIC),y)
-ifeq ($(CFG_ARM_GICV3),y)
+ifneq ($(filter y,$(CFG_ARM_GICV3) $(CFG_ARM_GICV4)),)
 $(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,y)
 else
 $(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,n)
@@ -438,7 +438,7 @@ arm32-sysregs-$(arm32-sysreg-txt)-h := arm32_sysreg.h
 arm32-sysregs-$(arm32-sysreg-txt)-s := arm32_sysreg.S
 arm32-sysregs += $(arm32-sysreg-txt)
 
-ifeq ($(CFG_ARM_GICV3),y)
+ifneq ($(filter y,$(CFG_ARM_GICV3) $(CFG_ARM_GICV4)),)
 arm32-gicv3-sysreg-txt = core/arch/arm/kernel/arm32_gicv3_sysreg.txt
 arm32-sysregs-$(arm32-gicv3-sysreg-txt)-h := arm32_gicv3_sysreg.h
 arm32-sysregs-$(arm32-gicv3-sysreg-txt)-s := arm32_gicv3_sysreg.S
