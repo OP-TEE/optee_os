@@ -9,4 +9,3 @@ platform-aflags-debug-info = -gdwarf-2
 
 arm64-platform-cflags += -march=armv9.2-a
 arm64-platform-aflags += -march=armv9.2-a
-$(call force,CFG_ARM_GICV3,y)
