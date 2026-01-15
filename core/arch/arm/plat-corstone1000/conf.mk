@@ -34,8 +34,8 @@ CFG_DT_ADDR ?= 0x82100000
 CFG_DTB_MAX_SIZE ?= 0x100000
 CFG_CORE_HEAP_SIZE ?= 131072
 
-# Corstone-1000 with Cortex-A320 uses GIC-600 which supports
-# the GICv3 architecture
+# Corstone-1000 with Cortex-A320 uses GIC-700 which supports
+# the GICv3, GICv3.1, and GICv4.1 architectures
 ifeq ($(arm64-platform-cpuarch),cortex-a320)
-$(call force,CFG_ARM_GICV3,y)
+CFG_ARM_GICV4 ?= y
 endif
