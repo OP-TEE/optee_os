@@ -309,6 +309,11 @@ ifeq ($(CFG_STM32_BSEC_PTA),y)
 $(call force,CFG_STM32_BSEC,y,Mandated by CFG_BSEC_PTA)
 endif
 
+CFG_STM32_DEBUG_ACCESS_PTA ?= y
+ifeq ($(CFG_STM32_DEBUG_ACCESS_PTA),y)
+$(call force,CFG_STM32_BSEC,y,Mandated by CFG_STM32_DEBUG_ACCESS_PTA)
+endif
+
 # Default disable CPU OPP support
 CFG_STM32_CPU_OPP ?= n
 

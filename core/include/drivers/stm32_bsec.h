@@ -167,6 +167,16 @@ bool stm32_bsec_can_access_otp(uint32_t otp_id);
 bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id);
 
 /*
+ * Return true if Hardware Debug Port (HDP) is enabled.
+ */
+bool stm32_bsec_hdp_is_enabled(void);
+
+/*
+ * Return true if coresight peripheral can be used.
+ */
+bool stm32_bsec_coresight_is_enabled(void);
+
+/*
  * Find and get OTP location from its name.
  * @name: sub-node name to look up.
  * @otp_id: pointer to output OTP number or NULL.
