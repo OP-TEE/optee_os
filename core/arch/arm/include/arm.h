@@ -264,9 +264,13 @@ static inline bool feat_pauth_is_implemented(void)
 		SHIFT_U64(ID_AA64ISAR1_GPA_MASK, ID_AA64ISAR1_GPA_SHIFT) |
 		SHIFT_U64(ID_AA64ISAR1_API_MASK, ID_AA64ISAR1_API_SHIFT) |
 		SHIFT_U64(ID_AA64ISAR1_APA_MASK, ID_AA64ISAR1_APA_SHIFT);
+	uint64_t mask2 =
+		SHIFT_U64(ID_AA64ISAR2_GPA3_MASK, ID_AA64ISAR2_GPA3_SHIFT) |
+		SHIFT_U64(ID_AA64ISAR2_APA3_MASK, ID_AA64ISAR2_APA3_SHIFT);
 
 	/* If any of the fields is not zero, PAuth is implemented by arch */
-	return (read_id_aa64isar1_el1() & mask) != 0U;
+	return (read_id_aa64isar1_el1() & mask) != 0U ||
+	       (read_id_aa64isar2_el1() & mask2) != 0U;
 #endif
 }
 
