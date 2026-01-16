@@ -144,7 +144,7 @@ S:	Maintained
 F:	core/arch/arm/plat-d06/
 
 HiSilicon HiKey (Kirin 620), HiKey960 (Kirin 960)
-R:	Jerome Forissier <jerome@forissier.org> [@jforissier]
+R:	Jerome Forissier <jerome.forissier@arm.com> [@jforissier]
 S:	Maintained
 F:	core/arch/arm/plat-hikey/
 
@@ -154,7 +154,7 @@ S:	Maintained
 F:	core/arch/arm/plat-poplar/
 
 Hisilicon Hi3519AV100 family
-R:	Jerome Forissier <jerome@forissier.org> [@jforissier]
+R:	Jerome Forissier <jerome.forissier@arm.com> [@jforissier]
 S:	Maintained
 F:	core/arch/arm/plat-hisilicon
 
@@ -363,7 +363,7 @@ F:	ta/arch/riscv/
 THE REST
 M:	Joakim Bech <joakim.bech@gmail.com> [@jockebech]
 M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
-M:	Jerome Forissier <jerome@forissier.org> [@jforissier]
+M:	Jerome Forissier <jerome.forissier@arm.com> [@jforissier]
 R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 L:	op-tee@lists.trustedfirmware.org
 S:	Maintained
