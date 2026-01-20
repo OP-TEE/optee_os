@@ -475,8 +475,13 @@ update_payload(struct drvcrypt_authenc_update_payload *dupdate, bool is_last)
 	if (!context_allowed(dupdate->ctx))
 		return TEE_ERROR_BUSY;
 
-	if (!dupdate->src.length || dupdate->src.length % 4) {
-		EMSG("Versal AES payload length not word aligned (len = %zu)",
+	if (!dupdate->src.length) {
+		EMSG("Versal AES payload length must be non-zero");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+	if ((!is_last && dupdate->src.length % 4) ||
+	    (is_last && dupdate->src.length % 16)) {
+		EMSG("Versal AES payload length not properly aligned (len = %zu)",
 		     dupdate->src.length);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
