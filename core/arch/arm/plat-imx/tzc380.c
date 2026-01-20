@@ -242,6 +242,11 @@ static TEE_Result
 pm_enter_resume(enum pm_op op, uint32_t pm_hint __unused,
 		const struct pm_callback_handle *pm_handle __unused)
 {
+	/*
+	 * Reconfiguration is required because the TZASC is not part of an
+	 * always-on power-domain on i.MX8M SoCs. On i.MX6 it part of an
+	 * always-on power-domain.
+	 */
 	if (op == PM_OP_RESUME)
 		return imx_configure_tzasc();
 
