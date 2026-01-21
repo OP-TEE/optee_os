@@ -181,6 +181,9 @@ static uint8_t *pkcs11_object_default_boolprop(uint32_t attribute)
 	case PKCS11_CKA_WRAP:
 	case PKCS11_CKA_UNWRAP:
 	case PKCS11_CKA_EXTRACTABLE:
+	#if defined(CFG_PKCS11_TA_INDESTRUCTIBLE_OBJECT_ATTR)
+	case PKCS11_CKA_OPTEE_INDESTRUCTIBLE:
+	#endif
 	case PKCS11_CKA_TRUSTED:
 		return (uint8_t *)&bool_false;
 	default:
@@ -1186,6 +1189,9 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	struct obj_attrs *attrs = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	uint8_t local = 0;
+	#if defined(CFG_PKCS11_TA_INDESTRUCTIBLE_OBJECT_ATTR)
+	uint8_t indestructible = 0;
+	#endif
 	uint8_t always_sensitive = 0;
 	uint8_t never_extract = 0;
 	uint8_t extractable = 0;
@@ -1392,6 +1398,26 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	if (rc)
 		goto out;
 
+	#if defined(CFG_PKCS11_TA_INDESTRUCTIBLE_OBJECT_ATTR)
+	/* Check if CKA_INDESTRUCTIBLE exists in the template */
+	enum pkcs11_rc rc_check = get_attribute_ptr(temp, PKCS11_CKA_OPTEE_INDESTRUCTIBLE, NULL, NULL);
+
+	if (rc_check == PKCS11_RV_NOT_FOUND) {
+		DMSG("CKA_INDESTRUCTIBLE not present in template");
+	} else {
+		/* Attribute exists, get its value (TRUE or FALSE) */
+		bool indestructible = get_bool(temp, PKCS11_CKA_OPTEE_INDESTRUCTIBLE);
+
+		DMSG("CKA_INDESTRUCTIBLE present, value: %s", indestructible ? "TRUE" : "FALSE");
+
+		/* Add attribute with the actual value from template */
+		rc = add_attribute(&attrs, PKCS11_CKA_OPTEE_INDESTRUCTIBLE,
+				&indestructible, sizeof(indestructible));
+		if (rc)
+			goto out;
+	}
+	#endif
+
 	if (get_attribute_ptr(temp, PKCS11_CKA_LOCAL, NULL, NULL) !=
 	    PKCS11_RV_NOT_FOUND) {
 		rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
@@ -1528,6 +1554,16 @@ static enum pkcs11_rc check_attrs_misc_integrity(struct obj_attrs *head)
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 	}
 
+	#if defined(CFG_PKCS11_TA_INDESTRUCTIBLE_OBJECT_ATTR)
+	/* Only token objects can be indestructible */
+	if (get_bool(head, PKCS11_CKA_OPTEE_INDESTRUCTIBLE) &&
+	    !get_bool(head, PKCS11_CKA_TOKEN)) {
+		DMSG("Can't create a non-token Indestructible object");
+
+		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+	}
+	#endif
+	
 	return PKCS11_CKR_OK;
 }
 
@@ -2337,6 +2373,10 @@ static bool attribute_is_modifiable(struct pkcs11_session *session,
 		 * direction i.e from TRUE -> FALSE.
 		 */
 		return get_bool(obj->attributes, req_attr->id);
+	#if defined(CFG_PKCS11_TA_INDESTRUCTIBLE_OBJECT_ATTR)
+	case PKCS11_CKA_OPTEE_INDESTRUCTIBLE:
+		return false;
+	#endif
 	default:
 		break;
 	}

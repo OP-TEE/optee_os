@@ -13,6 +13,9 @@ CFG_PKCS11_TA_TOKEN_COUNT ?= 3
 # When enabled, embed support for object checksum value computation
 CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE ?= y
 
+#When enabled, adds the support for pkcs11 Indestructible object attribute/keys.
+CFG_PKCS11_TA_INDESTRUCTIBLE_OBJECT_ATTR ?= n
+
 # When enabled, embed support for CKM_RSA_X_509 (a.k.a. Raw RSA) ciphering
 # and authentication. The feature can be needed for some TLS v1.2 connections.
 # Raw RSA can be unsafe if client uses a weak clear data padding scheme.
