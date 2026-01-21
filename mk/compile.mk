@@ -271,7 +271,7 @@ cleanfiles := $$(cleanfiles) $2 \
 
 dtb-cppflags-$2 := -Icore/include/ -x assembler-with-cpp -undef -D__DTS__ \
 		   -E -ffreestanding $$(CPPFLAGS) \
-		   -MD -MF $$(dtb-predep-$2) -MP -MT $$(dtb-predts-$2)
+		   -include $$(conf-file) -MD -MF $$(dtb-predep-$2) -MP -MT $$(dtb-predts-$2)
 
 dtb-dtcflags-$2	:= $$(DTC_FLAGS) -I dts -O dtb -Wno-unit_address_vs_reg \
 		   -d $$(dtb-dep-$2)
@@ -284,7 +284,7 @@ dtb-dtcflags-$2	:= $$(DTC_FLAGS) -I dts -O dtb -Wno-unit_address_vs_reg \
 dtb-precmd-$2 = $$(CPP$(sm)) $$(dtb-cppflags-$2) -o $$(dtb-predts-$2) $$<
 dtb-cmd-$2 = $$(DTC) $$(dtb-dtcflags-$2) -o $$@ $$(dtb-predts-$2)
 
-$$(dtb-predts-$2): $1 FORCE
+$$(dtb-predts-$2): $1 $$(conf-file) FORCE
 	$$(if $$(strip $$(filter-out FORCE, $$?) \
 	    $$(filter-out $$(dtb-precmd-$2), $$(dtb-old-precmd-$2)) 	\
 	    $$(filter-out $$(dtb-old-precmd-$2), $$(dtb-precmd-$2))), 	\
