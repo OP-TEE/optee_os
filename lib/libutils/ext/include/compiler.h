@@ -306,4 +306,11 @@
 
 #define __inhibit_loop_to_libcall \
 	__attribute__ ((__optimize__ ("-fno-tree-loop-distribute-patterns")))
+
+#if __has_attribute(no_sanitize_address)
+#define __no_asan __attribute__((no_sanitize_address))
+#else
+#define __no_asan
+#endif
+
 #endif /*COMPILER_H*/
