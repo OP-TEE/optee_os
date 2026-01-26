@@ -32,6 +32,7 @@
 #define RNG_CMD_SEED		BIT(1)
 #define RNG_CMD_CLR_INT		BIT(4)
 #define RNG_CMD_CLR_ERR		BIT(5)
+#define RNG_CMD_SOFT_RESET	BIT(6)
 
 #define RNG_CR_AR		BIT(4)
 #define RNG_CR_MASK_DONE	BIT(5)
@@ -86,6 +87,11 @@ static void wait_for_irq(struct imx_rng *rng)
 	} while ((status & (RNG_SR_SEED_DONE | RNG_SR_ST_DONE)) == 0);
 }
 
+static void soft_reset(struct imx_rng *rng)
+{
+	io_setbits32(rng->base.va + RNG_CMD, RNG_CMD_SOFT_RESET);
+}
+
 static void irq_clear(struct imx_rng *rng)
 {
 	io_setbits32(rng->base.va + RNG_CMD,
@@ -115,7 +121,10 @@ static void rng_seed(struct imx_rng *rng)
 		/* seed creation */
 		io_setbits32(rng->base.va + RNG_CMD, RNG_CMD_SEED);
 		wait_for_irq(rng);
-		irq_clear(rng);
+		if (rng->error)
+			soft_reset(rng);
+		else
+			irq_clear(rng);
 		irq_mask(rng);
 
 		if (timeout_elapsed(tref))
