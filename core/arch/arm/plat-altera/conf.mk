@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2026, Altera Corporation.
+#
 
 PLATFORM_FLAVOR ?= agilex5
-include core/arch/arm/plat-socfpga/flavors/$(PLATFORM_FLAVOR).mk
+include core/arch/arm/plat-altera/flavors/$(PLATFORM_FLAVOR).mk
 
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_TEE_CORE_NB_CORE,4)
@@ -33,6 +36,6 @@ $(call force,CFG_WITH_STATS,y)
 CFG_CRYPTO_WITH_CE ?= n
 CFG_WITH_SOFTWARE_PRNG ?= y
 
-CFG_TEE_CORE_LOG_LEVEL ?= 2 
+CFG_TEE_CORE_LOG_LEVEL ?= 2
 
 include core/arch/arm/cpu/cortex-armv8-0.mk

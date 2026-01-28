@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright (c) 2026, Altera Corporation.
+ */
 
 #ifndef __PLATFORM_CONFIG_H
 #define __PLATFORM_CONFIG_H

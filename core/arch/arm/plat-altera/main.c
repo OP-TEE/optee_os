@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
+/*
+ * Copyright (c) 2026, Altera Corporation.
+ */
 
 #include <console.h>
 #include <drivers/serial8250_uart.h>
