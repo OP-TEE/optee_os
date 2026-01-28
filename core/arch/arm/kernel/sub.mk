@@ -69,7 +69,7 @@ asm-defines-y += asm-defines.c
 #     <asm.h> includes <generated/arm32_sysreg.h>
 #                  and <generated/arm32_gicv3_sysreg.h> (optional)
 asm-defines-asm-defines.c-deps += $(out-dir)/core/include/generated/arm32_sysreg.h
-ifeq ($(CFG_ARM_GICV3),y)
+ifeq ($(call cfg-one-enabled, CFG_ARM_GICV3 CFG_ARM_GICV4),y)
 asm-defines-asm-defines.c-deps += $(out-dir)/core/include/generated/arm32_gicv3_sysreg.h
 endif
 

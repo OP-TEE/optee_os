@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2026 Arm Limited
  */
 
 #ifndef __DRIVERS_GIC_H
@@ -9,12 +10,42 @@
 #include <types_ext.h>
 #include <kernel/interrupt.h>
 
-#if defined(CFG_ARM_GICV3)
-#define GIC_DIST_REG_SIZE	0x10000
-#define GIC_CPU_REG_SIZE	0x10000
-#else
-#define GIC_DIST_REG_SIZE	0x1000
-#define GIC_CPU_REG_SIZE	0x1000
+#if defined(CFG_ARM_GICV3) || defined(CFG_ARM_GICV4)
+#define GICD_FRAME_SIZE         (64 * 1024)
+#define GICC_FRAME_SIZE         (64 * 1024)
+#define GICR_FRAME_SIZE         (64 * 1024)
+#else /* GICv2 and earlier */
+#define GICD_FRAME_SIZE         (4 * 1024)
+#define GICC_FRAME_SIZE         (4 * 1024)
+#endif
+
+#define GIC_CPU_REG_SIZE        GICC_FRAME_SIZE
+#define GIC_DIST_REG_SIZE       GICD_FRAME_SIZE
+#if defined(CFG_ARM_GICV3) || defined(CFG_ARM_GICV4)
+/*
+ * The frame for each Redistributor are contiguous and are ordered as
+ * follows:
+ * 1. RD_base
+ * 2. SGI_base
+ *
+ * In GICv4, there are two additional 64KB frames:
+ * - A frame to control virtual LPIs. The base address of this frame is
+ *   referred to as VLPI_base.
+ * - A reserved frame.
+ *
+ * The frames for each Redistributor must be contiguous and must be
+ * ordered as follows:
+ *   1. RD_base
+ *   2. SGI_base
+ *   3. VLPI_base
+ *   4. Reserved
+ */
+#ifdef CFG_ARM_GICV4
+#define GICR_FRAME_COUNT        4
+#else /* CFG_ARM_GICV3 */
+#define GICR_FRAME_COUNT        2
+#endif
+#define GIC_REDIST_REG_SIZE     (GICR_FRAME_COUNT * GICR_FRAME_SIZE)
 #endif
 
 #define GIC_PPI_BASE		U(16)
