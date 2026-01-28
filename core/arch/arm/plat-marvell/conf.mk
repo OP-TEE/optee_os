@@ -10,6 +10,8 @@ $(call force,CFG_SHMEM_SIZE,0x00400000)
 $(call force,CFG_TEE_RAM_VA_SIZE,0x00400000)
 # If Secure Data Path is enabled, uses the TZDRAM last 4MByte
 $(call force,CFG_TEE_SDP_MEM_SIZE,0x00400000)
+# Total DRAM size for dynamic shared memory registration
+CFG_DDR_SIZE ?= 0x80000000
 platform-debugger-arm := 1
 $(call force,CFG_8250_UART,y)
 endif
@@ -24,6 +26,8 @@ $(call force,CFG_SHMEM_SIZE,0x00400000)
 $(call force,CFG_TEE_RAM_VA_SIZE,0x00400000)
 # If Secure Data Path is enabled, uses the TZDRAM last 4MByte
 $(call force,CFG_TEE_SDP_MEM_SIZE,0x00400000)
+# Total DRAM size for dynamic shared memory registration
+CFG_DDR_SIZE ?= 0x80000000
 platform-debugger-arm := 1
 $(call force,CFG_MVEBU_UART,y)
 $(call force,CFG_ARM_GICV3,y)
