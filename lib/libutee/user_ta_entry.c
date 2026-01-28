@@ -28,6 +28,9 @@ struct ta_session {
 static TAILQ_HEAD(ta_sessions, ta_session) ta_sessions =
 		TAILQ_HEAD_INITIALIZER(ta_sessions);
 
+static bool internal_init_done;
+static bool init_done;
+
 /* From user_ta_header.c, built within TA */
 extern uint8_t ta_heap[];
 extern const size_t ta_heap_size;
@@ -165,8 +168,6 @@ static unsigned int get_memtag_implementation(void)
 
 static TEE_Result init_instance(void)
 {
-	static bool internal_init_done;
-	static bool init_done;
 	TEE_Result res;
 
 	if (init_done)
@@ -176,7 +177,6 @@ static TEE_Result init_instance(void)
 		goto create_entrypoint;
 
 	trace_set_level(tahead_get_trace_level());
-	__utee_gprof_init();
 	malloc_add_pool(ta_heap, ta_heap_size);
 	if (__ta_no_share_heap_size) {
 		__ta_no_share_malloc_ctx = malloc(raw_malloc_get_ctx_size());
@@ -190,13 +190,19 @@ static TEE_Result init_instance(void)
 	memtag_init_ops(get_memtag_implementation());
 	_TEE_MathAPI_Init();
 	__utee_tcb_init();
-	__utee_call_elf_init_fn();
 	internal_init_done = true;
 
 create_entrypoint:
+	__utee_gprof_init();
+	__utee_call_elf_init_fn();
+
 	res = TA_CreateEntryPoint();
-	if (!res)
+	if (!res) {
 		init_done = true;
+	} else {
+		__utee_gprof_fini();
+		__utee_call_elf_fini_fn();
+	}
 
 	return res;
 }
@@ -206,6 +212,7 @@ static void uninit_instance(void)
 	__utee_gprof_fini();
 	TA_DestroyEntryPoint();
 	__utee_call_elf_fini_fn();
+	init_done = false;
 }
 
 static void ta_header_save_params(uint32_t param_types,
