@@ -3,9 +3,6 @@
 # Copyright (c) 2026, Altera Corporation.
 #
 
-PLATFORM_FLAVOR ?= agilex5
-include core/arch/arm/plat-altera/flavors/$(PLATFORM_FLAVOR).mk
-
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_TEE_CORE_NB_CORE,4)
 
