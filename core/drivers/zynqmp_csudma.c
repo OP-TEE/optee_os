@@ -10,6 +10,7 @@
 #include <kernel/cache_helpers.h>
 #include <kernel/delay.h>
 #include <mm/core_memprot.h>
+#include <tee/cache.h>
 #include <util.h>
 
 #define CSUDMA_ADDR_OFFSET		0x00
@@ -112,6 +113,7 @@ TEE_Result zynqmp_csudma_transfer(enum zynqmp_csudma_channel channel,
 				      CSUDMA_SIZE);
 	paddr_t phys = virt_to_phys(addr);
 	uint32_t addr_offset = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!dma)
 		return TEE_ERROR_GENERIC;
@@ -129,9 +131,13 @@ TEE_Result zynqmp_csudma_transfer(enum zynqmp_csudma_channel channel,
 
 	if (channel == ZYNQMP_CSUDMA_DST_CHANNEL) {
 		dma = dma + CSUDMA_OFFSET_DIFF;
-		dcache_inv_range(addr, SHIFT_U64(len, CSUDMA_SIZE_SHIFT));
+		res = cache_operation(TEE_CACHEINVALIDATE, addr, len);
+		if (res)
+			return res;
 	} else {
-		dcache_clean_range(addr, SHIFT_U64(len, CSUDMA_SIZE_SHIFT));
+		res = cache_operation(TEE_CACHECLEAN, addr, len);
+		if (res)
+			return res;
 	}
 
 	addr_offset = phys & CSUDMA_ADDR_MASK;
