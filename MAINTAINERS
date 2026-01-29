@@ -66,6 +66,12 @@ AllWinner sun50i A64
 S:	Orphan
 F:	core/arch/arm/plat-sunxi/
 
+Altera AGILEX5
+R:	Jit Loon Lim <jit.loon.lim@altera.com> [@BenjaminLimJL]
+R:	BenjaminLimJL <ben9166@.com> [@BenjaminLimJL]
+S:	Maintained
+F:	core/arch/arm/plat-altera
+
 AMD Versal Gen 2
 R:	Michal Simek <michal.simek@amd.com> [@michalsimek]
 R:	Akshay Belsare <akshay.belsare@amd.com> [@Akshay-Belsare]

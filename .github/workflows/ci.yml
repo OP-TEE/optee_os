@@ -202,6 +202,8 @@ jobs:
               _make PLATFORM=versal2 CFG_AMD_PS_GPIO=y
               _make PLATFORM=sprd-sc9860
               _make PLATFORM=sprd-sc9860 CFG_ARM64_core=y
+              _make PLATFORM=altera
+              _make PLATFORM=altera CFG_ARM64_core=y
           - name: arm Plug and Trust
             make_commands: |
               function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.2 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
