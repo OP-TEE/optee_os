@@ -18,11 +18,19 @@
 #include <tee_api_types.h>
 #include <utee_defines.h>
 
+#ifdef PLATFORM_FLAVOR_net
+/* VERSAL_SIP_UID: 80d4c25a-ebaf-11eb-94680b4e3b8fc360 */
+#define VERSAL_SIP_UID_0 U(0x5ac2d480)
+#define VERSAL_SIP_UID_1 U(0xeb11afeb)
+#define VERSAL_SIP_UID_2 U(0x4e0b6894)
+#define VERSAL_SIP_UID_3 U(0x60c38f3b)
+#else
 /* VERSAL_SIP_UID: 2ab9e4ec-93b9-11e7-a019dfe0dbad0ae0 */
 #define VERSAL_SIP_UID_0 U(0xece4b92a)
 #define VERSAL_SIP_UID_1 U(0xe711b993)
 #define VERSAL_SIP_UID_2 U(0xe0df19a0)
 #define VERSAL_SIP_UID_3 U(0xe00aaddb)
+#endif
 #define VERSAL_SIP_MAJOR  0
 #define VERSAL_SIP_MINOR  1
 
