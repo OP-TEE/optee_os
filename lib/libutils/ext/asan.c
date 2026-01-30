@@ -7,7 +7,6 @@
 #include <asan.h>
 #include <assert.h>
 #include <compiler.h>
-#include <keep_init.h>
 #include <printk.h>
 #include <setjmp.h>
 #include <string.h>
@@ -22,6 +21,7 @@
 #endif
 
 #if defined(__KERNEL__)
+# include <keep.h>
 # include <kernel/panic.h>
 #elif defined(__LDELF__)
 # include <ldelf_syscalls.h>
@@ -30,6 +30,11 @@
 # include <utee_syscalls.h>
 # include <tee_internal_api_extensions.h>
 # include <pta_system.h>
+#endif
+
+#ifndef __KERNEL__
+/* Stub for non-kernel builds */
+#define DECLARE_KEEP_INIT(x);
 #endif
 
 #if TRACE_LEVEL >= TRACE_DEBUG
