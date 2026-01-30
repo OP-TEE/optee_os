@@ -51,6 +51,14 @@ SECTIONS {
 
 	/* Page align to allow dropping execute bit for RW data */
 	. = ALIGN(4096);
+#ifdef CFG_TA_SANITIZE_KADDRESS
+	.init_array : ALIGN(8) {
+		KEEP(*(.init_array .init_array.*))
+	}
+	.fini_array : ALIGN(8) {
+		KEEP(*(.fini_array .fini_array.*))
+	}
+#endif
 
 	.dynamic : { *(.dynamic) }
 	.tdata : { *(.tdata .tdata.* .gnu.linkonce.td.*) }
