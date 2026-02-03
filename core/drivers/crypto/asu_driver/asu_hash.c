@@ -158,7 +158,7 @@ static TEE_Result asu_sha_op(struct asu_hash_ctx *asu_hashctx,
 {
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t header = 0;
-	int status = TEE_ERROR_GENERIC;
+	uint32_t status = 0;
 
 	header = asu_create_header(ASU_SHA_OPERATION_CMD_ID,
 				   asu_hashctx->uniqueid, module, 0U);
@@ -329,12 +329,13 @@ static void asu_hash_ctx_free(struct crypto_hash_ctx *ctx)
 	asu_free_unique_id(asu_hashctx->uniqueid);
 	asu_hashctx->uniqueid = ASU_UNIQUE_ID_MAX;
 	mutex_lock(&asu_shadev->engine_lock);
-	if (asu_hashctx->module == ASU_MODULE_SHA2_ID &&
-	    !asu_shadev->sha2_available)
+	if (asu_hashctx->module == ASU_MODULE_SHA2_ID) {
+		assert(!asu_shadev->sha2_available);
 		asu_shadev->sha2_available = true;
-	else if (asu_hashctx->module == ASU_MODULE_SHA3_ID &&
-		 !asu_shadev->sha3_available)
+	} else if (asu_hashctx->module == ASU_MODULE_SHA3_ID) {
+		assert(!asu_shadev->sha3_available);
 		asu_shadev->sha3_available = true;
+	}
 	mutex_unlock(&asu_shadev->engine_lock);
 	free(asu_hashctx);
 }

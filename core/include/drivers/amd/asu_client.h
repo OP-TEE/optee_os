@@ -43,12 +43,11 @@ static inline uint32_t asu_create_header(uint8_t cmd_id,
 	return header;
 }
 
-TEE_Result asu_validate_client_parameters(struct asu_client_params *param_ptr);
 TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
 					      void *req_buffer,
 					      uint32_t size,
 					      uint32_t header,
-					      int *status);
+					      uint32_t *status);
 uint8_t asu_reg_callback_n_get_unique_id(struct asu_client_params *param,
 					 uint8_t *resp_buffer_ptr,
 					 uint32_t size);

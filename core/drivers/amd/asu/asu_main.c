@@ -81,7 +81,7 @@ static TEE_Result asu_fwcheck(void)
 		}
 	} while (!timeout_elapsed(timeout));
 
-	EMSG("ASU FW is NOT Present!");
+	EMSG("ASU FW is not present!");
 
 	return TEE_ERROR_BAD_STATE;
 }
@@ -113,7 +113,7 @@ static uint32_t asu_get_channelID(void)
 					      ASU_RTCA_BASEADDR,
 					      ASU_GLOBAL_ADDR_LIMIT);
 	if (!comm_chnl_info) {
-		EMSG("Failed to Map Run Time Config Area");
+		EMSG("Failed to map runtime config area");
 		return channel_id;
 	}
 
@@ -124,13 +124,13 @@ static uint32_t asu_get_channelID(void)
 		if ((io_read32(membase) & ASU_CHNL_IPI_BITMASK) ==
 		    (CFG_AMD_APU_LCL_IPI_ID << 16)) {
 			channel_id = id;
-			DMSG("Use ASU Channel ID %"PRIu32, channel_id);
+			DMSG("Use ASU channel ID %"PRIu32, channel_id);
 			break;
 		}
 	}
 
 	if (channel_id == ASU_MAX_IPI_CHANNELS)
-		EMSG("Failed to Identify ASU Channel ID for APU");
+		EMSG("Failed to identify ASU channel ID for APU");
 
 	ret = core_mmu_remove_mapping(MEM_AREA_IO_SEC,
 				      comm_chnl_info, ASU_GLOBAL_ADDR_LIMIT);
@@ -237,36 +237,6 @@ static void put_free_index(struct asu_channel_queue_buf *bufptr)
 }
 
 /*
- * asu_validate_client_parameters() - Validate client parameter structure
- * @param_ptr: Pointer to client parameters to validate
- *
- * Performs validation checks on client parameters including null pointer
- * checks, callback function availability, and priority value validation.
- *
- * Return: TEE_SUCCESS if valid, appropriate error code otherwise
- */
-TEE_Result asu_validate_client_parameters(struct asu_client_params *param_ptr)
-{
-	if (!param_ptr) {
-		EMSG("Invalid Client Parameters");
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	if (!param_ptr->cbptr) {
-		EMSG("Callback function not available");
-		return TEE_ERROR_ITEM_NOT_FOUND;
-	}
-
-	if (param_ptr->priority != ASU_PRIORITY_HIGH &&
-	    param_ptr->priority != ASU_PRIORITY_LOW) {
-		EMSG("Invalid Priority");
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	return TEE_SUCCESS;
-}
-
-/*
  * send_doorbell() - Send IPI doorbell interrupt to ASU
  *
  * Triggers an Inter-Processor Interrupt (IPI) to notify the ASU
@@ -299,7 +269,7 @@ TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
 					      void *req_buffer,
 					      uint32_t size,
 					      uint32_t header,
-					      int *status)
+					      uint32_t *status)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	uint8_t freeindex = 0;
@@ -312,13 +282,13 @@ TEE_Result asu_update_queue_buffer_n_send_ipi(struct asu_client_params *param,
 	}
 
 	if (asu->is_ready != ASU_CLIENT_READY) {
-		EMSG("ASU Client is not ready");
+		EMSG("ASU client is not ready");
 		return TEE_ERROR_BAD_STATE;
 	}
 
 	freeindex = get_free_index(param->priority);
 	if (freeindex == ASU_MAX_BUFFERS) {
-		EMSG("ASU Buffers Full");
+		EMSG("ASU buffers full");
 		return TEE_ERROR_SHORT_BUFFER;
 	}
 
@@ -410,7 +380,7 @@ static void *setup_doorbell(void)
 				     asu_configtable.baseaddr,
 				     ASU_BASEADDR_SIZE);
 	if (!dbell) {
-		EMSG("Failed to Map Door Bell register");
+		EMSG("Failed to map doorbell register");
 		return dbell;
 	}
 
@@ -465,12 +435,12 @@ static TEE_Result asu_init(void)
 						ASU_BASEADDR,
 						ASU_BASEADDR_SIZE);
 	if (!asu->global_ctrl) {
-		EMSG("Failed to initialized ASU");
+		EMSG("Failed to initialize ASU");
 		goto free;
 	}
 
 	if (asu_fwcheck() != TEE_SUCCESS) {
-		EMSG("ASU FW Check failed");
+		EMSG("ASU FW check failed");
 		goto global_unmap;
 	}
 
@@ -487,13 +457,13 @@ static TEE_Result asu_init(void)
 					 membase,
 					 ASU_GLOBAL_ADDR_LIMIT);
 	if (!asu_shmem) {
-		EMSG("Failed to Map ASU SHM");
+		EMSG("Failed to map ASU SHM");
 		goto global_unmap;
 	}
 	asu_init_unique_id();
 	asu->doorbell = setup_doorbell();
 	if (!asu->doorbell) {
-		EMSG("Failed to setup ASU Doorbell");
+		EMSG("Failed to set up ASU doorbell");
 		goto sh_unmap;
 	}
 
@@ -501,7 +471,7 @@ static TEE_Result asu_init(void)
 	asu->is_ready = ASU_CLIENT_READY;
 	asu->slock = SPINLOCK_UNLOCK;
 
-	IMSG("ASU Initialization Complete");
+	IMSG("ASU initialization complete");
 
 	return TEE_SUCCESS;
 
@@ -514,7 +484,7 @@ global_unmap:
 free:
 	free(asu);
 
-	EMSG("Failed to Initialize ASU");
+	EMSG("Failed to initialize ASU");
 
 	return TEE_ERROR_GENERIC;
 }
