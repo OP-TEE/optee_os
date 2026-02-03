@@ -345,9 +345,7 @@ static TEE_Result read_persist_value(uint32_t pt,
 		goto out;
 	}
 
-	TEE_MemMove(params[1].memref.buffer, value,
-		    value_sz);
-
+	TEE_MemMove(params[1].memref.buffer, value, count);
 	params[1].memref.size = count;
 out:
 	TEE_CloseObject(h);
