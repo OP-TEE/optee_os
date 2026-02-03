@@ -7,7 +7,7 @@
 #define __KERNEL_TRANSFER_LIST_H
 
 #define TRANSFER_LIST_SIGNATURE		U(0x4a0fb10b)
-#define TRANSFER_LIST_VERSION		U(0x0001)
+#define TRANSFER_LIST_VERSION		U(0x0002)
 
 /*
  * Init value of maximum alignment required by any transfer entry data in the TL
