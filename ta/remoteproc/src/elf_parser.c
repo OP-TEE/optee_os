@@ -10,11 +10,17 @@
 #include <types_ext.h>
 #include <util.h>
 
-static bool va_in_fwm_image_range(void *va, uint8_t *fw, size_t fw_size)
+static bool va_in_fwm_image_range(void *va, size_t len, uint8_t *fw,
+				  size_t fw_size)
 {
 	uint8_t *vaddr = va;
+	uint8_t *end_vaddr = vaddr + len;
+	uint8_t *end_fw = fw + fw_size;
 
-	return vaddr >= fw && vaddr < fw + fw_size;
+	if (end_vaddr < vaddr || end_fw < fw)
+		return false;
+
+	return vaddr >= fw && end_vaddr <= end_fw;
 }
 
 TEE_Result e32_parse_ehdr(uint8_t *fw, size_t size)
@@ -63,25 +69,23 @@ TEE_Result e32_parser_load_elf_image(uint8_t *fw, size_t fw_size,
 	if (!load_seg || fw + fw_size <= fw)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!IS_ALIGNED_WITH_TYPE(phdr, uint32_t) ||
-	    !va_in_fwm_image_range(phdr, fw, fw_size))
+	if (!IS_ALIGNED_WITH_TYPE(phdr, uint32_t))
 		return TEE_ERROR_BAD_FORMAT;
 
 	for (i = 0; i < ehdr->e_phnum; i++, phdr++) {
 		uint32_t dst = phdr->p_paddr;
 		uint8_t *src = NULL;
 
+		if (!va_in_fwm_image_range(phdr, sizeof(*phdr), fw, fw_size))
+			return TEE_ERROR_BAD_FORMAT;
+
 		if (phdr->p_type != PT_LOAD)
 			continue;
 
-		if (!va_in_fwm_image_range((void *)((vaddr_t)(phdr + 1) - 1),
-					   fw, fw_size))
-			return TEE_ERROR_BAD_FORMAT;
 
 		src = (uint8_t *)fw + phdr->p_offset;
 
-		if (!va_in_fwm_image_range(src, fw, fw_size) ||
-		    !va_in_fwm_image_range(src + phdr->p_filesz, fw, fw_size))
+		if (!va_in_fwm_image_range(src, phdr->p_filesz, fw, fw_size))
 			return TEE_ERROR_BAD_FORMAT;
 
 		res = load_seg(src, phdr->p_filesz, dst, phdr->p_memsz,
@@ -100,20 +104,25 @@ TEE_Result e32_parser_find_rsc_table(uint8_t *fw, size_t fw_size,
 	Elf32_Shdr *shdr = NULL;
 	unsigned int i = 0;
 	char *name_table = NULL;
+	size_t name_table_sz = 0;
 	struct resource_table *table = NULL;
 	Elf32_Ehdr *ehdr = (Elf32_Ehdr *)(void *)fw;
 	uint8_t *elf_data = fw;
+	size_t shdr_array_sz = 0;
 
 	if (fw + fw_size <= fw || fw + ehdr->e_shoff < fw)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	shdr = (void *)(fw + ehdr->e_shoff);
 	if (!IS_ALIGNED_WITH_TYPE(shdr, uint32_t) ||
-	    !va_in_fwm_image_range(shdr, fw, fw_size))
+	    MUL_OVERFLOW(sizeof(*shdr), ehdr->e_shnum, &shdr_array_sz) ||
+	    !va_in_fwm_image_range(shdr, shdr_array_sz, fw, fw_size) ||
+	     ehdr->e_shstrndx >= ehdr->e_shnum)
 		return TEE_ERROR_BAD_FORMAT;
 
+	name_table_sz = shdr[ehdr->e_shstrndx].sh_size;
 	name_table = (char *)elf_data + shdr[ehdr->e_shstrndx].sh_offset;
-	if (!va_in_fwm_image_range(name_table, fw, fw_size))
+	if (!va_in_fwm_image_range(name_table, name_table_sz, fw, fw_size))
 		return TEE_ERROR_BAD_FORMAT;
 
 	for (i = 0; i < ehdr->e_shnum; i++, shdr++) {
@@ -121,13 +130,14 @@ TEE_Result e32_parser_find_rsc_table(uint8_t *fw, size_t fw_size,
 		size_t offset = shdr->sh_offset;
 		size_t s = 0;
 
-		if (!va_in_fwm_image_range(shdr, fw, fw_size))
+		if (shdr->sh_name >= name_table_sz)
 			return TEE_ERROR_BAD_FORMAT;
 
-		if (strcmp(name_table + shdr->sh_name, ".resource_table"))
+		if (strncmp(name_table + shdr->sh_name, ".resource_table",
+			    name_table_sz - shdr->sh_name))
 			continue;
 
-		if (!shdr->sh_size)
+		if (!size)
 			return TEE_ERROR_NO_DATA;
 
 		if (offset + size > fw_size || offset + size < size) {
