@@ -365,10 +365,15 @@ static TEE_Result ecc_sm2_encrypt(struct ecc_public_key *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	/* Uncompressed form indicator */
-	dst[0] = 0x04;
 
 	ciphertext_len = 2 * size_bytes + src_len + TEE_SM3_HASH_SIZE;
+	if (*dst_len < ciphertext_len + 1) {
+		*dst_len = ciphertext_len + 1;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	/* Uncompressed form indicator */
+	dst[0] = 0x04;
 
 	cdata.key = key;
 	cdata.size_sec = size_bytes;
@@ -452,6 +457,11 @@ static TEE_Result ecc_sm2_decrypt(struct ecc_keypair *key,
 	if (SUB_OVERFLOW(ciphertext_len, 2 * size_bytes + TEE_SM3_HASH_SIZE,
 			 &plaintext_len))
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (*dst_len < plaintext_len) {
+		*dst_len = plaintext_len;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
 
 	cdata.key = key;
 	cdata.size_sec = size_bytes;
