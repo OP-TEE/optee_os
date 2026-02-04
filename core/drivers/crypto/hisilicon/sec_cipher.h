@@ -29,9 +29,9 @@
 #define CTR_SRC_ALIGN_MASK		0xf
 #define CTR_SRC_BLOCK_SIZE		0x10
 
-#define CKEY_LEN_128_BIT		0x1
-#define CKEY_LEN_192_BIT		0x2
-#define CKEY_LEN_256_BIT		0x3
+#define CKEY_LEN_128_BIT		0x0
+#define CKEY_LEN_192_BIT		0x1
+#define CKEY_LEN_256_BIT		0x2
 #define CKEY_LEN_SM4			0x0
 #define CKEY_LEN_DES			0x1
 #define CKEY_LEN_3DES_3KEY		0x1
