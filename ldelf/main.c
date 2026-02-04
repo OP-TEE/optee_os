@@ -136,13 +136,6 @@ static void __noreturn dl_entry(struct dl_entry_arg *arg)
 	sys_return_cleanup();
 }
 
-/*
- * ldelf()- Loads ELF into memory
- * @arg:	Argument passing to/from TEE Core
- *
- * Only called from assembly
- */
-void __noreturn ldelf(struct ldelf_arg *arg);
 void ldelf(struct ldelf_arg *arg)
 {
 	TEE_Result res = TEE_SUCCESS;

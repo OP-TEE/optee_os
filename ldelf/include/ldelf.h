@@ -114,6 +114,14 @@ struct dl_entry_arg {
 #define LDELF_MAP_FLAG_EXECUTABLE	BIT32(2)
 #define LDELF_MAP_FLAG_BTI		BIT32(3)
 
+/*
+ * ldelf()- Loads ELF into memory
+ * @arg:	Argument passing to/from TEE Core
+ *
+ * Only called from assembly
+ */
+void __noreturn ldelf(struct ldelf_arg *arg);
+
 #endif /*!__ASSEMBLER__*/
 
 #define LDELF_RETURN		0
