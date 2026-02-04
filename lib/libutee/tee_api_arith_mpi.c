@@ -71,7 +71,7 @@ static TEE_Result copy_mpi_to_bigint(mbedtls_mpi *mpi, TEE_BigInt *bigInt)
 
 	hdr->nblimbs = n;
 	hdr->sign = mpi->s;
-	memcpy(hdr + 1, mpi->p, mpi->n * sizeof(mbedtls_mpi_uint));
+	memcpy(hdr + 1, mpi->p, n * sizeof(mbedtls_mpi_uint));
 
 	return TEE_SUCCESS;
 }
