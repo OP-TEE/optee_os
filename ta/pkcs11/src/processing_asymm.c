@@ -330,6 +330,12 @@ static enum pkcs11_rc load_tee_key(struct pkcs11_session *session,
 				break;
 			}
 			break;
+		case PKCS11_CKK_EC_EDWARDS:
+			assert((obj->key_type == TEE_TYPE_ED25519_PUBLIC_KEY &&
+				class == PKCS11_CKO_PUBLIC_KEY) ||
+			       (obj->key_type == TEE_TYPE_ED25519_KEYPAIR &&
+				class == PKCS11_CKO_PRIVATE_KEY));
+			goto key_ready;
 		default:
 			assert(0);
 			break;
