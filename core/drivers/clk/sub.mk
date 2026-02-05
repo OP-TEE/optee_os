@@ -8,3 +8,4 @@ srcs-$(CFG_STM32MP21_CLK) += clk-stm32mp21.c
 srcs-$(CFG_STM32MP25_CLK) += clk-stm32mp25.c
 
 subdirs-$(CFG_DRIVERS_SAM_CLK) += sam
+subdirs-$(CFG_DRIVERS_QCOM_CLK) += qcom
