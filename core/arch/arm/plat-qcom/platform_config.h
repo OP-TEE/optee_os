@@ -32,6 +32,10 @@
 #define RAMBLUR_PIMEM_VAULT_TA_SIZE	ULL(0x01c00000)
 
 #define GENI_UART_REG_BASE		UL(0x994000)
+#define GCC_BASE			UL(0x100000)
+#define GCC_SIZE			UL(0x100000)
+#define WPSS_BASE			UL(0x8a00000)
+#define WPSS_SIZE			UL(0x200000)
 #endif
 
 #if defined(PLATFORM_FLAVOR_lemans)
@@ -46,5 +50,7 @@
 
 #define GENI_UART_REG_BASE		UL(0xa8c000)
 #endif
+
+#define PAS_ID_WPSS			6
 
 #endif /*PLATFORM_CONFIG_H*/
