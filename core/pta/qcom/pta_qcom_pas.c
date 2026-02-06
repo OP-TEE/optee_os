@@ -6,14 +6,21 @@
 #include <initcall.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/user_ta.h>
+#include <platform_config.h>
 #include <pta_qcom_pas.h>
 #include <string.h>
 
+#include "pas.h"
+
 #define PTA_NAME	"pta.qcom.pas"
 
-static TEE_Result
-qcom_pas_is_supported(uint32_t pt,
-		      TEE_Param params[TEE_NUM_PARAMS] __maybe_unused)
+static struct qcom_pas_data wpss_dsp_data = {
+	.base.pa = WPSS_BASE,
+	.clk_group = QCOM_CLKS_WPSS,
+};
+
+static TEE_Result qcom_pas_is_supported(uint32_t pt,
+					TEE_Param params[TEE_NUM_PARAMS])
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 						TEE_PARAM_TYPE_NONE,
@@ -25,7 +32,10 @@ qcom_pas_is_supported(uint32_t pt,
 
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	if (params[0].value.a != PAS_ID_WPSS)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	return TEE_SUCCESS;
 }
 
 static TEE_Result qcom_pas_capabilities(uint32_t pt,
@@ -46,9 +56,8 @@ static TEE_Result qcom_pas_capabilities(uint32_t pt,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result
-qcom_pas_init_image(uint32_t pt,
-		    TEE_Param params[TEE_NUM_PARAMS] __maybe_unused)
+static TEE_Result qcom_pas_init_image(uint32_t pt,
+				      TEE_Param params[TEE_NUM_PARAMS])
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 						TEE_PARAM_TYPE_MEMREF_INPUT,
@@ -60,12 +69,14 @@ qcom_pas_init_image(uint32_t pt,
 
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	if (params[0].value.a != PAS_ID_WPSS)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	return TEE_SUCCESS;
 }
 
-static TEE_Result
-qcom_pas_mem_setup(uint32_t pt,
-		   TEE_Param params[TEE_NUM_PARAMS] __maybe_unused)
+static TEE_Result qcom_pas_mem_setup(uint32_t pt,
+				     TEE_Param params[TEE_NUM_PARAMS])
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 						TEE_PARAM_TYPE_VALUE_INPUT,
@@ -77,12 +88,21 @@ qcom_pas_mem_setup(uint32_t pt,
 
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	switch (params[0].value.a) {
+	case PAS_ID_WPSS:
+		wpss_dsp_data.fw_size = params[0].value.b;
+		wpss_dsp_data.fw_base = params[1].value.a;
+		wpss_dsp_data.fw_base |= ((paddr_t)params[1].value.b << 32);
+		break;
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	return TEE_SUCCESS;
 }
 
-static TEE_Result
-qcom_pas_get_resource_table(uint32_t pt,
-			    TEE_Param params[TEE_NUM_PARAMS] __maybe_unused)
+static TEE_Result qcom_pas_get_resource_table(uint32_t pt,
+					      TEE_Param params[TEE_NUM_PARAMS])
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 						TEE_PARAM_TYPE_MEMREF_INOUT,
@@ -94,41 +114,61 @@ qcom_pas_get_resource_table(uint32_t pt,
 
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	if (params[0].value.a != PAS_ID_WPSS)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	return TEE_SUCCESS;
 }
 
 static TEE_Result
-qcom_pas_auth_and_reset(uint32_t pt,
-			TEE_Param params[TEE_NUM_PARAMS]__maybe_unused)
+qcom_pas_set_remote_state(uint32_t pt,
+			  TEE_Param params[TEE_NUM_PARAMS]__maybe_unused)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	DMSG("invoked with pas_id: %d", params[0].value.a);
+
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static TEE_Result qcom_pas_auth_and_reset(uint32_t pt,
+					  TEE_Param params[TEE_NUM_PARAMS])
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 						TEE_PARAM_TYPE_VALUE_INPUT,
 						TEE_PARAM_TYPE_MEMREF_INPUT,
 						TEE_PARAM_TYPE_NONE);
+	TEE_Result res = TEE_SUCCESS;
 
 	if (pt != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
-	return TEE_ERROR_NOT_IMPLEMENTED;
-}
+	switch (params[0].value.a) {
+	case PAS_ID_WPSS:
+		if (!wpss_dsp_data.fw_base)
+			return TEE_ERROR_NO_DATA;
 
-static TEE_Result
-qcom_pas_set_remote_state(uint32_t pt,
-			  TEE_Param params[TEE_NUM_PARAMS] __maybe_unused)
-{
-	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-						TEE_PARAM_TYPE_NONE,
-						TEE_PARAM_TYPE_NONE,
-						TEE_PARAM_TYPE_NONE);
+		res = qcom_clock_enable(wpss_dsp_data.clk_group);
+		if (res != TEE_SUCCESS) {
+			EMSG("Failed to enable clocks: %d", res);
+			return res;
+		}
 
-	if (pt != exp_pt)
-		return TEE_ERROR_BAD_PARAMETERS;
+		wpss_dsp_start(&wpss_dsp_data);
+		break;
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
 
-	DMSG("invoked with pas_id: %d", params[0].value.a);
-
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result
