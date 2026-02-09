@@ -114,8 +114,14 @@ static TEE_Result qcom_pas_get_resource_table(uint32_t pt,
 
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
-	if (params[0].value.a != PAS_ID_WPSS)
+	switch (params[0].value.a) {
+	case PAS_ID_WPSS:
+		wpss_dsp_get_rsc_table(params[1].memref.buffer,
+				       &params[1].memref.size);
+		break;
+	default:
 		return TEE_ERROR_NOT_SUPPORTED;
+	}
 
 	return TEE_SUCCESS;
 }

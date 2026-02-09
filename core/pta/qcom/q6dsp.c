@@ -5,9 +5,10 @@
  */
 
 #include <io.h>
+#include <kernel/delay.h>
 #include <mm/core_mmu.h>
 #include <stdint.h>
-#include <kernel/delay.h>
+#include <string.h>
 
 #include "pas.h"
 
@@ -26,6 +27,72 @@
 #define LPASS_EFUSE_Q6SS_EVB_SEL	0x0
 
 #define BOOT_FSM_TIMEOUT		10000
+
+#if defined(PLATFORM_FLAVOR_kodiak)
+#define WPSS_DEVMEM_REGIONS		2
+static struct resource_table wpss_rt = {
+	.ver = 1,
+	.num = WPSS_DEVMEM_REGIONS,
+	.offset[WPSS_DEVMEM_REGIONS] = 0,
+};
+
+static struct fw_rsc_hdr wpss_hdr = {
+	.type = RSC_DEVMEM,
+};
+
+static struct fw_rsc_devmem wlan_fw_mem = {
+	.name = "wlan_fw_mem",
+	.da = 0x80c00000,
+	.pa = 0x80c00000,
+	.len = 0xc00000,
+	.flags = IOMMU_READ | IOMMU_WRITE,
+};
+
+static struct fw_rsc_devmem wlan_ce_mem = {
+	.name = "wlan_ce_mem",
+	.da = 0x004cd000,
+	.pa = 0x004cd000,
+	.len = 0x1000,
+	.flags = IOMMU_READ | IOMMU_WRITE,
+};
+#else
+static struct resource_table wpss_rt;
+static struct fw_rsc_hdr;
+static struct fw_rsc_devmem wlan_fw_mem;
+static struct fw_rsc_devmem wlan_ce_mem;
+#endif
+
+void wpss_dsp_get_rsc_table(struct resource_table *rt, size_t *rt_size)
+{
+	size_t expected_rt_size;
+	uint8_t *rt_ptr = (uint8_t *)rt;
+	uint32_t offset = 0;
+
+	if (!wpss_rt.num)
+		return;
+
+	expected_rt_size = sizeof(wpss_rt) + wpss_rt.num *
+			   (sizeof(*wpss_rt.offset) + sizeof(wpss_hdr) +
+			    sizeof(struct fw_rsc_devmem));
+	if (!rt || *rt_size < expected_rt_size) {
+		*rt_size = expected_rt_size;
+		return;
+	}
+
+	memcpy(rt, &wpss_rt, sizeof(wpss_rt));
+	offset += sizeof(wpss_rt) + wpss_rt.num * sizeof(*wpss_rt.offset);
+
+	rt->offset[0] = offset;
+	memcpy(rt_ptr + offset, &wpss_hdr, sizeof(wpss_hdr));
+	offset += sizeof(wpss_hdr);
+	memcpy(rt_ptr + offset, &wlan_fw_mem, sizeof(wlan_fw_mem));
+	offset += sizeof(wlan_fw_mem);
+
+	rt->offset[1] = offset;
+	memcpy(rt_ptr + offset, &wpss_hdr, sizeof(wpss_hdr));
+	offset += sizeof(wpss_hdr);
+	memcpy(rt_ptr + offset, &wlan_ce_mem, sizeof(wlan_ce_mem));
+}
 
 TEE_Result wpss_dsp_start(struct qcom_pas_data *data)
 {

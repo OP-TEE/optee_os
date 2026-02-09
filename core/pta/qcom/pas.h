@@ -10,6 +10,41 @@
 #include <kernel/thread_arch.h>
 #include <mm/core_memprot.h>
 #include <drivers/clk_qcom.h>
+#include <stdint.h>
+
+struct resource_table {
+	uint32_t ver;
+	uint32_t num;
+	uint32_t reserved[2];
+	uint32_t offset[];
+} __packed;
+
+struct fw_rsc_hdr {
+	uint32_t type;
+	uint8_t data[];
+} __packed;
+
+enum fw_resource_type {
+	RSC_CARVEOUT		= 0,
+	RSC_DEVMEM		= 1,
+	RSC_TRACE		= 2,
+	RSC_VDEV		= 3,
+	RSC_LAST		= 4,
+	RSC_VENDOR_START	= 128,
+	RSC_VENDOR_END		= 512,
+};
+
+#define IOMMU_READ	BIT(0)
+#define IOMMU_WRITE	BIT(1)
+
+struct fw_rsc_devmem {
+	uint32_t da;
+	uint32_t pa;
+	uint32_t len;
+	uint32_t flags;
+	uint32_t reserved;
+	uint8_t name[32];
+} __packed;
 
 struct qcom_pas_data {
 	struct io_pa_va base;
@@ -19,6 +54,7 @@ struct qcom_pas_data {
 	enum qcom_clk_group clk_group;
 };
 
+void wpss_dsp_get_rsc_table(struct resource_table *rt, size_t *rt_size);
 TEE_Result wpss_dsp_start(struct qcom_pas_data *data);
 
 #endif /* _PAS_H_ */
