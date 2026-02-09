@@ -170,7 +170,7 @@ static void qm_mb_read(struct hisi_qm *qm, struct qm_mailbox *mb)
 static enum hisi_drv_status qm_wait_mb_ready(struct hisi_qm *qm)
 {
 	struct qm_mailbox mb = { };
-	uint32_t timeout = 0;
+	uint64_t timeout = 0;
 
 	timeout = timeout_init_us(QM_MB_WAIT_PERIOD * QM_MB_WAIT_READY_CNT);
 	while (!timeout_elapsed(timeout)) {
@@ -188,7 +188,7 @@ static enum hisi_drv_status qm_wait_mb_ready(struct hisi_qm *qm)
 static enum hisi_drv_status qm_wait_mb_finish(struct hisi_qm *qm,
 					      struct qm_mailbox *mb)
 {
-	uint32_t timeout = 0;
+	uint64_t timeout = 0;
 
 	timeout = timeout_init_us(QM_MB_WAIT_PERIOD * QM_MB_WAIT_MAX_CNT);
 	while (!timeout_elapsed(timeout)) {
@@ -870,7 +870,7 @@ static void qm_dfx_dump(struct hisi_qm *qm)
 enum hisi_drv_status hisi_qp_recv_sync(struct hisi_qp *qp, void *msg)
 {
 	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
-	uint32_t timeout = 0;
+	uint64_t timeout = 0;
 
 	if (!qp || !qp->qm || !msg) {
 		EMSG("Invalid qp recv sync parameters");
