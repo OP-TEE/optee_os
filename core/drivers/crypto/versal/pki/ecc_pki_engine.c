@@ -65,7 +65,7 @@
 #define PKI_CQ_CTL_TRIGPOS_OFFSET	UINT64_C(0x00002028)
 
 #define PKI_RQ_CFG_PERMISSIONS_SAFE	0x0
-#define PKI_RQ_CFG_PAGE_SIZE_1024	0x10
+#define PKI_RQ_CFG_PAGE_SIZE_4096	0xc
 #define PKI_RQ_CFG_CQID			0x0
 #define	PKI_CQ_CFG_SIZE_4096		0xC
 #define PKI_CQ_CFG_IRQ_ID_VAL		0x0
@@ -215,7 +215,7 @@ static TEE_Result pki_build_descriptors(uint32_t curve, uint32_t op,
 	descs[2] = PKI_DESC_TAG_TFRI(in_sz);
 	descs[3] = 0;
 	descs[4] = PKI_DESC_TAG_TFRO(out_sz);
-	descs[5] = 0x10000;
+	descs[5] = PKI_QUEUE_BUF_SIZE;
 	descs[6] = PKI_DESC_TAG_NTFY(PKI_DEFAULT_REQID);
 	descs[7] = 0;
 
@@ -242,7 +242,7 @@ static TEE_Result pki_start_operation(uint32_t reqval)
 	io_write64(versal_pki.regs + PKI_CQ_CFG_ADDR_OFFSET,
 		   virt_to_phys(versal_pki.cq));
 	io_write32(versal_pki.regs + PKI_RQ_CFG_PAGE_SIZE_OFFSET,
-		   PKI_RQ_CFG_PAGE_SIZE_1024);
+		   PKI_RQ_CFG_PAGE_SIZE_4096);
 	io_write32(versal_pki.regs + PKI_RQ_CFG_CQID_OFFSET, PKI_RQ_CFG_CQID);
 	io_write32(versal_pki.regs + PKI_CQ_CFG_SIZE_OFFSET,
 		   PKI_CQ_CFG_SIZE_4096);
@@ -351,7 +351,7 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	if (ret)
 		return ret;
 
-	ret = pki_start_operation(PKI_NEW_REQUEST_MASK & ((vaddr_t)addr + 1));
+	ret = pki_start_operation(PKI_NEW_REQUEST_MASK & (vaddr_t)addr);
 	if (ret)
 		return ret;
 
@@ -459,7 +459,7 @@ TEE_Result versal_ecc_sign_ephemeral(uint32_t algo, size_t bytes,
 	if (ret)
 		return ret;
 
-	ret = pki_start_operation(PKI_NEW_REQUEST_MASK & ((vaddr_t)addr + 1));
+	ret = pki_start_operation(PKI_NEW_REQUEST_MASK & (vaddr_t)addr);
 	if (ret)
 		return ret;
 
@@ -631,7 +631,7 @@ static TEE_Result versal_ecc_gen_private_key(uint32_t curve, uint8_t *priv,
 		return ret;
 
 	/* Use PKI engine to compute A+B mod N */
-	ret = pki_start_operation(PKI_NEW_REQUEST_MASK & ((vaddr_t)addr + 1));
+	ret = pki_start_operation(PKI_NEW_REQUEST_MASK & (vaddr_t)addr);
 	if (ret)
 		return ret;
 
@@ -718,7 +718,7 @@ TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s)
 		return ret;
 
 	/* Use PKI engine to compute Q = priv * G */
-	ret = pki_start_operation(PKI_NEW_REQUEST_MASK & ((vaddr_t)addr + 1));
+	ret = pki_start_operation(PKI_NEW_REQUEST_MASK & (vaddr_t)addr);
 	if (ret)
 		return ret;
 
@@ -843,15 +843,15 @@ TEE_Result versal_ecc_hw_init(void)
 		return TEE_ERROR_GENERIC;
 
 	/* Allocate queues */
-	versal_pki.rq_in = memalign(CACHELINE_LEN, PKI_QUEUE_BUF_SIZE);
+	versal_pki.rq_in = memalign(PKI_QUEUE_BUF_SIZE, PKI_QUEUE_BUF_SIZE);
 	if (!versal_pki.rq_in)
 		goto error;
 
-	versal_pki.rq_out = memalign(CACHELINE_LEN, PKI_QUEUE_BUF_SIZE);
+	versal_pki.rq_out = memalign(PKI_QUEUE_BUF_SIZE, PKI_QUEUE_BUF_SIZE);
 	if (!versal_pki.rq_out)
 		goto error;
 
-	versal_pki.cq = memalign(CACHELINE_LEN, PKI_QUEUE_BUF_SIZE);
+	versal_pki.cq = memalign(PKI_QUEUE_BUF_SIZE, PKI_QUEUE_BUF_SIZE);
 	if (!versal_pki.cq)
 		goto error;
 
