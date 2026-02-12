@@ -62,6 +62,11 @@ CFG_CONSOLE_UART ?= 0
 # PS GPIO Controller configuration.
 CFG_AMD_PS_GPIO ?= n
 
+# AMD ASU Specific configs
+CFG_AMD_ASU_SUPPORT ?= y
+CFG_AMD_APU_LCL_IPI_ID ?= 0x0004
+CFG_AMD_ASU_HASH ?= n
+
 ifeq ($(CFG_AMD_PS_GPIO),y)
 $(call force,CFG_MAP_EXT_DT_SECURE,y)
 $(call force,CFG_DRIVERS_GPIO,y)
