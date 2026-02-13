@@ -47,6 +47,7 @@ endif
 ifeq ($(PLATFORM_FLAVOR),px30)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_TEE_CORE_NB_CORE,4)
+CFG_CRYPTO_WITH_CE ?= y
 
 CFG_TZDRAM_START ?= 0x30000000
 CFG_TZDRAM_SIZE  ?= 0x02000000
