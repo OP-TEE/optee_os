@@ -3,8 +3,8 @@
  * Copyright (c) 2024-2025, Linaro Limited
  */
 
+#include <asan.h>
 #include <assert.h>
-#include <kernel/asan.h>
 #include <kernel/boot.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>

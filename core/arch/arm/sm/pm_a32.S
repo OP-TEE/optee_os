@@ -8,10 +8,10 @@
 #include <arm32_macros_cortex_a9.S>
 #include <arm32_macros.S>
 #include <arm.h>
+#include <asan.h>
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
-#include <kernel/asan.h>
 #include <platform_config.h>
 
 .section .text

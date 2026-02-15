@@ -4,6 +4,7 @@
  * Copyright (c) 2020-2023, Arm Limited
  */
 
+#include <asan.h>
 #include <assert.h>
 #include <config.h>
 #include <confine_array_index.h>
@@ -1288,6 +1289,18 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 	*sp = va + elf->head->stack_size;
 	ta_stack = va;
 	ta_stack_size = elf->head->stack_size;
+
+	if (IS_ENABLED(CFG_TA_SANITIZE_KADDRESS)) {
+		res = asan_user_map_shadow((void *)ta_stack,
+					   (void *)(ta_stack +
+					   roundup(ta_stack_size)),
+					   ASAN_REG_STACK);
+		if (res) {
+			EMSG("Failed to map shadow stack for ELF (%pUl)",
+			     (void *)&elf->uuid);
+			panic();
+		}
+	}
 }
 
 void ta_elf_finalize_load_main(uint64_t *entry, uint64_t *load_addr)
@@ -1629,9 +1642,22 @@ TEE_Result ta_elf_add_library(const TEE_UUID *uuid)
 		ta_elf_finalize_mappings(elf);
 	}
 
-	for (elf = lib; elf; elf = TAILQ_NEXT(elf, link))
+	for (elf = lib; elf; elf = TAILQ_NEXT(elf, link)) {
+		if (IS_ENABLED(CFG_TA_SANITIZE_KADDRESS)) {
+			int rc;
+
+			rc = asan_user_map_shadow((void *)elf->load_addr,
+						  (void *)elf->max_addr,
+						  ASAN_REG_ELF);
+			if (rc) {
+				EMSG("Failed to map shadow for ELF (%pUl)",
+				     (void *)&elf->uuid);
+				panic();
+			}
+		}
 		DMSG("ELF (%pUl) at %#"PRIxVA,
 		     (void *)&elf->uuid, elf->load_addr);
+	}
 
 	res = ta_elf_set_init_fini_info_compat(ta->is_32bit);
 	if (res)

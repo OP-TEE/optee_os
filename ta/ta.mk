@@ -51,6 +51,8 @@ ta-mk-file-export-vars-$(sm) += CFG_ATTESTATION_PTA
 ta-mk-file-export-vars-$(sm) += CFG_MEMTAG
 ta-mk-file-export-vars-$(sm) += CFG_TA_LIBGCC
 ta-mk-file-export-vars-$(sm) += CFG_TA_SANITIZE_UNDEFINED
+ta-mk-file-export-vars-$(sm) += CFG_TA_SANITIZE_KADDRESS
+ta-mk-file-export-vars-$(sm) += CFG_USER_ASAN_SHADOW_OFFSET
 ta-mk-file-export-vars-$(sm) += _CFG_TA_STACK_PROTECTOR
 
 # Expand platform flags here as $(sm) will change if we have several TA
@@ -65,6 +67,15 @@ cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
 ifeq ($(CFG_TA_SANITIZE_UNDEFINED),y)
 cflags$(sm) += -fsanitize=undefined
+endif
+
+ifeq ($(CFG_TA_SANITIZE_KADDRESS),y)
+cflags$(sm) += \
+        -fsanitize=kernel-address \
+        -fasan-shadow-offset=$(CFG_USER_ASAN_SHADOW_OFFSET) \
+        --param=asan-globals=1 \
+        --param=asan-instrumentation-with-call-threshold=0 \
+        --param=asan-stack=1
 endif
 
 ifeq ($(ta-target),ta_arm32)

@@ -6,6 +6,7 @@
  */
 
 #include <arm.h>
+#include <asan.h>
 #include <assert.h>
 #include <compiler.h>
 #include <config.h>
@@ -18,7 +19,6 @@
 #include <inttypes.h>
 #include <io.h>
 #include <keep.h>
-#include <kernel/asan.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/linker.h>
@@ -321,7 +321,8 @@ static void init_asan(void)
 	 * Assign area covered by the shadow area, everything from start up
 	 * to the beginning of the shadow area.
 	 */
-	asan_set_shadowed((void *)TEE_LOAD_ADDR, &__asan_shadow_start);
+	asan_set_shadowed((void *)TEE_LOAD_ADDR, &__asan_shadow_start,
+			  ASAN_REG_NO_TYPE);
 
 	/*
 	 * Add access to areas that aren't opened automatically by a

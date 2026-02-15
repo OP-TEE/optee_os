@@ -78,6 +78,7 @@
 #define BufStats    1
 #endif
 
+#include <asan.h>
 #include <compiler.h>
 #include <config.h>
 #include <malloc.h>
@@ -93,9 +94,19 @@
 
 #if defined(__KERNEL__)
 /* Compiling for TEE Core */
-#include <kernel/asan.h>
 #include <kernel/spinlock.h>
 #include <kernel/unwind.h>
+#endif
+#if defined(__KERNEL__)
+# include <kernel/panic.h>
+# define bget_panic() panic()
+#elif defined(__LDELF__)
+# include <ldelf_syscalls.h>
+# define bget_panic() _ldelf_panic(2)
+#else
+# include <utee_syscalls.h>
+# define bget_panic() _utee_panic(TEE_ERROR_GENERIC)
+#endif
 
 static void *memset_unchecked(void *s, int c, size_t n)
 {
@@ -107,22 +118,6 @@ static __maybe_unused void *memcpy_unchecked(void *dst, const void *src,
 {
 	return asan_memcpy_unchecked(dst, src, n);
 }
-
-#else /*__KERNEL__*/
-/* Compiling for TA */
-
-static void *memset_unchecked(void *s, int c, size_t n)
-{
-	return memset(s, c, n);
-}
-
-static __maybe_unused void *memcpy_unchecked(void *dst, const void *src,
-					     size_t n)
-{
-	return memcpy(dst, src, n);
-}
-
-#endif /*__KERNEL__*/
 
 #include "bget.c"		/* this is ugly, but this is bget */
 
@@ -239,9 +234,8 @@ static void *maybe_tag_buf(uint8_t *buf, size_t hdr_size, size_t requested_size)
 		return memtag_set_random_tags(buf, sz + hdr_size);
 	}
 
-#if defined(__KERNEL__)
 	asan_tag_access(buf, buf + hdr_size + requested_size);
-#endif
+
 	return buf;
 }
 
@@ -258,9 +252,8 @@ static void *maybe_untag_buf(void *buf)
 		return memtag_set_tags(buf, sz, 0);
 	}
 
-#if defined(__KERNEL__)
 	asan_tag_heap_free(buf, (uint8_t *)buf + bget_buf_size(buf));
-#endif
+
 	return buf;
 }
 
@@ -273,9 +266,7 @@ static void *strip_tag(void *buf)
 
 static void tag_asan_free(void *buf __maybe_unused, size_t len __maybe_unused)
 {
-#if defined(__KERNEL__)
 	asan_tag_heap_free(buf, (uint8_t *)buf + len);
-#endif
 }
 
 #ifdef BufStats
@@ -812,6 +803,7 @@ void raw_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
 	uintptr_t end = start + len;
 	void *p = NULL;
 	size_t l = 0;
+	int rc = 0;
 
 	start = ROUNDUP(start, SizeQuant);
 	end = ROUNDDOWN(end, SizeQuant);
@@ -826,8 +818,14 @@ void raw_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
 		DMSG("Skipping too small initial pool");
 		return;
 	}
-
+	rc = asan_user_map_shadow((void *)start, (void *)end,
+				  ASAN_REG_MEM_POOL);
+	if (rc) {
+		EMSG("Failed to map ASAN shadow memory");
+		bget_panic();
+	}
 	tag_asan_free((void *)start, end - start);
+
 	bpool((void *)start, end - start, &ctx->poolset);
 	l = ctx->pool_len + 1;
 	p = realloc_unlocked(ctx, ctx->pool, sizeof(struct malloc_pool) * l);

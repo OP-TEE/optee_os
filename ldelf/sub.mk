@@ -12,4 +12,6 @@ srcs-y += sys.c
 srcs-y += ta_elf.c
 srcs-y += ta_elf_rel.c
 srcs-$(CFG_FTRACE_SUPPORT) += ftrace.c
+srcs-$(CFG_CORE_SANITIZE_KADDRESS) += asan.c
+cflags-remove-asan.c-$(CFG_CORE_SANITIZE_KADDRESS) += -fsanitize=kernel-address -fasan-% --param=asan-%
 srcs-$(CFG_TA_PAUTH) += pauth.c
