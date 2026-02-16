@@ -32,6 +32,23 @@ static const struct dsp_fw_boot_regs compute_fw_boot_regs = {
 };
 
 /*
+ * LPASS
+ */
+#define LPASS_QDSP6V67SS_PUB_REG	0x00400000
+#define LPASS_MCC_REG			0x00950000
+
+static const struct dsp_fw_boot_regs lpass_fw_boot_regs = {
+	.xo_cbcr = LPASS_QDSP6V67SS_PUB_REG + 0x38,
+	.sleep_cbcr = LPASS_QDSP6V67SS_PUB_REG + 0x3c,
+	.core_cbcr = LPASS_QDSP6V67SS_PUB_REG + 0x20,
+	.rst_evb = LPASS_QDSP6V67SS_PUB_REG + 0x10,
+	.core_start = LPASS_QDSP6V67SS_PUB_REG + 0x400,
+	.boot_cmd = LPASS_QDSP6V67SS_PUB_REG + 0x404,
+	.boot_status = LPASS_QDSP6V67SS_PUB_REG + 0x408,
+	.lpass.efuse_evb_sel = LPASS_MCC_REG + 0xb000,
+};
+
+/*
  * WPSS
  */
 #define WPSS_QDSP6V67SS_PUB_REG	0x00000000
@@ -53,6 +70,8 @@ static inline const struct dsp_fw_boot_regs *dsp_fw_get_boot_regs(uint32_t id)
 		return &wpss_fw_boot_regs;
 	case PAS_ID_TURING:
 		return &compute_fw_boot_regs;
+	case PAS_ID_QDSP6:
+		return &lpass_fw_boot_regs;
 	default:
 		return NULL;
 	}

@@ -80,4 +80,7 @@ TEE_Result wpss_fw_shutdown(struct qcom_pas_data *data);
 TEE_Result compute_fw_start(struct qcom_pas_data *data);
 TEE_Result compute_fw_shutdown(struct qcom_pas_data *data);
 
+TEE_Result lpass_fw_start(struct qcom_pas_data *data);
+TEE_Result lpass_fw_shutdown(struct qcom_pas_data *data);
+
 #endif /* _PAS_H_ */

@@ -8,6 +8,10 @@
 
 #include "pas.h"
 
+struct dsp_fw_boot_lpass_regs {
+	uint32_t efuse_evb_sel;
+};
+
 struct dsp_fw_boot_regs {
 	uint32_t xo_cbcr;
 	uint32_t sleep_cbcr;
@@ -16,6 +20,8 @@ struct dsp_fw_boot_regs {
 	uint32_t core_start;
 	uint32_t boot_cmd;
 	uint32_t boot_status;
+	/* lpass */
+	struct dsp_fw_boot_lpass_regs lpass;
 };
 
 TEE_Result dsp_fw_start(struct qcom_pas_data *data,

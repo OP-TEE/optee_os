@@ -38,6 +38,8 @@
 #define WPSS_SIZE			UL(0x200000)
 #define TURING_BASE			UL(0x09800000)
 #define TURING_SIZE			ULL(0x00e00000)
+#define LPASS_BASE			UL(0x02c00000)
+#define LPASS_SIZE			ULL(0x01080000)
 #endif
 
 #if defined(PLATFORM_FLAVOR_lemans)
@@ -53,6 +55,7 @@
 #define GENI_UART_REG_BASE		UL(0xa8c000)
 #endif
 
+#define PAS_ID_QDSP6			1
 #define PAS_ID_WPSS			6
 #define PAS_ID_TURING			18
 

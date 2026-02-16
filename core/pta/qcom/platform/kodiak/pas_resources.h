@@ -85,4 +85,45 @@ static struct resource_table turing_rt = {
 	.offset[TURING_NUM_MEM_RESOURCES - 1] = 0,
 };
 
+/*
+ * LPASS
+ */
+static const struct fw_rsc_devmem lpass_mem_res[] = {
+	{ .name = "efuse", .flags = IOMMU_READ,
+		.da = 0x00786000, .pa = 0x00786000, .len = 0x00020000, },
+	{ .name = "rng", .flags = IOMMU_READ | IOMMU_WRITE,
+		.da = 0x010d4000, .pa = 0x010d4000, .len = 0x00001000, },
+	{ .name = "mailbox", .flags = IOMMU_READ | IOMMU_WRITE,
+		.da = 0x00403000, .pa = 0x00403000, .len = 0x00001000, },
+	{ .name = "rpmh", .flags = IOMMU_READ | IOMMU_WRITE,
+		.da = 0x0a000000, .pa = 0x0a000000, .len = 0x05000000, },
+	{ .name = "tcsr_2", .flags = IOMMU_READ | IOMMU_WRITE,
+		.da = 0x01fc0000, .pa = 0x01fc0000, .len = 0x00030000, },
+	{ .name = "tcsr_mutex", .flags = IOMMU_READ | IOMMU_WRITE,
+		.da = 0x01f40000, .pa = 0x01f40000, .len = 0x00020000, },
+	{ .name = "smem", .flags = IOMMU_READ | IOMMU_WRITE,
+		.da = 0x80900000, .pa = 0x80900000, .len = 0x00200000, },
+	{ .name = "gcc", .flags = IOMMU_READ | IOMMU_WRITE,
+		.da = 0x00100000, .pa = 0x00100000, .len = 0x001F0000, },
+	{ .name = "cmd_db", .flags = IOMMU_READ | IOMMU_WRITE,
+		.da = 0x80860000, .pa = 0x80860000, .len = 0x00020000, },
+	{ .name = "i2c", .flags = IOMMU_READ | IOMMU_WRITE,
+		.da = 0x00a80000, .pa = 0x00a80000, .len = 0x00004000, },
+	{ .name = "pinctrl", .flags = IOMMU_READ | IOMMU_WRITE,
+		.da = 0x0f100000, .pa = 0x0f100000, .len = 0x00300000, },
+};
+
+static const struct fw_rsc_hdr lpass_mem_hdr = {
+	.type = RSC_DEVMEM,
+};
+
+DEFINE_RESOURCE_TABLE(LPASS, ARRAY_SIZE(lpass_mem_res));
+
+static struct resource_table lpass_rt = {
+	.ver = 1,
+	.num = LPASS_NUM_MEM_RESOURCES,
+	.offset[LPASS_NUM_MEM_RESOURCES - 1] = 0,
+};
+
 #endif /* _PAS_RESOURCES_H_ */
+

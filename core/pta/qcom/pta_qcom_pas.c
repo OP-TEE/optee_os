@@ -28,6 +28,13 @@ static struct qcom_pas_data turing_dsp_data = {
 	.clk_group = QCOM_CLKS_TURING,
 };
 
+static struct qcom_pas_data lpass_dsp_data = {
+	.pas_id = PAS_ID_QDSP6,
+	.base.pa = LPASS_BASE,
+	.size = LPASS_SIZE,
+	.clk_group = QCOM_CLKS_LPASS,
+};
+
 static TEE_Result qcom_pas_is_supported(uint32_t pt,
 					TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -42,6 +49,7 @@ static TEE_Result qcom_pas_is_supported(uint32_t pt,
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
 	if (params[0].value.a != PAS_ID_WPSS &&
+	    params[0].value.a != PAS_ID_QDSP6 &&
 	    params[0].value.a != PAS_ID_TURING)
 		return TEE_ERROR_NOT_SUPPORTED;
 
@@ -80,6 +88,7 @@ static TEE_Result qcom_pas_init_image(uint32_t pt,
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
 	if (params[0].value.a != PAS_ID_WPSS &&
+	    params[0].value.a != PAS_ID_QDSP6 &&
 	    params[0].value.a != PAS_ID_TURING)
 		return TEE_ERROR_NOT_SUPPORTED;
 
@@ -107,6 +116,9 @@ static TEE_Result qcom_pas_mem_setup(uint32_t pt,
 	case PAS_ID_TURING:
 		data = &turing_dsp_data;
 		break;
+	case PAS_ID_QDSP6:
+		data = &lpass_dsp_data;
+		break;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -132,7 +144,8 @@ static TEE_Result qcom_pas_get_resource_table(uint32_t pt,
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
 	if (params[0].value.a != PAS_ID_WPSS &&
-	    params[0].value.a != PAS_ID_TURING)
+	    params[0].value.a != PAS_ID_TURING &&
+	    params[0].value.a != PAS_ID_QDSP6)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	return pas_get_resource_table(params[0].value.a,
@@ -194,6 +207,17 @@ static TEE_Result qcom_pas_auth_and_reset(uint32_t pt,
 		}
 
 		return compute_fw_start(&turing_dsp_data);
+	case PAS_ID_QDSP6:
+		if (!lpass_dsp_data.fw_base)
+			return TEE_ERROR_NO_DATA;
+
+		res = qcom_clock_enable(lpass_dsp_data.clk_group);
+		if (res != TEE_SUCCESS) {
+			EMSG("Failed to enable clocks: %d", res);
+			return res;
+		}
+
+		return lpass_fw_start(&lpass_dsp_data);
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -218,6 +242,8 @@ qcom_pas_shutdown(uint32_t pt,
 		return wpss_fw_shutdown(&wpss_dsp_data);
 	case PAS_ID_TURING:
 		return compute_fw_shutdown(&turing_dsp_data);
+	case PAS_ID_QDSP6:
+		return lpass_fw_shutdown(&lpass_dsp_data);
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}

@@ -69,7 +69,7 @@ static inline bool vapss_cfg_gdscr_pwr_up_complete(uint32_t val)
 static inline bool vapss_gds_hw_state_idle(uint32_t val)
 {
 	uint32_t state = (val & VAPSS_GDS_HW_STATE_MASK) >>
-		VAPSS_GDS_HW_STATE_SHIFT;
+			 VAPSS_GDS_HW_STATE_SHIFT;
 
 	return state == 0;
 }
@@ -77,7 +77,7 @@ static inline bool vapss_gds_hw_state_idle(uint32_t val)
 static inline bool vapss_gds_hw_state_powerup_wait(uint32_t val)
 {
 	uint32_t state = (val & VAPSS_GDS_HW_STATE_MASK) >>
-		VAPSS_GDS_HW_STATE_SHIFT;
+			 VAPSS_GDS_HW_STATE_SHIFT;
 
 	/* ready to power up */
 	return state == 0xA;
@@ -138,6 +138,19 @@ static int compute_cc_enable(void)
 	return 0;
 }
 
+static int lpass_gdsc_enable(void)
+{
+	struct io_pa_va gdsc_io = { .pa = LPASS_BASE + LPASS_GDSC_OFFSET };
+	vaddr_t gdsc_base = io_pa_or_va(&gdsc_io, LPASS_GDSC_SIZE);
+	int res = 0;
+
+	res = clk_enable_cbc(gdsc_base + TOP_CC_AGGNOC_MPU_LS_CLK);
+	if (res)
+		return res;
+
+	return clk_enable_cbc(gdsc_base + TOP_CC_LPI_Q6_AXIM_HS_CLK);
+}
+
 TEE_Result qcom_clock_enable(enum qcom_clk_group group)
 {
 	struct io_pa_va base = { .pa = GCC_BASE };
@@ -161,6 +174,14 @@ TEE_Result qcom_clock_enable(enum qcom_clk_group group)
 		if (res)
 			goto timeout;
 		res = compute_cc_enable();
+		if (res)
+			goto timeout;
+		break;
+	case QCOM_CLKS_LPASS:
+		res = clk_enable_cbc(gcc_base + GCC_CFG_NOC_LPASS_CLK);
+		if (res)
+			goto timeout;
+		res = lpass_gdsc_enable();
 		if (res)
 			goto timeout;
 		break;
