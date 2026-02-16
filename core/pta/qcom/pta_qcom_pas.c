@@ -15,7 +15,9 @@
 #define PTA_NAME	"pta.qcom.pas"
 
 static struct qcom_pas_data wpss_dsp_data = {
+	.pas_id = PAS_ID_WPSS,
 	.base.pa = WPSS_BASE,
+	.size = WPSS_SIZE,
 	.clk_group = QCOM_CLKS_WPSS,
 };
 
@@ -116,7 +118,8 @@ static TEE_Result qcom_pas_get_resource_table(uint32_t pt,
 
 	switch (params[0].value.a) {
 	case PAS_ID_WPSS:
-		wpss_dsp_get_rsc_table(params[1].memref.buffer,
+		pas_get_resource_table(params[0].value.a,
+				       params[1].memref.buffer,
 				       &params[1].memref.size);
 		break;
 	default:
@@ -168,7 +171,7 @@ static TEE_Result qcom_pas_auth_and_reset(uint32_t pt,
 			return res;
 		}
 
-		wpss_dsp_start(&wpss_dsp_data);
+		wpss_fw_start(&wpss_dsp_data);
 		break;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -190,6 +193,13 @@ qcom_pas_shutdown(uint32_t pt,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	DMSG("invoked with pas_id: %d", params[0].value.a);
+
+	switch (params[0].value.a) {
+	case PAS_ID_WPSS:
+		return wpss_fw_shutdown(&wpss_dsp_data);
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
 
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }

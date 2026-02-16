@@ -12,6 +12,22 @@
 #include <drivers/clk_qcom.h>
 #include <stdint.h>
 
+#define DEFINE_RESOURCE_TABLE(prefix, num_res)			\
+	enum {							\
+		prefix##_NUM_MEM_RESOURCES = (num_res),		\
+		prefix##_SIZE_MEM_RES =				\
+			(sizeof(struct fw_rsc_hdr) +		\
+			 sizeof(struct fw_rsc_devmem)),		\
+		prefix##_RESOURCE_TABLE_HEADER_SIZE =		\
+			(sizeof(struct resource_table) +	\
+			 (prefix##_NUM_MEM_RESOURCES *		\
+			  sizeof(uint32_t))),			\
+		prefix##_RESOURCE_TABLE_SIZE =			\
+			(prefix##_RESOURCE_TABLE_HEADER_SIZE +	\
+			 (prefix##_NUM_MEM_RESOURCES *		\
+			  prefix##_SIZE_MEM_RES)),		\
+	}
+
 struct resource_table {
 	uint32_t ver;
 	uint32_t num;
@@ -47,6 +63,7 @@ struct fw_rsc_devmem {
 } __packed;
 
 struct qcom_pas_data {
+	uint32_t pas_id;
 	struct io_pa_va base;
 	size_t size;
 	paddr_t fw_base;
@@ -54,7 +71,9 @@ struct qcom_pas_data {
 	enum qcom_clk_group clk_group;
 };
 
-void wpss_dsp_get_rsc_table(struct resource_table *rt, size_t *rt_size);
-TEE_Result wpss_dsp_start(struct qcom_pas_data *data);
+TEE_Result pas_get_resource_table(uint32_t pas_id, struct resource_table *rt,
+				  size_t *rt_size);
+TEE_Result wpss_fw_start(struct qcom_pas_data *data);
+TEE_Result wpss_fw_shutdown(struct qcom_pas_data *data);
 
 #endif /* _PAS_H_ */
