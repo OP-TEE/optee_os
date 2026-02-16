@@ -23,6 +23,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE, GIC_DIST_REG_SIZE);
 
 #if defined(PLATFORM_FLAVOR_kodiak)
 register_phys_mem(MEM_AREA_IO_NSEC, WPSS_BASE, CORE_MMU_PGDIR_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, TURING_BASE, TURING_SIZE);
 #endif
 
 register_ddr(DRAM0_BASE, DRAM0_SIZE);

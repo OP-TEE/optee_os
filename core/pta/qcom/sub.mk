@@ -1,3 +1,3 @@
-srcs-$(CFG_QCOM_PAS_PTA) += pta_qcom_pas.c dsp.c pas.c q6dsp.c
+srcs-$(CFG_QCOM_PAS_PTA) += pta_qcom_pas.c dsp.c pas.c q6dsp.c compute.c
 incdirs-$(CFG_QCOM_PAS_PTA) += .
 incdirs-$(CFG_QCOM_PAS_PTA) += platform/$(PLATFORM_FLAVOR)

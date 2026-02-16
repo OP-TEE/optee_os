@@ -51,6 +51,11 @@ TEE_Result pas_get_resource_table(uint32_t pas_id, struct resource_table *rt,
 				   wpss_mem_res,
 				   WPSS_RESOURCE_TABLE_HEADER_SIZE,
 				   WPSS_RESOURCE_TABLE_SIZE);
+	case PAS_ID_TURING:
+		return get_mem_rsc(rt, rt_size, &turing_rt, &turing_mem_hdr,
+				   turing_mem_res,
+				   TURING_RESOURCE_TABLE_HEADER_SIZE,
+				   TURING_RESOURCE_TABLE_SIZE);
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}

@@ -11,7 +11,8 @@
 #include "dsp.h"
 #include "pas.h"
 
-#define CBCR_BRANCH_ENABLE_BIT  BIT(0)
+#define CBCR_BRANCH_ENABLE_BIT	BIT(0)
+#define CBCR_HW_CTL_ENABLE_BIT	BIT(1)
 
 #define BOOT_CORE_START		BIT(0)
 #define BOOT_CMD_START		BIT(0)
@@ -29,7 +30,11 @@ TEE_Result dsp_fw_start(struct qcom_pas_data *data,
 	io_write32(base + regs->xo_cbcr, CBCR_BRANCH_ENABLE_BIT);
 	io_write32(base + regs->sleep_cbcr, CBCR_BRANCH_ENABLE_BIT);
 
-	io_write32(base + regs->core_cbcr, CBCR_BRANCH_ENABLE_BIT);
+	if (data->pas_id == PAS_ID_TURING)
+		io_write32(base + regs->core_cbcr,
+			   CBCR_BRANCH_ENABLE_BIT | CBCR_HW_CTL_ENABLE_BIT);
+	else
+		io_write32(base + regs->core_cbcr, CBCR_BRANCH_ENABLE_BIT);
 
 	io_write32(base + regs->rst_evb, data->fw_base >> 4);
 	dsb();

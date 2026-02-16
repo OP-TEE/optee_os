@@ -21,6 +21,13 @@ static struct qcom_pas_data wpss_dsp_data = {
 	.clk_group = QCOM_CLKS_WPSS,
 };
 
+static struct qcom_pas_data turing_dsp_data = {
+	.pas_id = PAS_ID_TURING,
+	.base.pa = TURING_BASE,
+	.size = TURING_SIZE,
+	.clk_group = QCOM_CLKS_TURING,
+};
+
 static TEE_Result qcom_pas_is_supported(uint32_t pt,
 					TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -34,7 +41,8 @@ static TEE_Result qcom_pas_is_supported(uint32_t pt,
 
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
-	if (params[0].value.a != PAS_ID_WPSS)
+	if (params[0].value.a != PAS_ID_WPSS &&
+	    params[0].value.a != PAS_ID_TURING)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	return TEE_SUCCESS;
@@ -71,7 +79,8 @@ static TEE_Result qcom_pas_init_image(uint32_t pt,
 
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
-	if (params[0].value.a != PAS_ID_WPSS)
+	if (params[0].value.a != PAS_ID_WPSS &&
+	    params[0].value.a != PAS_ID_TURING)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	return TEE_SUCCESS;
@@ -84,6 +93,7 @@ static TEE_Result qcom_pas_mem_setup(uint32_t pt,
 						TEE_PARAM_TYPE_VALUE_INPUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE);
+	struct qcom_pas_data *data = NULL;
 
 	if (pt != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -92,13 +102,18 @@ static TEE_Result qcom_pas_mem_setup(uint32_t pt,
 
 	switch (params[0].value.a) {
 	case PAS_ID_WPSS:
-		wpss_dsp_data.fw_size = params[0].value.b;
-		wpss_dsp_data.fw_base = params[1].value.a;
-		wpss_dsp_data.fw_base |= ((paddr_t)params[1].value.b << 32);
+		data = &wpss_dsp_data;
+		break;
+	case PAS_ID_TURING:
+		data = &turing_dsp_data;
 		break;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
+
+	data->fw_size = params[0].value.b;
+	data->fw_base = params[1].value.a;
+	data->fw_base |= SHIFT_U64(params[1].value.b, 32);
 
 	return TEE_SUCCESS;
 }
@@ -116,17 +131,13 @@ static TEE_Result qcom_pas_get_resource_table(uint32_t pt,
 
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
-	switch (params[0].value.a) {
-	case PAS_ID_WPSS:
-		pas_get_resource_table(params[0].value.a,
-				       params[1].memref.buffer,
-				       &params[1].memref.size);
-		break;
-	default:
+	if (params[0].value.a != PAS_ID_WPSS &&
+	    params[0].value.a != PAS_ID_TURING)
 		return TEE_ERROR_NOT_SUPPORTED;
-	}
 
-	return TEE_SUCCESS;
+	return pas_get_resource_table(params[0].value.a,
+				      params[1].memref.buffer,
+				      &params[1].memref.size);
 }
 
 static TEE_Result
@@ -171,13 +182,21 @@ static TEE_Result qcom_pas_auth_and_reset(uint32_t pt,
 			return res;
 		}
 
-		wpss_fw_start(&wpss_dsp_data);
-		break;
+		return wpss_fw_start(&wpss_dsp_data);
+	case PAS_ID_TURING:
+		if (!turing_dsp_data.fw_base)
+			return TEE_ERROR_NO_DATA;
+
+		res = qcom_clock_enable(turing_dsp_data.clk_group);
+		if (res != TEE_SUCCESS) {
+			EMSG("Failed to enable clocks: %d", res);
+			return res;
+		}
+
+		return compute_fw_start(&turing_dsp_data);
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
-
-	return TEE_SUCCESS;
 }
 
 static TEE_Result
@@ -197,6 +216,8 @@ qcom_pas_shutdown(uint32_t pt,
 	switch (params[0].value.a) {
 	case PAS_ID_WPSS:
 		return wpss_fw_shutdown(&wpss_dsp_data);
+	case PAS_ID_TURING:
+		return compute_fw_shutdown(&turing_dsp_data);
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
