@@ -40,6 +40,8 @@
 #define TURING_SIZE			ULL(0x00e00000)
 #define LPASS_BASE			UL(0x02c00000)
 #define LPASS_SIZE			ULL(0x01080000)
+#define IRIS_BASE			UL(0x0aa00000)
+#define IRIS_SIZE			ULL(0x00200000)
 #endif
 
 #if defined(PLATFORM_FLAVOR_lemans)
@@ -57,6 +59,7 @@
 
 #define PAS_ID_QDSP6			1
 #define PAS_ID_WPSS			6
+#define PAS_ID_VENUS			9
 #define PAS_ID_TURING			18
 
 #endif /*PLATFORM_CONFIG_H*/
