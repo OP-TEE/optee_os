@@ -88,10 +88,14 @@ static void wait_for_irq(struct imx_rng *rng)
 
 static void irq_clear(struct imx_rng *rng)
 {
+	io_setbits32(rng->base.va + RNG_CMD,
+		     RNG_CMD_CLR_ERR | RNG_CMD_CLR_INT);
+}
+
+static void irq_mask(struct imx_rng *rng)
+{
 	io_setbits32(rng->base.va + RNG_CR,
 		     RNG_CR_MASK_DONE | RNG_CR_MASK_ERROR);
-	io_setbits32(rng->base.va + RNG_CMD,
-		     RNG_CMD_CLR_INT | RNG_CMD_CLR_ERR);
 }
 
 static void irq_unmask(struct imx_rng *rng)
@@ -105,12 +109,14 @@ static void rng_seed(struct imx_rng *rng)
 	uint64_t tref = timeout_init_us(SEED_TIMEOUT);
 
 	irq_clear(rng);
+	irq_mask(rng);
 	do {
 		irq_unmask(rng);
 		/* seed creation */
 		io_setbits32(rng->base.va + RNG_CMD, RNG_CMD_SEED);
 		wait_for_irq(rng);
 		irq_clear(rng);
+		irq_mask(rng);
 
 		if (timeout_elapsed(tref))
 			panic();
