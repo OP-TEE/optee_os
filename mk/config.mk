@@ -55,52 +55,6 @@ $(call force,CFG_CC_OPT_LEVEL,0)
 $(call force,CFG_DEBUG_INFO,y)
 endif
 
-# CFG_CC_OPT_LEVEL sets compiler optimization level passed with -O directive.
-# Optimize for size by default, usually gives good performance too.
-CFG_CC_OPT_LEVEL ?= s
-
-# Enabling CFG_DEBUG_INFO makes debug information embedded in core.
-CFG_DEBUG_INFO ?= y
-
-# If y, enable debug features of the TEE core (assertions and lock checks
-# are enabled, panic and assert messages are more verbose, data and prefetch
-# aborts show a stack dump). When disabled, the NDEBUG directive is defined
-# so assertions are disabled.
-CFG_TEE_CORE_DEBUG ?= y
-
-# Log levels for the TEE core. Defines which core messages are displayed
-# on the secure console. Disabling core log (level set to 0) also disables
-# logs from the TAs.
-# 0: none
-# 1: error
-# 2: error + info
-# 3: error + info + debug
-# 4: error + info + debug + flow
-CFG_TEE_CORE_LOG_LEVEL ?= 2
-
-# TA log level
-# If user-mode library libutils.a is built with CFG_TEE_TA_LOG_LEVEL=0,
-# TA tracing is disabled regardless of the value of CFG_TEE_TA_LOG_LEVEL
-# when the TA is built.
-CFG_TEE_TA_LOG_LEVEL ?= 1
-
-# TA enablement
-# When defined to "y", TA traces are output according to
-# CFG_TEE_TA_LOG_LEVEL. Otherwise, they are not output at all
-CFG_TEE_CORE_TA_TRACE ?= y
-
-# If y, enable the memory leak detection feature in the bget memory allocator.
-# When this feature is enabled, calling mdbg_check(1) will print a list of all
-# the currently allocated buffers and the location of the allocation (file and
-# line number).
-# Note: make sure the log level is high enough for the messages to show up on
-# the secure console! For instance:
-# - To debug user-mode (TA) allocations: build OP-TEE *and* the TA with:
-#   $ make CFG_TEE_TA_MALLOC_DEBUG=y CFG_TEE_TA_LOG_LEVEL=3
-# - To debug TEE core allocations: build OP-TEE with:
-#   $ make CFG_TEE_CORE_MALLOC_DEBUG=y CFG_TEE_CORE_LOG_LEVEL=3
-CFG_TEE_CORE_MALLOC_DEBUG ?= n
-CFG_TEE_TA_MALLOC_DEBUG ?= n
 # Prints an error message and dumps the stack on failed memory allocations
 # using malloc() and friends.
 CFG_CORE_DUMP_OOM ?= $(CFG_TEE_CORE_MALLOC_DEBUG)
@@ -112,18 +66,11 @@ CFG_CORE_DUMP_OOM ?= $(CFG_TEE_CORE_MALLOC_DEBUG)
 # Levels: 0=none 1=error 2=info 3=debug 4=flow
 CFG_MSG_LONG_PREFIX_MASK ?= 0x1a
 
-# Number of threads
-CFG_NUM_THREADS ?= 2
-
 # API implementation version
 CFG_TEE_API_VERSION ?= GPD-1.1-dev
 
 # Implementation description (implementation-dependent)
 CFG_TEE_IMPL_DESCR ?= OPTEE
-
-# Should OPTEE_SMC_CALL_GET_OS_REVISION return a build identifier to Normal
-# World?
-CFG_OS_REV_REPORTS_GIT_SHA1 ?= y
 
 # The following values are not extracted from the "git describe" output because
 # we might be outside of a Git environment, or the tree may have been cloned
@@ -145,91 +92,6 @@ CFG_TEE_FW_IMPL_VERSION ?= FW_IMPL_UNDEF
 
 # Trusted OS implementation manufacturer name
 CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
-
-# Rich Execution Environment (REE) file system support: normal world OS
-# provides the actual storage.
-# This is the default FS when enabled (i.e., the one used when
-# TEE_STORAGE_PRIVATE is passed to the trusted storage API)
-CFG_REE_FS ?= y
-
-# CFG_REE_FS_HTREE_HASH_SIZE_COMPAT, when enabled, supports the legacy
-# REE FS hash tree tagging implementation that uses a truncated hash.
-# Be warned that disabling this config could break accesses to existing
-# REE FS content.
-CFG_REE_FS_HTREE_HASH_SIZE_COMPAT ?= y
-
-# RPMB file system support
-CFG_RPMB_FS ?= n
-
-# Enable roll-back protection of REE file system using RPMB.
-# Roll-back protection only works if CFG_RPMB_FS = y.
-CFG_REE_FS_INTEGRITY_RPMB ?= $(CFG_RPMB_FS)
-$(eval $(call cfg-depends-all,CFG_REE_FS_INTEGRITY_RPMB,CFG_RPMB_FS))
-
-# Device identifier used when CFG_RPMB_FS = y.
-# The exact meaning of this value is platform-dependent. On Linux, the
-# tee-supplicant process will open /dev/mmcblk<id>rpmb
-CFG_RPMB_FS_DEV_ID ?= 0
-
-# This config variable determines the number of entries read in from RPMB at
-# once whenever a function traverses the RPMB FS. Increasing the default value
-# has the following consequences:
-# - More memory required on heap. A single FAT entry currently has a size of
-#   256 bytes.
-# - Potentially significant speed-ups for RPMB I/O. Depending on how many
-#   entries a function needs to traverse, the number of time-consuming RPMB
-#   read-in operations can be reduced.
-# Chosing a proper value is both platform- (available memory) and use-case-
-# dependent (potential number of FAT fs entries), so overwrite in platform
-# config files
-CFG_RPMB_FS_RD_ENTRIES ?= 8
-
-# Enables caching of FAT FS entries when set to a value greater than zero.
-# When enabled, the cache stores the first 'CFG_RPMB_FS_CACHE_ENTRIES' FAT FS
-# entries. The cache is populated when FAT FS entries are initially read in.
-# When traversing the FAT FS entries, we read from the cache instead of reading
-# in the entries from RPMB storage. Consequently, when a FAT FS entry is
-# written, the cache is updated. In scenarios where an estimate of the number
-# of FAT FS entries can be made, the cache may be specifically tailored to
-# store all entries. The caching can improve RPMB I/O at the cost
-# of additional memory.
-# Without caching, we temporarily require
-# CFG_RPMB_FS_RD_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
-# while traversing the FAT FS (e.g. in read_fat).
-# For example 8*256 bytes = 2kB while in read_fat.
-# With caching, we constantly require up to
-# CFG_RPMB_FS_CACHE_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
-# depending on how many elements are in the cache, and additional temporary
-# CFG_RPMB_FS_RD_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
-# in case the cache is too small to hold all elements when traversing.
-CFG_RPMB_FS_CACHE_ENTRIES ?= 0
-
-# Print RPMB data frames sent to and received from the RPMB device
-CFG_RPMB_FS_DEBUG_DATA ?= n
-
-# Clear RPMB content at cold boot
-CFG_RPMB_RESET_FAT ?= n
-
-# Use a hard coded RPMB key instead of deriving it from the platform HUK
-CFG_RPMB_TESTKEY ?= n
-
-# Enables RPMB key programming by the TEE, in case the RPMB partition has not
-# been configured yet.
-# !!! Security warning !!!
-# Do *NOT* enable this in product builds, as doing so would allow the TEE to
-# leak the RPMB key.
-# This option is useful in the following situations:
-# - Testing
-# - RPMB key provisioning in a controlled environment (factory setup)
-CFG_RPMB_WRITE_KEY ?= n
-
-# For the kernel driver to enable in-kernel RPMB routing it must know in
-# advance that OP-TEE supports it. Setting CFG_RPMB_ANNOUNCE_PROBE_CAP=y
-# will announce OP-TEE's capability for RPMB probing to the kernel and it
-# will use in-kernel RPMB routing, without it all RPMB commands will be
-# routed to tee-supplicant. This option is intended give some control over
-# how the RPMB commands are routed to simplify testing.
-CFG_RPMB_ANNOUNCE_PROBE_CAP ?= y
 
 _CFG_WITH_SECURE_STORAGE := $(call cfg-one-enabled,CFG_REE_FS CFG_RPMB_FS)
 
@@ -288,12 +150,6 @@ CFG_TA_FLOAT_SUPPORT ?= y
 ifeq ($(CFG_TEE_CORE_DEBUG),y)
 CFG_UNWIND ?= y
 endif
-
-# Enable support for dynamically loaded user TAs
-CFG_WITH_USER_TA ?= y
-
-# Build user TAs included in this source tree
-CFG_BUILD_IN_TREE_TA ?= y
 
 # Choosing the architecture(s) of user-mode libraries (used by TAs)
 #
@@ -439,12 +295,6 @@ endif
 # By default the early TAs are compressed in the TEE binary, it is possible to
 # not compress them with CFG_EARLY_TA_COMPRESS=n
 CFG_EARLY_TA_COMPRESS ?= y
-
-# Enable paging, requires SRAM, can't be enabled by default
-CFG_WITH_PAGER ?= n
-
-# Use the pager for user TAs
-CFG_PAGED_USER_TA ?= $(CFG_WITH_PAGER)
 
 # If paging of user TAs, that is, R/W paging default to enable paging of
 # TAG and IV in order to reduce heap usage.
@@ -704,19 +554,6 @@ $(eval $(call cfg-depends-all,CFG_SYSTEM_PTA,CFG_WITH_USER_TA))
 # world OS.
 CFG_DEVICE_ENUM_PTA ?= y
 
-# The attestation pseudo TA provides an interface to request measurements of
-# a TA or the TEE binary.
-CFG_ATTESTATION_PTA ?= n
-$(eval $(call cfg-depends-all,CFG_ATTESTATION_PTA,_CFG_WITH_SECURE_STORAGE))
-
-# RSA key size (in bits) for the attestation PTA. Must be at least 528 given
-# other algorithm parameters (RSA PSS with SHA-256 and 32-byte salt), but
-# note that such a low value is not secure.
-# See https://tools.ietf.org/html/rfc8017#section-8.1.1 and
-# https://tools.ietf.org/html/rfc8017#section-9.1.1
-#  emLen >= hlen + sLen + 2 = 32 + 32 + 2 = 66
-#  emLen = ceil((modBits - 1) / 8) => emLen is the key size in bytes
-CFG_ATTESTATION_PTA_KEY_SIZE ?= 3072
 
 # Define the number of cores per cluster used in calculating core position.
 # The cluster number is shifted by this value and added to the core ID,
