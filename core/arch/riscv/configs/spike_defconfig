@@ -1,0 +1,7 @@
+# CFG_DEBUG_INFO is not set
+# CFG_TEE_CORE_DEBUG is not set
+CFG_TEE_TA_LOG_LEVEL=0
+# CFG_TEE_CORE_TA_TRACE is not set
+CFG_NUM_THREADS=4
+# CFG_WITH_USER_TA is not set
+# CFG_REE_FS is not set
