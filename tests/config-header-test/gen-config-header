@@ -40,6 +40,9 @@ gen() {
 	# Always start fresh
 	rm -rf "$tmpdir"
 
+	# defconfig: sets up .config and auto.conf (no cross-compiler)
+	ARCH="$arch" make -C "$basedir" -j1 -s PLATFORM="$platform" O="$tmpdir" defconfig 1>/dev/null
+
 	# Target conf.h directly: check-conf-h macro = pure make/shell
 	ARCH="$arch" make -C "$basedir" -j1 -s PLATFORM="$platform" O="$tmpdir" "$conf_h" 1>/dev/null
 
