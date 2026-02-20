@@ -5,6 +5,10 @@
 #ifndef _CLOCK_GROUP_QCOM_H_
 #define _CLOCK_GROUP_QCOM_H_
 
+#define GCC_SEC_CTRL_CFG_RCGR			0x3d030
+#define GCC_SEC_CTRL_CMD_RCGR			0x3d02c
+#define QFPROM_CLOCK_DIVIDE			0x7
+
 #define GCC_WPSS_AHB_CLK			0x9d154
 #define GCC_WPSS_AHB_BDG_MST_CLK		0x9d158
 #define GCC_WPSS_RSCP_CLK			0x9d16c
@@ -34,4 +38,3 @@
 #define TOP_CC_AGGNOC_MPU_LS_CLK		0x7000
 
 #endif /* _CLOCK_GROUP_QCOM_H_ */
-
