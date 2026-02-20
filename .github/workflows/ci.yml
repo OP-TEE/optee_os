@@ -376,6 +376,63 @@ jobs:
           ccache -s -v
           eval "$MAKE_COMMANDS"
           ccache -s -v
+  kconfig_verify:
+    name: Kconfig verify (all platforms)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+
+      - name: Verify conf.h and conf.mk for all platforms
+        shell: bash
+        run: |
+          set -e
+
+          testdir="tests/config-header-test"
+          refdir="$testdir/config-artifacts-ref"
+          outdir="ci-kconfig-test"
+
+          # Generate conf.h and conf.mk for every platform
+          "$testdir"/gen-references -j$(nproc) --outdir "$outdir"
+
+          failed=0
+          for ext in conf.h conf.mk; do
+            reference_count="$(ls -1 "$refdir"/*."$ext" | wc -l)"
+            new_count="$(ls -1 "$outdir"/*."$ext" | wc -l)"
+
+            if [ "$reference_count" != "$new_count" ]; then
+              echo "FAIL: number of reference .$ext files ($reference_count) != generated ($new_count)"
+              failed=1
+            fi
+
+            for artifact in "$outdir"/*."$ext"; do
+              platform="$(basename "$artifact" ."$ext")"
+              ref="$refdir/$platform.$ext"
+
+              if ! diff -u "$ref" "$artifact" >> kconfig-verify.diff; then
+                echo "FAIL: $platform ($ext)"
+                failed=1
+              else
+                echo "OK:   $platform ($ext)"
+              fi
+            done
+          done
+
+          if [ "$failed" != "0" ]; then
+            exit 1
+          fi
+
+      - name: Upload combined diff on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kconfig-verify-diffs
+          path: kconfig-verify.diff
+          retention-days: 5
+
   QEMUv7_checks_image_build:
     name: Build QEMUv7 image
     runs-on: ubuntu-latest
