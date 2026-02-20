@@ -286,8 +286,16 @@ enum pkcs11_rc verify_identity_auth(struct ck_token *token,
 /*
  * Release resources relate to persistent database
  */
-void close_persistent_db(struct ck_token *token __unused)
+void close_persistent_db(struct ck_token *token)
 {
+	if (!token)
+		return;
+
+	TEE_Free(token->db_main);
+	token->db_main = NULL;
+
+	TEE_Free(token->db_objs);
+	token->db_objs = NULL;
 }
 
 static int get_persistent_obj_idx(struct ck_token *token, TEE_UUID *uuid)
