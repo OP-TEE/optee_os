@@ -212,6 +212,7 @@ jobs:
           - name: arm qcom
             make_commands: |
               _make PLATFORM=qcom-kodiak
+              _make PLATFORM=qcom-lemans
           - name: arm rockchip
             make_commands: |
               _make PLATFORM=rockchip-rk322x
