@@ -7,7 +7,7 @@ srcs-y += bcmp.c
 srcs-y += memchr.c
 srcs-y += memcmp.c
 srcs-y += memcpy.c
-ifeq (s,$(CFG_CC_OPT_LEVEL))
+ifeq (s,$(call cfg-remove-quotes,CFG_CC_OPT_LEVEL))
 cflags-memcpy.c-y += -O2
 endif
 cflags-memcpy.c-y += $(call cc-option,-fno-tree-loop-distribute-patterns)

@@ -248,7 +248,7 @@ arm64-platform-cflags += -march=armv8.5-a+memtag
 arm64-platform-aflags += -march=armv8.5-a+memtag
 endif
 
-platform-cflags-optimization ?= -O$(CFG_CC_OPT_LEVEL)
+platform-cflags-optimization ?= -O$(call cfg-remove-quotes,CFG_CC_OPT_LEVEL)
 
 ifeq ($(CFG_DEBUG_INFO),y)
 platform-cflags-debug-info ?= -g3
