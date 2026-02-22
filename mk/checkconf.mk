@@ -182,3 +182,9 @@ endif
 endif
 $(1) := $(2)
 endef
+
+# Removes quotes from $1, e.g. returns quoted-var if input was "quoted-var".
+# $(call cfg-remove-quotes,CFG_FOO)
+define cfg-remove-quotes
+$(patsubst "%",%,$($(1)))
+endef
