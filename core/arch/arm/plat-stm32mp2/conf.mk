@@ -121,11 +121,16 @@ CFG_DRIVERS_I2C ?= $(CFG_STM32_I2C)
 # Default RTC accuracy, higher accuracy means higher power consumption
 CFG_STM32_RTC_HIGH_ACCURACY ?= n
 
+# Only pull in the CFG_SCMI_* configure variables if CFG_SCP_FIRMWARE is
+# specified accordingly else the default build fails due to the requirement
+# within mk/config.mk.
+ifdef $(CFG_SCP_FIRMWARE)
 CFG_SCMI_PTA ?= y
 CFG_SCMI_SCPFW ?= y
 CFG_SCMI_SCPFW_FROM_DT ?= y
 CFG_SCMI_SERVER_CLOCK_CONSUMER ?= y
 CFG_SCMI_SERVER_RESET_CONSUMER ?= y
+endif # #CFG_SCP_FIRMWARE
 # Default enable some test facitilites
 CFG_ENABLE_EMBEDDED_TESTS ?= y
 CFG_WITH_STATS ?= y
