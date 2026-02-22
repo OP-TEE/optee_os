@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Compare the added/removed lines in 'git diff' output for the
+# config-artifacts-ref directory.
+#
+# All <platform>[-<flavor>].conf.h files are expected to have identical added
+# lines and identical removed lines; same for the .conf.mk files.  This script
+# groups files by their diff signature and reports any outliers so developers
+# can quickly spot unexpected divergences when Kconfig symbols are added or
+# removed.
+#
+# Usage (from anywhere inside the repository):
+#   tests/config-header-test/check-ref-diff [refs-dir]
+#
+# If refs-dir is omitted the directory containing this script is used.
+# The script reads 'git diff <refs-dir>' internally.
+
+import os
+import re
+import subprocess
+import sys
+from collections import Counter
+
+
+# ── ANSI / UTF-8 palette ─────────────────────────────────────────────────────
+
+R    = "\033[0m"    # reset
+BOLD = "\033[1m"
+DIM  = "\033[2m"
+
+def fg(n): return f"\033[38;5;{n}m"
+
+HEAD  = BOLD + fg(39)   # bright cyan  – section box borders / titles
+LBL   = fg(248)          # silver       – static labels
+OK    = BOLD + fg(82)    # bright green – ✓  all-match
+WARN  = BOLD + fg(214)   # orange       – ⚠  mismatch indicator
+CANON = DIM  + fg(244)   # dim grey     – canonical (reference) lines
+FNAME = BOLD + fg(255)   # bold white   – outlier filename
+REM   = BOLD + fg(203)   # salmon-red   – a removed line
+ADD   = BOLD + fg(83)    # bright green – an added line
+XTRA  = fg(214)          # amber        – "extra" tag
+MISS  = BOLD + fg(215)   # amber-bold   – "missing" tag
+
+
+# ── Layout helpers ────────────────────────────────────────────────────────────
+
+_BOX_W = 56   # inner width of the section box
+
+def _box(title, n_files):
+    body = f"  {title}  ·  {n_files} files"
+    pad  = _BOX_W - len(body) - 2
+    bar  = "═" * _BOX_W
+    return (
+        f"{HEAD}╔{bar}╗\n"
+        f"║{body}{' ' * pad}  ║\n"
+        f"╚{bar}╝{R}"
+    )
+
+
+def _badge(label, n, total):
+    frac = f"{n}/{total}"
+    if n == total:
+        return f"  {LBL}{label}{R}  {OK}{frac}  ✓{R}"
+    return     f"  {LBL}{label}{R}  {WARN}{frac}  ⚠{R}"
+
+
+def _canon_block(kind, lines):
+    """Print the canonical set of lines, dimmed."""
+    sigil = "-" if kind == "removed" else "+"
+    print(f"  {LBL}Canonical {kind}:{R}", end="")
+    if not lines:
+        print(f"  {DIM}(none){R}")
+    else:
+        print()
+        for line in lines:
+            print(f"    {CANON}{sigil}{line}{R}")
+    print()
+
+
+def _outlier_delta(kind, canonical, actual):
+    """Print extra / missing lines for one outlier."""
+    sigil = "-" if kind == "removed" else "+"
+    color = REM if kind == "removed" else ADD
+    can_set = set(canonical)
+    act_set = set(actual)
+    for line in canonical:
+        if line not in act_set:
+            print(f"     {MISS}missing  {color}{sigil}{line}{R}")
+    for line in actual:
+        if line not in can_set:
+            print(f"     {XTRA}extra    {color}{sigil}{line}{R}")
+
+
+# ── Core report ───────────────────────────────────────────────────────────────
+
+def report(label, files):
+    if not files:
+        print(f"  {LBL}(no {label} files in diff){R}\n")
+        return
+
+    total = len(files)
+
+    rem_ctr  = Counter(tuple(r) for r, _ in files.values())
+    can_rem, n_rem = rem_ctr.most_common(1)[0]
+    can_rem  = list(can_rem)
+
+    add_ctr  = Counter(tuple(a) for _, a in files.values())
+    can_add, n_add = add_ctr.most_common(1)[0]
+    can_add  = list(can_add)
+
+    print(_badge("removed", n_rem, total))
+    print(_badge("added  ", n_add, total))
+    print()
+
+    _canon_block("removed", can_rem)
+    _canon_block("added",   can_add)
+
+    out_rem = [k for k, (r, _) in files.items() if list(r) != can_rem]
+    out_add = [k for k, (_, a) in files.items() if list(a) != can_add]
+    outliers = sorted(set(out_rem) | set(out_add))
+
+    if not outliers:
+        print(f"  {OK}✓  All files share identical diff lines.{R}\n")
+        return
+
+    n   = len(outliers)
+    sep = "─" * (_BOX_W - 4 - len(str(n)) - 10)
+    print(f"  {WARN}⚠  {n} outlier{'s' if n > 1 else ''}  {sep}{R}\n")
+
+    for name in outliers:
+        removed, added = files[name]
+        tags = []
+        if list(removed) != can_rem: tags.append("removed")
+        if list(added)   != can_add: tags.append("added")
+        tag_str = " + ".join(tags)
+        print(f"  {FNAME}▶  {name}{R}  {LBL}[{tag_str} lines differ]{R}")
+        if list(removed) != can_rem:
+            _outlier_delta("removed", can_rem, removed)
+        if list(added) != can_add:
+            _outlier_delta("added",   can_add, added)
+        print()
+
+
+# ── Diff parser ───────────────────────────────────────────────────────────────
+
+def _parse_diff(diff_text):
+    """Return {filename: ([removed], [added])} from a unified diff."""
+    chunks = re.split(r"(?=^diff --git )", diff_text, flags=re.MULTILINE)
+    result = {}
+    for chunk in chunks:
+        if not chunk.strip():
+            continue
+        m = re.match(r"diff --git a/(.+) b/", chunk)
+        if not m:
+            continue
+        basename = m.group(1).split("/")[-1]
+        removed, added = [], []
+        in_hunk = False
+        for line in chunk.splitlines():
+            if line.startswith("@@"):
+                in_hunk = True
+                continue
+            if not in_hunk:
+                continue
+            if line.startswith("-"):
+                removed.append(line[1:])
+            elif line.startswith("+"):
+                added.append(line[1:])
+        result[basename] = (removed, added)
+    return result
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+def main():
+    if len(sys.argv) > 2:
+        print(f"Usage: {os.path.basename(sys.argv[0])} [refs-dir]")
+        sys.exit(1)
+
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    refs_dir   = sys.argv[1] if len(sys.argv) == 2 else os.path.join(script_dir, "config-artifacts-ref")
+
+    proc = subprocess.run(["git", "diff", "--", refs_dir],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"error: git diff failed: {proc.stderr.strip()}", file=sys.stderr)
+        sys.exit(1)
+
+    if not proc.stdout.strip():
+        print(f"\n{OK}✓  No unstaged changes in {refs_dir}{R}\n")
+        sys.exit(0)
+
+    all_files = _parse_diff(proc.stdout)
+    conf_h    = {k: v for k, v in all_files.items() if k.endswith(".conf.h")}
+    conf_mk   = {k: v for k, v in all_files.items() if k.endswith(".conf.mk")}
+
+    print(f"\n{LBL}Analysing "
+          f"{len(conf_h)} .conf.h  and  {len(conf_mk)} .conf.mk files{R}\n")
+
+    print(_box("conf.h", len(conf_h)))
+    print()
+    report("conf.h", conf_h)
+
+    print(_box("conf.mk", len(conf_mk)))
+    print()
+    report("conf.mk", conf_mk)
+
+
+if __name__ == "__main__":
+    main()
