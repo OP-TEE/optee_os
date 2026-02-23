@@ -5,13 +5,12 @@
 #define CFG_ARM32_ldelf 1
 #define CFG_ARM32_ta_arm32 1
 /* CFG_ATTESTATION_PTA is not set */
-#define CFG_ATTESTATION_PTA_KEY_SIZE 3072
 /* CFG_AUTO_MAX_PA_BITS is not set */
 /* CFG_BOOT_SECONDARY_REQUEST is not set */
 #define CFG_BUILD_IN_TREE_TA 1
 #define CFG_CACHE_API 1
 /* CFG_CALLOUT is not set */
-#define CFG_CC_OPT_LEVEL s
+#define CFG_CC_OPT_LEVEL "s"
 #define CFG_COMPAT_GP10_DES 1
 #define CFG_CONSOLE_RUNTIME_LOG_LEVEL 0
 /* CFG_CONSOLE_RUNTIME_SET is not set */
@@ -185,7 +184,6 @@
 #define CFG_OPTEE_REVISION_MAJOR 4
 #define CFG_OPTEE_REVISION_MINOR 9
 #define CFG_OS_REV_REPORTS_GIT_SHA1 1
-/* CFG_PAGED_USER_TA is not set */
 /* CFG_PAN is not set */
 #define CFG_PGT_CACHE_ENTRIES (8 * 2)
 #define CFG_PKCS11_TA_ALLOW_DIGEST_KEY 1
@@ -201,7 +199,6 @@
 #define CFG_REE_FS 1
 /* CFG_REE_FS_ALLOW_RESET is not set */
 #define CFG_REE_FS_HTREE_HASH_SIZE_COMPAT 1
-/* CFG_REE_FS_INTEGRITY_RPMB is not set */
 #define CFG_REE_FS_TA 1
 /* CFG_REE_FS_TA_BUFFERED is not set */
 /* CFG_REGULATOR_FIXED is not set */
@@ -209,15 +206,7 @@
 /* CFG_REMOTEPROC_PTA is not set */
 #define CFG_REMOTEPROC_TA_HEAP_SIZE (4 * 1024)
 #define CFG_RESERVED_VASPACE_SIZE (1024 * 1024 * 10)
-#define CFG_RPMB_ANNOUNCE_PROBE_CAP 1
 /* CFG_RPMB_FS is not set */
-#define CFG_RPMB_FS_CACHE_ENTRIES 0
-/* CFG_RPMB_FS_DEBUG_DATA is not set */
-#define CFG_RPMB_FS_DEV_ID 0
-#define CFG_RPMB_FS_RD_ENTRIES 8
-/* CFG_RPMB_RESET_FAT is not set */
-/* CFG_RPMB_TESTKEY is not set */
-/* CFG_RPMB_WRITE_KEY is not set */
 /* CFG_RSA_PUB_EXPONENT_3 is not set */
 /* CFG_RTC_PTA is not set */
 /* CFG_SCMI_MSG_DRIVERS is not set */
