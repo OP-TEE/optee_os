@@ -169,11 +169,7 @@ endif
 
 # Optional behavior upon receiving illegal access events
 CFG_STM32_PANIC_ON_IAC_EVENT ?= y
-ifeq ($(CFG_TEE_CORE_DEBUG),y)
-CFG_STM32_PANIC_ON_SERC_EVENT ?= n
-else
-CFG_STM32_PANIC_ON_SERC_EVENT ?= y
-endif
+CFG_STM32_PANIC_ON_SERC_EVENT ?= $(call cfg-opt-dis,CFG_TEE_CORE_DEBUG)
 
 # Default enable firewall support
 CFG_DRIVERS_FIREWALL ?= y
