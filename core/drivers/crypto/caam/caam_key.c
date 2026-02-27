@@ -733,7 +733,7 @@ enum caam_status caam_key_init(void)
 	size_t alloc_size = 0;
 	const struct caamkey key = {
 		.key_type = caam_key_default_key_gen_type(),
-		.sec_size = 4096, /* Max RSA key size */
+		.sec_size = 4096 / 8, /* Max RSA key size */
 		.is_blob = true,
 	};
 
@@ -744,7 +744,7 @@ enum caam_status caam_key_init(void)
 	if (caam_key_serialized_size(&key, &alloc_size))
 		return CAAM_FAILURE;
 
-	assert(alloc_size <= CFG_CORE_BIGNUM_MAX_BITS);
+	assert(alloc_size <= CFG_CORE_BIGNUM_MAX_BITS / 8);
 
 	key_blob_modifier = caam_calloc_align(KEY_BLOB_MODIFIER_SIZE);
 	if (!key_blob_modifier)
