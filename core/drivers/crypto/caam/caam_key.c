@@ -491,12 +491,12 @@ enum caam_status caam_key_serialize_to_bin(uint8_t *data, size_t size,
 
 	/* If the key is plain text, just copy key to buffer */
 	if (key->key_type == CAAM_KEY_PLAIN_TEXT) {
-		if (size < key->buf.length) {
+		if (size < key->sec_size) {
 			KEY_TRACE("Buffer is too short");
 			return CAAM_SHORT_BUFFER;
 		}
 
-		memcpy(data, key->buf.data, key->buf.length);
+		memcpy(data, key->buf.data, key->sec_size);
 
 		return CAAM_NO_ERROR;
 	}
@@ -552,7 +552,7 @@ enum caam_status caam_key_serialized_size(const struct caamkey *key,
 	assert(key && size);
 
 	/* For a plain text key, the serialized key is identical to the key */
-	*size = key->buf.length;
+	*size = key->sec_size;
 
 	/*
 	 * For black keys, the serialized key includes the header and must be
