@@ -20,6 +20,7 @@
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/boot.h>
+#include <kernel/virtualization.h>
 #include <kernel/dt.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
@@ -1055,6 +1056,9 @@ void __weak boot_init_primary_runtime(void)
 #ifdef CFG_NS_VIRTUALIZATION
 	DMSG("NS-virtualization enabled, supporting %u guests",
 	     CFG_VIRT_GUEST_COUNT);
+#if defined(CFG_NS_VIRT_HYP_GUEST_ID) && (CFG_NS_VIRT_HYP_GUEST_ID > 0)
+	virt_guest_created(CFG_NS_VIRT_HYP_GUEST_ID);
+#endif
 #endif
 	if (IS_ENABLED(CFG_MEMTAG))
 		DMSG("Memory tagging %s",

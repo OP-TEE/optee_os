@@ -794,6 +794,8 @@ $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 
 # Default number of virtual guests
 CFG_VIRT_GUEST_COUNT ?= 2
+# Bind hypervisor client to this guest ID (0 disables)
+CFG_NS_VIRT_HYP_GUEST_ID ?= 1
 endif
 
 # Enables backwards compatible derivation of RPMB and SSK keys

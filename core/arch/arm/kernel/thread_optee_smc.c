@@ -33,10 +33,18 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 {
 	thread_check_canaries();
 
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
-	    virt_set_guest(args->a7) && args->a7 != HYP_CLNT_ID) {
-		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
-		goto out;
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		uint16_t gid = args->a7;
+
+#if defined(CFG_NS_VIRT_HYP_GUEST_ID) && (CFG_NS_VIRT_HYP_GUEST_ID > 0)
+		if (gid == HYP_CLNT_ID && args->a0 != OPTEE_SMC_VM_CREATED &&
+		    args->a0 != OPTEE_SMC_VM_DESTROYED)
+			gid = CFG_NS_VIRT_HYP_GUEST_ID;
+#endif
+		if (virt_set_guest(gid) && args->a7 != HYP_CLNT_ID) {
+			args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+			goto out;
+		}
 	}
 
 	tee_entry_fast(args);
@@ -57,8 +65,16 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 
 	thread_check_canaries();
 
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) && virt_set_guest(a7))
-		return OPTEE_SMC_RETURN_ENOTAVAIL;
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		uint16_t gid = a7;
+#if defined(CFG_NS_VIRT_HYP_GUEST_ID) && (CFG_NS_VIRT_HYP_GUEST_ID > 0)
+		if (gid == HYP_CLNT_ID && a0 != OPTEE_SMC_VM_CREATED &&
+		    a0 != OPTEE_SMC_VM_DESTROYED)
+			gid = CFG_NS_VIRT_HYP_GUEST_ID;
+#endif
+		if (virt_set_guest(gid))
+			return OPTEE_SMC_RETURN_ENOTAVAIL;
+	}
 
 	/*
 	 * thread_resume_from_rpc() and thread_alloc_and_run() only return

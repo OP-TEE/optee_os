@@ -308,6 +308,12 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 	if (guest_id == HYP_CLNT_ID)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	prtn = virt_get_guest(guest_id);
+	if (prtn) {
+		virt_put_guest(prtn);
+		return TEE_SUCCESS;
+	}
+
 	prtn = nex_calloc(1, sizeof(*prtn));
 	if (!prtn)
 		return TEE_ERROR_OUT_OF_MEMORY;
