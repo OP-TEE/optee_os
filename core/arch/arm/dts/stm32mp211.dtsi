@@ -163,6 +163,72 @@
 			interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		bsec: efuse@44000000 {
+			compatible = "st,stm32mp25-bsec";
+			reg = <0x44000000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			uid_otp@14 {
+				/* 0x14 -> otp5 */
+				reg = <0x14 0xc>;
+			};
+
+			part_number_otp@24 {
+				reg = <0x24 0x4>;
+			};
+
+			package_otp@1e8 {
+				reg = <0x1e8 0x1>;
+			};
+
+			hconf1_otp: otp124@1f0 {
+				reg = <0x1f0 0x4>;
+			};
+
+			pkh_otp: otp152@260 {
+				reg = <0x260 0x20>;
+			};
+
+			oem_rproc_pkh: oem_rproc_pkh@2d0 {
+				/* 0x2D0 -> otp180 */
+				reg = <0x2D0 0x20>;
+				st,non-secure-otp-provisioning;
+			};
+
+			oem_adac_rotpkh: oem_adac_rotpkh@3b8 {
+				/* 0x3b8 -> otp238 */
+				reg = <0x3b8 0x20>;
+				st,non-secure-otp-provisioning;
+			};
+
+			oem_fip_enc_key: otp260@410 {
+				reg = <0x410 0x20>;
+				st,non-secure-otp-provisioning;
+			};
+
+			oem_rproc_enc_key: oem_rproc_enc_key@530 {
+				/* 0x530 -> otp332 */
+				reg = <0x530 0x20>;
+				st,non-secure-otp-provisioning;
+			};
+
+			tfm_iak: otp340@550 {
+				reg = <0x550 0x20>;
+				st,non-secure-otp-provisioning;
+			};
+
+			oem_enc_key_2: otp348@570 {
+				reg = <0x570 0x20>;
+				st,non-secure-otp-provisioning;
+			};
+
+			oem_enc_key_1: otp356@590 {
+				reg = <0x590 0x20>;
+				st,non-secure-otp-provisioning;
+			};
+		};
+
 		rcc: clock-controller@44200000 {
 			compatible = "st,stm32mp21-rcc", "syscon";
 			reg = <0x44200000 0x10000>;
