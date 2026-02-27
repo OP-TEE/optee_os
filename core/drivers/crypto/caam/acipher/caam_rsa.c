@@ -714,7 +714,7 @@ static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t key_size)
 
 	if (retstatus == CAAM_NO_ERROR) {
 		caam_key_cache_op(TEE_CACHEINVALIDATE, &genkey.d);
-		cache_operation(TEE_CACHEINVALIDATE, &genkey.n,
+		cache_operation(TEE_CACHEINVALIDATE, genkey.n.data,
 				genkey.n.length);
 
 		cache_operation(TEE_CACHEINVALIDATE, size_d_gen_val_ptr,
