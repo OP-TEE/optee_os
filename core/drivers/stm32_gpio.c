@@ -890,7 +890,8 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 	state->gpio_pinctrl.bank = bank->bank_id;
 	SLIST_INSERT_HEAD(&consumed_gpios_head, state, link);
 
-	register_pm_driver_cb(consumed_gpios_pm, state, "stm32-gpio-state");
+	register_pm_core_service_cb(consumed_gpios_pm, state,
+				    "stm32-gpio-state");
 
 	gpio->chip = &bank->gpio_chip;
 
@@ -1688,8 +1689,8 @@ static TEE_Result stm32_pinctrl_probe(const void *fdt, int node,
 		 * Register to PM once for all probed banks to restore
 		 * their secure configuration.
 		 */
-		register_pm_driver_cb(stm32_gpio_sec_config_pm, NULL,
-				      "stm32-gpio-secure-config");
+		register_pm_core_service_cb(stm32_gpio_sec_config_pm, NULL,
+					    "stm32-gpio-secure-config");
 		pm_register = true;
 	}
 
