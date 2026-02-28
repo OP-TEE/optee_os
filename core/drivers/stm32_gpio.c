@@ -1559,7 +1559,6 @@ static void stm32_gpio_set_conf_sec(struct stm32_gpio_bank *bank)
 
 static TEE_Result stm32_gpio_sec_config_resume(void)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
 	struct stm32_gpio_bank *bank = NULL;
 
 	STAILQ_FOREACH(bank, &bank_list, link) {
@@ -1570,13 +1569,9 @@ static TEE_Result stm32_gpio_sec_config_resume(void)
 			bank->rif_cfg->access_mask[0] = GENMASK_32(bank->ngpios,
 								   0);
 
-			res = apply_rif_config(bank,
-					       bank->rif_cfg->access_mask[0]);
-			if (res) {
-				EMSG("Failed to set GPIO bank %c RIF config",
-				     'A' + bank->bank_id);
-				return res;
-			}
+			if (apply_rif_config(bank,
+					     bank->rif_cfg->access_mask[0]))
+				panic();
 		} else {
 			stm32_gpio_set_conf_sec(bank);
 		}
