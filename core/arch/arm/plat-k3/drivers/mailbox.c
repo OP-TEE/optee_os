@@ -28,7 +28,7 @@ static TEE_Result ti_mailbox_poll_rx_status(void)
 	vaddr_t mailbox_status_addr = mailbox_rx_base + TI_MAILBOX_MSG_STATUS;
 
 	if (IO_READ32_POLL_TIMEOUT(mailbox_status_addr, num_messages_pending,
-				   num_messages_pending != 0, 10, 1000)) {
+				   num_messages_pending != 0, 10, 100000)) {
 		EMSG("Mailbox RX status polling timed out");
 		return TEE_ERROR_TIMEOUT;
 	}
