@@ -295,7 +295,7 @@ F:	core/arch/arm/plat-stm/
 
 STMicroelectronics drivers
 R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
-R:	Gatien Chevallier <gatien.chevallier@foss.st.com> [@GseoC]
+R:	Gatien Chevallier <gatien.chevallier.foss@gmail.com> [@GseoC]
 S:	Maintained
 F:	core/drivers/stm32_*
 
@@ -308,7 +308,7 @@ F:	core/drivers/stpmic1.c
 
 STMicroelectronics stm32mp2
 R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
-R:	Gatien Chevallier <gatien.chevallier@foss.st.com> [@GseoC]
+R:	Gatien Chevallier <gatien.chevallier.foss@gmail.com> [@GseoC]
 S:	Maintained
 F:	core/arch/arm/plat-stm32mp2/*
 
