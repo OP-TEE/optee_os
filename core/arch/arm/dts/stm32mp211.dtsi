@@ -102,6 +102,42 @@
 			#size-cells = <1>;
 			#access-controller-cells = <1>;
 
+			usart2: serial@400e0000 {
+				compatible = "st,stm32h7-uart";
+				reg = <0x400e0000 0x400>;
+				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_KER_USART2>;
+				access-controllers = <&rifsc STM32MP21_RIFSC_USART2_ID>;
+				status = "disabled";
+			};
+
+			usart3: serial@400f0000 {
+				compatible = "st,stm32h7-uart";
+				reg = <0x400f0000 0x400>;
+				interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_KER_USART3>;
+				access-controllers = <&rifsc STM32MP21_RIFSC_USART3_ID>;
+				status = "disabled";
+			};
+
+			uart4: serial@40100000 {
+				compatible = "st,stm32h7-uart";
+				reg = <0x40100000 0x400>;
+				interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_KER_UART4>;
+				access-controllers = <&rifsc STM32MP21_RIFSC_UART4_ID>;
+				status = "disabled";
+			};
+
+			uart5: serial@40110000 {
+				compatible = "st,stm32h7-uart";
+				reg = <0x40110000 0x400>;
+				interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_KER_UART5>;
+				access-controllers = <&rifsc STM32MP21_RIFSC_UART5_ID>;
+				status = "disabled";
+			};
+
 			i2c1: i2c@40170000 {
 				compatible = "st,stm32mp25-i2c";
 				reg = <0x40170000 0x400>;
@@ -121,6 +157,33 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				access-controllers = <&rifsc STM32MP21_RIFSC_I2C2_ID>;
+				status = "disabled";
+			};
+
+			usart6: serial@40220000 {
+				compatible = "st,stm32h7-uart";
+				reg = <0x40220000 0x400>;
+				interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_KER_USART6>;
+				access-controllers = <&rifsc STM32MP21_RIFSC_USART6_ID>;
+				status = "disabled";
+			};
+
+			usart1: serial@40330000 {
+				compatible = "st,stm32h7-uart";
+				reg = <0x40330000 0x400>;
+				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_KER_USART1>;
+				access-controllers = <&rifsc STM32MP21_RIFSC_USART1_ID>;
+				status = "disabled";
+			};
+
+			uart7: serial@40370000 {
+				compatible = "st,stm32h7-uart";
+				reg = <0x40370000 0x400>;
+				interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_KER_UART7>;
+				access-controllers = <&rifsc STM32MP21_RIFSC_UART7_ID>;
 				status = "disabled";
 			};
 
