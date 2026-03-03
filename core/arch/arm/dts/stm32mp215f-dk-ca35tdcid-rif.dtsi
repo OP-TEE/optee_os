@@ -379,3 +379,109 @@
 	>;
 };
 
+&tfa_bl31 {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_SEC, RIF_NPRIV, RIF_CFEN, RIF_CID1_BF, RIF_CID1_BF, RIF_CID1_BF)>;
+};
+
+&hpdma_lli {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_NSEC, RIF_PRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&bsec_mirror {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_SEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&scmi_cid2_s {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_SEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&scmi_cid2_ns {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_NSEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&cm33_sram1 {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_NSEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&cm33_retram {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_SEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&ddr_param {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_SEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&risab1 {
+	memory-region = <&tfa_bl31>;
+};
+
+&risab2 {
+	memory-region = <&hpdma_lli>;
+};
+
+&risab3 {
+	st,srwiad;
+	memory-region = <&bsec_mirror>, <&scmi_cid2_s>, <&scmi_cid2_ns>, <&cm33_sram1>;
+};
+
+&risab5 {
+	st,srwiad;
+	memory-region = <&cm33_retram>, <&ddr_param>;
+};
+
+&bl31_lowpower {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(1), RIF_CID0_BF|RIF_CID1_BF, RIF_CID0_BF|RIF_CID1_BF, RIF_CID1_BF, RIF_SEC, RIF_ENC_DIS, RIF_BREN_EN)>;
+};
+
+&tfm_its {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(2), RIF_CID2_BF, RIF_CID2_BF, RIF_CID2_BF, RIF_SEC, RIF_ENC_DIS, RIF_BREN_EN)>;
+};
+
+&risaf1 {
+	memory-region= <&bl31_lowpower>, <&tfm_its>;
+};
+
+&tfm_code {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(1), RIF_CID2_BF, RIF_CID2_BF, RIF_UNUSED, RIF_SEC, RIF_ENC_EN, RIF_BREN_EN)>;
+};
+
+&cm33_cube_fw {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(2), RIF_CID0_BF|RIF_CID1_BF|RIF_CID2_BF, RIF_CID0_BF|RIF_CID1_BF|RIF_CID2_BF, RIF_UNUSED, RIF_NSEC, RIF_ENC_DIS, RIF_BREN_EN)>;
+};
+
+&tfm_data {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(3), RIF_CID2_BF, RIF_CID2_BF, RIF_UNUSED, RIF_SEC, RIF_ENC_EN, RIF_BREN_EN)>;
+};
+
+&cm33_cube_data {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(4), RIF_CID0_BF|RIF_CID1_BF|RIF_CID2_BF, RIF_CID0_BF|RIF_CID1_BF|RIF_CID2_BF, RIF_UNUSED, RIF_NSEC, RIF_ENC_DIS, RIF_BREN_EN)>;
+};
+
+&ipc_shmem {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(5), RIF_CID0_BF|RIF_CID1_BF|RIF_CID2_BF, RIF_CID0_BF|RIF_CID1_BF|RIF_CID2_BF, RIF_UNUSED, RIF_NSEC, RIF_ENC_DIS, RIF_BREN_EN)>;
+};
+
+&spare1 {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(6), RIF_CID0_BF|RIF_CID1_BF|RIF_CID2_BF, RIF_CID0_BF|RIF_CID1_BF|RIF_CID2_BF, RIF_UNUSED, RIF_NSEC, RIF_ENC_DIS, RIF_BREN_EN)>;
+};
+
+&bl31_context {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(7), RIF_CID0_BF|RIF_CID1_BF, RIF_CID0_BF|RIF_CID1_BF, RIF_UNUSED, RIF_SEC, RIF_ENC_EN, RIF_BREN_EN)>;
+};
+
+&op_tee {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(8), RIF_CID0_BF|RIF_CID1_BF, RIF_CID0_BF|RIF_CID1_BF, RIF_UNUSED, RIF_SEC, RIF_ENC_EN, RIF_BREN_EN)>;
+};
+
+&linuxkernel1 {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(9), RIF_CID0_BF|RIF_CID1_BF, RIF_CID0_BF|RIF_CID1_BF, RIF_UNUSED, RIF_NSEC, RIF_ENC_DIS, RIF_BREN_EN)>;
+};
+
+&ltdc_sec_layer {
+	st,protreg = <RISAFPROT(RISAF_REG_ID(13), RIF_CID0_BF|RIF_CID1_BF, RIF_CID0_BF|RIF_CID1_BF, RIF_UNUSED, RIF_NSEC, RIF_ENC_DIS, RIF_BREN_EN)>;
+};
+
+&risaf4 {
+	memory-region= <&tfm_code>, <&cm33_cube_fw>, <&tfm_data>, <&cm33_cube_data>, <&ipc_shmem>, <&spare1>, <&bl31_context>, <&op_tee>, <&linuxkernel1>, <&ltdc_sec_layer>;
+};
+
