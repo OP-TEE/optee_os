@@ -245,6 +245,63 @@
 			interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		risaf1: risaf@420a0000 {
+			compatible = "st,stm32mp25-risaf";
+			reg = <0x420a0000 0x1000>;
+			clocks = <&rcc CK_BUS_BKPSRAM>;
+			st,mem-map = <0x0 0x42000000 0x0 0x2000>;
+			#access-controller-cells = <1>;
+		};
+
+		risaf2: risaf@420b0000 {
+			compatible = "st,stm32mp25-risaf";
+			reg = <0x420b0000 0x1000>;
+			clocks = <&rcc CK_KER_OSPI1>;
+			st,mem-map = <0x0 0x60000000 0x0 0x10000000>;
+			status = "disabled";
+			#access-controller-cells = <1>;
+		};
+
+		risaf4: risaf@420d0000 {
+			compatible = "st,stm32mp21-risaf-enc";
+			reg = <0x420d0000 0x1000>;
+			clocks = <&rcc CK_BUS_RISAF4>;
+			st,mem-map = <0x0 0x80000000 0x1 0x00000000>;
+			#access-controller-cells = <1>;
+		};
+
+		risab1: risab@420f0000 {
+			compatible = "st,stm32mp25-risab";
+			reg = <0x420f0000 0x1000>;
+			clocks = <&rcc CK_ICN_LS_MCU>;
+			st,mem-map = <0xa000000 0x20000>;
+			#access-controller-cells = <1>;
+		};
+
+		risab2: risab@42100000 {
+			compatible = "st,stm32mp25-risab";
+			reg = <0x42100000 0x1000>;
+			clocks = <&rcc CK_ICN_LS_MCU>;
+			st,mem-map = <0xa020000 0x20000>;
+			#access-controller-cells = <1>;
+		};
+
+		risab3: risab@42110000 {
+			compatible = "st,stm32mp25-risab";
+			reg = <0x42110000 0x1000>;
+			clocks = <&rcc CK_ICN_LS_MCU>;
+			st,mem-map = <0x0a060000 0x10000>;
+			#access-controller-cells = <1>;
+		};
+
+		risab5: risab@42130000 {
+			compatible = "st,stm32mp25-risab";
+			reg = <0x42130000 0x1000>;
+			clocks = <&rcc CK_ICN_LS_MCU>;
+			st,mem-map = <0x0a040000 0x20000>;
+			#access-controller-cells = <1>;
+		};
+
 		rcc: clock-controller@44200000 {
 			compatible = "st,stm32mp21-rcc", "syscon";
 			reg = <0x44200000 0x10000>;
