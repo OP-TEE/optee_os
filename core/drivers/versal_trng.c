@@ -606,24 +606,32 @@ static TEE_Result trng_collect_random(struct versal_trng *trng, uint8_t *dst,
 	uint32_t val = 0;
 	bool match = false;
 	uint32_t timeout = TRNG_GENERATE_TIMEOUT;
+	bool do_start = true;
 
 	if (IS_ENABLED(CFG_VERSAL_RNG_V2) && trng->cfg.version == TRNG_V2) {
-		uint32_t singlegen = 0;
+		if (trng->usr_cfg.predict_en ||
+		    !trng->stats.elapsed_seed_life) {
+			uint32_t singlegen = 0;
 
-		if (trng->usr_cfg.predict_en)
-			singlegen = TRNG_CTRL_SINGLEGENMODE_MASK;
+			if (trng->usr_cfg.predict_en)
+				singlegen = TRNG_CTRL_SINGLEGENMODE_MASK;
 
-		trng_clrset32(trng->cfg.addr, TRNG_CTRL,
-			      TRNG_CTRL_PRNGMODE_MASK |
-			      TRNG_CTRL_SINGLEGENMODE_MASK |
-			      TRNG_CTRL_PRNGSTART_MASK,
-			      PRNGMODE_GEN | singlegen);
+			trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+				      TRNG_CTRL_PRNGMODE_MASK |
+				      TRNG_CTRL_SINGLEGENMODE_MASK |
+				      TRNG_CTRL_PRNGSTART_MASK,
+				      PRNGMODE_GEN | singlegen);
+		} else {
+			do_start = false;
+		}
 
 		timeout = TRNG_V2_GENERATE_TIMEOUT;
 	}
 
-	trng_clrset32(trng->cfg.addr, TRNG_CTRL,
-		      TRNG_CTRL_PRNGSTART_MASK, TRNG_CTRL_PRNGSTART_MASK);
+	if (do_start)
+		trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+			      TRNG_CTRL_PRNGSTART_MASK,
+			      TRNG_CTRL_PRNGSTART_MASK);
 
 	/*
 	 * Loop as many times based on len requested. In each burst 128 bits
