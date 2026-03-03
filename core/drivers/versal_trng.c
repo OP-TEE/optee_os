@@ -922,7 +922,7 @@ static TEE_Result trng_generate(struct versal_trng *trng, uint8_t *buf,
 			     PRNGMODE_GEN | TRNG_CTRL_PRNGXS_MASK);
 		break;
 	case TRNG_DRNG:
-		if (trng->stats.elapsed_seed_life > trng->usr_cfg.seed_life) {
+		if (trng->stats.elapsed_seed_life >= trng->usr_cfg.seed_life) {
 			EMSG("Reseeding required");
 			goto error;
 		}
