@@ -19,10 +19,13 @@ struct sp_mem;
  * @ref_count: Count retrieve requests from endpoint
  * @smem: Shared memory reference
  * @link: Link in related list
+ *
+ * With the exception of @ref_count, this struct is not modified while the
+ * struct sp_mem, which it's stored in, remains in the mem_shares list.
  */
 struct sp_mem_receiver {
 	struct ffa_mem_access_perm perm;
-	uint8_t ref_count;
+	uint8_t ref_count; /* Protected by mem_ref_lock */
 	struct sp_mem *smem;
 
 	SLIST_ENTRY(sp_mem_receiver) link;
@@ -55,6 +58,9 @@ SLIST_HEAD(sp_mem_regions_head, sp_mem_map_region);
  * The receivers field is used to store all receiver specific information.
  * The regions field is used to store all data needed for retrieving the
  * shared addresses.
+ *
+ * This struct remains unchanged while it remains reachable through the
+ * mem_shares list.
  */
 struct sp_mem {
 	struct sp_mem_regions_head regions;

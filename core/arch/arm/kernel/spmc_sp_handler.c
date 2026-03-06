@@ -17,6 +17,7 @@
 #include <optee_ffa.h>
 #include <string.h>
 
+/* Protects the ref_count field in struct sp_mem_receiver */
 static unsigned int mem_ref_lock = SPINLOCK_UNLOCK;
 
 int spmc_sp_start_thread(struct thread_smc_1_2_regs *args)

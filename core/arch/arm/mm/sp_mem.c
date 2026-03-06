@@ -299,24 +299,6 @@ void sp_mem_remove(struct sp_mem *smem)
 	if (!smem)
 		return;
 
-	/* Remove all receivers */
-	while (!SLIST_EMPTY(&smem->receivers)) {
-		struct sp_mem_receiver *receiver = NULL;
-
-		receiver = SLIST_FIRST(&smem->receivers);
-		SLIST_REMOVE_HEAD(&smem->receivers, link);
-		free(receiver);
-	}
-	/* Remove all regions */
-	while (!SLIST_EMPTY(&smem->regions)) {
-		struct sp_mem_map_region *region = SLIST_FIRST(&smem->regions);
-
-		mobj_put(region->mobj);
-
-		SLIST_REMOVE_HEAD(&smem->regions, link);
-		free(region);
-	}
-
 	exceptions = cpu_spin_lock_xsave(&sp_mem_lock);
 
 	i = smem->global_handle & ~FFA_MEMORY_HANDLE_SECURE_BIT;
@@ -332,6 +314,23 @@ void sp_mem_remove(struct sp_mem *smem)
 	}
 
 	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
+
+	/* Remove all receivers */
+	while (!SLIST_EMPTY(&smem->receivers)) {
+		struct sp_mem_receiver *receiver = NULL;
+
+		receiver = SLIST_FIRST(&smem->receivers);
+		SLIST_REMOVE_HEAD(&smem->receivers, link);
+		free(receiver);
+	}
+	/* Remove all regions */
+	while (!SLIST_EMPTY(&smem->regions)) {
+		struct sp_mem_map_region *region = SLIST_FIRST(&smem->regions);
+
+		SLIST_REMOVE_HEAD(&smem->regions, link);
+		mobj_put(region->mobj);
+		free(region);
+	}
 
 	free(smem);
 }
