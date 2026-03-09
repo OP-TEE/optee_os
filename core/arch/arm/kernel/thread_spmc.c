@@ -1298,12 +1298,7 @@ static int handle_mem_op_tmem(bool share_mem, paddr_t pbuf, size_t tot_len,
 		goto unlock;
 
 	if (is_sp_op(&mem_trans, buf)) {
-		if (!share_mem) {
-			rc = FFA_DENIED;
-			goto unlock;
-		}
-		rc = spmc_sp_add_share(&mem_trans, buf, tot_len, frag_len,
-				       global_handle, NULL);
+		rc = FFA_INVALID_PARAMETERS;
 		goto unlock;
 	}
 
