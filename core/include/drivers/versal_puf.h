@@ -16,7 +16,6 @@
 #define VERSAL_PUF_REGEN_ON_DEMAND		0x1
 #define VERSAL_PUF_REGEN_ID_ONLY		0x2
 #define VERSAL_PUF_SHUTTER_VALUE		0x81000100
-#define VERSAL_PUF_SYNDROME_MODE_4K		0x0
 #define VERSAL_PUF_GLBL_VAR_FLTR_OPTION		1
 #define VERSAL_PUF_READ_FROM_RAM		0
 #define VERSAL_PUF_READ_FROM_EFUSE_CACHE	1
@@ -37,7 +36,6 @@ struct versal_puf_data {
 };
 
 struct versal_puf_cfg {
-	uint8_t reg_mode;
 	uint8_t puf_operation;
 	uint8_t global_var_filter;
 	uint8_t read_option;
@@ -45,7 +43,6 @@ struct versal_puf_cfg {
 };
 
 struct versal_puf_data_req {
-	uint8_t reg_mode;
 	uint8_t puf_operation;
 	uint8_t global_var_filter;
 	uint8_t read_option;

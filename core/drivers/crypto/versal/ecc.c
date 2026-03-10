@@ -17,8 +17,8 @@
 #include <util.h>
 
 /* AMD/Xilinx Versal's Known Answer Tests */
-#define XSECURE_ECDSA_KAT_NIST_P384	0
-#define XSECURE_ECDSA_KAT_NIST_P521	2
+#define XSECURE_ECC_PRIME	0
+#define XSECURE_ECC_BINARY	1
 
 /* Software based ECDSA operations */
 static const struct crypto_ecc_keypair_ops *pair_ops;
@@ -434,18 +434,20 @@ static TEE_Result ecc_init(void)
 	struct versal_cmd_args arg = { };
 	uint32_t err = 0;
 
-	arg.data[arg.dlen++] = XSECURE_ECDSA_KAT_NIST_P384;
-	if (versal_crypto_request(VERSAL_ELLIPTIC_KAT, &arg, &err)) {
-		EMSG("Versal KAG NIST_P384: %s", versal_ecc_error(err));
+	arg.data[arg.dlen++] = VERSAL_ELLIPTIC_SIGN_GEN_KAT;
+	arg.data[arg.dlen++] = XSECURE_ECC_PRIME;
+	if (versal_crypto_request(VERSAL_KAT, &arg, &err)) {
+		EMSG("Versal KAT ECC SignGen: %s", versal_ecc_error(err));
 		return TEE_ERROR_GENERIC;
 	}
 
 	/* Clean previous request */
 	arg.dlen = 0;
 
-	arg.data[arg.dlen++] = XSECURE_ECDSA_KAT_NIST_P521;
-	if (versal_crypto_request(VERSAL_ELLIPTIC_KAT, &arg, &err)) {
-		EMSG("Versal KAG NIST_P521 %s", versal_ecc_error(err));
+	arg.data[arg.dlen++] = VERSAL_ELLIPTIC_SIGN_VERIFY_KAT;
+	arg.data[arg.dlen++] = XSECURE_ECC_PRIME;
+	if (versal_crypto_request(VERSAL_KAT, &arg, &err)) {
+		EMSG("Versal KAT ECC SignVerify: %s", versal_ecc_error(err));
 		return TEE_ERROR_GENERIC;
 	}
 

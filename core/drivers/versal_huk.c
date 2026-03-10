@@ -56,7 +56,7 @@ enum versal_aes_key_src {
 };
 
 enum versal_crypto_api {
-	VERSAL_AES_INIT = 96U,
+	VERSAL_AES_INIT = 9U,
 	VERSAL_AES_OP_INIT,
 	VERSAL_AES_UPDATE_AAD,
 	VERSAL_AES_ENCRYPT_UPDATE,
@@ -68,8 +68,6 @@ enum versal_crypto_api {
 	VERSAL_AES_LOCK_USER_KEY,
 	VERSAL_AES_KEK_DECRYPT,
 	VERSAL_AES_SET_DPA_CM,
-	VERSAL_AES_DECRYPT_KAT,
-	VERSAL_AES_DECRYPT_CM_KAT,
 };
 
 struct versal_aes_input_param {
@@ -120,7 +118,6 @@ static bool versal_persistent_key(enum versal_aes_key_src src, bool *secure)
 		.read_option = VERSAL_PUF_READ_FROM_EFUSE_CACHE,
 		.puf_operation = VERSAL_PUF_REGEN_ON_DEMAND,
 		.shutter_value = VERSAL_PUF_SHUTTER_VALUE,
-		.reg_mode = VERSAL_PUF_SYNDROME_MODE_4K,
 	};
 
 	switch (src) {

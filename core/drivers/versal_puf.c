@@ -137,7 +137,6 @@ TEE_Result versal_puf_register(struct versal_puf_data *buf,
 	req.shutter_value = cfg->shutter_value;
 	req.puf_operation = cfg->puf_operation;
 	req.read_option = cfg->read_option;
-	req.reg_mode = cfg->reg_mode;
 
 	arg.data[0] = PUF_API_ID(VERSAL_PUF_REGISTER);
 	reg_pair_from_64(virt_to_phys(arg.ibuf[0].mem.buf),
@@ -217,7 +216,6 @@ TEE_Result versal_puf_regenerate(struct versal_puf_data *buf,
 	req.shutter_value = cfg->shutter_value;
 	req.puf_operation = cfg->puf_operation;
 	req.read_option = cfg->read_option;
-	req.reg_mode = cfg->reg_mode;
 
 	arg.data[0] = PUF_API_ID(VERSAL_PUF_REGENERATE);
 	reg_pair_from_64(virt_to_phys(arg.ibuf[0].mem.buf),
