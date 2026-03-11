@@ -66,12 +66,24 @@ AllWinner sun50i A64
 S:	Orphan
 F:	core/arch/arm/plat-sunxi/
 
-AMD Versal Gen 2
+AMD Versal Adaptive SoC
+S:	Orphan
+F:	core/arch/arm/plat-versal/
+
+AMD Versal AI Edge Series Gen 2 and Versal Prime Series Gen 2
 R:	Michal Simek <michal.simek@amd.com> [@michalsimek]
 R:	Akshay Belsare <akshay.belsare@amd.com> [@Akshay-Belsare]
 S:	Maintained
 F:	core/arch/arm/plat-versal2/
 F:	core/drivers/amd/
+
+AMD Zynq 7000 ZC702 Board
+S:	Orphan
+F:	core/arch/arm/plat-zynq7k/
+
+AMD Zynq UltraScale+ MPSOC
+S:	Orphan
+F:	core/arch/arm/plat-zynqmp/
 
 AmLogic AXG (A113D)
 R:	Carlo Caione <ccaione@baylibre.com> [@carlocaione]
@@ -103,9 +115,8 @@ R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
 S:	Maintained
 F:	core/drivers/crypto/se050
 
-Core Drivers Versal ACAP
-R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
-S:	Maintained
+Core Drivers Versal Adaptive SoC
+S:	Orphan
 F:	core/drivers/crypto/versal/authenc.c
 F:	core/drivers/crypto/versal/ecc.c
 F:	core/drivers/crypto/versal/ipi.c
@@ -119,9 +130,8 @@ F:	core/drivers/versal_puf.c
 F:	core/drivers/versal_sha3_384.c
 F:	core/drivers/versal_trng.c
 
-Core Drivers ZYNQMP
-R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
-S:	Maintained
+Core Drivers Zynq UltraScale+ MPSOC
+S:	Orphan
 F:	core/drivers/zynqmp_csu_aes.c
 F:	core/drivers/zynqmp_csu_puf.c
 F:	core/drivers/zynqmp_csudma.c
@@ -317,22 +327,6 @@ R:	Andrew Davis <afd@ti.com> [@glneo]
 S:	Maintained
 F:	core/arch/arm/plat-ti/
 F:	core/arch/arm/plat-k3/
-
-Xilinx Zynq 7000 ZC702 Board
-R:	Yan Yan <yan.yan@windriver.com>
-R:	Feng Yu <Yu.Feng@windriver.com>
-S:	Maintained
-F:	core/arch/arm/plat-zynq7k/
-
-Xilinx Zynq UltraScale+ MPSOC
-R:	Ricardo Salveti <ricardo@foundries.io> [@ricardosalveti]
-S:	Maintained
-F:	core/arch/arm/plat-zynqmp/
-
-Xilinx Versal ACAP
-R:	Jorge Ramirez-Ortiz <jorge@foundries.io> [@ldts]
-S:	Maintained
-F:	core/arch/arm/plat-versal/
 
 Virtualization support
 R:	Volodymyr Babchuk <vlad.babchuk@gmail.com> [@lorc]
