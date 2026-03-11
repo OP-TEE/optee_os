@@ -542,7 +542,8 @@ enum pkcs11_rc entry_find_objects_init(struct pkcs11_client *client,
 
 	rc = sanitize_client_object(&req_attrs, template,
 				    sizeof(*template) + template->attrs_size,
-				    PKCS11_UNDEFINED_ID, PKCS11_UNDEFINED_ID);
+				    PKCS11_UNDEFINED_ID, PKCS11_UNDEFINED_ID,
+				    0);
 	if (rc)
 		goto out;
 

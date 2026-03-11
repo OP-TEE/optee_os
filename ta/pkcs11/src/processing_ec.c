@@ -606,8 +606,8 @@ enum pkcs11_rc generate_ec_keys(struct pkcs11_attribute_head *proc_params,
 	    remove_empty_attribute(priv_head, PKCS11_CKA_VALUE) ||
 	    remove_empty_attribute(priv_head, PKCS11_CKA_EC_PARAMS)) {
 		EMSG("Unexpected attribute(s) found");
-		trace_attributes("public-key", *pub_head);
-		trace_attributes("private-key", *priv_head);
+		trace_attributes("public-key", *pub_head, 0);
+		trace_attributes("private-key", *priv_head, 0);
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 	}
 
@@ -741,8 +741,8 @@ enum pkcs11_rc generate_eddsa_keys(struct pkcs11_attribute_head *proc_params,
 	    remove_empty_attribute(priv_head, PKCS11_CKA_EC_POINT) ||
 	    remove_empty_attribute(priv_head, PKCS11_CKA_EC_PARAMS)) {
 		EMSG("Unexpected attribute(s) found");
-		trace_attributes("public-key", *pub_head);
-		trace_attributes("private-key", *priv_head);
+		trace_attributes("public-key", *pub_head, 0);
+		trace_attributes("private-key", *priv_head, 0);
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 	}
 

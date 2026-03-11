@@ -26,6 +26,7 @@ bool sanitize_consistent_class_and_type(struct obj_attrs *attrs);
  *               in serialized object.
  * @type_hint - Hint for type to be added to template if not presnet
  *               in serialized object.
+ * @depth - recursion depth.
  *
  * This function copies an attribute list from a client API attribute head
  * into a PKCS11 TA internal attribute structure. It generates a serialized
@@ -38,9 +39,10 @@ bool sanitize_consistent_class_and_type(struct obj_attrs *attrs);
  */
 enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *head,
 				      size_t size, uint32_t class_hint,
-				      uint32_t type_hint);
+				      uint32_t type_hint, unsigned int depth);
 
 /* Debug: dump attribute content as debug traces */
-void trace_attributes_from_api_head(const char *prefix, void *ref, size_t size);
+void trace_attributes_from_api_head(const char *prefix, void *ref, size_t size,
+				    unsigned int depth);
 
 #endif /*PKCS11_TA_SANITIZE_OBJECT_H*/

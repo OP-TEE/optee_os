@@ -1263,7 +1263,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	 * template
 	 */
 	rc = sanitize_client_object(&temp, template, template_size, class,
-				    type);
+				    type, 0);
 	if (rc)
 		goto out;
 
