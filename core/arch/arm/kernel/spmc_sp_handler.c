@@ -309,7 +309,7 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 		return FFA_NOT_SUPPORTED;
 	}
 
-	smem = sp_mem_new();
+	smem = sp_mem_new_write_locked();
 	if (!smem)
 		return FFA_NO_MEMORY;
 
@@ -421,12 +421,12 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 			goto cleanup;
 	}
 	*global_handle = smem->global_handle;
-	sp_mem_add(smem);
+	sp_mem_add_and_write_unlock(smem);
 
 	return FFA_OK;
 
 cleanup:
-	sp_mem_remove(smem);
+	sp_mem_remove_and_write_unlock(smem);
 	return res;
 }
 
@@ -636,16 +636,16 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 
 	if (!check_rxtx(rxtx) || !rxtx->tx_is_mine) {
 		ret = FFA_DENIED;
-		goto err;
+		goto err_set;
 	}
 	/* Descriptor fragments aren't supported yet. */
 	if (frag_len != tot_len) {
 		ret = FFA_NOT_SUPPORTED;
-		goto err;
+		goto err_set;
 	}
 	if (frag_len > rxtx->size) {
 		ret = FFA_INVALID_PARAMETERS;
-		goto err;
+		goto err_set;
 	}
 
 	tx_len = rxtx->size;
@@ -653,13 +653,13 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 	ret = spmc_read_mem_transaction(rxtx->ffa_vers, rxtx->rx, rxtx->size,
 					tot_len, frag_len, &mem_trans);
 	if (ret)
-		goto err;
+		goto err_set;
 
-	smem = sp_mem_get(mem_trans.global_handle);
+	smem = sp_mem_lookup_and_read_lock(mem_trans.global_handle);
 	if (!smem) {
 		DMSG("Incorrect handle");
 		ret = FFA_DENIED;
-		goto err;
+		goto err_set;
 	}
 
 	receiver = sp_mem_get_receiver(caller_sp->endpoint_id, smem);
@@ -670,13 +670,13 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 	if (ADD_OVERFLOW(address_offset, sizeof(struct ffa_mem_region),
 			 &needed_size) || needed_size > tx_len) {
 		ret = FFA_INVALID_PARAMETERS;
-		goto err;
+		goto err_unlock;
 	}
 
 	if (check_retrieve_request(receiver, rxtx->ffa_vers, &mem_trans,
 				   rxtx->rx, smem, tx_len) != TEE_SUCCESS) {
 		ret = FFA_INVALID_PARAMETERS;
-		goto err;
+		goto err_unlock;
 	}
 
 	exceptions = cpu_spin_lock_xsave(&mem_ref_lock);
@@ -684,7 +684,7 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 	if (receiver->ref_count == UINT8_MAX) {
 		ret = FFA_DENIED;
 		cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
-		goto err;
+		goto err_unlock;
 	}
 
 	receiver->ref_count++;
@@ -711,7 +711,7 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 			receiver->ref_count--;
 			cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
 			ret = FFA_DENIED;
-			goto err;
+			goto err_unlock;
 		}
 	} else {
 		cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
@@ -719,6 +719,7 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 
 	create_retrieve_response(rxtx->ffa_vers, rxtx->tx, receiver, smem,
 				 caller_sp);
+	sp_mem_read_unlock(smem);
 
 	args->a0 = FFA_MEM_RETRIEVE_RESP;
 	args->a1 = tx_len;
@@ -727,7 +728,9 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 	rxtx->tx_is_mine = false;
 
 	return;
-err:
+err_unlock:
+	sp_mem_read_unlock(smem);
+err_set:
 	ffa_set_error(args, ret);
 }
 
@@ -747,7 +750,7 @@ static void ffa_mem_relinquish(struct thread_smc_1_2_regs *args,
 	}
 
 	exceptions = cpu_spin_lock_xsave(&rxtx->spinlock);
-	smem = sp_mem_get(READ_ONCE(mem->handle));
+	smem = sp_mem_lookup_and_read_lock(READ_ONCE(mem->handle));
 
 	if (!smem) {
 		DMSG("Incorrect handle");
@@ -758,13 +761,13 @@ static void ffa_mem_relinquish(struct thread_smc_1_2_regs *args,
 	if (READ_ONCE(mem->endpoint_count) != 1) {
 		DMSG("Incorrect endpoint count");
 		err = FFA_INVALID_PARAMETERS;
-		goto err_unlock_rxtwx;
+		goto err_unlock_smem;
 	}
 
 	if (READ_ONCE(mem->endpoint_id_array[0]) != caller_sp->endpoint_id) {
 		DMSG("Incorrect endpoint id");
 		err = FFA_DENIED;
-		goto err_unlock_rxtwx;
+		goto err_unlock_smem;
 	}
 
 	cpu_spin_unlock_xrestore(&rxtx->spinlock, exceptions);
@@ -783,6 +786,7 @@ static void ffa_mem_relinquish(struct thread_smc_1_2_regs *args,
 		cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
 		if (sp_unmap_ffa_regions(caller_sp, smem) != TEE_SUCCESS) {
 			DMSG("Failed to unmap region");
+			sp_mem_read_unlock(smem);
 			ffa_set_error(args, FFA_DENIED);
 			return;
 		}
@@ -790,14 +794,18 @@ static void ffa_mem_relinquish(struct thread_smc_1_2_regs *args,
 		cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
 	}
 
+	sp_mem_read_unlock(smem);
 	ffa_success(args);
 	return;
 
+err_unlock_smem:
+	sp_mem_read_unlock(smem);
 err_unlock_rxtwx:
 	cpu_spin_unlock_xrestore(&rxtx->spinlock, exceptions);
 	ffa_set_error(args, err);
 	return;
 err_unlock_memref:
+	sp_mem_read_unlock(smem);
 	cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
 	ffa_set_error(args, err);
 }
@@ -835,7 +843,7 @@ bool ffa_mem_reclaim(struct thread_smc_1_2_regs *args,
 	struct sp_mem_receiver *receiver  = NULL;
 	uint32_t exceptions = 0;
 
-	smem = sp_mem_get(handle);
+	smem = sp_mem_lookup_and_write_lock(handle);
 	if (!smem)
 		return false;
 
@@ -844,6 +852,7 @@ bool ffa_mem_reclaim(struct thread_smc_1_2_regs *args,
 	 * If the call comes from NWd this is ensured by the hypervisor.
 	 */
 	if (caller_sp && caller_sp->endpoint_id != smem->sender_id) {
+		sp_mem_write_unlock(smem);
 		ffa_set_error(args, FFA_INVALID_PARAMETERS);
 		return true;
 	}
@@ -853,6 +862,7 @@ bool ffa_mem_reclaim(struct thread_smc_1_2_regs *args,
 	/* Make sure that all shares where relinquished */
 	SLIST_FOREACH(receiver, &smem->receivers, link) {
 		if (receiver->ref_count != 0) {
+			sp_mem_write_unlock(smem);
 			ffa_set_error(args, FFA_DENIED);
 			cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
 			return true;
@@ -868,13 +878,14 @@ bool ffa_mem_reclaim(struct thread_smc_1_2_regs *args,
 			 * memory. To do this we would have to map the memory
 			 * again, zero it and unmap it.
 			 */
+			sp_mem_write_unlock(smem);
 			ffa_set_error(args, FFA_DENIED);
 			cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
 			return true;
 		}
 	}
 
-	sp_mem_remove(smem);
+	sp_mem_remove_and_write_unlock(smem);
 	cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
 
 	ffa_success(args);

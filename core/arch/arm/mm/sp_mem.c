@@ -192,18 +192,90 @@ struct sp_mem_receiver *sp_mem_get_receiver(uint32_t s_id, struct sp_mem *smem)
 	return NULL;
 }
 
-struct sp_mem *sp_mem_get(uint64_t handle)
+static struct sp_mem *sp_mem_lookup(uint64_t handle)
 {
 	struct sp_mem *smem = NULL;
-	uint32_t exceptions = cpu_spin_lock_xsave(&sp_mem_lock);
 
-	SLIST_FOREACH(smem, &mem_shares, link) {
+	SLIST_FOREACH(smem, &mem_shares, link)
 		if (smem->global_handle == handle)
+			return smem;
+
+	return NULL;
+}
+
+struct sp_mem *sp_mem_lookup_and_read_lock(uint64_t handle)
+{
+	struct sp_mem *smem = NULL;
+	uint32_t exceptions = 0;
+
+	while (true) {
+		exceptions = cpu_spin_lock_xsave(&sp_mem_lock);
+
+		smem = sp_mem_lookup(handle);
+		if (!smem)
 			break;
+
+		if (!smem->write_locked) {
+			assert(smem->read_lock_count < SIZE_MAX);
+			smem->read_lock_count++;
+			break;
+		}
+
+		cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
 	}
 
 	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
+
 	return smem;
+}
+
+struct sp_mem *sp_mem_lookup_and_write_lock(uint64_t handle)
+{
+	struct sp_mem *smem = NULL;
+	uint32_t exceptions = 0;
+
+	while (true) {
+		exceptions = cpu_spin_lock_xsave(&sp_mem_lock);
+
+		smem = sp_mem_lookup(handle);
+		if (!smem)
+			break;
+
+		if (!smem->write_locked && !smem->read_lock_count) {
+			smem->write_locked = true;
+			break;
+		}
+
+		cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
+	}
+
+	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
+
+	return smem;
+}
+
+void sp_mem_read_unlock(struct sp_mem *smem)
+{
+	uint32_t exceptions = 0;
+
+	exceptions = cpu_spin_lock_xsave(&sp_mem_lock);
+
+	assert(!smem->write_locked && smem->read_lock_count);
+	smem->read_lock_count--;
+
+	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
+}
+
+void sp_mem_write_unlock(struct sp_mem *smem)
+{
+	uint32_t exceptions = 0;
+
+	exceptions = cpu_spin_lock_xsave(&sp_mem_lock);
+
+	assert(smem->write_locked && !smem->read_lock_count);
+	smem->write_locked = false;
+
+	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
 }
 
 void *sp_mem_get_va(const struct user_mode_ctx *uctx, size_t offset,
@@ -218,7 +290,7 @@ void *sp_mem_get_va(const struct user_mode_ctx *uctx, size_t offset,
 	return NULL;
 }
 
-struct sp_mem *sp_mem_new(void)
+struct sp_mem *sp_mem_new_write_locked(void)
 {
 	struct sp_mem *smem = NULL;
 	uint32_t exceptions = 0;
@@ -244,17 +316,20 @@ struct sp_mem *sp_mem_new(void)
 	smem->global_handle = i | FFA_MEMORY_HANDLE_SECURE_BIT;
 	SLIST_INIT(&smem->regions);
 	SLIST_INIT(&smem->receivers);
+	smem->write_locked = true;
 
 	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
 
 	return smem;
 }
 
-void sp_mem_add(struct sp_mem *smem)
+void sp_mem_add_and_write_unlock(struct sp_mem *smem)
 {
 	uint32_t exceptions = cpu_spin_lock_xsave(&sp_mem_lock);
 
+	assert(smem->write_locked && !smem->read_lock_count);
 	SLIST_INSERT_HEAD(&mem_shares, smem, link);
+	smem->write_locked = false;
 
 	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
 }
@@ -290,7 +365,7 @@ bool sp_mem_is_shared(struct sp_mem_map_region *new_reg)
 	return false;
 }
 
-void sp_mem_remove(struct sp_mem *smem)
+void sp_mem_remove_and_write_unlock(struct sp_mem *smem)
 {
 	uint32_t exceptions = 0;
 	int i = 0;
@@ -300,6 +375,8 @@ void sp_mem_remove(struct sp_mem *smem)
 		return;
 
 	exceptions = cpu_spin_lock_xsave(&sp_mem_lock);
+
+	assert(smem->write_locked && !smem->read_lock_count);
 
 	i = smem->global_handle & ~FFA_MEMORY_HANDLE_SECURE_BIT;
 	assert(i < NUM_SHARES);
