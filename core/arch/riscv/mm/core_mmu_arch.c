@@ -308,6 +308,9 @@ static struct mmu_pgt *core_mmu_pgt_alloc(struct mmu_partition *prtn)
 				prtn->pool_pgts = pgt;
 			}
 		}
+
+		memset(pgt, 0, RISCV_MMU_PGT_SIZE);
+
 		prtn->pgts_used++;
 		DMSG("pgts used %u", prtn->pgts_used);
 	} else {
