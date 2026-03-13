@@ -487,12 +487,14 @@ update_payload(struct drvcrypt_authenc_update_payload *dupdate, bool is_last)
 		EMSG("Versal AES payload length must be non-zero");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
+#if !defined(PLATFORM_FLAVOR_net)
 	if ((!is_last && dupdate->src.length % 4) ||
 	    (is_last && dupdate->src.length % 16)) {
 		EMSG("Versal AES payload length not properly aligned (len = %zu)",
 		     dupdate->src.length);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
+#endif
 
 	ret = versal_mbox_alloc(dupdate->src.length, dupdate->src.data, &p);
 	if (ret)
