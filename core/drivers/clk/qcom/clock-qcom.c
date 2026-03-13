@@ -10,20 +10,17 @@
 #include <stdint.h>
 #include <io.h>
 #include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <trace.h>
 #include <platform_config.h>
+
+#include "clock_group_qcom.h"
 
 /* CBCR register fields */
 #define CBCR_BRANCH_ENABLE_BIT  BIT(0)
 #define CBCR_BRANCH_OFF_BIT     BIT(31)
 
-#if defined(PLATFORM_FLAVOR_kodiak)
-#define GCC_WPSS_AHB_CLK		0x9d154
-#define GCC_WPSS_AHB_BDG_MST_CLK	0x9d158
-#define GCC_WPSS_RSCP_CLK		0x9d16c
-#else
-#error "Platform specific clock offsets not defined..."
-#endif
+register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
 
 /* Enable clock controlled by CBC soft macro */
 static int clk_enable_cbc(paddr_t cbcr)
