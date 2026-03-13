@@ -289,6 +289,8 @@ extern unsigned long default_nsec_shm_paddr;
 extern unsigned long default_nsec_shm_size;
 #endif
 
+extern vaddr_t core_mmu_linear_map_end;
+
 /*
  * Physical load address of OP-TEE updated during boot if needed to reflect
  * the value used.
