@@ -143,10 +143,12 @@ static TEE_Result tee_fs_init_key_manager(void)
 
 	res = huk_subkey_derive(HUK_SUBKEY_SSK, NULL, 0,
 				tee_fs_ssk.key, sizeof(tee_fs_ssk.key));
-	if (res == TEE_SUCCESS)
+	if (res == TEE_SUCCESS) {
 		tee_fs_ssk.is_init = 1;
-	else
+	} else {
 		memzero_explicit(&tee_fs_ssk, sizeof(tee_fs_ssk));
+		EMSG("Secure storage will not be available");
+	}
 
 	return res;
 }
