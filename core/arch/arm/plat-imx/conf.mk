@@ -448,6 +448,7 @@ CFG_DDR_SIZE ?= UL(0x180000000)
 CFG_UART_BASE ?= UART2_BASE
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
+$(call force,CFG_LPAE_ADDR_SPACE_BITS,36)
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mp_libra_fpsc))
