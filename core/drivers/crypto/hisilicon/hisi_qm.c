@@ -745,9 +745,9 @@ struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, uint8_t sq_type)
 
 err_qp_release:
 	qp->used = false;
-err_proc:
 	qp->sq_type = 0;
 	qp->cqc_phase = false;
+err_proc:
 	mutex_unlock(&qm->qp_lock);
 	return NULL;
 }
