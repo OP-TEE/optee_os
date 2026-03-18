@@ -318,9 +318,12 @@ static struct mobj_reg_shm *to_mobj_reg_shm(struct mobj *mobj)
 static TEE_Result check_reg_shm_conflict(struct mobj_reg_shm *r, paddr_t pa,
 					 paddr_size_t size)
 {
+	size_t page_count = 0;
 	size_t n = 0;
 
-	for (n = 0; n < r->mobj.size / SMALL_PAGE_SIZE; n++)
+	page_count = ROUNDUP2_DIV(r->mobj.size + r->page_offset,
+				  SMALL_PAGE_SIZE);
+	for (n = 0; n < page_count; n++)
 		if (core_is_buffer_intersect(pa, size, r->pages[n],
 					     SMALL_PAGE_SIZE))
 			return TEE_ERROR_BAD_PARAMETERS;
