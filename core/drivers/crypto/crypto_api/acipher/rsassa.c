@@ -15,6 +15,7 @@
 #include <drvcrypt_math.h>
 #include <malloc.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee_api_defines_extensions.h>
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
@@ -300,10 +301,9 @@ static TEE_Result rsassa_pkcs1_v1_5_verify(struct drvcrypt_rsa_ssa *ssa_data)
 
 	/* Check if EM decrypted and EM re-generated are identical */
 	ret = TEE_ERROR_SIGNATURE_INVALID;
-	if (EM.length == EM_gen.length) {
-		if (!memcmp(EM.data, EM_gen.data, EM.length))
-			ret = TEE_SUCCESS;
-	}
+	if (EM.length == EM_gen.length &&
+	    !consttime_memcmp(EM.data, EM_gen.data, EM.length))
+		ret = TEE_SUCCESS;
 
 end_verify:
 	free(EM.data);
@@ -526,6 +526,8 @@ static TEE_Result emsa_pss_verify(struct drvcrypt_rsa_ssa *ssa_data,
 	uint8_t *salt = NULL;
 	uint8_t *buf = NULL;
 	struct drvcrypt_mod_op mod_op = { };
+	bool bad = false;
+	size_t ps_i = 0;
 
 	/*
 	 * EM = maskedDB || H || 0xbc
@@ -641,16 +643,20 @@ static TEE_Result emsa_pss_verify(struct drvcrypt_rsa_ssa *ssa_data,
 	 *
 	 * PS must be 0
 	 * PS size = emLen - sLen - hLen - 2 (may be = 0)
+	 *
+	 * Validate the PSS zero-padding string and 0x01 separator in
+	 * constant time.  The original early-exit loop leaks timing
+	 * information about which byte of PS is first non-zero, enabling a
+	 * side-channel attack. Accumulate errors into 'bad' and always
+	 * process all ps_size bytes.
 	 */
 	buf = msg_db;
-	while (buf < msg_db + ps_size) {
-		if (*buf++ != 0) {
-			ret = TEE_ERROR_SIGNATURE_INVALID;
-			goto end_pss_verify;
-		}
-	}
-
-	if (*buf++ != 0x01) {
+	for (ps_i = 0; ps_i < ps_size; ps_i++)
+		bad |= (buf[ps_i] != 0);
+	buf += ps_size;
+	bad |= (*buf != 0x01);
+	buf++;
+	if (bad) {
 		ret = TEE_ERROR_SIGNATURE_INVALID;
 		goto end_pss_verify;
 	}
@@ -712,7 +718,7 @@ static TEE_Result emsa_pss_verify(struct drvcrypt_rsa_ssa *ssa_data,
 	 * Compare H and H'
 	 */
 	ret = TEE_ERROR_SIGNATURE_INVALID;
-	if (!memcmp(hash_gen.data, hash.data, hash_gen.length))
+	if (!consttime_memcmp(hash_gen.data, hash.data, hash_gen.length))
 		ret = TEE_SUCCESS;
 
 end_pss_verify:
