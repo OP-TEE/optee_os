@@ -160,6 +160,9 @@ static TEE_Result system_map_zi(struct user_mode_ctx *uctx,
 		vm_flags |= VM_FLAG_SHAREABLE;
 
 	num_bytes = params[0].value.a;
+	if (!num_bytes)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	va = reg_pair_to_64(params[1].value.a, params[1].value.b);
 	pad_begin = params[2].value.a;
 	pad_end = params[2].value.b;
