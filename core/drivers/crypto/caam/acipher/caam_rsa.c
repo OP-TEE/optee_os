@@ -21,6 +21,7 @@
 #include <mm/core_memprot.h>
 #include <stdint.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee/cache.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee_api_defines.h>
@@ -783,6 +784,8 @@ static TEE_Result do_oaep_decoding(struct drvcrypt_rsa_ed *rsa_data)
 	struct drvcrypt_rsa_mgf mgf_data = { };
 	struct drvcrypt_rsa_ed dec_data = { };
 	struct drvcrypt_mod_op mod_op = { };
+	bool bad = false;
+	size_t i = 0;
 
 	RSA_TRACE("RSA OAEP Decoding");
 
@@ -965,21 +968,26 @@ static TEE_Result do_oaep_decoding(struct drvcrypt_rsa_ed *rsa_data)
 	 * Error if:
 	 *   - lHash' != lHash (First step - Hash the Label)
 	 *   - byte 0x01 between PS and M is not present
+	 *
+	 * Validate DB in constant time to prevent a Manger-style padding
+	 * oracle (CRYPTO 2001).  Use consttime_memcmp() for the label hash
+	 * and scan the full DB buffer unconditionally for the 0x01
+	 * separator so that execution time does not distinguish a hash
+	 * mismatch from a missing separator.
 	 */
-	/* Check Hash values */
-	if (memcmp(DB.data, lHash.data, lHash.length)) {
-		RSA_TRACE("Hash error");
-		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto exit_oaep_decrypt;
+	bad = consttime_memcmp(DB.data, lHash.data, lHash.length) != 0;
+
+	/* Find the byte 0x01 separating PS and M without early exit */
+	b01_idx = rsa_data->digest_size;
+	for (i = rsa_data->digest_size; i < db_size; i++) {
+		if (DB.data[i] != 0 && b01_idx == rsa_data->digest_size)
+			b01_idx = i;
 	}
 
-	/* Find the byte 0x01 separating PS and M */
-	for (b01_idx = rsa_data->digest_size;
-	     b01_idx < db_size && !DB.data[b01_idx]; b01_idx++)
-		;
+	if (b01_idx >= db_size || DB.data[b01_idx] != 0x01)
+		bad = true;
 
-	if (b01_idx == db_size) {
-		RSA_TRACE("byte 0x01 not present");
+	if (bad) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
 		goto exit_oaep_decrypt;
 	}
