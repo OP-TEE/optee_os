@@ -10,6 +10,7 @@
 #include <signed_hdr.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 #include <ta_pub_key.h>
 #include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
@@ -295,7 +296,7 @@ TEE_Result shdr_load_pub_key(const struct shdr *shdr, size_t offs,
 	    crypto_hash_update(ctx, (const void *)shdr, sizeof(*shdr)) ||
 	    crypto_hash_update(ctx, (const void *)subkey, shdr->img_size) ||
 	    crypto_hash_final(ctx, digest, shdr->hash_size) ||
-	    memcmp(digest, SHDR_GET_HASH(shdr), shdr->hash_size)) {
+	    consttime_memcmp(digest, SHDR_GET_HASH(shdr), shdr->hash_size)) {
 		res = TEE_ERROR_SECURITY;
 		goto out_ctx;
 	}
@@ -308,7 +309,8 @@ TEE_Result shdr_load_pub_key(const struct shdr *shdr, size_t offs,
 		res = TEE_ERROR_SECURITY;
 		goto out_ctx;
 	}
-	if (next_uuid && memcmp(next_uuid, subkey->uuid, sizeof(TEE_UUID))) {
+	if (next_uuid &&
+	    consttime_memcmp(next_uuid, subkey->uuid, sizeof(TEE_UUID))) {
 		res = TEE_ERROR_SECURITY;
 		goto out_ctx;
 	}
