@@ -880,9 +880,11 @@ static TEE_Result rsa_oaep_get_msg(struct drvcrypt_rsa_ed *rsa_data,
 	size_t db_len = rsa_data->key.n_size - rsa_data->digest_size - 1;
 	size_t lhash_len = rsa_data->digest_size;
 	uint8_t hash[OAEP_MAX_HASH_LEN] = { };
+	size_t lp_len = lhash_len;
 	size_t msg_len = 0;
-	size_t lp_len = 0;
+	bool bad = false;
 	TEE_Result ret = TEE_SUCCESS;
+	size_t i = 0;
 
 	/* oaep db format lhash || ps zero || 01 || M */
 	ret = tee_hash_createdigest(rsa_data->hash_algo, rsa_data->label.data,
@@ -892,20 +894,27 @@ static TEE_Result rsa_oaep_get_msg(struct drvcrypt_rsa_ed *rsa_data,
 		return ret;
 	}
 
-	if (memcmp(hash, db, lhash_len)) {
-		EMSG("Hash is not equal");
-		return TEE_ERROR_BAD_PARAMETERS;
+	/*
+	 * Use constant-time comparison to prevent timing oracles on the label
+	 * hash (Manger attack, CRYPTO 2001).
+	 */
+	bad = consttime_memcmp(hash, db, lhash_len) != 0;
+
+	/*
+	 * Locate the 0x01 separator by scanning the entire db buffer
+	 * unconditionally so that execution time does not reveal the separator
+	 * position or whether one exists at all.
+	 */
+	for (i = lhash_len; i < db_len; i++) {
+		if (db[i] != 0 && lp_len == lhash_len)
+			lp_len = i;
 	}
 
-	for (lp_len = lhash_len; lp_len < db_len; lp_len++) {
-		if (db[lp_len] != 0)
-			break;
-	}
+	if (lp_len >= db_len || db[lp_len] != 0x01)
+		bad = true;
 
-	if (lp_len == db_len) {
-		EMSG("Fail to find fixed 01 in db");
+	if (bad)
 		return TEE_ERROR_BAD_PARAMETERS;
-	}
 
 	msg_len = db_len - lp_len - 1;
 	if (msg_len > rsa_data->message.length) {
