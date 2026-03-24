@@ -41,5 +41,6 @@ ifeq ($(CFG_QCOM_PAS_PTA),y)
 # Increase late mappings to cover all PAS resources
 CFG_RESERVED_VASPACE_SIZE ?= (60 * 1024 * 1024)
 $(call force,CFG_DRIVERS_QCOM_CLK,y,Mandated by CFG_QCOM_PAS_PTA)
+CFG_IN_TREE_EARLY_TAS += qcom_pas/cff7d191-7ca0-4784-af13-48223b9a4fbe
 endif
 
