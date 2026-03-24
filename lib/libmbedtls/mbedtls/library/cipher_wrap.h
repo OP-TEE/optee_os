@@ -135,7 +135,7 @@ struct mbedtls_cipher_base_t {
     void * (*ctx_alloc_func)(void);
 
     /** Clone context **/
-    void (*ctx_clone_func)( void *dst, const void *src );
+    void (*ctx_clone_func)(void *dst, const void *src);
 
     /** Free the given context */
     void (*ctx_free_func)(void *ctx);

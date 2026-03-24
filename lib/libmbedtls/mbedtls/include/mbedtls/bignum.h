@@ -980,6 +980,7 @@ int mbedtls_mpi_random(mbedtls_mpi *X,
  * \brief          Compute the greatest common divisor: G = gcd(A, B)
  *
  * \param G        The destination MPI. This must point to an initialized MPI.
+ *                 This will always be positive or 0.
  * \param A        The first operand. This must point to an initialized MPI.
  * \param B        The second operand. This must point to an initialized MPI.
  *
@@ -994,10 +995,12 @@ int mbedtls_mpi_gcd(mbedtls_mpi *G, const mbedtls_mpi *A,
  * \brief          Compute the modular inverse: X = A^-1 mod N
  *
  * \param X        The destination MPI. This must point to an initialized MPI.
+ *                 The value returned on success will be between [1, N-1].
  * \param A        The MPI to calculate the modular inverse of. This must point
- *                 to an initialized MPI.
+ *                 to an initialized MPI. This value can be negative, in which
+ *                 case a positive answer will still be returned in \p X.
  * \param N        The base of the modular inversion. This must point to an
- *                 initialized MPI.
+ *                 initialized MPI and be greater than one.
  *
  * \return         \c 0 if successful.
  * \return         #MBEDTLS_ERR_MPI_ALLOC_FAILED if a memory allocation failed.
@@ -1079,7 +1082,7 @@ int mbedtls_mpi_gen_prime(mbedtls_mpi *X, size_t nbits, int flags,
  * \param mm       The -1/m mod N result
  * \param N        The modulus
  */
-void mbedtls_mpi_montg_init( mbedtls_mpi_uint *mm, const mbedtls_mpi *N );
+void mbedtls_mpi_montg_init(mbedtls_mpi_uint *mm, const mbedtls_mpi *N);
 
 /**
  * \brief          Montgomery multiplication: A = A * B * R^-1 mod N
@@ -1091,7 +1094,7 @@ void mbedtls_mpi_montg_init( mbedtls_mpi_uint *mm, const mbedtls_mpi *N );
  */
 void mbedtls_mpi_montmul(mbedtls_mpi *A, const mbedtls_mpi *B,
                          const mbedtls_mpi *N, mbedtls_mpi_uint mm,
-                         mbedtls_mpi *T );
+                         mbedtls_mpi *T);
 
 /**
  * \brief          Montgomery reduction: A = A * R^-1 mod N

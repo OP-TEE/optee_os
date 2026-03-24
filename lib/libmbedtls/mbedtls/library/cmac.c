@@ -157,8 +157,10 @@ int mbedtls_cipher_cmac_setup(mbedtls_cipher_context_t *ctx)
 {
     mbedtls_cmac_context_t *cmac_ctx;
 
-    /* Allocated and initialise in the cipher context memory for the CMAC
-     * context */
+    /*
+     * Allocate and initialise in the cipher context memory for the CMAC
+     * context
+     */
     cmac_ctx = mbedtls_calloc(1, sizeof(mbedtls_cmac_context_t));
     if (cmac_ctx == NULL)
         return MBEDTLS_ERR_CIPHER_ALLOC_FAILED;

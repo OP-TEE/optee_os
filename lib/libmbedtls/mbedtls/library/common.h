@@ -215,7 +215,8 @@ static inline void mbedtls_xor(unsigned char *r,
      * For other compilers (e.g. recent gcc and clang) it makes no difference if n is a compile-time
      * constant, and is a very small perf regression if n is not a compile-time constant.
      * GCC 14.2 outputs a warning "array subscript 48 is outside array bounds" if we don't return
-     * early. */
+     * early.
+     */
     if (n % 16 == 0) {
         return;
     }
