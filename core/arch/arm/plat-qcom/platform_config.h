@@ -12,6 +12,9 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT			64
 
+#define MAX_XLAT_TABLES		(40 + (CFG_RESERVED_VASPACE_SIZE) / \
+				 (CORE_MMU_PGDIR_SIZE) + 5)
+
 #if defined(PLATFORM_FLAVOR_kodiak) || defined(PLATFORM_FLAVOR_lemans)
 /* GIC related constants */
 #define GICD_BASE			UL(0x17a00000)
@@ -42,6 +45,30 @@
 #define LPASS_SIZE			ULL(0x01080000)
 #define IRIS_BASE			UL(0x0aa00000)
 #define IRIS_SIZE			ULL(0x00200000)
+
+/* AOP MSG RAM */
+#define AOP_MSG_RAM_BASE		UL(0x0C300000)
+#define AOP_MSG_RAM_SIZE		UL(0x00100000)
+
+/* RPMH RSC */
+#define RPMH_BASE_ADDR			UL(0x18200000)
+#define RPMH_RSC_SIZE			UL(0x40000)
+
+/* QFPROM and Security Control */
+#define SECURITY_CONTROL_BASE		UL(0x00780000)
+#define SECURITY_CONTROL_SIZE		UL(0x10000)
+
+/* TCSR Hardware Mutex */
+#define TCSR_MUTEX_BASE			UL(0x01F40000)
+#define TCSR_MUTEX_SIZE			UL(0x40000)
+
+/* AOP CMD_DB */
+#define AOP_CMD_DB_BASE			UL(0x80860000)
+#define AOP_CMD_DB_SIZE			UL(0x00020000)
+
+/* QFPROM Fuse Provisioning */
+#define CFG_SEC_ELF_DDR_ADDR		UL(0x808FF000)
+#define CFG_SEC_ELF_DDR_SIZE		UL(0x1000)
 #endif
 
 #if defined(PLATFORM_FLAVOR_lemans)
