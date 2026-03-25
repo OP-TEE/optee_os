@@ -3719,15 +3719,24 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	/* Find information needed about the object to initialize */
-	sk = so->attr;
-
 	/* Find description of object */
 	type_props = tee_svc_find_type_props(so->info.objectType);
 	if (!type_props) {
 		res = TEE_ERROR_NOT_SUPPORTED;
 		goto out;
 	}
+
+	/*
+	 * The key type must be a simple symmetric key since sk represents
+	 * such a key type.
+	 */
+	if (type_props->type_attrs != tee_cryp_obj_secret_value_attrs) {
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto out;
+	}
+
+	/* Find information needed about the object to initialize */
+	sk = so->attr;
 
 	if (cs->algo == TEE_ALG_DH_DERIVE_SHARED_SECRET) {
 		struct bignum *pub = NULL;
@@ -3755,21 +3764,24 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 
 		pub = crypto_bignum_allocate(alloc_size);
 		ss = crypto_bignum_allocate(alloc_size);
-		if (pub && ss) {
-			crypto_bignum_bin2bn(bbuf, bin_size, pub);
-			res = crypto_acipher_dh_shared_secret(ko->attr,
-							      pub, ss);
-			if (res == TEE_SUCCESS) {
-				sk->key_size = crypto_bignum_num_bytes(ss);
-				crypto_bignum_bn2bin(ss, (uint8_t *)(sk + 1));
-				so->info.handleFlags |=
-						TEE_HANDLE_FLAG_INITIALIZED;
-				set_attribute(so, type_props,
-					      TEE_ATTR_SECRET_VALUE);
-			}
-		} else {
+		if (!pub || !ss) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto dh_out;
 		}
+		crypto_bignum_bin2bn(bbuf, bin_size, pub);
+		res = crypto_acipher_dh_shared_secret(ko->attr,
+						      pub, ss);
+		if (res)
+			goto dh_out;
+		if (crypto_bignum_num_bytes(ss) > sk->alloc_size) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto dh_out;
+		}
+		sk->key_size = crypto_bignum_num_bytes(ss);
+		crypto_bignum_bn2bin(ss, (uint8_t *)(sk + 1));
+		so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
+		set_attribute(so, type_props, TEE_ATTR_SECRET_VALUE);
+dh_out:
 		crypto_bignum_free(&pub);
 		crypto_bignum_free(&ss);
 	} else if (cs->algo == TEE_ALG_ECDH_DERIVE_SHARED_SECRET) {
@@ -3862,7 +3874,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			goto out;
 
 		/* Requested size must fit into the output object's buffer */
-		if (okm_len > ik->alloc_size) {
+		if (okm_len > sk->alloc_size) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 			goto out;
 		}
@@ -3891,7 +3903,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			goto out;
 
 		/* Requested size must fit into the output object's buffer */
-		if (derived_key_len > ss->alloc_size) {
+		if (derived_key_len > sk->alloc_size) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 			goto out;
 		}
@@ -3920,7 +3932,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			goto out;
 
 		/* Requested size must fit into the output object's buffer */
-		if (derived_key_len > ss->alloc_size) {
+		if (derived_key_len > sk->alloc_size) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 			goto out;
 		}
