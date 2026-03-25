@@ -109,7 +109,7 @@ static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 			res = copy_from_user(block + offset, data_user_ptr,
 					     size_to_write);
 			if (res)
-				return res;
+				goto exit;
 		} else {
 			memset(block + offset, 0, size_to_write);
 		}
