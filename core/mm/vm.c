@@ -1117,7 +1117,7 @@ bool vm_buf_intersects_um_private(const struct user_mode_ctx *uctx,
 	struct vm_region *r = NULL;
 
 	TAILQ_FOREACH(r, &uctx->vm_info.regions, link) {
-		if (r->attr & VM_FLAGS_NONPRIV)
+		if (r->flags & VM_FLAGS_NONPRIV)
 			continue;
 		if (core_is_buffer_intersect((vaddr_t)va, size, r->va, r->size))
 			return true;
