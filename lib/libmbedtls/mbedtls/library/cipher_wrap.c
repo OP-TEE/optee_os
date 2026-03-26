@@ -519,6 +519,11 @@ static void *xts_aes_ctx_alloc(void)
     return xts_ctx;
 }
 
+static void xts_aes_ctx_clone(void *dst, const void *src)
+{
+    memcpy(dst, src, sizeof(mbedtls_aes_xts_context));
+}
+
 static void xts_aes_ctx_free(void *ctx)
 {
     mbedtls_aes_xts_context *xts_ctx = ctx;
@@ -555,6 +560,7 @@ static const mbedtls_cipher_base_t xts_aes_info = {
     xts_aes_setkey_enc_wrap,
     xts_aes_setkey_dec_wrap,
     xts_aes_ctx_alloc,
+    xts_aes_ctx_clone,
     xts_aes_ctx_free
 };
 
