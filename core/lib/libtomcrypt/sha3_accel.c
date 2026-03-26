@@ -148,7 +148,7 @@ int sha3_process(hash_state *md, const unsigned char *in, unsigned long inlen)
 			return CRYPT_OK;
 	}
 
-	if (inlen > block_size) {
+	if (inlen >= block_size) {
 		block_count = inlen / block_size;
 		crypto_accel_sha3_compress(state, in, block_count,
 					   digest_size);
@@ -191,6 +191,8 @@ int sha3_done(hash_state *md, unsigned char *out)
 	state = md->sha3.s;
 	buf = md->sha3.sb;
 
+	LTC_ARGCHK(md->sha3.byte_index < block_size);
+
 	buf[md->sha3.byte_index++] = 0x06;
 	memset(buf + md->sha3.byte_index, 0, block_size - md->sha3.byte_index);
 	buf[block_size - 1] |= 0x80;
@@ -217,6 +219,8 @@ int sha3_shake_done(hash_state *md, unsigned char *out, unsigned long outlen)
 	digest_size = md->sha3.capacity_words * 8 / 2;
 	state = md->sha3.s;
 	buf = md->sha3.sb;
+
+	LTC_ARGCHK(md->sha3.byte_index < block_size);
 
 	if (!md->sha3.xof_flag) {
 		buf[md->sha3.byte_index++] = 0x1f;
