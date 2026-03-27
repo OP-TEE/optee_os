@@ -453,39 +453,18 @@ infinite:
 	sess->cancel_time.millis = UINT32_MAX;
 }
 
-/*-----------------------------------------------------------------------------
- * Close a Trusted Application and free available resources
- *---------------------------------------------------------------------------*/
-TEE_Result tee_ta_close_session(uint32_t id,
-				struct tee_ta_session_head *open_sessions,
-				const TEE_Identity *clnt_id)
+static void close_session(struct tee_ta_session *sess,
+			  struct tee_ta_session_head *open_sessions)
 {
-	struct tee_ta_session *sess = NULL;
-	struct tee_ta_ctx *ctx = NULL;
 	struct ts_ctx *ts_ctx = NULL;
+	struct tee_ta_ctx *ctx = NULL;
 	bool keep_crashed = false;
 	bool keep_alive = false;
-
-	DMSG("id %"PRIu32, id);
-
-	sess = tee_ta_get_session(id, true, open_sessions);
-
-	if (!sess) {
-		EMSG("session id %"PRIu32" to be removed is not found", id);
-		return TEE_ERROR_ITEM_NOT_FOUND;
-	}
-
-	if (check_client(sess, clnt_id) != TEE_SUCCESS) {
-		tee_ta_put_session(sess);
-		return TEE_ERROR_BAD_PARAMETERS; /* intentional generic error */
-	}
-
-	DMSG("Destroy session");
 
 	ts_ctx = sess->ts_sess.ctx;
 	if (!ts_ctx) {
 		destroy_session(sess, open_sessions);
-		return TEE_SUCCESS;
+		return;
 	}
 
 	ctx = ts_to_ta_ctx(ts_ctx);
@@ -520,6 +499,33 @@ TEE_Result tee_ta_close_session(uint32_t id,
 		destroy_context(ctx);
 	} else
 		mutex_unlock(&tee_ta_mutex);
+}
+
+/*
+ * Close a Trusted Application and free available resources
+ */
+TEE_Result tee_ta_close_session(uint32_t id,
+				struct tee_ta_session_head *open_sessions,
+				const TEE_Identity *clnt_id)
+{
+	struct tee_ta_session *sess = NULL;
+
+	DMSG("id %"PRIu32, id);
+
+	sess = tee_ta_get_session(id, true, open_sessions);
+
+	if (!sess) {
+		EMSG("session id %"PRIu32" to be removed is not found", id);
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	if (check_client(sess, clnt_id) != TEE_SUCCESS) {
+		tee_ta_put_session(sess);
+		return TEE_ERROR_BAD_PARAMETERS; /* intentional generic error */
+	}
+
+	DMSG("Destroy session");
+	close_session(sess, open_sessions);
 
 	return TEE_SUCCESS;
 }
@@ -610,7 +616,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	s->cancel_mask = true;
 	condvar_init(&s->refc_cv);
 	condvar_init(&s->lock_cv);
-	s->lock_thread = THREAD_ID_INVALID;
+	s->lock_thread = thread_get_id();
 	s->ref_count = 1;
 
 	mutex_lock(&tee_ta_mutex);
@@ -711,7 +717,6 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	struct ts_ctx *ts_ctx = NULL;
 	bool panicked = false;
 	bool was_busy = false;
-	uint32_t id = 0;
 
 	res = tee_ta_init_session(err, open_sessions, uuid, &s);
 	if (res != TEE_SUCCESS) {
@@ -760,10 +765,10 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	else
 		*err = s->err_origin;
 
-	id = s->id;
-	tee_ta_put_session(s);
 	if (panicked || res != TEE_SUCCESS)
-		tee_ta_close_session(id, open_sessions, KERN_IDENTITY);
+		close_session(s, open_sessions);
+	else
+		tee_ta_put_session(s);
 
 	if (!res)
 		*sess = s;
