@@ -784,7 +784,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t ret_o = TEE_ORIGIN_TEE;
-	struct tee_ta_session *s = NULL;
+	uint32_t sess_id = 0;
 	TEE_UUID *uuid = malloc(sizeof(TEE_UUID));
 	struct tee_ta_param *param = malloc(sizeof(struct tee_ta_param));
 	TEE_Identity *clnt_id = malloc(sizeof(TEE_Identity));
@@ -807,7 +807,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
-	res = tee_ta_open_session(&ret_o, &s, &utc->open_sessions, uuid,
+	res = tee_ta_open_session(&ret_o, &sess_id, &utc->open_sessions, uuid,
 				  clnt_id, cancel_req_to, param);
 	vm_set_ctx(&utc->ta_ctx.ts_ctx);
 	if (res != TEE_SUCCESS)
@@ -817,7 +817,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 
 function_exit:
 	if (res == TEE_SUCCESS)
-		copy_to_user_private(ta_sess, &s->id, sizeof(s->id));
+		copy_to_user_private(ta_sess, &sess_id, sizeof(sess_id));
 	copy_to_user_private(ret_orig, &ret_o, sizeof(ret_o));
 
 out_free_only:

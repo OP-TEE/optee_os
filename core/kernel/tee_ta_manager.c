@@ -703,8 +703,7 @@ static void maybe_release_ta_ctx(struct tee_ta_ctx *ctx)
 	}
 }
 
-TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
-			       struct tee_ta_session **sess,
+TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err, uint32_t *sess_id,
 			       struct tee_ta_session_head *open_sessions,
 			       const TEE_UUID *uuid,
 			       const TEE_Identity *clnt_id,
@@ -765,15 +764,13 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	else
 		*err = s->err_origin;
 
-	if (panicked || res != TEE_SUCCESS)
+	if (res) {
 		close_session(s, open_sessions);
-	else
-		tee_ta_put_session(s);
-
-	if (!res)
-		*sess = s;
-	else
 		EMSG("Failed for TA %pUl. Return error %#"PRIx32, uuid, res);
+	} else {
+		*sess_id = s->id;
+		tee_ta_put_session(s);
+	}
 
 	return res;
 }
