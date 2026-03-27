@@ -456,7 +456,7 @@ infinite:
 /*-----------------------------------------------------------------------------
  * Close a Trusted Application and free available resources
  *---------------------------------------------------------------------------*/
-TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
+TEE_Result tee_ta_close_session(uint32_t id,
 				struct tee_ta_session_head *open_sessions,
 				const TEE_Identity *clnt_id)
 {
@@ -466,17 +466,12 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	bool keep_crashed = false;
 	bool keep_alive = false;
 
-	DMSG("csess 0x%" PRIxVA " id %u",
-	     (vaddr_t)csess, csess ? csess->id : UINT_MAX);
+	DMSG("id %"PRIu32, id);
 
-	if (!csess)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	sess = tee_ta_get_session(csess->id, true, open_sessions);
+	sess = tee_ta_get_session(id, true, open_sessions);
 
 	if (!sess) {
-		EMSG("session 0x%" PRIxVA " to be removed is not found",
-		     (vaddr_t)csess);
+		EMSG("session id %"PRIu32" to be removed is not found", id);
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
@@ -716,6 +711,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	struct ts_ctx *ts_ctx = NULL;
 	bool panicked = false;
 	bool was_busy = false;
+	uint32_t id = 0;
 
 	res = tee_ta_init_session(err, open_sessions, uuid, &s);
 	if (res != TEE_SUCCESS) {
@@ -764,9 +760,10 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	else
 		*err = s->err_origin;
 
+	id = s->id;
 	tee_ta_put_session(s);
 	if (panicked || res != TEE_SUCCESS)
-		tee_ta_close_session(s, open_sessions, KERN_IDENTITY);
+		tee_ta_close_session(id, open_sessions, KERN_IDENTITY);
 
 	if (!res)
 		*sess = s;

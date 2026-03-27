@@ -832,14 +832,11 @@ TEE_Result syscall_close_ta_session(unsigned long ta_sess)
 	struct ts_session *sess = ts_get_current_session();
 	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
 	TEE_Identity clnt_id = { };
-	struct tee_ta_session *s = NULL;
-
-	s = tee_ta_find_session(ta_sess, &utc->open_sessions);
 
 	clnt_id.login = TEE_LOGIN_TRUSTED_APP;
 	memcpy(&clnt_id.uuid, &sess->ctx->uuid, sizeof(TEE_UUID));
 
-	return tee_ta_close_session(s, &utc->open_sessions, &clnt_id);
+	return tee_ta_close_session(ta_sess, &utc->open_sessions, &clnt_id);
 }
 
 TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,

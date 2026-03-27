@@ -383,7 +383,7 @@ static void release_utc_state(struct user_ta_ctx *utc)
 	 * from the utc->open_sessions list.
 	 */
 	while (!TAILQ_EMPTY(&utc->open_sessions)) {
-		tee_ta_close_session(TAILQ_FIRST(&utc->open_sessions),
+		tee_ta_close_session(TAILQ_FIRST(&utc->open_sessions)->id,
 				     &utc->open_sessions, KERN_IDENTITY);
 	}
 
