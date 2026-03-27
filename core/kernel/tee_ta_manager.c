@@ -723,8 +723,10 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err, uint32_t *sess_id,
 		return res;
 	}
 
-	if (!check_params(s, param))
+	if (!check_params(s, param)) {
+		close_session(s, open_sessions);
 		return TEE_ERROR_BAD_PARAMETERS;
+	}
 
 	ts_ctx = s->ts_sess.ctx;
 	ctx = ts_to_ta_ctx(ts_ctx);
