@@ -33,6 +33,8 @@
 
    Nick Clifton, Cygnus Solutions, 13 June 1997.  */
 
+#include <asan.h>
+
 /* ANSI concatenation macros.  */
 #define CONCAT(a, b)  CONCAT2(a, b)
 #define CONCAT2(a, b) a##b
@@ -252,9 +254,8 @@ SYM (\name):
 	bl		ftrace_longjmp
 	ldmia		sp!, { a1, a2, lr }
 #endif
-#if ASAN_IS_ENABLED && \
-	!(defined(__KERNEL__) && defined(CFG_CORE_SANITIZE_KADDRESS) && \
-	  defined(CFG_DYN_CONFIG))
+
+#if ASAN_IS_ENABLED && (!defined(__KERNEL__) || !defined(CFG_DYN_CONFIG))
 	stmdb		sp!, { a1, a2, a3, lr }
 
 #ifdef __thumb2__

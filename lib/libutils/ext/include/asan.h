@@ -14,6 +14,15 @@
 #define ASAN_BLOCK_SHIFT	U(3)
 #define ASAN_BLOCK_MASK		(ASAN_BLOCK_SIZE - 1)
 
+#if ((!defined(__KERNEL__) && !defined(__LDELF__)) && \
+     defined(CFG_TA_SANITIZE_KADDRESS)) || \
+	((defined(__KERNEL__) || defined(__LDELF__)) && \
+	 defined(CFG_CORE_SANITIZE_KADDRESS))
+#define ASAN_IS_ENABLED 1
+#else
+#define ASAN_IS_ENABLED 0
+#endif
+
 #ifndef __ASSEMBLER__
 #include <compiler.h>
 #include <string.h>
@@ -50,15 +59,6 @@ struct asan_global_info {
 #else
 #define GET_ASAN_INFO() ((struct asan_global_info *) \
 	(CFG_USER_ASAN_SHADOW_OFFSET - SMALL_PAGE_SIZE))
-#endif
-
-#if ((!defined(__KERNEL__) && !defined(__LDELF__)) && \
-     defined(CFG_TA_SANITIZE_KADDRESS)) || \
-	((defined(__KERNEL__) || defined(__LDELF__)) && \
-	 defined(CFG_CORE_SANITIZE_KADDRESS))
-#define ASAN_IS_ENABLED 1
-#else
-#define ASAN_IS_ENABLED 0
 #endif
 
 #if ASAN_IS_ENABLED
