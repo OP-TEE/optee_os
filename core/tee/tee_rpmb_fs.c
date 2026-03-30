@@ -2495,8 +2495,8 @@ static TEE_Result update_write_helper(struct rpmb_file_handle *fh,
 		blk_size = MIN(TMP_BLOCK_SIZE, new_size - blk_offset);
 		memset(blk_buf, 0, blk_size);
 
-		/* Possibly read old RPMB data in temporary buffer */
-		if (blk_offset < pos && blk_offset < old_size) {
+		/* Read old RPMB data in temporary buffer */
+		if (blk_offset < old_size) {
 			rd_size = MIN(blk_size, old_size - blk_offset);
 
 			res = tee_rpmb_read(old_fat + blk_offset, blk_buf,
