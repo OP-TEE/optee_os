@@ -73,6 +73,7 @@ $(warning WARNING: ASU HASH engine do not support partial state copy operations)
 $(warning WARNING: Any attempt by the REE to perform a state copy operation \
   will result in a crash of the TEE.)
 endif
+
 CFG_AMD_ASU_ECC ?= y
 
 # ASU TRNG driver configuration
@@ -84,6 +85,7 @@ $(call force,CFG_AMD_ASU_HUK,y)
 endif
 
 CFG_AMD_ASU_CIPHER ?= y
+CFG_AMD_ASU_RSA ?= y
 
 ifeq ($(CFG_AMD_PS_GPIO),y)
 $(call force,CFG_MAP_EXT_DT_SECURE,y)

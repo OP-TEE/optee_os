@@ -22,4 +22,9 @@ $(call force,CFG_CRYPTO_DRV_CIPHER,y)
 CFG_AMD_ASU_SW_FALLBACK ?= y
 endif
 
+ifeq ($(CFG_AMD_ASU_RSA),y)
+$(call force,CFG_CRYPTO_DRV_ACIPHER,y)
+$(call force,CFG_CRYPTO_DRV_RSA,y)
+endif
+
 endif
