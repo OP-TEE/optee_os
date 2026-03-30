@@ -121,10 +121,23 @@ static void decrypt_pl(struct internal_aes_gcm_state *state,
 		       const struct internal_aes_gcm_key *ek, uint64_t dg[2],
 		       const uint8_t *src, size_t num_blocks, uint8_t *dst)
 {
+	void *buf_cryp = state->buf_cryp;
+	uint8_t src_tmp[TEE_AES_BLOCK_SIZE];
+
 	while (num_blocks) {
-		pmull_ghash_update(1, dg, src, &state->ghash_key, NULL);
-		ce_aes_ctr_encrypt(dst, src, (const uint8_t *)ek->data,
-				   ek->rounds, 1, (uint8_t *)state->ctr, 1);
+		/* Copy from untrusted memory 'src' into a temporary buffer
+		 * to prevent a double-fetch vulnerability.
+		 */
+		memcpy(src_tmp, src, TEE_AES_BLOCK_SIZE);
+
+		pmull_ghash_update(1, dg, src_tmp, &state->ghash_key, NULL);
+
+		ce_aes_ecb_encrypt(buf_cryp, (const uint8_t *)state->ctr,
+				   (const uint8_t *)ek->data, ek->rounds,
+				   1, 1);
+		internal_aes_gcm_inc_ctr(state);
+
+		ce_aes_xor_block(dst, buf_cryp, src_tmp);
 
 		src += TEE_AES_BLOCK_SIZE;
 		dst += TEE_AES_BLOCK_SIZE;
