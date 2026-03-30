@@ -10,4 +10,9 @@ $(call force,CFG_CRYPTO_DRIVER,y)
 CFG_CRYPTO_DRIVER_DEBUG ?= 0
 $(call force,CFG_CRYPTO_DRV_HASH,y)
 
+ifeq ($(CFG_AMD_ASU_RSA),y)
+$(call force,CFG_CRYPTO_DRV_ACIPHER,y)
+$(call force,CFG_CRYPTO_DRV_RSA,y)
+endif
+
 endif
