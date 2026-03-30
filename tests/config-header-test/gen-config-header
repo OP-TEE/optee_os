@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+#
+# Generate conf.h files for specified <platform>-<platform-flavour>. Can be
+# removed once all config variables are switched to Kconfig.
+#
+# Requires: flex, bison, make (the kconfig tools are built on first run).
+#
+set -e
+
+OUTDIR=$(readlink -f "$1")
+PLATFORM="$2"
+ARCH="${3:-arm}"
+SCRIPT_DIR="$(dirname $(readlink -f $0))"
+# TODO: find a better way
+BASE_DIR="$SCRIPT_DIR/../.."
+
+if [ -z "${OUTDIR}" ]; then
+	echo "Output dir not provided, abort!"
+	echo "$(basename $0) <outdir> <platform> [<arch>]"
+	exit 1
+fi
+
+if [ -z "${PLATFORM}" ]; then
+	echo "Platform not provided, abort!"
+	echo "$(basename $0) <outdir> <platform> [<arch>]"
+	exit 1
+fi
+
+mkdir -p "${OUTDIR}"
+
+gen() {
+	local outdir="$1"
+	local basedir="$2"
+	local platform="$3"
+	local arch="$4"
+	local tmpdir="$outdir/.tmp-${platform}"
+	local conf_h="$tmpdir/include/generated/conf.h"
+	local conf_mk="$tmpdir/conf.mk"
+
+	# Always start fresh
+	rm -rf "$tmpdir"
+
+	# defconfig: sets up .config and auto.conf (no cross-compiler)
+	ARCH="$arch" make -C "$basedir" -j1 -s PLATFORM="$platform" O="$tmpdir" defconfig 1>/dev/null
+
+	# Target conf.h directly: check-conf-h macro = pure make/shell
+	ARCH="$arch" make -C "$basedir" -j1 -s PLATFORM="$platform" O="$tmpdir" "$conf_h" 1>/dev/null
+
+	# Target conf.mk directly: check-conf-mk macro = pure make/shell
+	ARCH="$arch" make -C "$basedir" -j1 -s PLATFORM="$platform" O="$tmpdir" "$conf_mk" 1>/dev/null
+
+	# Strip the "# TEE version..." comment from conf.mk to make it easier
+	# to diff
+	sed -i '/^# TEE version/d' "$conf_mk"
+
+	cp "$conf_h" "$outdir/$platform.conf.h"
+	cp "$conf_mk" "$outdir/$platform.conf.mk"
+	rm -r "$tmpdir"
+}
+
+gen "$OUTDIR" "$BASE_DIR" "$PLATFORM" "$ARCH"

@@ -370,12 +370,122 @@ jobs:
           export CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
           export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
 
+          _kconfig_syms=$(find . -name Kconfig -print0 | xargs -0 grep -rh '^config ' | awk '{print "CFG_" $2}')
+          _is_kconfig_sym() { echo "$_kconfig_syms" | grep -qx "$1"; }
 
-          function _make() { make -j$(nproc) -s O=out $*; }
+          _last_defconfig_platform=""
+          _last_defconfig_frag_hash=""
+
+          function _make() {
+            local plat="vexpress-qemu_virt"
+            local frag_lines=""
+            local build_args=()
+
+            for arg in "$@"; do
+              case "$arg" in
+                PLATFORM=*)
+                  plat="${arg#PLATFORM=}"
+                  build_args+=("$arg")
+                  ;;
+                CFG_*=*)
+                  local sym="${arg%%=*}" val="${arg#*=}"
+                  if _is_kconfig_sym "$sym"; then
+                    # Kconfig fragment syntax: n → "# SYM is not set"
+                    if [ "$val" = "n" ]; then
+                      frag_lines+="# $sym is not set"$'\n'
+                    else
+                      frag_lines+="${sym}=${val}"$'\n'
+                    fi
+                    # NOT added to build_args — Kconfig owns this symbol
+                  else
+                    build_args+=("$arg")
+                  fi
+                  ;;
+                *)  build_args+=("$arg") ;;
+              esac
+            done
+
+            # Re-run defconfig when platform or Kconfig overrides change.
+            local frag_hash
+            frag_hash=$(printf '%s' "$frag_lines" | sha256sum | cut -c1-16)
+
+            if [ "$plat" != "$_last_defconfig_platform" ] || \
+               [ "$frag_hash" != "$_last_defconfig_frag_hash" ]; then
+              if [ -n "$frag_lines" ]; then
+                local frag; frag=$(mktemp)
+                printf '%s' "$frag_lines" > "$frag"
+                make -j1 -s O=out PLATFORM="$plat" KCONFIG_FRAGMENT="$frag" defconfig
+                rm -f "$frag"
+              else
+                make -j1 -s O=out PLATFORM="$plat" defconfig
+              fi
+              _last_defconfig_platform="$plat"
+              _last_defconfig_frag_hash="$frag_hash"
+            fi
+
+            make -j$(nproc) -s O=out "${build_args[@]}"
+          }
 
           ccache -s -v
           eval "$MAKE_COMMANDS"
           ccache -s -v
+  kconfig_verify:
+    name: Kconfig verify (all platforms)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+
+      - name: Verify conf.h and conf.mk for all platforms
+        shell: bash
+        run: |
+          set -e
+
+          testdir="tests/config-header-test"
+          refdir="$testdir/config-artifacts-ref"
+          outdir="ci-kconfig-test"
+
+          # Generate conf.h and conf.mk for every platform
+          "$testdir"/gen-references -j$(nproc) --outdir "$outdir"
+
+          failed=0
+          for ext in conf.h conf.mk; do
+            reference_count="$(ls -1 "$refdir"/*."$ext" | wc -l)"
+            new_count="$(ls -1 "$outdir"/*."$ext" | wc -l)"
+
+            if [ "$reference_count" != "$new_count" ]; then
+              echo "FAIL: number of reference .$ext files ($reference_count) != generated ($new_count)"
+              failed=1
+            fi
+
+            for artifact in "$outdir"/*."$ext"; do
+              platform="$(basename "$artifact" ."$ext")"
+              ref="$refdir/$platform.$ext"
+
+              if ! diff -u "$ref" "$artifact" >> kconfig-verify.diff; then
+                echo "FAIL: $platform ($ext)"
+                failed=1
+              else
+                echo "OK:   $platform ($ext)"
+              fi
+            done
+          done
+
+          if [ "$failed" != "0" ]; then
+            exit 1
+          fi
+
+      - name: Upload combined diff on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kconfig-verify-diffs
+          path: kconfig-verify.diff
+          retention-days: 5
+
   QEMUv7_checks_image_build:
     name: Build QEMUv7 image
     runs-on: ubuntu-latest

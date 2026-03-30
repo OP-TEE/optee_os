@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Root Kconfig for OP-TEE OS.
+#
+# Symbol names here intentionally omit the "CFG_" prefix.  The Kconfig tools
+# are invoked with CONFIG_=CFG_ in the environment (see scripts/kconfig/lkc.h),
+# so every symbol FOO becomes CFG_FOO in .config, auto.conf, and autoconf.h.
+#
+# This keeps full backward compatibility with the existing CFG_* naming
+# convention used throughout the source tree and in the C headers.
+
+mainmenu "OP-TEE OS/$(ARCH) $(PLATFORM) Configuration"
+
+source "core/Kconfig"
+
+source "core/pta/Kconfig"

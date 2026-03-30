@@ -182,3 +182,21 @@ endif
 endif
 $(1) := $(2)
 endef
+
+# Removes quotes from $1, e.g. returns quoted-var if input was "quoted-var".
+# $(call cfg-remove-quotes,CFG_FOO)
+define cfg-remove-quotes
+$(patsubst "%",%,$($(1)))
+endef
+
+# Return 'n' if symbol ($1) equals 'y' else return 'y'
+# $(call cfg-opt-dis,CFG_FOO)
+define cfg-opt-dis
+$(call cfg-ifdef,$($(1)),n,y)
+endef
+
+# Return value ($2) if symbol ($1) equals 'y' else return value $(3)
+# CFG_BAR ?= $(call cfg-ifdef,CFG_FOO,yes,no)
+define cfg-ifdef
+$(if $(filter y,$($(1))),$(2),$(3))
+endef

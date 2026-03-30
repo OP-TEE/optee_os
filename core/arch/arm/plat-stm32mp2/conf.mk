@@ -121,11 +121,16 @@ CFG_DRIVERS_I2C ?= $(CFG_STM32_I2C)
 # Default RTC accuracy, higher accuracy means higher power consumption
 CFG_STM32_RTC_HIGH_ACCURACY ?= n
 
+# Only pull in the CFG_SCMI_* configure variables if CFG_SCP_FIRMWARE is
+# specified accordingly else the default build fails due to the requirement
+# within mk/config.mk.
+ifdef $(CFG_SCP_FIRMWARE)
 CFG_SCMI_PTA ?= y
 CFG_SCMI_SCPFW ?= y
 CFG_SCMI_SCPFW_FROM_DT ?= y
 CFG_SCMI_SERVER_CLOCK_CONSUMER ?= y
 CFG_SCMI_SERVER_RESET_CONSUMER ?= y
+endif # #CFG_SCP_FIRMWARE
 # Default enable some test facitilites
 CFG_ENABLE_EMBEDDED_TESTS ?= y
 CFG_WITH_STATS ?= y
@@ -164,11 +169,7 @@ endif
 
 # Optional behavior upon receiving illegal access events
 CFG_STM32_PANIC_ON_IAC_EVENT ?= y
-ifeq ($(CFG_TEE_CORE_DEBUG),y)
-CFG_STM32_PANIC_ON_SERC_EVENT ?= n
-else
-CFG_STM32_PANIC_ON_SERC_EVENT ?= y
-endif
+CFG_STM32_PANIC_ON_SERC_EVENT ?= $(call cfg-opt-dis,CFG_TEE_CORE_DEBUG)
 
 # Default enable firewall support
 CFG_DRIVERS_FIREWALL ?= y

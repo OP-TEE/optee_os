@@ -1,0 +1,303 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# OP-TEE core configuration options — representative Kconfig subset.
+#
+# These options were previously plain ?= assignments in mk/config.mk.
+# All remaining mk/config.mk variables that have not yet been converted
+# still live there and are set after auto.conf is included.
+
+menu "Build settings"
+
+config CC_OPT_LEVEL
+	string "Compiler optimization level"
+	default "s"
+	help
+	  Compiler optimization level passed via the -O flag.
+	  "s" optimises for size (default); "0" disables optimisation
+	  (useful together with DEBUG_INFO for source-level debugging).
+
+config DEBUG_INFO
+	bool "Embed debug information"
+	default y
+	help
+	  When enabled, DWARF debug information is embedded in the core
+	  binary. Disable for the smallest possible image.
+
+endmenu # Build settings
+
+menu "Core"
+
+config TEE_CORE_DEBUG
+	bool "Enable TEE core debug features"
+	default y
+	help
+	  Enables assertions, lock checks, and more verbose panic/assert
+	  messages. Data and prefetch aborts print a full stack dump.
+	  Disable in release builds.
+
+config TEE_CORE_LOG_LEVEL
+	int "TEE core log level (0-4)"
+	default 2
+	range 0 4
+	help
+	  Controls which messages are printed on the secure console.
+	    0: none
+	    1: errors only
+	    2: errors + info (default)
+	    3: errors + info + debug
+	    4: errors + info + debug + flow
+	  Setting this to 0 also suppresses TA log output.
+
+config TEE_TA_LOG_LEVEL
+	int "TA log level (0-4)"
+	default 1
+	range 0 4
+	help
+	  Log level for Trusted Applications.  Note: if libutils.a is built
+	  with TEE_TA_LOG_LEVEL=0, TA tracing is disabled regardless of the
+	  value used here at OP-TEE build time.
+
+config TEE_CORE_TA_TRACE
+	bool "Enable TA trace output"
+	default y
+	help
+	  When enabled, TA trace messages are output according to
+	  TEE_TA_LOG_LEVEL.  When disabled they are suppressed entirely.
+
+config TEE_CORE_MALLOC_DEBUG
+	bool "TEE core malloc debug"
+	default n
+	help
+	  Enables memory-leak detection in the bget allocator.  Calling
+	  mdbg_check(1) prints all currently allocated buffers with their
+	  allocation site.  Requires a high enough log level to show output:
+	    make CFG_TEE_CORE_MALLOC_DEBUG=y CFG_TEE_CORE_LOG_LEVEL=3
+
+config TEE_TA_MALLOC_DEBUG
+	bool "TA malloc debug"
+	default n
+	help
+	  Same as TEE_CORE_MALLOC_DEBUG but for user-mode (TA) allocations.
+	    make CFG_TEE_TA_MALLOC_DEBUG=y CFG_TEE_TA_LOG_LEVEL=3
+
+config NUM_THREADS
+	int "Number of TEE threads"
+	default 2
+	help
+	  Maximum number of simultaneous threads in the secure world.
+	  Must be >= 1.  Platforms with more CPU cores typically set this
+	  higher via their defconfig.
+
+config OS_REV_REPORTS_GIT_SHA1
+	bool "Include git SHA1 in OS revision"
+	default y
+	help
+	  When enabled, OPTEE_SMC_CALL_GET_OS_REVISION returns a build
+	  identifier derived from the current git commit hash.
+
+endmenu # Core
+
+menu "Trusted Applications"
+
+config WITH_USER_TA
+	bool "User TA support"
+	default y
+	help
+	  Enable support for dynamically loaded user-mode Trusted Applications.
+	  Disabling this produces a smaller core but no TA can be loaded at
+	  run-time.
+
+config BUILD_IN_TREE_TA
+	bool "Build in-tree TAs"
+	default y
+	help
+	  Build the Trusted Applications that are part of this source tree
+	  (e.g. pkcs11 TA, avb TA).
+
+endmenu # Trusted Applications
+
+menu "Storage"
+
+config REE_FS
+	bool "REE file system support"
+	default y
+	help
+	  Enable the Rich Execution Environment (REE) file system, where the
+	  normal world OS provides the actual storage.  This is the default
+	  back-end when TEE_STORAGE_PRIVATE is passed to the Trusted Storage
+	  API.
+
+config REE_FS_HTREE_HASH_SIZE_COMPAT
+	bool "Enable legacy REE FS hash tree tagging"
+	default y
+	depends on REE_FS
+	help
+	  CFG_REE_FS_HTREE_HASH_SIZE_COMPAT, when enabled, supports the legacy
+	  REE FS hash tree tagging implementation that uses a truncated hash.
+	  Be warned that disabling this config could break accesses to existing
+	  REE FS content.
+
+config REE_FS_ALLOW_RESET
+	bool "Allow secure storage reset"
+	default n
+	depends on REE_FS
+	help
+	  Allow secure storage in the REE FS to be entirely deleted without causing
+	  anti-rollback errors. That is, rm /data/tee/dirf.db or rm -rf /data/tee (or
+	  whatever path is configured in tee-supplicant as CFG_TEE_FS_PARENT_PATH)
+	  can be used to reset the secure storage to a clean, empty state.
+	  Intended to be used for testing only since it weakens storage security.
+	  Warning: If enabled for release build then it will break rollback protection
+	  of TAs and the entire REE FS secure storage.
+
+config REE_FS_TA
+	bool "Load user TAs from REE filesystem"
+	default y
+	depends on REE_FS && WITH_USER_TA
+	help
+	  Load user TAs from the REE filesystem via tee-supplicant.
+
+config REE_FS_TA_BUFFERED
+	bool "Pre-authentication of TA binaries"
+	default n
+	depends on REE_FS_TA
+	help
+	  - If enabled: load TA binary into a temporary buffer in the "Secure DDR"
+	    pool, check the signature, then process the file only if it is valid.
+	  - If disabled: hash the binaries as they are being processed and verify
+	    the signature as a last step.
+
+config RPMB_FS
+	bool "RPMB file system support"
+	default n
+	help
+	  Enable the Replay Protected Memory Block (RPMB) file system.
+	  Provides hardware-backed anti-rollback protection for secure
+	  storage.
+
+config RPMB_FS_DEV_ID
+	int "RPMB device ID"
+	default 0
+	depends on RPMB_FS
+	help
+	  Device identifier used when CFG_RPMB_FS = y.
+	  The exact meaning of this value is platform-dependent. On Linux, the
+	  tee-supplicant process will open /dev/mmcblk<id>rpmb
+
+config RPMB_FS_RD_ENTRIES
+	int "Number of entries to read from RPMB at once"
+	default 8
+	depends on RPMB_FS
+	help
+	  This config variable determines the number of entries read in from RPMB at
+	  once whenever a function traverses the RPMB FS. Increasing the default value
+	  has the following consequences:
+	  - More memory required on heap. A single FAT entry currently has a size of
+	    256 bytes.
+	  - Potentially significant speed-ups for RPMB I/O. Depending on how many
+	    entries a function needs to traverse, the number of time-consuming RPMB
+	    read-in operations can be reduced.
+	  Chosing a proper value is both platform- (available memory) and use-case-
+	  dependent (potential number of FAT fs entries), so overwrite in platform
+	  config files
+
+config RPMB_FS_CACHE_ENTRIES
+	int "Number of FAT FS entries to cache"
+	default 0
+	depends on RPMB_FS
+	help
+	  Enables caching of FAT FS entries when set to a value greater than zero.
+	  When enabled, the cache stores the first 'CFG_RPMB_FS_CACHE_ENTRIES' FAT FS
+	  entries. The cache is populated when FAT FS entries are initially read in.
+	  When traversing the FAT FS entries, we read from the cache instead of reading
+	  in the entries from RPMB storage. Consequently, when a FAT FS entry is
+	  written, the cache is updated. In scenarios where an estimate of the number
+	  of FAT FS entries can be made, the cache may be specifically tailored to
+	  store all entries. The caching can improve RPMB I/O at the cost
+	  of additional memory.
+	  Without caching, we temporarily require
+	  CFG_RPMB_FS_RD_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+	  while traversing the FAT FS (e.g. in read_fat).
+	  For example 8*256 bytes = 2kB while in read_fat.
+	  With caching, we constantly require up to
+	  CFG_RPMB_FS_CACHE_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+	  depending on how many elements are in the cache, and additional temporary
+	  CFG_RPMB_FS_RD_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+	  in case the cache is too small to hold all elements when traversing.
+
+config RPMB_FS_DEBUG_DATA
+	bool "Print RPMB data frames"
+	default n
+	depends on RPMB_FS
+	help
+	  Print RPMB data frames sent to and received from the RPMB device
+
+config RPMB_RESET_FAT
+	bool "Clear RPMB content at cold boot"
+	default n
+	depends on RPMB_FS
+	help
+	  Clear RPMB content at cold boot
+
+config RPMB_TESTKEY
+	bool "Use a hard coded RPMB key"
+	default n
+	depends on RPMB_FS
+	help
+	  Use a hard coded RPMB key instead of deriving it from the platform HUK
+
+config RPMB_WRITE_KEY
+	bool "Enable RPMB key programming"
+	default n
+	depends on RPMB_FS
+	help
+	  Enables RPMB key programming by the TEE, in case the RPMB partition has not
+	  been configured yet.
+	  !!! Security warning !!!
+	  Do *NOT* enable this in product builds, as doing so would allow the TEE to
+	  leak the RPMB key.
+	  This option is useful in the following situations:
+	  - Testing
+	  - RPMB key provisioning in a controlled environment (factory setup)
+
+config RPMB_ANNOUNCE_PROBE_CAP
+	bool "Announce RPMB probing capability"
+	default y
+	depends on RPMB_FS
+	help
+	  For the kernel driver to enable in-kernel RPMB routing it must know in
+	  advance that OP-TEE supports it. Setting CFG_RPMB_ANNOUNCE_PROBE_CAP=y
+	  will announce OP-TEE's capability for RPMB probing to the kernel and it
+	  will use in-kernel RPMB routing, without it all RPMB commands will be
+	  routed to tee-supplicant. This option is intended give some control over
+	  how the RPMB commands are routed to simplify testing.
+
+config REE_FS_INTEGRITY_RPMB
+	bool "Roll-back protection of REE file system using RPMB"
+	default RPMB_FS
+	depends on REE_FS && RPMB_FS
+	help
+	  Enable roll-back protection of REE file system using RPMB.
+	  Roll-back protection only works if CFG_RPMB_FS = y.
+
+endmenu # Storage
+
+menu "Paging"
+
+config WITH_PAGER
+	bool "Secure memory paging"
+	default n
+	help
+	  Enable the OP-TEE secure memory pager.  Requires SRAM backing and
+	  cannot be enabled by default.  Consult the platform documentation
+	  for memory layout requirements.
+
+config PAGED_USER_TA
+	bool "Page user TA memory"
+	default n
+	depends on WITH_PAGER && WITH_USER_TA
+	help
+	  Use the pager to page-in/page-out user TA memory.  Requires both
+	  WITH_PAGER and WITH_USER_TA.
+
+endmenu # Paging

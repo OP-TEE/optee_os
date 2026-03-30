@@ -41,6 +41,9 @@ ops := $(join PLATFORM PLATFORM_FLAVOR,$(addprefix =,$(subst -, ,$(PLATFORM))))
 $(foreach op,$(ops),$(eval override $(op)))
 endif
 
+# Tools
+GREP            ?= grep
+AWK             ?= awk
 # Make these default for now
 ARCH            ?= arm
 PLATFORM        ?= vexpress
@@ -75,6 +78,180 @@ endif
 endif
 
 SCRIPTS_DIR := scripts
+
+# ---------------------------------------------------------------------------
+# Kconfig integration
+# ---------------------------------------------------------------------------
+KCONFIG_KCONFIG    := $(CURDIR)/Kconfig
+KCONFIG_CONFIG     := $(abspath $(out-dir))/.config
+KCONFIG_AUTOCONFIG := $(abspath $(out-dir))/include/config/auto.conf
+KCONFIG_AUTOHEADER := $(abspath $(out-dir))/include/generated/autoconf.h
+
+# Compute the defconfig path immediately (`:=`) so that the conf.mk default
+# for PLATFORM_FLAVOR (e.g. "qemu_virt") is not picked up when the user only
+# specifies PLATFORM=vexpress.  At this point PLATFORM_FLAVOR is only set if
+# the user passed it explicitly (directly or via "PLATFORM=foo-bar" parsing).
+_defconfig-plat    := $(PLATFORM)$(if $(PLATFORM_FLAVOR),-$(PLATFORM_FLAVOR),)
+KCONFIG_DEFCONFIG  ?= core/arch/$(ARCH)/configs/$(_defconfig-plat)_defconfig
+KCONFIG_FRAGMENT   ?=
+
+# Make fragment derived from .config: one "CFG_FOO ?= n" line per disabled
+# symbol.  Including it injects the symbols into $(.VARIABLES) so that
+# cfg-vars-by-prefix / cfg-make-define can emit the correct
+# "/* CFG_FOO is not set */" entries in conf.h, matching the plain-Make
+# behaviour where mk/config.mk had an explicit "CFG_FOO ?= n" default.
+KCONFIG_NOTSET_MK  := $(abspath $(out-dir))/include/config/not-set.mk
+
+# The kconfig tools (conf, mconf) use the CONFIG_ environment variable as the
+# prefix for generated symbols.  By setting it to "CFG_" the generated
+# .config, auto.conf and autoconf.h all use the existing CFG_* naming
+# convention, keeping full backward compatibility with the rest of the tree.
+export CONFIG_          := CFG_
+export KCONFIG_CONFIG
+export KCONFIG_AUTOCONFIG
+export KCONFIG_AUTOHEADER
+export srctree          := $(CURDIR)
+export KCONFIG_DEFCONFIG
+
+PYTHON            ?= python3
+kconfig-py-dir    := $(CURDIR)/scripts/kconfiglib
+
+# Targets that can run without a .config
+no-dot-config-targets := clean cscope checkpatch checkpatch-staging \
+                         checkpatch-working mem_usage
+
+config-build :=
+need-config  := 1
+
+ifneq ($(filter $(no-dot-config-targets), $(MAKECMDGOALS)),)
+ifeq ($(filter-out $(no-dot-config-targets), $(MAKECMDGOALS)),)
+need-config :=
+endif
+endif
+
+ifneq ($(filter config %config, $(MAKECMDGOALS)),)
+config-build := 1
+endif
+
+ifdef config-build
+# ---------------------------------------------------------------------------
+# *config targets
+# ---------------------------------------------------------------------------
+.PHONY: config menuconfig nconfig oldconfig olddefconfig syncconfig \
+        allnoconfig allyesconfig alldefconfig randconfig defconfig \
+        savedefconfig listnewconfig
+
+# Helper: create output dirs and run a kconfiglib Python script.
+# $(1) = script basename  $(2) = optional extra args
+define kconfig-py
+	$(q)mkdir -p $(out-dir)/include/config $(dir $(KCONFIG_AUTOHEADER))
+	$(q)$(PYTHON) $(kconfig-py-dir)/$(1) $(2)
+endef
+
+# Helper: run a *config script, then regenerate auto.conf + autoconf.h.
+# $(1) = script basename  $(2) = optional extra args
+define kconfig-py-with-sync
+	$(call kconfig-py,$(1),$(2))
+	$(q)$(PYTHON) $(kconfig-py-dir)/genconfig.py \
+		--config-out $(KCONFIG_AUTOCONFIG) \
+		$(KCONFIG_KCONFIG)
+endef
+
+# Line-oriented interactive config (kconfiglib oldconfig.py).
+config oldconfig:
+	$(call kconfig-py-with-sync,oldconfig.py,$(KCONFIG_KCONFIG))
+
+olddefconfig:
+	$(call kconfig-py-with-sync,olddefconfig.py,$(KCONFIG_KCONFIG))
+
+allnoconfig:
+	$(call kconfig-py-with-sync,allnoconfig.py,$(KCONFIG_KCONFIG))
+
+allyesconfig:
+	$(call kconfig-py-with-sync,allyesconfig.py,$(KCONFIG_KCONFIG))
+
+alldefconfig:
+	$(call kconfig-py-with-sync,alldefconfig.py,$(KCONFIG_KCONFIG))
+
+randconfig:
+	$(call kconfig-py-with-sync,randconfig.py,$(KCONFIG_KCONFIG))
+
+listnewconfig:
+	$(call kconfig-py,listnewconfig.py,$(KCONFIG_KCONFIG))
+
+# ncurses TUI — nconfig has no Python equivalent, alias to menuconfig.
+menuconfig nconfig:
+	$(call kconfig-py-with-sync,menuconfig.py,$(KCONFIG_KCONFIG))
+
+syncconfig:
+	$(call kconfig-py,genconfig.py,--config-out $(KCONFIG_AUTOCONFIG) $(KCONFIG_KCONFIG))
+
+defconfig:
+	$(q)mkdir -p $(out-dir)/include/config $(dir $(KCONFIG_AUTOHEADER))
+	$(q)if [ -n "$(KCONFIG_FRAGMENT)" ]; then \
+		$(CURDIR)/scripts/merge_config.sh -m \
+			$(abspath $(KCONFIG_DEFCONFIG)) $(abspath $(KCONFIG_FRAGMENT)) && \
+		$(PYTHON) $(kconfig-py-dir)/olddefconfig.py $(KCONFIG_KCONFIG); \
+	else \
+		$(PYTHON) $(kconfig-py-dir)/defconfig.py \
+			--kconfig $(KCONFIG_KCONFIG) \
+			$(abspath $(KCONFIG_DEFCONFIG)); \
+	fi
+	$(q)$(PYTHON) $(kconfig-py-dir)/genconfig.py \
+		--config-out $(KCONFIG_AUTOCONFIG) \
+		$(KCONFIG_KCONFIG)
+
+savedefconfig:
+	$(q)mkdir -p $(dir $(KCONFIG_CONFIG))
+	$(q)$(PYTHON) $(kconfig-py-dir)/savedefconfig.py \
+		--kconfig $(KCONFIG_KCONFIG) \
+		--out $(abspath $(KCONFIG_DEFCONFIG))
+
+else  # !config-build
+# ---------------------------------------------------------------------------
+# Normal build targets
+# ---------------------------------------------------------------------------
+
+# Kconfig-generated variable assignments must exist before the rest of the
+# build system is parsed.  If auto.conf is missing the user forgot to run
+# defconfig first; emit a clear error rather than silently falling back to
+# the mk/config.mk defaults (which we want to retire).
+ifdef need-config
+ifeq ($(wildcard $(KCONFIG_AUTOCONFIG)),)
+$(error .config not found - run: make PLATFORM=$(PLATFORM) defconfig)
+endif
+include $(KCONFIG_AUTOCONFIG)
+include $(KCONFIG_NOTSET_MK)
+endif
+
+# Guard: error if a Kconfig-owned CFG_ symbol is given on the Make command
+#
+# TODO: Remove once the Kconfig switch is complete
+_kconfig-syms := $(shell $(GREP) -rh --include=Kconfig '^config ' $(CURDIR) | $(AWK) '{print "CFG_" $$2}')
+
+$(foreach _v,$(filter CFG_%,$(.VARIABLES)),\
+  $(if $(filter command line override,$(origin $(_v))),\
+    $(if $(filter $(_v),$(_kconfig-syms)),\
+      $(error $(_v) is Kconfig-managed — pass it at configure time: \
+make PLATFORM=$(PLATFORM) KCONFIG_FRAGMENT=<fragment.config> defconfig))))
+
+# Regenerate auto.conf / autoconf.h whenever .config changes.
+$(KCONFIG_AUTOCONFIG): $(KCONFIG_CONFIG)
+	$(q)mkdir -p $(dir $@) $(dir $(KCONFIG_AUTOHEADER))
+	$(q)$(PYTHON) $(kconfig-py-dir)/genconfig.py \
+		--config-out $@ \
+		$(KCONFIG_KCONFIG)
+
+# Regenerate not-set.mk whenever .config changes.  Each "# CFG_FOO is not
+# set" line in .config becomes a "CFG_FOO ?= n" assignment, making the
+# disabled symbol visible to cfg-vars-by-prefix so conf.h stays complete.
+#
+# TODO: Remove once the Kconfig switch is complete
+$(KCONFIG_NOTSET_MK): $(KCONFIG_CONFIG)
+	$(q)mkdir -p $(dir $@)
+	$(q)sed -n 's/^# \($(CONFIG_)[A-Z0-9_]*\) is not set$$/\1 ?= n/p' $< > $@
+
+endif  # !config-build
 
 include core/core.mk
 
