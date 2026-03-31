@@ -576,7 +576,7 @@ CFG_IMX_CSU ?= y
 endif
 
 ifneq (,$(filter y, $(CFG_MX8M)))
-ifneq ($(CFG_INSECURE),y)
+ifeq ($(CFG_INSECURE),n)
 $(call force,CFG_TZASC_REGION0_SECURE,y)
 endif
 endif
@@ -585,7 +585,7 @@ endif
 # Once all platforms are supported we can remove the CFG_TZASC_CHECK_ENABLED
 # and perform the check always.
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX8M)))
-ifneq ($(CFG_INSECURE),y)
+ifeq ($(CFG_INSECURE),n)
 $(call force,CFG_TZASC_CHECK_ENABLED,y)
 endif
 endif
