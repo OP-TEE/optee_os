@@ -34,6 +34,12 @@ endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),kodiak))
 CFG_DRIVERS_CLK ?= y
-CFG_DRIVERS_QCOM_CLK ?= y
 CFG_QCOM_PAS_PTA ?= y
 endif
+
+ifeq ($(CFG_QCOM_PAS_PTA),y)
+# Increase late mappings to cover all PAS resources
+CFG_RESERVED_VASPACE_SIZE ?= (60 * 1024 * 1024)
+$(call force,CFG_DRIVERS_QCOM_CLK,y,Mandated by CFG_QCOM_PAS_PTA)
+endif
+
