@@ -14,6 +14,9 @@
 
 #define PTA_NAME	"pta.qcom.pas"
 
+#define TA_PAS_UUID { 0xcff7d191, 0x7ca0, 0x4784, \
+		{ 0xaf, 0x13, 0x48, 0x22, 0x3b, 0x9a, 0x4f, 0xbe} }
+
 static struct qcom_pas_data wpss_dsp_data = {
 	.pas_id = PAS_ID_WPSS,
 	.base.pa = WPSS_BASE,
@@ -138,6 +141,7 @@ static TEE_Result qcom_pas_mem_setup(uint32_t pt,
 	data->fw_base = params[1].value.a;
 	data->fw_base |= SHIFT_U64(params[1].value.b, 32);
 
+	/* Map the controller */
 	if (!data->base.va) {
 		data->base.va = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_NSEC,
 							      data->base.pa,
@@ -315,12 +319,18 @@ pta_qcom_pas_open_session(uint32_t pt __unused,
 			  TEE_Param params[TEE_NUM_PARAMS] __unused,
 			  void **sess_ctx __unused)
 {
-	uint32_t login = to_ta_session(ts_get_current_session())->clnt_id.login;
+	struct ts_session *s = ts_get_calling_session();
+	struct ts_ctx *ctx = NULL;
+	TEE_UUID ta_uuid = TA_PAS_UUID;
 
-	if (login == TEE_LOGIN_REE_KERNEL)
-		return TEE_SUCCESS;
+	if (!s)
+		return TEE_ERROR_ACCESS_DENIED;
 
-	return TEE_ERROR_ACCESS_DENIED;
+	ctx = s->ctx;
+	if (memcmp(&ctx->uuid, &ta_uuid, sizeof(TEE_UUID)))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	return TEE_SUCCESS;
 }
 
 /*
@@ -328,6 +338,6 @@ pta_qcom_pas_open_session(uint32_t pt __unused,
  *   concurrent operation must be supported by the client.
  */
 pseudo_ta_register(.uuid = PTA_QCOM_PAS_UUID, .name = PTA_NAME,
-		   .flags = PTA_DEFAULT_FLAGS | TA_FLAG_DEVICE_ENUM,
+		   .flags = PTA_DEFAULT_FLAGS,
 		   .invoke_command_entry_point = pta_qcom_pas_invoke_command,
 		   .open_session_entry_point = pta_qcom_pas_open_session);
