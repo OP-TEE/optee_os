@@ -9,6 +9,7 @@ srcs-$(CFG_AMD_ASU_HASH) += asu_hash.c
 srcs-$(CFG_AMD_ASU_TRNG) += asu_trng.c
 srcs-$(CFG_AMD_ASU_HUK) += asu_huk.c
 srcs-$(CFG_AMD_ASU_ECC) += asu_ecc.c
+srcs-$(CFG_AMD_ASU_CIPHER) += asu_cipher.c
 
 ifeq ($(CFG_AMD_ASU_ECC),y)
 # This curves configuration aligns enabled ECC/ECDH curves with ASU FW default
