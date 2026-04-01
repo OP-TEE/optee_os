@@ -1033,7 +1033,7 @@ static int get_acc_perms(vaddr_t mem_acc_base, unsigned int mem_access_size,
 		descr = &mem_acc->access_perm;
 		if (READ_ONCE(descr->endpoint_id) == optee_core_lsp.sp_id) {
 			*acc_perms = READ_ONCE(descr->perm);
-			*region_offs = READ_ONCE(mem_acc[n].region_offs);
+			*region_offs = READ_ONCE(mem_acc->region_offs);
 			return 0;
 		}
 	}
