@@ -725,7 +725,7 @@ out:
 
 struct tee_fs_htree_meta *tee_fs_htree_get_meta(struct tee_fs_htree *ht)
 {
-	return &ht->imeta.meta;
+	return ht ? &ht->imeta.meta : NULL;
 }
 
 void tee_fs_htree_meta_set_dirty(struct tee_fs_htree *ht)

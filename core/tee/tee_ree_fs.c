@@ -74,6 +74,8 @@ static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 	uint8_t *block;
 	struct tee_fs_htree_meta *meta = tee_fs_htree_get_meta(fdp->ht);
 
+	assert(meta);
+
 	/*
 	 * It doesn't make sense to call this function if nothing is to be
 	 * written. This also guards against end_block_num getting an
@@ -270,7 +272,12 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 					    tee_fs_off_t new_file_len)
 {
 	TEE_Result res;
-	struct tee_fs_htree_meta *meta = tee_fs_htree_get_meta(fdp->ht);
+	struct tee_fs_htree_meta *meta = NULL;
+
+	assert(fdp);
+	meta = tee_fs_htree_get_meta(fdp->ht);
+	if (!meta)
+		return TEE_ERROR_CORRUPT_OBJECT;
 
 	if ((size_t)new_file_len > meta->length) {
 		size_t ext_len = new_file_len - meta->length;
@@ -318,10 +325,15 @@ static TEE_Result ree_fs_read_primitive(struct tee_file_handle *fh, size_t pos,
 	uint8_t *data_user_ptr = buf_user;
 	uint8_t *block = NULL;
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
-	struct tee_fs_htree_meta *meta = tee_fs_htree_get_meta(fdp->ht);
+	struct tee_fs_htree_meta *meta = NULL;
 
 	/* One of buf_core and buf_user must be NULL */
 	assert(!buf_core || !buf_user);
+
+	assert(fdp);
+	meta = tee_fs_htree_get_meta(fdp->ht);
+	if (!meta)
+		return TEE_ERROR_CORRUPT_OBJECT;
 
 	remain_bytes = *len;
 	if ((pos + remain_bytes) < remain_bytes || pos > meta->length)
@@ -397,6 +409,7 @@ static TEE_Result ree_fs_write_primitive(struct tee_file_handle *fh, size_t pos,
 {
 	TEE_Result res;
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
+	struct tee_fs_htree_meta *meta = NULL;
 	size_t file_size;
 
 	/* One of buf_core and buf_user must be NULL */
@@ -405,7 +418,12 @@ static TEE_Result ree_fs_write_primitive(struct tee_file_handle *fh, size_t pos,
 	if (!len)
 		return TEE_SUCCESS;
 
-	file_size = tee_fs_htree_get_meta(fdp->ht)->length;
+	assert(fdp);
+	meta = tee_fs_htree_get_meta(fdp->ht);
+	if (!meta)
+		return TEE_ERROR_CORRUPT_OBJECT;
+
+	file_size = meta->length;
 
 	if ((pos + len) < len)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -739,6 +757,7 @@ static TEE_Result ree_fs_open(struct tee_pobj *po, size_t *size,
 	} else if (!res && size) {
 		struct tee_fs_fd *fdp = (struct tee_fs_fd *)*fh;
 
+		assert(fdp->ht);
 		*size = tee_fs_htree_get_meta(fdp->ht)->length;
 	}
 

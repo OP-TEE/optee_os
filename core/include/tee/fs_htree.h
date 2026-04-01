@@ -125,6 +125,8 @@ void tee_fs_htree_close(struct tee_fs_htree **ht);
  * tee_fs_htree_get_meta() - get a pointer to associated struct
  * tee_fs_htree_meta
  * @ht:		hash tree
+ *
+ * Return a pointer to the metadata, or NULL if @ht is NULL.
  */
 struct tee_fs_htree_meta *tee_fs_htree_get_meta(struct tee_fs_htree *ht);
 
