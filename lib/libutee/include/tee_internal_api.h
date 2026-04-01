@@ -629,10 +629,6 @@ void TEE_BigIntConvertFromFMM(TEE_BigInt *dest, const TEE_BigIntFMM *src,
 			      const TEE_BigInt *n,
 			      const TEE_BigIntFMMContext *context);
 
-void TEE_BigIntFMMConvertToBigInt(TEE_BigInt *dest, const TEE_BigIntFMM *src,
-				  const TEE_BigInt *n,
-				  const TEE_BigIntFMMContext *context);
-
 void TEE_BigIntComputeFMM(TEE_BigIntFMM *dest, const TEE_BigIntFMM *op1,
 			  const TEE_BigIntFMM *op2, const TEE_BigInt *n,
 			  const TEE_BigIntFMMContext *context);
