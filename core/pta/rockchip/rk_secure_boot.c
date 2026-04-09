@@ -272,7 +272,7 @@ static TEE_Result lockdown_device(uint32_t param_types,
 		return TEE_SUCCESS;
 	}
 
-	status = ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE;
+	status |= ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE;
 
 	if (IS_ENABLED(CFG_RK_SECURE_BOOT_SIMULATION)) {
 		IMSG("Simulation mode: Skip writing status: %"PRIx32,
@@ -292,7 +292,7 @@ static TEE_Result lockdown_device(uint32_t param_types,
 				       ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE);
 	if (res)
 		return res;
-	if (test_bit_mask(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE)) {
+	if (!test_bit_mask(status, ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE)) {
 		EMSG("Failed to write secure boot status");
 		return TEE_ERROR_GENERIC;
 	}
