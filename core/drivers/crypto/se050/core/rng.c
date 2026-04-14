@@ -24,10 +24,6 @@ static TEE_Result do_rng_read(void *buf, size_t blen)
 	return TEE_SUCCESS;
 }
 
-void plat_rng_init(void)
-{
-}
-
 TEE_Result hw_get_random_bytes(void *buf, size_t blen)
 {
 	if (!buf)

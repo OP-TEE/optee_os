@@ -1543,7 +1543,3 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 }
 
 #endif
-
-void plat_rng_init(void)
-{
-}
