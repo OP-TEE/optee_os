@@ -10,6 +10,7 @@
 #include <kernel/thread_arch.h>
 #include <rng_support.h>
 #include <sm/std_smc.h>
+#include <initcall.h>
 #include <stdbool.h>
 #include <string.h>
 #include <util.h>
@@ -192,27 +193,29 @@ static void __maybe_unused smccc_trng_print_info(void)
 	     (unsigned long)args.a3);
 }
 
-void plat_rng_init(void)
+static TEE_Result smcc_trng_init(void)
 {
 	if (!smccc_trng_is_supported())
 		panic("SMCCC TRNG not supported");
 
 	smccc_trng_print_info();
 
-	if (IS_ENABLED(CFG_WITH_SOFTWARE_PRNG)) {
-		/* If CFG_WITH_SOFTWARE_PRNG is enabled, seed PRNG with TRNG */
-		uint8_t seed[32] = { 0 };
-
-		if (smccc_trng_read(seed, sizeof(seed)))
-			panic("SMCCC TRNG not supported");
-
-		if (crypto_rng_init(seed, sizeof(seed)))
-			panic();
-	}
+	return TEE_SUCCESS;
 }
+early_init(smcc_trng_init);
 
-/* If CFG_WITH_SOFTWARE_PRNG is disabled, TRNG is our HW RNG */
-#ifndef CFG_WITH_SOFTWARE_PRNG
+#ifdef CFG_WITH_SOFTWARE_PRNG
+void plat_rng_init(void)
+{
+	uint8_t seed[32] = { 0 };
+
+	if (smccc_trng_read(seed, sizeof(seed)))
+		panic("SMCCC TRNG not supported");
+
+	if (crypto_rng_init(seed, sizeof(seed)))
+		panic();
+}
+#else
 TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
 	return smccc_trng_read(buf, len);

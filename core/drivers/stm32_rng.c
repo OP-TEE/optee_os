@@ -482,10 +482,6 @@ TEE_Result hw_get_random_bytes(void *out, size_t size)
 {
 	return stm32_rng_read(out, size);
 }
-
-void plat_rng_init(void)
-{
-}
 #endif
 
 static TEE_Result stm32_rng_pm_resume(void)

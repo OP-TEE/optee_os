@@ -370,9 +370,5 @@ TEE_Result hw_get_random_bytes(void *buf, size_t blen)
 
 	return do_rng_read(buf, blen);
 }
-
-void plat_rng_init(void)
-{
-}
 #endif /* CFG_WITH_SOFTWARE_PRNG */
 #endif /* CFG_NXP_CAAM_RNG_DRV */

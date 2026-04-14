@@ -4,6 +4,7 @@
  * Copyright (c) 2021, SumUp Services GmbH
  */
 
+#include <config.h>
 #include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/dt_driver.h>
@@ -217,7 +218,9 @@ static TEE_Result tee_cryp_init(void)
 		EMSG("Failed to initialize crypto API: %#" PRIx32, res);
 		panic();
 	}
-	plat_rng_init();
+
+	if (IS_ENABLED(CFG_WITH_SOFTWARE_PRNG))
+		plat_rng_init();
 
 	dt_driver_crypt_init_complete();
 

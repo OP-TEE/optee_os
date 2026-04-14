@@ -62,11 +62,6 @@ static uint32_t xiphera_trng_read32(void)
 	return value;
 }
 
-/* This is a true RNG, no need for seeding */
-void plat_rng_init(void)
-{
-}
-
 TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
 	uint8_t *rngbuf = buf;
