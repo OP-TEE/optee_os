@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2018-2021, Linaro Limited
+ * Copyright 2026 NXP
  */
 
 #include <assert.h>
@@ -691,8 +692,12 @@ static enum pkcs11_rc tee2pkcs_rsa_attributes(struct obj_attrs **pub_head,
 
 	rc = tee2pkcs_add_attribute(priv_head, PKCS11_CKA_PRIME_1, tee_obj,
 				    TEE_ATTR_RSA_PRIME1);
-	if (rc)
-		goto out;
+	if (rc == PKCS11_RV_NOT_FOUND) {
+		DMSG("CRT parameters unavailable, using standard RSA");
+		return PKCS11_CKR_OK;
+	} else if (rc != PKCS11_CKR_OK) {
+		return rc;
+	}
 
 	rc = tee2pkcs_add_attribute(priv_head, PKCS11_CKA_PRIME_2, tee_obj,
 				    TEE_ATTR_RSA_PRIME2);
