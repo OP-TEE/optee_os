@@ -52,6 +52,8 @@ CFG_SHMEM_START  ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
 CFG_SHMEM_SIZE   ?= 0x00400000
 CFG_TEE_CORE_NB_CORE ?= 4
 CFG_TZC380 ?= y
+
+CFG_SUNXI_SID ?= y
 endif
 
 ifeq ($(platform-flavor-armv8),1)
