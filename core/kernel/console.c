@@ -25,8 +25,14 @@ __weak void plat_console_init(void)
 {
 }
 
+__weak void plat_trace_init(void)
+{
+}
+
 void console_init(void)
 {
+	plat_trace_init();
+
 	if (IS_ENABLED(CFG_SEMIHOSTING_CONSOLE))
 		semihosting_console_init(CFG_SEMIHOSTING_CONSOLE_FILE);
 	else if (IS_ENABLED(CFG_FFA_CONSOLE))
