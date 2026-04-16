@@ -62,14 +62,17 @@ void plat_trace_ext_puts(const char *str)
 		bcm_elog_putchar(*p);
 }
 
+void plat_trace_init(void)
+{
+	bcm_elog_init(CFG_BCM_ELOG_AP_UART_LOG_BASE,
+		      CFG_BCM_ELOG_AP_UART_LOG_SIZE);
+}
+
 void plat_console_init(void)
 {
 	serial8250_uart_init(&console_data, CONSOLE_UART_BASE,
 			     CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
 	register_serial_console(&console_data.chip);
-
-	bcm_elog_init(CFG_BCM_ELOG_AP_UART_LOG_BASE,
-		      CFG_BCM_ELOG_AP_UART_LOG_SIZE);
 }
 
 void boot_primary_init_intc(void)
