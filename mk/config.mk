@@ -914,6 +914,13 @@ CFG_WITH_STMM_SP ?= n
 endif
 ifeq ($(CFG_WITH_STMM_SP),y)
 $(call force,CFG_ZLIB,y)
+# Number of 4KiB pages reserved for the StandaloneMm SP heap. The default
+# of 402 pages (~1.6MiB) is sufficient for minimal configurations, but
+# builds that include UEFI Secure Boot (AuthVariableLib + VarCheckPolicyLib
+# pulling in OpenSSL) typically require ~800 pages to avoid heap exhaustion
+# during StMM initialization. Values smaller than 402 are rejected at build
+# time as they are known to break existing configurations.
+CFG_STMM_HEAP_PAGE_COUNT ?= 402
 endif
 
 # When enabled checks that buffers passed to the GP Internal Core API
