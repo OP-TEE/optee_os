@@ -338,7 +338,8 @@ TEE_Result dt_driver_device_from_node_idx_prop_phandle(const char *prop_name,
 		return TEE_ERROR_DEFER_DRIVER_INIT;
 
 	prop_index *= dt_driver_provider_cells(prv);
-	if ((prop_index + 1) * sizeof(*prop) > (size_t)len)
+	if ((prop_index + dt_driver_provider_cells(prv)) *
+	    sizeof(*prop) > (size_t)len)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	phandle_node = fdt_node_offset_by_phandle(fdt, phandle);
