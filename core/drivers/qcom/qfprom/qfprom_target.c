@@ -20,14 +20,16 @@
 #include "qfprom_hal.h"
 #include "qfprom_priv.h"
 
-static struct rpmh_client *rpmh_handle;
-
 TEE_Result qfprom_write_set_clock_settings(void)
 {
+	struct io_pa_va base = { .pa = GCC_BASE };
+	vaddr_t gcc_base = io_pa_or_va(&base, GCC_SIZE);
+	vaddr_t cfg_rcgr = gcc_base + GCC_SEC_CTRL_CFG_RCGR;
+	vaddr_t cmd_rcgr = gcc_base + GCC_SEC_CTRL_CMD_RCGR;
 	uint32_t blow_timer_value;
 	TEE_Result res;
 
-	res = qcom_clock_enable(QCOM_CLKS_QFPROM);
+	res = qcom_clock_set_rate(cfg_rcgr, cmd_rcgr, QFPROM_CLOCK_DIVIDE);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -42,9 +44,13 @@ TEE_Result qfprom_write_set_clock_settings(void)
 
 TEE_Result qfprom_write_reset_clock_settings(void)
 {
+	struct io_pa_va base = { .pa = GCC_BASE };
+	vaddr_t gcc_base = io_pa_or_va(&base, GCC_SIZE);
+	vaddr_t cfg_rcgr = gcc_base + GCC_SEC_CTRL_CFG_RCGR;
+	vaddr_t cmd_rcgr = gcc_base + GCC_SEC_CTRL_CMD_RCGR;
 	TEE_Result res;
 
-	res = qcom_clock_disable(QCOM_CLKS_QFPROM);
+	res = qcom_clock_set_rate(cfg_rcgr, cmd_rcgr, 0);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -54,6 +60,9 @@ TEE_Result qfprom_write_reset_clock_settings(void)
 
 	return TEE_SUCCESS;
 }
+
+#ifdef CFG_QFPROM_MX_RAIL_WA
+static struct rpmh_client *rpmh_handle;
 
 TEE_Result qfprom_enable_voltage(void)
 {
@@ -117,6 +126,17 @@ TEE_Result qfprom_disable_voltage(void)
 
 	return TEE_SUCCESS;
 }
+#else
+TEE_Result qfprom_enable_voltage(void)
+{
+	return TEE_SUCCESS;
+}
+
+TEE_Result qfprom_disable_voltage(void)
+{
+	return TEE_SUCCESS;
+}
+#endif /* CFG_QFPROM_MX_RAIL_WA */
 
 TEE_Result qfprom_acquire_hw_mutex(void)
 {

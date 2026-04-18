@@ -17,17 +17,17 @@
 #define QFPROM_CORR_BASE                        0x00784000
 #define QFPROM_SIZE                             0x4000
 
-#define QFPROM_BLOW_TIMER_OFFSET                0x203c
-#define QFPROM_ACCEL_OFFSET                     0x2044
+#define QFPROM_BLOW_TIMER_OFFSET                0x2030
+#define QFPROM_ACCEL_OFFSET                     0x2038
 
-#define QFPROM_BLOW_STATUS_OFFSET               0x2048
+#define QFPROM_BLOW_STATUS_OFFSET               0x203c
 #define QFPROM_BLOW_STATUS_RMSK                 0x3
 #define QFPROM_BLOW_STATUS_BUSY_VAL             0x1
 #define QFPROM_BLOW_STATUS_ERROR_VAL            0x2
 #define QFPROM_BLOW_STATUS_READY_VAL            0x0
 
-#define QFPROM_FEC_ESR_OFFSET                   0x2060
-#define QFPROM_FEC_EAR_OFFSET                   0x2064
+#define QFPROM_FEC_ESR_OFFSET                   0x2058
+#define QFPROM_FEC_EAR_OFFSET                   0x205c
 #define QFPROM_FEC_ESR_ERR_SEEN_BMSK            BIT(0)
 #define QFPROM_FEC_EAR_ERR_ADDR_BMSK            0xFFFF
 
@@ -35,8 +35,8 @@
 #define QFPROM_FUSE_BLOW_TIME_IN_US             5
 
 #define QFPROM_GATELAST_VAL                     0x1
-#define QFPROM_TRIPPT_SEL_VAL                   0x5
-#define QFPROM_ACCEL_VAL                        0x8
+#define QFPROM_TRIPPT_SEL_VAL                   0x4
+#define QFPROM_ACCEL_VAL                        0x10
 
 #define QFPROM_GATELAST_SHFT                    11
 #define QFPROM_TRIPPT_SEL_SHFT                  8
@@ -50,45 +50,46 @@
 #define QFPROM_ACCEL_RESET_VALUE \
 	(0x1 << QFPROM_GATELAST_SHFT)
 
-#define MX_QFPROM_ENABLE_VAL                    15
-#define MX_QFPROM_DISABLE_VAL                   9
-
-#define PM_QFPROM_VREG_A                        "mx.lvl"
-#define QFPROM_VOLTAGE_ON                       15
-#define QFPROM_VOLTAGE_OFF                      9
-
 #define QFPROM_RAW_TO_CORR(raw_addr) \
 	((raw_addr) + (QFPROM_CORR_BASE - QFPROM_RAW_BASE))
 
 #define LCM_ADDR                                0x00780120
 #define PRI_KEY_DERIVATION_KEY_ADDR             0x00780128
-#define MRC_2_0_ADDR                            0x00780170
-#define PTE_ADDR                                0x00780180
-#define READ_PERMISSION_ADDR                    0x007801A8
-#define WRITE_PERMISSION_ADDR                   0x007801B0
-#define FEC_ENABLES_ADDR                        0x007801B8
-#define OEM_CONFIG_ADDR                         0x007801C0
-#define FEATURE_CONFIG_M_ADDR                   0x007801D8
-#define FEATURE_CONFIG_NM_ADDR                  0x00780200
-#define ANTI_ROLLBACK_1_ADDR                    0x00780220
-#define ANTI_ROLLBACK_2_ADDR                    0x00780228
-#define ANTI_ROLLBACK_3_ADDR                    0x00780230
-#define ANTI_ROLLBACK_4_ADDR                    0x00780238
-#define ANTI_ROLLBACK_5_ADDR                    0x00780240
-#define PK_HASH_0_ADDR                          0x00780248
-#define CALIBRATION_ADDR                        0x00780278
-#define MEMORY_CONFIGURATION_ADDR               0x00780340
-#define QC_SPARE_20_ADDR                        0x00780700
-#define QC_SPARE_21_ADDR                        0x00780708
-#define OEM_IMAGE_ENCRYPTION_KEY_ADDR           0x00780710
-#define OEM_SECURE_BOOT_ADDR                    0x00780728
-#define SEC_KEY_DERIVATION_KEY_ADDR             0x00780738
-#define IMAGE_ENCRYPTION_KEY_1_ADDR             0x007809A0
-#define USER_KEY_DERIVATION_KEY_ADDR            0x007809B8
-#define OEM_SPARE_28_ADDR                       0x007809E0
-#define OEM_SPARE_29_ADDR                       0x007809F0
-#define OEM_SPARE_30_ADDR                       0x00780A00
-#define OEM_SPARE_31_ADDR                       0x00780A10
+#define MRC_2_0_ADDR                            0x00780148
+#define PTE_ADDR                                0x00780158
+#define READ_PERMISSION_ADDR                    0x00780190
+#define WRITE_PERMISSION_ADDR                   0x00780198
+#define FEC_ENABLES_ADDR                        0x007801A0
+#define OEM_CONFIG_ADDR                         0x007801A8
+#define FEATURE_CONFIG_M_ADDR                   0x007801D0
+#define FEATURE_CONFIG_NM_ADDR                  0x00780210
+#define ANTI_ROLLBACK_1_ADDR                    0x00780238
+#define ANTI_ROLLBACK_2_ADDR                    0x00780240
+#define ANTI_ROLLBACK_3_ADDR                    0x00780248
+#define ANTI_ROLLBACK_4_ADDR                    0x00780250
+#define ANTI_ROLLBACK_5_ADDR                    0x00780258
+#define ANTI_ROLLBACK_6_ADDR                    0x00780260
+#define ANTI_ROLLBACK_7_ADDR                    0x00780268
+#define ANTI_ROLLBACK_8_ADDR                    0x00780270
+#define ANTI_ROLLBACK_9_ADDR                    0x00780278
+#define ANTI_ROLLBACK_10_ADDR                   0x00780280
+#define ANTI_ROLLBACK_11_ADDR                   0x00780288
+#define ANTI_ROLLBACK_12_ADDR                   0x00780290
+#define ANTI_ROLLBACK_13_ADDR                   0x00780298
+#define PK_HASH_0_ADDR                          0x007802A0
+#define CALIBRATION_ADDR                        0x007802E0
+#define MEMORY_CONFIGURATION_ADDR               0x00780490
+#define QC_SPARE_20_ADDR                        0x00780D50
+#define QC_SPARE_21_ADDR                        0x00780D58
+#define OEM_IMAGE_ENCRYPTION_KEY_ADDR           0x00780D60
+#define OEM_SECURE_BOOT_ADDR                    0x00780D78
+#define SEC_KEY_DERIVATION_KEY_ADDR             0x00780D88
+#define IMAGE_ENCRYPTION_KEY_1_ADDR             0x00781150
+#define USER_KEY_DERIVATION_KEY_ADDR            0x00781168
+#define OEM_SPARE_28_ADDR                       0x00781190
+#define OEM_SPARE_29_ADDR                       0x007811A0
+#define OEM_SPARE_30_ADDR                       0x007811B0
+#define OEM_SPARE_31_ADDR                       0x007811C0
 
 #define QFPROM_READ_PERM_LSB_OFFSET \
 	(READ_PERMISSION_ADDR - QFPROM_RAW_BASE)
@@ -110,7 +111,6 @@ enum qfprom_region_name {
 	QFPROM_CRI_CM_PRIVATE_REGION = 0,
 	QFPROM_LCM_REGION,
 	QFPROM_PRI_KEY_DERIVATION_KEY_REGION,
-	QFPROM_CM_FEATURE_CONFIG_REGION,
 	QFPROM_MRC_2_0_REGION,
 	QFPROM_PTE_REGION,
 	QFPROM_READ_PERMISSION_REGION,
@@ -124,6 +124,14 @@ enum qfprom_region_name {
 	QFPROM_ANTI_ROLLBACK_3_REGION,
 	QFPROM_ANTI_ROLLBACK_4_REGION,
 	QFPROM_ANTI_ROLLBACK_5_REGION,
+	QFPROM_ANTI_ROLLBACK_6_REGION,
+	QFPROM_ANTI_ROLLBACK_7_REGION,
+	QFPROM_ANTI_ROLLBACK_8_REGION,
+	QFPROM_ANTI_ROLLBACK_9_REGION,
+	QFPROM_ANTI_ROLLBACK_10_REGION,
+	QFPROM_ANTI_ROLLBACK_11_REGION,
+	QFPROM_ANTI_ROLLBACK_12_REGION,
+	QFPROM_ANTI_ROLLBACK_13_REGION,
 	QFPROM_PK_HASH_0_REGION,
 	QFPROM_CALIBRATION_REGION,
 	QFPROM_MEMORY_CONFIGURATION_REGION,
@@ -145,33 +153,41 @@ enum qfprom_region_name {
 enum qfprom_perm_bit_pos {
 	LCM = 1,
 	PRI_KEY_DERIVATION_KEY = 2,
-	MRC_2_0 = 4,
-	PTE = 5,
-	READ_PERMISSION = 6,
-	WRITE_PERMISSION = 7,
-	FEC_ENABLES = 8,
-	OEM_CONFIG = 9,
-	FEATURE_CONFIG_M = 10,
-	FEATURE_CONFIG_NM = 11,
-	ANTI_ROLLBACK_1 = 12,
-	ANTI_ROLLBACK_2 = 13,
-	ANTI_ROLLBACK_3 = 14,
-	ANTI_ROLLBACK_4 = 15,
-	ANTI_ROLLBACK_5 = 16,
-	PK_HASH_0 = 17,
-	CALIBRATION = 18,
-	MEMORY_CONFIGURATION = 19,
-	QC_SPARE_20 = 20,
-	QC_SPARE_21 = 21,
-	OEM_IMAGE_ENCRYPTION_KEY = 22,
-	OEM_SECURE_BOOT = 23,
-	SEC_KEY_DERIVATION_KEY = 24,
-	IMAGE_ENCRYPTION_KEY_1 = 26,
-	USER_KEY_DERIVATION_KEY = 27,
-	OEM_SPARE_28 = 28,
-	OEM_SPARE_29 = 29,
-	OEM_SPARE_30 = 30,
-	OEM_SPARE_31 = 31,
+	MRC_2_0 = 3,
+	PTE = 4,
+	READ_PERMISSION = 5,
+	WRITE_PERMISSION = 6,
+	FEC_ENABLES = 7,
+	OEM_CONFIG = 8,
+	FEATURE_CONFIG_M = 9,
+	FEATURE_CONFIG_NM = 10,
+	ANTI_ROLLBACK_1 = 11,
+	ANTI_ROLLBACK_2 = 12,
+	ANTI_ROLLBACK_3 = 13,
+	ANTI_ROLLBACK_4 = 14,
+	ANTI_ROLLBACK_5 = 15,
+	ANTI_ROLLBACK_6 = 16,
+	ANTI_ROLLBACK_7 = 17,
+	ANTI_ROLLBACK_8 = 18,
+	ANTI_ROLLBACK_9 = 19,
+	ANTI_ROLLBACK_10 = 20,
+	ANTI_ROLLBACK_11 = 21,
+	ANTI_ROLLBACK_12 = 22,
+	ANTI_ROLLBACK_13 = 23,
+	PK_HASH_0 = 24,
+	CALIBRATION = 25,
+	MEMORY_CONFIGURATION = 26,
+	QC_SPARE_20 = 27,
+	QC_SPARE_21 = 28,
+	OEM_IMAGE_ENCRYPTION_KEY = 29,
+	OEM_SECURE_BOOT = 30,
+	SEC_KEY_DERIVATION_KEY = 31,
+	IMAGE_ENCRYPTION_KEY_1 = 1,  /* MSB bit 1 */
+	USER_KEY_DERIVATION_KEY = 2, /* MSB bit 2 */
+	OEM_SPARE_28 = 3,            /* MSB bit 3 */
+	OEM_SPARE_29 = 4,            /* MSB bit 4 */
+	OEM_SPARE_30 = 5,            /* MSB bit 5 */
+	OEM_SPARE_31 = 6,            /* MSB bit 6 */
 };
 
 #define LCM_PERM_MASK				BIT(LCM)
@@ -189,6 +205,14 @@ enum qfprom_perm_bit_pos {
 #define ANTI_ROLLBACK_3_PERM_MASK		BIT(ANTI_ROLLBACK_3)
 #define ANTI_ROLLBACK_4_PERM_MASK		BIT(ANTI_ROLLBACK_4)
 #define ANTI_ROLLBACK_5_PERM_MASK		BIT(ANTI_ROLLBACK_5)
+#define ANTI_ROLLBACK_6_PERM_MASK		BIT(ANTI_ROLLBACK_6)
+#define ANTI_ROLLBACK_7_PERM_MASK		BIT(ANTI_ROLLBACK_7)
+#define ANTI_ROLLBACK_8_PERM_MASK		BIT(ANTI_ROLLBACK_8)
+#define ANTI_ROLLBACK_9_PERM_MASK		BIT(ANTI_ROLLBACK_9)
+#define ANTI_ROLLBACK_10_PERM_MASK		BIT(ANTI_ROLLBACK_10)
+#define ANTI_ROLLBACK_11_PERM_MASK		BIT(ANTI_ROLLBACK_11)
+#define ANTI_ROLLBACK_12_PERM_MASK		BIT(ANTI_ROLLBACK_12)
+#define ANTI_ROLLBACK_13_PERM_MASK		BIT(ANTI_ROLLBACK_13)
 #define PK_HASH_0_PERM_MASK			BIT(PK_HASH_0)
 #define CALIBRATION_PERM_MASK			BIT(CALIBRATION)
 #define MEMORY_CONFIGURATION_PERM_MASK		BIT(MEMORY_CONFIGURATION)

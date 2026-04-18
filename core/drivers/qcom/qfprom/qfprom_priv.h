@@ -7,6 +7,7 @@
 #define __QFPROM_PRIV_H__
 
 #include <drivers/qcom/qfprom/qfprom.h>
+#include <qfprom_target.h>
 #include <mm/core_mmu.h>
 
 #define QFPROM_BLOW_TIMEOUT_US		1000
