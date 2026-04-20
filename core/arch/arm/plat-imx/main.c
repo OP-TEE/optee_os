@@ -32,12 +32,14 @@
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/imx_uart.h>
+#include <drivers/imx_ocotp.h>
 #include <imx.h>
 #include <kernel/boot.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <stdint.h>
+#include <pta_manufacturing.h>
 
 static struct imx_uart_data console_data __nex_bss;
 
@@ -126,5 +128,47 @@ unsigned long plat_get_freq(void)
 void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
+}
+#endif
+
+#if defined(CFG_MANUFACTURING_PTA) &&                 \
+	defined(CFG_IMX_OCOTP_MANUFACTURING_BANK) &&  \
+	defined(CFG_IMX_OCOTP_MANUFACTURING_WORD) &&  \
+	defined(CFG_IMX_OCOTP_MANUFACTURING_BIT) &&   \
+	defined(CFG_IMX_OCOTP_MANUFACTURING_WIDTH) && \
+	CFG_IMX_OCOTP_MANUFACTURING_WIDTH > 0
+#if CFG_IMX_OCOTP_MANUFACTURING_WIDTH > 4
+#error CFG_IMX_OCOTP_MANUFACTURING_WIDTH must not be bigger then 4
+#endif
+TEE_Result pta_manufacturing_query_state(enum pta_manufacturing_state *state)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t val = 0;
+
+	res = imx_ocotp_read(CFG_IMX_OCOTP_MANUFACTURING_BANK,
+			     CFG_IMX_OCOTP_MANUFACTURING_WORD, &val);
+	if (res) {
+		EMSG("Failed to read manufacturing fuse.");
+		*state = PTA_MANUFACTURING_STATE_UNKNOWN;
+		return res;
+	}
+
+	val = (val >> CFG_IMX_OCOTP_MANUFACTURING_BIT);
+	val = val & ((1U << CFG_IMX_OCOTP_MANUFACTURING_WIDTH) - 1);
+	val = val << (4 - CFG_IMX_OCOTP_MANUFACTURING_WIDTH);
+	*state = (enum pta_manufacturing_state)val;
+	return TEE_SUCCESS;
+}
+
+TEE_Result pta_manufacturing_set_state(enum pta_manufacturing_state state)
+{
+	uint32_t val = state;
+
+	val = val >> (4 - CFG_IMX_OCOTP_MANUFACTURING_WIDTH);
+	val = val & ((1U << CFG_IMX_OCOTP_MANUFACTURING_WIDTH) - 1);
+	val = val << CFG_IMX_OCOTP_MANUFACTURING_BIT;
+
+	return imx_ocotp_write(CFG_IMX_OCOTP_MANUFACTURING_BANK,
+			       CFG_IMX_OCOTP_MANUFACTURING_WORD, val);
 }
 #endif
