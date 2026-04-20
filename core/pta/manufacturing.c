@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: BSD-2-Clause
+/*
+ * Copyright (c) 2026, Pengutronix e.K.
+ */
+
+#include <kernel/pseudo_ta.h>
+#include <pta_manufacturing.h>
+
+TEE_Result __weak
+pta_manufacturing_query_state(enum pta_manufacturing_state *state)
+{
+	*state = PTA_MANUFACTURING_STATE_UNKNOWN;
+	return TEE_SUCCESS;
+}
+
+TEE_Result __weak
+pta_manufacturing_set_state(enum pta_manufacturing_state state __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static TEE_Result manufacturing_get_state(uint32_t param_types,
+					  TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+
+	if (exp_pt != param_types) {
+		DMSG("Wrong parameters");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	return pta_manufacturing_query_state(&params[0].value.a);
+}
+
+static TEE_Result manufacturing_set_state(uint32_t param_types,
+					  TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	enum pta_manufacturing_state next = PTA_MANUFACTURING_STATE_UNKNOWN;
+	enum pta_manufacturing_state current = PTA_MANUFACTURING_STATE_LOCKED;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (exp_pt != param_types) {
+		DMSG("Wrong parameters");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	next = (enum pta_manufacturing_state)params[0].value.a;
+	res = pta_manufacturing_query_state(&current);
+	if (res)
+		return res;
+
+	if (next < current)
+		return TEE_ERROR_SECURITY;
+
+	if (next == current)
+		return TEE_SUCCESS;
+
+	return pta_manufacturing_set_state(next);
+}
+
+static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
+				 uint32_t param_types,
+				 TEE_Param params[TEE_NUM_PARAMS])
+{
+	switch (cmd_id) {
+	case PTA_MANUFACTURING_QUERY_STATE:
+		return manufacturing_get_state(param_types, params);
+	case PTA_MANUFACTURING_SET_STATE:
+		return manufacturing_set_state(param_types, params);
+	default:
+		break;
+	}
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+pseudo_ta_register(.uuid = PTA_MANUFACTURING_UUID, .name = "manufacturing",
+		   .flags = PTA_DEFAULT_FLAGS,
+		   .invoke_command_entry_point = invoke_command);
