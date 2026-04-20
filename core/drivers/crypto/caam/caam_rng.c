@@ -343,7 +343,7 @@ enum caam_status caam_rng_init(vaddr_t ctrl_addr)
 
 #ifdef CFG_NXP_CAAM_RNG_DRV
 #ifdef CFG_WITH_SOFTWARE_PRNG
-void plat_rng_init(void)
+void plat_init_soft_prng(void)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint8_t buf[64] = { };

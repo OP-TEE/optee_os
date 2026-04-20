@@ -205,7 +205,7 @@ static TEE_Result smcc_trng_init(void)
 early_init(smcc_trng_init);
 
 #ifdef CFG_WITH_SOFTWARE_PRNG
-void plat_rng_init(void)
+void plat_init_soft_prng(void)
 {
 	uint8_t seed[32] = { 0 };
 

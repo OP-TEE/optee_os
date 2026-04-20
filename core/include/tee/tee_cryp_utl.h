@@ -30,11 +30,11 @@ TEE_Result tee_do_cipher_update(void *ctx, uint32_t algo,
 void plat_prng_add_jitter_entropy(enum crypto_rng_src sid, unsigned int *pnum);
 
 /*
- * plat_rng_init() - Initialize RNG support.
+ * plat_init_soft_prng() - Provide a seed to the software RNG support.
  * If not overridden with a platform implementation, the function defaults
- * to __plat_rng_init() that implements a weak seeding of the RNG.
+ * to __plat_init_soft_prng() that implements a weak seeding of the RNG.
  */
-void plat_rng_init(void);
-void __plat_rng_init(void);
+void plat_init_soft_prng(void);
+void __plat_init_soft_prng(void);
 
 #endif

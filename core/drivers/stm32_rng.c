@@ -458,13 +458,16 @@ out:
 }
 
 #ifdef CFG_WITH_SOFTWARE_PRNG
-/* Override weak plat_rng_init with platform handler to attempt to seed PRNG */
-void plat_rng_init(void)
+/*
+ * Override weak plat_init_soft_prng with platform handler to attempt to seed
+ * PRNG
+ */
+void plat_init_soft_prng(void)
 {
 	uint8_t seed[RNG_FIFO_BYTE_DEPTH] = { };
 
 	if (!stm32_rng) {
-		__plat_rng_init();
+		__plat_init_soft_prng();
 		DMSG("PRNG seeded without RNG");
 		return;
 	}
