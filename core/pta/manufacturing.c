@@ -4,6 +4,7 @@
  */
 
 #include <kernel/pseudo_ta.h>
+#include <tee/tee_fs.h>
 #include <pta_manufacturing.h>
 #include <crypto/crypto.h>
 
@@ -82,6 +83,45 @@ static TEE_Result manufacturing_set_state(uint32_t param_types,
 	return pta_manufacturing_set_state(next);
 }
 
+static TEE_Result manufacturing_get_rpmb_key(uint32_t param_types,
+					     TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+					  TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	enum pta_manufacturing_state current = PTA_MANUFACTURING_STATE_LOCKED;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (exp_pt != param_types) {
+		DMSG("Wrong parameters");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+	if (params[0].memref.size != RPMB_EMMC_CID_SIZE) {
+		DMSG("Wrong buffer size %d != %d", params[0].memref.size,
+		     RPMB_EMMC_CID_SIZE);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	res = pta_manufacturing_query_state(&current);
+	if (res)
+		return res;
+
+	/* make glitching harder by adding a random delay. */
+	rand_delay();
+
+	if (current > PTA_MANUFACTURING_STATE_UNLOCKED)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	if (!plat_rpmb_key_is_ready()) {
+		DMSG("platform indicates RPMB key is not ready");
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	return tee_rpmb_key_gen(params[0].memref.buffer,
+				params[1].memref.buffer, params[1].memref.size);
+}
+
 static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 				 uint32_t param_types,
 				 TEE_Param params[TEE_NUM_PARAMS])
@@ -91,6 +131,8 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 		return manufacturing_get_state(param_types, params);
 	case PTA_MANUFACTURING_SET_STATE:
 		return manufacturing_set_state(param_types, params);
+	case PTA_MANUFACTURING_GET_RPMB_KEY:
+		return manufacturing_get_rpmb_key(param_types, params);
 	default:
 		break;
 	}

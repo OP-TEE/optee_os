@@ -43,6 +43,19 @@ enum pta_manufacturing_state {
  */
 #define PTA_MANUFACTURING_SET_STATE	0x1
 
+/*
+ * Get the RPMB key for the specified CID
+ *
+ * [in]		memref[0]	CID
+ * [out]	memref[1]	RPMB Key
+ *
+ * Result:
+ * TEE_SUCCESS - Invoke command success
+ * TEE_ERROR_BAD_PARAMETERS - Incorrect params or buffer sizes
+ * TEE_ERROR_ACCESS_DENIED - Manufacturing state does not allow access to key
+ */
+#define PTA_MANUFACTURING_GET_RPMB_KEY	0x2
+
 /**
  * Weak functions to be overwritten by platforms to store and retrieve the
  * state.
