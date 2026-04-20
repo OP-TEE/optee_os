@@ -5,6 +5,20 @@
 
 #include <kernel/pseudo_ta.h>
 #include <pta_manufacturing.h>
+#include <crypto/crypto.h>
+
+static void rand_delay(void)
+{
+	int loops;
+
+	crypto_rng_read(&loops, sizeof(loops));
+	loops &= 0x3FF; /* cap to 10 bits */
+
+	while (--loops >= 0) {
+		loops++;
+		loops--;
+	}
+}
 
 TEE_Result __weak
 pta_manufacturing_query_state(enum pta_manufacturing_state *state)
@@ -55,6 +69,9 @@ static TEE_Result manufacturing_set_state(uint32_t param_types,
 	res = pta_manufacturing_query_state(&current);
 	if (res)
 		return res;
+
+	/* make glitching harder by adding a random delay. */
+	rand_delay();
 
 	if (next < current)
 		return TEE_ERROR_SECURITY;
