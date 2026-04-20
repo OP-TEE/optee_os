@@ -172,7 +172,7 @@ __weak void plat_prng_add_jitter_entropy(enum crypto_rng_src sid,
 		crypto_rng_add_event(sid, pnum, &current, sizeof(current));
 }
 
-void __plat_rng_init(void)
+void __plat_init_soft_prng(void)
 {
 	TEE_Result res = TEE_SUCCESS;
 	TEE_Time t;
@@ -207,7 +207,7 @@ void __plat_rng_init(void)
  * constant value. It is not suitable for a secure environment.
  */
 #ifdef CFG_INSECURE
-void plat_rng_init(void) __weak __alias("__plat_rng_init");
+void plat_init_soft_prng(void) __weak __alias("__plat_init_soft_prng");
 #endif
 
 static TEE_Result tee_cryp_init(void)
@@ -220,7 +220,7 @@ static TEE_Result tee_cryp_init(void)
 	}
 
 	if (IS_ENABLED(CFG_WITH_SOFTWARE_PRNG))
-		plat_rng_init();
+		plat_init_soft_prng();
 
 	dt_driver_crypt_init_complete();
 
