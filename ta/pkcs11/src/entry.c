@@ -366,7 +366,18 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 	TEE_MemMove(params[0].memref.buffer, &rc, sizeof(rc));
 	params[0].memref.size = sizeof(rc);
 
-	if (rc == PKCS11_CKR_BUFFER_TOO_SMALL)
+	/*
+	 * When command PKCS11_CMD_GET_ATTRIBUTE_VALUE emits
+	 * PKCS11_CKR_BUFFER_TOO_SMALL status, it shall still return
+	 * with TEE_SUCCESS since caller can read valid output data
+	 * from memref[0] (PKCS#11 return code) and memref[2] (retrieved
+	 * object attributes information).
+	 *
+	 * For all other commands, return TEE_ERROR_SHORT_BUFFER since
+	 * only the memrefs output sizes are meaningful to the client.
+	 */
+	if (cmd != PKCS11_CMD_GET_ATTRIBUTE_VALUE &&
+	    rc == PKCS11_CKR_BUFFER_TOO_SMALL)
 		return TEE_ERROR_SHORT_BUFFER;
 	else
 		return TEE_SUCCESS;
