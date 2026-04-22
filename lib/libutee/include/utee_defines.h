@@ -349,11 +349,7 @@ static inline size_t __tee_alg_get_digest_size(uint32_t algo)
 /* ------------------------------------------------------------ */
 /* OTP mapping                                                  */
 /* ------------------------------------------------------------ */
-#define HW_UNIQUE_KEY_WORD1      (8)
-#define HW_UNIQUE_KEY_LENGTH     (16)
-#define HW_UNIQUE_KEY_WORD2      (HW_UNIQUE_KEY_WORD1 + 1)
-#define HW_UNIQUE_KEY_WORD3      (HW_UNIQUE_KEY_WORD1 + 2)
-#define HW_UNIQUE_KEY_WORD4      (HW_UNIQUE_KEY_WORD1 + 3)
+#define HW_UNIQUE_KEY_LENGTH		(CFG_HW_UNIQUE_KEY_LENGTH)
 
 #define UTEE_SE_READER_PRESENT			(1 << 0)
 #define UTEE_SE_READER_TEE_ONLY			(1 << 1)
