@@ -1815,7 +1815,7 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	rpc_target_info = thread_get_tsd()->rpc_target_info;
 	sp_s->thread_id = thread_get_id();
 	thread_get_tsd()->rpc_target_info =
-		FFA_TARGET_INFO_SET(sp_s->endpoint_id, sp_s->thread_id);
+		ffa_target_info_set(sp_s->endpoint_id, sp_s->thread_id);
 
 	__thread_enter_user_mode(sp_regs, &panicked, &panic_code);
 
