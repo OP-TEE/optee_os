@@ -812,6 +812,10 @@ $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 CFG_VIRT_GUEST_COUNT ?= 2
 endif
 
+# Default length of hardware unique key, platforms can override it based on
+# their capabilities.
+CFG_HW_UNIQUE_KEY_LENGTH ?= 16
+
 # Enables backwards compatible derivation of RPMB and SSK keys
 CFG_CORE_HUK_SUBKEY_COMPAT ?= y
 
