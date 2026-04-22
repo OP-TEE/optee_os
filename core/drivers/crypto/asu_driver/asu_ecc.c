@@ -13,6 +13,7 @@
 #include <inttypes.h>
 #include <mm/core_memprot.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <string_ext.h>
 #include <tee/cache.h>
@@ -90,7 +91,6 @@ struct asu_km_key_metadata {
 	uint16_t length;
 	uint32_t epoch_time;
 	uint32_t usage_count;
-	uint32_t reserved;
 };
 
 /* Key manager AES key object */
@@ -99,18 +99,20 @@ struct asu_aes_key_object {
 	uint32_t key_size;
 	uint32_t key_src;
 	uint32_t key_id;
+	uint8_t reserved[4];
 };
 
 /* Key manager params for ECC key-pair generation */
 struct asu_km_params {
 	struct asu_km_key_metadata key_metadata;
 	struct asu_aes_key_object aes_key_obj;
-	uint32_t wrapped_input_len;
 	uint64_t key_object_addr;
 	uint64_t key_id_addr;
+	uint32_t wrapped_input_len;
+	uint8_t reserved[4];
 };
 
-/* Key object buffer layout expected by KeyManager ECC key-pair generation */
+/* Key object buffer for KeyManager ECC key-pair generation */
 struct asu_ecc_keypair_object {
 	uint8_t pub_key[ASU_ECC_MAX_PUB_KEY_SIZE_IN_BYTES];
 	uint8_t priv_key[ASU_ECC_MAX_PVT_KEY_SIZE_IN_BYTES];
@@ -130,8 +132,7 @@ struct asu_ecc_ecdh_params {
 struct asu_ecc_keypair_cbctx {
 	struct ecc_keypair *key;	/* Destination ECC key pair */
 	size_t key_len;			/* Key size in bytes */
-	uint8_t *priv_key;		/* Private key buffer */
-	uint8_t *pub_key;		/* Public key buffer (X||Y) */
+	struct asu_ecc_keypair_object *keypair_obj; /* FW DMA buffer */
 };
 
 /* Callback context for verify operation */
@@ -145,6 +146,38 @@ static const struct crypto_ecc_public_ops *sw_pub_ops;
 
 /* Bitmask of ECC curves enabled in OP-TEE build for ASU FW offload */
 static uint32_t asu_ecc_hw_curves_mask;
+
+/**
+ * asu_ecc_alloc_align_buf() - Allocate zeroed cacheline-aligned memory
+ * @len: Requested payload length
+ * @alloc_len: Returns aligned allocation length when non-NULL
+ *
+ * Return: Aligned buffer on success, or NULL on allocation failure.
+ */
+static void *asu_ecc_alloc_align_buf(size_t len, size_t *alloc_len)
+{
+	size_t aligned_len = ROUNDUP(len, CACHELINE_LEN);
+	void *buf = memalign(CACHELINE_LEN, aligned_len);
+
+	if (!buf)
+		return NULL;
+
+	memset(buf, 0, aligned_len);
+	if (alloc_len)
+		*alloc_len = aligned_len;
+
+	return buf;
+}
+
+/* Zeroize and free a buffer allocated with asu_ecc_alloc_align_buf() */
+static void asu_ecc_free_align_buf(void *buf, size_t alloc_len)
+{
+	if (!buf)
+		return;
+
+	memzero_explicit(buf, alloc_len);
+	free(buf);
+}
 
 /**
  * asu_ecc_set_hw_curves_mask() - Initialize HW curve bitmask from build config
@@ -419,26 +452,23 @@ static TEE_Result asu_ecc_gen_keypair_cb(void *cbptr,
 
 	cbctx = cbptr;
 
-	if (!cbctx || !cbctx->key || !cbctx->key_len ||
-	    !cbctx->priv_key || !cbctx->pub_key) {
+	if (!cbctx || !cbctx->key || !cbctx->key_len || !cbctx->keypair_obj)
 		return TEE_ERROR_BAD_PARAMETERS;
-	}
 
-	cache_operation(TEE_CACHEINVALIDATE, cbctx->priv_key, cbctx->key_len);
-	cache_operation(TEE_CACHEINVALIDATE, cbctx->pub_key,
-			cbctx->key_len * 2);
+	cache_operation(TEE_CACHEINVALIDATE, cbctx->keypair_obj,
+			sizeof(*cbctx->keypair_obj));
 
-	ret = crypto_bignum_bin2bn(cbctx->priv_key, cbctx->key_len,
-				   cbctx->key->d);
+	ret = crypto_bignum_bin2bn(cbctx->keypair_obj->priv_key,
+				   cbctx->key_len, cbctx->key->d);
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = crypto_bignum_bin2bn(cbctx->pub_key, cbctx->key_len,
-				   cbctx->key->x);
+	ret = crypto_bignum_bin2bn(cbctx->keypair_obj->pub_key,
+				   cbctx->key_len, cbctx->key->x);
 	if (ret != TEE_SUCCESS)
 		return ret;
 
-	ret = crypto_bignum_bin2bn(cbctx->pub_key + cbctx->key_len,
+	ret = crypto_bignum_bin2bn(cbctx->keypair_obj->pub_key + cbctx->key_len,
 				   cbctx->key_len, cbctx->key->y);
 	if (ret != TEE_SUCCESS)
 		return ret;
@@ -544,7 +574,8 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 	uint8_t unique_id = ASU_UNIQUE_ID_MAX;
 	struct asu_client_params cparams = { };
 	struct asu_ecc_keypair_cbctx kp_cbctx = { };
-	struct asu_ecc_keypair_object keypair_obj __aligned(64);
+	struct asu_ecc_keypair_object *keypair_obj = NULL;
+	size_t keypair_obj_len = 0;
 	uint8_t uid_allocated = 0U;
 
 	if (!key) {
@@ -558,6 +589,13 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 		return asu_ecc_sw_gen_keypair(key, size_bits);
 	else if (ret != TEE_SUCCESS)
 		goto OUT;
+
+	keypair_obj = asu_ecc_alloc_align_buf(sizeof(*keypair_obj),
+					      &keypair_obj_len);
+	if (!keypair_obj) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto OUT;
+	}
 
 	unique_id = asu_alloc_unique_id();
 	if (unique_id == ASU_UNIQUE_ID_MAX) {
@@ -580,12 +618,9 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 
 	kp_cbctx.key = key;
 	kp_cbctx.key_len = key_len;
-	kp_cbctx.priv_key = keypair_obj.priv_key;
-	kp_cbctx.pub_key = keypair_obj.pub_key;
+	kp_cbctx.keypair_obj = keypair_obj;
 
-	memset(&keypair_obj, 0, sizeof(keypair_obj));
-
-	cache_operation(TEE_CACHEFLUSH, &keypair_obj, sizeof(keypair_obj));
+	cache_operation(TEE_CACHEFLUSH, keypair_obj, sizeof(*keypair_obj));
 
 	km_params.key_metadata.key_id = 0U;
 	km_params.key_metadata.key_type = ASU_KM_KEY_TYPE_ECC_PVT;
@@ -596,9 +631,8 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 	km_params.key_metadata.epoch_time = 0U;
 	km_params.key_metadata.usage_count =
 		ASU_KM_KEY_USAGE_COUNT_NON_DEPLETING_VALUE;
-	km_params.key_metadata.reserved = 0U;
 	km_params.wrapped_input_len = 0U;
-	km_params.key_object_addr = virt_to_phys(&keypair_obj);
+	km_params.key_object_addr = virt_to_phys(keypair_obj);
 	km_params.key_id_addr = 0;
 
 	ret = asu_update_queue_buffer_n_send_ipi(&cparams, &km_params,
@@ -622,7 +656,7 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 OUT:
 	if (uid_allocated)
 		asu_free_unique_id(unique_id);
-	memzero_explicit(&keypair_obj, sizeof(keypair_obj));
+	asu_ecc_free_align_buf(keypair_obj, keypair_obj_len);
 
 	return ret;
 }
@@ -647,7 +681,8 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 	enum asu_ecc_curve_id asu_curve_id = ASU_ECC_CURVE_MAX;
 	uint8_t unique_id = ASU_UNIQUE_ID_MAX;
 	struct asu_client_params cparams = { };
-	uint8_t priv_key[ASU_ECC_MAX_PVT_KEY_SIZE_IN_BYTES] __aligned(64);
+	uint8_t *priv_key = NULL;
+	size_t priv_key_len = 0;
 	uint8_t uid_allocated = 0U;
 
 	if (!sdata || !sdata->key || !sdata->signature.data ||
@@ -681,7 +716,13 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 		goto OUT;
 	}
 
-	memset(priv_key, 0, sizeof(priv_key));
+	priv_key = asu_ecc_alloc_align_buf(ASU_ECC_MAX_PVT_KEY_SIZE_IN_BYTES,
+					   &priv_key_len);
+	if (!priv_key) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto OUT;
+	}
+
 	ret = asu_ecc_bn2bin_pad(key->d, priv_key, key_len);
 	if (ret != TEE_SUCCESS) {
 		EMSG("Failed to convert private key to binary");
@@ -705,7 +746,8 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 
 	cparams.priority = ASU_PRIORITY_HIGH;
 
-	cache_operation(TEE_CACHEFLUSH, priv_key, key_len);
+	cache_operation(TEE_CACHEFLUSH, priv_key,
+			ASU_ECC_MAX_PVT_KEY_SIZE_IN_BYTES);
 	cache_operation(TEE_CACHEFLUSH, sdata->message.data, digest_len);
 	cache_operation(TEE_CACHEFLUSH, sdata->signature.data,
 			required_sig_len);
@@ -742,7 +784,7 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 OUT:
 	if (uid_allocated)
 		asu_free_unique_id(unique_id);
-	memzero_explicit(priv_key, sizeof(priv_key));
+	asu_ecc_free_align_buf(priv_key, priv_key_len);
 
 	return ret;
 }
@@ -768,7 +810,8 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 	uint8_t unique_id = ASU_UNIQUE_ID_MAX;
 	struct asu_client_params cparams = { };
 	struct asu_ecc_verify_cbctx cbctx = { };
-	uint8_t pub_key[ASU_ECC_MAX_PUB_KEY_SIZE_IN_BYTES] __aligned(64);
+	uint8_t *pub_key = NULL;
+	size_t pub_key_len = 0;
 	uint8_t uid_allocated = 0U;
 
 	if (!sdata || !sdata->key || !sdata->signature.data ||
@@ -802,7 +845,13 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 		goto OUT;
 	}
 
-	memset(pub_key, 0, sizeof(pub_key));
+	pub_key = asu_ecc_alloc_align_buf(ASU_ECC_MAX_PUB_KEY_SIZE_IN_BYTES,
+					  &pub_key_len);
+	if (!pub_key) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto OUT;
+	}
+
 	ret = asu_ecc_encode_pubkey(key->x, key->y, pub_key, key_len);
 	if (ret != TEE_SUCCESS) {
 		EMSG("Failed to encode public key");
@@ -828,7 +877,8 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 	cparams.cbhandler = asu_ecc_verify_cb;
 	cparams.cbptr = &cbctx;
 
-	cache_operation(TEE_CACHEFLUSH, pub_key, key_len * 2);
+	cache_operation(TEE_CACHEFLUSH, pub_key,
+			ASU_ECC_MAX_PUB_KEY_SIZE_IN_BYTES);
 	cache_operation(TEE_CACHEFLUSH, sdata->message.data, digest_len);
 	cache_operation(TEE_CACHEFLUSH, sdata->signature.data,
 			sdata->signature.length);
@@ -880,7 +930,7 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 OUT:
 	if (uid_allocated)
 		asu_free_unique_id(unique_id);
-	memzero_explicit(pub_key, sizeof(pub_key));
+	asu_ecc_free_align_buf(pub_key, pub_key_len);
 
 	return ret;
 }
@@ -904,10 +954,12 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 	enum asu_ecc_curve_id asu_curve_id = ASU_ECC_CURVE_MAX;
 	uint8_t unique_id = ASU_UNIQUE_ID_MAX;
 	struct asu_client_params cparams = { };
-	uint8_t priv_key_buf[ASU_ECC_MAX_PVT_KEY_SIZE_IN_BYTES] __aligned(64);
-	uint8_t pub_key_buf[ASU_ECC_MAX_PUB_KEY_SIZE_IN_BYTES] __aligned(64);
-	uint8_t shared_secret_buf[ASU_ECC_MAX_PVT_KEY_SIZE_IN_BYTES]
-		__aligned(64);
+	uint8_t *priv_key_buf = NULL;
+	uint8_t *pub_key_buf = NULL;
+	uint8_t *shared_secret_buf = NULL;
+	size_t priv_key_buf_len = 0;
+	size_t pub_key_buf_len = 0;
+	size_t shared_secret_buf_len = 0;
 	uint8_t uid_allocated = 0U;
 
 	if (!sdata || !sdata->key_priv || !sdata->key_pub ||
@@ -939,6 +991,19 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 		goto OUT;
 	}
 
+	priv_key_buf =
+		asu_ecc_alloc_align_buf(ASU_ECC_MAX_PVT_KEY_SIZE_IN_BYTES,
+					&priv_key_buf_len);
+	pub_key_buf = asu_ecc_alloc_align_buf(ASU_ECC_MAX_PUB_KEY_SIZE_IN_BYTES,
+					      &pub_key_buf_len);
+	shared_secret_buf =
+		asu_ecc_alloc_align_buf(ASU_ECC_MAX_PVT_KEY_SIZE_IN_BYTES,
+					&shared_secret_buf_len);
+	if (!priv_key_buf || !pub_key_buf || !shared_secret_buf) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto OUT;
+	}
+
 	unique_id = asu_alloc_unique_id();
 	if (unique_id == ASU_UNIQUE_ID_MAX) {
 		EMSG("Failed to allocate unique ID");
@@ -959,7 +1024,6 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 	cparams.cbptr = NULL;
 
 	/* Encode private key (big-endian, padded to key_len) */
-	memset(priv_key_buf, 0, sizeof(priv_key_buf));
 	ret = asu_ecc_bn2bin_pad(priv_key->d, priv_key_buf, key_len);
 	if (ret != TEE_SUCCESS) {
 		EMSG("Failed to encode private key");
@@ -967,7 +1031,6 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 	}
 
 	/* Encode public key as X || Y, each component padded to key_len */
-	memset(pub_key_buf, 0, sizeof(pub_key_buf));
 	ret = asu_ecc_encode_pubkey(pub_key->x, pub_key->y,
 				    pub_key_buf, key_len);
 	if (ret != TEE_SUCCESS) {
@@ -975,11 +1038,12 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 		goto OUT;
 	}
 
-	memset(shared_secret_buf, 0, sizeof(shared_secret_buf));
-
-	cache_operation(TEE_CACHEFLUSH, priv_key_buf, key_len);
-	cache_operation(TEE_CACHEFLUSH, pub_key_buf, key_len * 2);
-	cache_operation(TEE_CACHEFLUSH, shared_secret_buf, key_len);
+	cache_operation(TEE_CACHEFLUSH, priv_key_buf,
+			ASU_ECC_MAX_PVT_KEY_SIZE_IN_BYTES);
+	cache_operation(TEE_CACHEFLUSH, pub_key_buf,
+			ASU_ECC_MAX_PUB_KEY_SIZE_IN_BYTES);
+	cache_operation(TEE_CACHEFLUSH, shared_secret_buf,
+			ASU_ECC_MAX_PVT_KEY_SIZE_IN_BYTES);
 
 	ecdh_params.pvt_key.key_addr = virt_to_phys(priv_key_buf);
 	ecdh_params.pvt_key.key_id = 0U;
@@ -1016,8 +1080,9 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 OUT:
 	if (uid_allocated)
 		asu_free_unique_id(unique_id);
-	memzero_explicit(priv_key_buf, sizeof(priv_key_buf));
-	memzero_explicit(shared_secret_buf, sizeof(shared_secret_buf));
+	asu_ecc_free_align_buf(priv_key_buf, priv_key_buf_len);
+	asu_ecc_free_align_buf(pub_key_buf, pub_key_buf_len);
+	asu_ecc_free_align_buf(shared_secret_buf, shared_secret_buf_len);
 
 	return ret;
 }
