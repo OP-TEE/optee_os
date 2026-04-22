@@ -549,7 +549,7 @@ static void __maybe_unused lend_protmem(struct optee_msg_arg *arg,
 
 	switch (use_case) {
 	case MOBJ_USE_CASE_SEC_VIDEO_PLAY:
-	case MOBJ_USE_CASE_TRUSED_UI:
+	case MOBJ_USE_CASE_TRUSTED_UI:
 		break;
 	default:
 		goto out;
