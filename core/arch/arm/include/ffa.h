@@ -188,9 +188,22 @@
  * identifies the SP to resume and the vCPU ID identifies the vCPU or execution
  * context to resume (FF-A v1.1 section 4.8).
  */
-#define FFA_TARGET_INFO_SET(sp_id, vcpu_id)	(((sp_id) << 16) | (vcpu_id))
-#define FFA_TARGET_INFO_GET_SP_ID(info)		(((info) >> 16) & 0xffff)
-#define FFA_TARGET_INFO_GET_VCPU_ID(info)	((info) & 0xffff)
+#ifndef __ASSEMBLER__
+static inline uint32_t ffa_target_info_set(uint16_t sp_id, uint16_t vcpu_id)
+{
+	return SHIFT_U32(sp_id, 16) | vcpu_id;
+}
+
+static inline uint16_t ffa_target_info_get_sp_id(uint32_t target_info)
+{
+	return (target_info >> 16) & UINT16_MAX;
+}
+
+static inline uint16_t ffa_target_info_get_vcpu_id(uint32_t target_info)
+{
+	return target_info & UINT16_MAX;
+}
+#endif /* __ASSEMBLER__ */
 
 /*
  * Flags used for the FFA_PARTITION_INFO_GET return message:

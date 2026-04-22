@@ -658,8 +658,8 @@ out:
 
 static void spmc_handle_run(struct thread_smc_1_2_regs *args)
 {
-	uint16_t endpoint = FFA_TARGET_INFO_GET_SP_ID(args->a1);
-	uint16_t thread_id = FFA_TARGET_INFO_GET_VCPU_ID(args->a1);
+	uint16_t endpoint = ffa_target_info_get_sp_id(args->a1);
+	uint16_t thread_id = ffa_target_info_get_vcpu_id(args->a1);
 	uint32_t rc = FFA_INVALID_PARAMETERS;
 
 	/*
@@ -1578,7 +1578,7 @@ static void handle_notification_bitmap_create(struct thread_smc_1_2_regs *args)
 	uint32_t ret_fid = FFA_ERROR;
 	uint32_t old_itr_status = 0;
 
-	if (!FFA_TARGET_INFO_GET_SP_ID(args->a1) && !args->a3 && !args->a4 &&
+	if (!ffa_target_info_get_sp_id(args->a1) && !args->a3 && !args->a4 &&
 	    !args->a5 && !args->a6 && !args->a7) {
 		struct guest_partition *prtn = NULL;
 		struct notif_vm_bitmap *nvb = NULL;
@@ -1617,7 +1617,7 @@ static void handle_notification_bitmap_destroy(struct thread_smc_1_2_regs *args)
 	uint32_t ret_fid = FFA_ERROR;
 	uint32_t old_itr_status = 0;
 
-	if (!FFA_TARGET_INFO_GET_SP_ID(args->a1) && !args->a3 && !args->a4 &&
+	if (!ffa_target_info_get_sp_id(args->a1) && !args->a3 && !args->a4 &&
 	    !args->a5 && !args->a6 && !args->a7) {
 		struct guest_partition *prtn = NULL;
 		struct notif_vm_bitmap *nvb = NULL;
