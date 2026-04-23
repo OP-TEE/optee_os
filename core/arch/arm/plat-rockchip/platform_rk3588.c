@@ -89,12 +89,12 @@ int platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
 	io_write32(fw_ddr_base + FIREWALL_DDR_RGN(rgn),
 		   RG_MAP_SECURE(ed_mb, st_mb));
 
+	io_write32(fw_dsu_base + FIREWALL_DSU_RGN(rgn),
+		   RG_MAP_SECURE(ed_mb, st_mb));
+
 	/* Map secure region in each DSU channel and enable */
-	for (i = 0; i < DDR_CHN_CNT; i++) {
-		io_write32(fw_dsu_base + FIREWALL_DSU_RGN(i),
-			   RG_MAP_SECURE(ed_mb, st_mb));
+	for (i = 0; i < DDR_CHN_CNT; i++)
 		io_setbits32(fw_dsu_base + FIREWALL_DSU_CON(i), BIT(rgn));
-	}
 
 	/* Enable secure region for DDR */
 	io_setbits32(fw_ddr_base + FIREWALL_DDR_CON, BIT(rgn));
