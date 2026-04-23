@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <common.h>
+#include <crypto/crypto.h>
 #include <drivers/rockchip_otp.h>
 #include <io.h>
 #include <kernel/panic.h>
@@ -18,6 +19,7 @@
 #include <stdlib_ext.h>
 #include <string.h>
 #include <string_ext.h>
+#include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
 
 #define FIREWALL_DDR_RGN(i)		((i) * 0x4)
@@ -51,6 +53,13 @@
 
 #define TRNG_POLL_PERIOD_US	0
 #define TRNG_POLL_TIMEOUT_US	1000
+
+/*
+ * We want at least 256 bits of entropy, so we need to gather
+ * 48 bytes of TRNG data: SP 800-90B Entropy Assessment determined
+ * a worst-case entropy of 6.6556 bits/byte for the RK3588 TRNG.
+ */
+#define TRNG_ENTROPY_256        48
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, FIREWALL_DDR_BASE, FIREWALL_DDR_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, FIREWALL_DSU_BASE, FIREWALL_DSU_SIZE);
@@ -291,3 +300,21 @@ out:
 
 	return res;
 }
+
+#ifdef CFG_WITH_SOFTWARE_PRNG
+void plat_init_soft_prng(void)
+{
+	uint8_t seed[TRNG_ENTROPY_256] = {};
+	TEE_Result res = TEE_SUCCESS;
+
+	res = hw_get_random_bytes(seed, sizeof(seed));
+	if (res != TEE_SUCCESS) {
+		/* Should not happen on RK3588 as TRNG is always present.  */
+		panic("Failed to get TRNG seed data");
+	}
+
+	res = crypto_rng_init(seed, sizeof(seed));
+	if (res != TEE_SUCCESS)
+		panic("Failed to initialize RNG with seed");
+}
+#endif /* CFG_WITH_SOFTWARE_PRNG */
