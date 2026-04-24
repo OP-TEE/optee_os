@@ -21,12 +21,6 @@ enum mobj_use_case {
 	MOBJ_USE_CASE_NS_SHM,
 	MOBJ_USE_CASE_SEC_VIDEO_PLAY,
 	MOBJ_USE_CASE_TRUSTED_UI,
-	/*
-	 * Platforms can extend this enum with additional use cases as needed.
-	 * The use_case value is passed to plat_set_protmem_range() and
-	 * plat_get_protmem_config() for platform-specific memory firewall
-	 * configuration.
-	 */
 };
 
 struct mobj {
