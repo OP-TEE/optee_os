@@ -22,6 +22,25 @@ static void _ltc_ecc_free_public_key(struct ecc_public_key *s)
 	crypto_bignum_free(&s->y);
 }
 
+static TEE_Result _ltc_ecc_validate_public_key(struct ecc_public_key *key)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	ecc_key ltc_public_key = { };
+
+	res = ecc_populate_ltc_public_key(&ltc_public_key, key, 0, NULL);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (ltc_ecc_verify_key(&ltc_public_key) != CRYPT_OK) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+out:
+	ecc_free(&ltc_public_key);
+	return res;
+}
+
 /*
  * For a given TEE @curve, return key size and LTC curve name. Also check that
  * @algo is compatible with this curve.
@@ -357,6 +376,7 @@ static const struct crypto_ecc_keypair_ops ecc_keypair_ops = {
 
 static const struct crypto_ecc_public_ops ecc_public_key_ops = {
 	.free = _ltc_ecc_free_public_key,
+	.validate = _ltc_ecc_validate_public_key,
 	.verify = _ltc_ecc_verify,
 };
 

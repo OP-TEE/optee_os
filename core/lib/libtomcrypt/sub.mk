@@ -339,6 +339,7 @@ srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_mul2add.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_points.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_projective_add_point.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_projective_dbl_point.c
+srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_verify_key.c
 
 ifneq (,$(filter y,$(_CFG_CORE_LTC_SM2_DSA) $(_CFG_CORE_LTC_SM2_PKE)))
    cppflags-lib-y += -DLTC_ECC_SM2

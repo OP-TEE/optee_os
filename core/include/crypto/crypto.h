@@ -292,6 +292,7 @@ TEE_Result crypto_acipher_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 				     const uint8_t *msg, size_t msg_len,
 				     const uint8_t *sig, size_t sig_len);
+TEE_Result crypto_acipher_verify_ecc_public_key(struct ecc_public_key *key);
 TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
 					    struct ecc_public_key *public_key,
 					    void *secret,

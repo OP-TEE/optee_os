@@ -796,6 +796,16 @@ TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
 					       secret_len);
 }
 
+TEE_Result crypto_acipher_verify_ecc_public_key(struct ecc_public_key *key)
+{
+	assert(key && key->ops);
+
+	if (!key->ops->validate)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	return key->ops->validate(key);
+}
+
 TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key,
 					  const uint8_t *src, size_t src_len,
 					  uint8_t *dst, size_t *dst_len)

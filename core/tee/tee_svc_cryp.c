@@ -3844,6 +3844,10 @@ dh_out:
 		crypto_bignum_bin2bn(y_bbuf, params[1].content.ref.length,
 				     key_public.y);
 
+		res = crypto_acipher_verify_ecc_public_key(&key_public);
+		if (res != TEE_SUCCESS)
+			goto ecdh_out;
+
 		pt_secret = (uint8_t *)(sk + 1);
 		pt_secret_len = sk->alloc_size;
 		res = crypto_acipher_ecc_shared_secret(ko->attr, &key_public,
@@ -3856,6 +3860,7 @@ dh_out:
 			set_attribute(so, type_props, TEE_ATTR_SECRET_VALUE);
 		}
 
+ecdh_out:
 		/* free the public key */
 		crypto_acipher_free_ecc_public_key(&key_public);
 	}

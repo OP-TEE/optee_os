@@ -158,6 +158,8 @@ struct drvcrypt_ecc {
 				      size_t size_bits);
 	/* Free ECC public key */
 	void (*free_publickey)(struct ecc_public_key *key);
+	/* Check that an ECC public key is valid */
+	TEE_Result (*validate_publickey)(struct ecc_public_key *key);
 	/* Generates the ECC keypair */
 	TEE_Result (*gen_keypair)(struct ecc_keypair *key, size_t size_bits);
 	/* ECC Sign a message and returns the signature */
