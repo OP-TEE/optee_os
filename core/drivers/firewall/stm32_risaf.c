@@ -377,6 +377,17 @@ static TEE_Result risaf_configure_region(struct stm32_risaf_instance *risaf,
 			return TEE_ERROR_GENERIC;
 		}
 
+		/*
+		 * MCE encryption is only available on STM32MP21.
+		 * Check if it is wrongly set on reserved bit 14
+		 * for another platform.
+		 */
+		if (!IS_ENABLED(CFG_STM32MP21) && (cfg & BIT(14))) {
+			EMSG("RISAF %#"PRIxPTR": unsupported encryption mode",
+			     risaf->pdata.base.pa);
+			return TEE_ERROR_NOT_SUPPORTED;
+		}
+
 		if ((cfg & _RISAF_REG_CFGR_SEC) != _RISAF_REG_CFGR_SEC) {
 			EMSG("RISAF %#"PRIxPA": encryption on non-secure area",
 			     risaf->pdata.base.pa);
