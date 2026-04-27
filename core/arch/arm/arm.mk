@@ -223,6 +223,10 @@ ifneq ($(CFG_TEE_CORE_EMBED_INTERNAL_TESTS),y)
 core-platform-subdirs += $(arch-dir)/tests
 endif
 
+ifeq ($(CFG_CORE_SEL1_SPMC),y)
+core-platform-subdirs += $(arch-dir)/lsp
+endif
+
 arm64-platform-cppflags += -DARM64=1 -D__LP64__=1
 arm32-platform-cppflags += -DARM32=1 -D__ILP32__=1
 
