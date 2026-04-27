@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2021-2024, Arm Limited.
+ * Copyright (c) 2021-2026, Arm Limited.
  * Copyright (c) 2023-2025, Linaro Limited
  */
 #ifndef __KERNEL_THREAD_SPMC_H
@@ -55,8 +55,11 @@ int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
 
 bool spmc_is_reserved_id(uint16_t id);
 
+struct sp_session;
+
 struct spmc_lsp_desc {
-	void (*direct_req)(struct thread_smc_1_2_regs *args);
+	void (*direct_req)(struct thread_smc_1_2_regs *args,
+			   struct sp_session *caller_sp);
 	uint16_t sp_id;
 	uint32_t properties;
 	uint32_t uuid_words[4];

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2020-2025, Linaro Limited.
- * Copyright (c) 2019-2024, Arm Limited. All rights reserved.
+ * Copyright (c) 2019-2026, Arm Limited. All rights reserved.
  */
 
 #include <assert.h>
@@ -896,8 +896,15 @@ static void handle_framework_direct_request(struct thread_smc_1_2_regs *args)
 	spmc_set_args(args, w0, w1, w2, w3, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void optee_lsp_handle_direct_request(struct thread_smc_1_2_regs *args)
+static void
+optee_lsp_handle_direct_request(struct thread_smc_1_2_regs *args,
+				struct sp_session *caller_sp)
 {
+	if (caller_sp) {
+		set_simple_ret_val(args, FFA_INVALID_PARAMETERS);
+		return;
+	}
+
 	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
 		handle_framework_direct_request(args);
 		return;
@@ -926,8 +933,14 @@ static void optee_lsp_handle_direct_request(struct thread_smc_1_2_regs *args)
 }
 
 static void __maybe_unused
-optee_spmc_lsp_handle_direct_request(struct thread_smc_1_2_regs *args)
+optee_spmc_lsp_handle_direct_request(struct thread_smc_1_2_regs *args,
+				     struct sp_session *caller_sp)
 {
+	if (caller_sp) {
+		set_simple_ret_val(args, FFA_INVALID_PARAMETERS);
+		return;
+	}
+
 	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK)
 		handle_framework_direct_request(args);
 	else
@@ -939,7 +952,7 @@ static void handle_direct_request(struct thread_smc_1_2_regs *args)
 	struct spmc_lsp_desc *lsp = spmc_find_lsp_by_sp_id(FFA_DST(args->a1));
 
 	if (lsp) {
-		lsp->direct_req(args);
+		lsp->direct_req(args, NULL);
 	} else {
 		int rc = spmc_sp_start_thread(args);
 

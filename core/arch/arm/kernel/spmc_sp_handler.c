@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2021-2024, Arm Limited
+ * Copyright (c) 2021-2026, Arm Limited
  */
 #include <assert.h>
 #include <io.h>
@@ -10,6 +10,7 @@
 #include <kernel/spmc_sp_handler.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread_private.h>
+#include <kernel/thread_spmc.h>
 #include <mm/mobj.h>
 #include <mm/sp_mem.h>
 #include <mm/vm.h>
@@ -884,6 +885,7 @@ ffa_handle_sp_direct_req(struct thread_smc_1_2_regs *args,
 			 struct sp_session *caller_sp)
 {
 	struct sp_session *dst = NULL;
+	struct spmc_lsp_desc *lsp = NULL;
 	TEE_Result res = FFA_OK;
 
 	res = ffa_get_dst(args, caller_sp, &dst);
@@ -893,9 +895,12 @@ ffa_handle_sp_direct_req(struct thread_smc_1_2_regs *args,
 		return caller_sp;
 	}
 	if (!dst) {
-		EMSG("Request to normal world not supported");
-		ffa_set_error(args, FFA_NOT_SUPPORTED);
-		return caller_sp;
+		lsp = spmc_find_lsp_by_sp_id(FFA_DST(args->a1));
+		if (!lsp) {
+			EMSG("Request to normal world not supported");
+			ffa_set_error(args, FFA_NOT_SUPPORTED);
+			return caller_sp;
+		}
 	}
 
 	if (dst == caller_sp) {
@@ -912,10 +917,22 @@ ffa_handle_sp_direct_req(struct thread_smc_1_2_regs *args,
 		return caller_sp;
 	}
 
-	if (!(dst->props & FFA_PART_PROP_DIRECT_REQ_RECV)) {
+	if (dst && !(dst->props & FFA_PART_PROP_DIRECT_REQ_RECV)) {
 		EMSG("SP 0x%"PRIx16" doesn't support receipt of direct requests",
 		     dst->endpoint_id);
 		ffa_set_error(args, FFA_NOT_SUPPORTED);
+		return caller_sp;
+	}
+
+	if (lsp && !(lsp->properties & FFA_PART_PROP_DIRECT_REQ_RECV)) {
+		EMSG("LSP 0x%"PRIx16" doesn't support receipt of direct requests",
+		     lsp->sp_id);
+		ffa_set_error(args, FFA_NOT_SUPPORTED);
+		return caller_sp;
+	}
+
+	if (lsp) {
+		lsp->direct_req(args, caller_sp);
 		return caller_sp;
 	}
 

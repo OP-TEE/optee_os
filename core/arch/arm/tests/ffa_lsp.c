@@ -8,7 +8,8 @@
 #include <kernel/thread_spmc.h>
 #include <sm/optee_smc.h>
 
-static void test_direct_req(struct thread_smc_1_2_regs *args)
+static void test_direct_req(struct thread_smc_1_2_regs *args,
+			    struct sp_session *caller_sp __unused)
 {
 	uint16_t src = args->a1 >> 16;
 	uint16_t dst = args->a1;
