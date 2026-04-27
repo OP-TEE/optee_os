@@ -11,9 +11,6 @@
 #include <tee_api_types.h>
 #include <tee/entry_std.h>
 
-#define FFA_DST(x)	((x) & UINT16_MAX)
-#define FFA_SRC(x)	(((x) >> 16) & UINT16_MAX)
-
 void spmc_sp_thread_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
 void spmc_sp_msg_handler(struct thread_smc_1_2_regs *args,
 			 struct sp_session *caller_sp);

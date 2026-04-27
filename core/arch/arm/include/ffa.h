@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 2020, Linaro Limited
- * Copyright (c) 2018-2024, Arm Limited. All rights reserved.
+ * Copyright (c) 2018-2026, Arm Limited. All rights reserved.
  */
 
 #ifndef __FFA_H
@@ -41,6 +41,9 @@
 #define FFA_VERSION_1_0			MAKE_FFA_VERSION(1, 0)
 #define FFA_VERSION_1_1			MAKE_FFA_VERSION(1, 1)
 #define FFA_VERSION_1_2			MAKE_FFA_VERSION(1, 2)
+
+#define FFA_DST(x)				((x) & UINT16_MAX)
+#define FFA_SRC(x)				(((x) >> 16) & UINT16_MAX)
 
 /* Function IDs */
 #define FFA_ERROR			U(0x84000060)
