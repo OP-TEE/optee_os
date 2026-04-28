@@ -144,6 +144,7 @@ TEE_Result pta_manufacturing_query_state(enum pta_manufacturing_state *state)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t val = 0;
+	int i = (4 - CFG_IMX_OCOTP_MANUFACTURING_WIDTH);
 
 	res = imx_ocotp_read(CFG_IMX_OCOTP_MANUFACTURING_BANK,
 			     CFG_IMX_OCOTP_MANUFACTURING_WORD, &val);
@@ -155,7 +156,10 @@ TEE_Result pta_manufacturing_query_state(enum pta_manufacturing_state *state)
 
 	val = (val >> CFG_IMX_OCOTP_MANUFACTURING_BIT);
 	val = val & ((1U << CFG_IMX_OCOTP_MANUFACTURING_WIDTH) - 1);
-	val = val << (4 - CFG_IMX_OCOTP_MANUFACTURING_WIDTH);
+	while (i-- > 0) {
+		/* shift to right place, but fill with last bit. */
+		val = val << 1 | (val & 1);
+	}
 	*state = (enum pta_manufacturing_state)val;
 	return TEE_SUCCESS;
 }
