@@ -317,6 +317,7 @@ TEE_Result shdr_load_pub_key(const struct shdr *shdr, size_t offs,
 
 	key->max_depth = subkey->max_depth;
 	key->name_size = subkey->name_size;
+	key->version = subkey->subkey_version;
 	memcpy(key->uuid, subkey->uuid, sizeof(TEE_UUID));
 	if (ADD_OVERFLOW(key->name_size, offs + shdr->img_size, &end) ||
 	    end > ns_img_size) {
