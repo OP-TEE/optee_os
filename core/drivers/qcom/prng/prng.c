@@ -52,12 +52,10 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 
 static TEE_Result qcom_prng_init(void)
 {
-	if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, prng.pa, SEC_PRNG_REG_SIZE))
-		return TEE_ERROR_GENERIC;
-
-	prng.va = (vaddr_t)phys_to_virt_io(prng.pa, SEC_PRNG_REG_SIZE);
+	prng.va = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC, prng.pa,
+						SEC_PRNG_REG_SIZE);
 	if (!prng.va)
-		return TEE_ERROR_ACCESS_DENIED;
+		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
 }
