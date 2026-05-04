@@ -73,6 +73,26 @@ TEE_Result rpmb_mem_stats(struct pta_stats_alloc *stats, bool reset);
  * prevent a RPMB key write in the wrong state.
  */
 bool plat_rpmb_key_is_ready(void);
+
+/**
+ * Weak function to request a one-shot FAT re-format from rpmb_fs_setup(),
+ * independent of CFG_RPMB_RESET_FAT. Defaults to false. Consumed at the
+ * first rpmb_fs_setup() invocation that finds no cached FS state; once a
+ * format succeeds the hook is not re-queried (the trigger must be latched
+ * by an earlier boot stage, not toggled at runtime). On a failed format
+ * attempt the cache stays empty so the next rpmb_fs_setup() call re-queries
+ * the hook, providing automatic retry. Called with the RPMB FS mutex held;
+ * do not call into RPMB FS APIs.
+ */
+bool plat_rpmb_force_reset_fat(void);
+
+/**
+ * Weak function paired with plat_rpmb_force_reset_fat(); called after the
+ * re-format attempt with @res as its outcome. Platforms typically clear the
+ * trigger on success and keep it for retry on failure. Defaults to no-op.
+ * Called with the RPMB FS mutex held; do not call into RPMB FS APIs.
+ */
+void plat_rpmb_force_reset_fat_done(TEE_Result res);
 #else
 static inline TEE_Result tee_rpmb_reinit(void)
 {

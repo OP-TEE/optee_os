@@ -2069,11 +2069,14 @@ static TEE_Result rpmb_fs_setup(void)
 	struct rpmb_fs_partition *partition_data = NULL;
 	struct rpmb_file_handle *fh = NULL;
 	uint32_t max_rpmb_block = 0;
+	bool force_reset = false;
 
 	if (fs_par) {
 		res = TEE_SUCCESS;
 		goto out;
 	}
+
+	force_reset = plat_rpmb_force_reset_fat();
 
 	res = tee_rpmb_get_max_block(&max_rpmb_block);
 	if (res != TEE_SUCCESS)
@@ -2119,7 +2122,7 @@ static TEE_Result rpmb_fs_setup(void)
 		goto out;
 
 #ifndef CFG_RPMB_RESET_FAT
-	if (partition_data->rpmb_fs_magic == RPMB_FS_MAGIC) {
+	if (!force_reset && partition_data->rpmb_fs_magic == RPMB_FS_MAGIC) {
 		if (partition_data->fs_version == FS_VERSION) {
 			res = TEE_SUCCESS;
 			goto store_fs_par;
@@ -2129,6 +2132,8 @@ static TEE_Result rpmb_fs_setup(void)
 			goto out;
 		}
 	}
+	if (force_reset)
+		EMSG("**** Clearing Storage (Platform Request) ****");
 #else
 	EMSG("**** Clearing Storage ****");
 #endif
@@ -2156,6 +2161,27 @@ static TEE_Result rpmb_fs_setup(void)
 			     (uint8_t *)partition_data,
 			     sizeof(struct rpmb_fs_partition), NULL, NULL);
 
+	/*
+	 * Notify the platform of the re-format outcome here, before any
+	 * post-format code (fs_par allocation, etc.) can overwrite @res with
+	 * an unrelated error. Clearing @force_reset prevents a duplicate
+	 * notification from the early-failure path at the @out label.
+	 */
+	if (force_reset) {
+		plat_rpmb_force_reset_fat_done(res);
+		force_reset = false;
+	}
+
+	/*
+	 * Bail out before populating fs_par if the partition header write
+	 * failed: leaving fs_par non-NULL would cause subsequent
+	 * rpmb_fs_setup() calls to short-circuit with a stale TEE_SUCCESS
+	 * even though the on-disk state is invalid, suppressing retries
+	 * (including the plat_rpmb_force_reset_fat() re-query path).
+	 */
+	if (res != TEE_SUCCESS)
+		goto out;
+
 #ifndef CFG_RPMB_RESET_FAT
 store_fs_par:
 #endif
@@ -2175,6 +2201,8 @@ store_fs_par:
 out:
 	free(fh);
 	free(partition_data);
+	if (force_reset)
+		plat_rpmb_force_reset_fat_done(res);
 	return res;
 }
 
@@ -3173,6 +3201,15 @@ TEE_Result tee_rpmb_fs_raw_open(const char *fname, bool create,
 bool __weak plat_rpmb_key_is_ready(void)
 {
 	return true;
+}
+
+bool __weak plat_rpmb_force_reset_fat(void)
+{
+	return false;
+}
+
+void __weak plat_rpmb_force_reset_fat_done(TEE_Result res __unused)
+{
 }
 
 #ifdef CFG_WITH_STATS
