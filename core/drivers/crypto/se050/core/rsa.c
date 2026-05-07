@@ -332,6 +332,10 @@ static TEE_Result decrypt_nopad(struct rsa_keypair *key, const uint8_t *src,
 	size_t blen = 0;
 	size_t rsa_len = 0;
 
+	rsa_len = crypto_bignum_num_bytes(key->n);
+	if (src_len > rsa_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	res = se050_inject_keypair(&kobject, key);
 	if (res)
 		return res;
@@ -352,7 +356,6 @@ static TEE_Result decrypt_nopad(struct rsa_keypair *key, const uint8_t *src,
 		goto out;
 	}
 
-	rsa_len = crypto_bignum_num_bytes(key->n);
 	memcpy(buf + rsa_len - src_len, src, src_len);
 
 	st = sss_se05x_asymmetric_decrypt(&ctx, buf, rsa_len, buf, &blen);
@@ -396,6 +399,10 @@ static TEE_Result encrypt_nopad(struct rsa_public_key *key, const uint8_t *src,
 	size_t blen = 0;
 	size_t rsa_len = 0;
 
+	rsa_len = crypto_bignum_num_bytes(key->n);
+	if (src_len > rsa_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	if (se050_inject_public_key(&kobject, key))
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -414,7 +421,6 @@ static TEE_Result encrypt_nopad(struct rsa_public_key *key, const uint8_t *src,
 		goto out;
 	}
 
-	rsa_len = crypto_bignum_num_bytes(key->n);
 	memcpy(buf + rsa_len - src_len, src, src_len);
 
 	st = sss_se05x_asymmetric_encrypt(&ctx, buf, rsa_len, buf, &blen);
