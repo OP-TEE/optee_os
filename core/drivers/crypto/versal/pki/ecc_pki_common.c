@@ -12,6 +12,7 @@
 #include <kernel/panic.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include <tee_api_types.h>
 #include <utee_defines.h>
 
@@ -72,6 +73,8 @@ void pki_crypto_bignum_bin2bn_eswap(const uint8_t *from, size_t sz,
 TEE_Result pki_ecc_prepare_msg(uint32_t algo, const uint8_t *msg,
 			       size_t msg_len, size_t *len, uint8_t *buf)
 {
+	size_t _msg_len = 0;
+
 	if (msg_len > TEE_SHA512_HASH_SIZE + 2)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -84,8 +87,11 @@ TEE_Result pki_ecc_prepare_msg(uint32_t algo, const uint8_t *msg,
 	else
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	/* Swap the hash/message */
-	pki_memcpy_swp(buf, msg, msg_len);
+	/* Swap the hash/message and truncate/pad if needed */
+	_msg_len = msg_len > *len ? *len : msg_len;
+	pki_memcpy_swp(buf, msg, _msg_len);
+	if (_msg_len < *len)
+		memset(buf + _msg_len, 0, *len - _msg_len);
 
 	return TEE_SUCCESS;
 }
