@@ -126,6 +126,7 @@ static inline TEE_Result versal_ecc_trng_get_random_bytes(void *buf, size_t len)
 #define PKI_MAX_RETRY_COUNT		10000
 
 #define PKI_QUEUE_BUF_SIZE		0x1000
+#define PKI_CQ_CMPL_SIZE		8
 
 struct versal_pki {
 	vaddr_t regs;
@@ -358,6 +359,9 @@ static TEE_Result pki_check_status(void)
 	cq_status = io_read32((vaddr_t)versal_pki.cq);
 	cq_value = io_read32((vaddr_t)versal_pki.cq + 4);
 
+	/* clear completion queue */
+	memset(versal_pki.cq, 0, PKI_CQ_CMPL_SIZE);
+
 	if (cq_value != PKI_EXPECTED_CQ_VALUE) {
 		if (!(cq_value & PKI_CQ_VALUE_GEN))
 			EMSG("PKI bad completion, not marked as new");
@@ -463,15 +467,7 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	if (ret)
 		return ret;
 
-	ret = pki_check_status();
-	if (ret)
-		return ret;
-
-	/* Clear memory */
-	memset(versal_pki.rq_in, 0, PKI_QUEUE_BUF_SIZE);
-	memset(versal_pki.cq, 0, PKI_QUEUE_BUF_SIZE);
-
-	return TEE_SUCCESS;
+	return pki_check_status();
 }
 
 TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
@@ -582,11 +578,6 @@ TEE_Result versal_ecc_sign_ephemeral(uint32_t algo, size_t bytes,
 
 	pki_memcpy_swp(sig, versal_pki.rq_out, bytes);
 	pki_memcpy_swp(sig + bytes, versal_pki.rq_out + bytes, bytes);
-
-	/* Clear memory */
-	memset(versal_pki.rq_in, 0, PKI_QUEUE_BUF_SIZE);
-	memset(versal_pki.rq_out, 0, PKI_QUEUE_BUF_SIZE);
-	memset(versal_pki.cq, 0, PKI_QUEUE_BUF_SIZE);
 
 	return ret;
 }
@@ -840,11 +831,6 @@ TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s)
 	pki_crypto_bignum_bin2bn_eswap(versal_pki.rq_in, bytes, s->d);
 	pki_crypto_bignum_bin2bn_eswap(versal_pki.rq_out, bytes, s->x);
 	pki_crypto_bignum_bin2bn_eswap(versal_pki.rq_out + bytes, bytes, s->y);
-
-	/* Clear memory */
-	memset(versal_pki.rq_in, 0, PKI_QUEUE_BUF_SIZE);
-	memset(versal_pki.rq_out, 0, PKI_QUEUE_BUF_SIZE);
-	memset(versal_pki.cq, 0, PKI_QUEUE_BUF_SIZE);
 
 	return TEE_SUCCESS;
 }
