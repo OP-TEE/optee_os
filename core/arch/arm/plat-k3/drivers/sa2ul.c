@@ -6,6 +6,7 @@
  *	Andrew Davis <afd@ti.com>
  */
 
+#include <drivers/eip76d_trng.h>
 #include <drivers/ti_sci.h>
 #include <initcall.h>
 #include <io.h>
@@ -18,7 +19,6 @@
 #include <platform_config.h>
 #include <rng_support.h>
 
-#include "eip76d_trng.h"
 #include "ti_crypto.h"
 
 #define	SA2UL_ES                0x0008
