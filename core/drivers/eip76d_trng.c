@@ -61,15 +61,24 @@
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG_BASE, RNG_REG_SIZE);
 
 static struct mutex fifo_lock = MUTEX_INITIALIZER;
-static vaddr_t rng;
+
+static vaddr_t rng_base(void)
+{
+	static struct io_pa_va base = {
+		.pa = RNG_BASE,
+	};
+
+	return io_pa_or_va_secure(&base, RNG_REG_SIZE);
+}
 
 static bool eip76d_rng_is_enabled(void)
 {
-	return io_read32(rng + RNG_CONTROL) & ENABLE_TRNG;
+	return io_read32(rng_base() + RNG_CONTROL) & ENABLE_TRNG;
 }
 
 static void eip76d_rng_init_seq(void)
 {
+	vaddr_t rng = rng_base();
 	uint32_t val = 0;
 
 	/* Ensure initial latency */
@@ -89,6 +98,8 @@ static void eip76d_rng_init_seq(void)
 static void eip76d_rng_read128(uint32_t *word0, uint32_t *word1,
 			       uint32_t *word2, uint32_t *word3)
 {
+	vaddr_t rng = rng_base();
+
 	if (!eip76d_rng_is_enabled())
 		eip76d_rng_init_seq();
 
@@ -150,8 +161,6 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 
 TEE_Result eip76d_rng_init(void)
 {
-	rng = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC, RNG_REG_SIZE);
-
 	eip76d_rng_init_seq();
 
 	IMSG("EIP76D TRNG initialized");
