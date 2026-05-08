@@ -6,6 +6,7 @@
  *	Andrew Davis <afd@ti.com>
  */
 
+#include <drivers/eip76d_trng.h>
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>
@@ -16,8 +17,6 @@
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <rng_support.h>
-
-#include "eip76d_trng.h"
 
 #define	RNG_OUTPUT_0            0x00
 #define	RNG_OUTPUT_1            0x04
