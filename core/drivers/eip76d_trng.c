@@ -132,7 +132,7 @@ static void eip76d_rng_read128(uint32_t *word0, uint32_t *word1,
 	io_write32(rng + RNG_INTACK, RNG_READY);
 }
 
-TEE_Result hw_get_random_bytes(void *buf, size_t len)
+TEE_Result hw_get_random_bytes_nolock(void *buf, size_t len)
 {
 	static union {
 		uint32_t val[4];
@@ -143,8 +143,6 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	size_t buffer_pos = 0;
 
 	while (buffer_pos < len) {
-		mutex_lock(&fifo_lock);
-
 		/* Refill our FIFO */
 		if (fifo_pos == 0)
 			eip76d_rng_read128(&fifo.val[0], &fifo.val[1],
@@ -152,11 +150,20 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 
 		buffer[buffer_pos++] = fifo.byte[fifo_pos++];
 		fifo_pos %= 16;
-
-		mutex_unlock(&fifo_lock);
 	}
 
 	return TEE_SUCCESS;
+}
+
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	mutex_lock(&fifo_lock);
+	res = hw_get_random_bytes_nolock(buf, len);
+	mutex_unlock(&fifo_lock);
+
+	return res;
 }
 
 TEE_Result eip76d_rng_init(void)
