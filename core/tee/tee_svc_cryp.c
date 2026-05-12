@@ -124,7 +124,7 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_rsa_pub_key_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_RSA_PUBLIC_EXPONENT,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_public_key, e)
 	},
@@ -140,49 +140,50 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_rsa_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_RSA_PUBLIC_EXPONENT,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_OPT,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_OPT |
+		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, e)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIVATE_EXPONENT,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, d)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIME1,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, p)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIME2,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, q)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_EXPONENT1,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, dp)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_EXPONENT2,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, dq)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_COEFFICIENT,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, qp)
 	},
@@ -199,7 +200,7 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_pub_key_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_DSA_SUBPRIME,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_public_key, q)
 	},
@@ -230,7 +231,8 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_DSA_SUBPRIME,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ |
+		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_keypair, q)
 	},
@@ -269,28 +271,30 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dh_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_DH_BASE,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ |
+		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dh_keypair, g)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DH_PUBLIC_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dh_keypair, y)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DH_PRIVATE_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dh_keypair, x)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DH_SUBPRIME,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP |	 TEE_TYPE_ATTR_GEN_KEY_OPT,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP |	 TEE_TYPE_ATTR_GEN_KEY_OPT |
+		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dh_keypair, q)
 	},
@@ -345,14 +349,14 @@ static const struct tee_cryp_obj_type_attrs
 static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_pub_key_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct ecc_public_key, x)
 	},
 
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct ecc_public_key, y)
 	},
@@ -368,21 +372,21 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_pub_key_attrs[] = {
 static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_keypair_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_ECC_PRIVATE_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct ecc_keypair, d)
 	},
 
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct ecc_keypair, x)
 	},
 
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct ecc_keypair, y)
 	},
@@ -1959,17 +1963,24 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 			if (res != TEE_SUCCESS)
 				return TEE_ERROR_BAD_PARAMETERS;
 		}
+	}
 
+	if (obj_size) {
 		/*
-		 * Bignum attributes limited by the number of bits in
-		 * o->info.objectSize are flagged with
-		 * TEE_TYPE_ATTR_BIGNUM_MAXBITS.
+		 * If obj_size was set there is a SIZE_INDICATOR parameter that
+		 * limits the size of attributes with BIGNUM_MAXBITS.
 		 */
-		if (type_props->type_attrs[idx].flags &
-		    TEE_TYPE_ATTR_BIGNUM_MAXBITS) {
+		for (n = 0; n < type_props->num_type_attrs; n++) {
+			if (!(have_attrs & BIT32(n)))
+				continue;
+			if (!(type_props->type_attrs[n].flags &
+			      TEE_TYPE_ATTR_BIGNUM_MAXBITS))
+				continue;
+			attr = (uint8_t *)o->attr +
+			       type_props->type_attrs[n].raw_offs;
 			if (crypto_bignum_num_bits(*(struct bignum **)attr) >
-			    o->info.maxObjectSize)
-				return TEE_ERROR_BAD_STATE;
+			    obj_size)
+				return TEE_ERROR_BAD_PARAMETERS;
 		}
 	}
 
