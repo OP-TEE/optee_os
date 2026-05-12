@@ -104,14 +104,25 @@ TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 	}
 
 	ret = get_keys_size(key_size, &l_bits, &n_bits);
-	if (ret == TEE_SUCCESS) {
-		dsa = drvcrypt_get_ops(CRYPTO_DSA);
-		if (dsa)
-			ret = dsa->gen_keypair(key, l_bits, n_bits);
-		else
-			ret = TEE_ERROR_NOT_IMPLEMENTED;
+	if (ret != TEE_SUCCESS)
+		goto out;
+
+	if (crypto_bignum_num_bits(key->q) > n_bits ||
+	    crypto_bignum_num_bits(key->g) > l_bits ||
+	    crypto_bignum_num_bits(key->p) > l_bits) {
+		ret = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
 	}
 
+	dsa = drvcrypt_get_ops(CRYPTO_DSA);
+	if (!dsa) {
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
+		goto out;
+	}
+
+	ret = dsa->gen_keypair(key, l_bits, n_bits);
+
+out:
 	CRYPTO_TRACE("DSA Keypair (%zu bits) generate ret = 0x%" PRIx32,
 		     key_size, ret);
 
