@@ -11,6 +11,7 @@
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>
+#include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/spinlock.h>
@@ -73,3 +74,27 @@ static TEE_Result sa2ul_init(void)
 	return TEE_SUCCESS;
 }
 service_init_crypto(sa2ul_init);
+
+unsigned long plat_get_aslr_seed(void)
+{
+	uint32_t val = 0;
+	unsigned long aslr = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	val = io_read32(SA2UL_BASE + SA2UL_ES);
+	if (!(val & SA2UL_ES_TRNG)) {
+		IMSG("SA2UL TRNG not yet enabled, disabling ASLR");
+		return 0;
+	}
+
+	res = hw_get_random_bytes_nolock(&aslr, sizeof(aslr));
+	if (res)
+		panic("Failed to hw_get_random_bytes");
+
+	if (aslr == 0)
+		EMSG("ASLR failed to seed");
+	else
+		IMSG("ASLR seeded by TRNG");
+
+	return aslr;
+}
