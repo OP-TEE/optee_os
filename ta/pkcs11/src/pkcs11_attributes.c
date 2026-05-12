@@ -1528,6 +1528,14 @@ static enum pkcs11_rc check_attrs_misc_integrity(struct obj_attrs *head)
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 	}
 
+	if ((get_bool(head, PKCS11_CKA_WRAP) ||
+	     get_bool(head, PKCS11_CKA_UNWRAP)) &&
+	    (get_bool(head, PKCS11_CKA_DECRYPT) ||
+	     get_bool(head, PKCS11_CKA_ENCRYPT))) {
+		DMSG("A key must not be used for both Key and Data encryption");
+		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+	}
+
 	return PKCS11_CKR_OK;
 }
 
