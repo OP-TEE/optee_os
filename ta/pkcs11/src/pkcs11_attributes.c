@@ -2124,6 +2124,16 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 		return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
 	}
 
+	if (function == PKCS11_FUNCTION_WRAP ||
+	    function == PKCS11_FUNCTION_UNWRAP) {
+		/* Enforce separation of Data and Key encryption */
+		if (get_bool(head, PKCS11_CKA_DECRYPT) ||
+		    get_bool(head, PKCS11_CKA_ENCRYPT)) {
+			DMSG("Must not use data encryption keys for wrap/unwrap");
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		}
+	}
+
 	return PKCS11_CKR_OK;
 }
 
