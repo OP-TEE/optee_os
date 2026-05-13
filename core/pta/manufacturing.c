@@ -10,7 +10,7 @@
 
 static void rand_delay(void)
 {
-	volatile int loops;
+	volatile int loops = 0;
 
 	crypto_rng_read(&loops, sizeof(loops));
 	loops &= 0x3FF; /* cap to 10 bits */
