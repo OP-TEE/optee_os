@@ -718,7 +718,7 @@ $(eval $(call cfg-depends-all,CFG_SYSTEM_PTA,CFG_WITH_USER_TA))
 
 # The manufactoring pseudo TA provides an interface to set and query the
 # manufacturing state of the device and to query information needed for
-# manufactoring.
+# manufacturing.
 CFG_MANUFACTURING_PTA ?= n
 
 # Enable the pseudo TA for enumeration of TEE based devices for the normal
