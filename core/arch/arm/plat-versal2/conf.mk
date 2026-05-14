@@ -37,10 +37,20 @@ CFG_AUTO_MAX_PA_BITS	?= y
 # Enable ARM Crypto Extensions(CE)
 CFG_CRYPTO_WITH_CE ?= y
 
+# CFG_PLAT_DYN_CLUSTER - Enable runtime cluster topology detection.
+# When enabled, the cluster shift value (log2 of cores per cluster) is
+# detected at runtime by reading CPU MPIDR values from the device tree,
+# allowing a single binary to support platform variants with different
+# cluster configurations. If detection fails or the device tree is
+# unavailable, the build falls back to CFG_CORE_CLUSTER_SHIFT.
+CFG_PLAT_DYN_CLUSTER ?= y
+
 # Define the number of cores per cluster used in calculating core position.
 # The cluster number is shifted by this value and added to the core ID,
 # so its value represents log2(cores/cluster).
-# For AMD Versal Gen 2 there are 4 clusters and 2 cores per cluster.
+# When CFG_PLAT_DYN_CLUSTER is enabled, this value is used only as the
+# compile-time fallback; the actual value is auto-detected from the device
+# tree at runtime to support multiple platform variants.
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 
 # By default optee_os is located at the following location.
