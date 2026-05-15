@@ -1,0 +1,91 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+#ifndef __QFPROM_H__
+#define __QFPROM_H__
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <tee_api_types.h>
+
+enum qfprom_addr_space {
+	QFPROM_ADDR_SPACE_RAW = 0,
+	QFPROM_ADDR_SPACE_CORR = 1,
+};
+
+enum qfprom_error {
+	QFPROM_NO_ERR = 0x0,
+	QFPROM_ERR_UNKNOWN = 0x1,
+	QFPROM_DATA_PTR_NULL_ERR = 0x2,
+	QFPROM_ADDRESS_INVALID_ERR = 0x3,
+	QFPROM_WRITE_ERR = 0x4,
+	QFPROM_REGION_NOT_SUPPORTED_ERR = 0x5,
+	QFPROM_REGION_NOT_READABLE_ERR = 0x6,
+	QFPROM_REGION_NOT_WRITABLE_ERR = 0x7,
+	QFPROM_FEC_ERR = 0x8,
+	QFPROM_OPERATION_NOT_ALLOWED_ERR = 0x9,
+	QFPROM_FAILED_TO_CHANGE_VOLTAGE_ERR = 0xA,
+	QFPROM_ERROR_CLOCK_FAILED = 0x10,
+	QFPROM_ERROR_TIMEOUT = 0x11,
+};
+
+enum qfprom_region_name {
+	QFPROM_CRI_CM_PRIVATE_REGION = 0,
+	QFPROM_LCM_REGION,
+	QFPROM_PRI_KEY_DERIVATION_KEY_REGION,
+	QFPROM_CM_FEATURE_CONFIG_REGION,
+	QFPROM_MRC_2_0_REGION,
+	QFPROM_PTE_REGION,
+	QFPROM_READ_PERMISSION_REGION,
+	QFPROM_WRITE_PERMISSION_REGION,
+	QFPROM_FEC_ENABLES_REGION,
+	QFPROM_OEM_CONFIG_REGION,
+	QFPROM_FEATURE_CONFIG_M_REGION,
+	QFPROM_FEATURE_CONFIG_NM_REGION,
+	QFPROM_ANTI_ROLLBACK_1_REGION,
+	QFPROM_ANTI_ROLLBACK_2_REGION,
+	QFPROM_ANTI_ROLLBACK_3_REGION,
+	QFPROM_ANTI_ROLLBACK_4_REGION,
+	QFPROM_ANTI_ROLLBACK_5_REGION,
+	QFPROM_PK_HASH_0_REGION,
+	QFPROM_CALIBRATION_REGION,
+	QFPROM_MEMORY_CONFIGURATION_REGION,
+	QFPROM_QC_SPARE_20_REGION,
+	QFPROM_QC_SPARE_21_REGION,
+	QFPROM_OEM_IMAGE_ENCRYPTION_KEY_REGION,
+	QFPROM_OEM_SECURE_BOOT_REGION,
+	QFPROM_SEC_KEY_DERIVATION_KEY_REGION,
+	QFPROM_BOOT_ROM_PATCH_REGION,
+	QFPROM_IMAGE_ENCRYPTION_KEY_1_REGION,
+	QFPROM_USER_KEY_DERIVATION_KEY_REGION,
+	QFPROM_OEM_SPARE_28_REGION,
+	QFPROM_OEM_SPARE_29_REGION,
+	QFPROM_OEM_SPARE_30_REGION,
+	QFPROM_OEM_SPARE_31_REGION,
+	QFPROM_LAST_REGION_DUMMY,
+	QFPROM_MAX_REGION_ENUM = 0x7FFF
+};
+
+/* Read QFPROM row data */
+TEE_Result qfprom_read_row(uint32_t addr,
+			   enum qfprom_addr_space type,
+			   uint32_t *data);
+
+/* Write QFPROM row data */
+TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data);
+
+/* Check if row has FEC protection */
+TEE_Result qfprom_row_has_fec_bits(uint32_t addr,
+				   enum qfprom_addr_space type,
+				   uint8_t *has_fec);
+
+/* Calculate FEC bits for 56-bit data */
+uint32_t qfprom_fec_63_56_bit(uint32_t lsb_data, uint32_t msb_data);
+
+/* Hardware init/deinit for batch fuse operations */
+TEE_Result qfprom_hw_init(void);
+void qfprom_hw_deinit(void);
+
+#endif /* __QFPROM_H__ */

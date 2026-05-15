@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <tee_api_types.h>
+#include <types_ext.h>
 
 #define REG_POLL_TIMEOUT(_addr, _timeout_us, _delay_us, _retp, _match)	\
 	do {								\
@@ -28,8 +29,15 @@ enum qcom_clk_group {
 	QCOM_CLKS_MAX,
 };
 
+#define CBCR_BRANCH_ENABLE_BIT		BIT(0)
+#define CBCR_HW_CTL_ENABLE_BIT		BIT(1)
+#define CBCR_BRANCH_OFF_BIT		BIT(31)
+#define CMD_RCGR_UPDATE_BIT		BIT(0)
+
 TEE_Result qcom_clock_enable(enum qcom_clk_group group);
 TEE_Result qcom_clock_enable_cbc(vaddr_t cbcr);
+TEE_Result qcom_clock_set_rate(vaddr_t cfg_rcgr, vaddr_t cmd_rcgr,
+			       uint32_t cfg_value);
 TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group);
 
 #endif /* _CLK_QCOM_H_ */
