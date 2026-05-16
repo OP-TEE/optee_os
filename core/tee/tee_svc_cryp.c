@@ -3943,6 +3943,12 @@ dh_out:
 			goto out;
 		}
 
+		if (params[0].content.ref.length > (alloc_size + 7) / 8 ||
+		    params[1].content.ref.length > (alloc_size + 7) / 8) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+
 		res = bb_memdup_user(params[0].content.ref.buffer,
 				     params[0].content.ref.length,
 				     &x_bbuf);
