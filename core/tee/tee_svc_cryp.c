@@ -1973,6 +1973,29 @@ static TEE_Result check_dsa_key_pair(struct bignum *g,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result check_rsa_keypair(struct rsa_keypair *rsa_keypair)
+{
+	if (crypto_bignum_num_bytes(rsa_keypair->p) == 0) {
+		/*
+		 * tee_svc_cryp_check_attr should already guarantee
+		 * all-or-nothing for OPTIONAL_GROUP attributes.
+		 */
+		assert(crypto_bignum_num_bytes(rsa_keypair->q) == 0 &&
+		       crypto_bignum_num_bytes(rsa_keypair->dp) == 0 &&
+		       crypto_bignum_num_bytes(rsa_keypair->dq) == 0 &&
+		       crypto_bignum_num_bytes(rsa_keypair->qp) == 0);
+		return TEE_SUCCESS;
+	}
+
+	/* Expected: dq < q, dp < p, qp < p */
+	if (crypto_bignum_compare(rsa_keypair->dq, rsa_keypair->q) >= 0 ||
+	    crypto_bignum_compare(rsa_keypair->dp, rsa_keypair->p) >= 0 ||
+	    crypto_bignum_compare(rsa_keypair->qp, rsa_keypair->p) >= 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result tee_svc_cryp_obj_populate_type(
 		struct tee_obj *o,
 		const struct tee_cryp_obj_type_props *type_props,
@@ -2104,6 +2127,8 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 
 		return check_dsa_key_pair(key->g, key->p, key->q, key->y, key->x);
 	}
+	case TEE_TYPE_RSA_KEYPAIR:
+		return check_rsa_keypair((struct rsa_keypair *)o->attr);
 	default:
 		return TEE_SUCCESS;
 	}
