@@ -1894,6 +1894,30 @@ static TEE_Result get_ec_key_size(uint32_t curve, size_t *key_size)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result check_dsa_key_pair(struct bignum *g,
+				     struct bignum *p,
+				     struct bignum *q,
+				     struct bignum *y,
+				     struct bignum *x)
+{
+	/*
+	 * All public key parameters are ATTR_REQUIRED. This is enforced by
+	 * tee_svc_cryp_check_attr(). x (private key) can be NULL.
+	 */
+	assert(g && p && q && y);
+
+	/* Expected: q < p, g < p, y < p */
+	if (crypto_bignum_compare(q, p) >= 0 ||
+	    crypto_bignum_compare(g, p) >= 0 ||
+	    crypto_bignum_compare(y, p) >= 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (x && crypto_bignum_compare(x, q) >= 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result tee_svc_cryp_obj_populate_type(
 		struct tee_obj *o,
 		const struct tee_cryp_obj_type_props *type_props,
@@ -1995,7 +2019,20 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 				      o->info.maxObjectSize))
 		o->info.objectSize -= o->info.objectSize / 8;
 
-	return TEE_SUCCESS;
+	switch (o->info.objectType) {
+	case TEE_TYPE_DSA_PUBLIC_KEY: {
+		struct dsa_public_key *key = o->attr;
+
+		return check_dsa_key_pair(key->g, key->p, key->q, key->y, NULL);
+	}
+	case TEE_TYPE_DSA_KEYPAIR: {
+		struct dsa_keypair *key = o->attr;
+
+		return check_dsa_key_pair(key->g, key->p, key->q, key->y, key->x);
+	}
+	default:
+		return TEE_SUCCESS;
+	}
 }
 
 TEE_Result syscall_cryp_obj_populate(unsigned long obj,
