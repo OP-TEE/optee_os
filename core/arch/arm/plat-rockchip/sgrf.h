@@ -1,0 +1,25 @@
+#ifndef PLAT_ROCKCHIP_SGRF_H
+#define PLAT_ROCKCHIP_SGRF_H
+
+#if defined(PLATFORM_FLAVOR_rk3568)
+
+/* SGRF controller register */
+#define SGRF_CON_OTP_CKE (1 << 2)
+#define SGRF_CON_OTP_SECURE_SET BIT_WITH_WMSK(1)
+#define SGRF_CON_OTP_SECURE_CLR WMSK_BIT(1)
+
+#define SGRF_SOC_CON(n) ((n)*4)
+
+/* ===== Secure GRF: SOC_CON2 (offset 0x0008) bits used in practice */
+
+#define SGRF_OTPC_NON_SECURE_CLR WMSK_BIT(0)
+#define SGRF_OTPC_NON_SECURE_SET BIT_WITH_WMSK(0)
+
+#define SGRF_OTPC_SECURE_CLR WMSK_BIT(1)
+#define SGRF_OTPC_SECURE_SET BIT_WITH_WMSK(1)
+
+#define SGRF_OTPC_CKE_SET BIT_WITH_WMSK(2)
+
+#endif /* PLATFORM_FLAVOR_rk3568 */
+
+#endif /* PLAT_ROCKCHIP_SGRF_H */
