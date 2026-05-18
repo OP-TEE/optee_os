@@ -253,6 +253,30 @@ F:	core/drivers/qcom/
 F:	core/drivers/qcom_geni_uart.c
 F:	core/include/drivers/qcom/
 
+Core Drivers QCOM CMD_DB
+R:	Selvam Sathappan Periakaruppan <speriaka@qti.qualcomm.com> [@zelvam95]
+S:	Maintained
+F:	core/drivers/qcom/cmd_db/
+F:	core/include/drivers/qcom/cmd_db/
+
+Core Drivers QCOM RPMH
+R:	Selvam Sathappan Periakaruppan <speriaka@qti.qualcomm.com> [@zelvam95]
+S:	Maintained
+F:	core/drivers/qcom/rpmh/
+F:	core/include/drivers/qcom/rpmh/
+
+Core Drivers QCOM QFPROM
+R:	Selvam Sathappan Periakaruppan <speriaka@qti.qualcomm.com> [@zelvam95]
+R:	Kishore Batta <kishore.batta@oss.qualcomm.com> [@kishorebatta-ossqcom]
+S:	Maintained
+F:	core/drivers/qcom/qfprom/
+F:	core/include/drivers/qcom/qfprom/
+
+Qualcomm Fuse Provisioning
+R:	Selvam Sathappan Periakaruppan <speriaka@qti.qualcomm.com> [@zelvam95]
+S:	Maintained
+F:	core/arch/arm/plat-qcom/provision/
+
 Raspberry Pi3
 R:	Joakim Bech <joakim.bech@gmail.com> [@jockebech]
 S:	Maintained
