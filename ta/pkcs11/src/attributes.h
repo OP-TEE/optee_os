@@ -216,8 +216,8 @@ static inline enum pkcs11_rc get_u32_attribute(struct obj_attrs *head,
  * Return true if all attributes from the reference are found and match value
  * in the candidate attribute list.
  */
-bool attributes_match_reference(struct obj_attrs *ref,
-				struct obj_attrs *candidate);
+bool attributes_match_reference(struct obj_attrs *candidate,
+				struct obj_attrs *ref);
 
 /*
  * Check attributes from @ref are all found or added in @head
