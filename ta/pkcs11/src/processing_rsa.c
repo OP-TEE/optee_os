@@ -769,7 +769,11 @@ enum pkcs11_rc generate_rsa_keys(struct pkcs11_attribute_head *proc_params,
 	if (res) {
 		DMSG("TEE_AllocateTransientObject failed %#"PRIx32, res);
 
-		rc = tee2pkcs_error(res);
+		if (res == TEE_ERROR_NOT_SUPPORTED)
+			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
+		else
+			rc = tee2pkcs_error(res);
+
 		goto out;
 	}
 
