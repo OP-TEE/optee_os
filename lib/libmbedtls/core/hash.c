@@ -220,7 +220,7 @@ int mbedtls_internal_sha256_process(mbedtls_sha256_context *ctx,
 
 #if defined(MBEDTLS_SHA512_PROCESS_ALT)
 int mbedtls_internal_sha512_process(mbedtls_sha512_context *ctx,
-				    const unsigned char data[64])
+				    const unsigned char data[128])
 {
 	crypto_accel_sha512_compress(ctx->state, data, 1);
 
