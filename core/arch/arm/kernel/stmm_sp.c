@@ -70,7 +70,11 @@ static const uint16_t stmm_id = 1U;
 static const uint16_t stmm_pta_id = 2U;
 static const uint16_t ffa_storage_id = 4U;
 
-static const unsigned int stmm_heap_size = 402 * SMALL_PAGE_SIZE;
+static_assert(CFG_STMM_HEAP_PAGE_COUNT >= 402,
+	      "CFG_STMM_HEAP_PAGE_COUNT must be at least 402");
+
+static const unsigned int stmm_heap_size = CFG_STMM_HEAP_PAGE_COUNT *
+					   SMALL_PAGE_SIZE;
 static const unsigned int stmm_sec_buf_size = 4 * SMALL_PAGE_SIZE;
 static const unsigned int stmm_ns_comm_buf_size = 4 * SMALL_PAGE_SIZE;
 
