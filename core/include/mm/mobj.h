@@ -20,7 +20,7 @@
 enum mobj_use_case {
 	MOBJ_USE_CASE_NS_SHM,
 	MOBJ_USE_CASE_SEC_VIDEO_PLAY,
-	MOBJ_USE_CASE_TRUSED_UI,
+	MOBJ_USE_CASE_TRUSTED_UI,
 };
 
 struct mobj {
