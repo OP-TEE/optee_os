@@ -3,6 +3,7 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020, 2022-2023 Linaro Limited
  * Copyright (c) 2022, Technology Innovation Institute (TII)
+ * Copyright 2026 NXP
  */
 
 #include <assert.h>
@@ -10,6 +11,7 @@
 #include <compiler.h>
 #include <config.h>
 #include <crypto/crypto.h>
+#include <crypto/crypto_impl.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/user_access.h>
 #include <memtag.h>
@@ -3786,6 +3788,7 @@ dh_out:
 		crypto_bignum_free(&ss);
 	} else if (cs->algo == TEE_ALG_ECDH_DERIVE_SHARED_SECRET) {
 		uint32_t curve = ((struct ecc_keypair *)ko->attr)->curve;
+		const struct crypto_ecc_public_ops *ecc_public_key_ops = NULL;
 		struct ecc_public_key key_public = { };
 		uint8_t *pt_secret = NULL;
 		unsigned long pt_secret_len = 0;
@@ -3843,6 +3846,22 @@ dh_out:
 				     key_public.x);
 		crypto_bignum_bin2bn(y_bbuf, params[1].content.ref.length,
 				     key_public.y);
+
+		/*
+		 * Validate peer's public key before passing to any crypto
+		 * backend. This prevents invalid-curve attacks regardless
+		 * of whether the backend is hardware (CAAM) or software
+		 * (libtomcrypt, mbedTLS).
+		 */
+		ecc_public_key_ops = crypto_asym_get_ecc_public_ops(key_type);
+		if (!ecc_public_key_ops) {
+			res = TEE_ERROR_GENERIC;
+			goto out;
+		}
+
+		res = ecc_public_key_ops->validate_public_key(&key_public);
+		if (res)
+			goto out;
 
 		pt_secret = (uint8_t *)(sk + 1);
 		pt_secret_len = sk->alloc_size;
