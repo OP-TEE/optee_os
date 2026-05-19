@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2018, ARM Limited
  * Copyright (C) 2019, Linaro Limited
+ * Copyright 2026 NXP
  */
 
 #include <assert.h>
@@ -309,6 +310,117 @@ out:
 	return res;
 }
 
+/*
+ * Validate that an ECC public key point (X, Y) lies on the specified curve.
+ * This provides centralized protection against invalid-curve attacks for
+ * all crypto backends (CAAM, libtomcrypt, mbedTLS, etc.).
+ */
+static TEE_Result validate_ecdh_public_key(struct ecc_public_key *public_key)
+{
+	mbedtls_ecp_group grp = {};
+	mbedtls_ecp_point Q = {};
+	mbedtls_ecp_group_id grp_id = MBEDTLS_ECP_DP_NONE;
+	int ret = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t coord_len = 0;
+	size_t pt_len = 0;
+	uint8_t *pt_buf = NULL;
+	mbedtls_mpi *x = NULL;
+	mbedtls_mpi *y = NULL;
+	size_t x_len = 0;
+	size_t y_len = 0;
+
+	if (!public_key || !public_key->x || !public_key->y)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	x = (mbedtls_mpi *)public_key->x;
+	y = (mbedtls_mpi *)public_key->y;
+	x_len = mbedtls_mpi_size(x);
+	y_len = mbedtls_mpi_size(y);
+
+	switch (public_key->curve) {
+	case TEE_ECC_CURVE_NIST_P192:
+		grp_id = MBEDTLS_ECP_DP_SECP192R1;
+		coord_len = 24;
+		break;
+	case TEE_ECC_CURVE_NIST_P224:
+		grp_id = MBEDTLS_ECP_DP_SECP224R1;
+		coord_len = 28;
+		break;
+	case TEE_ECC_CURVE_NIST_P256:
+		grp_id = MBEDTLS_ECP_DP_SECP256R1;
+		coord_len = 32;
+		break;
+	case TEE_ECC_CURVE_NIST_P384:
+		grp_id = MBEDTLS_ECP_DP_SECP384R1;
+		coord_len = 48;
+		break;
+	case TEE_ECC_CURVE_NIST_P521:
+		grp_id = MBEDTLS_ECP_DP_SECP521R1;
+		coord_len = 66;
+		break;
+	default:
+		EMSG("ECDH: unsupported curve 0x%" PRIx32, public_key->curve);
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	if (x_len > coord_len || y_len > coord_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mbedtls_ecp_group_init(&grp);
+	mbedtls_ecp_point_init(&Q);
+
+	ret = mbedtls_ecp_group_load(&grp, grp_id);
+	if (ret) {
+		EMSG("ECDH: failed to load curve group (ret=%d)", ret);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	/*
+	 * Build uncompressed point buffer: 0x04 || X (padded) || Y (padded)
+	 * mbedtls_ecp_point_read_binary() expects both coordinates to be
+	 * zero-padded to the full field element size, and sets Z = 1
+	 * internally.
+	 */
+	pt_len = 1 + 2 * coord_len;
+	pt_buf = calloc(1, pt_len);
+	if (!pt_buf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+	pt_buf[0] = 0x04;
+
+	/* Right-align (big-endian pad) each coordinate */
+	mbedtls_mpi_write_binary(x, pt_buf + 1 + (coord_len - x_len), x_len);
+	mbedtls_mpi_write_binary(y, pt_buf + 1 + coord_len + (coord_len - y_len),
+				 y_len);
+
+	ret = mbedtls_ecp_point_read_binary(&grp, &Q, pt_buf, pt_len);
+	free(pt_buf);
+	if (ret) {
+		EMSG("ECDH: failed to read point (ret=%d)", ret);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	ret = mbedtls_ecp_check_pubkey(&grp, &Q);
+	if (ret) {
+		EMSG("ECDH: invalid public key rejected (ret=%d)", ret);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	EMSG("ECDH: peer public key validation passed");
+	res = TEE_SUCCESS;
+
+out:
+	mbedtls_ecp_point_free(&Q);
+	mbedtls_ecp_group_free(&grp);
+
+	return res;
+}
+
 static TEE_Result ecc_shared_secret(struct ecc_keypair *private_key,
 				    struct ecc_public_key *public_key,
 				    void *secret, unsigned long *secret_len)
@@ -454,6 +566,7 @@ err:
 static const struct crypto_ecc_public_ops ecc_public_key_ops = {
 	.free = ecc_free_public_key,
 	.verify = ecc_verify,
+	.validate_public_key = validate_ecdh_public_key,
 };
 
 static const struct crypto_ecc_public_ops sm2_pke_public_key_ops = {
