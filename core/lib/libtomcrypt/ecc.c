@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014-2019, Linaro Limited
+ * Copyright 2026 NXP
  */
 
 #include <config.h>
@@ -312,6 +313,34 @@ out:
 	return res;
 }
 
+static TEE_Result _ltc_ecc_validate_public_key(struct ecc_public_key *key)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	int ltc_res = 0;
+	size_t key_size_bytes = 0;
+	ecc_key ltc_key = {};
+
+	if (!key)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = ecc_populate_ltc_public_key(&ltc_key, key, 0, &key_size_bytes);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	ltc_res = ltc_ecc_verify_key(&ltc_key);
+	if (ltc_res != CRYPT_OK) {
+		EMSG("ECDH: invalid public key rejected (ltc_res=%d)", ltc_res);
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	res = TEE_SUCCESS;
+
+out:
+	ecc_free(&ltc_key);
+	return res;
+}
+
 static TEE_Result _ltc_ecc_shared_secret(struct ecc_keypair *private_key,
 					 struct ecc_public_key *public_key,
 					 void *secret,
@@ -358,6 +387,7 @@ static const struct crypto_ecc_keypair_ops ecc_keypair_ops = {
 static const struct crypto_ecc_public_ops ecc_public_key_ops = {
 	.free = _ltc_ecc_free_public_key,
 	.verify = _ltc_ecc_verify,
+	.validate_public_key = _ltc_ecc_validate_public_key,
 };
 
 static const struct crypto_ecc_keypair_ops sm2_dsa_keypair_ops = {

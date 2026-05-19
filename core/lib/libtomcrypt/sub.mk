@@ -332,6 +332,7 @@ srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ecc_ssh_ecdsa_encode_name.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ecc_verify_hash.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_is_point.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_is_point_at_infinity.c
+srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_verify_key.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_map.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_mulmod.c
 srcs-$(_CFG_CORE_LTC_ECC) += src/pk/ecc/ltc_ecc_mulmod_timing.c
