@@ -416,6 +416,7 @@ struct crypto_ecc_public_ops {
 			     const uint8_t *sig, size_t sig_len);
 	TEE_Result (*encrypt)(struct ecc_public_key *key, const uint8_t *src,
 			      size_t src_len, uint8_t *dst, size_t *dst_len);
+	TEE_Result (*validate_public_key)(struct ecc_public_key *key);
 };
 
 /*
