@@ -74,6 +74,10 @@ $(warning WARNING: Any attempt by the REE to perform a state copy operation \
   will result in a crash of the TEE.)
 endif
 
+# ASU TRNG driver configuration
+CFG_AMD_ASU_TRNG ?= y
+CFG_WITH_SOFTWARE_PRNG ?= n
+
 ifeq ($(CFG_AMD_PS_GPIO),y)
 $(call force,CFG_MAP_EXT_DT_SECURE,y)
 $(call force,CFG_DRIVERS_GPIO,y)
