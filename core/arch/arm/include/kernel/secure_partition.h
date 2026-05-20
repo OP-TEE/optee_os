@@ -77,6 +77,7 @@ TEE_Result sp_enter(struct thread_smc_1_2_regs *args, struct sp_session *sp);
 TEE_Result sp_partition_info_get(uint32_t ffa_vers, void *buf, size_t buf_size,
 				 const uint32_t uuid_words[4],
 				 size_t *elem_count, bool count_only);
+bool sp_has_ffa_uuid(struct sp_session *sp, const uint32_t uuid_words[4]);
 bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 			     struct user_mode_ctx *uctx);
 TEE_Result sp_map_shared(struct sp_session *s,

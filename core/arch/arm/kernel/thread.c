@@ -217,10 +217,7 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 }
 #endif /*ARM64*/
 
-static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
-				   uint32_t a3, uint32_t a4, uint32_t a5,
-				   uint32_t a6, uint32_t a7,
-				   void *pc, uint32_t flags)
+static struct thread_ctx *alloc_thread(uint32_t flags)
 {
 	struct thread_core_local *l = thread_get_core_local();
 	bool found_thread = false;
@@ -241,25 +238,39 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 	thread_unlock_global();
 
 	if (!found_thread)
-		return;
+		return NULL;
 
 	l->curr_thread = n;
-
 	threads[n].flags = flags;
-	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
+
+	return threads + n;
+}
+
+static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
+				   uint32_t a3, uint32_t a4, uint32_t a5,
+				   uint32_t a6, uint32_t a7,
+				   void *pc, uint32_t flags)
+{
+	struct thread_core_local *l = thread_get_core_local();
+	struct thread_ctx *thread = alloc_thread(flags);
+
+	if (!thread)
+		return;
+
+	init_regs(thread, a0, a1, a2, a3, a4, a5, a6, a7, pc);
 #ifdef CFG_CORE_PAUTH
 	/*
 	 * Copy the APIA key into the registers to be restored with
 	 * thread_resume().
 	 */
-	threads[n].regs.apiakey_hi = threads[n].keys.apia_hi;
-	threads[n].regs.apiakey_lo = threads[n].keys.apia_lo;
+	thread->regs.apiakey_hi = thread->keys.apia_hi;
+	thread->regs.apiakey_lo = thread->keys.apia_lo;
 #endif
 
 	thread_lazy_save_ns_vfp();
 
 	l->flags &= ~THREAD_CLF_TMP;
-	thread_resume(&threads[n].regs);
+	thread_resume(&thread->regs);
 	/*NOTREACHED*/
 	panic();
 }
@@ -272,11 +283,48 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 }
 
 #ifdef CFG_SECURE_PARTITION
-void thread_sp_alloc_and_run(struct thread_smc_args *args __maybe_unused)
+static void init_regs_spmc(struct thread_ctx *thread,
+			   const struct thread_smc_1_2_regs *args, void *pc)
 {
-	__thread_alloc_and_run(args->a0, args->a1, args->a2, args->a3, args->a4,
-			       args->a5, args->a6, args->a7,
-			       spmc_sp_thread_entry, THREAD_FLAGS_FFA_ONLY);
+#ifdef ARM64
+	size_t n = 0;
+
+	thread->regs.pc = (uint64_t)pc;
+	thread->regs.cpsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0,
+				    THREAD_EXCP_FOREIGN_INTR | DAIFBIT_ABT);
+	thread->regs.sp = thread->stack_va_end;
+
+	for (n = 0; n < ARRAY_SIZE(args->a); n++)
+		thread->regs.x[n] = args->a[n];
+	for (; n < ARRAY_SIZE(thread->regs.x); n++)
+		thread->regs.x[n] = 0;
+
+	thread->regs.x[29] = 0;
+#else
+	init_regs(thread, args->a0, args->a1, args->a2, args->a3, args->a4,
+		  args->a5, args->a6, args->a7, pc);
+#endif
+}
+
+void thread_sp_alloc_and_run(struct thread_smc_1_2_regs *args)
+{
+	struct thread_core_local *l = thread_get_core_local();
+	struct thread_ctx *thread = alloc_thread(THREAD_FLAGS_FFA_ONLY);
+
+	if (!thread)
+		return;
+
+	init_regs_spmc(thread, args, spmc_sp_thread_entry);
+#ifdef CFG_CORE_PAUTH
+	thread->regs.apiakey_hi = thread->keys.apia_hi;
+	thread->regs.apiakey_lo = thread->keys.apia_lo;
+#endif
+
+	thread_lazy_save_ns_vfp();
+
+	l->flags &= ~THREAD_CLF_TMP;
+	thread_resume(&thread->regs);
+	panic();
 }
 #endif
 

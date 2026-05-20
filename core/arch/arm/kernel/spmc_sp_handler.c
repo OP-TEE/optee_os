@@ -22,7 +22,7 @@ static unsigned int mem_ref_lock = SPINLOCK_UNLOCK;
 
 int spmc_sp_start_thread(struct thread_smc_1_2_regs *args)
 {
-	thread_sp_alloc_and_run(&args->arg11);
+	thread_sp_alloc_and_run(args);
 	/*
 	 * thread_sp_alloc_and_run() only returns if all threads are busy.
 	 * The caller must try again.
@@ -40,6 +40,23 @@ static void ffa_success(struct thread_smc_1_2_regs *args)
 {
 	spmc_set_args(args, FFA_SUCCESS_32, 0, 0, 0, 0, 0);
 }
+
+static bool is_nil_uuid_words(const uint32_t uuid_words[4])
+{
+	return !uuid_words || (!uuid_words[0] && !uuid_words[1] &&
+			       !uuid_words[2] && !uuid_words[3]);
+}
+
+#ifdef ARM64
+static void direct_req2_uuid_from_args(struct thread_smc_1_2_regs *args,
+				       uint32_t uuid_words[4])
+{
+	uuid_words[0] = (uint32_t)args->a2;
+	uuid_words[1] = (uint32_t)(args->a2 >> 32);
+	uuid_words[2] = (uint32_t)args->a3;
+	uuid_words[3] = (uint32_t)(args->a3 >> 32);
+}
+#endif
 
 static TEE_Result ffa_get_dst(struct thread_smc_1_2_regs *args,
 			      struct sp_session *caller,
@@ -899,6 +916,7 @@ ffa_handle_sp_direct_req(struct thread_smc_1_2_regs *args,
 	struct sp_session *dst = NULL;
 	struct spmc_lsp_desc *lsp = NULL;
 	TEE_Result res = FFA_OK;
+	bool is_req2 = args->a0 == FFA_MSG_SEND_DIRECT_REQ2;
 
 	res = ffa_get_dst(args, caller_sp, &dst);
 	if (res) {
@@ -922,14 +940,16 @@ ffa_handle_sp_direct_req(struct thread_smc_1_2_regs *args,
 	}
 
 	if (caller_sp &&
-	    !(caller_sp->props & FFA_PART_PROP_DIRECT_REQ_SEND)) {
+	    !(caller_sp->props & (is_req2 ? FFA_PART_PROP_DIRECT_REQ2_SEND :
+					  FFA_PART_PROP_DIRECT_REQ_SEND))) {
 		EMSG("SP 0x%"PRIx16" doesn't support sending direct requests",
 		     caller_sp->endpoint_id);
 		ffa_set_error(args, FFA_NOT_SUPPORTED);
 		return caller_sp;
 	}
 
-	if (dst && !(dst->props & FFA_PART_PROP_DIRECT_REQ_RECV)) {
+	if (dst && !(dst->props & (is_req2 ? FFA_PART_PROP_DIRECT_REQ2_RECV :
+				     FFA_PART_PROP_DIRECT_REQ_RECV))) {
 		EMSG("SP 0x%"PRIx16" doesn't support receipt of direct requests",
 		     dst->endpoint_id);
 		ffa_set_error(args, FFA_NOT_SUPPORTED);
@@ -943,12 +963,28 @@ ffa_handle_sp_direct_req(struct thread_smc_1_2_regs *args,
 		return caller_sp;
 	}
 
+	if (lsp && is_req2) {
+		ffa_set_error(args, FFA_NOT_SUPPORTED);
+		return caller_sp;
+	}
+
 	if (lsp) {
 		lsp->direct_req(args, caller_sp);
 		return caller_sp;
 	}
 
-	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
+	if (is_req2) {
+#ifdef ARM64
+		uint32_t uuid_words[4] = { };
+
+		direct_req2_uuid_from_args(args, uuid_words);
+		if (!is_nil_uuid_words(uuid_words) &&
+		    !sp_has_ffa_uuid(dst, uuid_words)) {
+			ffa_set_error(args, FFA_INVALID_PARAMETERS);
+			return caller_sp;
+		}
+#endif
+	} else if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
 		switch (args->a2 & FFA_MSG_TYPE_MASK) {
 		case FFA_MSG_SEND_VM_CREATED:
 			/* The sender must be the NWd hypervisor (ID 0) */
@@ -1021,6 +1057,7 @@ ffa_handle_sp_direct_resp(struct thread_smc_1_2_regs *args,
 	struct sp_session *dst = NULL;
 	enum sp_status st = sp_idle;
 	TEE_Result res = FFA_OK;
+	bool is_resp2 = args->a0 == FFA_MSG_SEND_DIRECT_RESP2;
 
 	if (!caller_sp) {
 		EMSG("Response from normal world not supported");
@@ -1035,7 +1072,20 @@ ffa_handle_sp_direct_resp(struct thread_smc_1_2_regs *args,
 		return caller_sp;
 	}
 
-	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
+	if (is_resp2) {
+		if (args->a2 || args->a3) {
+			ffa_set_error(args, FFA_INVALID_PARAMETERS);
+			return caller_sp;
+		}
+		if (!(caller_sp->props & FFA_PART_PROP_DIRECT_REQ2_RECV)) {
+			ffa_set_error(args, FFA_DENIED);
+			return caller_sp;
+		}
+		if (dst && !(dst->props & FFA_PART_PROP_DIRECT_REQ2_SEND)) {
+			ffa_set_error(args, FFA_DENIED);
+			return caller_sp;
+		}
+	} else if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
 		switch (args->a2 & FFA_MSG_TYPE_MASK) {
 		case FFA_MSG_RESP_VM_CREATED:
 			/* The destination must be the NWd hypervisor (ID 0) */
@@ -1146,6 +1196,13 @@ static void handle_features(struct thread_smc_1_2_regs *args)
 		ret_fid = FFA_SUCCESS_32;
 		ret_w2 = 0; /* 4kB Minimum buffer size and alignment boundary */
 		break;
+#ifdef ARM64
+	case FFA_MSG_SEND_DIRECT_REQ2:
+	case FFA_MSG_SEND_DIRECT_RESP2:
+		ret_fid = FFA_SUCCESS_32;
+		ret_w2 = FFA_PARAM_MBZ;
+		break;
+#endif
 	case FFA_ERROR:
 	case FFA_VERSION:
 	case FFA_SUCCESS_32:
@@ -1341,12 +1398,18 @@ void spmc_sp_msg_handler(struct thread_smc_1_2_regs *args,
 		case FFA_MSG_SEND_DIRECT_REQ_64:
 #endif
 		case FFA_MSG_SEND_DIRECT_REQ_32:
+#ifdef ARM64
+		case FFA_MSG_SEND_DIRECT_REQ2:
+#endif
 			caller_sp = ffa_handle_sp_direct_req(args, caller_sp);
 			break;
 #ifdef ARM64
 		case FFA_MSG_SEND_DIRECT_RESP_64:
 #endif
 		case FFA_MSG_SEND_DIRECT_RESP_32:
+#ifdef ARM64
+		case FFA_MSG_SEND_DIRECT_RESP2:
+#endif
 			caller_sp = ffa_handle_sp_direct_resp(args, caller_sp);
 			break;
 		case FFA_ERROR:

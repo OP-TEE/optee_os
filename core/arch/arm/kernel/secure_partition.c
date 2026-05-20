@@ -63,6 +63,8 @@
 #define SP_MANIFEST_DIRECT_REQ_RECEIVE	BIT(0)
 #define SP_MANIFEST_DIRECT_REQ_SEND	BIT(1)
 #define SP_MANIFEST_INDIRECT_REQ	BIT(2)
+#define SP_MANIFEST_DIRECT_REQ2_RECEIVE	BIT(9)
+#define SP_MANIFEST_DIRECT_REQ2_SEND	BIT(10)
 
 #define SP_MANIFEST_VM_CREATED_MSG	BIT(0)
 #define SP_MANIFEST_VM_DESTROYED_MSG	BIT(1)
@@ -457,6 +459,18 @@ static TEE_Result sp_dt_get_uuid(const void *fdt, int node,
 	tee_uuid_from_octets(uuid, (uint8_t *)uuid_array);
 
 	return TEE_SUCCESS;
+}
+
+bool sp_has_ffa_uuid(struct sp_session *sp, const uint32_t uuid_words[4])
+{
+	TEE_UUID uuid = { };
+
+	if (!sp || !uuid_words)
+		return false;
+
+	tee_uuid_from_octets(&uuid, (const uint8_t *)uuid_words);
+
+	return !memcmp(&sp->ffa_uuid, &uuid, sizeof(uuid));
 }
 
 static TEE_Result sp_is_elf_format(const void *fdt, int sp_node,
@@ -1488,7 +1502,9 @@ static TEE_Result read_ffa_version(const void *fdt, struct sp_session *s)
 		return res;
 	}
 
-	if (ffa_version != FFA_VERSION_1_0 && ffa_version != FFA_VERSION_1_1) {
+	if (ffa_version != FFA_VERSION_1_0 &&
+	    ffa_version != FFA_VERSION_1_1 &&
+	    ffa_version != FFA_VERSION_1_2) {
 		EMSG("Invalid FF-A version value: 0x%08"PRIx32, ffa_version);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -1536,6 +1552,14 @@ static TEE_Result read_sp_msg_types(const void *fdt, struct sp_session *s)
 
 	if (msg_method & SP_MANIFEST_DIRECT_REQ_SEND)
 		s->props |= FFA_PART_PROP_DIRECT_REQ_SEND;
+
+	if (s->rxtx.ffa_vers >= FFA_VERSION_1_2 &&
+	    (s->props & FFA_PART_PROP_AARCH64_STATE)) {
+		if (msg_method & SP_MANIFEST_DIRECT_REQ2_RECEIVE)
+			s->props |= FFA_PART_PROP_DIRECT_REQ2_RECV;
+		if (msg_method & SP_MANIFEST_DIRECT_REQ2_SEND)
+			s->props |= FFA_PART_PROP_DIRECT_REQ2_SEND;
+	}
 
 	if (msg_method & SP_MANIFEST_INDIRECT_REQ)
 		IMSG("Indirect messaging is not supported");
@@ -1729,6 +1753,9 @@ TEE_Result sp_enter(struct thread_smc_1_2_regs *args, struct sp_session *sp)
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_ctx *ctx = to_sp_ctx(sp->ts_sess.ctx);
 
+#ifdef ARM64
+	memcpy(ctx->sp_regs.x, args->a, sizeof(args->a));
+#else
 	ctx->sp_regs.x[0] = args->a0;
 	ctx->sp_regs.x[1] = args->a1;
 	ctx->sp_regs.x[2] = args->a2;
@@ -1737,6 +1764,7 @@ TEE_Result sp_enter(struct thread_smc_1_2_regs *args, struct sp_session *sp)
 	ctx->sp_regs.x[5] = args->a5;
 	ctx->sp_regs.x[6] = args->a6;
 	ctx->sp_regs.x[7] = args->a7;
+#endif
 #ifdef CFG_TA_PAUTH
 	ctx->sp_regs.apiakey_hi = ctx->uctx.keys.apia_hi;
 	ctx->sp_regs.apiakey_lo = ctx->uctx.keys.apia_lo;
@@ -1744,6 +1772,9 @@ TEE_Result sp_enter(struct thread_smc_1_2_regs *args, struct sp_session *sp)
 
 	res = sp->ts_sess.ctx->ops->enter_invoke_cmd(&sp->ts_sess, 0);
 
+#ifdef ARM64
+	memcpy(args->a, ctx->sp_regs.x, sizeof(args->a));
+#else
 	args->a0 = ctx->sp_regs.x[0];
 	args->a1 = ctx->sp_regs.x[1];
 	args->a2 = ctx->sp_regs.x[2];
@@ -1752,6 +1783,7 @@ TEE_Result sp_enter(struct thread_smc_1_2_regs *args, struct sp_session *sp)
 	args->a5 = ctx->sp_regs.x[5];
 	args->a6 = ctx->sp_regs.x[6];
 	args->a7 = ctx->sp_regs.x[7];
+#endif
 
 	return res;
 }
@@ -1877,8 +1909,8 @@ static bool sp_handle_scall(struct thread_scall_regs *regs)
 	 * handler.
 	 * We always return to S-El1 after handling the SVC. We will continue
 	 * in sp_enter_invoke_cmd() (return from __thread_enter_user_mode).
-	 * The sp_enter() function copies the FF-A parameters (a0-a7) from the
-	 * saved registers to the thread_smc_args. The thread_smc_args object is
+	 * The sp_enter() function copies the FF-A parameters from the
+	 * saved registers to the thread_smc_1_2_regs object. This object is
 	 * afterward used by the spmc_sp_msg_handler() to handle the
 	 * FF-A message send by the SP.
 	 */
