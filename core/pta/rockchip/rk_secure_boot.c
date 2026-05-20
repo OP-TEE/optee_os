@@ -31,9 +31,10 @@ static inline bool test_bit_mask(uint32_t value, uint32_t mask)
 
 #define HASH_STRING_SIZE 88
 static_assert(ROCKCHIP_OTP_RSA_HASH_SIZE == 8);
-static_assert(sizeof(((struct pta_rk_secure_boot_hash *)0)->value) ==
-	      ROCKCHIP_OTP_RSA_HASH_SIZE * sizeof(uint32_t),
-	      "Hash value size mismatch between OTP and pta_rk_secure_boot_hash");
+static_assert(sizeof(((struct pta_rk_secure_boot_hash *)0)->value) >= TEE_SHA256_HASH_SIZE,
+	      "pta_rk_secure_boot_hash too small for SHA-256");
+static_assert(ROCKCHIP_OTP_RSA_HASH_SIZE * sizeof(uint32_t) >= TEE_SHA256_HASH_SIZE,
+	      "OTP RSA hash storage too small for SHA-256");
 static __maybe_unused char *otp_to_string(uint32_t *otp,
 					  char *str, size_t str_size)
 {
@@ -153,7 +154,7 @@ static TEE_Result get_info(uint32_t param_types,
 	info->enabled = test_bit_mask(status,
 				      ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE);
 	info->simulation = IS_ENABLED(CFG_RK_SECURE_BOOT_SIMULATION);
-	memcpy(info->hash.value, hash, sizeof(hash));
+	memcpy(info->hash.value, hash, sizeof(info->hash.value));
 
 	return TEE_SUCCESS;
 }
