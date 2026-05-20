@@ -7,6 +7,10 @@
 
 #include <stdint.h>
 
+/* Normal function for getting random values from TRNG */
 TEE_Result hw_get_random_bytes(void *buf, size_t blen);
+
+/* Early random number access (before MMU), no locking */
+TEE_Result hw_get_random_bytes_nolock(void *buf, size_t blen);
 
 #endif /* __RNG_SUPPORT_H__ */
