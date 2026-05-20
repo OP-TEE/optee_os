@@ -38,6 +38,22 @@ CFG_TEE_CORE_NB_CORE ?= 4
 CFG_TZC380 ?= y
 endif
 
+ifeq ($(PLATFORM_FLAVOR),sun50i_a133)
+include core/arch/arm/cpu/cortex-armv8-0.mk
+$(call force,CFG_ARM64_core,y)
+$(call force,CFG_WITH_ARM_TRUSTED_FW,y)
+
+CFG_DRAM_BASE    ?= 0x40000000
+CFG_DRAM_SIZE	 ?= 0x80000000
+CFG_BL31_SIZE	 ?= 0x80000
+CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) + $(CFG_BL31_SIZE))
+CFG_TZDRAM_SIZE  ?= 0x2000000
+CFG_SHMEM_START  ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
+CFG_SHMEM_SIZE   ?= 0x00400000
+CFG_TEE_CORE_NB_CORE ?= 4
+CFG_TZC380 ?= y
+endif
+
 ifeq ($(platform-flavor-armv8),1)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 endif
