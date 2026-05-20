@@ -31,6 +31,10 @@ static inline bool test_bit_mask(uint32_t value, uint32_t mask)
 
 #define HASH_STRING_SIZE 88
 static_assert(ROCKCHIP_OTP_RSA_HASH_SIZE == 8);
+static_assert(sizeof(((struct pta_rk_secure_boot_hash *)0)->value) >= TEE_SHA256_HASH_SIZE,
+	      "pta_rk_secure_boot_hash too small for SHA-256");
+static_assert(ROCKCHIP_OTP_RSA_HASH_SIZE * sizeof(uint32_t) >= TEE_SHA256_HASH_SIZE,
+	      "OTP RSA hash storage too small for SHA-256");
 static __maybe_unused char *otp_to_string(uint32_t *otp,
 					  char *str, size_t str_size)
 {
