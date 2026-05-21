@@ -1,3 +1,5 @@
-srcs-y += pta_qcom_pas.c dsp.c pas.c q6dsp.c compute.c lpass.c venus.c
+srcs-y += pta_qcom_pas.c
+srcs-y += pas_core.c
 incdirs-y += .
-incdirs-y += platform/$(PLATFORM_FLAVOR)
+incdirs-y += platform/
+subdirs-y += platform/$(PLATFORM_FLAVOR)
