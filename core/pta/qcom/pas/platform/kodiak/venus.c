@@ -4,12 +4,10 @@
  */
 
 #include <io.h>
-#include <mm/core_mmu.h>
 #include <stdint.h>
 #include <string.h>
 
-#include "pas.h"
-#include "video.h"
+#include "venus.h"
 
 #define WRAPPER_IRIS_VERSION		0x0
 #define WRAPPER_CPA_START_ADDR		0x1020
@@ -23,8 +21,9 @@
 
 static TEE_Result venus_reset_cpu(struct qcom_pas_data *data)
 {
-	vaddr_t base = io_pa_or_va(&data->base, data->size);
+	vaddr_t base = 0;
 
+	base = io_pa_or_va(&data->base, data->size);
 	if (!base)
 		return TEE_ERROR_GENERIC;
 
@@ -41,11 +40,12 @@ static TEE_Result venus_reset_cpu(struct qcom_pas_data *data)
 	return TEE_SUCCESS;
 }
 
-TEE_Result venus_fw_shutdown(struct qcom_pas_data *data)
+static TEE_Result venus_fw_shutdown(struct qcom_pas_data *data)
 {
-	vaddr_t base = io_pa_or_va(&data->base, data->size);
-	uint32_t reg;
+	vaddr_t base = 0;
+	uint32_t reg = 0;
 
+	base = io_pa_or_va(&data->base, data->size);
 	if (!base)
 		return TEE_ERROR_GENERIC;
 
@@ -58,12 +58,12 @@ TEE_Result venus_fw_shutdown(struct qcom_pas_data *data)
 	return TEE_SUCCESS;
 }
 
-TEE_Result venus_fw_start(struct qcom_pas_data *data)
+static TEE_Result venus_fw_start(struct qcom_pas_data *data)
 {
 	return venus_reset_cpu(data);
 }
 
-TEE_Result venus_fw_set_state(struct qcom_pas_data *data, bool power_on)
+static TEE_Result venus_fw_set_state(struct qcom_pas_data *data, bool power_on)
 {
 	if (power_on)
 		return venus_reset_cpu(data);
@@ -71,3 +71,8 @@ TEE_Result venus_fw_set_state(struct qcom_pas_data *data, bool power_on)
 	return venus_fw_shutdown(data);
 }
 
+const struct qcom_pas_ops venus_ops = {
+	.fw_start = venus_fw_start,
+	.fw_shutdown = venus_fw_shutdown,
+	.fw_set_state = venus_fw_set_state,
+};
