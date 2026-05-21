@@ -6,7 +6,7 @@
 #ifndef _DSP_H_
 #define _DSP_H_
 
-#include "pas.h"
+#include "pas_data.h"
 
 struct dsp_fw_boot_lpass_regs {
 	uint32_t efuse_evb_sel;

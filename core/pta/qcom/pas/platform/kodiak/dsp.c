@@ -4,12 +4,12 @@
  */
 
 #include <io.h>
+#include <kernel/thread_arch.h>
 #include <mm/core_mmu.h>
 #include <stdint.h>
 #include <string.h>
 
 #include "dsp.h"
-#include "pas.h"
 
 #define CBCR_BRANCH_ENABLE_BIT	BIT(0)
 #define CBCR_HW_CTL_ENABLE_BIT	BIT(1)

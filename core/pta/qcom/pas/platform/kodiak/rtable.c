@@ -1,25 +1,23 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#ifndef _PAS_RESOURCES_H_
-#define _PAS_RESOURCES_H_
-
 #include <io.h>
-#include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include "pas.h"
+#include "pas_data.h"
+#include "rtable.h"
 
 /*
  * WPSS
  */
 static const struct fw_rsc_devmem wpss_mem_res[] = {
-	{.name = "wlan_fw_mem", .flags = IOMMU_READ | IOMMU_WRITE,
+	{ .name = "wlan_fw_mem", .flags = IOMMU_READ | IOMMU_WRITE,
 		.da = 0x80c00000, .pa = 0x80c00000, .len = 0xc00000, },
-	{.name = "wlan_ce_mem", .flags = IOMMU_READ | IOMMU_WRITE,
+	{ .name = "wlan_ce_mem", .flags = IOMMU_READ | IOMMU_WRITE,
 		.da = 0x004cd000, .pa = 0x004cd000, .len = 0x1000, },
 };
 
@@ -125,5 +123,26 @@ static struct resource_table lpass_rt = {
 	.offset[LPASS_NUM_MEM_RESOURCES - 1] = 0,
 };
 
-#endif /* _PAS_RESOURCES_H_ */
-
+TEE_Result pas_get_resource_table(uint32_t pas_id, struct resource_table *rt,
+				  size_t *rt_size)
+{
+	switch (pas_id) {
+	case PAS_ID_WPSS:
+		return get_mem_rsc(rt, rt_size, &wpss_rt, &wpss_mem_hdr,
+				   wpss_mem_res,
+				   WPSS_RESOURCE_TABLE_HEADER_SIZE,
+				   WPSS_RESOURCE_TABLE_SIZE);
+	case PAS_ID_TURING:
+		return get_mem_rsc(rt, rt_size, &turing_rt, &turing_mem_hdr,
+				   turing_mem_res,
+				   TURING_RESOURCE_TABLE_HEADER_SIZE,
+				   TURING_RESOURCE_TABLE_SIZE);
+	case PAS_ID_QDSP6:
+		return get_mem_rsc(rt, rt_size, &lpass_rt, &lpass_mem_hdr,
+				   lpass_mem_res,
+				   LPASS_RESOURCE_TABLE_HEADER_SIZE,
+				   LPASS_RESOURCE_TABLE_SIZE);
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+}

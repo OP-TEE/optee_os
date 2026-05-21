@@ -1,16 +1,15 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2025, Linaro Limited
  * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#ifndef _PAS_H_
-#define _PAS_H_
+#ifndef RESOURCE_TABLE_H
+#define RESOURCE_TABLE_H
 
-#include <kernel/thread_arch.h>
-#include <mm/core_memprot.h>
-#include <drivers/clk_qcom.h>
+#include <compiler.h>
 #include <stdint.h>
+#include <tee_api_types.h>
+#include <util.h>
 
 #define DEFINE_RESOURCE_TABLE(prefix, num_res)			\
 	enum {							\
@@ -62,29 +61,39 @@ struct fw_rsc_devmem {
 	uint8_t name[32];
 } __packed;
 
-struct qcom_pas_data {
-	uint32_t pas_id;
-	struct io_pa_va base;
-	size_t size;
-	paddr_t fw_base;
-	size_t fw_size;
-	enum qcom_clk_group clk_group;
-};
+static inline TEE_Result get_mem_rsc(struct resource_table *rt, size_t *rt_size,
+				     struct resource_table *table,
+				     const struct fw_rsc_hdr *mem_hdr,
+				     const struct fw_rsc_devmem *mem_res,
+				     size_t table_header_size,
+				     size_t table_size)
+{
+	uint8_t *p = (uint8_t *)rt;
+	uint32_t offset = 0;
 
-TEE_Result pas_get_resource_table(uint32_t pas_id, struct resource_table *rt,
-				  size_t *rt_size);
+	if (rt_size && *rt_size < table_size) {
+		*rt_size = table_size;
 
-TEE_Result wpss_fw_start(struct qcom_pas_data *data);
-TEE_Result wpss_fw_shutdown(struct qcom_pas_data *data);
+		return TEE_SUCCESS;
+	}
 
-TEE_Result compute_fw_start(struct qcom_pas_data *data);
-TEE_Result compute_fw_shutdown(struct qcom_pas_data *data);
+	if (!rt)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-TEE_Result lpass_fw_start(struct qcom_pas_data *data);
-TEE_Result lpass_fw_shutdown(struct qcom_pas_data *data);
+	offset = table_header_size;
 
-TEE_Result venus_fw_start(struct qcom_pas_data *data);
-TEE_Result venus_fw_shutdown(struct qcom_pas_data *data);
-TEE_Result venus_fw_set_state(struct qcom_pas_data *data, bool power_on);
+	for (size_t i = 0; i < table->num; i++, mem_res++) {
+		table->offset[i] = offset;
+		memcpy(p + offset, mem_hdr, sizeof(*mem_hdr));
+		offset += sizeof(*mem_hdr);
+		memcpy(p + offset, mem_res, sizeof(*mem_res));
+		offset += sizeof(*mem_res);
+	}
 
-#endif /* _PAS_H_ */
+	memcpy(p, table, table_header_size);
+
+	return TEE_SUCCESS;
+}
+
+#endif
+

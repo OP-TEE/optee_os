@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "pas.h"
 #include "video.h"
 
 #define WRAPPER_IRIS_VERSION		0x0
