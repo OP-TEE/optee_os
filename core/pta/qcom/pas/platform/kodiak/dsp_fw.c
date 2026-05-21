@@ -4,12 +4,10 @@
  */
 
 #include <io.h>
-#include <mm/core_mmu.h>
 #include <stdint.h>
 #include <string.h>
 
-#include "dsp.h"
-#include "pas.h"
+#include "dsp_fw.h"
 
 #define CBCR_BRANCH_ENABLE_BIT	BIT(0)
 #define CBCR_HW_CTL_ENABLE_BIT	BIT(1)
@@ -19,7 +17,7 @@
 #define BOOT_FSM_TIMEOUT	10000
 
 TEE_Result dsp_fw_start(struct qcom_pas_data *data,
-			const struct dsp_fw_boot_regs *regs)
+			const struct dsp_fw_start_regs *regs)
 {
 	vaddr_t base = io_pa_or_va(&data->base, data->size);
 	uint64_t timeout;

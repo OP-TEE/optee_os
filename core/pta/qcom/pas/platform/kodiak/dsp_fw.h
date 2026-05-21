@@ -3,16 +3,16 @@
  * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#ifndef _DSP_H_
-#define _DSP_H_
+#ifndef _DSP_FW_H_
+#define _DSP_FW_H_
 
-#include "pas.h"
+#include "pas_data.h"
 
-struct dsp_fw_boot_lpass_regs {
+struct dsp_fw_start_lpass_regs {
 	uint32_t efuse_evb_sel;
 };
 
-struct dsp_fw_boot_regs {
+struct dsp_fw_start_regs {
 	uint32_t xo_cbcr;
 	uint32_t sleep_cbcr;
 	uint32_t core_cbcr;
@@ -21,10 +21,10 @@ struct dsp_fw_boot_regs {
 	uint32_t boot_cmd;
 	uint32_t boot_status;
 	/* lpass */
-	struct dsp_fw_boot_lpass_regs lpass;
+	struct dsp_fw_start_lpass_regs lpass;
 };
 
 TEE_Result dsp_fw_start(struct qcom_pas_data *data,
-			const struct dsp_fw_boot_regs *regs);
+			const struct dsp_fw_start_regs *regs);
 
-#endif /* _DSP_H_ */
+#endif /* _DSP_FW_H_ */
