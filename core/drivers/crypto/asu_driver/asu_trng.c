@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2026, Advanced Micro Devices, Inc. All rights reserved.
- *
- * ASU TRNG Driver for OP-TEE
- * Provides True Random Number Generator functionality via ASU firmware
  */
 
 #include <crypto/crypto.h>
@@ -57,15 +54,14 @@ static TEE_Result asu_trng_cb(void *cbrefptr, struct asu_resp_buf *resp_buf)
  */
 static TEE_Result asu_trng_op(struct asu_trng_cbctx *cbctx, uint8_t uniqueid)
 {
-	struct asu_client_params cparam = {};
+	struct asu_client_params cparam = {
+		.priority = ASU_PRIORITY_HIGH,
+		.cbhandler = asu_trng_cb,
+		.cbptr = cbctx,
+	};
 	uint32_t header = 0;
 	uint32_t status = 0;
 	TEE_Result ret = TEE_SUCCESS;
-
-	/* Setup client parameters with callback to receive random data */
-	cparam.priority = ASU_PRIORITY_HIGH;
-	cparam.cbhandler = asu_trng_cb;  /* Callback to receive response */
-	cparam.cbptr = cbctx;
 
 	/* Create request header - no payload needed */
 	header = asu_create_header(ASU_TRNG_OPERATION_CMD_ID,
@@ -78,12 +74,12 @@ static TEE_Result asu_trng_op(struct asu_trng_cbctx *cbctx, uint8_t uniqueid)
 						 &status);
 
 	if (ret != TEE_SUCCESS) {
-		EMSG("ASU queue operation failed: ret=0x%x", ret);
+		EMSG("ASU queue operation failed: ret=%#"PRIx32, ret);
 		return ret;
 	}
 
 	if (status != 0) {
-		EMSG("ASU FW TRNG error: status=0x%x", status);
+		EMSG("ASU FW TRNG error: status=%#"PRIx32, status);
 		return TEE_ERROR_GENERIC;
 	}
 
@@ -99,7 +95,7 @@ static TEE_Result asu_trng_op(struct asu_trng_cbctx *cbctx, uint8_t uniqueid)
  */
 TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
-	struct asu_trng_cbctx cbctx = {};
+	struct asu_trng_cbctx cbctx = { };
 	uint8_t uniqueid = ASU_UNIQUE_ID_MAX;
 	uint8_t *output = (uint8_t *)buf;
 	size_t remaining = len;
@@ -143,17 +139,17 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 
 #ifdef CFG_WITH_SOFTWARE_PRNG
 /**
- * plat_rng_init() - Seed PRNG with hardware entropy
+ * plat_init_soft_prng() - Seed PRNG with hardware entropy
  *
  * Called by crypto subsystem at service_init_crypto. Seeds Fortuna PRNG
  * with 64 bytes of hardware random data from ASU TRNG.
  */
-void plat_rng_init(void)
+void plat_init_soft_prng(void)
 {
 	uint8_t seed[64] = { };
-	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res;
 
-	IMSG("Seeding Fortuna PRNG with ASU TRNG hardware entropy");
+	DMSG("Seeding Fortuna PRNG with ASU TRNG hardware entropy");
 
 	/* Get 64 bytes of true random data from ASU TRNG */
 	res = hw_get_random_bytes(seed, sizeof(seed));
@@ -170,6 +166,6 @@ void plat_rng_init(void)
 		panic("PRNG seeding failed");
 	}
 
-	IMSG("Fortuna PRNG successfully seeded with 64 bytes from ASU TRNG");
+	DMSG("Fortuna PRNG successfully seeded with 64 bytes from ASU TRNG");
 }
 #endif /* CFG_WITH_SOFTWARE_PRNG */
