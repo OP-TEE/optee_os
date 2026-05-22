@@ -14,6 +14,7 @@
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee/cache.h>
 #include <trace.h>
 #include <util.h>
@@ -38,6 +39,8 @@
 #define ASU_CIPHER_KEY_SIZE_128_BITS	0x0U
 #define ASU_CIPHER_KEY_SIZE_256_BITS	0x2U
 
+#define ASU_CIPHER_CTR_INCREMENT	1U
+#define ASU_CIPHER_CTR32_WRAP_INCREMENT	1UL
 /* Cipher engine modes */
 #define ASU_CIPHER_CBC_MODE		0x0U
 #define ASU_CIPHER_CTR_MODE		0x3U
@@ -52,6 +55,9 @@
 
 /* Data chunk length */
 #define ASU_CIPHER_DATA_CHUNK_LEN	4096U
+
+/* DMA buffer alignment in bytes */
+#define ASU_CIPHER_DMA_ALIGN		64U
 
 /* IV size in 64-bit words */
 #define ASU_CIPHER_IV_SIZE		2U
@@ -118,15 +124,14 @@ static TEE_Result asu_cipher_get_cipher_mode(uint32_t algo, uint32_t *mode)
 		*mode = ASU_CIPHER_CTR_MODE;
 		return TEE_SUCCESS;
 	default:
-		return TEE_ERROR_NOT_SUPPORTED;
+		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 }
 
 /*
  * Software fallback functions for 192-bit key support
  */
-#ifdef CFG_AMD_ASU_SW_FALLBACK
-static void asu_cipher_sw_free_ctx(struct asu_cipher_ctx *ctx)
+static void __maybe_unused asu_cipher_sw_free_ctx(struct asu_cipher_ctx *ctx)
 {
 	if (ctx->sw_ctx) {
 		ctx->sw_ctx->ops->free_ctx(ctx->sw_ctx);
@@ -134,30 +139,30 @@ static void asu_cipher_sw_free_ctx(struct asu_cipher_ctx *ctx)
 	}
 }
 
-static void asu_cipher_sw_copy_state(struct asu_cipher_ctx *dst,
-				     struct asu_cipher_ctx *src)
+static void __maybe_unused asu_cipher_sw_copy_state(struct asu_cipher_ctx *dst,
+						    struct asu_cipher_ctx *src)
 {
-		src->sw_ctx->ops->copy_state(dst->sw_ctx, src->sw_ctx);
+	src->sw_ctx->ops->copy_state(dst->sw_ctx, src->sw_ctx);
 }
 
-static void asu_cipher_sw_final(struct asu_cipher_ctx *ctx)
+static void __maybe_unused asu_cipher_sw_final(struct asu_cipher_ctx *ctx)
 {
-		ctx->sw_ctx->ops->final(ctx->sw_ctx);
+	ctx->sw_ctx->ops->final(ctx->sw_ctx);
 }
 
-static TEE_Result asu_cipher_sw_update(struct asu_cipher_ctx *ctx,
-				       bool last, uint8_t *src,
-				       size_t len, uint8_t *dst)
+static TEE_Result __maybe_unused
+asu_cipher_sw_update(struct asu_cipher_ctx *ctx, bool last,
+		     uint8_t *src, size_t len, uint8_t *dst)
 {
 	return ctx->sw_ctx->ops->update(ctx->sw_ctx, last, src, len, dst);
 }
 
-static TEE_Result asu_cipher_sw_init(struct asu_cipher_ctx *ctx,
-				     struct drvcrypt_cipher_init *d_init)
+static TEE_Result __maybe_unused
+asu_cipher_sw_init(struct asu_cipher_ctx *ctx,
+		   struct drvcrypt_cipher_init *d_init)
 {
-	TEE_OperationMode mode;
-
-	mode = d_init->encrypt ? TEE_MODE_ENCRYPT : TEE_MODE_DECRYPT;
+	TEE_OperationMode mode = d_init->encrypt ? TEE_MODE_ENCRYPT :
+				 TEE_MODE_DECRYPT;
 
 	return ctx->sw_ctx->ops->init(ctx->sw_ctx, mode,
 				      d_init->key1.data, d_init->key1.length,
@@ -165,8 +170,8 @@ static TEE_Result asu_cipher_sw_init(struct asu_cipher_ctx *ctx,
 				      d_init->iv.data, d_init->iv.length);
 }
 
-static TEE_Result asu_cipher_sw_alloc_ctx(struct asu_cipher_ctx *ctx,
-					  uint32_t algo)
+static TEE_Result __maybe_unused
+asu_cipher_sw_alloc_ctx(struct asu_cipher_ctx *ctx, uint32_t algo)
 {
 	TEE_Result res = TEE_SUCCESS;
 
@@ -186,11 +191,11 @@ static TEE_Result asu_cipher_sw_alloc_ctx(struct asu_cipher_ctx *ctx,
 	}
 
 	if (res)
-		EMSG("Failed to allocate software fallback context: %#x", res);
+		EMSG("Failed to allocate software fallback context: %#"PRIx32,
+		     res);
 
 	return res;
 }
-#endif /* CFG_AMD_ASU_SW_FALLBACK */
 
 /**
  * asu_cipher_free_ctx() - Free cipher context and release resources.
@@ -212,8 +217,9 @@ static void asu_cipher_free_ctx(void *ctx)
 		asu_cipherctx->uniqueid = ASU_UNIQUE_ID_MAX;
 
 		/* Clear sensitive material before freeing */
-		memset(asu_cipherctx->key, 0, sizeof(asu_cipherctx->key));
-		memset(asu_cipherctx->iv, 0, sizeof(asu_cipherctx->iv));
+		memzero_explicit(asu_cipherctx->key,
+				 sizeof(asu_cipherctx->key));
+		memzero_explicit(asu_cipherctx->iv, sizeof(asu_cipherctx->iv));
 		free(asu_cipherctx);
 	}
 }
@@ -267,7 +273,7 @@ static TEE_Result asu_cipher_send(struct asu_cipher_ctx *d_ctx,
 {
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t header = 0;
-	uint32_t status = TEE_ERROR_GENERIC;
+	uint32_t status = 0;
 
 	header = asu_create_header(ASU_CIPHER_OPERATION_CMD_ID,
 				   d_ctx->uniqueid,
@@ -277,8 +283,8 @@ static TEE_Result asu_cipher_send(struct asu_cipher_ctx *d_ctx,
 	ret = asu_update_queue_buffer_n_send_ipi(&d_ctx->cparam, cp,
 						 sizeof(*cp), header,
 						 &status);
-	if (status) {
-		EMSG("FW error status=0x%x", status);
+	if (!ret && status) {
+		EMSG("FW error status=0x%"PRIx32, status);
 		ret = TEE_ERROR_GENERIC;
 	}
 
@@ -315,7 +321,7 @@ static TEE_Result asu_cipher_ecb_update(struct asu_cipher_ctx *asu_cipherctx,
 					uint8_t *src, uint8_t *dst,
 					uint32_t len)
 {
-	struct asu_cipher_op_cmd op = {};
+	struct asu_cipher_op_cmd op = { };
 	struct asu_cipher_key_object *kobj = NULL;
 	uint8_t *dma_src = NULL;
 	uint8_t *dma_dst = NULL;
@@ -327,8 +333,8 @@ static TEE_Result asu_cipher_ecb_update(struct asu_cipher_ctx *asu_cipherctx,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	dma_src = memalign(64, ASU_CIPHER_DATA_CHUNK_LEN);
-	dma_dst = memalign(64, ASU_CIPHER_DATA_CHUNK_LEN);
+	dma_src = memalign(ASU_CIPHER_DMA_ALIGN, ASU_CIPHER_DATA_CHUNK_LEN);
+	dma_dst = memalign(ASU_CIPHER_DMA_ALIGN, ASU_CIPHER_DATA_CHUNK_LEN);
 	if (!dma_src || !dma_dst) {
 		EMSG("ECB: Failed to allocate DMA buffers");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
@@ -409,8 +415,8 @@ static TEE_Result asu_cipher_cbc_update(struct asu_cipher_ctx *asu_cipherctx,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	dma_src = memalign(64, ASU_CIPHER_DATA_CHUNK_LEN);
-	dma_dst = memalign(64, ASU_CIPHER_DATA_CHUNK_LEN);
+	dma_src = memalign(ASU_CIPHER_DMA_ALIGN, ASU_CIPHER_DATA_CHUNK_LEN);
+	dma_dst = memalign(ASU_CIPHER_DMA_ALIGN, ASU_CIPHER_DATA_CHUNK_LEN);
 	if (!dma_src || !dma_dst) {
 		EMSG("CBC: Failed to allocate DMA buffers");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
@@ -448,7 +454,6 @@ static TEE_Result asu_cipher_cbc_update(struct asu_cipher_ctx *asu_cipherctx,
 
 		op.inputdataaddr = virt_to_phys(dma_src);
 		op.outputdataaddr = virt_to_phys(dma_dst);
-		remaining -= op.datalen;
 
 		asu_cipherctx->cparam.priority = ASU_PRIORITY_HIGH;
 		ret = asu_cipher_send(asu_cipherctx, &op);
@@ -474,6 +479,7 @@ static TEE_Result asu_cipher_cbc_update(struct asu_cipher_ctx *asu_cipherctx,
 
 		src += op.datalen;
 		dst += op.datalen;
+		remaining -= op.datalen;
 	}
 
 out:
@@ -483,22 +489,77 @@ out:
 }
 
 /**
- * asu_cipher_ctr_inc_counter() - Increment CTR counter (big-endian) by inc.
- * @ctr:	16-byte counter array (treated as two 64-bit big-endian values)
- * @inc:	Value to increment counter by
+ * asu_cipher_ctr_inc_counter() - Increment 128-bit big-endian CTR IV by inc.
+ * @ctr:	IV as two 64-bit big-endian words (ctr[0]=bytes 0-7,
+ *		ctr[1]=bytes 8-15)
+ * @inc:	Number of blocks to increment
  *
+ * Performs full 128-bit increment with carry. Used as SW workaround since ASU
+ * HW only increments bytes 12-15 with no carry into bytes 8-11.
  */
 static void asu_cipher_ctr_inc_counter(uint64_t *ctr, uint32_t inc)
 {
 	uint64_t v0 = TEE_U64_FROM_BIG_ENDIAN(ctr[0]);
 	uint64_t v1 = TEE_U64_FROM_BIG_ENDIAN(ctr[1]);
+	uint64_t low;
 
-	/* Increment counter */
-	if (ADD_OVERFLOW(v1, inc, &v1))
-		v0++;
-
+	low = v1;
+	if (ADD_OVERFLOW(v1, inc, &low)) {
+		low = v1 + inc;
+		v0 = v0 + 1;
+	}
 	ctr[0] = TEE_U64_TO_BIG_ENDIAN(v0);
-	ctr[1] = TEE_U64_TO_BIG_ENDIAN(v1);
+	ctr[1] = TEE_U64_TO_BIG_ENDIAN(low);
+}
+
+/**
+ * asu_cipher_ctr_blocks_until_overflow() - Blocks before 32-bit counter wraps.
+ * @ctr:	Current IV as two 64-bit big-endian words
+ *
+ * Returns blocks before bytes 12-15 overflow (needs SW carry);
+ * UINT32_MAX if ctr32=0.
+ */
+static uint64_t asu_cipher_ctr_blocks_until_overflow(uint64_t *ctr)
+{
+	uint32_t ctr32 = (uint32_t)TEE_U64_FROM_BIG_ENDIAN(ctr[1]);
+	uint64_t avail = (~ctr32) + ASU_CIPHER_CTR32_WRAP_INCREMENT;
+
+	return avail;
+}
+
+/**
+ * asu_cipher_ctr_send_chunk() - Flush, send one CTR chunk, and copy output.
+ * @ctx:	Private cipher context
+ * @op:		Pre-filled command template
+ * @dma_src:	DMA-aligned source buffer (already filled by caller)
+ * @dma_dst:	DMA-aligned destination buffer
+ * @dst:	Output buffer to copy result into
+ * @len:	Byte length to process (must be <= ASU_CIPHER_DATA_CHUNK_LEN)
+ *
+ * Return: TEE_SUCCESS or error code.
+ */
+static TEE_Result asu_cipher_ctr_send_chunk(struct asu_cipher_ctx *ctx,
+					    struct asu_cipher_op_cmd *op,
+					    uint8_t *dma_src, uint8_t *dma_dst,
+					    uint8_t *dst, uint32_t len)
+{
+	TEE_Result ret = TEE_SUCCESS;
+
+	op->datalen = len;
+	cache_operation(TEE_CACHEFLUSH, ctx->iv, ASU_CIPHER_BLOCK_SIZE);
+	cache_operation(TEE_CACHEFLUSH, dma_src, len);
+	cache_operation(TEE_CACHEFLUSH, dma_dst, len);
+	op->inputdataaddr = virt_to_phys(dma_src);
+	op->outputdataaddr = virt_to_phys(dma_dst);
+	ctx->cparam.priority = ASU_PRIORITY_HIGH;
+	ret = asu_cipher_send(ctx, op);
+	if (ret) {
+		EMSG("CTR: FW send failed");
+		return ret;
+	}
+	cache_operation(TEE_CACHEINVALIDATE, dma_dst, len);
+	memcpy(dst, dma_dst, len);
+	return TEE_SUCCESS;
 }
 
 /**
@@ -507,6 +568,10 @@ static void asu_cipher_ctr_inc_counter(uint64_t *ctr, uint32_t inc)
  * @src:	Input data buffer
  * @dst:	Output data buffer
  * @len:	Data length in bytes (can be non-block-aligned)
+ *
+ * Checks 32-bit overflow once to compute the first segment length. The outer
+ * loop runs at most twice (before and after the boundary); the inner loop
+ * chunks each segment into DMA_CHUNK_LEN pieces.
  *
  * Return: TEE_SUCCESS or error code.
  */
@@ -520,10 +585,11 @@ static TEE_Result asu_cipher_ctr_update(struct asu_cipher_ctx *ctx,
 	uint8_t *dma_dst = NULL;
 	uint32_t process_len = 0;
 	uint32_t num_blocks = 0;
-	uint32_t i = 0;
+	uint32_t seg_blocks = 0;
+	uint32_t remaining_len = 0;
 	TEE_Result ret = TEE_SUCCESS;
 
-	if (len == 0)
+	if (!len)
 		return TEE_SUCCESS;
 
 	/* Use leftover keystream from previous call */
@@ -537,13 +603,12 @@ static TEE_Result asu_cipher_ctr_update(struct asu_cipher_ctx *ctx,
 			ctx->stream_offset = 0;
 	}
 
-	/* All data processed using saved keystream? Done! */
-	if (len == 0)
+	if (!len)
 		return TEE_SUCCESS;
 
 	/* Setup for hardware processing */
-	dma_src = memalign(64, ASU_CIPHER_DATA_CHUNK_LEN);
-	dma_dst = memalign(64, ASU_CIPHER_DATA_CHUNK_LEN);
+	dma_src = memalign(ASU_CIPHER_DMA_ALIGN, ASU_CIPHER_DATA_CHUNK_LEN);
+	dma_dst = memalign(ASU_CIPHER_DMA_ALIGN, ASU_CIPHER_DATA_CHUNK_LEN);
 	if (!dma_src || !dma_dst) {
 		EMSG("CTR: Failed to allocate DMA buffers");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
@@ -570,59 +635,52 @@ static TEE_Result asu_cipher_ctr_update(struct asu_cipher_ctx *ctx,
 			    ASU_CIPHER_FINAL;
 	op.islast = 1;
 
-	/* Process all data (full blocks and partial block) */
-	while (len > 0) {
-		cache_operation(TEE_CACHEFLUSH, ctx->iv, ASU_CIPHER_BLOCK_SIZE);
-
-		if (len >= ASU_CIPHER_BLOCK_SIZE) {
-			/* Full blocks: process up to chunk size */
-			process_len = MIN(len, ASU_CIPHER_DATA_CHUNK_LEN);
-			process_len = (process_len / ASU_CIPHER_BLOCK_SIZE) *
-				      ASU_CIPHER_BLOCK_SIZE;
+	/*
+	 * Check 32-bit overflow once (very unlikely). Limit first segment to
+	 * blocks_until_overflow blocks. Outer loop runs at most twice: first
+	 * segment up to the boundary, then remaining blocks after SW carry.
+	 */
+	seg_blocks = MIN(len / ASU_CIPHER_BLOCK_SIZE,
+			 asu_cipher_ctr_blocks_until_overflow(ctx->iv));
+	remaining_len = len;
+	while (seg_blocks > 0) {
+		/* Inner loop: chunk seg_blocks into
+		 * DMA_CHUNK_LEN sized pieces
+		 */
+		while (seg_blocks > 0) {
+			num_blocks = MIN(seg_blocks, ASU_CIPHER_DATA_CHUNK_LEN /
+					 ASU_CIPHER_BLOCK_SIZE);
+			process_len = num_blocks * ASU_CIPHER_BLOCK_SIZE;
 			memcpy(dma_src, src, process_len);
-			op.datalen = process_len;
-		} else {
-			/* Partial block: pad with zeros */
-			process_len = len;
-			memset(dma_src, 0, ASU_CIPHER_BLOCK_SIZE);
-			memcpy(dma_src, src, len);
-			op.datalen = ASU_CIPHER_BLOCK_SIZE;
-		}
-
-		cache_operation(TEE_CACHEFLUSH, dma_src, op.datalen);
-		cache_operation(TEE_CACHEFLUSH, dma_dst, op.datalen);
-
-		op.inputdataaddr = virt_to_phys(dma_src);
-		op.outputdataaddr = virt_to_phys(dma_dst);
-
-		ctx->cparam.priority = ASU_PRIORITY_HIGH;
-		ret = asu_cipher_send(ctx, &op);
-		if (ret) {
-			EMSG("CTR: FW send failed");
-			goto out;
-		}
-
-		cache_operation(TEE_CACHEINVALIDATE, dma_dst, op.datalen);
-
-		if (len >= ASU_CIPHER_BLOCK_SIZE) {
-			/* Full blocks: copy output and increment counter */
-			memcpy(dst, dma_dst, process_len);
-			num_blocks = process_len / ASU_CIPHER_BLOCK_SIZE;
-
-			/* Increment counter by number of blocks processed */
+			ret = asu_cipher_ctr_send_chunk(ctx, &op, dma_src,
+							dma_dst, dst,
+							process_len);
+			if (ret)
+				goto out;
 			asu_cipher_ctr_inc_counter(ctx->iv, num_blocks);
-		} else {
-			/* Partial block: save keystream for next call */
-			memcpy(dst, dma_dst, len);
-			for (i = 0; i < ASU_CIPHER_BLOCK_SIZE; i++)
-				ctx->keystream[i] = dma_dst[i] ^ dma_src[i];
-			ctx->stream_offset = len;
-			asu_cipher_ctr_inc_counter(ctx->iv, 1);
+			src += process_len;
+			dst += process_len;
+			remaining_len -= process_len;
+			seg_blocks -= num_blocks;
 		}
 
-		src += process_len;
-		dst += process_len;
-		len -= process_len;
+		/* Remaining full blocks after roll over */
+		seg_blocks = remaining_len / ASU_CIPHER_BLOCK_SIZE;
+	}
+
+	/* Handle partial (sub-block) tail */
+	if (remaining_len > 0) {
+		memzero_explicit(dma_src, ASU_CIPHER_BLOCK_SIZE);
+		memcpy(dma_src, src, remaining_len);
+		ret = asu_cipher_ctr_send_chunk(ctx, &op, dma_src, dma_dst,
+						dst, ASU_CIPHER_BLOCK_SIZE);
+		if (ret)
+			goto out;
+		/* Save keystream bytes not yet consumed for next call */
+		memcpy(ctx->keystream + remaining_len, dma_dst + remaining_len,
+		       ASU_CIPHER_BLOCK_SIZE - remaining_len);
+		ctx->stream_offset = (uint8_t)remaining_len;
+		asu_cipher_ctr_inc_counter(ctx->iv, ASU_CIPHER_CTR_INCREMENT);
 	}
 
 out:
@@ -653,7 +711,7 @@ static TEE_Result asu_cipher_update(struct asu_cipher_ctx *asu_cipherctx,
 	case ASU_CIPHER_CTR_MODE:
 		return asu_cipher_ctr_update(asu_cipherctx, src, dst, len);
 	default:
-		EMSG("Unsupported mode: 0x%x", asu_cipherctx->ciphermode);
+		EMSG("Unsupported mode: 0x%"PRIx32, asu_cipherctx->ciphermode);
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 }
@@ -711,7 +769,7 @@ static TEE_Result asu_cipher_initialize(struct drvcrypt_cipher_init *d_init)
 		   key_len == AES_KEYSIZE_192) {
 		res = asu_cipher_sw_init(asu_cipherctx, d_init);
 		if (res) {
-			EMSG("Software cipher init failed: %#x", res);
+			EMSG("Software cipher init failed: %#"PRIx32, res);
 			return res;
 		}
 
@@ -728,7 +786,7 @@ static TEE_Result asu_cipher_initialize(struct drvcrypt_cipher_init *d_init)
 	asu_cipherctx->keysize = key_len;
 
 	if (asu_cipherctx->ciphermode == ASU_CIPHER_ECB_MODE) {
-		memset(asu_cipherctx->iv, 0, ASU_CIPHER_BLOCK_SIZE);
+		memzero_explicit(asu_cipherctx->iv, ASU_CIPHER_BLOCK_SIZE);
 	} else if (d_init->iv.data && d_init->iv.length > 0 &&
 		   d_init->iv.length <= ASU_CIPHER_BLOCK_SIZE) {
 		memcpy(asu_cipherctx->iv, d_init->iv.data, d_init->iv.length);
@@ -741,7 +799,8 @@ static TEE_Result asu_cipher_initialize(struct drvcrypt_cipher_init *d_init)
 
 	/* Reset CTR streaming state */
 	asu_cipherctx->stream_offset = 0;
-	memset(asu_cipherctx->keystream, 0, sizeof(asu_cipherctx->keystream));
+	memzero_explicit(asu_cipherctx->keystream,
+			 sizeof(asu_cipherctx->keystream));
 
 	return TEE_SUCCESS;
 }
@@ -761,7 +820,7 @@ static TEE_Result asu_cipher_alloc_ctx(void **ctx, uint32_t algo)
 
 	res = asu_cipher_get_cipher_mode(algo, &aesmode);
 	if (res)
-		return TEE_ERROR_NOT_IMPLEMENTED;
+		return res;
 
 	asu_cipherctx = calloc(1, sizeof(*asu_cipherctx));
 	if (!asu_cipherctx) {
@@ -770,8 +829,6 @@ static TEE_Result asu_cipher_alloc_ctx(void **ctx, uint32_t algo)
 	}
 
 	asu_cipherctx->ciphermode = aesmode;
-	asu_cipherctx->sw_ctx = NULL;
-	asu_cipherctx->use_sw_fallback = false;
 	asu_cipherctx->uniqueid = asu_alloc_unique_id();
 	if (asu_cipherctx->uniqueid == ASU_UNIQUE_ID_MAX) {
 		EMSG("Failed to get unique ID");
@@ -785,7 +842,7 @@ static TEE_Result asu_cipher_alloc_ctx(void **ctx, uint32_t algo)
 	if (IS_ENABLED(CFG_AMD_ASU_SW_FALLBACK)) {
 		res = asu_cipher_sw_alloc_ctx(asu_cipherctx, algo);
 		if (res) {
-			EMSG("SW fallback alloc failed: %#x", res);
+			EMSG("SW fallback alloc failed: %#"PRIx32, res);
 			asu_free_unique_id(asu_cipherctx->uniqueid);
 			free(asu_cipherctx);
 			return res;
@@ -810,7 +867,7 @@ static TEE_Result asu_cipher_init(void)
 
 	ret = drvcrypt_register_cipher(&asu_cipher_op);
 	if (ret)
-		EMSG("ASU Cipher register failed ret=%#x", ret);
+		EMSG("ASU Cipher register failed ret=%#"PRIx32, ret);
 
 	return ret;
 }
