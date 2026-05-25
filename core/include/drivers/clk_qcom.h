@@ -38,6 +38,14 @@ TEE_Result qcom_clock_enable(enum qcom_clk_group group);
 TEE_Result qcom_clock_enable_cbc(vaddr_t cbcr);
 TEE_Result qcom_clock_set_rate(vaddr_t cfg_rcgr, vaddr_t cmd_rcgr,
 			       uint32_t cfg_value);
+#ifdef CFG_QCOM_PAS_PTA
 TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group);
+#else
+static inline TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group
+					       __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
 
 #endif /* _CLK_QCOM_H_ */
