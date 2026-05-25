@@ -9,8 +9,6 @@
 #include <io.h>
 #include <mm/core_mmu.h>
 
-register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
-
 #define CBCR_BRANCH_ENABLE_BIT		BIT(0)
 #define CBCR_HW_CTL_ENABLE_BIT		BIT(1)
 #define CBCR_BRANCH_OFF_BIT		BIT(31)
