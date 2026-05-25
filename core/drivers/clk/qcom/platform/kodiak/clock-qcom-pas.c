@@ -6,8 +6,6 @@
 
 #include <drivers/clk.h>
 #include <drivers/clk_qcom.h>
-
-#ifdef CFG_QCOM_PAS_PTA
 #include <io.h>
 #include <malloc.h>
 #include <mm/core_memprot.h>
@@ -167,10 +165,3 @@ timeout:
 	EMSG("Timeout trying to enable clock group %d\n", group);
 	return TEE_ERROR_TIMEOUT;
 }
-
-#else
-TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group __unused)
-{
-	return  TEE_ERROR_NOT_SUPPORTED;
-}
-#endif /* ! CFG_QCOM_PAS_PTA */
