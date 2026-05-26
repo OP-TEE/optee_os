@@ -279,7 +279,7 @@ static TEE_Result asu_cipher_send(struct asu_cipher_ctx *d_ctx,
 
 	header = asu_create_header(ASU_CIPHER_OPERATION_CMD_ID,
 				   d_ctx->uniqueid,
-				   ASU_MODULE_CIPHER_ID,
+				   ASU_MODULE_AES_ID,
 				   sizeof(*cp) / sizeof(uint32_t));
 
 	ret = asu_update_queue_buffer_n_send_ipi(&d_ctx->cparam, cp,

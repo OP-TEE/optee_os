@@ -87,6 +87,16 @@ endif
 CFG_AMD_ASU_CIPHER ?= y
 CFG_AMD_ASU_RSA ?= y
 
+# Current authenc engine does not support partial state copy operation.
+# Any operation from REE involving state copy can crash the OS when
+# driver is enabled.
+CFG_AMD_ASU_AUTHENC ?= n
+ifeq ($(CFG_AMD_ASU_AUTHENC),y)
+$(warning WARNING: ASU authenc engine do not support partial state copy operations)
+$(warning WARNING: Any attempt by the REE to perform a state copy operation \
+  will result in a crash of the TEE.)
+endif
+
 ifeq ($(CFG_AMD_PS_GPIO),y)
 $(call force,CFG_MAP_EXT_DT_SECURE,y)
 $(call force,CFG_DRIVERS_GPIO,y)
