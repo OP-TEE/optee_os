@@ -53,8 +53,15 @@
 #ifdef _CFG_ARM_V3_OR_V4
 #define GICD_PIDR2		(0xFFE8)
 #else
+/*
+ * Some GICv2 implementations violate the specification and have this
+ * register at a different address. Allow overriding it in platform
+ * headers as workaround.
+ */
+#ifndef GICD_PIDR2
 /* Called ICPIDR2 in GICv2 specification */
 #define GICD_PIDR2		(0xFE8)
+#endif
 #endif
 
 #define GICD_CTLR_ENABLEGRP0	BIT32(0)
