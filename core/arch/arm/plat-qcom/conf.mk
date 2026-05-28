@@ -22,43 +22,15 @@ CFG_QCOM_GENI_UART_RDY_WAIT_USEC ?= 1000
 ta-targets = ta_arm64
 supported-ta-targets ?= ta_arm64
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),kodiak lemans))
-include core/arch/arm/cpu/cortex-armv8-0.mk
-$(call force,CFG_TEE_CORE_NB_CORE,8)
+# Architecture family mapping
+HOYA_ARCH_CHIPSETS := kodiak lemans
 
-$(call force,CFG_QCOM_RAMBLUR_PIMEM_V3,y)
-CFG_QCOM_RAMBLUR_TA_WINDOW_ID ?= 2
-
-$(call force,CFG_QCOM_PRNG,y)
-
-CFG_TZDRAM_START ?= 0x1c300000
-CFG_TEE_RAM_VA_SIZE ?= 0x200000
-CFG_TA_RAM_VA_SIZE ?= 0x1c00000
-CFG_TZDRAM_SIZE  ?= (CFG_TEE_RAM_VA_SIZE + CFG_TA_RAM_VA_SIZE)
-CFG_NUM_THREADS  ?= 8
-
-# Clock driver
-CFG_DRIVERS_CLK ?= y
-CFG_DRIVERS_QCOM_CLK ?= y
-
-# QFPROM Fuse Provisioning: disabled in insecure mode, enabled otherwise
-CFG_QCOM_QFPROM_FUSEPROV ?= $(if $(filter y,$(CFG_INSECURE)),n,y)
-
-# QFPROM dependencies: all enabled/disabled together based on FUSEPROV
-_qcom_fuseprov_deps = $(if $(filter y,$(CFG_QCOM_QFPROM_FUSEPROV)),y,n)
-CFG_QCOM_CMD_DB ?= $(_qcom_fuseprov_deps)
-CFG_QCOM_RPMH_CLIENT ?= $(_qcom_fuseprov_deps)
-CFG_QCOM_QFPROM ?= $(_qcom_fuseprov_deps)
+ifneq (,$(filter $(PLATFORM_FLAVOR),$(HOYA_ARCH_CHIPSETS)))
+QCOM_ARCH_FAMILY := hoya
+else
+$(error Unsupported PLATFORM_FLAVOR: $(PLATFORM_FLAVOR))
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),kodiak))
-CFG_QCOM_PAS_PTA ?= y
-# Kodiak requires MX voltage rail workaround for QFPROM fuse blowing
-$(call force,CFG_QFPROM_MX_RAIL_WA,y)
-endif
-
-ifeq ($(CFG_QCOM_PAS_PTA),y)
-# Increase late mappings to cover all PAS resources
-CFG_RESERVED_VASPACE_SIZE ?= (60 * 1024 * 1024)
-CFG_IN_TREE_EARLY_TAS += qcom_pas/cff7d191-7ca0-4784-af13-48223b9a4fbe
-endif
+# Include arch/target specific configurations if present
+-include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
+-include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
