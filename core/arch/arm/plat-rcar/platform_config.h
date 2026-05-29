@@ -57,6 +57,23 @@
 #define CONSOLE_UART_BASE	0xE6540000
 #endif
 
+#elif defined(CFG_RCAR_GEN5)
+
+#define GICD_BASE		0x39000000
+#define GICR_BASE		0x39080000
+
+/* HSCIF0 */
+#define CONSOLE_UART_BASE	0xC0710000
+
+#define TA_RAM_START		(TEE_RAM_START + TEE_RAM_VA_SIZE)
+#define TA_RAM_SIZE		0x01400000
+
+#define PRR_BASE		0xFFF00000
+
+#ifdef CFG_WITH_LPAE
+#define MAX_XLAT_TABLES         CFG_MMAP_REGIONS
+#endif
+
 #endif	/* CFG_RCAR_GENx */
 
 #if defined(PLATFORM_FLAVOR_salvator_h3)
@@ -99,14 +116,36 @@
 #define NSEC_DDR_1_BASE		0x480000000U
 #define NSEC_DDR_1_SIZE		0x80000000U
 
+#elif defined(PLATFORM_FLAVOR_ironhide_x5h)
+#define NSEC_DDR_0_BASE         0x40000000
+#define NSEC_DDR_0_SIZE         0x80000000
+#define NSEC_DDR_1_BASE         0x1080000000
+#define NSEC_DDR_1_SIZE         0x80000000
+#define NSEC_DDR_2_BASE         0x1200000000
+#define NSEC_DDR_2_SIZE         0x100000000
+#define NSEC_DDR_3_BASE         0x1400000000
+#define NSEC_DDR_3_SIZE         0x100000000
+#define NSEC_DDR_4_BASE         0x1600000000
+#define NSEC_DDR_4_SIZE         0x100000000
+#define NSEC_DDR_5_BASE         0x1800000000
+#define NSEC_DDR_5_SIZE         0x100000000
+#define NSEC_DDR_6_BASE         0x1A00000000
+#define NSEC_DDR_6_SIZE         0x100000000
+#define NSEC_DDR_7_BASE         0x1C00000000
+#define NSEC_DDR_7_SIZE         0x100000000
+#define NSEC_DDR_8_BASE         0x1E00000000
+#define NSEC_DDR_8_SIZE         0x100000000
+
 #else
 
 /* Generic DT-based platform */
 
 #endif
 
+#ifndef CFG_SHMEM_START
 /* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
 #define TEE_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
 #define TEE_SHMEM_SIZE		0x100000
+#endif
 
 #endif /*PLATFORM_CONFIG_H*/

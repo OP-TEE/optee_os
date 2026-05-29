@@ -38,7 +38,12 @@
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, SCIF_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
+#ifdef _CFG_ARM_V3_OR_V4
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE,
+			GIC_REDIST_REG_SIZE * CFG_TEE_CORE_NB_CORE);
+#else
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
+#endif
 #ifdef PRR_BASE
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, PRR_BASE, SMALL_PAGE_SIZE);
 #endif
@@ -57,6 +62,16 @@ register_ddr(NSEC_DDR_2_BASE, NSEC_DDR_2_SIZE);
 #ifdef NSEC_DDR_3_BASE
 register_ddr(NSEC_DDR_3_BASE, NSEC_DDR_3_SIZE);
 #endif
+#elif defined(PLATFORM_FLAVOR_ironhide_x5h)
+register_ddr(NSEC_DDR_0_BASE, NSEC_DDR_0_SIZE);
+register_ddr(NSEC_DDR_1_BASE, NSEC_DDR_1_SIZE);
+register_ddr(NSEC_DDR_2_BASE, NSEC_DDR_2_SIZE);
+register_ddr(NSEC_DDR_3_BASE, NSEC_DDR_3_SIZE);
+register_ddr(NSEC_DDR_4_BASE, NSEC_DDR_4_SIZE);
+register_ddr(NSEC_DDR_5_BASE, NSEC_DDR_5_SIZE);
+register_ddr(NSEC_DDR_6_BASE, NSEC_DDR_6_SIZE);
+register_ddr(NSEC_DDR_7_BASE, NSEC_DDR_7_SIZE);
+register_ddr(NSEC_DDR_8_BASE, NSEC_DDR_8_SIZE);
 #endif
 
 static struct scif_uart_data console_data __nex_bss;
@@ -89,7 +104,11 @@ unsigned long plat_get_aslr_seed(void)
 
 void boot_primary_init_intc(void)
 {
+#ifdef _CFG_ARM_V3_OR_V4
+	gic_init_v3(0, GICD_BASE, GICR_BASE);
+#else
 	gic_init(GICC_BASE, GICD_BASE);
+#endif
 }
 
 void boot_secondary_init_intc(void)

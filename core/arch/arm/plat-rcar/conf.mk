@@ -10,7 +10,9 @@ $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_LPAE,y)
 
-ifeq ($(PLATFORM_FLAVOR), spider_s4)
+ifeq ($(PLATFORM_FLAVOR), ironhide_x5h)
+$(call force,CFG_RCAR_GEN5, y)
+else ifeq ($(PLATFORM_FLAVOR), spider_s4)
 $(call force,CFG_RCAR_GEN4, y)
 else
 $(call force,CFG_RCAR_GEN3, y)
@@ -48,3 +50,20 @@ $(call force,CFG_CORE_CLUSTER_SHIFT, 1)
 $(call force,CFG_ARM_GICV3, y)
 endif
 
+ifeq ($(CFG_RCAR_GEN5), y)
+CFG_TZDRAM_START ?= 0x8C400000
+CFG_TZDRAM_SIZE  ?= 0x02000000
+CFG_TEE_RAM_VA_SIZE ?= 0x300000
+CFG_SHMEM_START ?= 0x90100000
+CFG_SHMEM_SIZE ?= 0x00100000
+CFG_CORE_HEAP_SIZE ?= 131072
+CFG_TEE_DYN_VASPACE_SIZE ?= (1024 * 1024 * 2)
+CFG_DT ?= n
+$(call force,CFG_CORE_ARM64_PA_BITS,37)
+$(call force,CFG_TEE_CORE_NB_CORE,32)
+CFG_NUM_THREADS ?= $(CFG_TEE_CORE_NB_CORE)
+$(call force,CFG_CORE_CLUSTER_SHIFT, 2)
+$(call force,CFG_ARM_GICV3, y)
+$(call force,CFG_CORE_ASLR,n)
+$(call force,CFG_RCAR_ROMAPI, n)
+endif
