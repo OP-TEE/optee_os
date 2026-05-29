@@ -151,6 +151,15 @@ static struct rpmb_fs_parameters *fs_par;
 static struct rpmb_fat_entry_dir *fat_entry_dir;
 
 /*
+ * One-shot request to re-initialize the on-disk RPMB FS on the next
+ * rpmb_fs_setup() call. Defaults to CFG_RPMB_RESET_FAT so existing builds
+ * that opt into a compile-time reformat continue to do so. Callers can
+ * latch a runtime reformat request via rpmb_fs_request_reset(); the flag is
+ * cleared once rpmb_fs_setup() has successfully populated fs_par.
+ */
+static bool rpmb_fs_reset = IS_ENABLED(CFG_RPMB_RESET_FAT);
+
+/*
  * Lower interface to RPMB device
  */
 
@@ -2118,8 +2127,7 @@ static TEE_Result rpmb_fs_setup(void)
 	if (res != TEE_SUCCESS)
 		goto out;
 
-#ifndef CFG_RPMB_RESET_FAT
-	if (partition_data->rpmb_fs_magic == RPMB_FS_MAGIC) {
+	if (!rpmb_fs_reset && partition_data->rpmb_fs_magic == RPMB_FS_MAGIC) {
 		if (partition_data->fs_version == FS_VERSION) {
 			res = TEE_SUCCESS;
 			goto store_fs_par;
@@ -2129,9 +2137,7 @@ static TEE_Result rpmb_fs_setup(void)
 			goto out;
 		}
 	}
-#else
 	EMSG("**** Clearing Storage ****");
-#endif
 
 	/* Setup new partition data. */
 	partition_data->rpmb_fs_magic = RPMB_FS_MAGIC;
@@ -2156,10 +2162,17 @@ static TEE_Result rpmb_fs_setup(void)
 			     (uint8_t *)partition_data,
 			     sizeof(struct rpmb_fs_partition), NULL, NULL);
 
-#ifndef CFG_RPMB_RESET_FAT
-store_fs_par:
-#endif
+	/*
+	 * Bail out before populating fs_par if the partition header write
+	 * failed: leaving fs_par non-NULL would cause subsequent
+	 * rpmb_fs_setup() calls to short-circuit with a stale TEE_SUCCESS
+	 * even though the on-disk state is invalid, suppressing retries.
+	 * The rpmb_fs_reset flag stays set so the next lazy setup retries.
+	 */
+	if (res != TEE_SUCCESS)
+		goto out;
 
+store_fs_par:
 	/* Store FAT start address. */
 	fs_par = calloc(1, sizeof(struct rpmb_fs_parameters));
 	if (!fs_par) {
@@ -2169,6 +2182,12 @@ store_fs_par:
 
 	fs_par->fat_start_address = partition_data->fat_start_address;
 	fs_par->max_rpmb_address = max_rpmb_block << RPMB_BLOCK_SIZE_SHIFT;
+
+	/*
+	 * fs_par is populated and on-disk state is valid; consume the
+	 * one-shot reset request so subsequent setup calls don't reformat.
+	 */
+	rpmb_fs_reset = false;
 
 	dump_fat();
 
@@ -3173,6 +3192,24 @@ TEE_Result tee_rpmb_fs_raw_open(const char *fname, bool create,
 bool __weak plat_rpmb_key_is_ready(void)
 {
 	return true;
+}
+
+void rpmb_fs_request_reset(void)
+{
+	mutex_lock(&rpmb_mutex);
+
+	rpmb_fs_reset = true;
+
+	/*
+	 * Invalidate cached state so the next rpmb_fs_setup() call re-runs
+	 * the full setup (and observes the flag), rather than short-circuiting
+	 * on fs_par.
+	 */
+	free(fs_par);
+	fs_par = NULL;
+	fat_entry_dir_free();
+
+	mutex_unlock(&rpmb_mutex);
 }
 
 #ifdef CFG_WITH_STATS
