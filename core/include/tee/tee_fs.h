@@ -73,6 +73,19 @@ TEE_Result rpmb_mem_stats(struct pta_stats_alloc *stats, bool reset);
  * prevent a RPMB key write in the wrong state.
  */
 bool plat_rpmb_key_is_ready(void);
+
+/*
+ * Latch a one-shot request to re-initialize the on-disk RPMB FS. The next
+ * rpmb_fs_setup() call (lazy on first RPMB FS access) consumes the request
+ * and reformats the FAT, independent of CFG_RPMB_RESET_FAT. The flag is
+ * cleared once setup completes successfully with fs_par populated; if the
+ * format attempt fails the flag stays set so the next setup call retries.
+ * Acquires the RPMB FS mutex internally and invalidates the cached fs_par /
+ * fat_entry_dir so callers can request a reset at any time without
+ * coordinating with ongoing FS access; must not be called from a context
+ * that already holds the RPMB FS mutex.
+ */
+void rpmb_fs_request_reset(void);
 #else
 static inline TEE_Result tee_rpmb_reinit(void)
 {
@@ -83,6 +96,10 @@ static inline TEE_Result rpmb_mem_stats(struct pta_stats_alloc *stats __unused,
 					bool reset __unused)
 {
 	return TEE_ERROR_STORAGE_NOT_AVAILABLE;
+}
+
+static inline void rpmb_fs_request_reset(void)
+{
 }
 #endif
 
