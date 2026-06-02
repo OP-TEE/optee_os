@@ -88,7 +88,8 @@ $(call force,CFG_TEE_CORE_NB_CORE,2)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_GIC,y)
-$(call force,CFG_WITH_SOFTWARE_PRNG,y)
+$(call force,CFG_WITH_SOFTWARE_PRNG,n)
+$(call force,CFG_ARM_SMCCC_TRNG,y)
 CFG_TZDRAM_START ?= 0x43021000
 CFG_TZDRAM_SIZE ?=  0x04ff000
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
@@ -100,7 +101,8 @@ $(call force,CFG_TEE_CORE_NB_CORE,4)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_GIC,y)
-$(call force,CFG_WITH_SOFTWARE_PRNG,y)
+$(call force,CFG_WITH_SOFTWARE_PRNG,n)
+$(call force,CFG_ARM_SMCCC_TRNG,y)
 CFG_TZDRAM_START ?= 0x43031000
 CFG_TZDRAM_SIZE ?=  0x04ff000
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
@@ -112,7 +114,8 @@ $(call force,CFG_TEE_CORE_NB_CORE,4)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_GIC,y)
-$(call force,CFG_WITH_SOFTWARE_PRNG,y)
+$(call force,CFG_WITH_SOFTWARE_PRNG,n)
+$(call force,CFG_ARM_SMCCC_TRNG,y)
 CFG_TZDRAM_START ?= 0x4fa01000
 CFG_TZDRAM_SIZE ?=  0x04ff000
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
@@ -124,7 +127,8 @@ $(call force,CFG_TEE_CORE_NB_CORE,4)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_GIC,y)
-$(call force,CFG_WITH_SOFTWARE_PRNG,y)
+$(call force,CFG_WITH_SOFTWARE_PRNG,n)
+$(call force,CFG_ARM_SMCCC_TRNG,y)
 CFG_TZDRAM_START ?= 0x43041000
 CFG_TZDRAM_SIZE ?=  0x04ff000
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
