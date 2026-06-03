@@ -38,12 +38,12 @@ S:	Maintained
 F:	mk/aosp_optee.mk
 
 ARM Foundation FVP
-R:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
+R:	Jens Wiklander <jenswi@kernel.org> [@jenswikl]
 S:	Maintained
 F:	core/arch/arm/plat-vexpress/
 
 ARM Juno
-R:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
+R:	Jens Wiklander <jenswi@kernel.org> [@jenswikl]
 S:	Maintained
 F:	core/arch/arm/plat-vexpress/
 
@@ -240,7 +240,7 @@ S:	Maintained
 F:	ta/pkcs11
 
 QEMU (32 and 64 bits)
-R:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
+R:	Jens Wiklander <jenswi@kernel.org> [@jenswikl]
 S:	Maintained
 F:	core/arch/arm/plat-vexpress/
 
@@ -393,7 +393,7 @@ F:	ta/arch/riscv/
 
 THE REST
 M:	Joakim Bech <joakim.bech@gmail.com> [@jockebech]
-M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
+M:	Jens Wiklander <jenswi@kernel.org> [@jenswikl]
 M:	Jerome Forissier <jerome.forissier@arm.com> [@jforissier]
 R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 L:	op-tee@lists.trustedfirmware.org
