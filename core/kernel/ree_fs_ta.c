@@ -797,10 +797,12 @@ static TEE_Result buf_ta_get_tag(const struct ts_store_handle *h,
 {
 	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
 
-	*tag_len = handle->tag_len;
-	if (!tag || *tag_len < handle->tag_len)
+	if (!tag || *tag_len < handle->tag_len) {
+		*tag_len = handle->tag_len;
 		return TEE_ERROR_SHORT_BUFFER;
+	}
 
+	*tag_len = handle->tag_len;
 	memcpy(tag, handle->tag, handle->tag_len);
 
 	return TEE_SUCCESS;
