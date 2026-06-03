@@ -421,5 +421,5 @@ TEE_Result from_bounce_params(uint32_t param_types,
 		}
 	}
 
-	return res;
+	return TEE_SUCCESS;
 }
