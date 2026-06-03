@@ -83,6 +83,17 @@ CFG_EARLY_CONSOLE_BAUDRATE ?= 1500000
 CFG_EARLY_CONSOLE_CLK_IN_HZ ?= 24000000
 endif
 
+ifeq ($(PLATFORM_FLAVOR),rk3576)
+include core/arch/arm/cpu/cortex-armv8-0.mk
+$(call force,CFG_TEE_CORE_NB_CORE,8)
+$(call force,CFG_AUTO_MAX_PA_BITS,y)
+
+CFG_TZDRAM_START ?= 0x70000000
+CFG_TZDRAM_SIZE  ?= 0x02000000
+CFG_SHMEM_START  ?= 0x72000000
+CFG_SHMEM_SIZE   ?= 0x00400000
+endif
+
 ifeq ($(platform-flavor-armv8),1)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
