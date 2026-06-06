@@ -7,6 +7,8 @@
 #include <crypto/crypto.h>
 #include <drivers/rockchip_otp.h>
 #include <io.h>
+#include <kernel/boot.h>
+#include <kernel/delay.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/tee_common_otp.h>
@@ -18,6 +20,7 @@
 #include <string_ext.h>
 #include <trace.h>
 #include <util.h>
+#include "rockchip_rkrng.h"
 
 /* DDR firewall offsets (from TF-A rk3576/drivers/secure/firewall.h) */
 #define FW_SGRF_DDR_RGN(i)		(0x0100 + (i) * 0x4)
@@ -29,6 +32,7 @@
 	(((((top_mb) - 1) & 0x7fff) << 16) | ((base_mb) & 0x7fff))
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SYS_SGRF_FW_BASE, SYS_SGRF_FW_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, RKRNG_S_BASE, RKRNG_S_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, OTP_S_BASE, OTP_S_SIZE);
 
 int platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
@@ -195,3 +199,49 @@ out:
 	mutex_unlock(&huk_mutex);
 	return res;
 }
+
+/* -----------------------------------------------------------------------
+ * Early stack-canary entropy (CFG_RK3576_RKRNG=y, CFG_WITH_SOFTWARE_PRNG=n)
+ *
+ * core_init_mmu_map() runs in entry_a64.S before thread_init_canaries(), so
+ * the RKRNG_S_BASE IO region is already mapped and phys_to_virt_io() works.
+ * This override lets us disable the SW PRNG while still seeding canaries
+ * from real hardware entropy.
+ * -----------------------------------------------------------------------
+ */
+#ifdef CFG_RK3576_RKRNG
+void plat_get_random_stack_canaries(void *buf, size_t ncan, size_t size)
+{
+	vaddr_t base = (vaddr_t)phys_to_virt_io(RKRNG_S_BASE, RKRNG_S_SIZE);
+	size_t total = ncan * size;
+	size_t off = 0;
+
+	if (!base)
+		panic("RK3576: RKRNG_S not mapped at canary init");
+
+	while (off < total) {
+		uint8_t block[RKRNG_READ_LEN] = { };
+		uint64_t timeout = 0;
+		size_t chunk = 0;
+
+		io_write32(base + RKRNG_CTRL,
+			   RKRNG_CTRL_REQ_TRNG | (RKRNG_CTRL_REQ_TRNG << 16));
+
+		timeout = timeout_init_us(RKRNG_POLL_TIMEOUT_US);
+		while (!(io_read32(base + RKRNG_STATE) &
+			 RKRNG_STATE_TRNG_RDY)) {
+			if (timeout_elapsed(timeout))
+				panic("RK3576: RKRNG timeout at canary init");
+		}
+
+		io_write32(base + RKRNG_STATE, RKRNG_STATE_TRNG_RDY);
+		memcpy(block, (void *)(base + RKRNG_TRNG_DATA0),
+		       RKRNG_READ_LEN);
+
+		chunk = MIN(RKRNG_READ_LEN, total - off);
+		memcpy((uint8_t *)buf + off, block, chunk);
+		memzero_explicit(block, sizeof(block));
+		off += chunk;
+	}
+}
+#endif /* CFG_RK3576_RKRNG */
