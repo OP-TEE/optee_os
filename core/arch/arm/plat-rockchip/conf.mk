@@ -92,6 +92,7 @@ CFG_TZDRAM_START ?= 0x70000000
 CFG_TZDRAM_SIZE  ?= 0x02000000
 CFG_SHMEM_START  ?= 0x72000000
 CFG_SHMEM_SIZE   ?= 0x00400000
+$(call force,CFG_ROCKCHIP_OTP,y)
 endif
 
 ifeq ($(platform-flavor-armv8),1)
