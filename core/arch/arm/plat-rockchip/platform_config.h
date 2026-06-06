@@ -209,6 +209,13 @@
 #define PMU1SGRF_FW_BASE	0x26003000
 #define PMU1SGRF_FW_SIZE	SIZE_K(4)
 
+/*
+ * RKRNG_S -- secure-side true RNG (RKRNG IP, distinct from RK3588's TRNG_V1).
+ * Registers: CTRL=0x10, STATE=0x14, DATA0=0x50 (8x32-bit = 256 bits/req).
+ */
+#define RKRNG_S_BASE			0x2a440000
+#define RKRNG_S_SIZE			SIZE_K(64)
+
 #define OTP_S_BASE			0x2a480000
 #define OTP_S_SIZE			SIZE_K(64)
 
