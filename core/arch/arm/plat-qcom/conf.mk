@@ -3,7 +3,6 @@
 PLATFORM_FLAVOR ?= kodiak
 
 $(call force,CFG_GIC,y)
-$(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
