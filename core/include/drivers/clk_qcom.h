@@ -7,6 +7,7 @@
 #ifndef _CLK_QCOM_H_
 #define _CLK_QCOM_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -34,10 +35,36 @@ enum qcom_clk_group {
 #define CBCR_BRANCH_OFF_BIT		BIT(31)
 #define CMD_RCGR_UPDATE_BIT		BIT(0)
 
+/*
+ * Configuration for a Lucid-EVO PLL, mirroring the values driven by the
+ * reference clock driver (HAL_clk_LucidevoPLLConfigPLL / SetRegSettings /
+ * SetCalConfig in HALclkLucidevoPLL.c).
+ */
+struct qcom_lucidevo_pll_config {
+	uint32_t l_val;
+	uint32_t cal_l_val;
+	uint32_t alpha_val;
+	uint32_t pre_div;		/* div-1..div-8; 0 = div-1 */
+	uint32_t config_ctl;
+	uint32_t config_ctl_u;
+	uint32_t config_ctl_u1;
+	uint32_t user_ctl;
+	uint32_t user_ctl_u;
+	bool frac_mode_mn;		/* false = alpha (default for Q6) */
+};
+
 TEE_Result qcom_clock_enable(enum qcom_clk_group group);
 TEE_Result qcom_clock_enable_cbc(vaddr_t cbcr);
 TEE_Result qcom_clock_set_rate(vaddr_t cfg_rcgr, vaddr_t cmd_rcgr,
 			       uint32_t cfg_value);
+
+/*
+ * Configure, lock and enable the main output of a Lucid-EVO PLL whose register
+ * block starts at @pll_base. Returns TEE_ERROR_TIMEOUT if the PLL fails to
+ * lock.
+ */
+TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
+				    const struct qcom_lucidevo_pll_config *cfg);
 #ifdef CFG_QCOM_PAS_PTA
 TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group);
 #else
