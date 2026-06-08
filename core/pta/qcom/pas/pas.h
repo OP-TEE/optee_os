@@ -12,6 +12,11 @@
 #include <drivers/clk_qcom.h>
 #include <stdint.h>
 
+#define PAS_ID_QDSP6			1
+#define PAS_ID_WPSS			6
+#define PAS_ID_VENUS			9
+#define PAS_ID_TURING			18
+
 #define DEFINE_RESOURCE_TABLE(prefix, num_res)			\
 	enum {							\
 		prefix##_NUM_MEM_RESOURCES = (num_res),		\
