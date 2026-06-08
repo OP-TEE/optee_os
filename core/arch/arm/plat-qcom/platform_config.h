@@ -17,9 +17,4 @@
 #define MAX_XLAT_TABLES		(40 + (CFG_RESERVED_VASPACE_SIZE) / \
 				 (CORE_MMU_PGDIR_SIZE) + 5)
 
-#define PAS_ID_QDSP6			1
-#define PAS_ID_WPSS			6
-#define PAS_ID_VENUS			9
-#define PAS_ID_TURING			18
-
 #endif /*PLATFORM_CONFIG_H*/
