@@ -215,6 +215,7 @@ jobs:
               _make PLATFORM=qcom-lemans
           - name: arm rockchip
             make_commands: |
+              _make PLATFORM=rockchip-px30
               _make PLATFORM=rockchip-rk322x
               _make PLATFORM=rockchip-rk3399
               _make PLATFORM=rockchip-rk3588
