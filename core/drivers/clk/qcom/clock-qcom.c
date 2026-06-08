@@ -15,6 +15,41 @@ register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
 #define CBCR_HW_CTL_ENABLE_BIT		BIT(1)
 #define CBCR_BRANCH_OFF_BIT		BIT(31)
 
+/* Lucid-EVO PLL register offsets, relative to the PLL register block base. */
+#define PLL_MODE			0x0
+#define PLL_OPMODE			0x4
+#define PLL_L_VAL			0x10
+#define PLL_ALPHA_VAL			0x14
+#define PLL_USER_CTL			0x18
+#define PLL_USER_CTL_U			0x1c
+#define PLL_CONFIG_CTL			0x20
+#define PLL_CONFIG_CTL_U		0x24
+#define PLL_CONFIG_CTL_U1		0x28
+
+/* PLL_MODE fields */
+#define PLL_MODE_OUTCTRL		BIT(0)
+#define PLL_MODE_RESET_N		BIT(2)
+#define PLL_MODE_LOCK_DET		BIT(31)
+
+/* PLL_OPMODE values */
+#define PLL_OPMODE_RUN			0x1
+
+/* PLL_L_VAL fields */
+#define PLL_L_VAL_L_MASK		0x0000ffff
+#define PLL_L_VAL_CAL_L_SHIFT		16
+#define PLL_L_VAL_CAL_L_MASK		0xffff0000
+
+/* PLL_USER_CTL fields */
+#define PLL_USER_CTL_PLLOUT_MAIN_EN	BIT(0)
+#define PLL_USER_CTL_PRE_DIV_SHIFT	22
+#define PLL_USER_CTL_PRE_DIV_MASK	0x01c00000
+#define PLL_USER_CTL_POST_DIV_ODD_MASK	0x0003c000
+#define PLL_USER_CTL_POST_DIV_EVEN_MASK	0x00003c00
+#define PLL_USER_CTL_FRAC_FORMAT_SEL	BIT(28)
+
+/* PLL_USER_CTL_U fields */
+#define PLL_USER_CTL_U_FINE_LOCK_DET	BIT(0)
+
 static inline bool cbcr_branch_on(uint32_t val)
 {
 	return !(val & CBCR_BRANCH_OFF_BIT);
@@ -30,6 +65,68 @@ TEE_Result qcom_clock_enable_cbc(vaddr_t cbcr)
 
 	if (ret < 0)
 		return TEE_ERROR_TIMEOUT;
+
+	return TEE_SUCCESS;
+}
+
+static inline bool pll_locked(uint32_t val)
+{
+	return val & PLL_MODE_LOCK_DET;
+}
+
+TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
+				    const struct qcom_lucidevo_pll_config *cfg)
+{
+	uint32_t user_val = 0;
+	int ret = 0;
+
+	/* Reg settings: program the static PLL trim/config registers. */
+	io_write32(pll_base + PLL_CONFIG_CTL, cfg->config_ctl);
+	io_write32(pll_base + PLL_CONFIG_CTL_U, cfg->config_ctl_u);
+	io_write32(pll_base + PLL_CONFIG_CTL_U1, cfg->config_ctl_u1);
+	io_write32(pll_base + PLL_USER_CTL, cfg->user_ctl);
+	io_write32(pll_base + PLL_USER_CTL_U, cfg->user_ctl_u);
+
+	/* ConfigPLL: program L value and fractional value. */
+	io_mask32(pll_base + PLL_L_VAL, cfg->l_val, PLL_L_VAL_L_MASK);
+	io_write32(pll_base + PLL_ALPHA_VAL, cfg->alpha_val);
+
+	/* Select fractional format and program the pre-/post-div ratios. */
+	user_val = io_read32(pll_base + PLL_USER_CTL);
+	if (cfg->frac_mode_mn)
+		user_val |= PLL_USER_CTL_FRAC_FORMAT_SEL;
+	else
+		user_val &= ~PLL_USER_CTL_FRAC_FORMAT_SEL;
+
+	user_val &= ~(PLL_USER_CTL_PRE_DIV_MASK |
+		      PLL_USER_CTL_POST_DIV_ODD_MASK |
+		      PLL_USER_CTL_POST_DIV_EVEN_MASK);
+	if (cfg->pre_div >= 1 && cfg->pre_div <= 8)
+		user_val |= SHIFT_U32(cfg->pre_div - 1,
+				      PLL_USER_CTL_PRE_DIV_SHIFT) &
+			    PLL_USER_CTL_PRE_DIV_MASK;
+	io_write32(pll_base + PLL_USER_CTL, user_val);
+
+	/* Always use fine-grained lock detection. */
+	io_setbits32(pll_base + PLL_USER_CTL_U, PLL_USER_CTL_U_FINE_LOCK_DET);
+
+	/* SetCalConfig: program the calibration L value. */
+	io_mask32(pll_base + PLL_L_VAL,
+		  SHIFT_U32(cfg->cal_l_val, PLL_L_VAL_CAL_L_SHIFT),
+		  PLL_L_VAL_CAL_L_MASK);
+
+	/* Enable: select RUN opmode and take the PLL out of reset. */
+	io_write32(pll_base + PLL_OPMODE, PLL_OPMODE_RUN);
+	io_setbits32(pll_base + PLL_MODE, PLL_MODE_RESET_N);
+
+	/* Wait for the PLL to lock. */
+	REG_POLL_TIMEOUT(pll_base + PLL_MODE, 10 * 1000, 10, &ret, pll_locked);
+	if (ret < 0)
+		return TEE_ERROR_TIMEOUT;
+
+	/* Enable PLL outputs and the main output. */
+	io_setbits32(pll_base + PLL_MODE, PLL_MODE_OUTCTRL);
+	io_setbits32(pll_base + PLL_USER_CTL, PLL_USER_CTL_PLLOUT_MAIN_EN);
 
 	return TEE_SUCCESS;
 }
