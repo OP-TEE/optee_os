@@ -122,6 +122,24 @@ static int lpass_gdsc_enable(void)
 	return qcom_clock_enable_cbc(gdsc_base + TOP_CC_LPI_Q6_AXIM_HS_CLK);
 }
 
+TEE_Result qcom_clock_enable_pas_processor(enum qcom_clk_group group __unused)
+{
+	/*
+	 * Kodiak releases the DSP core entirely within the PTA fw_start path;
+	 * there is no separate post-boot PLL/RCG step as on Lemans.
+	 */
+	return TEE_SUCCESS;
+}
+
+TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group __unused)
+{
+	/*
+	 * Kodiak does not perform a separate subsystem reset before bring-up;
+	 * the PTA fw_start path brings the DSP up from a known state.
+	 */
+	return TEE_SUCCESS;
+}
+
 TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group)
 {
 	struct io_pa_va base = { .pa = GCC_BASE };
