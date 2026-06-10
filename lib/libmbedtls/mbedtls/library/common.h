@@ -20,21 +20,29 @@
 #include <stddef.h>
 
 #if defined(__ARM_NEON)
-/*
- * Undefine and restore __section and __data from compiler.h to prevent
- * collision with arm_neon.h
- */
-#pragma push_macro("__section")
-#pragma push_macro("__data")
-#undef __section
-#undef __data
 #include <arm_neon.h>
-#pragma pop_macro("__data")
-#pragma pop_macro("__section")
 #define MBEDTLS_HAVE_NEON_INTRINSICS
 #elif defined(MBEDTLS_PLATFORM_IS_WINDOWS_ON_ARM64)
 #include <arm64_neon.h>
 #define MBEDTLS_HAVE_NEON_INTRINSICS
+#endif
+
+/* Decide whether we're built for a Unix-like platform.
+ */
+#if defined(MBEDTLS_TEST_PLATFORM_IS_NOT_UNIXLIKE) //no-check-names
+/* We may be building on a Unix-like platform, but for test purposes,
+ * do not try to use Unix features. */
+#elif defined(_WIN32)
+/* If Windows platform interfaces are available, we use them, even if
+ * a Unix-like might also to be available. */
+/* defined(_WIN32) ==> we can include <windows.h> */
+#elif defined(unix) || defined(__unix) || defined(__unix__) ||    \
+    (defined(__APPLE__) && defined(__MACH__)) ||                  \
+    defined(__HAIKU__) ||                                         \
+    defined(__midipix__) ||                                       \
+    /* Add other Unix-like platform indicators here ^^^^ */ 0
+/* defined(MBEDTLS_PLATFORM_IS_UNIXLIKE) ==> we can include <unistd.h> */
+#define MBEDTLS_PLATFORM_IS_UNIXLIKE
 #endif
 
 /** Helper to define a function as static except when building invasive tests.
@@ -109,6 +117,13 @@ extern void (*mbedtls_test_hook_test_fail)(const char *test, int line, const cha
  * fall back to the unsafe implementation. */
 #define ARRAY_LENGTH(array) ARRAY_LENGTH_UNSAFE(array)
 #endif
+
+#if defined(__has_builtin)
+#define MBEDTLS_HAS_BUILTIN(x) __has_builtin(x)
+#else
+#define MBEDTLS_HAS_BUILTIN(x) 0
+#endif
+
 /** Allow library to access its structs' private members.
  *
  * Although structs defined in header files are publicly available,
@@ -209,15 +224,17 @@ static inline void mbedtls_xor(unsigned char *r,
         uint8x16_t x = veorq_u8(v1, v2);
         vst1q_u8(r + i, x);
     }
-#if defined(__IAR_SYSTEMS_ICC__) || defined(MBEDTLS_COMPILER_IS_GCC)
+#if defined(__IAR_SYSTEMS_ICC__)
     /* This if statement helps some compilers (e.g., IAR) optimise out the byte-by-byte tail case
      * where n is a constant multiple of 16.
      * For other compilers (e.g. recent gcc and clang) it makes no difference if n is a compile-time
-     * constant, and is a very small perf regression if n is not a compile-time constant.
-     * GCC 14.2 outputs a warning "array subscript 48 is outside array bounds" if we don't return
-     * early.
-     */
+     * constant, and is a very small perf regression if n is not a compile-time constant. */
     if (n % 16 == 0) {
+        return;
+    }
+#endif
+#if defined(MBEDTLS_COMPILER_IS_GCC) && MBEDTLS_HAS_BUILTIN(__builtin_constant_p)
+    if (__builtin_constant_p(n) && n % 16 == 0) {
         return;
     }
 #endif
@@ -232,6 +249,11 @@ static inline void mbedtls_xor(unsigned char *r,
         return;
     }
 #endif
+#if defined(MBEDTLS_COMPILER_IS_GCC) && MBEDTLS_HAS_BUILTIN(__builtin_constant_p)
+    if (__builtin_constant_p(n) && n % 8 == 0) {
+        return;
+    }
+#endif
 #else
     for (; (i + 4) <= n; i += 4) {
         uint32_t x = mbedtls_get_unaligned_uint32(a + i) ^ mbedtls_get_unaligned_uint32(b + i);
@@ -239,6 +261,11 @@ static inline void mbedtls_xor(unsigned char *r,
     }
 #if defined(__IAR_SYSTEMS_ICC__)
     if (n % 4 == 0) {
+        return;
+    }
+#endif
+#if defined(MBEDTLS_COMPILER_IS_GCC) && MBEDTLS_HAS_BUILTIN(__builtin_constant_p)
+    if (__builtin_constant_p(n) && n % 4 == 0) {
         return;
     }
 #endif
@@ -378,12 +405,6 @@ static inline void mbedtls_xor_no_simd(unsigned char *r,
  * any number of times and does not need a matching definition. */
 #define MBEDTLS_STATIC_ASSERT(expr, msg)                                \
     struct ISO_C_does_not_allow_extra_semicolon_outside_of_a_function
-#endif
-
-#if defined(__has_builtin)
-#define MBEDTLS_HAS_BUILTIN(x) __has_builtin(x)
-#else
-#define MBEDTLS_HAS_BUILTIN(x) 0
 #endif
 
 /* Define compiler branch hints */
