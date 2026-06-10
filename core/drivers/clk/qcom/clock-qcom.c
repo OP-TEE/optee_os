@@ -61,6 +61,14 @@ TEE_Result qcom_clock_enable_cbc(vaddr_t cbcr)
 
 	io_setbits32(cbcr, CBCR_BRANCH_ENABLE_BIT);
 
+	/*
+	 * In hardware clock-control mode (HW_CTL set) CLK_OFF is driven by HW,
+	 * not the software CLK_ENABLE write, so skip the poll to avoid
+	 * spinning.
+	 */
+	if (io_read32(cbcr) & CBCR_HW_CTL_ENABLE_BIT)
+		return TEE_SUCCESS;
+
 	REG_POLL_TIMEOUT(cbcr, 10 * 1000, 10, &ret, cbcr_branch_on);
 
 	if (ret < 0)
@@ -150,6 +158,7 @@ TEE_Result qcom_clock_enable(enum qcom_clk_group group)
 {
 	switch (group) {
 	case QCOM_CLKS_TURING:
+	case QCOM_CLKS_TURING1:
 	case QCOM_CLKS_LPASS:
 	case QCOM_CLKS_WPSS:
 		return qcom_clock_enable_pas(group);
