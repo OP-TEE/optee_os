@@ -202,6 +202,17 @@ enum pkcs11_rc step_digest_operation(struct pkcs11_session *session,
 				     uint32_t ptypes, TEE_Param *params);
 
 /*
+ * HKDF specific functions
+ */
+
+bool processing_is_tee_hkdf(enum pkcs11_mechanism_id proc_id);
+
+enum pkcs11_rc derive_key_by_hkdf(struct pkcs11_session *session,
+				  struct pkcs11_attribute_head *proc_params,
+				  struct pkcs11_object *parent,
+				  struct obj_attrs **head);
+
+/*
  * Elliptic curve crypto algorithm specific functions
  */
 enum pkcs11_rc load_tee_ec_key_attrs(TEE_Attribute **tee_attrs,
