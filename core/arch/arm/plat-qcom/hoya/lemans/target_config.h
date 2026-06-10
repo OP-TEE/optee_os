@@ -30,4 +30,42 @@
 #define IMEM_BASE			UL(0x14680000)
 #define IMEM_SIZE			UL(0x32000)
 
+#define TURING_0_BASE			UL(0x24000000)
+#define TURING_0_SIZE			UL(0x03000000)
+
+#define TURING_1_BASE			UL(0x28000000)
+#define TURING_1_SIZE			UL(0x03000000)
+
+#define PAS_ID_TURING			18
+#define PAS_ID_TURING1			30
+
+/*
+ * CDSP (CDSP0 / TURING) content-protection shared channel in the static TZ DDR
+ * region. TZ zeroes this on CDSP0 bring-up (ACResetSharedChannel,
+ * AC_VM_CP_CDSP); there is no equivalent CDSP1 channel. Address mirrors the TZ
+ * DDR layout: TZBSP_EBI1_SECCHANNEL_CDSP (TZ_TZ_STAT_BASE_ADDR 0xDB100000 +
+ * 0xc0000 + TZBSP_TZ_DDR_SECCHANNEL_SIZE 0x1c000), size 0x2000.
+ */
+#define CDSP_SECCHANNEL_BASE		UL(0xdb1dc000)
+#define CDSP_SECCHANNEL_SIZE		UL(0x2000)
+
+/*
+ * Global register blocks used by the Turing/NSP subsystem reset sequence
+ * (Reset_TURINGProcessor / Reset_TURING1Processor in the reference ClockPIL).
+ * AOSS_CC and the RPMH PDC blocks live under AOSS_BASE (0x0b000000). The TCSR
+ * mutex block (TCSR_MUTEX_BASE / TCSR_MUTEX_SIZE) is already defined in
+ * arch_config.h. A single window per block is mapped; sizes cover the
+ * registers the reset sequence touches.
+ */
+#define AOSS_CC_BASE			UL(0x0c2a8000)
+#define AOSS_CC_SIZE			UL(0x00050000)
+
+#define RPMH_PDC_GLOBAL_BASE		UL(0x0b5e0000)
+#define RPMH_PDC_GLOBAL_SIZE		UL(0x00002000)
+
+#define RPMH_PDC_COMPUTE_BASE		UL(0x0b2c0000)
+#define RPMH_PDC_COMPUTE_SIZE		UL(0x00002000)
+
+#define RPMH_PDC_NSP_BASE		UL(0x0b2f0000)
+#define RPMH_PDC_NSP_SIZE		UL(0x00002000)
 #endif /* TARGET_CONFIG_H */
