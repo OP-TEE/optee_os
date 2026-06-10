@@ -26,6 +26,7 @@
 enum qcom_clk_group {
 	QCOM_CLKS_WPSS,
 	QCOM_CLKS_TURING,
+	QCOM_CLKS_TURING1,
 	QCOM_CLKS_LPASS,
 	QCOM_CLKS_MAX,
 };
@@ -61,9 +62,23 @@ TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
 				    const struct qcom_lucidevo_pll_config *cfg);
 #ifdef CFG_QCOM_PAS_PTA
 TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group);
+TEE_Result qcom_clock_enable_pas_processor(enum qcom_clk_group group);
+TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group);
 #else
 static inline TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group
 					       __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result
+qcom_clock_enable_pas_processor(enum qcom_clk_group group __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group
+					      __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
