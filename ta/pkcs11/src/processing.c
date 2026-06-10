@@ -995,6 +995,16 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 		if (rc)
 			goto out;
 
+	} else if (processing_is_tee_hkdf(proc_params->id)) {
+		if (function != PKCS11_FUNCTION_DERIVE) {
+			rc = PKCS11_CKR_MECHANISM_INVALID;
+			goto out;
+		}
+
+		rc = derive_key_by_hkdf(session, proc_params, parent, &head);
+		if (!rc)
+			goto done;
+		goto out;
 	} else if (processing_is_tee_asymm(proc_params->id)) {
 		switch (function) {
 		case PKCS11_FUNCTION_DERIVE:
