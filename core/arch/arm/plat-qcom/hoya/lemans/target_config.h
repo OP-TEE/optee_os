@@ -30,4 +30,33 @@
 #define IMEM_BASE			UL(0x14680000)
 #define IMEM_SIZE			UL(0x32000)
 
+#define TURING_0_BASE			UL(0x24000000)
+#define TURING_0_SIZE			UL(0x03000000)
+
+#define TURING_1_BASE			UL(0x28000000)
+#define TURING_1_SIZE			UL(0x03000000)
+
+#define PAS_ID_TURING			18
+#define PAS_ID_TURING1			30
+
+/* CDSP0 content-protection shared channel (secure DDR); no CDSP1 equivalent. */
+#define CDSP_SECCHANNEL_BASE		UL(0xdb1dc000)
+#define CDSP_SECCHANNEL_SIZE		UL(0x2000)
+
+/*
+ * Global register blocks for the Turing/NSP reset sequence, under AOSS_BASE
+ * (0x0b000000). TCSR_MUTEX_BASE/SIZE is already defined in arch_config.h.
+ */
+#define AOSS_CC_BASE			UL(0x0c2a8000)
+#define AOSS_CC_SIZE			UL(0x00050000)
+
+#define RPMH_PDC_GLOBAL_BASE		UL(0x0b5e0000)
+#define RPMH_PDC_GLOBAL_SIZE		UL(0x00002000)
+
+#define RPMH_PDC_COMPUTE_BASE		UL(0x0b2c0000)
+#define RPMH_PDC_COMPUTE_SIZE		UL(0x00002000)
+
+#define RPMH_PDC_NSP_BASE		UL(0x0b2f0000)
+#define RPMH_PDC_NSP_SIZE		UL(0x00002000)
+
 #endif /* TARGET_CONFIG_H */
