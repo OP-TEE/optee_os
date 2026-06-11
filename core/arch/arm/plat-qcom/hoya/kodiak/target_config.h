@@ -26,6 +26,10 @@
 
 #define GENI_UART_REG_BASE		UL(0x994000)
 
+/* IMEM and Diagnostic buffer */
+#define IMEM_BASE			UL(0x14680000)
+#define IMEM_SIZE			UL(0x19000)
+
 #define WPSS_BASE			UL(0x8a00000)
 #define WPSS_SIZE			UL(0x200000)
 #define TURING_BASE			UL(0x09800000)
