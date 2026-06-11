@@ -36,8 +36,18 @@
 #define TURING_1_BASE			UL(0x28000000)
 #define TURING_1_SIZE			UL(0x03000000)
 
+/*
+ * LPASS / ADSP (QDSP6 v68/v69) subsystem. Base mirrors the TZ HWIO layout
+ * (LPASS_BASE in msmhwiobase.h); the window covers every LPASS sub-block the
+ * PTA and clock driver touch (PUB 0x400000, PLL 0x440000, CORE_CC 0x448000,
+ * AON_CC 0x808000, MCC/EFUSE 0x8d0000, CORE_GDSC/TOP_CC 0x1000000).
+ */
+#define LPASS_BASE			UL(0x02c00000)
+#define LPASS_SIZE			ULL(0x01080000)
+
 #define PAS_ID_TURING			18
 #define PAS_ID_TURING1			30
+#define PAS_ID_QDSP6			1
 
 /*
  * CDSP (CDSP0 / TURING) content-protection shared channel in the static TZ DDR
