@@ -17,4 +17,7 @@
 #define GICC_BASE			UL(0xB002000)
 #define GICD_PIDR2			UL(0xFD8)
 
+#define IMEM_BASE			UL(0x8600000)
+#define IMEM_SIZE			UL(0x18000)
+
 #endif /* TARGET_CONFIG_H */
