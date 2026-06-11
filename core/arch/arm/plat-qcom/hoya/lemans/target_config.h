@@ -36,8 +36,16 @@
 #define TURING_1_BASE			UL(0x28000000)
 #define TURING_1_SIZE			UL(0x03000000)
 
+/*
+ * LPASS / ADSP (QDSP6 v68/v69) subsystem window, covering every sub-block the
+ * PTA and clock driver touch (PUB, PLL, CORE_CC, AON_CC, MCC, TOP_CC).
+ */
+#define LPASS_BASE			UL(0x02c00000)
+#define LPASS_SIZE			ULL(0x01080000)
+
 #define PAS_ID_TURING			18
 #define PAS_ID_TURING1			30
+#define PAS_ID_QDSP6			1
 
 /* CDSP0 content-protection shared channel (secure DDR); no CDSP1 equivalent. */
 #define CDSP_SECCHANNEL_BASE		UL(0xdb1dc000)
