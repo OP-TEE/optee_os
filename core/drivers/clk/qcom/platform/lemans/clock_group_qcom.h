@@ -114,4 +114,53 @@
 #define TURINGNSP_Q6_PLL_USER_CTL		0x00000000
 #define TURINGNSP_Q6_PLL_USER_CTL_U		0x00400805
 
+/*
+ * LPASS / ADSP (QDSP6 v68/v69). All offsets are relative to LPASS_BASE; the
+ * subsystem window is mapped once by the PAS PTA (pas_platform_mem_setup), so
+ * the clock driver only derives sub-block bases as LPASS_BASE + offset.
+ */
+#define LPASS_PUB_OFFSET			0x00400000
+#define LPASS_PLL_OFFSET			0x00440000
+#define LPASS_CORE_CC_OFFSET			0x00448000
+#define LPASS_AON_CC_OFFSET			0x00808000
+#define LPASS_MCC_OFFSET			0x008d0000
+#define LPASS_TOP_CC_OFFSET			0x01000000
+
+/* Offsets within the QDSP6 PUB block (LPASS_PUB_OFFSET). */
+#define LPASS_QDSP6SS_RST_EVB			0x10
+#define LPASS_QDSP6SS_BOOT_CORE_START		0x400
+#define LPASS_QDSP6SS_BOOT_CMD			0x404
+#define LPASS_QDSP6SS_BOOT_STATUS		0x408
+
+/* Offset within the MCC block (LPASS_MCC_OFFSET). */
+#define LPASS_EFUSE_Q6SS_EVB_SEL		0xb000
+
+/* Offsets within the core clock-controller block (LPASS_CORE_CC_OFFSET). */
+#define LPASS_QDSP6SS_CORE_CMD_RCGR		0x0
+#define LPASS_QDSP6SS_CORE_CFG_RCGR		0x4
+#define LPASS_QDSP6SS_CORE_CBCR			0x20
+
+/* Offsets within the always-on clock-controller block (LPASS_AON_CC_OFFSET). */
+#define LPASS_AON_CC_Q6_AHBM_CBCR		0x101c
+#define LPASS_AON_CC_Q6_AHBS_CBCR		0x1020
+
+/* Offset within the LPASS top clock-controller block (LPASS_TOP_CC_OFFSET). */
+#define LPASS_TOP_CC_LPI_Q6_AXIM_HS_CBCR	0x4000
+
+/* GCC config-NoC LPASS access branch (offset within the GCC window). */
+#define GCC_CFG_NOC_LPASS_CBCR			0x43024
+
+/*
+ * LPASS Q6 Lucid-EVO PLL settings, taken from the reference clock driver
+ * HALclkPLLSettings.h (HAL_CLK_LPASS_AON_CC_LPASS_QDSP6SS_PLL_*). Identical to
+ * the Turing Q6 PLL except for the L value.
+ */
+#define LPASS_Q6_PLL_L_VAL			0x2C
+#define LPASS_Q6_PLL_CAL_L_VAL			0x44
+#define LPASS_Q6_PLL_CONFIG_CTL			0x20485699
+#define LPASS_Q6_PLL_CONFIG_CTL_U		0x00182261
+#define LPASS_Q6_PLL_CONFIG_CTL_U1		0x32AA299C
+#define LPASS_Q6_PLL_USER_CTL			0x00000000
+#define LPASS_Q6_PLL_USER_CTL_U			0x00400805
+
 #endif /* _CLOCK_GROUP_QCOM_H_ */
