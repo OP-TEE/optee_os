@@ -67,6 +67,14 @@ TEE_Result tee_rpmb_reinit(void);
 /* Ger RPMB memory allocation statistics */
 TEE_Result rpmb_mem_stats(struct pta_stats_alloc *stats, bool reset);
 
+#define RPMB_EMMC_CID_SIZE 16
+
+/*
+ * Generate the RPMB key for the given cid. The cid must be RPMB_EMMC_CID_SIZE
+ * bytes long.
+ */
+TEE_Result tee_rpmb_key_gen(uint8_t *cid, uint8_t *key, uint32_t len);
+
 /**
  * Weak function which can be overridden by platforms to indicate that the RPMB
  * key is ready to be written. Defaults to true, platforms can return false to
