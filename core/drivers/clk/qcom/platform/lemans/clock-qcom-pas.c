@@ -112,6 +112,71 @@ static TEE_Result cdsp_enable_processor(paddr_t turing_base)
 	return TEE_SUCCESS;
 }
 
+static const struct qcom_lucidevo_pll_config lpass_q6_pll_cfg = {
+	.l_val = LPASS_Q6_PLL_L_VAL,
+	.cal_l_val = LPASS_Q6_PLL_CAL_L_VAL,
+	.pre_div = 1,
+	.config_ctl = LPASS_Q6_PLL_CONFIG_CTL,
+	.config_ctl_u = LPASS_Q6_PLL_CONFIG_CTL_U,
+	.config_ctl_u1 = LPASS_Q6_PLL_CONFIG_CTL_U1,
+	.user_ctl = LPASS_Q6_PLL_USER_CTL,
+	.user_ctl_u = LPASS_Q6_PLL_USER_CTL_U,
+	/* alpha (default) fractional mode */
+};
+
+/*
+ * Set up clocks for the LPASS / ADSP QDSP6. Unlike the Turing NSP, the Q6 PLL
+ * and core RCG are configured here, before the boot FSM in lpass_fw_start.
+ */
+static TEE_Result lpass_setup(void)
+{
+	struct io_pa_va gcc_io = { .pa = GCC_BASE };
+	vaddr_t gcc_base = io_pa_or_va(&gcc_io, GCC_SIZE);
+	struct io_pa_va lpass_io = { .pa = LPASS_BASE };
+	vaddr_t lpass_base = io_pa_or_va(&lpass_io, LPASS_SIZE);
+	vaddr_t aon_cc = lpass_base + LPASS_AON_CC_OFFSET;
+	vaddr_t top_cc = lpass_base + LPASS_TOP_CC_OFFSET;
+	vaddr_t core_cc = lpass_base + LPASS_CORE_CC_OFFSET;
+	vaddr_t pll_base = lpass_base + LPASS_PLL_OFFSET;
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!gcc_base || !lpass_base)
+		return TEE_ERROR_GENERIC;
+
+	/* 4. Enable LPASS access from the config NoC. */
+	res = qcom_clock_enable_cbc(gcc_base + GCC_CFG_NOC_LPASS_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* AHB master/slave clocks, required to reach the QDSP6SS registers. */
+	res = qcom_clock_enable_cbc(aon_cc + LPASS_AON_CC_Q6_AHBM_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = qcom_clock_enable_cbc(aon_cc + LPASS_AON_CC_Q6_AHBS_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* LPASS interface clock. */
+	res = qcom_clock_enable_cbc(top_cc + LPASS_TOP_CC_LPI_Q6_AXIM_HS_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Enable the QDSP6 core clock branch. */
+	res = qcom_clock_enable_cbc(core_cc + LPASS_QDSP6SS_CORE_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Configure and lock the Q6 PLL, then switch the core RCG onto it. */
+	res = qcom_lucidevo_pll_enable(pll_base, &lpass_q6_pll_cfg);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	return qcom_clock_set_rate(core_cc + LPASS_QDSP6SS_CORE_CFG_RCGR,
+				   core_cc + LPASS_QDSP6SS_CORE_CMD_RCGR,
+				   Q6RCG_CFG_VALUE);
+}
+
 TEE_Result qcom_clock_enable_pas_processor(enum qcom_clk_group group)
 {
 	switch (group) {
@@ -119,6 +184,13 @@ TEE_Result qcom_clock_enable_pas_processor(enum qcom_clk_group group)
 		return cdsp_enable_processor(TURING_0_BASE);
 	case QCOM_CLKS_TURING1:
 		return cdsp_enable_processor(TURING_1_BASE);
+	case QCOM_CLKS_LPASS:
+		/*
+		 * LPASS configures its Q6 PLL and core RCG in lpass_setup
+		 * (before the boot FSM) and releases the core in
+		 * lpass_fw_start, so there is no post-boot step here.
+		 */
+		return TEE_SUCCESS;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -271,6 +343,13 @@ TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group)
 		return cdsp_reset_processor(&cdsp0_reset_regs);
 	case QCOM_CLKS_TURING1:
 		return cdsp_reset_processor(&cdsp1_reset_regs);
+	case QCOM_CLKS_LPASS:
+		/*
+		 * The LPASS subsystem reset is the SSR / tear-down path;
+		 * cold bring-up starts from a known state with the LPASS
+		 * core domain already powered.
+		 */
+		return TEE_SUCCESS;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -305,6 +384,8 @@ TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group)
 		if (res != TEE_SUCCESS)
 			goto timeout;
 		break;
+	case QCOM_CLKS_LPASS:
+		return lpass_setup();
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
