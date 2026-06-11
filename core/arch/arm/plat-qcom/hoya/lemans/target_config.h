@@ -26,4 +26,8 @@
 
 #define GENI_UART_REG_BASE		UL(0xa8c000)
 
+/* IMEM and Diagnostic buffer */
+#define IMEM_BASE			UL(0x14680000)
+#define IMEM_SIZE			UL(0x32000)
+
 #endif /* TARGET_CONFIG_H */
