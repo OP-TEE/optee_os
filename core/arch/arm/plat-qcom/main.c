@@ -11,6 +11,8 @@
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 
+#include "diag_log.h"
+
 /*
  * Register the physical memory area for peripherals etc. Here we are
  * registering the UART console.
@@ -31,6 +33,16 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
 
 static struct qcom_geni_uart_data console_data;
+
+void plat_trace_ext_puts(const char *str)
+{
+	qcom_diag_log_puts(str);
+}
+
+void plat_trace_init(void)
+{
+	qcom_diag_log_init();
+}
 
 void plat_console_init(void)
 {
