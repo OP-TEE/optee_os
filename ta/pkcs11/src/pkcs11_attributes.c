@@ -1654,6 +1654,7 @@ check_created_attrs_against_processing(uint32_t proc_id,
 	switch (proc_id) {
 	case PKCS11_PROCESSING_IMPORT:
 	case PKCS11_CKM_ECDH1_DERIVE:
+	case PKCS11_CKM_HKDF_DERIVE:
 	case PKCS11_CKM_AES_ECB:
 	case PKCS11_CKM_AES_CBC:
 	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
@@ -1962,6 +1963,11 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 		else
 			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
 
+	case PKCS11_CKM_HKDF_DERIVE:
+		if (key_class != PKCS11_CKO_SECRET_KEY ||
+		    key_type != PKCS11_CKK_GENERIC_SECRET)
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		break;
 	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
 	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
 		if (key_class != PKCS11_CKO_SECRET_KEY &&

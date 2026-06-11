@@ -242,6 +242,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case __OPTEE_ALG_ECDH_P256:
 	case __OPTEE_ALG_ECDH_P384:
 	case __OPTEE_ALG_ECDH_P521:
+	case TEE_ALG_HKDF:
 	case TEE_ALG_HKDF_MD5_DERIVE_KEY:
 	case TEE_ALG_HKDF_SHA1_DERIVE_KEY:
 	case TEE_ALG_HKDF_SHA224_DERIVE_KEY:
