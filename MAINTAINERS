@@ -277,6 +277,11 @@ S:	Maintained
 F:	core/drivers/qcom/qfprom/
 F:	core/include/drivers/qcom/qfprom/
 
+Qualcomm Diagnostic Ring Buffer
+R:	Selvam Sathappan Periakaruppan <speriaka@qti.qualcomm.com> [@zelvam95]
+S:	Maintained
+F:	core/arch/arm/plat-qcom/diag_log*
+
 Qualcomm Fuse Provisioning
 R:	Selvam Sathappan Periakaruppan <speriaka@qti.qualcomm.com> [@zelvam95]
 S:	Maintained
