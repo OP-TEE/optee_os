@@ -613,6 +613,7 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 		dst_region->address_range_count++;
 
 		dst_region->total_page_count += addr_dst->page_count;
+		addr_dst++;
 	}
 }
 
