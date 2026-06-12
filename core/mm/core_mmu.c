@@ -2458,8 +2458,29 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	if (map->size < l)
 		return NULL;
 
-	if (static_memory_map.count >= static_memory_map.alloc_count)
-		return NULL;
+	if (static_memory_map.count >= static_memory_map.alloc_count) {
+		/*
+		 * Out of pre-allocated entries. After boot the map is frozen at
+		 * count + 5 entries (core_mmu_save_mem_map()), so a platform
+		 * that adds more than a handful of late mappings - e.g. several
+		 * PAS subsystems (cdsp0/cdsp1/lpass/iris) each mapping a
+		 * controller window in pas_platform_mem_setup() - runs out and
+		 * mem_setup fails. Grow the map through the registered realloc
+		 * hook, the same mechanism grow_mem_map() uses for every other
+		 * add path.
+		 */
+		if (!memory_map_realloc_func)
+			return NULL;
+		memory_map_realloc_func(mem_map);
+
+		/*
+		 * The realloc may have moved the map array, so the RES_VASPACE
+		 * entry resolved above is now stale - look it up again.
+		 */
+		map = find_map_by_type(MEM_AREA_RES_VASPACE);
+		if (!map)
+			return NULL;
+	}
 
 	mem_map->map[mem_map->count] = (struct tee_mmap_region){
 		.va = map->va,
