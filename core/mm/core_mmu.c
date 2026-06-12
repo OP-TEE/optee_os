@@ -2453,8 +2453,24 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	if (map->size < l)
 		return NULL;
 
-	if (static_memory_map.count >= static_memory_map.alloc_count)
-		return NULL;
+	if (static_memory_map.count >= static_memory_map.alloc_count) {
+		/*
+		 * Out of pre-allocated entries (the map is frozen at count + 5
+		 * after boot), so grow it through the registered realloc hook,
+		 * as grow_mem_map() does for every other add path.
+		 */
+		if (!memory_map_realloc_func)
+			return NULL;
+		memory_map_realloc_func(mem_map);
+
+		/*
+		 * The realloc may have moved the map array, so the RES_VASPACE
+		 * entry resolved above is now stale - look it up again.
+		 */
+		map = find_map_by_type(MEM_AREA_RES_VASPACE);
+		if (!map)
+			return NULL;
+	}
 
 	mem_map->map[mem_map->count] = (struct tee_mmap_region){
 		.va = map->va,
