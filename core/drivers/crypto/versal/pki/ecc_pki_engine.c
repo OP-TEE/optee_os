@@ -126,6 +126,7 @@ static inline TEE_Result versal_ecc_trng_get_random_bytes(void *buf, size_t len)
 #define PKI_MAX_RETRY_COUNT		10000
 
 #define PKI_QUEUE_BUF_SIZE		0x1000
+#define PKI_CQ_CMPL_SIZE		8
 
 struct versal_pki {
 	vaddr_t regs;
@@ -214,6 +215,35 @@ static struct versal_pki versal_pki;
 	 PKI_CQ_VALUE_GEN)
 
 #define PKI_RESET_DELAY_US		10
+
+/*
+ * Helper function to check if the large number 'val1' is greater than or
+ * equal to 'val2'. Both numbers are assumed to be 'len' bytes long and
+ * formatted in little-endian byte order.
+ */
+static bool pki_largenum_is_ge_le(const uint8_t *val1, const uint8_t *val2,
+				  size_t len)
+{
+	for (ssize_t i = len - 1; i >= 0; i--) {
+		if (val1[i] > val2[i])
+			return true;
+		if (val1[i] < val2[i])
+			return false;
+	}
+	return true;
+}
+
+/*
+ * Helper function to check if the large number 'val', which is assumed to be
+ * 'len' bytes long, is 0.
+ */
+static bool pki_largenum_is_zero(const uint8_t *val, size_t len)
+{
+	for (size_t idx = 0; idx < len; idx++)
+		if (val[idx])
+			return false;
+	return true;
+}
 
 static TEE_Result pki_get_opsize(uint32_t curve, uint32_t op, size_t *in_sz,
 				 size_t *out_sz)
@@ -358,6 +388,9 @@ static TEE_Result pki_check_status(void)
 	cq_status = io_read32((vaddr_t)versal_pki.cq);
 	cq_value = io_read32((vaddr_t)versal_pki.cq + 4);
 
+	/* clear completion queue */
+	memset(versal_pki.cq, 0, PKI_CQ_CMPL_SIZE);
+
 	if (cq_value != PKI_EXPECTED_CQ_VALUE) {
 		if (!(cq_value & PKI_CQ_VALUE_GEN))
 			EMSG("PKI bad completion, not marked as new");
@@ -463,15 +496,7 @@ TEE_Result versal_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 	if (ret)
 		return ret;
 
-	ret = pki_check_status();
-	if (ret)
-		return ret;
-
-	/* Clear memory */
-	memset(versal_pki.rq_in, 0, PKI_QUEUE_BUF_SIZE);
-	memset(versal_pki.cq, 0, PKI_QUEUE_BUF_SIZE);
-
-	return TEE_SUCCESS;
+	return pki_check_status();
 }
 
 TEE_Result versal_ecc_sign(uint32_t algo, struct ecc_keypair *key,
@@ -582,11 +607,6 @@ TEE_Result versal_ecc_sign_ephemeral(uint32_t algo, size_t bytes,
 
 	pki_memcpy_swp(sig, versal_pki.rq_out, bytes);
 	pki_memcpy_swp(sig + bytes, versal_pki.rq_out + bytes, bytes);
-
-	/* Clear memory */
-	memset(versal_pki.rq_in, 0, PKI_QUEUE_BUF_SIZE);
-	memset(versal_pki.rq_out, 0, PKI_QUEUE_BUF_SIZE);
-	memset(versal_pki.cq, 0, PKI_QUEUE_BUF_SIZE);
 
 	return ret;
 }
@@ -711,43 +731,59 @@ static TEE_Result versal_ecc_gen_private_key(uint32_t curve, uint8_t *priv,
 
 	/* Copy curve order N */
 	memcpy(addr, order, bytes);
-	addr += bytes;
 
-	/* Copy A = random */
-	ret = versal_ecc_trng_get_random_bytes(addr, bytes);
-	if (ret)
-		return ret;
-	addr += bytes;
+	while (true) {
+		addr = versal_pki.rq_in + bytes;
 
-	/* Copy B = 1 */
-	addr[0] = 1;
-	memset(addr + 1, 0, bytes - 1);
-	addr += bytes;
+		/* Copy A = random */
+		ret = versal_ecc_trng_get_random_bytes(addr, bytes);
+		if (ret)
+			return ret;
 
-	if (curve == TEE_ECC_CURVE_NIST_P521) {
-		memset(addr, 0, PKI_SIGN_P521_PADD_BYTES);
-		addr += PKI_SIGN_P521_PADD_BYTES;
+		if (curve == TEE_ECC_CURVE_NIST_P521)
+			addr[bytes - 1] &= 0x01;
+
+		/* rejections sampling */
+		if (pki_largenum_is_ge_le(addr, order, bytes))
+			continue;
+
+		addr += bytes;
+
+		/* Copy B = 1 */
+		addr[0] = 1;
+		memset(addr + 1, 0, bytes - 1);
+		addr += bytes;
+
+		if (curve == TEE_ECC_CURVE_NIST_P521) {
+			memset(addr, 0, PKI_SIGN_P521_PADD_BYTES);
+			addr += PKI_SIGN_P521_PADD_BYTES;
+		}
+
+		/* Build descriptors */
+		if (!IS_ALIGNED_WITH_TYPE(addr, uint64_t))
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		ret = pki_build_descriptors(curve, PKI_DESC_OPTYPE_MOD_ADD,
+					    (void *)addr);
+		if (ret)
+			return ret;
+
+		/* Use PKI engine to compute A+B mod N */
+		ret = pki_start_operation(PKI_NEW_REQUEST_MASK & (vaddr_t)addr);
+		if (ret)
+			return ret;
+
+		ret = pki_check_status();
+		if (ret)
+			return ret;
+
+		cache_operation(TEE_CACHEFLUSH, versal_pki.rq_out,
+				PKI_QUEUE_BUF_SIZE);
+
+		/* rejections sampling */
+		if (!pki_largenum_is_zero(versal_pki.rq_out, bytes))
+			break;
 	}
-
-	/* Build descriptors */
-	if (!IS_ALIGNED_WITH_TYPE(addr, uint64_t))
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	ret = pki_build_descriptors(curve, PKI_DESC_OPTYPE_MOD_ADD,
-				    (void *)addr);
-	if (ret)
-		return ret;
-
-	/* Use PKI engine to compute A+B mod N */
-	ret = pki_start_operation(PKI_NEW_REQUEST_MASK & (vaddr_t)addr);
-	if (ret)
-		return ret;
-
-	ret = pki_check_status();
-	if (ret)
-		return ret;
-
-	cache_operation(TEE_CACHEFLUSH, versal_pki.rq_out, PKI_QUEUE_BUF_SIZE);
 
 	/* Copy back result */
 	memcpy(priv, versal_pki.rq_out, bytes);
@@ -840,11 +876,6 @@ TEE_Result versal_ecc_gen_keypair(struct ecc_keypair *s)
 	pki_crypto_bignum_bin2bn_eswap(versal_pki.rq_in, bytes, s->d);
 	pki_crypto_bignum_bin2bn_eswap(versal_pki.rq_out, bytes, s->x);
 	pki_crypto_bignum_bin2bn_eswap(versal_pki.rq_out + bytes, bytes, s->y);
-
-	/* Clear memory */
-	memset(versal_pki.rq_in, 0, PKI_QUEUE_BUF_SIZE);
-	memset(versal_pki.rq_out, 0, PKI_QUEUE_BUF_SIZE);
-	memset(versal_pki.cq, 0, PKI_QUEUE_BUF_SIZE);
 
 	return TEE_SUCCESS;
 }

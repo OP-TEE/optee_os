@@ -36,15 +36,25 @@ This shall NOT be done! Definition is done automatically based on platform!"
 /* TRNG configuration  */
 #define TRNG_PERS_STR_REGS	12
 #define TRNG_PERS_STR_LEN	48
+#define TRNG_MIN_DFLENMULT	2
+#define TRNG_MAX_DFLENMULT	9
+#define TRNG_V2_MIN_DFLENMULT	TRNG_MIN_DFLENMULT
+#define TRNG_V2_MAX_DFLENMULT	31
 #define TRNG_SEED_LEN		48
-#define TRNG_V2_SEED_LEN	128
+#ifdef CFG_VERSAL_RNG_V2
+#define TRNG_DF_SEED_MAX_LEN	((TRNG_V2_MAX_DFLENMULT + 1) * 16)
+#else
+#ifdef CFG_VERSAL_RNG_V1
+#define TRNG_DF_SEED_MAX_LEN	((TRNG_MAX_DFLENMULT + 1) * 16)
+#endif
+#endif
+#define TRNG_DF_SEED_MAX_LEN_WORDS (TRNG_DF_SEED_MAX_LEN / 4)
 #define RAND_BUF_LEN		4
 
 /* Derivative function helper macros */
 #define DF_IP_IV_LEN		4
 #define DF_PAD_DATA_LEN		8
 #define MAX_PRE_DF_LEN		160
-#define MAX_PRE_DF_LEN_WORDS	40
 
 enum trng_version {
 	TRNG_V1 = 1,
@@ -78,7 +88,7 @@ struct trng_usr_cfg {
 	bool pstr_en;            /* enable personalization string    */
 	uint32_t pstr[TRNG_PERS_STR_REGS];
 	bool iseed_en;           /* enable an initial seed           */
-	uint32_t init_seed[MAX_PRE_DF_LEN_WORDS];
+	uint32_t init_seed[TRNG_DF_SEED_MAX_LEN_WORDS];
 	uint32_t df_disable;     /* disable the derivative function  */
 	uint32_t dfmul;          /* derivative function multiplier   */
 };
