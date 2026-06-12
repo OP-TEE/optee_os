@@ -45,9 +45,19 @@
 #define LPASS_BASE			UL(0x02c00000)
 #define LPASS_SIZE			ULL(0x01080000)
 
+/*
+ * IRIS video-codec subsystem. Base/size mirror the TZ HWIO layout
+ * (IRIS_BASE / IRIS_BASE_SIZE in msmhwiobase.h); the window covers the
+ * VCODEC_IRIS_WRAPPER_TOP (IRIS+0xb0000) and WRAPPER_TZ (IRIS+0xc0000) blocks
+ * the bring-up path touches.
+ */
+#define IRIS_BASE			UL(0x0aa00000)
+#define IRIS_SIZE			ULL(0x00200000)
+
 #define PAS_ID_TURING			18
 #define PAS_ID_TURING1			30
 #define PAS_ID_QDSP6			1
+#define PAS_ID_IRIS			9
 
 /*
  * CDSP (CDSP0 / TURING) content-protection shared channel in the static TZ DDR
