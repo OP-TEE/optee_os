@@ -334,19 +334,39 @@ static void __trace_attributes(char *prefix, void *src, void *end)
 		uint8_t data[4] = { 0 };
 		uint32_t data_u32 = 0;
 		char *start = NULL;
+		size_t avail = 0;
+
+		/*
+		 * A malformed template (this helper is also called to dump a
+		 * rejected "bad-template") can leave @cur short of a full
+		 * attribute header before @end. Stop rather than read past the
+		 * client buffer.
+		 */
+		if ((size_t)((char *)end - cur) < sizeof(pkcs11_ref))
+			break;
 
 		TEE_MemMove(&pkcs11_ref, cur, sizeof(pkcs11_ref));
+
+		/*
+		 * Clamp every value read to the bytes actually present before
+		 * @end: pkcs11_ref.size is client-supplied and may point past
+		 * the buffer. data_u32 stays zero-padded when fewer than 4
+		 * bytes remain and is reused below as a bounded value source.
+		 */
+		avail = (size_t)((char *)end - (cur + sizeof(pkcs11_ref)));
 		TEE_MemMove(&data[0], cur + sizeof(pkcs11_ref),
-			    MIN(pkcs11_ref.size, sizeof(data)));
+			    MIN((size_t)MIN(pkcs11_ref.size, sizeof(data)),
+				avail));
 		TEE_MemMove(&data_u32, cur + sizeof(pkcs11_ref),
-			    sizeof(data_u32));
+			    MIN(avail, sizeof(data_u32)));
 
 		next = sizeof(pkcs11_ref) + pkcs11_ref.size;
 
 		DMSG_RAW("%s Attr %s / %s (%#04"PRIx32" %"PRIu32"-byte)",
 			 prefix, id2str_attr(pkcs11_ref.id),
-			 id2str_attr_value(pkcs11_ref.id, pkcs11_ref.size,
-					   cur + sizeof(pkcs11_ref)),
+			 id2str_attr_value(pkcs11_ref.id,
+					   MIN((size_t)pkcs11_ref.size, avail),
+					   &data_u32),
 			 pkcs11_ref.id, pkcs11_ref.size);
 
 		switch (pkcs11_ref.size) {
@@ -378,8 +398,11 @@ static void __trace_attributes(char *prefix, void *src, void *end)
 		case PKCS11_CKA_UNWRAP_TEMPLATE:
 		case PKCS11_CKA_DERIVE_TEMPLATE:
 			start = cur + sizeof(pkcs11_ref);
-			trace_attributes_from_api_head(prefix2, start,
-						       (char *)end - start);
+			/* nested head must fit in the remaining window */
+			if (avail >= sizeof(struct pkcs11_object_head))
+				trace_attributes_from_api_head(prefix2, start,
+							       (char *)end -
+							       start);
 			break;
 		default:
 			break;
