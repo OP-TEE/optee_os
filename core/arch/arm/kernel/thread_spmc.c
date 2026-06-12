@@ -275,6 +275,15 @@ static void handle_features(struct thread_smc_1_2_regs *args)
 		ret_w2 = 0; /* 4kB Minimum buffer size and alignment boundary */
 		break;
 #ifdef ARM64
+	case FFA_MSG_SEND_DIRECT_REQ2:
+	case FFA_MSG_SEND_DIRECT_RESP2:
+		if (my_rxtx.ffa_vers >= FFA_VERSION_1_2) {
+			ret_fid = FFA_SUCCESS_32;
+			ret_w2 = FFA_PARAM_MBZ;
+		}
+		break;
+#endif
+#ifdef ARM64
 	case FFA_MEM_SHARE_64:
 #endif
 	case FFA_MEM_SHARE_32:
@@ -548,11 +557,25 @@ TEE_Result spmc_fill_partition_entry(uint32_t ffa_vers, void *buf, size_t blen,
 
 	fpi->partition_properties = part_props;
 
-	/* In FF-A 1.0 only bits [2:0] are defined, let's mask others */
+	/* Mask out bits introduced with FF-A version 1.1 */
 	if (ffa_vers < FFA_VERSION_1_1)
 		fpi->partition_properties &= FFA_PART_PROP_DIRECT_REQ_RECV |
 					     FFA_PART_PROP_DIRECT_REQ_SEND |
 					     FFA_PART_PROP_INDIRECT_MSGS;
+
+	/* Mask out bits introduced with FF-A version 1.2 */
+	if (ffa_vers < FFA_VERSION_1_2)
+		fpi->partition_properties &= FFA_PART_PROP_DIRECT_REQ_RECV |
+					     FFA_PART_PROP_DIRECT_REQ_SEND |
+					     FFA_PART_PROP_INDIRECT_MSGS |
+					     FFA_PART_PROP_RECV_NOTIF |
+					     FFA_PART_PROP_IS_PE_ID |
+					     FFA_PART_PROP_IS_SEPID_INDEP |
+					     FFA_PART_PROP_IS_SEPID_DEP |
+					     FFA_PART_PROP_IS_AUX_ID |
+					     FFA_PART_PROP_NOTIF_CREATED |
+					     FFA_PART_PROP_NOTIF_DESTROYED |
+					     FFA_PART_PROP_AARCH64_STATE;
 
 	if (ffa_vers >= FFA_VERSION_1_1) {
 		if (uuid_words)
@@ -739,7 +762,11 @@ out:
 static uint32_t get_direct_resp_fid(uint32_t fid)
 {
 	assert(fid == FFA_MSG_SEND_DIRECT_REQ_64 ||
-	       fid == FFA_MSG_SEND_DIRECT_REQ_32);
+	       fid == FFA_MSG_SEND_DIRECT_REQ_32 ||
+	       fid == FFA_MSG_SEND_DIRECT_REQ2);
+
+	if (fid == FFA_MSG_SEND_DIRECT_REQ2)
+		return FFA_MSG_SEND_DIRECT_RESP2;
 
 	if (OPTEE_SMC_IS_64(fid))
 		return FFA_MSG_SEND_DIRECT_RESP_64;
@@ -905,6 +932,11 @@ optee_lsp_handle_direct_request(struct thread_smc_1_2_regs *args,
 		return;
 	}
 
+	if (args->a0 == FFA_MSG_SEND_DIRECT_REQ2) {
+		set_simple_ret_val(args, FFA_NOT_SUPPORTED);
+		return;
+	}
+
 	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
 		handle_framework_direct_request(args);
 		return;
@@ -938,6 +970,11 @@ optee_spmc_lsp_handle_direct_request(struct thread_smc_1_2_regs *args,
 {
 	if (caller_sp) {
 		set_simple_ret_val(args, FFA_INVALID_PARAMETERS);
+		return;
+	}
+
+	if (args->a0 == FFA_MSG_SEND_DIRECT_REQ2) {
+		set_simple_ret_val(args, FFA_NOT_SUPPORTED);
 		return;
 	}
 
@@ -1985,6 +2022,14 @@ void thread_spmc_msg_recv(struct thread_smc_1_2_regs *args)
 	case FFA_MSG_SEND_DIRECT_REQ_32:
 		handle_direct_request(args);
 		break;
+#ifdef ARM64
+	case FFA_MSG_SEND_DIRECT_REQ2:
+		if (my_rxtx.ffa_vers < FFA_VERSION_1_2)
+			set_simple_ret_val(args, FFA_NOT_SUPPORTED);
+		else
+			handle_direct_request(args);
+		break;
+#endif
 #if defined(CFG_CORE_SEL1_SPMC)
 #ifdef ARM64
 	case FFA_MEM_SHARE_64:
