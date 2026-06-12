@@ -286,10 +286,9 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 static void init_regs_spmc(struct thread_ctx *thread,
 			   const struct thread_smc_1_2_regs *args, void *pc)
 {
-#ifdef ARM64
 	size_t n = 0;
 
-	thread->regs.pc = (uint64_t)pc;
+	thread->regs.pc = (vaddr_t)pc;
 	thread->regs.cpsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0,
 				    THREAD_EXCP_FOREIGN_INTR | DAIFBIT_ABT);
 	thread->regs.sp = thread->stack_va_end;
@@ -298,12 +297,6 @@ static void init_regs_spmc(struct thread_ctx *thread,
 		thread->regs.x[n] = args->a[n];
 	for (; n < ARRAY_SIZE(thread->regs.x); n++)
 		thread->regs.x[n] = 0;
-
-	thread->regs.x[29] = 0;
-#else
-	init_regs(thread, args->a0, args->a1, args->a2, args->a3, args->a4,
-		  args->a5, args->a6, args->a7, pc);
-#endif
 }
 
 void thread_sp_alloc_and_run(struct thread_smc_1_2_regs *args)

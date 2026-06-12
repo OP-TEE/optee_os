@@ -1502,9 +1502,8 @@ static TEE_Result read_ffa_version(const void *fdt, struct sp_session *s)
 		return res;
 	}
 
-	if (ffa_version != FFA_VERSION_1_0 &&
-	    ffa_version != FFA_VERSION_1_1 &&
-	    ffa_version != FFA_VERSION_1_2) {
+	if (ffa_version < FFA_VERSION_1_0 ||
+	    ffa_version > FFA_VERSION_1_2) {
 		EMSG("Invalid FF-A version value: 0x%08"PRIx32, ffa_version);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -1756,14 +1755,7 @@ TEE_Result sp_enter(struct thread_smc_1_2_regs *args, struct sp_session *sp)
 #ifdef ARM64
 	memcpy(ctx->sp_regs.x, args->a, sizeof(args->a));
 #else
-	ctx->sp_regs.x[0] = args->a0;
-	ctx->sp_regs.x[1] = args->a1;
-	ctx->sp_regs.x[2] = args->a2;
-	ctx->sp_regs.x[3] = args->a3;
-	ctx->sp_regs.x[4] = args->a4;
-	ctx->sp_regs.x[5] = args->a5;
-	ctx->sp_regs.x[6] = args->a6;
-	ctx->sp_regs.x[7] = args->a7;
+	memcpy(&ctx->sp_regs, args->a, sizeof(args->a));
 #endif
 #ifdef CFG_TA_PAUTH
 	ctx->sp_regs.apiakey_hi = ctx->uctx.keys.apia_hi;
@@ -1775,14 +1767,7 @@ TEE_Result sp_enter(struct thread_smc_1_2_regs *args, struct sp_session *sp)
 #ifdef ARM64
 	memcpy(args->a, ctx->sp_regs.x, sizeof(args->a));
 #else
-	args->a0 = ctx->sp_regs.x[0];
-	args->a1 = ctx->sp_regs.x[1];
-	args->a2 = ctx->sp_regs.x[2];
-	args->a3 = ctx->sp_regs.x[3];
-	args->a4 = ctx->sp_regs.x[4];
-	args->a5 = ctx->sp_regs.x[5];
-	args->a6 = ctx->sp_regs.x[6];
-	args->a7 = ctx->sp_regs.x[7];
+	memcpy(args->a, &ctx->sp_regs, sizeof(args->a));
 #endif
 
 	return res;

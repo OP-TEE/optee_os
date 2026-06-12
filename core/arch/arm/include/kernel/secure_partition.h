@@ -26,6 +26,7 @@ struct sp_session {
 	uint16_t endpoint_id;
 	uint16_t thread_id;
 	uint16_t caller_id;
+	uint32_t caller_fid;
 	uint32_t boot_order;
 	struct ts_session ts_sess;
 	unsigned int spinlock;

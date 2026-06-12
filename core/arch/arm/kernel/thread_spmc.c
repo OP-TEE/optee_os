@@ -557,13 +557,14 @@ TEE_Result spmc_fill_partition_entry(uint32_t ffa_vers, void *buf, size_t blen,
 
 	fpi->partition_properties = part_props;
 
-	/* In FF-A 1.0 only bits [2:0] are defined, let's mask others */
+	/* Mask out bits introduced with FF-A version 1.1 */
 	if (ffa_vers < FFA_VERSION_1_1)
 		fpi->partition_properties &= FFA_PART_PROP_DIRECT_REQ_RECV |
 					     FFA_PART_PROP_DIRECT_REQ_SEND |
 					     FFA_PART_PROP_INDIRECT_MSGS;
-	/* In FF-A 1.1 only bits [8:0] are defined, let's mask others */
-	else if (ffa_vers < FFA_VERSION_1_2)
+
+	/* Mask out bits introduced with FF-A version 1.2 */
+	if (ffa_vers < FFA_VERSION_1_2)
 		fpi->partition_properties &= FFA_PART_PROP_DIRECT_REQ_RECV |
 					     FFA_PART_PROP_DIRECT_REQ_SEND |
 					     FFA_PART_PROP_INDIRECT_MSGS |
