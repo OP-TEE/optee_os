@@ -337,6 +337,30 @@ uint32_t ec_params2tee_curve(void *ec_params, size_t size)
 	return curve->tee_id;
 }
 
+static bool tee_curve_is_ec_legacy(uint32_t tee_id)
+{
+	switch (tee_id) {
+	case TEE_ECC_CURVE_NIST_P192:
+	case TEE_ECC_CURVE_NIST_P224:
+	case TEE_ECC_CURVE_NIST_P256:
+	case TEE_ECC_CURVE_NIST_P384:
+	case TEE_ECC_CURVE_NIST_P521:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool tee_curve_is_ec_edwards(uint32_t tee_id)
+{
+	switch (tee_id) {
+	case TEE_ECC_CURVE_25519:
+		return true;
+	default:
+		return false;
+	}
+}
+
 enum pkcs11_rc load_tee_ec_key_attrs(TEE_Attribute **tee_attrs,
 				     size_t *tee_count,
 				     struct pkcs11_object *obj)
@@ -619,9 +643,12 @@ enum pkcs11_rc generate_ec_keys(struct pkcs11_attribute_head *proc_params,
 
 	tee_size = ec_params2tee_keysize(a_ptr, a_size);
 	if (!tee_size)
-		return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+		return PKCS11_CKR_CURVE_NOT_SUPPORTED;
 
 	tee_curve = ec_params2tee_curve(a_ptr, a_size);
+
+	if (!tee_curve_is_ec_legacy(tee_curve))
+		return PKCS11_CKR_CURVE_NOT_SUPPORTED;
 
 	TEE_InitValueAttribute(tee_key_attr, TEE_ATTR_ECC_CURVE, tee_curve, 0);
 
@@ -754,7 +781,10 @@ enum pkcs11_rc generate_eddsa_keys(struct pkcs11_attribute_head *proc_params,
 
 	tee_size = ec_params2tee_keysize(a_ptr, a_size);
 	if (!tee_size)
-		return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+		return PKCS11_CKR_CURVE_NOT_SUPPORTED;
+
+	if (!tee_curve_is_ec_edwards(ec_params2tee_curve(a_ptr, a_size)))
+		return PKCS11_CKR_CURVE_NOT_SUPPORTED;
 
 	res = TEE_AllocateTransientObject(TEE_TYPE_ED25519_KEYPAIR, tee_size,
 					  &tee_obj);
