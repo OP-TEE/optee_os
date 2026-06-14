@@ -10,6 +10,8 @@
 
 #include "cdsp0.h"
 #include "cdsp1.h"
+#include "gpdsp0.h"
+#include "gpdsp1.h"
 #include "iris.h"
 #include "lpass.h"
 #include "pas_subsys.h"
@@ -43,6 +45,26 @@ static struct qcom_pas_subsys subsystems[] = {
 			.clk_group = QCOM_CLKS_LPASS,
 		},
 		.ops = &lpass_ops,
+		.reset_seq = QCOM_PAS_RESET_CLK_FULL,
+	},
+	{
+		.data = {
+			.pas_id = PAS_ID_GPDSP0,
+			.base.pa = TURING_GDSP_0_BASE,
+			.size = TURING_GDSP_0_SIZE,
+			.clk_group = QCOM_CLKS_GPDSP0,
+		},
+		.ops = &gpdsp0_ops,
+		.reset_seq = QCOM_PAS_RESET_CLK_FULL,
+	},
+	{
+		.data = {
+			.pas_id = PAS_ID_GPDSP1,
+			.base.pa = TURING_GDSP_1_BASE,
+			.size = TURING_GDSP_1_SIZE,
+			.clk_group = QCOM_CLKS_GPDSP1,
+		},
+		.ops = &gpdsp1_ops,
 		.reset_seq = QCOM_PAS_RESET_CLK_FULL,
 	},
 	{
