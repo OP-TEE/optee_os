@@ -37,6 +37,18 @@
 #define TURING_1_SIZE			UL(0x03000000)
 
 /*
+ * GP-DSP0 / GP-DSP1 (TURINGGDSP / TURINGGDSP1) subsystems. Bases mirror the TZ
+ * HWIO layout (TURINGGDSP_{0,1}_TURING_GDSP_BASE in msmhwiobase.h); the window
+ * covers every GP-DSP sub-block the PTA and clock driver touch (GDSP_CC
+ * 0x808000, PUB 0xc00000, PLL 0xc40000, CORE_CC 0xc48000).
+ */
+#define TURING_GDSP_0_BASE		UL(0x20000000)
+#define TURING_GDSP_0_SIZE		UL(0x01000000)
+
+#define TURING_GDSP_1_BASE		UL(0x21000000)
+#define TURING_GDSP_1_SIZE		UL(0x01000000)
+
+/*
  * LPASS / ADSP (QDSP6 v68/v69) subsystem. Base mirrors the TZ HWIO layout
  * (LPASS_BASE in msmhwiobase.h); the window covers every LPASS sub-block the
  * PTA and clock driver touch (PUB 0x400000, PLL 0x440000, CORE_CC 0x448000,
@@ -58,6 +70,8 @@
 #define PAS_ID_TURING1			30
 #define PAS_ID_QDSP6			1
 #define PAS_ID_IRIS			9
+#define PAS_ID_GPDSP0			39
+#define PAS_ID_GPDSP1			40
 
 /*
  * CDSP (CDSP0 / TURING) content-protection shared channel in the static TZ DDR
@@ -88,4 +102,16 @@
 
 #define RPMH_PDC_NSP_BASE		UL(0x0b2f0000)
 #define RPMH_PDC_NSP_SIZE		UL(0x00002000)
+
+/*
+ * RPMH PDC blocks for the GP-DSP subsystem reset sequence
+ * (Reset_TURINGGDSPProcessor / Reset_TURINGGDSP1Processor). Bases mirror the TZ
+ * HWIO layout (RPMH_PDC_GPDSP{0,1}_*_PDC_REG_BASE = AOSS_BASE 0x0b000000 +
+ * 0x240000 / 0x2d0000).
+ */
+#define RPMH_PDC_GPDSP0_BASE		UL(0x0b240000)
+#define RPMH_PDC_GPDSP0_SIZE		UL(0x00002000)
+
+#define RPMH_PDC_GPDSP1_BASE		UL(0x0b2d0000)
+#define RPMH_PDC_GPDSP1_SIZE		UL(0x00002000)
 #endif /* TARGET_CONFIG_H */

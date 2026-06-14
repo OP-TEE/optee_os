@@ -25,6 +25,8 @@ register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_GLOBAL_BASE, RPMH_PDC_GLOBAL_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_COMPUTE_BASE,
 		  RPMH_PDC_COMPUTE_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_NSP_BASE, RPMH_PDC_NSP_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_GPDSP0_BASE, RPMH_PDC_GPDSP0_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_GPDSP1_BASE, RPMH_PDC_GPDSP1_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, TCSR_MUTEX_BASE, TCSR_MUTEX_SIZE);
 
 static TEE_Result cdsp_enable(paddr_t turing_base)
@@ -183,6 +185,72 @@ static TEE_Result lpass_setup(void)
 				   Q6RCG_CFG_VALUE);
 }
 
+static const struct qcom_lucidevo_pll_config gpdsp_q6_pll_cfg = {
+	.l_val = GPDSP_Q6_PLL_L_VAL,
+	.cal_l_val = GPDSP_Q6_PLL_CAL_L_VAL,
+	.pre_div = 1,
+	.config_ctl = GPDSP_Q6_PLL_CONFIG_CTL,
+	.config_ctl_u = GPDSP_Q6_PLL_CONFIG_CTL_U,
+	.config_ctl_u1 = GPDSP_Q6_PLL_CONFIG_CTL_U1,
+	.user_ctl = GPDSP_Q6_PLL_USER_CTL,
+	.user_ctl_u = GPDSP_Q6_PLL_USER_CTL_U,
+	/* alpha (default) fractional mode */
+};
+
+/*
+ * Set up clocks for a GP-DSP (TURINGGDSP) QDSP6, mirroring
+ * Setup_TURINGGDSPProcessor in the reference ClockPIL driver. Like LPASS (and
+ * unlike the Turing NSP), the Q6 PLL and core RCG are configured here, before
+ * the boot FSM is triggered in gpdspN_fw_start; the core itself is released by
+ * BOOT_CORE_START in fw_start, so there is no separate post-boot step. The
+ * subsystem window is mapped by the PAS PTA mem-setup, so each sub-block base
+ * is resolved via io_pa_or_va against the GP-DSP base + offset.
+ */
+static TEE_Result gpdsp_setup(paddr_t gdsp_base, uint32_t gcc_cfg_ahb_cbcr,
+			      uint32_t gcc_aggre_axi_cbcr)
+{
+	struct io_pa_va gcc_io = { .pa = GCC_BASE };
+	vaddr_t gcc_base = io_pa_or_va(&gcc_io, GCC_SIZE);
+	struct io_pa_va gdsp_io = { .pa = gdsp_base };
+	vaddr_t base = io_pa_or_va(&gdsp_io, TURING_GDSP_0_SIZE);
+	vaddr_t gdsp_cc = base + TURINGGDSP_GDSP_CC_OFFSET;
+	vaddr_t core_cc = base + TURINGGDSP_CORE_CC_OFFSET;
+	vaddr_t pll_base = base + TURINGGDSP_PLL_OFFSET;
+	vaddr_t pub = base + TURINGGDSP_PUB_OFFSET;
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!gcc_base || !base)
+		return TEE_ERROR_GENERIC;
+
+	/* Turing slave-way bus clock branch, also on NIU socket. */
+	res = qcom_clock_enable_cbc(gcc_base + gcc_cfg_ahb_cbcr);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = qcom_clock_enable_cbc(gcc_base + gcc_aggre_axi_cbcr);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Q6SS slave clock, required to reach the QDSP6SS registers. */
+	res = qcom_clock_enable_cbc(gdsp_cc + TURINGGDSP_Q6SS_AHBS_AON_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Program the debug config register, then enable core clock. */
+	io_write32(pub + TURINGGDSP_QDSP6SS_DBG_CFG, 0);
+	io_setbits32(core_cc + TURINGGDSP_QDSP6SS_CORE_CBCR,
+		     CBCR_BRANCH_ENABLE_BIT);
+
+	/* Configure and lock the Q6 PLL, then switch the core RCG onto it. */
+	res = qcom_lucidevo_pll_enable(pll_base, &gpdsp_q6_pll_cfg);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	return qcom_clock_set_rate(core_cc + TURINGGDSP_QDSP6SS_CORE_CFG_RCGR,
+				   core_cc + TURINGGDSP_QDSP6SS_CORE_CMD_RCGR,
+				   Q6RCG_CFG_VALUE);
+}
+
 TEE_Result qcom_clock_enable_pas_processor(enum qcom_clk_group group)
 {
 	switch (group) {
@@ -197,6 +265,15 @@ TEE_Result qcom_clock_enable_pas_processor(enum qcom_clk_group group)
 		 * boot FSM), unlike the Turing NSP. The core is
 		 * released by BOOT_CORE_START in lpass_fw_start, so
 		 * there is no separate post-boot step here.
+		 */
+		return TEE_SUCCESS;
+	case QCOM_CLKS_GPDSP0:
+	case QCOM_CLKS_GPDSP1:
+		/*
+		 * Like LPASS, the GP-DSP Q6 PLL and core RCG are configured in
+		 * gpdsp_setup (before the boot FSM); the core is released by
+		 * BOOT_CORE_START in gpdspN_fw_start, so there is no separate
+		 * post-boot step here.
 		 */
 		return TEE_SUCCESS;
 	default:
@@ -348,6 +425,139 @@ static TEE_Result cdsp_reset_processor(const struct cdsp_reset_regs *r)
 	return TEE_SUCCESS;
 }
 
+/*
+ * Per-instance register selection for the GP-DSP reset sequence. GDSP0 and
+ * GDSP1 share the QDSP6 PUB offsets (parameterised by gdsp_base) but differ in
+ * the GCC AHB CBCR, the TCSR halt/idle/power block, and the PDC / AOSS restart
+ * fields.
+ */
+struct gpdsp_reset_regs {
+	paddr_t gdsp_base;
+	uint32_t gcc_cfg_ahb_cbcr;	/* offset within GCC window */
+	uint32_t tcsr_haltreq;		/* offsets within TCSR mutex window */
+	uint32_t tcsr_haltack;
+	uint32_t tcsr_il0_master_idle;
+	uint32_t tcsr_il1_master_idle;
+	uint32_t tcsr_pwr_on;
+	paddr_t pdc_status_base;	/* RPMH PDC block for the busy check */
+	uint32_t pdc_status_size;
+	uint32_t pdc_sync_reset_bit;	/* field within RPMH_PDC_SYNC_RESET */
+	uint32_t gpdsp_restart_bit;	/* field within AOSS_CC_GPDSP_RESTART */
+};
+
+static const struct gpdsp_reset_regs gpdsp0_reset_regs = {
+	.gdsp_base = TURING_GDSP_0_BASE,
+	.gcc_cfg_ahb_cbcr = GCC_GPDSP_0_CFG_AHB_CBCR,
+	.tcsr_haltreq = TCSR_GPDSP0_HALT_REQ,
+	.tcsr_haltack = TCSR_GPDSP0_HALT_ACK,
+	.tcsr_il0_master_idle = TCSR_GPDSP0_IL0_MASTER_IDLE,
+	.tcsr_il1_master_idle = TCSR_GPDSP0_IL1_MASTER_IDLE,
+	.tcsr_pwr_on = TCSR_GPDSP0_PWR_ON,
+	.pdc_status_base = RPMH_PDC_GPDSP0_BASE,
+	.pdc_status_size = RPMH_PDC_GPDSP0_SIZE,
+	.pdc_sync_reset_bit = PDC_SYNC_RESET_GPDSP0_BIT,
+	.gpdsp_restart_bit = GPDSP_RESTART_SS_0_BIT,
+};
+
+static const struct gpdsp_reset_regs gpdsp1_reset_regs = {
+	.gdsp_base = TURING_GDSP_1_BASE,
+	.gcc_cfg_ahb_cbcr = GCC_GPDSP_1_CFG_AHB_CBCR,
+	.tcsr_haltreq = TCSR_GPDSP1_HALT_REQ,
+	.tcsr_haltack = TCSR_GPDSP1_HALT_ACK,
+	.tcsr_il0_master_idle = TCSR_GPDSP1_IL0_MASTER_IDLE,
+	.tcsr_il1_master_idle = TCSR_GPDSP1_IL1_MASTER_IDLE,
+	.tcsr_pwr_on = TCSR_GPDSP1_PWR_ON,
+	.pdc_status_base = RPMH_PDC_GPDSP1_BASE,
+	.pdc_status_size = RPMH_PDC_GPDSP1_SIZE,
+	.pdc_sync_reset_bit = PDC_SYNC_RESET_GPDSP1_BIT,
+	.gpdsp_restart_bit = GPDSP_RESTART_SS_1_BIT,
+};
+
+/* HALT_ACK polls for up to 1s (200000 * 5us), matching the reference. */
+#define GPDSP_HALT_ACK_TIMEOUT_US	(200000 * 5)
+
+/*
+ * Put a GP-DSP QDSP6 through a full subsystem reset before bring-up, mirroring
+ * Reset_TURINGGDSPProcessor / Reset_TURINGGDSP1Processor in the reference
+ * ClockPIL. This returns the core to a clean state (asserting
+ * AOSS_CC_GPDSP_RESTART and the PDC sync reset) so the Q6 does not come out of
+ * reset from a stale or partially-initialised state. Unlike the Turing NSP,
+ * there is no NSPAUX/ALT_RESET retention handling and the master-port idle
+ * check covers two ports (IL0 and IL1).
+ */
+static TEE_Result gpdsp_reset_processor(const struct gpdsp_reset_regs *r)
+{
+	struct io_pa_va gdsp_io = { .pa = r->gdsp_base };
+	vaddr_t base = io_pa_or_va(&gdsp_io, TURING_GDSP_0_SIZE);
+	vaddr_t pub = base + TURINGGDSP_PUB_OFFSET;
+	struct io_pa_va gcc_io = { .pa = GCC_BASE };
+	vaddr_t gcc_base = io_pa_or_va(&gcc_io, GCC_SIZE);
+	struct io_pa_va aoss_io = { .pa = AOSS_CC_BASE };
+	vaddr_t aoss_cc = io_pa_or_va(&aoss_io, AOSS_CC_SIZE);
+	struct io_pa_va pdc_g_io = { .pa = RPMH_PDC_GLOBAL_BASE };
+	vaddr_t pdc_global = io_pa_or_va(&pdc_g_io, RPMH_PDC_GLOBAL_SIZE);
+	struct io_pa_va pdc_s_io = { .pa = r->pdc_status_base };
+	vaddr_t pdc_status = io_pa_or_va(&pdc_s_io, r->pdc_status_size);
+	struct io_pa_va tcsr_io = { .pa = TCSR_MUTEX_BASE };
+	vaddr_t tcsr = io_pa_or_va(&tcsr_io, TCSR_MUTEX_SIZE);
+	uint64_t timeout = 0;
+
+	if (!base || !gcc_base || !aoss_cc || !pdc_global || !pdc_status ||
+	    !tcsr)
+		return TEE_ERROR_GENERIC;
+
+	/* Bail if the PDC sequencer is mid-transition. */
+	if (io_read32(pdc_status + RPMH_PDC_MODE_STATUS_DRV0) &
+	    PDC_MODE_STATUS_SEQ_BUSY_BIT)
+		return TEE_ERROR_BUSY;
+
+	/* Reset the retention logic and let the write settle. */
+	io_setbits32(pub + TURINGGDSP_QDSP6SS_RET_CFG,
+		     QDSP6SS_RET_CFG_RET_ARES_ENA_BIT);
+	dsb();
+	udelay(2000);
+
+	/* Disconnect the SWAY NIU socket to halt config-NoC traffic. */
+	io_clrbits32(gcc_base + r->gcc_cfg_ahb_cbcr, CBCR_CLK_ENABLE_BIT);
+
+	/*
+	 * If powered on and either master port (IL0 or IL1) is busy, halt
+	 * mem-NoC traffic and wait for the acknowledge.
+	 */
+	if (io_read32(tcsr + r->tcsr_pwr_on) & TCSR_TURING_BIT) {
+		if (!(io_read32(tcsr + r->tcsr_il0_master_idle) &
+		      TCSR_TURING_BIT) ||
+		    !(io_read32(tcsr + r->tcsr_il1_master_idle) &
+		      TCSR_TURING_BIT)) {
+			io_setbits32(tcsr + r->tcsr_haltreq, TCSR_TURING_BIT);
+
+			timeout = timeout_init_us(GPDSP_HALT_ACK_TIMEOUT_US);
+			while (!(io_read32(tcsr + r->tcsr_haltack) &
+				 TCSR_TURING_BIT)) {
+				if (timeout_elapsed(timeout))
+					break;
+				udelay(5);
+			}
+		}
+	}
+
+	/* Assert the PDC reset, then pulse the subsystem restart. */
+	io_setbits32(pdc_global + RPMH_PDC_SYNC_RESET, r->pdc_sync_reset_bit);
+
+	io_setbits32(aoss_cc + AOSS_CC_GPDSP_RESTART, r->gpdsp_restart_bit);
+	udelay(200);
+	io_clrbits32(aoss_cc + AOSS_CC_GPDSP_RESTART, r->gpdsp_restart_bit);
+	dsb();
+	udelay(200);
+
+	/* De-assert the PDC reset and clear the halt request. */
+	io_clrbits32(pdc_global + RPMH_PDC_SYNC_RESET, r->pdc_sync_reset_bit);
+	io_clrbits32(tcsr + r->tcsr_haltreq, TCSR_TURING_BIT);
+	udelay(100);
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group)
 {
 	switch (group) {
@@ -355,6 +565,10 @@ TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group)
 		return cdsp_reset_processor(&cdsp0_reset_regs);
 	case QCOM_CLKS_TURING1:
 		return cdsp_reset_processor(&cdsp1_reset_regs);
+	case QCOM_CLKS_GPDSP0:
+		return gpdsp_reset_processor(&gpdsp0_reset_regs);
+	case QCOM_CLKS_GPDSP1:
+		return gpdsp_reset_processor(&gpdsp1_reset_regs);
 	case QCOM_CLKS_LPASS:
 		/*
 		 * The LPASS subsystem reset (Reset_LPASSProcessor) is
@@ -399,6 +613,12 @@ TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group)
 		break;
 	case QCOM_CLKS_LPASS:
 		return lpass_setup();
+	case QCOM_CLKS_GPDSP0:
+		return gpdsp_setup(TURING_GDSP_0_BASE, GCC_GPDSP_0_CFG_AHB_CBCR,
+				   GCC_AGGRE_NOC_GPDSP_0_AXI_CBCR);
+	case QCOM_CLKS_GPDSP1:
+		return gpdsp_setup(TURING_GDSP_1_BASE, GCC_GPDSP_1_CFG_AHB_CBCR,
+				   GCC_AGGRE_NOC_GPDSP_1_AXI_CBCR);
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
