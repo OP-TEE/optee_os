@@ -15,5 +15,14 @@ endif
 
 CFG_QCOM_PAS_PTA ?= y
 ifeq ($(CFG_QCOM_PAS_PTA),y)
+# Each PAS subsystem maps its controller window at runtime via
+# core_mmu_add_mapping() in pas_platform_mem_setup(). These late mappings
+# are carved from the reserved VA pool and never released, so it must hold
+# all six DSP windows at once (sizes from the reference TZ HWIO layout):
+#   CDSP0 48M + CDSP1 48M + LPASS 16.5M + GP-DSP0 16M + GP-DSP1 16M +
+#   IRIS 2M + CDSP0 sec-channel 8K = ~146.5 MB. The 60 MB default only
+#   fits a single DSP. Reserve 256 MB to cover them with headroom for
+#   mapping alignment and other late mappings.
+CFG_RESERVED_VASPACE_SIZE ?= (256 * 1024 * 1024)
 CFG_IN_TREE_EARLY_TAS += qcom_pas/cff7d191-7ca0-4784-af13-48223b9a4fbe
 endif
