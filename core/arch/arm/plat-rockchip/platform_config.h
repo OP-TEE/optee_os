@@ -127,6 +127,36 @@
 #define ROCKCHIP_OTP_RSA_HASH_INDEX		0x270
 #define ROCKCHIP_OTP_RSA_HASH_SIZE		0x8
 
+#elif defined(PLATFORM_FLAVOR_rk3576)
+
+#define GIC_BASE		0x2a700000
+#define GIC_SIZE		SIZE_K(64)
+#define GICD_BASE		(GIC_BASE + 0x1000)
+#define GICC_BASE		(GIC_BASE + 0x2000)
+
+#define UART0_BASE		0x2ad40000
+#define UART0_SIZE		SIZE_K(64)
+
+#define SYS_SGRF_BASE		0x26004000
+#define SYS_SGRF_SIZE		SIZE_K(4)
+
+#define SYS_SGRF_FW_BASE	0x26005000
+#define SYS_SGRF_FW_SIZE	SIZE_K(4)
+
+#define PMU0SGRF_BASE		0x26000000
+#define PMU0SGRF_SIZE		SIZE_K(4)
+
+#define PMU1SGRF_BASE		0x26002000
+#define PMU1SGRF_SIZE		SIZE_K(4)
+
+#define PMU1SGRF_FW_BASE	0x26003000
+#define PMU1SGRF_FW_SIZE	SIZE_K(4)
+
+#define OTP_S_BASE			0x2a480000
+#define OTP_S_SIZE			SIZE_K(64)
+
+#define ROCKCHIP_OTP_HUK_INDEX		0x80
+#define ROCKCHIP_OTP_HUK_SIZE		0x4
 #else
 #error "Unknown platform flavor"
 #endif
