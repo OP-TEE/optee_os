@@ -144,6 +144,12 @@ LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/lib/optee_armtz
 LOCAL_MODULE_CLASS := $(call ta_class,$(local_module))
 LOCAL_MODULE_TAGS := optional
 LOCAL_REQUIRED_MODULES := $(local_module_deps)
+# A signed TA is an ELF binary wrapped in a signed header, so it does not start
+# with the ELF magic. Disable the AOSP prebuilt ELF check for the .ta module to
+# avoid a "must have a valid ELF magic word" build failure.
+ifeq ($(call ta_class,$(local_module)),EXECUTABLES)
+LOCAL_CHECK_ELF_FILES := false
+endif
 
 TA_TMP_DIR := $(addsuffix _$(TA_TARGET), $(subst /,_,$(LOCAL_PATH)))
 TA_TMP_FILE := $(OPTEE_TA_OUT_DIR)/$(TA_TMP_DIR)/$(LOCAL_MODULE)
