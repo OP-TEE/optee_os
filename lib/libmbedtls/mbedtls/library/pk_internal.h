@@ -55,10 +55,13 @@
  * RSA can either be used directly or indirectly via opaque keys if enabled.
  * (RSA_ALT is not relevant here as we can't export from such contexts.)
  */
-#if !defined(MBEDTLS_RSA_C) && \
-    !(defined(MBEDTLS_USE_PSA_CRYPTO) && defined(PSA_WANT_KEY_TYPE_RSA_PUBLIC_KEY))
-#define PK_EXPORT_KEYS_ON_THE_STACK
-#endif
+/*
+ * For OP-TEE, disable this feature
+ * #if !defined(MBEDTLS_RSA_C) && \
+ *     !(defined(MBEDTLS_USE_PSA_CRYPTO) && defined(PSA_WANT_KEY_TYPE_RSA_PUBLIC_KEY))
+ * #define PK_EXPORT_KEYS_ON_THE_STACK
+ * #endif
+ */
 
 #if defined(PK_EXPORT_KEYS_ON_THE_STACK)
 /* We know for ECC, pubkey are longer than privkeys, but double check.
