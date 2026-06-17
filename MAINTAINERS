@@ -319,8 +319,14 @@ F:	ta/arch/riscv/
 
 Rockchip RK322X
 R:	Rockchip <op-tee@rock-chips.com>
+R:	Owen O'Hehir <electronicconsult1@gmail.com> [@OOHehir]
 S:	Maintained
 F:	core/arch/arm/plat-rockchip/
+
+Rockchip RK3506
+R:	Owen O'Hehir <electronicconsult1@gmail.com> [@OOHehir]
+S:	Maintained
+F:	core/arch/arm/plat-rockchip/*rk3506*
 
 Socionext DeveloperBox (Synquacer SC2A11)
 R:	Sumit Garg <sumit.garg@kernel.org> [@b49020]
