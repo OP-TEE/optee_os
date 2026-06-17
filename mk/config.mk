@@ -1166,6 +1166,21 @@ CFG_WDT_SM_HANDLER_ID ?= 0x82003D06
 # the platform code
 CFG_CORE_HAS_GENERIC_TIMER ?= y
 
+# When enabled, serial8250_uart_flush() limits its wait for the TX FIFO to
+# drain with a generic-timer timeout instead of spinning forever. This avoids
+# blocking a CPU when the UART is shared with (and contended by) the non-secure
+# world, at the cost of possibly dropping output if the timeout cuts short. Left
+# disabled by default so the flush keeps its guarantee that a log point was
+# emitted, which is relied on when debugging. Requires CFG_CORE_HAS_GENERIC_TIMER.
+CFG_8250_UART_FLUSH_TIMEOUT ?= n
+$(eval $(call cfg-depends-all,CFG_8250_UART_FLUSH_TIMEOUT,CFG_CORE_HAS_GENERIC_TIMER))
+
+# Upper limit (in microseconds) on how long serial8250_uart_flush() waits for the
+# TX FIFO to drain when CFG_8250_UART_FLUSH_TIMEOUT=y. The default suits a 16-byte
+# FIFO at common baud rates; raise it for slow consoles where a full FIFO takes
+# longer to drain than this bound, otherwise output may be cut short.
+CFG_8250_UART_FLUSH_TIMEOUT_US ?= 10000
+
 # Enable RTC API
 CFG_DRIVERS_RTC ?= n
 
