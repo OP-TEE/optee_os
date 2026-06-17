@@ -220,6 +220,7 @@ jobs:
               _make PLATFORM=rockchip-px30
               _make PLATFORM=rockchip-rk322x
               _make PLATFORM=rockchip-rk3399
+              _make PLATFORM=rockchip-rk3506
               _make PLATFORM=rockchip-rk3576
               _make PLATFORM=rockchip-rk3588
           - name: arm sam
