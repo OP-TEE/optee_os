@@ -22,4 +22,8 @@
 
 #define RNG_REG_BASE			UL(0x4C5000)
 
+#define WDT_TMR_BASE			UL(0x0B117000)
+#define WDT_RESET_REG_OFFSET		UL(0x4)
+#define WDT_BARK_INT_ID			UL(0x23)
+
 #endif /* TARGET_CONFIG_H */
