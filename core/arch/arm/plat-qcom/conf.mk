@@ -2,6 +2,13 @@
 
 PLATFORM_FLAVOR ?= kodiak
 
+# The default value CFG_INSECURE ?= y is assigned in mk/config.mk.
+# But mk/config.mk is included after $(platform-dir)/conf.mk from
+# core/core.mk.
+# Since we are making decision based on CFG_INSECURE in this file
+# so we need to set it early here also.
+CFG_INSECURE ?= y
+
 $(call force,CFG_GIC,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_ARM64_core,y)
