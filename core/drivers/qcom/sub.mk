@@ -5,7 +5,7 @@
 #
 
 srcs-$(CFG_QCOM_RAMBLUR_PIMEM_V3) += ramblur/ramblur_pimem_v3.c
-srcs-$(CFG_QCOM_PRNG) += prng/prng.c
+srcs-$(CFG_QCOM_RNG) += rng/qcom-rng.c
 
 $(eval $(call cfg-depends-all,CFG_QCOM_QFPROM,CFG_QCOM_CMD_DB CFG_QCOM_RPMH_CLIENT))
 $(eval $(call cfg-depends-all,CFG_QCOM_RPMH_CLIENT,CFG_QCOM_CMD_DB))
