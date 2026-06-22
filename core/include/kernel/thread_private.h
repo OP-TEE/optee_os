@@ -45,7 +45,7 @@ struct thread_ctx {
 #ifdef CFG_CORE_PAUTH
 	struct thread_pauth_keys keys;
 #endif
-#ifdef CFG_WITH_VFP
+#if defined(CFG_WITH_VFP) || defined(CFG_RISCV_VEC)
 	struct thread_vfp_state vfp_state;
 #endif
 	void *rpc_arg;
