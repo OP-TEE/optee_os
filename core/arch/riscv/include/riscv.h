@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright 2022-2023 NXP
+ * Copyright 2026, RISCStar Solutions Limited
  */
 
 #ifndef __RISCV_H
@@ -18,6 +19,9 @@
 
 #define RISCV_XLEN_BITS		(__riscv_xlen)
 #define RISCV_XLEN_BYTES	(__riscv_xlen / 8)
+
+#define RISCV_FLEN_BITS		(__riscv_flen)
+#define RISCV_FLEN_BYTES	(__riscv_flen / 8)
 
 /* Bind registers to their ABI names */
 #define REG_RA	1
@@ -74,6 +78,23 @@
 #define CSR_XSTATUS_SPP		BIT(8)
 #define CSR_XSTATUS_SUM		BIT(18)
 #define CSR_XSTATUS_MXR		BIT(19)
+
+#define CSR_XSTATUS_FS_BIT	13
+#define CSR_XSTATUS_FS_MASK	SHIFT_U64(3, CSR_XSTATUS_FS_BIT)
+#define CSR_XSTATUS_FS		CSR_XSTATUS_FS_MASK
+
+#define CSR_XSTATUS_FS_OFF	0
+#define CSR_XSTATUS_FS_INITIAL	1
+#define CSR_XSTATUS_FS_CLEAN	2
+#define CSR_XSTATUS_FS_DIRTY	3
+
+#if RISCV_XLEN_BITS == 64
+#define RISCV_FP_REG_BYTES	8
+#elif RISCV_XLEN_BITS == 32
+#define RISCV_FP_REG_BYTES	4
+#else
+#error Unsupported RISCV_XLEN_BITS
+#endif
 
 #define CSR_XCAUSE_INTR_FLAG	BIT64(__riscv_xlen - 1)
 
