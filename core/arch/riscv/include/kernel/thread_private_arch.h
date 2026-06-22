@@ -9,6 +9,9 @@
 #ifndef __ASSEMBLER__
 
 #include <kernel/thread.h>
+#ifdef CFG_RISCV_VEC
+#include <riscv_vector.h>
+#endif
 
 #define STACK_TMP_OFFS		0
 
@@ -57,6 +60,14 @@ struct thread_user_mode_rec {
 	 */
 	unsigned long x[13];
 };
+
+#ifdef CFG_RISCV_VEC
+struct thread_vfp_state {
+	struct riscv_vector_state v_ctx;
+	bool vec_saved;
+};
+#endif
+
 
 extern long thread_user_kcode_offset;
 
