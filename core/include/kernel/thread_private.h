@@ -17,6 +17,7 @@
 #include <mm/pgt_cache.h>
 #ifdef CFG_RISCV_VFP
 #include <riscv_fp.h>
+#include <riscv_vector.h>
 #endif
 
 enum thread_state {
@@ -36,7 +37,9 @@ struct thread_shm_cache_entry {
 #ifdef CFG_RISCV_VFP
 struct thread_vfp_state {
 	struct riscv_fp_state fp_ctx;
+	struct riscv_vector_state v_ctx;
 	bool fp_saved;
+	bool vec_saved;
 };
 #endif
 

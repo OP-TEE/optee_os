@@ -122,3 +122,33 @@
 		_do_fpregs \instr_prefix, \reg_bytes, \base_reg, \base_offs, \
 			   \from_regnum, \to_regnum
 	.endm
+
+	/*
+	 * Single chunk store or load (vl8r.v / vs8r.v)
+	 * Computes runtime offset dynamically: base_reg + (chunk_idx * vlenb)
+	 */
+	.macro _do_vreg_chunk instr, base_reg, vlenb_reg, chunk_idx
+		.if \chunk_idx > 0
+			li      t3, \chunk_idx
+			mul     t3, \vlenb_reg, t3
+			add     t3, \base_reg, t3
+		.else
+			mv      t3, \base_reg
+		.endif
+
+		.option push
+		.option arch, +v
+		\instr v\chunk_idx, (t3)
+		.option po
+	.endm
+
+	/*
+	 * Unrolls loop paths through vector groups cleanly without macro math expressions
+	 */
+	.macro do_all_vreg_chunks instr, base_reg, vlenb_reg
+		_do_vreg_chunk \instr, \base_reg, \vlenb_reg, 0
+		_do_vreg_chunk \instr, \base_reg, \vlenb_reg, 8
+		_do_vreg_chunk \instr, \base_reg, \vlenb_reg, 16
+		_do_vreg_chunk \instr, \base_reg, \vlenb_reg, 24
+	.endm
+
