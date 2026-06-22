@@ -75,6 +75,15 @@
 #define CSR_XSTATUS_SUM		BIT(18)
 #define CSR_XSTATUS_MXR		BIT(19)
 
+#define XSTATUS_FS_BIT          13
+#define SSTATUS_FS_MASK         SSTATUS_FS
+#define XSTATUS_FS_OFF          SHIFT_U32(0, XSTATUS_FS_BIT)
+#define XSTATUS_FS_INITIAL      SHIFT_U32(1, XSTATUS_FS_BIT)
+#define XSTATUS_FS_CLEAN        SHIFT_U32(2, XSTATUS_FS_BIT)
+#define XSTATUS_FS_DIRTY        SHIFT_U32(3, XSTATUS_FS_BIT)
+
+
+
 #define CSR_XCAUSE_INTR_FLAG	BIT64(__riscv_xlen - 1)
 
 #ifndef __ASSEMBLER__

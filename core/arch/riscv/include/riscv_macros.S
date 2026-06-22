@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023 NXP
  * Copyright (c) 2015, Linaro Limited
+ * Copyright 2026, RISCStar Solutions Limited
  */
 
 	.altmacro
@@ -75,4 +76,49 @@
 #else
 		j	.
 #endif
+	.endm
+
+
+	/*
+	 * Base macro to emit a single load/store instruction for
+	 * floating-point registers. Concatenates prefix fl(w,d)/fs(w,d)
+	 * register index, offset, and base register.
+	 */
+	.macro __do_fpreg instr_prefix, base_reg, base_offs, regnum
+		\instr_prefix f\regnum, \base_offs(\base_reg)
+	.endm
+
+	/*
+	 * Recursive helper macro to loop through a range of floating-point
+	 * registers.
+	 */
+	.macro _do_fpregs instr_prefix, reg_bytes, base_reg, base_offs, \
+			from_regnum, to_regnum
+
+		.if \from_regnum < \to_regnum
+			_do_fpregs \instr_prefix, \reg_bytes, \base_reg, \
+				   %(\base_offs + \reg_bytes), \
+				   %(\from_regnum + 1), \to_regnum
+		.endif
+
+		__do_fpreg \instr_prefix, \base_reg, \base_offs, \from_regnum
+	.endm
+
+	/*
+	 * Stores floating-point registers f[from_regnum] .. f[to_regnum]
+	 */
+	.macro store_fpregs instr_prefix, reg_bytes, base_reg, base_offs, \
+			    from_regnum, to_regnum
+
+		_do_fpregs \instr_prefix, \reg_bytes, \base_reg, \base_offs, \
+			   \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * Loads floating-point registers f[from_regnum] .. f[to_regnum]
+	 */
+	.macro load_fpregs instr_prefix, reg_bytes, base_reg, base_offs, \
+			   from_regnum, to_regnum
+		_do_fpregs \instr_prefix, \reg_bytes, \base_reg, \base_offs, \
+			   \from_regnum, \to_regnum
 	.endm
