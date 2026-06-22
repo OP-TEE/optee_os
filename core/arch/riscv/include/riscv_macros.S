@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023 NXP
  * Copyright (c) 2015, Linaro Limited
+ * Copyright 2026, RISCStar Solutions Limited
  */
 
 	.altmacro
@@ -75,4 +76,48 @@
 #else
 		j	.
 #endif
+	.endm
+
+
+	/*
+	 * Base macro to emit a single floating-point load/store instruction.
+	 */
+	.macro __do_fpreg instr, base_reg, base_offs, regnum
+		\instr f\regnum, \base_offs(\base_reg)
+	.endm
+
+	.macro __do_fpreg_expanded instr, base_reg, base_offs, regnum
+		__do_fpreg \instr, \base_reg, \base_offs, \regnum
+	.endm
+
+	/*
+	 * Recursive helper macro to loop through a range of floating-point
+	 * registers.
+	 */
+	.macro _do_fpregs instr, base_reg, base_offs, from_regnum, to_regnum
+		.if \from_regnum < \to_regnum
+			_do_fpregs \instr, \base_reg, \
+				   %(\base_offs + FP_REG_BYTES), \
+				   %(\from_regnum + 1), \to_regnum
+		.endif
+
+		__do_fpreg_expanded \instr, \base_reg, \base_offs, \from_regnum
+	.endm
+
+	/*
+	 * Stores floating-point registers f[from_regnum] .. f[to_regnum].
+	 *
+	 * Instruction and stride are selected internally from RISCV_XLEN_BITS.
+	 */
+	.macro store_fpregs base_reg, base_offs, from_regnum, to_regnum
+		_do_fpregs FST, \base_reg, \base_offs, \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * Loads floating-point registers f[from_regnum] .. f[to_regnum].
+	 *
+	 * Instruction and stride are selected internally from RISCV_XLEN_BITS.
+	 */
+	.macro load_fpregs base_reg, base_offs, from_regnum, to_regnum
+		_do_fpregs FLD, \base_reg, \base_offs, \from_regnum, \to_regnum
 	.endm

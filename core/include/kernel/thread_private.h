@@ -15,6 +15,9 @@
 #include <kernel/thread_private_arch.h>
 #include <mm/core_mmu.h>
 #include <mm/pgt_cache.h>
+#ifdef CFG_RISCV_VFP
+#include <riscv_fp.h>
+#endif
 
 enum thread_state {
 	THREAD_STATE_FREE,
@@ -29,6 +32,13 @@ struct thread_shm_cache_entry {
 	enum thread_shm_cache_user user;
 	SLIST_ENTRY(thread_shm_cache_entry) link;
 };
+
+#ifdef CFG_RISCV_VFP
+struct thread_vfp_state {
+	struct riscv_fp_state fp_ctx;
+	bool fp_saved;
+};
+#endif
 
 SLIST_HEAD(thread_shm_cache, thread_shm_cache_entry);
 
@@ -45,7 +55,7 @@ struct thread_ctx {
 #ifdef CFG_CORE_PAUTH
 	struct thread_pauth_keys keys;
 #endif
-#ifdef CFG_WITH_VFP
+#if defined(CFG_WITH_VFP) || defined(CFG_RISCV_VFP)
 	struct thread_vfp_state vfp_state;
 #endif
 	void *rpc_arg;
