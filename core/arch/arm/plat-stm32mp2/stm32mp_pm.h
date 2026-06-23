@@ -32,4 +32,7 @@
 #define PM_D2_LPLV_LEVEL        4
 #define PM_MAX_LEVEL            5
 
+/* Power OFF configuration for PMIC driver */
+#define STM32_PM_SWITCH_OFF	PM_MAX_LEVEL
+
 #endif /*__STM32MP_PM_H__*/
