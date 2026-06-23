@@ -21,8 +21,9 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, GENI_UART_REG_BASE,
 			GENI_UART_REG_SIZE);
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
-#ifdef CFG_ARM_GICV3
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE, GIC_REDIST_REG_SIZE);
+#ifdef _CFG_ARM_V3_OR_V4
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE,
+			GIC_REDIST_REG_SIZE * CFG_TEE_CORE_NB_CORE);
 #else
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
 #endif
@@ -61,7 +62,7 @@ boot_final(platform_banner);
 
 void boot_primary_init_intc(void)
 {
-#ifdef CFG_ARM_GICV3
+#ifdef _CFG_ARM_V3_OR_V4
 	gic_init_v3(0, GICD_BASE, GICR_BASE);
 #else
 	gic_init(GICC_BASE, GICD_BASE);
