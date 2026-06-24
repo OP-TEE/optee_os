@@ -11,22 +11,20 @@
 #include <drvcrypt_acipher.h>
 #include <initcall.h>
 #include <inttypes.h>
+#include <kernel/cache_helpers.h>
 #include <malloc.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdlib_ext.h>
 #include <string.h>
 #include <string_ext.h>
 #include <tee/cache.h>
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
-
-#ifndef CACHELINE_LEN
-#define CACHELINE_LEN				64U
-#endif
 
 /* ASU RSA command IDs */
 #define ASU_RSA_PUBLIC_ENCRYPT_CMD_ID		0U
@@ -249,8 +247,9 @@ static void asu_rsa_bn2bin_pad(size_t size, struct bignum *from, uint8_t *to)
  */
 static void *asu_rsa_alloc_align_buf(size_t len, size_t *alloc_len)
 {
-	size_t aligned_len = ROUNDUP(len, CACHELINE_LEN);
-	void *buf = memalign(CACHELINE_LEN, aligned_len);
+	size_t cacheline_len = dcache_get_line_size();
+	size_t aligned_len = ROUNDUP(len, cacheline_len);
+	void *buf = memalign(cacheline_len, aligned_len);
 
 	if (!buf)
 		return NULL;
@@ -305,7 +304,7 @@ static TEE_Result asu_rsa_sha_cfg_from_hash_algo(uint32_t hash_algo,
 		*sha_mode = ASU_RSA_SHA_MODE_512;
 		break;
 	default:
-		DMSG("Unsupported hash algo=0x%08" PRIx32, hash_algo);
+		DMSG("Unsupported hash algo=0x%08"PRIx32, hash_algo);
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 
@@ -327,24 +326,24 @@ static TEE_Result asu_rsa_sha_cfg_from_oaep_algo(uint32_t algo,
 	switch (algo) {
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
 		return asu_rsa_sha_cfg_from_hash_algo(TEE_ALG_SHA256,
-					sha_type, sha_mode);
+						      sha_type, sha_mode);
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
 		return asu_rsa_sha_cfg_from_hash_algo(TEE_ALG_SHA384,
-					sha_type, sha_mode);
+						      sha_type, sha_mode);
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
 		return asu_rsa_sha_cfg_from_hash_algo(TEE_ALG_SHA512,
-					sha_type, sha_mode);
+						      sha_type, sha_mode);
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA3_256:
 		return asu_rsa_sha_cfg_from_hash_algo(TEE_ALG_SHA3_256,
-					sha_type, sha_mode);
+						      sha_type, sha_mode);
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA3_384:
 		return asu_rsa_sha_cfg_from_hash_algo(TEE_ALG_SHA3_384,
-					sha_type, sha_mode);
+						      sha_type, sha_mode);
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA3_512:
 		return asu_rsa_sha_cfg_from_hash_algo(TEE_ALG_SHA3_512,
-					sha_type, sha_mode);
+						      sha_type, sha_mode);
 	default:
-		DMSG("Unsupported OAEP algo=0x%08" PRIx32, algo);
+		DMSG("Unsupported OAEP algo=0x%08"PRIx32, algo);
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 }
@@ -412,13 +411,13 @@ asu_rsa_pack_private_key(struct rsa_keypair *priv, size_t n_size,
 
 	ret = asu_rsa_pack_public_key(&pub, n_size, &key_comp->pub_key);
 	if (ret)
-		goto OUT;
+		goto out;
 
 	asu_rsa_bn2bin_pad(n_size, priv->d, d_bin);
 	memcpy(key_comp->pvt_exp, d_bin, n_size);
 	key_comp->prime_comp_or_totient_present = 0U;
 
-OUT:
+out:
 	memzero_explicit(d_bin, sizeof(d_bin));
 
 	return ret;
@@ -509,7 +508,6 @@ static TEE_Result asu_rsa_send_cmd(void *req, uint32_t req_size,
 	uint32_t header = 0;
 	uint32_t status = 0;
 	TEE_Result ret = TEE_SUCCESS;
-	bool uid_allocated = false;
 
 	if (!req || !req_size)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -521,10 +519,10 @@ static TEE_Result asu_rsa_send_cmd(void *req, uint32_t req_size,
 	if ((req_size % ASU_RSA_WORD_LEN_IN_BYTES) != 0U ||
 	    (req_size / ASU_RSA_WORD_LEN_IN_BYTES) > UINT8_MAX) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
-	cmd_len_words = (uint8_t)(req_size / ASU_RSA_WORD_LEN_IN_BYTES);
+	cmd_len_words = req_size / ASU_RSA_WORD_LEN_IN_BYTES;
 
 	cparam.priority = ASU_PRIORITY_HIGH;
 	if (resp_data)
@@ -543,15 +541,14 @@ static TEE_Result asu_rsa_send_cmd(void *req, uint32_t req_size,
 	unique_id = asu_alloc_unique_id();
 	if (unique_id >= ASU_UNIQUE_ID_MAX) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
-	uid_allocated = true;
 
 	header = asu_create_header(cmd_id, unique_id, module_id,
 				   cmd_len_words);
 	if (!header) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_update_queue_buffer_n_send_ipi(&cparam, req, req_size,
@@ -559,13 +556,13 @@ static TEE_Result asu_rsa_send_cmd(void *req, uint32_t req_size,
 
 	if (ret) {
 		if (module_id == ASU_MODULE_RSA_ID)
-			EMSG("IPI send failed cmd=%" PRIu32 " ret=0x%x",
+			EMSG("IPI send failed cmd=%"PRIu32" ret=0x%x",
 			     (uint32_t)cmd_id, ret);
 		else
-			EMSG("IPI send failed module=%" PRIu32 " cmd=%" PRIu32
+			EMSG("IPI send failed module=%"PRIu32" cmd=%"PRIu32
 			     " ret=0x%x", (uint32_t)module_id,
 			     (uint32_t)cmd_id, ret);
-		goto OUT;
+		goto out;
 	}
 
 	if (status) {
@@ -573,21 +570,21 @@ static TEE_Result asu_rsa_send_cmd(void *req, uint32_t req_size,
 			*fw_status = status;
 
 		if (module_id == ASU_MODULE_RSA_ID)
-			DMSG("Firmware failure cmd=0x%03" PRIu32
-			     " status=0x%" PRIx32, (uint32_t)cmd_id, status);
+			DMSG("Firmware failure cmd=0x%03"PRIu32
+			     " status=0x%"PRIx32, (uint32_t)cmd_id, status);
 
 		ret = TEE_ERROR_GENERIC;
-		goto OUT;
+		goto out;
 	}
 
-OUT:
-	if (uid_allocated)
+out:
+	if (unique_id < ASU_UNIQUE_ID_MAX)
 		asu_free_unique_id(unique_id);
 
 	return ret;
 }
 
-/**
+/*
  * asu_rsa_size_bits_to_bytes() - Convert RSA key size from bits to bytes
  * @size_bits: Key size in bits
  * @size_bytes: Pointer to store key size in bytes
@@ -597,22 +594,18 @@ OUT:
 static TEE_Result asu_rsa_size_bits_to_bytes(size_t size_bits,
 					     size_t *size_bytes)
 {
+	size_t bytes = size_bits / ASU_RSA_BITS_PER_BYTE;
+
 	if (!size_bytes)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	switch (size_bits) {
-	case (ASU_RSA_2048_KEY_SIZE * ASU_RSA_BITS_PER_BYTE):
-		*size_bytes = ASU_RSA_2048_KEY_SIZE;
-		return TEE_SUCCESS;
-	case (ASU_RSA_3072_KEY_SIZE * ASU_RSA_BITS_PER_BYTE):
-		*size_bytes = ASU_RSA_3072_KEY_SIZE;
-		return TEE_SUCCESS;
-	case (ASU_RSA_4096_KEY_SIZE * ASU_RSA_BITS_PER_BYTE):
-		*size_bytes = ASU_RSA_4096_KEY_SIZE;
-		return TEE_SUCCESS;
-	default:
+	if ((size_bits % ASU_RSA_BITS_PER_BYTE) ||
+	    asu_rsa_validate_key_size(bytes))
 		return TEE_ERROR_NOT_IMPLEMENTED;
-	}
+
+	*size_bytes = bytes;
+
+	return TEE_SUCCESS;
 }
 
 /**
@@ -782,14 +775,17 @@ asu_rsa_oaep_cmd(struct asu_rsa_oaep_padding_params *req, bool is_decrypt,
 	if (asu_rsa_sha_validate_mode_and_type(req->sha_type, req->sha_mode))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (is_decrypt)
-		cmd_id = (req->sha_type == ASU_RSA_SHA2_TYPE) ?
-			ASU_RSA_OAEP_DEC_SHA2_CMD_ID :
-			ASU_RSA_OAEP_DEC_SHA3_CMD_ID;
-	else
-		cmd_id = (req->sha_type == ASU_RSA_SHA2_TYPE) ?
-			ASU_RSA_OAEP_ENC_SHA2_CMD_ID :
-			ASU_RSA_OAEP_ENC_SHA3_CMD_ID;
+	if (is_decrypt) {
+		if (req->sha_type == ASU_RSA_SHA2_TYPE)
+			cmd_id = ASU_RSA_OAEP_DEC_SHA2_CMD_ID;
+		else
+			cmd_id = ASU_RSA_OAEP_DEC_SHA3_CMD_ID;
+	} else {
+		if (req->sha_type == ASU_RSA_SHA2_TYPE)
+			cmd_id = ASU_RSA_OAEP_ENC_SHA2_CMD_ID;
+		else
+			cmd_id = ASU_RSA_OAEP_ENC_SHA3_CMD_ID;
+	}
 
 	ret = asu_rsa_send_cmd(req, sizeof(*req), ASU_MODULE_RSA_ID,
 			       cmd_id, resp_data, NULL);
@@ -859,19 +855,20 @@ static TEE_Result asu_rsa_pss_sign_gen_cmd(struct asu_rsa_padding_params *req)
 	    req->rsa_op.len != TEE_SHA384_HASH_SIZE &&
 	    req->rsa_op.len != TEE_SHA512_HASH_SIZE &&
 	    req->input_data_type == ASU_RSA_HASHED_INPUT_DATA) {
-		DMSG("Invalid hashed input length=%" PRIu32, req->rsa_op.len);
+		DMSG("Invalid hashed input length=%"PRIu32, req->rsa_op.len);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	if (asu_rsa_sha_validate_mode_and_type(req->sha_type, req->sha_mode)) {
-		DMSG("Invalid sha_type=%u sha_mode=%u",
+		DMSG("Invalid sha_type=%"PRIu8" sha_mode=%"PRIu8,
 		     req->sha_type, req->sha_mode);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	cmd_id = (req->sha_type == ASU_RSA_SHA2_TYPE) ?
-		ASU_RSA_PSS_SIGN_GEN_SHA2_CMD_ID :
-		ASU_RSA_PSS_SIGN_GEN_SHA3_CMD_ID;
+	if (req->sha_type == ASU_RSA_SHA2_TYPE)
+		cmd_id = ASU_RSA_PSS_SIGN_GEN_SHA2_CMD_ID;
+	else
+		cmd_id = ASU_RSA_PSS_SIGN_GEN_SHA3_CMD_ID;
 
 	return asu_rsa_send_cmd(req, sizeof(*req), ASU_MODULE_RSA_ID,
 				cmd_id, NULL, NULL);
@@ -907,26 +904,27 @@ static TEE_Result asu_rsa_pss_sign_ver_cmd(struct asu_rsa_padding_params *req)
 	    req->rsa_op.len != TEE_SHA384_HASH_SIZE &&
 	    req->rsa_op.len != TEE_SHA512_HASH_SIZE &&
 	    req->input_data_type == ASU_RSA_HASHED_INPUT_DATA) {
-		DMSG("Invalid hashed input length=%" PRIu32, req->rsa_op.len);
+		DMSG("Invalid hashed input length=%"PRIu32, req->rsa_op.len);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	if (req->signature_len != req->rsa_op.key_size) {
-		DMSG("Invalid signature length=%" PRIu32
-		     " key_size=%" PRIu32,
+		DMSG("Invalid signature length=%"PRIu32
+		     " key_size=%"PRIu32,
 		     req->signature_len, req->rsa_op.key_size);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	if (asu_rsa_sha_validate_mode_and_type(req->sha_type, req->sha_mode)) {
-		DMSG("Invalid sha_type=%u sha_mode=%u",
+		DMSG("Invalid sha_type=%"PRIu8" sha_mode=%"PRIu8,
 		     req->sha_type, req->sha_mode);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	cmd_id = (req->sha_type == ASU_RSA_SHA2_TYPE) ?
-		ASU_RSA_PSS_SIGN_VER_SHA2_CMD_ID :
-		ASU_RSA_PSS_SIGN_VER_SHA3_CMD_ID;
+	if (req->sha_type == ASU_RSA_SHA2_TYPE)
+		cmd_id = ASU_RSA_PSS_SIGN_VER_SHA2_CMD_ID;
+	else
+		cmd_id = ASU_RSA_PSS_SIGN_VER_SHA3_CMD_ID;
 
 	ret = asu_rsa_send_cmd(req, sizeof(*req), ASU_MODULE_RSA_ID,
 			       cmd_id, resp_data, NULL);
@@ -935,13 +933,13 @@ static TEE_Result asu_rsa_pss_sign_ver_cmd(struct asu_rsa_padding_params *req)
 	    (additional_status == ASU_RSA_PSS_RIGHT_MOST_CMP_FAIL ||
 	     additional_status == ASU_RSA_PSS_HASH_CMP_FAIL ||
 	     additional_status == ASU_RSA_PSS_SIGN_VER_ERROR)) {
-		DMSG("Signature mismatch status=0x%08" PRIx32,
+		DMSG("Signature mismatch status=0x%08"PRIx32,
 		     additional_status);
 		return TEE_ERROR_SIGNATURE_INVALID;
 	}
 
 	if (!ret && additional_status != ASU_RSA_PSS_SIGNATURE_VERIFIED) {
-		DMSG("Signature verification fail status=0x%08" PRIx32,
+		DMSG("Signature verification fail status=0x%08"PRIx32,
 		     additional_status);
 		ret = TEE_ERROR_SIGNATURE_INVALID;
 		return ret;
@@ -1049,7 +1047,7 @@ static TEE_Result asu_rsa_prepare_input_buf(const uint8_t *src, size_t len,
 					    uint8_t **buf, size_t *alloc_len,
 					    const char *alloc_err)
 {
-	size_t alloc_size = len ? len : 1U;
+	size_t alloc_size = MAX(len, 1U);
 
 	if (!buf || (len && !src))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -1110,7 +1108,7 @@ static TEE_Result asu_rsa_prepare_oaep_label_buf(const uint8_t *label_data,
 						 uint8_t **label_buf,
 						 size_t *label_alloc_len)
 {
-	size_t alloc_size = label_len ? label_len : 1U;
+	size_t alloc_size = MAX(label_len, 1U);
 
 	if (!label_buf || (label_len && !label_data))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -1187,19 +1185,19 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 
 	if (!rsa_data || !rsa_data->key.key) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
 	switch (rsa_data->rsa_id) {
 	case DRVCRYPT_RSA_PKCS_V1_5:
 		ret = asu_rsa_sw_rsaes_encrypt(rsa_data);
-		goto OUT;
+		goto out;
 	case DRVCRYPT_RSA_OAEP:
 		expected_mgf_algo = TEE_INTERNAL_HASH_TO_ALGO(rsa_data->algo);
 		if (rsa_data->mgf_algo &&
 		    rsa_data->mgf_algo != expected_mgf_algo) {
 			ret = asu_rsa_sw_rsaes_encrypt(rsa_data);
-			goto OUT;
+			goto out;
 		}
 		/*
 		 * ASU supports only a subset of OAEP hash variants.
@@ -1210,23 +1208,23 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 						     &sha_type, &sha_mode);
 		if (ret) {
 			ret = asu_rsa_sw_rsaes_encrypt(rsa_data);
-			goto OUT;
+			goto out;
 		}
 		if (asu_rsa_validate_key_size(rsa_data->key.n_size)) {
 			ret = asu_rsa_sw_rsaes_encrypt(rsa_data);
-			goto OUT;
+			goto out;
 		}
 		use_oaep = true;
 		break;
 	case DRVCRYPT_RSA_NOPAD:
 		if (rsa_data->message.length > rsa_data->key.n_size) {
 			ret = TEE_ERROR_BAD_PARAMETERS;
-			goto OUT;
+			goto out;
 		}
 
 		if (asu_rsa_validate_key_size(rsa_data->key.n_size)) {
 			ret = asu_rsa_sw_rsanopad_encrypt(rsa_data);
-			goto OUT;
+			goto out;
 		}
 
 		break;
@@ -1234,35 +1232,35 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 	case DRVCRYPT_RSASSA_PSS:
 		if (rsa_data->message.length > rsa_data->key.n_size) {
 			ret = TEE_ERROR_BAD_PARAMETERS;
-			goto OUT;
+			goto out;
 		}
 		ret = asu_rsa_sw_rsanopad_encrypt(rsa_data);
-		goto OUT;
+		goto out;
 	default:
-		DMSG("Unsupported rsa_id=%" PRIu32, (uint32_t)rsa_data->rsa_id);
+		DMSG("Unsupported rsa_id=%"PRIu32, (uint32_t)rsa_data->rsa_id);
 		ret = TEE_ERROR_NOT_IMPLEMENTED;
-		goto OUT;
+		goto out;
 	}
 
 	if (rsa_data->cipher.length < rsa_data->key.n_size) {
 		rsa_data->cipher.length = rsa_data->key.n_size;
 		DMSG("Short output buffer");
 		ret = TEE_ERROR_SHORT_BUFFER;
-		goto OUT;
+		goto out;
 	}
 
 	key_comp = asu_rsa_alloc_align_buf(sizeof(*key_comp),
 					   &key_comp_alloc_len);
 	if (!key_comp) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_rsa_pack_public_key(rsa_data->key.key, rsa_data->key.n_size,
 				      key_comp);
 	if (ret) {
 		DMSG("Public key pack failed ret=0x%x", ret);
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_rsa_prepare_input_buf(rsa_data->message.data,
@@ -1270,18 +1268,18 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 					&msg_buf, &msg_alloc_len,
 					"Message buffer allocation failed");
 	if (ret)
-		goto OUT;
+		goto out;
 
 	ret = asu_rsa_prepare_output_buf(rsa_data->key.n_size, &out_buf,
 					 &out_alloc_len,
 					 "Output buffer allocation failed");
 	if (ret)
-		goto OUT;
+		goto out;
 
 	cache_operation(TEE_CACHEFLUSH, key_comp, key_comp_alloc_len);
-	key_size = (uint32_t)rsa_data->key.n_size;
-	input_len = (uint32_t)rsa_data->message.length;
-	output_len = (uint32_t)rsa_data->key.n_size;
+	key_size = rsa_data->key.n_size;
+	input_len = rsa_data->message.length;
+	output_len = rsa_data->key.n_size;
 
 	asu_rsa_fill_request(&req, virt_to_phys(msg_buf),
 			     virt_to_phys(out_buf), virt_to_phys(key_comp),
@@ -1294,7 +1292,7 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 						     label_len, &label_buf,
 						     &label_alloc_len);
 		if (ret)
-			goto OUT;
+			goto out;
 
 		oaep_req.rsa_op = req;
 		oaep_req.optional_label_addr = virt_to_phys(label_buf);
@@ -1309,7 +1307,7 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 
 	if (ret) {
 		DMSG("Command failed ret=0x%x", ret);
-		goto OUT;
+		goto out;
 	}
 
 	cache_operation(TEE_CACHEINVALIDATE, out_buf, rsa_data->key.n_size);
@@ -1318,19 +1316,11 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 
 	DMSG("RSA encryption successful");
 
-OUT:
-	if (msg_buf)
-		memzero_explicit(msg_buf, msg_alloc_len);
-	if (out_buf)
-		memzero_explicit(out_buf, out_alloc_len);
-	if (label_buf)
-		memzero_explicit(label_buf, label_alloc_len);
-	if (key_comp)
-		memzero_explicit(key_comp, key_comp_alloc_len);
-	free(msg_buf);
-	free(out_buf);
-	free(label_buf);
-	free(key_comp);
+out:
+	free_wipe(msg_buf);
+	free_wipe(out_buf);
+	free_wipe(label_buf);
+	free_wipe(key_comp);
 
 	return ret;
 }
@@ -1369,19 +1359,19 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 
 	if (!rsa_data || !rsa_data->key.key) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
 	switch (rsa_data->rsa_id) {
 	case DRVCRYPT_RSA_PKCS_V1_5:
 		ret = asu_rsa_sw_rsaes_decrypt(rsa_data);
-		goto OUT;
+		goto out;
 	case DRVCRYPT_RSA_OAEP:
 		expected_mgf_algo = TEE_INTERNAL_HASH_TO_ALGO(rsa_data->algo);
 		if (rsa_data->mgf_algo &&
 		    rsa_data->mgf_algo != expected_mgf_algo) {
 			ret = asu_rsa_sw_rsaes_decrypt(rsa_data);
-			goto OUT;
+			goto out;
 		}
 		/*
 		 * ASU supports only a subset of OAEP hash variants.
@@ -1392,57 +1382,57 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 						     &sha_type, &sha_mode);
 		if (ret) {
 			ret = asu_rsa_sw_rsaes_decrypt(rsa_data);
-			goto OUT;
+			goto out;
 		}
 		/* OAEP decryption input length must not exceed key_size */
 		if (rsa_data->cipher.length > rsa_data->key.n_size) {
 			ret = TEE_ERROR_BAD_PARAMETERS;
-			goto OUT;
+			goto out;
 		}
 		if (asu_rsa_validate_key_size(rsa_data->key.n_size)) {
 			ret = asu_rsa_sw_rsaes_decrypt(rsa_data);
-			goto OUT;
+			goto out;
 		}
 		use_oaep = true;
 		break;
 	case DRVCRYPT_RSA_NOPAD:
 		if (rsa_data->cipher.length > rsa_data->key.n_size) {
 			ret = TEE_ERROR_BAD_PARAMETERS;
-			goto OUT;
+			goto out;
 		}
 
 		if (asu_rsa_validate_key_size(rsa_data->key.n_size) ||
 		    rsa_data->cipher.length != rsa_data->key.n_size) {
 			ret = asu_rsa_sw_rsanopad_decrypt(rsa_data);
-			goto OUT;
+			goto out;
 		}
 		break;
 	case DRVCRYPT_RSASSA_PKCS_V1_5:
 	case DRVCRYPT_RSASSA_PSS:
 		if (rsa_data->cipher.length > rsa_data->key.n_size) {
 			ret = TEE_ERROR_BAD_PARAMETERS;
-			goto OUT;
+			goto out;
 		}
 		ret = asu_rsa_sw_rsanopad_decrypt(rsa_data);
-		goto OUT;
+		goto out;
 	default:
-		DMSG("Unsupported rsa_id=%" PRIu32, (uint32_t)rsa_data->rsa_id);
+		DMSG("Unsupported rsa_id=%"PRIu32, (uint32_t)rsa_data->rsa_id);
 		ret = TEE_ERROR_NOT_SUPPORTED;
-		goto OUT;
+		goto out;
 	}
 
 	key_comp = asu_rsa_alloc_align_buf(sizeof(*key_comp),
 					   &key_comp_alloc_len);
 	if (!key_comp) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_rsa_pack_private_key(rsa_data->key.key, rsa_data->key.n_size,
 				       key_comp);
 	if (ret) {
 		DMSG("Private key pack failed ret=0x%x", ret);
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_rsa_prepare_input_buf(rsa_data->cipher.data,
@@ -1450,18 +1440,18 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 					&cipher_buf, &cipher_alloc_len,
 					"Cipher buffer allocation failed");
 	if (ret)
-		goto OUT;
+		goto out;
 
 	ret = asu_rsa_prepare_output_buf(rsa_data->key.n_size, &out_buf,
 					 &out_alloc_len,
 					 "Output buffer allocation failed");
 	if (ret)
-		goto OUT;
+		goto out;
 
 	cache_operation(TEE_CACHEFLUSH, key_comp, key_comp_alloc_len);
-	key_size = (uint32_t)rsa_data->key.n_size;
-	input_len = (uint32_t)rsa_data->cipher.length;
-	output_len = (uint32_t)rsa_data->key.n_size;
+	key_size = rsa_data->key.n_size;
+	input_len = rsa_data->cipher.length;
+	output_len = rsa_data->key.n_size;
 
 	asu_rsa_fill_request(&req, virt_to_phys(cipher_buf),
 			     virt_to_phys(out_buf), virt_to_phys(key_comp),
@@ -1474,7 +1464,7 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 							    &fw_out_len_alloc);
 		if (!fw_output_len_buf) {
 			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto OUT;
+			goto out;
 		}
 
 		*fw_output_len_buf = 0U;
@@ -1485,7 +1475,7 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 						     label_len, &label_buf,
 						     &label_alloc_len);
 		if (ret)
-			goto OUT;
+			goto out;
 
 		oaep_req.rsa_op = req;
 		oaep_req.rsa_op.output_len_addr =
@@ -1506,14 +1496,14 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 
 	if (ret) {
 		DMSG("ASU operation failed ret=0x%x", ret);
-		goto OUT;
+		goto out;
 	}
 
 	if (!use_oaep && additional_status != ASU_RSA_DECRYPTION_SUCCESS) {
-		DMSG("Decrypt additional status=0x%08" PRIx32,
+		DMSG("Decrypt additional status=0x%08"PRIx32,
 		     additional_status);
 		ret = TEE_ERROR_GENERIC;
-		goto OUT;
+		goto out;
 	}
 
 	cache_operation(TEE_CACHEINVALIDATE, out_buf, rsa_data->key.n_size);
@@ -1529,13 +1519,13 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 			DMSG("Invalid OAEP output length=%zu key=%zu",
 			     actual_len, rsa_data->key.n_size);
 			ret = TEE_ERROR_GENERIC;
-			goto OUT;
+			goto out;
 		}
 
 		if (rsa_data->message.length < actual_len) {
 			rsa_data->message.length = actual_len;
 			ret = TEE_ERROR_SHORT_BUFFER;
-			goto OUT;
+			goto out;
 		}
 
 		rsa_data->message.length = actual_len;
@@ -1551,7 +1541,7 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 		if (rsa_data->message.length < out_len) {
 			rsa_data->message.length = out_len;
 			ret = TEE_ERROR_SHORT_BUFFER;
-			goto OUT;
+			goto out;
 		}
 
 		rsa_data->message.length = out_len;
@@ -1560,7 +1550,7 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 		if (rsa_data->message.length < rsa_data->key.n_size) {
 			rsa_data->message.length = rsa_data->key.n_size;
 			ret = TEE_ERROR_SHORT_BUFFER;
-			goto OUT;
+			goto out;
 		}
 
 		rsa_data->message.length = rsa_data->key.n_size;
@@ -1569,22 +1559,12 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 
 	DMSG("RSA decryption successful");
 
-OUT:
-	if (cipher_buf)
-		memzero_explicit(cipher_buf, cipher_alloc_len);
-	if (out_buf)
-		memzero_explicit(out_buf, out_alloc_len);
-	if (label_buf)
-		memzero_explicit(label_buf, label_alloc_len);
-	if (fw_output_len_buf)
-		memzero_explicit(fw_output_len_buf, fw_out_len_alloc);
-	if (key_comp)
-		memzero_explicit(key_comp, key_comp_alloc_len);
-	free(cipher_buf);
-	free(out_buf);
-	free(label_buf);
-	free(fw_output_len_buf);
-	free(key_comp);
+out:
+	free_wipe(cipher_buf);
+	free_wipe(out_buf);
+	free_wipe(label_buf);
+	free_wipe(fw_output_len_buf);
+	free_wipe(key_comp);
 
 	return ret;
 }
@@ -1613,7 +1593,7 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 
 	if (!ssa_data || !ssa_data->key.key) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
 	switch (ssa_data->algo) {
@@ -1635,44 +1615,44 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA3_224:
 		ret = asu_rsa_sw_rsassa_sign(ssa_data);
-		goto OUT;
+		goto out;
 	default:
-		DMSG("Unsupported algo=0x%" PRIx32, ssa_data->algo);
+		DMSG("Unsupported algo=0x%"PRIx32, ssa_data->algo);
 		ret = TEE_ERROR_NOT_SUPPORTED;
-		goto OUT;
+		goto out;
 	}
 
 	if (asu_rsa_validate_key_size(ssa_data->key.n_size)) {
 		ret = asu_rsa_sw_rsassa_sign(ssa_data);
-		goto OUT;
+		goto out;
 	}
 
 	if (ssa_data->signature.length < ssa_data->key.n_size) {
 		ssa_data->signature.length = ssa_data->key.n_size;
 		DMSG("Short signature output buffer");
 		ret = TEE_ERROR_SHORT_BUFFER;
-		goto OUT;
+		goto out;
 	}
 
 	key_comp = asu_rsa_alloc_align_buf(sizeof(*key_comp),
 					   &key_comp_alloc_len);
 	if (!key_comp) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_rsa_sha_cfg_from_hash_algo(ssa_data->hash_algo,
 					     &sha_type, &sha_mode);
 	if (ret) {
-		DMSG("Hash cfg failed ret=0x%x, hash algo=0x%" PRIx32,
+		DMSG("Hash cfg failed ret=0x%x, hash algo=0x%"PRIx32,
 		     ret, ssa_data->hash_algo);
-		goto OUT;
+		goto out;
 	}
 	ret = asu_rsa_pack_private_key(ssa_data->key.key, ssa_data->key.n_size,
 				       key_comp);
 	if (ret) {
 		DMSG("Private key pack failed ret=0x%x", ret);
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_rsa_prepare_input_buf(ssa_data->message.data,
@@ -1680,18 +1660,18 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 					&msg_buf, &msg_alloc_len,
 					"Message buffer allocation failed");
 	if (ret)
-		goto OUT;
+		goto out;
 
 	ret = asu_rsa_prepare_output_buf(ssa_data->key.n_size, &sig_buf,
 					 &sig_alloc_len,
 					 "Signature buffer allocation failed");
 	if (ret)
-		goto OUT;
+		goto out;
 
 	cache_operation(TEE_CACHEFLUSH, key_comp, key_comp_alloc_len);
-	key_size = (uint32_t)ssa_data->key.n_size;
-	input_len = (uint32_t)ssa_data->message.length;
-	output_len = (uint32_t)ssa_data->key.n_size;
+	key_size = ssa_data->key.n_size;
+	input_len = ssa_data->message.length;
+	output_len = ssa_data->key.n_size;
 
 	asu_rsa_fill_request(&req.rsa_op, virt_to_phys(msg_buf),
 			     virt_to_phys(sig_buf), virt_to_phys(key_comp),
@@ -1705,7 +1685,7 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	ret = asu_rsa_pss_sign_gen_cmd(&req);
 	if (ret) {
 		DMSG("ASU command failed ret=0x%x", ret);
-		goto OUT;
+		goto out;
 	}
 
 	cache_operation(TEE_CACHEINVALIDATE, sig_buf, ssa_data->key.n_size);
@@ -1714,16 +1694,10 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 
 	DMSG("RSA signing successful");
 
-OUT:
-	if (msg_buf)
-		memzero_explicit(msg_buf, msg_alloc_len);
-	if (sig_buf)
-		memzero_explicit(sig_buf, sig_alloc_len);
-	if (key_comp)
-		memzero_explicit(key_comp, key_comp_alloc_len);
-	free(msg_buf);
-	free(sig_buf);
-	free(key_comp);
+out:
+	free_wipe(msg_buf);
+	free_wipe(sig_buf);
+	free_wipe(key_comp);
 
 	return ret;
 }
@@ -1753,7 +1727,7 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 
 	if (!ssa_data || !ssa_data->key.key) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
 	switch (ssa_data->algo) {
@@ -1775,37 +1749,37 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA3_224:
 		ret = asu_rsa_sw_rsassa_verify(ssa_data);
-		goto OUT;
+		goto out;
 	default:
-		DMSG("Unsupported algo=0x%" PRIx32, ssa_data->algo);
+		DMSG("Unsupported algo=0x%"PRIx32, ssa_data->algo);
 		ret = TEE_ERROR_NOT_IMPLEMENTED;
-		goto OUT;
+		goto out;
 	}
 
 	if (asu_rsa_validate_key_size(ssa_data->key.n_size)) {
 		ret = asu_rsa_sw_rsassa_verify(ssa_data);
-		goto OUT;
+		goto out;
 	}
 
 	key_comp = asu_rsa_alloc_align_buf(sizeof(*key_comp),
 					   &key_comp_alloc_len);
 	if (!key_comp) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_rsa_sha_cfg_from_hash_algo(ssa_data->hash_algo,
 					     &sha_type, &sha_mode);
 	if (ret) {
-		DMSG("Hash cfg failed ret=0x%x, hash algo=0x%" PRIx32,
+		DMSG("Hash cfg failed ret=0x%x, hash algo=0x%"PRIx32,
 		     ret, ssa_data->hash_algo);
-		goto OUT;
+		goto out;
 	}
 	ret = asu_rsa_pack_public_key(ssa_data->key.key, ssa_data->key.n_size,
 				      key_comp);
 	if (ret) {
 		DMSG("Public key pack failed ret=0x%x", ret);
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_rsa_prepare_input_buf(ssa_data->message.data,
@@ -1813,18 +1787,18 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 					&msg_buf, &msg_alloc_len,
 					"Message buffer allocation failed");
 	if (ret)
-		goto OUT;
+		goto out;
 
 	ret = asu_rsa_prepare_input_buf(ssa_data->signature.data,
 					ssa_data->signature.length,
 					&sig_buf, &sig_alloc_len,
 					"Signature buffer allocation failed");
 	if (ret)
-		goto OUT;
+		goto out;
 
 	cache_operation(TEE_CACHEFLUSH, key_comp, key_comp_alloc_len);
-	key_size = (uint32_t)ssa_data->key.n_size;
-	input_len = (uint32_t)ssa_data->message.length;
+	key_size = ssa_data->key.n_size;
+	input_len = ssa_data->message.length;
 	output_len = 0;
 
 	asu_rsa_fill_request(&req.rsa_op, virt_to_phys(msg_buf), 0,
@@ -1844,16 +1818,10 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	else
 		DMSG("RSA signature verification successful");
 
-OUT:
-	if (msg_buf)
-		memzero_explicit(msg_buf, msg_alloc_len);
-	if (sig_buf)
-		memzero_explicit(sig_buf, sig_alloc_len);
-	if (key_comp)
-		memzero_explicit(key_comp, key_comp_alloc_len);
-	free(msg_buf);
-	free(sig_buf);
-	free(key_comp);
+out:
+	free_wipe(msg_buf);
+	free_wipe(sig_buf);
+	free_wipe(key_comp);
 
 	return ret;
 }
@@ -1913,10 +1881,10 @@ static TEE_Result asu_rsa_gen_keypair(struct rsa_keypair *key,
 			       ASU_KM_GEN_RSA_KEY_PAIR_CMD_ID,
 			       NULL, &fw_status);
 	if (ret) {
-		DMSG("HW key-pair unavailable status=0x%08" PRIx32
+		DMSG("HW key-pair unavailable status=0x%08"PRIx32
 		     ", using SW fallback", fw_status);
 		ret = sw_crypto_acipher_gen_rsa_key(key, size_bits);
-		goto OUT;
+		goto out;
 	}
 
 	cache_operation(TEE_CACHEINVALIDATE, key_obj, key_obj_alloc_len);
@@ -1924,14 +1892,12 @@ static TEE_Result asu_rsa_gen_keypair(struct rsa_keypair *key,
 	ret = asu_rsa_import_generated_keypair(key, size_bytes, key_obj);
 	if (ret) {
 		EMSG("Failed to import RSA key material ret=0x%x", ret);
-		goto OUT;
+		goto out;
 	}
 	DMSG("RSA key-pair import successful (size=%zu bits)", size_bits);
 
-OUT:
-	if (key_obj)
-		memzero_explicit(key_obj, key_obj_alloc_len);
-	free(key_obj);
+out:
+	free_wipe(key_obj);
 
 	return ret;
 }
@@ -1949,6 +1915,8 @@ static bool asu_rsa_bn_alloc_max(struct bignum **s)
 	return *s;
 }
 
+static void asu_rsa_free_keypair(struct rsa_keypair *s);
+
 /**
  * asu_rsa_alloc_keypair() - Allocate RSA key-pair bignum fields
  * @s: RSA key-pair destination
@@ -1959,44 +1927,30 @@ static bool asu_rsa_bn_alloc_max(struct bignum **s)
 static TEE_Result asu_rsa_alloc_keypair(struct rsa_keypair *s,
 					size_t key_size_bits __unused)
 {
-	TEE_Result ret = TEE_SUCCESS;
-
 	memset(s, 0, sizeof(*s));
-	if (!asu_rsa_bn_alloc_max(&s->e)) {
-		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto OUT;
-	}
+	if (!asu_rsa_bn_alloc_max(&s->e))
+		return TEE_ERROR_OUT_OF_MEMORY;
 	if (!asu_rsa_bn_alloc_max(&s->d))
-		goto ERR;
+		goto err;
 	if (!asu_rsa_bn_alloc_max(&s->n))
-		goto ERR;
+		goto err;
 	if (!asu_rsa_bn_alloc_max(&s->p))
-		goto ERR;
+		goto err;
 	if (!asu_rsa_bn_alloc_max(&s->q))
-		goto ERR;
+		goto err;
 	if (!asu_rsa_bn_alloc_max(&s->qp))
-		goto ERR;
+		goto err;
 	if (!asu_rsa_bn_alloc_max(&s->dp))
-		goto ERR;
+		goto err;
 	if (!asu_rsa_bn_alloc_max(&s->dq))
-		goto ERR;
+		goto err;
 
-	goto OUT;
+	return TEE_SUCCESS;
 
-ERR:
-	ret = TEE_ERROR_OUT_OF_MEMORY;
-	crypto_bignum_free(&s->e);
-	crypto_bignum_free(&s->d);
-	crypto_bignum_free(&s->n);
-	crypto_bignum_free(&s->p);
-	crypto_bignum_free(&s->q);
-	crypto_bignum_free(&s->qp);
-	crypto_bignum_free(&s->dp);
-	crypto_bignum_free(&s->dq);
+err:
+	asu_rsa_free_keypair(s);
 
-OUT:
-
-	return ret;
+	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
 /**
@@ -2009,22 +1963,15 @@ OUT:
 static TEE_Result asu_rsa_alloc_publickey(struct rsa_public_key *s,
 					  size_t key_size_bits __unused)
 {
-	TEE_Result ret = TEE_SUCCESS;
-
 	memset(s, 0, sizeof(*s));
-	if (!asu_rsa_bn_alloc_max(&s->e)) {
-		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto OUT;
-	}
+	if (!asu_rsa_bn_alloc_max(&s->e))
+		return TEE_ERROR_OUT_OF_MEMORY;
 	if (!asu_rsa_bn_alloc_max(&s->n)) {
 		crypto_bignum_free(&s->e);
-		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto OUT;
+		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
-OUT:
-
-	return ret;
+	return TEE_SUCCESS;
 }
 
 /**
