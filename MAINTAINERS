@@ -23,7 +23,10 @@ request.
 3. Bug reports and questions should be posted to the GitHub project as well
 (use the "Issues" tab).
 
-4. The last entry ("THE REST") lists the overall maintainers (M:) and the
+4. The second last entry ("THE CORE REVIEWERS") recognises active reviewers
+of core subsystems.
+
+5. The last entry ("THE REST") lists the overall maintainers (M:) and the
 members of the Linaro Security Working Group who provide reviews on a regular
 basis (R:).
 
@@ -391,6 +394,13 @@ Xilinx Zynq UltraScale+ MPSOC
 R:	Ricardo Salveti <ricardo@foundries.io> [@ricardosalveti]
 S:	Maintained
 F:	core/arch/arm/plat-zynqmp/
+
+THE CORE REVIEWERS
+R:	Lars Persson <larper@axis.com> [@larper2axis]
+S:	Maintained
+F:	core/*
+F:	ldelf/*
+F:	lib/*
 
 THE REST
 M:	Joakim Bech <joakim.bech@gmail.com> [@jockebech]
