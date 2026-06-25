@@ -1829,7 +1829,9 @@ enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa)
 
 	/* VA spaces have no valid PAs in the memory map */
 	if (!map || map->type == MEM_AREA_RES_VASPACE ||
-	    map->type == MEM_AREA_SHM_VASPACE)
+	    map->type == MEM_AREA_SHM_VASPACE ||
+	    map->type == MEM_AREA_TEE_DYN_VASPACE ||
+	    map->type == MEM_AREA_NEX_DYN_VASPACE)
 		return MEM_AREA_MAXTYPE;
 	return map->type;
 }
