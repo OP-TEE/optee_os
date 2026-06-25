@@ -13,3 +13,6 @@ subdirs-$(CFG_QCOM_QFPROM) += qfprom
 
 # G-Link Lite protocol driver
 subdirs-$(CFG_QCOM_GLINK_LITE) += glink_lite
+
+# QMP mailbox transport for G-Link Lite
+subdirs-$(CFG_QCOM_XPORT_QMP) += xport_qmp
