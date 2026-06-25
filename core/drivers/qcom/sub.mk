@@ -16,3 +16,6 @@ subdirs-$(CFG_QCOM_GLINK_LITE) += glink_lite
 
 # QMP mailbox transport for G-Link Lite
 subdirs-$(CFG_QCOM_XPORT_QMP) += xport_qmp
+
+# TME-Lite communication client
+subdirs-$(CFG_QCOM_TMEL_COM) += tmel_com
