@@ -146,6 +146,11 @@ S:	Maintained
 F:	core/drivers/qcom/cmd_db/
 F:	core/include/drivers/qcom/cmd_db/
 
+Core Drivers QCOM HWKM
+R:	Amirreza Zarrabi <amirreza.zarrabi@oss.qualcomm.com> [@qc-azarrabi]
+S:	Maintained
+F:	core/drivers/crypto/qcom/
+
 Core Drivers QCOM QFPROM
 R:	Selvam Sathappan Periakaruppan <speriaka@qti.qualcomm.com> [@zelvam95]
 R:	Kishore Batta <kishore.batta@oss.qualcomm.com> [@kishorebatta-ossqcom]
