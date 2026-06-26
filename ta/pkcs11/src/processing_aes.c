@@ -543,6 +543,13 @@ out:
 	return rc;
 }
 
+size_t tee_ae_tag_size(struct pkcs11_session *session)
+{
+	struct ae_aes_context *ctx = session->processing->extra_ctx;
+
+	return ctx->tag_byte_len;
+}
+
 /* Release extra resources related to the GCM processing*/
 void tee_release_gcm_operation(struct pkcs11_session *session)
 {
