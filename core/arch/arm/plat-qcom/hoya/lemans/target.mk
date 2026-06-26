@@ -22,3 +22,5 @@ ifeq ($(CFG_QCOM_PAS_PTA),y)
 CFG_RESERVED_VASPACE_SIZE ?= (256 * 1024 * 1024)
 CFG_IN_TREE_EARLY_TAS += qcom_pas/cff7d191-7ca0-4784-af13-48223b9a4fbe
 endif
+
+CFG_QCOM_HWKM ?= y
