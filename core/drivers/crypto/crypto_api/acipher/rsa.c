@@ -125,6 +125,8 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 	rsa_data.key.key = key;
 	rsa_data.key.isprivate = true;
 	rsa_data.key.n_size = crypto_bignum_num_bytes(key->n);
+	if (cipher_len > rsa_data.key.n_size)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	rsa = drvcrypt_get_ops(CRYPTO_RSA);
 	if (rsa) {
@@ -164,6 +166,8 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 	rsa_data.key.key = key;
 	rsa_data.key.isprivate = false;
 	rsa_data.key.n_size = crypto_bignum_num_bytes(key->n);
+	if (msg_len > rsa_data.key.n_size)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (rsa_data.key.n_size > *cipher_len) {
 		CRYPTO_TRACE("Cipher length (%zu) too short expected %zu bytes",
