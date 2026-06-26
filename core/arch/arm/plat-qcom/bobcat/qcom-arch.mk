@@ -15,8 +15,14 @@ endif
 # Reserve carveout at the end of TZDRAM for the TMEL IPC coherent buffers.
 CFG_TMECOM_IPCBUF_CARVEOUT_SIZE ?= 0x3000
 
+# Hardware Unique Key provider (derives the HUK via TME-Lite KM).
+# Enabling HUK forces the KM client on, since the HUK is its consumer.
+CFG_QCOM_TMEL_HUK ?= y
+ifeq ($(CFG_QCOM_TMEL_HUK),y)
+$(call force,CFG_QCOM_TMEL_KM,y,required by CFG_QCOM_TMEL_HUK)
+endif
+
 # TME-Lite Key Management client (depends on the COM stack)
-CFG_QCOM_TMEL_KM ?= y
 $(eval $(call cfg-depends-all,CFG_QCOM_TMEL_KM,CFG_QCOM_TMEL_COM))
 
 # TME-Lite RNG client (depends on the COM stack)
