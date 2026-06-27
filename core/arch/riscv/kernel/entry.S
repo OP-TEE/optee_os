@@ -367,6 +367,10 @@ UNWIND(	.cantunwind)
 	addi	sp, sp, STACK_ALIGNMENT
 #endif
 
+#ifdef CFG_RISCV_S_MODE
+	jal	boot_start_secondary_cores
+#endif
+
 	cpu_is_ready
 	flush_cpu_semaphores
 	wait_secondary
