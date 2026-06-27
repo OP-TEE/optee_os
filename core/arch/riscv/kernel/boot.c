@@ -66,7 +66,7 @@ static void update_external_dt(void)
 #endif /*!CFG_DT*/
 
 #ifdef CFG_RISCV_S_MODE
-static void start_secondary_cores(void)
+void boot_start_secondary_cores(void)
 {
 	uint32_t curr_hartid = thread_get_core_local()->hart_id;
 	enum sbi_hsm_hart_state status = 0;
@@ -253,10 +253,6 @@ void __weak boot_init_primary_final(void)
 	call_finalcalls();
 	IMSG("Primary CPU0 (hart%"PRIu32") initialized",
 	     thread_get_hartid());
-
-#ifdef CFG_RISCV_S_MODE
-	start_secondary_cores();
-#endif
 }
 
 static void init_secondary_helper(void)
