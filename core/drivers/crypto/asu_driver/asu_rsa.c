@@ -533,9 +533,6 @@ static TEE_Result asu_rsa_send_cmd(void *req, uint32_t req_size,
 		cbctx.resp_data = resp_data;
 		cparam.cbptr = &cbctx;
 		cparam.cbhandler = asu_rsa_resp_capture_cb;
-	} else {
-		cparam.cbptr = NULL;
-		cparam.cbhandler = NULL;
 	}
 
 	unique_id = asu_alloc_unique_id();
@@ -556,12 +553,11 @@ static TEE_Result asu_rsa_send_cmd(void *req, uint32_t req_size,
 
 	if (ret) {
 		if (module_id == ASU_MODULE_RSA_ID)
-			EMSG("IPI send failed cmd=%"PRIu32" ret=0x%x",
-			     (uint32_t)cmd_id, ret);
+			EMSG("IPI send failed cmd=%"PRIu8" ret=%#"PRIx32,
+			     cmd_id, ret);
 		else
-			EMSG("IPI send failed module=%"PRIu32" cmd=%"PRIu32
-			     " ret=0x%x", (uint32_t)module_id,
-			     (uint32_t)cmd_id, ret);
+			EMSG("IPI send failed module=%"PRIu8" cmd=%"PRIu8
+			     " ret=%#"PRIx32, module_id, cmd_id, ret);
 		goto out;
 	}
 
@@ -570,8 +566,8 @@ static TEE_Result asu_rsa_send_cmd(void *req, uint32_t req_size,
 			*fw_status = status;
 
 		if (module_id == ASU_MODULE_RSA_ID)
-			DMSG("Firmware failure cmd=0x%03"PRIu32
-			     " status=0x%"PRIx32, (uint32_t)cmd_id, status);
+			DMSG("Firmware failure cmd=%"PRIu8
+			     " status=%#"PRIx32, cmd_id, status);
 
 		ret = TEE_ERROR_GENERIC;
 		goto out;
@@ -941,8 +937,7 @@ static TEE_Result asu_rsa_pss_sign_ver_cmd(struct asu_rsa_padding_params *req)
 	if (!ret && additional_status != ASU_RSA_PSS_SIGNATURE_VERIFIED) {
 		DMSG("Signature verification fail status=0x%08"PRIx32,
 		     additional_status);
-		ret = TEE_ERROR_SIGNATURE_INVALID;
-		return ret;
+		return TEE_ERROR_SIGNATURE_INVALID;
 	}
 
 	return ret;
@@ -1259,7 +1254,7 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 	ret = asu_rsa_pack_public_key(rsa_data->key.key, rsa_data->key.n_size,
 				      key_comp);
 	if (ret) {
-		DMSG("Public key pack failed ret=0x%x", ret);
+		DMSG("Public key pack failed ret=%#"PRIx32, ret);
 		goto out;
 	}
 
@@ -1306,7 +1301,7 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 	}
 
 	if (ret) {
-		DMSG("Command failed ret=0x%x", ret);
+		DMSG("Command failed ret=%#"PRIx32, ret);
 		goto out;
 	}
 
@@ -1431,7 +1426,7 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 	ret = asu_rsa_pack_private_key(rsa_data->key.key, rsa_data->key.n_size,
 				       key_comp);
 	if (ret) {
-		DMSG("Private key pack failed ret=0x%x", ret);
+		DMSG("Private key pack failed ret=%#"PRIx32, ret);
 		goto out;
 	}
 
@@ -1495,7 +1490,7 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 	}
 
 	if (ret) {
-		DMSG("ASU operation failed ret=0x%x", ret);
+		DMSG("ASU operation failed ret=%#"PRIx32, ret);
 		goto out;
 	}
 
@@ -1644,14 +1639,14 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	ret = asu_rsa_sha_cfg_from_hash_algo(ssa_data->hash_algo,
 					     &sha_type, &sha_mode);
 	if (ret) {
-		DMSG("Hash cfg failed ret=0x%x, hash algo=0x%"PRIx32,
+		DMSG("Hash cfg failed ret=%#"PRIx32", hash algo=%#"PRIx32,
 		     ret, ssa_data->hash_algo);
 		goto out;
 	}
 	ret = asu_rsa_pack_private_key(ssa_data->key.key, ssa_data->key.n_size,
 				       key_comp);
 	if (ret) {
-		DMSG("Private key pack failed ret=0x%x", ret);
+		DMSG("Private key pack failed ret=%#"PRIx32, ret);
 		goto out;
 	}
 
@@ -1684,7 +1679,7 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 
 	ret = asu_rsa_pss_sign_gen_cmd(&req);
 	if (ret) {
-		DMSG("ASU command failed ret=0x%x", ret);
+		DMSG("ASU command failed ret=%#"PRIx32, ret);
 		goto out;
 	}
 
@@ -1771,14 +1766,14 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	ret = asu_rsa_sha_cfg_from_hash_algo(ssa_data->hash_algo,
 					     &sha_type, &sha_mode);
 	if (ret) {
-		DMSG("Hash cfg failed ret=0x%x, hash algo=0x%"PRIx32,
+		DMSG("Hash cfg failed ret=%#"PRIx32", hash algo=%#"PRIx32,
 		     ret, ssa_data->hash_algo);
 		goto out;
 	}
 	ret = asu_rsa_pack_public_key(ssa_data->key.key, ssa_data->key.n_size,
 				      key_comp);
 	if (ret) {
-		DMSG("Public key pack failed ret=0x%x", ret);
+		DMSG("Public key pack failed ret=%#"PRIx32, ret);
 		goto out;
 	}
 
@@ -1814,7 +1809,7 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 
 	ret = asu_rsa_pss_sign_ver_cmd(&req);
 	if (ret)
-		DMSG("ASU command failed ret=0x%x", ret);
+		DMSG("ASU command failed ret=%#"PRIx32, ret);
 	else
 		DMSG("RSA signature verification successful");
 
@@ -1891,7 +1886,7 @@ static TEE_Result asu_rsa_gen_keypair(struct rsa_keypair *key,
 
 	ret = asu_rsa_import_generated_keypair(key, size_bytes, key_obj);
 	if (ret) {
-		EMSG("Failed to import RSA key material ret=0x%x", ret);
+		EMSG("Failed to import RSA key material ret=%#"PRIx32, ret);
 		goto out;
 	}
 	DMSG("RSA key-pair import successful (size=%zu bits)", size_bits);
@@ -2026,7 +2021,7 @@ static TEE_Result asu_rsa_init(void)
 
 	ret = drvcrypt_register_rsa(&driver_rsa);
 	if (ret) {
-		EMSG("Failed to register ASU RSA ret=0x%x", ret);
+		EMSG("Failed to register ASU RSA ret=%#"PRIx32, ret);
 		return ret;
 	}
 
