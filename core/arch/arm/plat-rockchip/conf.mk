@@ -132,6 +132,11 @@ CFG_EARLY_CONSOLE_BASE ?= UART0_BASE
 CFG_EARLY_CONSOLE_SIZE ?= UART0_SIZE
 CFG_EARLY_CONSOLE_BAUDRATE ?= 115200
 CFG_EARLY_CONSOLE_CLK_IN_HZ ?= 24000000
+
+# UART0 is shared with the non-secure world on the RK3506B.
+# Prevent a lockup when the non-secure world is using
+# the UART and OP-TEE is trying to flush it.
+CFG_8250_UART_FLUSH_TIMEOUT ?= y
 endif
 
 ifeq ($(PLATFORM_FLAVOR),rk3588)
