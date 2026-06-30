@@ -144,8 +144,23 @@ struct asu_ecc_verify_cbctx {
 static const struct crypto_ecc_keypair_ops *sw_pair_ops;
 static const struct crypto_ecc_public_ops *sw_pub_ops;
 
-/* Bitmask of ECC curves enabled in OP-TEE build for ASU FW offload */
-static uint32_t asu_ecc_hw_curves_mask;
+/*
+ * Bitmask of ECC curves enabled in OP-TEE build for ASU FW offload.
+ *
+ * The set of HW-offloaded curves is fixed at build time, so this is a
+ * compile-time constant rather than a value computed at runtime.
+ */
+#define ASU_ECC_HW_CURVES_MASK \
+	(SHIFT_U32(IS_ENABLED(CFG_AMD_ASU_ECC_CURVE_NIST_P192), \
+		   ASU_ECC_CURVE_NIST_P192) | \
+	 SHIFT_U32(IS_ENABLED(CFG_AMD_ASU_ECC_CURVE_NIST_P224), \
+		   ASU_ECC_CURVE_NIST_P224) | \
+	 SHIFT_U32(IS_ENABLED(CFG_AMD_ASU_ECC_CURVE_NIST_P256), \
+		   ASU_ECC_CURVE_NIST_P256) | \
+	 SHIFT_U32(IS_ENABLED(CFG_AMD_ASU_ECC_CURVE_NIST_P384), \
+		   ASU_ECC_CURVE_NIST_P384) | \
+	 SHIFT_U32(IS_ENABLED(CFG_AMD_ASU_ECC_CURVE_NIST_P521), \
+		   ASU_ECC_CURVE_NIST_P521))
 
 /**
  * asu_ecc_alloc_align_buf() - Allocate zeroed cacheline-aligned memory
@@ -179,38 +194,33 @@ static void asu_ecc_free_align_buf(void *buf, size_t alloc_len)
 	free(buf);
 }
 
-/**
- * asu_ecc_set_hw_curves_mask() - Initialize HW curve bitmask from build config
- *
- * Sets a bit for each curve enabled for HW offload and logs the HW/SW
- * assignment for every supported curve. Call once during driver init.
- */
-static void asu_ecc_set_hw_curves_mask(void)
+/* Return "HW" if the curve is HW-offloaded, "SW" otherwise */
+static const char *asu_ecc_curve_mode(enum asu_ecc_curve_id asu_curve_id)
 {
-#ifdef CFG_AMD_ASU_ECC_CURVE_NIST_P192
-	asu_ecc_hw_curves_mask |= BIT(ASU_ECC_CURVE_NIST_P192);
-#endif
-#ifdef CFG_AMD_ASU_ECC_CURVE_NIST_P224
-	asu_ecc_hw_curves_mask |= BIT(ASU_ECC_CURVE_NIST_P224);
-#endif
-#ifdef CFG_AMD_ASU_ECC_CURVE_NIST_P256
-	asu_ecc_hw_curves_mask |= BIT(ASU_ECC_CURVE_NIST_P256);
-#endif
-#ifdef CFG_AMD_ASU_ECC_CURVE_NIST_P384
-	asu_ecc_hw_curves_mask |= BIT(ASU_ECC_CURVE_NIST_P384);
-#endif
-#ifdef CFG_AMD_ASU_ECC_CURVE_NIST_P521
-	asu_ecc_hw_curves_mask |= BIT(ASU_ECC_CURVE_NIST_P521);
-#endif
-#define CURVE_MODE(c) \
-	((asu_ecc_hw_curves_mask & BIT(ASU_ECC_CURVE_##c)) ? "HW" : "SW")
+	if (ASU_ECC_HW_CURVES_MASK & BIT(asu_curve_id))
+		return "HW";
 
+	return "SW";
+}
+
+/**
+ * asu_ecc_log_curve_modes() - Log per-curve HW/SW assignment
+ *
+ * By default AMD ASUFW only enables the NIST P-256 curve for ECC, and the
+ * driver mirrors that default through the CFG_AMD_ASU_ECC_CURVE_* build
+ * flags; curves not enabled for HW offload use the software fallback. This
+ * logs which curves are hardware-accelerated so the active configuration is
+ * unambiguous to the user. Call once during driver init.
+ */
+static void asu_ecc_log_curve_modes(void)
+{
 	IMSG("ASU ECC: NIST_P192=%s NIST_P224=%s NIST_P256=%s",
-	     CURVE_MODE(NIST_P192), CURVE_MODE(NIST_P224),
-	     CURVE_MODE(NIST_P256));
+	     asu_ecc_curve_mode(ASU_ECC_CURVE_NIST_P192),
+	     asu_ecc_curve_mode(ASU_ECC_CURVE_NIST_P224),
+	     asu_ecc_curve_mode(ASU_ECC_CURVE_NIST_P256));
 	IMSG("ASU ECC: NIST_P384=%s NIST_P521=%s",
-	     CURVE_MODE(NIST_P384), CURVE_MODE(NIST_P521));
-#undef CURVE_MODE
+	     asu_ecc_curve_mode(ASU_ECC_CURVE_NIST_P384),
+	     asu_ecc_curve_mode(ASU_ECC_CURVE_NIST_P521));
 }
 
 /* Check if ECC curve is enabled for HW offload in build configuration */
@@ -218,7 +228,7 @@ static bool asu_ecc_curve_fw_enabled(enum asu_ecc_curve_id asu_curve_id)
 {
 	if (asu_curve_id >= ASU_ECC_CURVE_MAX)
 		return false;
-	return asu_ecc_hw_curves_mask & BIT(asu_curve_id);
+	return ASU_ECC_HW_CURVES_MASK & BIT(asu_curve_id);
 }
 
 /* ECC key-pair generation SW fallback for curves disabled in build config */
@@ -356,24 +366,24 @@ static TEE_Result asu_ecc_alloc_keypair(struct ecc_keypair *key,
 	key->d = crypto_bignum_allocate(size_bits);
 	if (!key->d) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto ERR;
+		goto err;
 	}
 
 	key->x = crypto_bignum_allocate(size_bits);
 	if (!key->x) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto ERR;
+		goto err;
 	}
 
 	key->y = crypto_bignum_allocate(size_bits);
 	if (!key->y) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto ERR;
+		goto err;
 	}
 
 	return ret;
 
-ERR:
+err:
 	crypto_bignum_free(&key->d);
 	crypto_bignum_free(&key->x);
 	crypto_bignum_free(&key->y);
@@ -403,18 +413,18 @@ static TEE_Result asu_ecc_alloc_publickey(struct ecc_public_key *key,
 	key->x = crypto_bignum_allocate(size_bits);
 	if (!key->x) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto ERR;
+		goto err;
 	}
 
 	key->y = crypto_bignum_allocate(size_bits);
 	if (!key->y) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto ERR;
+		goto err;
 	}
 
 	return ret;
 
-ERR:
+err:
 	crypto_bignum_free(&key->x);
 	crypto_bignum_free(&key->y);
 
@@ -443,12 +453,10 @@ static void asu_ecc_free_publickey(struct ecc_public_key *key)
  * Return: TEE_SUCCESS on success, or an error code.
  */
 static TEE_Result asu_ecc_gen_keypair_cb(void *cbptr,
-					 struct asu_resp_buf *resp_buf)
+					 struct asu_resp_buf *resp_buf __unused)
 {
 	TEE_Result ret = TEE_SUCCESS;
 	struct asu_ecc_keypair_cbctx *cbctx = NULL;
-
-	(void)resp_buf;
 
 	cbctx = cbptr;
 
@@ -576,11 +584,10 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 	struct asu_ecc_keypair_cbctx kp_cbctx = { };
 	struct asu_ecc_keypair_object *keypair_obj = NULL;
 	size_t keypair_obj_len = 0;
-	uint8_t uid_allocated = 0U;
 
 	if (!key) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_ecc_get_curve_info(key->curve, &asu_curve_id, &key_len);
@@ -588,25 +595,23 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 	if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 		return asu_ecc_sw_gen_keypair(key, size_bits);
 	else if (ret != TEE_SUCCESS)
-		goto OUT;
+		goto out;
 
 	keypair_obj = asu_ecc_alloc_align_buf(sizeof(*keypair_obj),
 					      &keypair_obj_len);
 	if (!keypair_obj) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto OUT;
+		goto out;
 	}
 
 	unique_id = asu_alloc_unique_id();
-	if (unique_id == ASU_UNIQUE_ID_MAX) {
+	if (unique_id >= ASU_UNIQUE_ID_MAX) {
 		EMSG("Failed to allocate unique ID");
 		ret = TEE_ERROR_BUSY;
-		goto OUT;
+		goto out;
 	}
-	uid_allocated = 1U;
 
-	req_len_words =
-		(uint8_t)(sizeof(km_params) / ASU_WORD_LEN_IN_BYTES);
+	req_len_words = sizeof(km_params) / ASU_WORD_LEN_IN_BYTES;
 	header = asu_create_header(ASU_KM_COMMAND_ID_GEN_ECC_KEYPAIR,
 				   unique_id,
 				   ASU_MODULE_KEYMANAGER_ID,
@@ -626,8 +631,8 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 	km_params.key_metadata.key_type = ASU_KM_KEY_TYPE_ECC_PVT;
 	km_params.key_metadata.vault_id = ASU_KM_VAULT_ID;
 	km_params.key_metadata.key_use_case = ASU_KM_KEY_USE_CASE_ALL;
-	km_params.key_metadata.length = (uint16_t)key_len;
-	km_params.key_metadata.key_attributes = (uint8_t)asu_curve_id;
+	km_params.key_metadata.length = key_len;
+	km_params.key_metadata.key_attributes = asu_curve_id;
 	km_params.key_metadata.epoch_time = 0U;
 	km_params.key_metadata.usage_count =
 		ASU_KM_KEY_USAGE_COUNT_NON_DEPLETING_VALUE;
@@ -642,19 +647,19 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 
 	if (ret != TEE_SUCCESS) {
 		EMSG("ASU key pair generation request failed: %#" PRIx32, ret);
-		goto OUT;
+		goto out;
 	}
 
 	if (status) {
 		EMSG("FW error 0x%x", status);
 		ret = TEE_ERROR_GENERIC;
-		goto OUT;
+		goto out;
 	}
 	DMSG("ECC key pair generated successfully by ASU FW");
 	ret = TEE_SUCCESS;
 
-OUT:
-	if (uid_allocated)
+out:
+	if (unique_id < ASU_UNIQUE_ID_MAX)
 		asu_free_unique_id(unique_id);
 	asu_ecc_free_align_buf(keypair_obj, keypair_obj_len);
 
@@ -683,12 +688,11 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 	struct asu_client_params cparams = { };
 	uint8_t *priv_key = NULL;
 	size_t priv_key_len = 0;
-	uint8_t uid_allocated = 0U;
 
 	if (!sdata || !sdata->key || !sdata->signature.data ||
 	    !sdata->message.data || !sdata->message.length) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
 	key = sdata->key;
@@ -699,13 +703,13 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 	if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 		return asu_ecc_sw_sign(sdata);
 	else if (ret != TEE_SUCCESS)
-		goto OUT;
+		goto out;
 
 	required_sig_len = 2U * key_len;
 	if (sdata->signature.length < required_sig_len) {
 		sdata->signature.length = required_sig_len;
 		ret = TEE_ERROR_SHORT_BUFFER;
-		goto OUT;
+		goto out;
 	}
 
 	digest_len = sdata->message.length;
@@ -713,32 +717,30 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 		EMSG("Digest length %zu exceeds maximum supported %u",
 		     digest_len, ASU_ECC_MAX_HASH_SIZE_IN_BYTES);
 		ret = TEE_ERROR_NOT_SUPPORTED;
-		goto OUT;
+		goto out;
 	}
 
 	priv_key = asu_ecc_alloc_align_buf(ASU_ECC_MAX_PVT_KEY_SIZE_IN_BYTES,
 					   &priv_key_len);
 	if (!priv_key) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_ecc_bn2bin_pad(key->d, priv_key, key_len);
 	if (ret != TEE_SUCCESS) {
 		EMSG("Failed to convert private key to binary");
-		goto OUT;
+		goto out;
 	}
 
 	unique_id = asu_alloc_unique_id();
-	if (unique_id == ASU_UNIQUE_ID_MAX) {
+	if (unique_id >= ASU_UNIQUE_ID_MAX) {
 		EMSG("Failed to allocate unique ID");
 		ret = TEE_ERROR_BUSY;
-		goto OUT;
+		goto out;
 	}
-	uid_allocated = 1U;
 
-	req_len_words =
-		(uint8_t)(sizeof(ecc_params) / ASU_WORD_LEN_IN_BYTES);
+	req_len_words = sizeof(ecc_params) / ASU_WORD_LEN_IN_BYTES;
 	header = asu_create_header(ASU_ECC_COMMAND_ID_SIGN,
 				   unique_id,
 				   ASU_MODULE_ECC_ID,
@@ -754,11 +756,11 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 
 	ecc_params.key.key_addr = virt_to_phys(priv_key);
 	ecc_params.key.key_id = 0U;
-	ecc_params.key.key_len = (uint32_t)key_len;
+	ecc_params.key.key_len = key_len;
 	ecc_params.digest_addr = virt_to_phys(sdata->message.data);
 	ecc_params.sign_addr = virt_to_phys(sdata->signature.data);
-	ecc_params.curve_type = (uint32_t)asu_curve_id;
-	ecc_params.digest_len = (uint32_t)digest_len;
+	ecc_params.curve_type = asu_curve_id;
+	ecc_params.digest_len = digest_len;
 
 	ret = asu_update_queue_buffer_n_send_ipi(&cparams, &ecc_params,
 						 sizeof(ecc_params), header,
@@ -766,13 +768,13 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 
 	if (ret != TEE_SUCCESS) {
 		EMSG("ASU sign request failed: %#" PRIx32, ret);
-		goto OUT;
+		goto out;
 	}
 
 	if (status) {
 		EMSG("FW error 0x%x", status);
 		ret = TEE_ERROR_GENERIC;
-		goto OUT;
+		goto out;
 	}
 
 	cache_operation(TEE_CACHEINVALIDATE, sdata->signature.data,
@@ -781,8 +783,8 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 	DMSG("Signature generated (len=%zu)", sdata->signature.length);
 	ret = TEE_SUCCESS;
 
-OUT:
-	if (uid_allocated)
+out:
+	if (unique_id < ASU_UNIQUE_ID_MAX)
 		asu_free_unique_id(unique_id);
 	asu_ecc_free_align_buf(priv_key, priv_key_len);
 
@@ -812,12 +814,11 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 	struct asu_ecc_verify_cbctx cbctx = { };
 	uint8_t *pub_key = NULL;
 	size_t pub_key_len = 0;
-	uint8_t uid_allocated = 0U;
 
 	if (!sdata || !sdata->key || !sdata->signature.data ||
 	    !sdata->message.data || !sdata->message.length) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
 	key = sdata->key;
@@ -827,14 +828,14 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 	if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 		return asu_ecc_sw_verify(sdata);
 	else if (ret != TEE_SUCCESS)
-		goto OUT;
+		goto out;
 
 	/* Signature must be exactly r || s, each component of key_len bytes */
 	if (sdata->signature.length != 2 * key_len) {
 		EMSG("Invalid signature length: got %zu, expected %zu",
 		     sdata->signature.length, 2 * key_len);
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
 	digest_len = sdata->message.length;
@@ -842,32 +843,30 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 		EMSG("Digest length %zu exceeds maximum supported %u",
 		     digest_len, ASU_ECC_MAX_HASH_SIZE_IN_BYTES);
 		ret = TEE_ERROR_NOT_SUPPORTED;
-		goto OUT;
+		goto out;
 	}
 
 	pub_key = asu_ecc_alloc_align_buf(ASU_ECC_MAX_PUB_KEY_SIZE_IN_BYTES,
 					  &pub_key_len);
 	if (!pub_key) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_ecc_encode_pubkey(key->x, key->y, pub_key, key_len);
 	if (ret != TEE_SUCCESS) {
 		EMSG("Failed to encode public key");
-		goto OUT;
+		goto out;
 	}
 
 	unique_id = asu_alloc_unique_id();
-	if (unique_id == ASU_UNIQUE_ID_MAX) {
+	if (unique_id >= ASU_UNIQUE_ID_MAX) {
 		EMSG("Failed to allocate unique ID");
 		ret = TEE_ERROR_BUSY;
-		goto OUT;
+		goto out;
 	}
-	uid_allocated = 1U;
 
-	req_len_words =
-		(uint8_t)(sizeof(ecc_params) / ASU_WORD_LEN_IN_BYTES);
+	req_len_words = sizeof(ecc_params) / ASU_WORD_LEN_IN_BYTES;
 	header = asu_create_header(ASU_ECC_COMMAND_ID_VERIFY,
 				   unique_id,
 				   ASU_MODULE_ECC_ID,
@@ -885,11 +884,11 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 
 	ecc_params.key.key_addr = virt_to_phys(pub_key);
 	ecc_params.key.key_id = 0U;
-	ecc_params.key.key_len = (uint32_t)key_len;
+	ecc_params.key.key_len = key_len;
 	ecc_params.digest_addr = virt_to_phys(sdata->message.data);
 	ecc_params.sign_addr = virt_to_phys(sdata->signature.data);
-	ecc_params.curve_type = (uint32_t)asu_curve_id;
-	ecc_params.digest_len = (uint32_t)digest_len;
+	ecc_params.curve_type = asu_curve_id;
+	ecc_params.digest_len = digest_len;
 
 	ret = asu_update_queue_buffer_n_send_ipi(&cparams, &ecc_params,
 						 sizeof(ecc_params), header,
@@ -897,12 +896,12 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 
 	if (ret != TEE_SUCCESS) {
 		EMSG("ASU verify request failed: %#" PRIx32, ret);
-		goto OUT;
+		goto out;
 	}
 
 	if (status) {
-		fw_ecc_status = ((uint32_t)status >> ASU_ECC_STATUS_CODE_SHIFT)
-				& ASU_ECC_STATUS_CODE_MASK;
+		fw_ecc_status = (status >> ASU_ECC_STATUS_CODE_SHIFT) &
+				ASU_ECC_STATUS_CODE_MASK;
 
 		EMSG("FW error 0x%x", status);
 
@@ -914,21 +913,21 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 		else
 			ret = TEE_ERROR_GENERIC;
 
-		goto OUT;
+		goto out;
 	}
 
 	if (cbctx.verify_status != ASU_ECC_SIGNATURE_VERIFIED) {
 		EMSG("ECC signature verification failed, status=%#" PRIx32,
 		     cbctx.verify_status);
 		ret = TEE_ERROR_SIGNATURE_INVALID;
-		goto OUT;
+		goto out;
 	}
 
 	DMSG("ECC signature verified successfully by ASU FW");
 	ret = TEE_SUCCESS;
 
-OUT:
-	if (uid_allocated)
+out:
+	if (unique_id < ASU_UNIQUE_ID_MAX)
 		asu_free_unique_id(unique_id);
 	asu_ecc_free_align_buf(pub_key, pub_key_len);
 
@@ -960,12 +959,11 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 	size_t priv_key_buf_len = 0;
 	size_t pub_key_buf_len = 0;
 	size_t shared_secret_buf_len = 0;
-	uint8_t uid_allocated = 0U;
 
 	if (!sdata || !sdata->key_priv || !sdata->key_pub ||
 	    !sdata->secret.data) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
 	priv_key = sdata->key_priv;
@@ -974,7 +972,7 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 		EMSG("Curve mismatch: private %#" PRIx32 ", public %#" PRIx32,
 		     priv_key->curve, pub_key->curve);
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto OUT;
+		goto out;
 	}
 
 	ret = asu_ecc_get_curve_info(priv_key->curve, &asu_curve_id, &key_len);
@@ -982,13 +980,13 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 	if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 		return asu_ecc_sw_shared_secret(sdata);
 	else if (ret != TEE_SUCCESS)
-		goto OUT;
+		goto out;
 
 	if (sdata->secret.length < key_len) {
 		EMSG("Secret buffer too small (need %zu, got %zu)",
 		     key_len, sdata->secret.length);
 		ret = TEE_ERROR_SHORT_BUFFER;
-		goto OUT;
+		goto out;
 	}
 
 	priv_key_buf =
@@ -1001,19 +999,17 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 					&shared_secret_buf_len);
 	if (!priv_key_buf || !pub_key_buf || !shared_secret_buf) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto OUT;
+		goto out;
 	}
 
 	unique_id = asu_alloc_unique_id();
-	if (unique_id == ASU_UNIQUE_ID_MAX) {
+	if (unique_id >= ASU_UNIQUE_ID_MAX) {
 		EMSG("Failed to allocate unique ID");
 		ret = TEE_ERROR_BUSY;
-		goto OUT;
+		goto out;
 	}
-	uid_allocated = 1U;
 
-	req_len_words =
-		(uint8_t)(sizeof(ecdh_params) / ASU_WORD_LEN_IN_BYTES);
+	req_len_words = sizeof(ecdh_params) / ASU_WORD_LEN_IN_BYTES;
 	header = asu_create_header(ASU_ECC_COMMAND_ID_ECDH_SHARED_SECRET,
 				   unique_id,
 				   ASU_MODULE_ECC_ID,
@@ -1027,7 +1023,7 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 	ret = asu_ecc_bn2bin_pad(priv_key->d, priv_key_buf, key_len);
 	if (ret != TEE_SUCCESS) {
 		EMSG("Failed to encode private key");
-		goto OUT;
+		goto out;
 	}
 
 	/* Encode public key as X || Y, each component padded to key_len */
@@ -1035,7 +1031,7 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 				    pub_key_buf, key_len);
 	if (ret != TEE_SUCCESS) {
 		EMSG("Failed to encode public key");
-		goto OUT;
+		goto out;
 	}
 
 	cache_operation(TEE_CACHEFLUSH, priv_key_buf,
@@ -1047,13 +1043,13 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 
 	ecdh_params.pvt_key.key_addr = virt_to_phys(priv_key_buf);
 	ecdh_params.pvt_key.key_id = 0U;
-	ecdh_params.pvt_key.key_len = (uint32_t)key_len;
+	ecdh_params.pvt_key.key_len = key_len;
 	ecdh_params.pub_key.key_addr = virt_to_phys(pub_key_buf);
 	ecdh_params.pub_key.key_id = 0U;
-	ecdh_params.pub_key.key_len = (uint32_t)key_len;
+	ecdh_params.pub_key.key_len = key_len;
 	ecdh_params.shared_secret_addr = virt_to_phys(shared_secret_buf);
 	ecdh_params.shared_secret_obj_id_addr = 0;
-	ecdh_params.curve_type = (uint32_t)asu_curve_id;
+	ecdh_params.curve_type = asu_curve_id;
 
 	ret = asu_update_queue_buffer_n_send_ipi(&cparams, &ecdh_params,
 						 sizeof(ecdh_params), header,
@@ -1061,13 +1057,13 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 
 	if (ret != TEE_SUCCESS) {
 		EMSG("ASU shared secret request failed: %#" PRIx32, ret);
-		goto OUT;
+		goto out;
 	}
 
 	if (status) {
 		EMSG("FW error 0x%x", status);
 		ret = TEE_ERROR_GENERIC;
-		goto OUT;
+		goto out;
 	}
 
 	cache_operation(TEE_CACHEINVALIDATE, shared_secret_buf, key_len);
@@ -1077,8 +1073,8 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 	DMSG("ECDH shared secret generated successfully by ASU FW");
 	ret = TEE_SUCCESS;
 
-OUT:
-	if (uid_allocated)
+out:
+	if (unique_id < ASU_UNIQUE_ID_MAX)
 		asu_free_unique_id(unique_id);
 	asu_ecc_free_align_buf(priv_key_buf, priv_key_buf_len);
 	asu_ecc_free_align_buf(pub_key_buf, pub_key_buf_len);
@@ -1101,25 +1097,25 @@ static TEE_Result asu_ecc_init(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
 
-	asu_ecc_set_hw_curves_mask();
+	asu_ecc_log_curve_modes();
 
 	sw_pair_ops = crypto_asym_get_ecc_keypair_ops(TEE_TYPE_ECDSA_KEYPAIR);
 	if (!sw_pair_ops || !sw_pair_ops->generate || !sw_pair_ops->sign ||
 	    !sw_pair_ops->shared_secret) {
 		EMSG("ASU ECC software key-pair operations unavailable");
 		ret = TEE_ERROR_GENERIC;
-		goto OUT;
+		goto out;
 	}
 
 	sw_pub_ops = crypto_asym_get_ecc_public_ops(TEE_TYPE_ECDSA_PUBLIC_KEY);
 	if (!sw_pub_ops || !sw_pub_ops->verify) {
 		EMSG("ASU ECC software public operations unavailable");
 		ret = TEE_ERROR_GENERIC;
-		goto OUT;
+		goto out;
 	}
 
 	ret = drvcrypt_register_ecc(&asu_ecc_ops);
-OUT:
+out:
 	if (ret != TEE_SUCCESS)
 		EMSG("ASU ECC register to crypto failed, ret=%#" PRIx32, ret);
 	else
