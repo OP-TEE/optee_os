@@ -6,10 +6,12 @@
  *	Andrew Davis <afd@ti.com>
  */
 
+#include <drivers/eip76d_trng.h>
 #include <drivers/ti_sci.h>
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>
+#include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/spinlock.h>
@@ -18,7 +20,6 @@
 #include <platform_config.h>
 #include <rng_support.h>
 
-#include "eip76d_trng.h"
 #include "ti_crypto.h"
 
 #define	SA2UL_ES                0x0008
@@ -73,3 +74,17 @@ static TEE_Result sa2ul_init(void)
 	return TEE_SUCCESS;
 }
 service_init_crypto(sa2ul_init);
+
+unsigned long plat_get_aslr_seed(void)
+{
+	unsigned long aslr = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = hw_get_random_bytes_nolock(&aslr, sizeof(aslr));
+	if (res)
+		panic("ASLR failed to seed");
+
+	IMSG("ASLR seeded by TRNG");
+
+	return aslr;
+}
