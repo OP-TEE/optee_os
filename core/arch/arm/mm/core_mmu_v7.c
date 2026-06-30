@@ -17,6 +17,7 @@
 #include <mm/core_mmu.h>
 #include <mm/pgt_cache.h>
 #include <mm/phys_mem.h>
+#include <mm/tee_pager.h>
 #include <platform_config.h>
 #include <stdlib.h>
 #include <string.h>
@@ -277,6 +278,37 @@ static paddr_t core_mmu_get_ul1_ttb_pa(struct mmu_partition *prtn)
 	return pa;
 }
 
+static void *alloc_table_from_phys_mem(void)
+{
+	tee_mm_entry_t *mm = NULL;
+	paddr_t pa = 0;
+
+	mm = phys_mem_core_alloc(SMALL_PAGE_SIZE);
+	if (!mm) {
+		EMSG("Phys mem exhausted");
+		return NULL;
+	}
+	pa = tee_mm_get_smem(mm);
+
+	return phys_to_virt(pa, MEM_AREA_SEC_RAM_OVERALL, SMALL_PAGE_SIZE);
+}
+
+static void *alloc_table_from_pager(void)
+{
+#ifdef CFG_WITH_PAGER
+	uint8_t *p = tee_pager_alloc(SMALL_PAGE_SIZE);
+
+	/* Dereference the pointer to map a physical page now. */
+	if (p)
+		*p = 0;
+	else
+		EMSG("Pager mem exhausted");
+	return p;
+#else
+	return NULL;
+#endif
+}
+
 static uint32_t *alloc_l2_table(struct mmu_partition *prtn)
 {
 	uint32_t *new_table = NULL;
@@ -290,18 +322,11 @@ static uint32_t *alloc_l2_table(struct mmu_partition *prtn)
 		if (prtn->last_l2_page)
 			goto dyn_out;
 		if (cpu_mmu_enabled()) {
-			tee_mm_entry_t *mm = NULL;
-			paddr_t pa = 0;
+			if (IS_ENABLED(CFG_WITH_PAGER))
+				p = alloc_table_from_pager();
+			else
+				p = alloc_table_from_phys_mem();
 
-			mm = phys_mem_core_alloc(SMALL_PAGE_SIZE);
-			if (!mm) {
-				EMSG("Phys mem exhausted");
-				return NULL;
-			}
-			pa = tee_mm_get_smem(mm);
-
-			p = phys_to_virt(pa, MEM_AREA_SEC_RAM_OVERALL,
-					 SMALL_PAGE_SIZE);
 			assert(p);
 		} else {
 			p = boot_mem_alloc(SMALL_PAGE_SIZE, SMALL_PAGE_SIZE);
