@@ -2,7 +2,7 @@
 /*
  * Copyright 2019 Pengutronix
  * All rights reserved.
- * Copyright 2023 NXP
+ * Copyright 2023, 2026 NXP
  *
  * Rouven Czerwinski <entwicklung@pengutronix.de>
  */
@@ -201,6 +201,16 @@ static TEE_Result imx_configure_tzasc(void)
 
 		tzc_init(addr[i]);
 		imx_tzasc_region_init();
+
+		/*
+		 * On i.MX platforms U-Boot SPL configure region0 as
+		 * non-secure to support its own execution and non-OP-TEE
+		 * use cases.
+		 * To save against the memory aliasing issue and overall
+		 * system security OP-TEE must program region0 to secure
+		 * only.
+		 */
+		tzc_configure_region(0, 0x00000000, TZC_ATTR_SP_S_RW);
 
 		/*
 		 * TZC380 is not memory alias aware so an attacker could read
