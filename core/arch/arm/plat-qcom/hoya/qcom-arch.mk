@@ -6,7 +6,7 @@ $(call force,CFG_TEE_CORE_NB_CORE,8)
 $(call force,CFG_QCOM_RAMBLUR_PIMEM_V3,y)
 CFG_QCOM_RAMBLUR_TA_WINDOW_ID ?= 2
 
-$(call force,CFG_QCOM_PRNG,y)
+$(call force,CFG_QCOM_RNG,y)
 $(call force,CFG_ARM_GICV3,y)
 
 CFG_TZDRAM_START ?= 0x1c300000
