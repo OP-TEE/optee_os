@@ -12,3 +12,5 @@ $(call force,CFG_QCOM_CMD_DB,y)
 $(call force,CFG_QCOM_RPMH_CLIENT,y)
 $(call force,CFG_QCOM_QFPROM,y)
 endif
+
+CFG_QCOM_HWKM ?= y
