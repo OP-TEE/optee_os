@@ -10,7 +10,7 @@
 #include <types_ext.h>
 #include <kernel/interrupt.h>
 
-#ifdef _CFG_ARM_V3_OR_V4
+#ifdef _CFG_ARM_GIC_V3_OR_V4
 #define GICD_FRAME_SIZE         (64 * 1024)
 #define GICC_FRAME_SIZE         (64 * 1024)
 #define GICR_FRAME_SIZE         (64 * 1024)
@@ -22,7 +22,7 @@
 
 #define GIC_CPU_REG_SIZE        GICC_FRAME_SIZE
 #define GIC_DIST_REG_SIZE       GICD_FRAME_SIZE
-#ifdef _CFG_ARM_V3_OR_V4
+#ifdef _CFG_ARM_GIC_V3_OR_V4
 /*
  * The frames for each Redistributor are contiguous and are ordered as
  * follows:
