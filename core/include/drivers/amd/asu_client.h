@@ -13,6 +13,7 @@
 
 #define ASU_PRIORITY_LOW		1
 #define ASU_PRIORITY_HIGH		0
+#define ASU_MODULE_TRNG_ID		0U
 #define ASU_MODULE_SHA2_ID		1U
 #define ASU_MODULE_SHA3_ID		2U
 
