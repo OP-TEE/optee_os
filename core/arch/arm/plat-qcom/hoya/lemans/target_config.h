@@ -30,4 +30,73 @@
 #define IMEM_BASE			UL(0x14680000)
 #define IMEM_SIZE			UL(0x32000)
 
+#define TURING_0_BASE			UL(0x24000000)
+#define TURING_0_SIZE			UL(0x03000000)
+
+#define TURING_1_BASE			UL(0x28000000)
+#define TURING_1_SIZE			UL(0x03000000)
+
+/*
+ * GP-DSP0 / GP-DSP1 (TURINGGDSP / TURINGGDSP1) subsystems. The window covers
+ * every GP-DSP sub-block the PTA and clock driver touch (GDSP_CC 0x808000, PUB
+ * 0xc00000, PLL 0xc40000, CORE_CC 0xc48000).
+ */
+#define TURING_GDSP_0_BASE		UL(0x20000000)
+#define TURING_GDSP_0_SIZE		UL(0x01000000)
+
+#define TURING_GDSP_1_BASE		UL(0x21000000)
+#define TURING_GDSP_1_SIZE		UL(0x01000000)
+
+/*
+ * LPASS / ADSP (QDSP6 v68/v69) subsystem window, covering every sub-block the
+ * PTA and clock driver touch (PUB, PLL, CORE_CC, AON_CC, MCC, TOP_CC).
+ */
+#define LPASS_BASE			UL(0x02c00000)
+#define LPASS_SIZE			ULL(0x01080000)
+
+/*
+ * IRIS video-codec subsystem. The window covers the VCODEC_IRIS_WRAPPER_TOP
+ * (IRIS+0xb0000) and WRAPPER_TZ (IRIS+0xc0000) blocks the bring-up path
+ * touches.
+ */
+#define IRIS_BASE			UL(0x0aa00000)
+#define IRIS_SIZE			ULL(0x00200000)
+
+#define PAS_ID_TURING			18
+#define PAS_ID_TURING1			30
+#define PAS_ID_QDSP6			1
+#define PAS_ID_IRIS			9
+#define PAS_ID_GPDSP0			39
+#define PAS_ID_GPDSP1			40
+
+/* CDSP0 content-protection shared channel (secure DDR); no CDSP1 equivalent. */
+#define CDSP_SECCHANNEL_BASE		UL(0xdb1dc000)
+#define CDSP_SECCHANNEL_SIZE		UL(0x2000)
+
+/*
+ * Global register blocks for the Turing/NSP reset sequence, under AOSS_BASE
+ * (0x0b000000). TCSR_MUTEX_BASE/SIZE is already defined in arch_config.h.
+ */
+#define AOSS_CC_BASE			UL(0x0c2a8000)
+#define AOSS_CC_SIZE			UL(0x00050000)
+
+#define RPMH_PDC_GLOBAL_BASE		UL(0x0b5e0000)
+#define RPMH_PDC_GLOBAL_SIZE		UL(0x00002000)
+
+#define RPMH_PDC_COMPUTE_BASE		UL(0x0b2c0000)
+#define RPMH_PDC_COMPUTE_SIZE		UL(0x00002000)
+
+#define RPMH_PDC_NSP_BASE		UL(0x0b2f0000)
+#define RPMH_PDC_NSP_SIZE		UL(0x00002000)
+
+/*
+ * RPMH PDC blocks for the GP-DSP subsystem reset sequence. These live under
+ * AOSS_BASE (0x0b000000), at offsets 0x240000 / 0x2d0000.
+ */
+#define RPMH_PDC_GPDSP0_BASE		UL(0x0b240000)
+#define RPMH_PDC_GPDSP0_SIZE		UL(0x00002000)
+
+#define RPMH_PDC_GPDSP1_BASE		UL(0x0b2d0000)
+#define RPMH_PDC_GPDSP1_SIZE		UL(0x00002000)
+
 #endif /* TARGET_CONFIG_H */
