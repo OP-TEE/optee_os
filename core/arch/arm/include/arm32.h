@@ -166,7 +166,7 @@
 
 #ifndef __ASSEMBLER__
 #include <generated/arm32_sysreg.h>
-#ifdef _CFG_ARM_V3_OR_V4
+#ifdef _CFG_ARM_GIC_V3_OR_V4
 #include <generated/arm32_gicv3_sysreg.h>
 #endif
 

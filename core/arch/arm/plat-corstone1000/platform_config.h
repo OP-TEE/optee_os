@@ -20,7 +20,7 @@
 #define DRAM0_BASE		0x80000000
 #define DRAM0_SIZE		CFG_DDR_SIZE
 
-#ifdef _CFG_ARM_V3_OR_V4
+#ifdef _CFG_ARM_GIC_V3_OR_V4
 #define GICD_OFFSET		0x00000
 #define GICR_OFFSET		0x40000
 #else
@@ -28,7 +28,7 @@
 #define GICC_OFFSET		0x2F000
 #endif
 
-#ifdef _CFG_ARM_V3_OR_V4
+#ifdef _CFG_ARM_GIC_V3_OR_V4
 #define GICR_BASE		(GIC_BASE + GICR_OFFSET)
 #else
 #define GICC_BASE		(GIC_BASE + GICC_OFFSET)
