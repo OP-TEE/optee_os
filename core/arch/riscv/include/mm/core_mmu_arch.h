@@ -223,6 +223,19 @@ static inline bool core_mmu_va_is_valid(vaddr_t va)
 #endif
 }
 
+static inline bool
+arch_mem_map_allows_user_va(const struct memory_map *mem_map __unused,
+			    vaddr_t id_map_start __unused,
+			    vaddr_t id_map_end __unused)
+{
+	/*
+	 * RV32 TAs on an RV64 core aren't currently supported, so the user VA
+	 * isn't restricted to the 32-bit VA range. The final selector may use
+	 * any unused VPN[2] entry without an additional layout constraint.
+	 */
+	return true;
+}
+
 static inline bool core_mmu_level_in_range(unsigned int level)
 {
 	return level <= CORE_MMU_BASE_TABLE_LEVEL;

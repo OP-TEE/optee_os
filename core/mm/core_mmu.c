@@ -1540,6 +1540,9 @@ static struct memory_map *init_mem_map(struct memory_map *mem_map,
 		for (n = 0; n < 3; n++) {
 			ba = arch_aslr_base_addr(start_addr, seed, n);
 			if (assign_mem_va(ba, mem_map) &&
+			    arch_mem_map_allows_user_va(mem_map,
+							id_map_start,
+							id_map_end) &&
 			    mem_map_add_id_map(mem_map, id_map_start,
 					       id_map_end)) {
 				offs = ba - start_addr;
