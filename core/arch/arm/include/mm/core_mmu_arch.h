@@ -206,6 +206,19 @@ static inline bool core_mmu_va_is_valid(vaddr_t va)
 	return va < BIT64(core_mmu_get_va_width());
 }
 
+#ifdef CFG_WITH_LPAE
+bool arch_mem_map_allows_user_va(const struct memory_map *mem_map,
+				 vaddr_t id_map_start, vaddr_t id_map_end);
+#else
+static inline bool
+arch_mem_map_allows_user_va(const struct memory_map *mem_map __unused,
+			    vaddr_t id_map_start __unused,
+			    vaddr_t id_map_end __unused)
+{
+	return true;
+}
+#endif
+
 static inline bool core_mmu_level_in_range(unsigned int level)
 {
 #if CORE_MMU_BASE_TABLE_LEVEL == 0
