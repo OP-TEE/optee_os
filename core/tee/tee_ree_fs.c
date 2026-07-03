@@ -710,10 +710,11 @@ static void put_dirh_primitive(bool close)
 	 * another thread may get an error or something causing that fop
 	 * to do a put with close=1.
 	 *
-	 * For all fops but ree_fs_close() there's a call to get_dirh() to
-	 * get a new dirh which will open it again if it was closed before.
-	 * But in the ree_fs_close() case there's no call to get_dirh()
-	 * only to this function, put_dirh_primitive(), and in this case
+	 * For all fops but ree_fs_close() and ree_fs_closedir_rpc() there's a
+	 * call to get_dirh() to get a new dirh which will open it again if it
+	 * was closed before. But in the ree_fs_close() and
+	 * ree_fs_closedir_rpc() cases there's no call to get_dirh() only to
+	 * this function, put_dirh_primitive(), and in this case
 	 * ree_fs_dirh may actually be NULL.
 	 */
 	ree_fs_dirh_refcount--;
@@ -1089,7 +1090,7 @@ static void ree_fs_closedir_rpc(struct tee_fs_dir *d)
 	if (d) {
 		mutex_lock(&ree_fs_mutex);
 
-		put_dirh(ree_fs_dirh, false);
+		put_dirh_primitive(false);
 		free(d);
 
 		mutex_unlock(&ree_fs_mutex);
