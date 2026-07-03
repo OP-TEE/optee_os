@@ -1102,6 +1102,7 @@ static TEE_Result ree_fs_readdir_rpc(struct tee_fs_dir *d,
 {
 	struct tee_fs_dirfile_dirh *dirh = NULL;
 	TEE_Result res = TEE_SUCCESS;
+	bool close = false;
 
 	mutex_lock(&ree_fs_mutex);
 
@@ -1115,7 +1116,9 @@ static TEE_Result ree_fs_readdir_rpc(struct tee_fs_dir *d,
 	if (res == TEE_SUCCESS)
 		*ent = &d->d;
 
-	put_dirh(dirh, res);
+	close = (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND);
+
+	put_dirh(dirh, close);
 out:
 	mutex_unlock(&ree_fs_mutex);
 
