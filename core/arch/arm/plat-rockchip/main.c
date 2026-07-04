@@ -16,11 +16,11 @@
 
 #if defined(CFG_EARLY_CONSOLE)
 static struct serial8250_uart_data early_console_data;
-#if defined(PLATFORM_FLAVOR_rk3506)
+#if defined(PLATFORM_FLAVOR_rk3506) || defined(PLATFORM_FLAVOR_rv1106)
 /*
- * rk3506: map the early console UART secure (NS=0), not IO_NSEC. The
- * system firewall rejects a secure master issuing a non-secure access
- * to UART0 once the MMU is enabled (sync external abort), so the
+ * rk3506 / rv1106: map the early console UART secure (NS=0), not IO_NSEC.
+ * The system firewall rejects a secure master issuing a non-secure access
+ * to the UART once the MMU is enabled (sync external abort), so the
  * post-MMU mapping must keep the same secure attribute as the working
  * pre-MMU access. OP-TEE owns the debug UART during bring-up, so a
  * secure mapping is appropriate.

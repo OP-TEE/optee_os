@@ -33,6 +33,58 @@ CFG_EARLY_CONSOLE_BAUDRATE ?= 1500000
 CFG_EARLY_CONSOLE_CLK_IN_HZ ?= 24000000
 endif
 
+ifeq ($(PLATFORM_FLAVOR),rv1106)
+include ./core/arch/arm/cpu/cortex-a7.mk
+$(call force,CFG_TEE_CORE_NB_CORE,1)
+
+# The kernel DT declares psci { method = "smc"; }, so Linux issues a PSCI SMC
+# before its console is up. Enable CFG_PSCI_ARM32 so the generic __weak PSCI
+# defaults answer (version 1.1, CPU_ON not supported), correct for a single
+# core; without a handler the SMC is mishandled and the kernel hangs.
+# psci_rk322x.c is rk322x-specific and not built here.
+$(call force,CFG_PSCI_ARM32,y)
+
+# No TF-A in the boot chain, so sm_init() must zero CNTVOFF.
+$(call force,CFG_INIT_CNTVOFF,y)
+
+# Cortex-A7 supports LPAE; use it for the 2 MB page-directory granule the
+# CFG_DYN_CONFIG core layout needs (the 1 MB short-descriptor granule does
+# not leave enough room for boot_mem on this platform).
+$(call force,CFG_WITH_LPAE,y)
+
+# OP-TEE parses the DTB from non-secure DRAM; a secure master's non-secure
+# access is rejected once the MMU is on, so map it secure.
+CFG_MAP_EXT_DT_SECURE ?= y
+
+# TEE region. TZDRAM base 0x03d00000 matches the vendor firmware layout
+# (rkbin RV1106TOS.ini); non-secure shared memory sits immediately above it.
+CFG_TZDRAM_START ?= 0x03d00000
+CFG_TZDRAM_SIZE  ?= 0x01000000
+CFG_SHMEM_START  ?= 0x04d00000
+CFG_SHMEM_SIZE   ?= 0x00100000
+
+# Optional HW isolation of TZDRAM from the non-secure Cortex-A7. The secure
+# region alone does not gate the A7 (single core, no DSU firewall); enabling
+# this also programs the FW_DDR per-master bank. Off by default: it requires
+# the non-secure DTB to reserve TZDRAM (reserved-memory, no-map), or the
+# kernel faults on the isolated region. See platform_rv1106.c.
+CFG_RV1106_TEE_HW_ISOLATE ?= n
+
+# UART2 debug console (24 MHz ref). Early console is off by default; OP-TEE
+# switches to the DT console. Enable with CFG_EARLY_CONSOLE=y.
+CFG_EARLY_CONSOLE_BASE ?= UART2_BASE
+CFG_EARLY_CONSOLE_SIZE ?= UART2_SIZE
+CFG_EARLY_CONSOLE_BAUDRATE ?= 115200
+CFG_EARLY_CONSOLE_CLK_IN_HZ ?= 24000000
+
+# Non-secure handoff: enter the NS payload at CFG_NS_ENTRY_ADDR with its DTB at
+# CFG_DT_ADDR, and describe the 256 MB DRAM (atags are not passed on).
+CFG_DT_ADDR ?= 0x08000000
+CFG_NS_ENTRY_ADDR ?= 0x00200000
+CFG_DRAM_BASE ?= 0x00000000
+CFG_DRAM_SIZE ?= 0x10000000
+endif
+
 ifeq ($(PLATFORM_FLAVOR),rk3399)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_TEE_CORE_NB_CORE,6)

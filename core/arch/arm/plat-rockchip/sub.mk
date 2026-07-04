@@ -7,12 +7,14 @@ srcs-$(PLATFORM_FLAVOR_rk3399) += platform_rk3399.c
 srcs-$(PLATFORM_FLAVOR_rk3506) += platform_rk3506.c
 srcs-$(PLATFORM_FLAVOR_rk3576) += platform_rk3576.c
 srcs-$(PLATFORM_FLAVOR_rk3588) += platform_rk3588.c
+srcs-$(PLATFORM_FLAVOR_rv1106) += platform_rv1106.c
 
-ifeq ($(PLATFORM_FLAVOR),rk322x)
+ifneq ($(filter rk322x rv1106, $(PLATFORM_FLAVOR)),)
 srcs-y += plat_init.S
 srcs-y += core_pos_a32.S
-srcs-$(CFG_PSCI_ARM32) += psci_rk322x.c
 endif
+
+srcs-$(PLATFORM_FLAVOR_rk322x) += psci_rk322x.c
 
 ifeq ($(PLATFORM_FLAVOR),rk3506)
 # rk3506-specific plat_init programs CNTFRQ_EL0 (the RK3506 boot chain

@@ -224,6 +224,7 @@ jobs:
               _make PLATFORM=rockchip-rk3506
               _make PLATFORM=rockchip-rk3576
               _make PLATFORM=rockchip-rk3588
+              _make PLATFORM=rockchip-rv1106
           - name: arm sam
             make_commands: |
               _make PLATFORM=sam

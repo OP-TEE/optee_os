@@ -209,6 +209,35 @@
 #define PMU1SGRF_FW_BASE	0x26003000
 #define PMU1SGRF_FW_SIZE	SIZE_K(4)
 
+#elif defined(PLATFORM_FLAVOR_rv1106)
+
+/* GIC-400 (GICv2) */
+#define GIC_BASE		0xff1f0000
+#define GIC_SIZE		SIZE_K(64)
+#define GICD_BASE		(GIC_BASE + 0x1000)
+#define GICC_BASE		(GIC_BASE + 0x2000)
+
+/* UART2 debug console */
+#define UART2_BASE		0xff4c0000
+#define UART2_SIZE		SIZE_K(64)
+
+/*
+ * System-firewall (SGRF) bases. PERI_SGRF gates the peripherals the NS world
+ * owns (including the UART2 console); CORE_SGRF gates the core/HPMCU domain.
+ * A 4 KiB page each covers the register offsets used here.
+ */
+#define PERI_SGRF_BASE		0xff070000
+#define PERI_SGRF_SIZE		SIZE_K(4)
+#define CORE_SGRF_BASE		0xff076000
+#define CORE_SGRF_SIZE		SIZE_K(4)
+
+/*
+ * DDR-firewall base. The FW_DDR region (RGN) and enable (CON) layout is the
+ * same IP as the upstream plat-rk3588 FW_DDR block; see platform_rv1106.c.
+ */
+#define FW_DDR_BASE		0xff900000
+#define FW_DDR_SIZE		SIZE_K(64)
+
 #else
 #error "Unknown platform flavor"
 #endif
