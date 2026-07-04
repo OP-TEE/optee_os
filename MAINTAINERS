@@ -328,6 +328,11 @@ R:	Owen O'Hehir <electronicconsult1@gmail.com> [@OOHehir]
 S:	Maintained
 F:	core/arch/arm/plat-rockchip/*rk3506*
 
+Rockchip RV1106
+R:	Owen O'Hehir <electronicconsult1@gmail.com> [@OOHehir]
+S:	Maintained
+F:	core/arch/arm/plat-rockchip/*rv1106*
+
 Socionext DeveloperBox (Synquacer SC2A11)
 R:	Sumit Garg <sumit.garg@kernel.org> [@b49020]
 S:	Maintained
