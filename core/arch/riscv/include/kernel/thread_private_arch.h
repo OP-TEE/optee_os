@@ -9,7 +9,7 @@
 #ifndef __ASSEMBLER__
 
 #include <kernel/thread.h>
-#if defined(CFG_WITH_VFP) && defined(__riscv_vector)
+#if defined(CFG_WITH_VFP)
 #include <riscv_vector.h>
 #endif
 
@@ -61,13 +61,35 @@ struct thread_user_mode_rec {
 	unsigned long x[13];
 };
 
-#if defined(CFG_WITH_VFP) && defined(__riscv_vector)
-struct thread_vfp_state {
-	struct riscv_vector_state v_ctx;
-	bool vec_saved;
+#if defined(CFG_WITH_VFP)
+/*
+ * Identifies the context currently resident in the hardware vector
+ * registers on this OP-TEE thread.
+ */
+enum riscv_vector_owner {
+	RISCV_VECTOR_OWNER_NONE = 0,
+	RISCV_VECTOR_OWNER_NS,
+	RISCV_VECTOR_OWNER_KERNEL,
+	RISCV_VECTOR_OWNER_USER,
+};
+
+/*
+ * Per-thread vector contexts.
+ *
+ * ns    - normal-world vector state
+ * sec   - secure-kernel vector state
+ * uvfp  - currently associated user-TA vector state
+ * owner - context currently resident in the physical vector registers
+ */
+ struct thread_vfp_state {
+	struct riscv_vector_state *ns;
+	struct riscv_vector_state *sec;
+	struct thread_user_vfp_state *uvfp;
+	enum riscv_vector_owner owner;
+	bool ns_valid;
+	bool sec_valid;
 };
 #endif
-
 
 extern long thread_user_kcode_offset;
 
@@ -139,6 +161,12 @@ static inline void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 }
 
 void thread_scall_handler(struct thread_scall_regs *regs);
+
+#if defined(CFG_WITH_VFP)
+int thread_init_vector_context(struct thread_vfp_state *vfp_state);
+void thread_free_vector_context(struct thread_vfp_state *vfp_state);
+void vfp_disable(void);
+#endif
 
 #endif /*__ASSEMBLER__*/
 

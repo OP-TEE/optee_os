@@ -8,10 +8,10 @@
 
 #ifndef __ASSEMBLER__
 
-#if defined(CFG_WITH_VFP) && defined(__riscv_vector)
-
 #include <types_ext.h>
 #include <compiler.h>
+
+#if defined(CFG_WITH_VFP)
 
 /* Vector Context Struct */
 struct riscv_vector_state {
