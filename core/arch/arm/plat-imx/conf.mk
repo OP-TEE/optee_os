@@ -259,10 +259,10 @@ CFG_TEE_CORE_NB_CORE ?= 2
 $(call force,CFG_NXP_SNVS,n)
 $(call force,CFG_IMX_OCOTP,n)
 $(call force,CFG_TZC380,n)
-$(call force,CFG_CRYPTO_DRIVER,n)
 $(call force,CFG_NXP_CAAM,n)
 CFG_IMX_MU ?= y
 CFG_IMX_ELE ?= y
+CFG_IMX_ELE_ECC_DRV ?= y
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx95-flavorlist)))
 $(call force,CFG_MX95,y)
 $(call force,CFG_ARM64_core,y)
@@ -287,6 +287,7 @@ $(call force,CFG_TZC380,n)
 $(call force,CFG_NXP_CAAM,n)
 CFG_IMX_MU ?= y
 CFG_IMX_ELE ?= y
+CFG_IMX_ELE_ECC_DRV ?= y
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx943-flavorlist)))
 $(call force,CFG_MX943,y)
 $(call force,CFG_ARM64_core,y)
