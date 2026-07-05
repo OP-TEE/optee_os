@@ -109,5 +109,7 @@ DEFINES
 	/* struct thread_abi_args */
 	DEFINE(THREAD_ABI_ARGS_A0, offsetof(struct thread_abi_args, a0));
 	DEFINE(THREAD_ABI_ARGS_SIZE, sizeof(struct thread_abi_args));
+#ifdef CFG_WITH_VFP
 	DEFINE(RISCV_FP_FCSR_OFF, offsetof(struct riscv_fp_state, fcsr));
+#endif
 }

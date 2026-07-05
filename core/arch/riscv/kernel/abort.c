@@ -241,6 +241,12 @@ static void handle_user_mode_panic(struct abort_info *ai)
 }
 
 #ifdef CFG_WITH_VFP
+void vfp_disable(void)
+{
+	/* Clear the FS bit. */
+	clear_csr(CSR_XSTATUS, CSR_XSTATUS_FS_MASK);
+}
+
 static void handle_user_mode_vfp(void)
 {
 	struct ts_session *s = ts_get_current_session();
@@ -265,10 +271,81 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 #endif /*CFG_WITH_USER_TA*/
 
 #if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
+static bool is_riscv_fp_insn(uint32_t insn)
+{
+	uint32_t opcode = insn & 0x7f;
+
+	switch (opcode) {
+	case OPCODE_FL_LOAD:
+	case OPCODE_FS_STORE:
+	case OPCODE_FMADD:
+	case OPCODE_FMSUB:
+	case OPCODE_FNMSUB:
+	case OPCODE_FNMADD:
+	case OPCODE_FP_ARITH:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_riscv_compressed_fp_insn(uint16_t insn)
+{
+	uint16_t quadrant = insn & INSN_QUADRANT_MASK;
+	uint16_t funct3 = (insn >> INSN_FUNCT3_SHIFT) & INSN_FUNCT3_MASK;
+
+	/*
+	 * RV64 compressed FP instructions:
+	 *
+	 * quadrant 0, funct3 001: C.FLD
+	 * quadrant 0, funct3 101: C.FSD
+	 * quadrant 2, funct3 001: C.FLDSP
+	 * quadrant 2, funct3 101: C.FSDSP
+	 */
+	if (quadrant == QUADRANT_0 || quadrant == QUADRANT_2) {
+#ifdef RV64
+		if (funct3 == FUNCT3_C_FLD || funct3 == FUNCT3_C_FSD)
+			return true;
+#else
+		/*
+		 * RV32 compressed FP instructions also include C.FLW/C.FSW
+		 * and their stack-pointer variants.
+		 */
+		if (funct3 == FUNCT3_C_FLD || funct3 == FUNCT3_C_FLW ||
+		    funct3 == FUNCT3_C_FSD || funct3 == FUNCT3_C_FSW)
+			return true;
+#endif
+	}
+
+	return false;
+}
+
 static bool is_vfp_fault(struct abort_info *ai)
 {
-	/* Implement */
-	return false;
+	uint32_t insn = ai->regs->tval;
+
+	if (!abort_is_user_exception(ai))
+		return false;
+
+	if (ai->regs->cause != CAUSE_ILLEGAL_INSTRUCTION)
+		return false;
+
+	/*
+	 * Only treat the illegal instruction as an FP-disabled trap when
+	 * the saved user FS field is Off.
+	 */
+	if ((ai->regs->status & CSR_XSTATUS_FS_MASK) !=
+	    CSR_XSTATUS_FS_OFF)
+		return false;
+
+	/*
+	 * The low two bits distinguish compressed instructions from
+	 * standard 32-bit instructions.
+	 */
+	if ((insn & 0x3) != 0x3)
+		return is_riscv_compressed_fp_insn((uint16_t)insn);
+
+	return is_riscv_fp_insn(insn);
 }
 #else /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
 static bool is_vfp_fault(struct abort_info *ai __unused)

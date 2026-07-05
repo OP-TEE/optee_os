@@ -25,6 +25,7 @@
 #include <kernel/thread_private.h>
 #include <kernel/user_mode_ctx_struct.h>
 #include <kernel/virtualization.h>
+#include <kernel/user_mode_ctx.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
@@ -32,6 +33,9 @@
 #include <riscv.h>
 #include <trace.h>
 #include <util.h>
+#ifdef CFG_WITH_VFP
+#include <riscv_fp.h>
+#endif
 
 /*
  * This function is called as a guard after each ABI call which is not
@@ -86,15 +90,56 @@ void __nostackcheck thread_unmask_exceptions(uint32_t state)
 	thread_set_exceptions(state & THREAD_EXCP_ALL);
 }
 
-static void thread_lazy_save_ns_vfp(void)
+#ifdef CFG_WITH_VFP
+static void thread_eager_save_ns_vfp(void)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_NS);
+
+	/*
+	 * riscv_save_fp_state() must temporarily enable FS and restore the
+	 * original xstatus before returning.
+	 */
+	riscv_save_fp_state(&thr->vfp_state.ns);
+
+	thr->vfp_state.ns_valid = true;
+
+	/*
+	 * The normal-world state is now held in memory, and no context owns
+	 * the physical FP registers.
+	 */
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+
+	vfp_disable();
 }
 
-static void thread_lazy_restore_ns_vfp(void)
+static void thread_eager_restore_ns_vfp(void)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+	/*
+	 * Any user or kernel FP context must have been eagerly saved before
+	 * restoring the normal-world registers.
+	 */
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_NONE);
+	assert(thr->vfp_state.ns_valid);
+
+	/*
+	 * riscv_restore_fp_state() temporarily enables FS and restores the
+	 * original xstatus before returning.
+	 */
+	riscv_restore_fp_state(&thr->vfp_state.ns);
+
+	/*
+	 * The physical FP registers now contain normal-world state.
+	 */
+	thr->vfp_state.owner = RISCV_FP_OWNER_NS;
 }
+#endif /* CFG_WITH_VFP */
 
 static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 {
@@ -225,12 +270,24 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 	thread->regs.a7 = a7;
 }
 
+#ifdef CFG_WITH_VFP
+static void init_thread_vfp_state(struct thread_ctx *thr)
+{
+	memset(&thr->vfp_state, 0, sizeof(thr->vfp_state));
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+}
+#endif /* CFG_WITH_VFP */
+
 static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 				   uint32_t a3, uint32_t a4, uint32_t a5,
 				   uint32_t a6, uint32_t a7,
 				   void *pc)
 {
 	struct thread_core_local *l = thread_get_core_local();
+#ifdef CFG_WITH_VFP
+	struct thread_ctx *thr = NULL;
+#endif
 	bool found_thread = false;
 	size_t n = 0;
 
@@ -252,11 +309,34 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 		return;
 
 	l->curr_thread = n;
-
+#ifdef CFG_WITH_VFP
+	thr = threads + n;
+#endif
 	threads[n].flags = 0;
+
+#ifdef CFG_WITH_VFP
+	/*
+	 * This is a newly allocated OP-TEE thread. Discard FP bookkeeping
+	 * left from any previous use of this thread slot.
+	 */
+	init_thread_vfp_state(thr);
+
+	/*
+	 * The hardware FP registers initially belong to the context that
+	 * entered OP-TEE.
+	 */
+	thr->vfp_state.owner = RISCV_FP_OWNER_NS;
+#endif
+
 	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
 
-	thread_lazy_save_ns_vfp();
+#ifdef CFG_WITH_VFP
+	/*
+	 * Eagerly save the incoming normal-world FP context and release
+	 * hardware FP ownership before running secure-kernel code.
+	 */
+	thread_eager_save_ns_vfp();
+#endif
 
 	l->flags &= ~THREAD_CLF_TMP;
 
@@ -381,7 +461,9 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
-	thread_lazy_save_ns_vfp();
+#ifdef CFG_WITH_VFP
+	thread_eager_save_ns_vfp();
+#endif
 
 	if (threads[n].have_user_map)
 		ftrace_resume();
@@ -399,7 +481,9 @@ void thread_state_free(void)
 
 	assert(ct != THREAD_ID_INVALID);
 
-	thread_lazy_restore_ns_vfp();
+#ifdef CFG_WITH_VFP
+	thread_eager_restore_ns_vfp();
+#endif
 
 	thread_lock_global();
 
@@ -426,11 +510,20 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 	thread_check_canaries();
 
 	if (is_from_user(status)) {
+#ifdef CFG_WITH_VFP
+		/*
+		 * Eagerly save user-TA FP registers before restoring the
+		 * normal-world FP context.
+		 */
 		thread_user_save_vfp();
+#endif
 		tee_ta_update_session_utime_suspend();
 		tee_ta_gprof_sample_pc(pc);
 	}
-	thread_lazy_restore_ns_vfp();
+
+#ifdef CFG_WITH_VFP
+	thread_eager_restore_ns_vfp();
+#endif
 
 	thread_lock_global();
 
@@ -531,6 +624,12 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 	uint32_t rc = 0;
 	struct thread_ctx_regs *regs = NULL;
 
+#ifdef CFG_WITH_VFP
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct ts_session *s = NULL;
+	struct user_mode_ctx *uctx = NULL;
+#endif
+
 	tee_ta_update_session_utime_resume();
 
 	/* Read current interrupt masks */
@@ -541,11 +640,48 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 	 * setup_unwind_user_mode() after exiting.
 	 */
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+#ifdef CFG_WITH_VFP
+	/*
+	 * Select the user-TA FP state associated with the current session.
+	 * This must happen after exceptions have been masked.
+	 */
+	s = ts_get_current_session();
+	assert(s);
+	assert(s->ctx);
+
+	uctx = to_user_mode_ctx(s->ctx);
+	assert(uctx);
+
+	/*
+	 * Kernel or normal-world FP state must already have been saved
+	 * before entering user mode.
+	 */
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_NONE);
+
+	thr->vfp_state.uvfp = &uctx->vfp;
+
+	/*
+	 * Eagerly restore the TA FP context and give the hardware FP
+	 * registers to the user TA.
+	 */
+	thread_user_restore_vfp();
+#endif
 	regs = thread_get_ctx_regs();
 	status = xstatus_for_xret(true, PRV_U);
 	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, status, ie,
 		     NULL);
 	rc = __thread_enter_user_mode(regs, exit_status0, exit_status1);
+#ifdef CFG_WITH_VFP
+	/*
+	 * __thread_enter_user_mode() has returned from user mode. Eagerly
+	 * save the TA FP registers before unmasking exceptions or allowing
+	 * secure-kernel code to use FP.
+	 *
+	 * thread_user_save_vfp() must tolerate owner == NONE because the
+	 * context may already have been saved by thread_state_suspend().
+	 */
+	thread_user_save_vfp();
+#endif
 	thread_unmask_exceptions(exceptions);
 
 	return rc;
@@ -555,3 +691,324 @@ void __thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 {
 	thread_rpc_xstatus(rv, xstatus_for_xret(false, PRV_S));
 }
+
+#ifdef CFG_WITH_VFP
+
+#ifdef RV64
+#define STATE_TOKEN_FP		SHIFT_U64(1, 0)
+#else
+#define STATE_TOKEN_FP		SHIFT_U32(1, 0)
+#endif
+
+static unsigned long xstatus_get_fs(unsigned long xstatus)
+{
+	return (xstatus & CSR_XSTATUS_FS_MASK) >>
+	       CSR_XSTATUS_FS_BIT;
+}
+
+static unsigned long xstatus_set_fs(unsigned long xstatus,
+				    unsigned long fs)
+{
+#ifdef RV64
+	return set_field_u64(xstatus, CSR_XSTATUS_FS_MASK, fs);
+#else
+	return set_field_u32(xstatus, CSR_XSTATUS_FS_MASK, fs);
+#endif
+}
+
+static bool riscv_fp_is_enabled(void)
+{
+	return xstatus_get_fs(read_csr(CSR_XSTATUS)) !=
+	       CSR_XSTATUS_FS_OFF;
+}
+
+static void riscv_fp_enable_initial(void)
+{
+	unsigned long xstatus = read_csr(CSR_XSTATUS);
+
+	xstatus = xstatus_set_fs(xstatus, CSR_XSTATUS_FS_INITIAL);
+	write_csr(CSR_XSTATUS, xstatus);
+}
+
+static void riscv_fp_enable_clean(void)
+{
+	unsigned long xstatus = read_csr(CSR_XSTATUS);
+
+	xstatus = xstatus_set_fs(xstatus, CSR_XSTATUS_FS_CLEAN);
+	write_csr(CSR_XSTATUS, xstatus);
+}
+
+static void riscv_fp_disable(void)
+{
+	unsigned long xstatus = read_csr(CSR_XSTATUS);
+
+	xstatus = xstatus_set_fs(xstatus, CSR_XSTATUS_FS_OFF);
+	write_csr(CSR_XSTATUS, xstatus);
+}
+
+void thread_save_fp_state(struct riscv_fp_state *ctx)
+{
+	riscv_save_fp_state(ctx);
+}
+
+void thread_restore_fp_state(struct riscv_fp_state *ctx)
+{
+	riscv_restore_fp_state(ctx);
+}
+
+static void save_active_fp_context(struct thread_ctx *thr)
+{
+	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+
+	switch (thr->vfp_state.owner) {
+	case RISCV_FP_OWNER_NONE:
+		return;
+
+	case RISCV_FP_OWNER_NS:
+		riscv_save_fp_state(&thr->vfp_state.ns);
+		thr->vfp_state.ns_valid = true;
+		break;
+
+	case RISCV_FP_OWNER_KERNEL:
+		riscv_save_fp_state(&thr->vfp_state.sec);
+		thr->vfp_state.sec_valid = true;
+		break;
+
+	case RISCV_FP_OWNER_USER:
+		assert(tuv);
+
+		riscv_save_fp_state(&tuv->fp_state);
+		tuv->valid = true;
+		break;
+
+	default:
+		panic();
+	}
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	vfp_disable();
+}
+
+uint32_t thread_kernel_enable_vfp(void)
+{
+	uint32_t exceptions = 0;
+	struct thread_ctx *thr = NULL;
+
+	/*
+	 * Keep foreign interrupts masked for the complete interval during
+	 * which the kernel owns and uses the FP registers.
+	 */
+	exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	thr = threads + thread_get_id();
+
+	/*
+	 * This interface is not recursive. A second kernel enable without
+	 * a matching disable indicates incorrect use.
+	 */
+	assert(thr->vfp_state.owner != RISCV_FP_OWNER_KERNEL);
+
+	/*
+	 * Eagerly save whichever non-kernel context is still resident in
+	 * the hardware FP registers.
+	 */
+	save_active_fp_context(thr);
+
+	/*
+	 * FS=Initial enables FP instructions and represents a newly
+	 * activated FP context.
+	 */
+	riscv_fp_enable_initial();
+
+	/*
+	 * Restore persistent secure-kernel FP state, if one exists.
+	 */
+	if (thr->vfp_state.sec_valid) {
+		riscv_restore_fp_state(&thr->vfp_state.sec);
+		riscv_fp_enable_clean();
+	}
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_KERNEL;
+
+	/*
+	 * Exception mask is estored by thread_kernel_disable_vfp().
+	 */
+	return exceptions;
+}
+
+void thread_kernel_disable_vfp(uint32_t state)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = 0;
+
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_KERNEL);
+	assert(riscv_fp_is_enabled());
+
+	/*
+	 * Eagerly preserve the secure-kernel FP state.
+	 */
+	riscv_save_fp_state(&thr->vfp_state.sec);
+	thr->vfp_state.sec_valid = true;
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	riscv_fp_disable();
+
+	/*
+	 * Restore only the foreign-interrupt bit from the state returned by
+	 * thread_kernel_enable_vfp(). Preserve all other exception bits.
+	 */
+	exceptions = thread_get_exceptions();
+
+	assert(exceptions & THREAD_EXCP_FOREIGN_INTR);
+
+	exceptions &= ~THREAD_EXCP_FOREIGN_INTR;
+	exceptions |= state & THREAD_EXCP_FOREIGN_INTR;
+
+	thread_set_exceptions(exceptions);
+}
+
+void thread_kernel_save_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = 0;
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_KERNEL);
+	assert(riscv_fp_is_enabled());
+
+	riscv_save_fp_state(&thr->vfp_state.sec);
+	thr->vfp_state.sec_valid = true;
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	riscv_fp_disable();
+
+	thread_set_exceptions(exceptions);
+}
+
+void thread_kernel_restore_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = 0;
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_NONE);
+
+	riscv_fp_enable_initial();
+
+	if (thr->vfp_state.sec_valid) {
+		riscv_restore_fp_state(&thr->vfp_state.sec);
+		riscv_fp_enable_clean();
+	}
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_KERNEL;
+
+	thread_set_exceptions(exceptions);
+}
+
+void thread_user_enable_vfp(struct thread_user_vfp_state *tuv)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = 0;
+
+	assert(tuv);
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	/*
+	 * Normally eager switching leaves no active owner here. Saving an
+	 * existing owner makes the function safe at all transition points.
+	 */
+	if (thr->vfp_state.owner != RISCV_FP_OWNER_NONE)
+		save_active_fp_context(thr);
+
+	riscv_fp_enable_initial();
+
+	if (tuv->valid) {
+		riscv_restore_fp_state(&tuv->fp_state);
+		riscv_fp_enable_clean();
+	}
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_USER;
+
+	thread_set_exceptions(exceptions);
+}
+
+void thread_user_save_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+	/*
+	 * The TA either did not use FP or its FP state was already saved.
+	 */
+	if (thr->vfp_state.owner == RISCV_FP_OWNER_NONE)
+		return;
+
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_USER);
+	assert(tuv);
+
+	riscv_save_fp_state(&tuv->fp_state);
+	tuv->valid = true;
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	riscv_fp_disable();
+}
+
+static void riscv_fp_clear_registers(void)
+{
+	struct riscv_fp_state zero_state = { };
+
+	riscv_restore_fp_state(&zero_state);
+}
+
+void thread_user_restore_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+	uint32_t exceptions = 0;
+
+	assert(tuv);
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_NONE);
+
+	riscv_fp_enable_initial();
+
+	if (tuv->valid) {
+		riscv_restore_fp_state(&tuv->fp_state);
+		riscv_fp_enable_clean();
+	} else {
+		riscv_fp_clear_registers();
+	}
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_USER;
+
+	thread_set_exceptions(exceptions);
+}
+
+void thread_user_clear_vfp(struct user_mode_ctx *uctx)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vfp_state *tuv = &uctx->vfp;
+	uint32_t exceptions = 0;
+
+	assert(tuv);
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	if (thr->vfp_state.owner == RISCV_FP_OWNER_USER) {
+		thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+		riscv_fp_disable();
+	}
+
+	memset(&tuv->fp_state, 0, sizeof(tuv->fp_state));
+	tuv->valid = false;
+
+	thread_set_exceptions(exceptions);
+}
+#endif // CFG_WITH_VFP

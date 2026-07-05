@@ -11,6 +11,7 @@
 #define ABORT_TYPE_DATA			2
 /* Dump stack on user mode panic (not an abort) */
 #define ABORT_TYPE_USER_MODE_PANIC	3
+#define ABORT_TYPE_ILLEGAL_INST		4
 
 #ifndef __ASSEMBLER__
 

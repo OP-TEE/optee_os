@@ -18,6 +18,7 @@
 #include <mm/mobj.h>
 #include <mm/page_alloc.h>
 #include <stdalign.h>
+#include <assert.h>
 
 #if defined(CFG_DYN_CONFIG)
 struct thread_core_local *thread_core_local __nex_bss;

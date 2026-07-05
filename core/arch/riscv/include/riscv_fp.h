@@ -25,9 +25,6 @@ struct riscv_fp_state {
 void riscv_save_fp_state(struct riscv_fp_state *dst);
 void riscv_restore_fp_state(struct riscv_fp_state *src);
 
-void riscv_fp_test_load_pattern(void);
-void riscv_fp_test_clear(void);
-
 #endif /* !__ASSEMBLER__ */
 #endif /* __RISCV_FP_H */
 

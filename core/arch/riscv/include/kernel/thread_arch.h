@@ -13,6 +13,9 @@
 
 #include <platform_config.h>
 #include <riscv.h>
+#ifdef CFG_WITH_VFP
+#include <riscv_fp.h>
+#endif
 
 /*
  * Each RISC-V platform must define their own values.
@@ -50,8 +53,16 @@ struct thread_core_local {
 #endif
 } THREAD_CORE_LOCAL_ALIGNED;
 
+#ifdef CFG_WITH_VFP
 struct thread_user_vfp_state {
+	struct riscv_fp_state fp_state;
+	 /*
+	  * true means fp_state contains a valid saved copy of the TA FP
+	  * registers.
+	  */
+	bool valid;
 };
+#endif
 
 struct thread_abi_args {
 	unsigned long a0;	/* ABI function ID */
@@ -173,6 +184,9 @@ void thread_kernel_disable_vfp(uint32_t state);
 void thread_kernel_save_vfp(void);
 void thread_kernel_restore_vfp(void);
 void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp);
+void thread_save_fp_state(struct riscv_fp_state *ctx);
+void thread_restore_fp_state(struct riscv_fp_state *ctx);
+void thread_user_restore_vfp(void);
 #else /*CFG_WITH_VFP*/
 static inline void thread_kernel_save_vfp(void)
 {
