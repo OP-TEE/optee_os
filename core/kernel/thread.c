@@ -18,6 +18,10 @@
 #include <mm/mobj.h>
 #include <mm/page_alloc.h>
 #include <stdalign.h>
+#include <riscv_fp.h>
+#include <riscv_vector.h>
+#include <riscv.h>
+#include <assert.h>
 
 #if defined(CFG_DYN_CONFIG)
 struct thread_core_local *thread_core_local __nex_bss;
@@ -859,3 +863,125 @@ void thread_rpc_shm_cache_clear(struct thread_shm_cache *cache)
 		free(ce);
 	}
 }
+
+#ifdef CFG_RISCV_VFP
+#define STATE_TOKEN_FP     SHIFT_U32(1, 0)
+#define STATE_TOKEN_VEC    SHIFT_U32(1, 1)
+
+static struct thread_vfp_state *get_thread_vfp_state(void)
+{
+	return &threads[thread_get_id()].vfp_state;
+}
+
+void thread_save_fp_state(struct riscv_fp_state *ctx)
+{
+	riscv_save_fp_state(ctx);
+}
+
+void thread_restore_fp_state(struct riscv_fp_state *ctx)
+{
+	riscv_restore_fp_state(ctx);
+}
+
+uint32_t thread_kernel_enable_vfp(void)
+{
+	unsigned long sstatus = read_csr(CSR_XSTATUS);
+	uint32_t active_token = 0;
+
+	if ((sstatus & XSTATUS_FS_MASK) != XSTATUS_FS_CLEAN) {
+		sstatus = set_field_u32(sstatus, XSTATUS_FS_MASK, XSTATUS_FS_CLEAN);
+		active_token |= STATE_TOKEN_FP;
+	}
+
+	if ((sstatus & XSTATUS_VS_MASK) != XSTATUS_VS_CLEAN) {
+		sstatus = set_field_u32(sstatus, XSTATUS_VS_MASK, XSTATUS_VS_CLEAN);
+		active_token |= STATE_TOKEN_VEC;
+	}
+
+	write_csr(CSR_XSTATUS, sstatus);
+	return active_token;
+}
+
+void thread_kernel_disable_vfp(uint32_t state_value)
+{
+	unsigned long sstatus = read_csr(CSR_XSTATUS);
+
+	if (state_value & STATE_TOKEN_FP)
+		sstatus = set_field_u32(sstatus, XSTATUS_FS_MASK, XSTATUS_FS_OFF);
+
+	if (state_value & STATE_TOKEN_VEC)
+		sstatus = set_field_u32(sstatus, XSTATUS_VS_MASK, XSTATUS_VS_OFF);
+
+	write_csr(CSR_XSTATUS, sstatus);
+}
+
+void thread_kernel_save_vfp(void)
+{
+	unsigned long sstatus = read_csr(CSR_XSTATUS);
+	struct thread_vfp_state *vfp_state = get_thread_vfp_state();
+
+	if ((sstatus & XSTATUS_FS_MASK) == XSTATUS_FS_DIRTY) {
+		thread_save_fp_state(&vfp_state->fp_ctx);
+		vfp_state->fp_saved = true;
+		sstatus = set_field_u32(sstatus, XSTATUS_FS_MASK, XSTATUS_FS_CLEAN);
+	}
+
+	if ((sstatus & XSTATUS_VS_MASK) == XSTATUS_VS_DIRTY) {
+		assert(vfp_state->v_ctx.vregs);
+		riscv_vector_save(&vfp_state->v_ctx);
+		vfp_state->vec_saved = true;
+		sstatus = set_field_u32(sstatus, XSTATUS_VS_MASK, XSTATUS_VS_CLEAN);
+	}
+
+	write_csr(CSR_XSTATUS, sstatus);
+}
+
+void thread_kernel_restore_vfp(void)
+{
+	unsigned long sstatus = read_csr(CSR_XSTATUS);
+	struct thread_vfp_state *vfp_state = get_thread_vfp_state();
+
+	if (vfp_state->fp_saved) {
+		sstatus = set_field_u32(sstatus, XSTATUS_FS_MASK, XSTATUS_FS_CLEAN);
+		write_csr(CSR_XSTATUS, sstatus);
+		thread_restore_fp_state(&vfp_state->fp_ctx);
+		vfp_state->fp_saved = false;
+	}
+
+	if (vfp_state->vec_saved) {
+		sstatus = set_field_u32(sstatus, XSTATUS_VS_MASK, XSTATUS_VS_CLEAN);
+		write_csr(CSR_XSTATUS, sstatus);
+		riscv_vector_restore(&vfp_state->v_ctx);
+		vfp_state->vec_saved = false;
+	}
+}
+
+void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp __unused)
+{
+	unsigned long sstatus = read_csr(CSR_XSTATUS);
+
+	sstatus = set_field_u32(sstatus, XSTATUS_FS_MASK, XSTATUS_FS_INITIAL);
+	sstatus = set_field_u32(sstatus, XSTATUS_VS_MASK, XSTATUS_VS_INITIAL);
+
+	write_csr(CSR_XSTATUS, sstatus);
+}
+
+void thread_user_save_vfp(void)
+{
+	thread_kernel_save_vfp();
+}
+
+void thread_user_clear_vfp(struct user_mode_ctx *uctx __unused)
+{
+	unsigned long sstatus = read_csr(CSR_XSTATUS);
+	struct thread_vfp_state *vfp_state = get_thread_vfp_state();
+
+	vfp_state->fp_saved = false;
+	vfp_state->vec_saved = false;
+
+	sstatus = set_field_u32(sstatus, XSTATUS_FS_MASK, XSTATUS_FS_OFF);
+	sstatus = set_field_u32(sstatus, XSTATUS_VS_MASK, XSTATUS_VS_OFF);
+
+	write_csr(CSR_XSTATUS, sstatus);
+}
+#endif // CFG_RISCV_VFP

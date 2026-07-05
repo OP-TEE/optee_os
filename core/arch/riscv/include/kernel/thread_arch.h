@@ -13,6 +13,10 @@
 
 #include <platform_config.h>
 #include <riscv.h>
+#ifdef CFG_RISCV_VFP
+#include <riscv_fp.h>
+#include <riscv_vector.h>
+#endif
 
 /*
  * Each RISC-V platform must define their own values.
@@ -167,12 +171,14 @@ struct thread_ctx_regs {
 
 struct user_mode_ctx;
 
-#ifdef CFG_WITH_VFP
+#if defined(CFG_WITH_VFP) || defined(CFG_RISCV_VFP)
 uint32_t thread_kernel_enable_vfp(void);
 void thread_kernel_disable_vfp(uint32_t state);
 void thread_kernel_save_vfp(void);
 void thread_kernel_restore_vfp(void);
 void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp);
+void thread_save_fp_state(struct riscv_fp_state *ctx);
+void thread_restore_fp_state(struct riscv_fp_state *ctx);
 #else /*CFG_WITH_VFP*/
 static inline void thread_kernel_save_vfp(void)
 {
@@ -182,14 +188,14 @@ static inline void thread_kernel_restore_vfp(void)
 {
 }
 #endif /*CFG_WITH_VFP*/
-#ifdef CFG_WITH_VFP
+#if defined(CFG_WITH_VFP) || defined(CFG_RISCV_VFP)
 void thread_user_save_vfp(void);
 #else
 static inline void thread_user_save_vfp(void)
 {
 }
 #endif
-#ifdef CFG_WITH_VFP
+#if defined(CFG_WITH_VFP) || defined(CFG_RISCV_VFP)
 void thread_user_clear_vfp(struct user_mode_ctx *uctx);
 #else
 static inline void thread_user_clear_vfp(struct user_mode_ctx *uctx __unused)
