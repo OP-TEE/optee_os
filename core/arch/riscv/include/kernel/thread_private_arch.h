@@ -9,6 +9,9 @@
 #ifndef __ASSEMBLER__
 
 #include <kernel/thread.h>
+#ifdef CFG_WITH_VFP
+#include <riscv_fp.h>
+#endif
 
 #define STACK_TMP_OFFS		0
 
@@ -57,6 +60,13 @@ struct thread_user_mode_rec {
 	 */
 	unsigned long x[13];
 };
+
+#ifdef CFG_WITH_VFP
+struct thread_vfp_state {
+        struct riscv_fp_state fp_ctx;
+        bool fp_saved;
+};
+#endif
 
 extern long thread_user_kcode_offset;
 
@@ -128,6 +138,10 @@ static inline void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 }
 
 void thread_scall_handler(struct thread_scall_regs *regs);
+
+#ifdef CFG_WITH_VFP
+void vfp_disable(void);
+#endif
 
 #endif /*__ASSEMBLER__*/
 
