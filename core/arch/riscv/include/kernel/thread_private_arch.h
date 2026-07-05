@@ -9,7 +9,7 @@
 #ifndef __ASSEMBLER__
 
 #include <kernel/thread.h>
-#ifdef CFG_RISCV_VEC
+#ifdef CFG_WITH_VFP
 #include <riscv_vector.h>
 #endif
 
@@ -61,13 +61,12 @@ struct thread_user_mode_rec {
 	unsigned long x[13];
 };
 
-#ifdef CFG_RISCV_VEC
+#ifdef CFG_WITH_VFP
 struct thread_vfp_state {
-	struct riscv_vector_state v_ctx;
+	struct riscv_vector_state *v_ctx;
 	bool vec_saved;
 };
 #endif
-
 
 extern long thread_user_kcode_offset;
 
@@ -139,6 +138,12 @@ static inline void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 }
 
 void thread_scall_handler(struct thread_scall_regs *regs);
+
+#ifdef CFG_WITH_VFP
+int thread_init_vector_context(struct thread_vfp_state *vfp_state);
+void thread_free_vector_context(struct thread_vfp_state *vfp_state);
+void vfp_disable(void);
+#endif
 
 #endif /*__ASSEMBLER__*/
 

@@ -13,6 +13,9 @@
 
 #include <platform_config.h>
 #include <riscv.h>
+#ifdef CFG_WITH_VFP
+#include <riscv_vector.h>
+#endif
 
 /*
  * Each RISC-V platform must define their own values.
@@ -173,6 +176,8 @@ void thread_kernel_disable_vfp(uint32_t state);
 void thread_kernel_save_vfp(void);
 void thread_kernel_restore_vfp(void);
 void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp);
+//void thread_save_fp_state(struct riscv_fp_state *ctx);
+//void thread_restore_fp_state(struct riscv_fp_state *ctx);
 #else /*CFG_WITH_VFP*/
 static inline void thread_kernel_save_vfp(void)
 {
