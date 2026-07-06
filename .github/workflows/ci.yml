@@ -216,6 +216,7 @@ jobs:
               _make PLATFORM=qcom-lemans CFG_QCOM_DIAG_LOG=y CFG_QFPROM_PROGRAMMING=y CFG_QCOM_QFPROM_FUSEPROV=y
               _make PLATFORM=qcom-ipq96xx
               _make PLATFORM=qcom-ipq52xx
+              _make PLATFORM=qcom-nord
           - name: arm rockchip
             make_commands: |
               _make PLATFORM=rockchip-px30
