@@ -11,7 +11,12 @@
 #include <platform_config.h>
 #include <util.h>
 
+#if defined(CFG_QCOM_DIAG_LOG)
 void qcom_diag_log_init(void);
 void qcom_diag_log_puts(const char *str);
+#else
+static inline void qcom_diag_log_init(void) { }
+static inline void qcom_diag_log_puts(const char *str __unused) { }
+#endif
 
 #endif /* __DIAG_LOG_H */
