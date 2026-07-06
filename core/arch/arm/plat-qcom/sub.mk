@@ -5,4 +5,4 @@ srcs-y += main.c
 
 subdirs-$(CFG_QCOM_QFPROM_FUSEPROV) += provision
 
-srcs-y += diag_log.c
+srcs-$(CFG_QCOM_DIAG_LOG) += diag_log.c

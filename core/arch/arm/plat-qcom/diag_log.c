@@ -79,11 +79,6 @@ void qcom_diag_log_init(void)
 	struct diag *diag = NULL;
 	uint32_t *diag_info_addr = NULL;
 
-	if (!IS_ENABLED(CFG_QCOM_DIAG_LOG)) {
-		IMSG("DIAG: Feature not available");
-		return;
-	}
-
 	diag = get_diag_region();
 	if (!diag)
 		return;
