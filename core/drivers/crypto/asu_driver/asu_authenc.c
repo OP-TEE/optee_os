@@ -12,12 +12,14 @@
 #include <io.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
+#include <kernel/cache_helpers.h>
 #include <malloc.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 #include <string_ext.h>
+#include <stdlib_ext.h>
 #include <tee/cache.h>
 #include <trace.h>
 #include <util.h>
@@ -73,11 +75,7 @@
 #define ASU_FW_STATUS_CODE_MASK		0x3FFU
 #define ASU_FW_AES_TAG_COMPARE_FAILED	0x9AU
 
-/* DMA alignment for buffers passed to firmware */
-#define ASU_DMA_ALIGN			64U
 #define ASU_AUTHENC_DATA_CHUNK_LEN	4096U
-/* Keep tag DMA buffer at least one cache line for cache maintenance ops. */
-#define ASU_AUTHENC_TAG_DMA_BUF_LEN	ASU_DMA_ALIGN
 
 struct asu_aes_params {
 	uint64_t input_data_addr;
@@ -172,6 +170,7 @@ static TEE_Result asu_aes_send(struct asu_authenc_ctx *ctx,
 {
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t header = 0;
+	*fw_status = 0;
 
 	header = asu_create_header(ASU_AES_OPERATION_CMD_ID,
 				   ctx->uniqueid, ASU_MODULE_AES_ID,
@@ -211,8 +210,8 @@ static void asu_authenc_set_init_params(struct asu_authenc_ctx *ae_ctx,
  * Software fallback functions for 192-bit key support and
  * GCM with non-16-byte-aligned AAD.
  */
-#ifdef CFG_AMD_ASU_SW_FALLBACK
-static TEE_Result asu_authenc_sw_alloc_ctx(struct asu_authenc_ctx *ctx)
+static TEE_Result __maybe_unused
+asu_authenc_sw_alloc_ctx(struct asu_authenc_ctx *ctx)
 {
 	TEE_Result res = TEE_SUCCESS;
 
@@ -234,7 +233,7 @@ static TEE_Result asu_authenc_sw_alloc_ctx(struct asu_authenc_ctx *ctx)
 	return res;
 }
 
-static void asu_authenc_sw_free_ctx(struct asu_authenc_ctx *ctx)
+static void __maybe_unused asu_authenc_sw_free_ctx(struct asu_authenc_ctx *ctx)
 {
 	if (ctx->sw_ctx) {
 		ctx->sw_ctx->ops->free_ctx(ctx->sw_ctx);
@@ -242,8 +241,9 @@ static void asu_authenc_sw_free_ctx(struct asu_authenc_ctx *ctx)
 	}
 }
 
-static TEE_Result asu_authenc_sw_init(struct asu_authenc_ctx *ctx,
-				      struct drvcrypt_authenc_init *dinit)
+static TEE_Result __maybe_unused
+asu_authenc_sw_init(struct asu_authenc_ctx *ctx,
+		    struct drvcrypt_authenc_init *dinit)
 {
 	TEE_OperationMode mode;
 
@@ -256,46 +256,48 @@ static TEE_Result asu_authenc_sw_init(struct asu_authenc_ctx *ctx,
 				      dinit->payload_len);
 }
 
-static TEE_Result asu_authenc_sw_update_aad(struct asu_authenc_ctx *ctx,
-					    const uint8_t *data, size_t len)
+static TEE_Result __maybe_unused
+asu_authenc_sw_update_aad(struct asu_authenc_ctx *ctx,
+			  const uint8_t *data, size_t len)
 {
 	return ctx->sw_ctx->ops->update_aad(ctx->sw_ctx, data, len);
 }
 
-static TEE_Result asu_authenc_sw_update_payload(struct asu_authenc_ctx *ctx,
-						TEE_OperationMode mode,
-						const uint8_t *src,
-						size_t len, uint8_t *dst)
+static TEE_Result __maybe_unused
+asu_authenc_sw_update_payload(struct asu_authenc_ctx *ctx,
+			      TEE_OperationMode mode,
+			      const uint8_t *src, size_t len,
+			      uint8_t *dst)
 {
 	return ctx->sw_ctx->ops->update_payload(ctx->sw_ctx, mode,
 						src, len, dst);
 }
 
-static TEE_Result asu_authenc_sw_enc_final(struct asu_authenc_ctx *ctx,
-					   const uint8_t *src, size_t len,
-					   uint8_t *dst, uint8_t *tag,
-					   size_t *tag_len)
+static TEE_Result __maybe_unused
+asu_authenc_sw_enc_final(struct asu_authenc_ctx *ctx,
+			 const uint8_t *src, size_t len,
+			 uint8_t *dst, uint8_t *tag,
+			 size_t *tag_len)
 {
 	return ctx->sw_ctx->ops->enc_final(ctx->sw_ctx, src, len,
 					   dst, tag, tag_len);
 }
 
-static TEE_Result asu_authenc_sw_dec_final(struct asu_authenc_ctx *ctx,
-					   const uint8_t *src, size_t len,
-					   uint8_t *dst, const uint8_t *tag,
-					   size_t tag_len)
+static TEE_Result __maybe_unused
+asu_authenc_sw_dec_final(struct asu_authenc_ctx *ctx,
+			 const uint8_t *src, size_t len,
+			 uint8_t *dst, const uint8_t *tag,
+			 size_t tag_len)
 {
 	return ctx->sw_ctx->ops->dec_final(ctx->sw_ctx, src, len,
 					   dst, tag, tag_len);
 }
 
-static void asu_authenc_sw_final(struct asu_authenc_ctx *ctx)
+static void __maybe_unused asu_authenc_sw_final(struct asu_authenc_ctx *ctx)
 {
 	if (ctx->sw_ctx)
 		ctx->sw_ctx->ops->final(ctx->sw_ctx);
 }
-
-#endif /* CFG_AMD_ASU_SW_FALLBACK */
 
 /**
  * asu_authenc_alloc_ctx() - Allocate authenticated encryption context.
@@ -312,6 +314,7 @@ static TEE_Result asu_authenc_alloc_ctx(void **ctx, uint32_t algo)
 	struct asu_authenc_ctx *ae_ctx = NULL;
 	uint8_t mode = 0;
 	TEE_Result ret = TEE_SUCCESS;
+	size_t cacheline_len = dcache_get_line_size();
 
 	ret = asu_authenc_get_mode(algo, &mode);
 	if (ret)
@@ -337,7 +340,7 @@ static TEE_Result asu_authenc_alloc_ctx(void **ctx, uint32_t algo)
 		goto free_ctx;
 	}
 	/* Allocate DMA-aligned key buffer to avoid cache line conflicts */
-	ae_ctx->key_buf = memalign(ASU_DMA_ALIGN, ASU_AES_MAX_KEY_SIZE);
+	ae_ctx->key_buf = memalign(cacheline_len, ASU_AES_MAX_KEY_SIZE);
 	if (!ae_ctx->key_buf) {
 		EMSG("Failed to allocate key buffer");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
@@ -345,7 +348,7 @@ static TEE_Result asu_authenc_alloc_ctx(void **ctx, uint32_t algo)
 	}
 
 	/* Allocate DMA-aligned nonce buffer to avoid cache line conflicts */
-	ae_ctx->nonce_buf = memalign(ASU_DMA_ALIGN, ASU_AES_MAX_NONCE_LEN);
+	ae_ctx->nonce_buf = memalign(cacheline_len, ASU_AES_MAX_NONCE_LEN);
 	if (!ae_ctx->nonce_buf) {
 		EMSG("Failed to allocate nonce buffer");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
@@ -353,7 +356,7 @@ static TEE_Result asu_authenc_alloc_ctx(void **ctx, uint32_t algo)
 	}
 
 	/* Allocate reusable DMA-aligned data buffers */
-	ae_ctx->src_dma_buf = memalign(ASU_DMA_ALIGN,
+	ae_ctx->src_dma_buf = memalign(cacheline_len,
 				       ASU_AUTHENC_DATA_CHUNK_LEN);
 	if (!ae_ctx->src_dma_buf) {
 		EMSG("Failed to allocate source DMA buffer");
@@ -361,7 +364,7 @@ static TEE_Result asu_authenc_alloc_ctx(void **ctx, uint32_t algo)
 		goto free_ctx;
 	}
 
-	ae_ctx->dst_dma_buf = memalign(ASU_DMA_ALIGN,
+	ae_ctx->dst_dma_buf = memalign(cacheline_len,
 				       ASU_AUTHENC_DATA_CHUNK_LEN);
 	if (!ae_ctx->dst_dma_buf) {
 		EMSG("Failed to allocate destination DMA buffer");
@@ -755,6 +758,7 @@ static TEE_Result asu_authenc_enc_final(struct drvcrypt_authenc_final *dfinal)
 	size_t remaining = 0;
 	size_t offset = 0;
 	size_t chunk_len = 0;
+	size_t cacheline_len = dcache_get_line_size();
 
 	if (!ae_ctx)
 		return TEE_ERROR_BAD_STATE;
@@ -771,13 +775,13 @@ static TEE_Result asu_authenc_enc_final(struct drvcrypt_authenc_final *dfinal)
 					       dfinal->tag.data,
 					       &dfinal->tag.length);
 
-	tag_dma = memalign(ASU_DMA_ALIGN, ASU_AUTHENC_TAG_DMA_BUF_LEN);
+	tag_dma = memalign(cacheline_len, ASU_AES_MAX_TAG_LEN);
 	if (!tag_dma) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
-	memzero_explicit(tag_dma, ASU_AUTHENC_TAG_DMA_BUF_LEN);
-	cache_operation(TEE_CACHEFLUSH, tag_dma, ASU_AUTHENC_TAG_DMA_BUF_LEN);
+	memset(tag_dma, 0, ASU_AES_MAX_TAG_LEN);
+	cache_operation(TEE_CACHEFLUSH, tag_dma, ASU_AES_MAX_TAG_LEN);
 
 	if (dfinal->src.length > 0) {
 		if (!dfinal->src.data || !dfinal->dst.data) {
@@ -848,12 +852,12 @@ static TEE_Result asu_authenc_enc_final(struct drvcrypt_authenc_final *dfinal)
 	}
 
 	/* Invalidate DMA destination before CPU reads the generated tag. */
-	cache_operation(TEE_CACHEINVALIDATE, tag_dma,
-			ASU_AUTHENC_TAG_DMA_BUF_LEN);
+	cache_operation(TEE_CACHEINVALIDATE, tag_dma, ASU_AES_MAX_TAG_LEN);
 	memcpy(dfinal->tag.data, tag_dma, ae_ctx->tag_len);
 
 out:
-	free(tag_dma);
+	if (tag_dma)
+		free_wipe(tag_dma);
 	return ret;
 }
 
@@ -873,6 +877,7 @@ static TEE_Result asu_authenc_dec_final(struct drvcrypt_authenc_final *dfinal)
 	size_t remaining = 0;
 	size_t offset = 0;
 	size_t chunk_len = 0;
+	size_t cacheline_len = dcache_get_line_size();
 
 	if (!ae_ctx)
 		return TEE_ERROR_BAD_STATE;
@@ -889,14 +894,14 @@ static TEE_Result asu_authenc_dec_final(struct drvcrypt_authenc_final *dfinal)
 					       dfinal->tag.data,
 					       dfinal->tag.length);
 
-	tag_dma = memalign(ASU_DMA_ALIGN, ASU_AUTHENC_TAG_DMA_BUF_LEN);
+	tag_dma = memalign(cacheline_len, ASU_AES_MAX_TAG_LEN);
 	if (!tag_dma) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
 
 	memcpy(tag_dma, dfinal->tag.data, ae_ctx->tag_len);
-	cache_operation(TEE_CACHEFLUSH, tag_dma, ASU_AUTHENC_TAG_DMA_BUF_LEN);
+	cache_operation(TEE_CACHEFLUSH, tag_dma, ASU_AES_MAX_TAG_LEN);
 
 	if (dfinal->src.length > 0) {
 		if (!dfinal->src.data || !dfinal->dst.data) {
@@ -978,10 +983,9 @@ static TEE_Result asu_authenc_dec_final(struct drvcrypt_authenc_final *dfinal)
 out:
 	/* Scrub sensitive tag and decrypted data on failure */
 	if (tag_dma)
-		memzero_explicit(tag_dma, ASU_AUTHENC_TAG_DMA_BUF_LEN);
+		free_wipe(tag_dma);
 	if (ret != TEE_SUCCESS)
 		memzero_explicit(dfinal->dst.data, offset);
-	free(tag_dma);
 	return ret;
 }
 
