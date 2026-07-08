@@ -90,8 +90,8 @@
 	beqz	t1, 3f
 	addi	t0, t0, 4
 2:
-	lw	t1, 0(t0)
-	bne	t1, t2, 2b
+	lw	t3, 0(t0)
+	bne	t3, t2, 2b
 	fence	r, rw
 	j	1b
 3:
