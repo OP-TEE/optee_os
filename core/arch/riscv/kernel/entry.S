@@ -98,15 +98,6 @@
 #endif
 .endm
 
-#ifdef CFG_BOOT_SYNC_CPU
-#define flush_cpu_semaphores \
-		lla	t0, sem_cpu_sync_start
-		lla	t1, sem_cpu_sync_end
-		fence
-#else
-#define flush_cpu_semaphores
-#endif
-
 FUNC _start , :
 	/*
 	 * Register usage:
@@ -372,7 +363,6 @@ UNWIND(	.cantunwind)
 #endif
 
 	cpu_is_ready
-	flush_cpu_semaphores
 	wait_secondary
 
 	jal	thread_clr_boot_thread
@@ -521,15 +511,7 @@ LOCAL_DATA hart_lottery , :
 	.word	0
 END_DATA hart_lottery
 
-#ifdef CFG_BOOT_SYNC_CPU
-LOCAL_DATA sem_cpu_sync_start , :
-	.word	sem_cpu_sync
-END_DATA sem_cpu_sync_start
 
-LOCAL_DATA sem_cpu_sync_end , :
-	.word	sem_cpu_sync + (CFG_TEE_CORE_NB_CORE << 2)
-END_DATA sem_cpu_sync_end
-#endif
 
 #if !defined(CFG_DYN_CONFIG)
 LOCAL_DATA stack_tmp_rel , :
