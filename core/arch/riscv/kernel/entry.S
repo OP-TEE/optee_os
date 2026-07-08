@@ -52,8 +52,8 @@
 	slli	t0, t0, 2
 	add	t1, t1, t0
 	li	t2, SEM_CPU_READY
+	fence	rw, w
 	sw	t2, 0(t1)
-	fence
 #endif
 .endm
 
@@ -74,9 +74,9 @@
 	lla	t0, sem_cpu_sync
 	li	t2, SEM_CPU_READY
 1:
-	fence	w, w
 	lw	t1, 0(t0)
 	bne	t1, t2, 1b
+	fence	r, rw
 #endif
 .endm
 
@@ -90,9 +90,9 @@
 	beqz	t1, 3f
 	addi	t0, t0, 4
 2:
-	fence
 	lw	t1, 0(t0)
 	bne	t1, t2, 2b
+	fence	r, rw
 	j	1b
 3:
 #endif
