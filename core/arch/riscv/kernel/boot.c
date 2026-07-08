@@ -34,7 +34,15 @@
 
 paddr_t start_addr;
 
+#ifdef CFG_BOOT_SYNC_CPU
+/*
+ * Array used when booting, to synchronize harts.
+ * When 0, the hart has not started.
+ * When 1, it has started
+ */
 uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
+#endif
+
 uint32_t hartids[CFG_TEE_CORE_NB_CORE];
 
 #if defined(CFG_DT)
