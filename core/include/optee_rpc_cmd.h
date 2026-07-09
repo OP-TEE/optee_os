@@ -195,20 +195,23 @@
 /*
  * Probe next RPMB device
  *
- * value[0].a indicates kind of RPMB device found, currently is only
- * OPTEE_RPC_RPMB_EMMC supported. If another kind of RPMB device is found
- * it will have a new unique value in value[0].a and the other
- * out-parameters will be defined specifically for that device.
+ * value[0].a indicates the kind of RPMB device found (OPTEE_RPC_RPMB_*).
+ * eMMC and UFS RPMB devices are described with the same set of
+ * out-parameters: the RPMB size in units of 128 kB, the reliable write
+ * count and the raw device identifier.
  *
- * If an eMMC/RPMB partition is found:
- * [out]    value[0].a	    OPTEE_RPC_RPMB_EMMC
- * [out]    value[0].b	    EXT CSD-slice 168 "RPMB Size"
- * [out]    value[0].c	    EXT CSD-slice 222 "Reliable Write Sector Count"
+ * [out]    value[0].a	    OPTEE_RPC_RPMB_{EMMC,UFS}
+ * [out]    value[0].b	    RPMB size in units of 128 kB
+ *			    (eMMC: EXT CSD-slice 168 "RPMB Size")
+ * [out]    value[0].c	    Reliable write count
+ *			    (eMMC: EXT CSD-slice 222 "Reliable Write Sector
+ *			    Count")
  * [out]    memref[1]       Buffer with the raw CID
  */
 #define OPTEE_RPC_CMD_RPMB_PROBE_NEXT	U(23)
 
 #define OPTEE_RPC_RPMB_EMMC		U(0)
+#define OPTEE_RPC_RPMB_UFS		U(1)
 
 /*
  * Replay Protected Memory Block access
