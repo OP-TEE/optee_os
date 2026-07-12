@@ -601,8 +601,8 @@ bool pkcs2tee_load_attr(TEE_Attribute *tee_ref, uint32_t tee_id,
 
 		der_ptr = (uint8_t *)a_ptr;
 
-		if (der_ptr[0] != 0x04) {
-			EMSG("Unsupported DER type");
+		if (a_size < 2 || der_ptr[0] != 0x04) {
+			EMSG("Invalid or too short EC_POINT attribute");
 			return false;
 		}
 
@@ -612,10 +612,19 @@ bool pkcs2tee_load_attr(TEE_Attribute *tee_ref, uint32_t tee_id,
 			hsize = 2 /* der */ + 1 /* point compression */;
 		} else if (der_ptr[1] == 0x81) {
 			/* DER long definitive form up to 255 bytes */
+			if (a_size < 3) {
+				EMSG("Invalid or too short EC_POINT attribute");
+				return false;
+			}
 			qsize = der_ptr[2];
 			hsize = 3 /* der */ + 1 /* point compression */;
 		} else {
 			EMSG("Unsupported DER long form");
+			return false;
+		}
+
+		if (a_size < hsize) {
+			EMSG("Invalid or too short EC_POINT attribute");
 			return false;
 		}
 
