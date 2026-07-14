@@ -626,6 +626,95 @@ jobs:
               eval "$MAKE_COMMANDS"
               ccache -s -v
             '
+  QEMUriscv64_checks_image_build:
+    name: Build QEMUriscv64 (virt) image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Host cleanup
+        run: |
+          wget https://raw.githubusercontent.com/OP-TEE/optee_os/refs/heads/master/scripts/ci-host-cleanup.sh
+          bash ci-host-cleanup.sh
+      - name: Create Dockerfile
+        run: |
+          cat > Dockerfile <<'EOF'
+          FROM jforissier/optee_os_ci:qemu_check
+          RUN /root/get_optee.sh qemu_riscv64 /root/optee_repo_qemu_riscv64
+          EOF
+      - name: Build Docker image
+        run: |
+          docker build -t qemuriscv64_image .
+          docker save qemuriscv64_image | zstd -T0 -o qemuriscv64_image.tar.zst
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemuriscv64_image
+          path: qemuriscv64_image.tar.zst
+          retention-days: 5
+  QEMUriscv64_checks:
+    name: Run (QEMUriscv64 (virt)) (${{ matrix.name }})
+    needs: QEMUriscv64_checks_image_build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: default
+            make_commands: |
+              make -j$(nproc) all CMAKE_POLICY_VERSION_MINIMUM=3.5
+              make -j$(nproc) check XTEST_ARGS=1001
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update Git config
+        run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
+      - name: Host cleanup
+        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: qemuriscv64_image
+          path: .
+      - name: Load Docker image
+        run: |
+          zstd -d qemuriscv64_image.tar.zst -c | docker load
+      - name: Generate cache key
+        run: |
+          HASH=$(echo -n "${{ matrix.name }}" | sha256sum | cut -c1-16)
+          echo "CACHE_KEY=qemuriscv64_check-cache-${HASH}-${GITHUB_SHA}" >> $GITHUB_ENV
+          echo "CACHE_RESTORE_KEY=qemuriscv64_check-cache-${HASH}" >> ${GITHUB_ENV}
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/work/ccache
+          key: ${{ env.CACHE_KEY }}
+          restore-keys: |
+            ${{ env.CACHE_RESTORE_KEY }}
+      - name: Run 'make check' tasks in container
+        env:
+          MAKE_COMMANDS: "${{ matrix.make_commands }}"
+        run: |
+          docker run --rm \
+            -v /home/runner/work/optee_os/optee_os:/runner/optee_os \
+            -v /home/runner/work/ccache:/root/.cache/ccache \
+            -w /root \
+            -e MAKE_COMMANDS="$MAKE_COMMANDS" \
+            qemuriscv64_image \
+            bash -c '
+              set -e -v
+
+              export BR2_CCACHE_DIR=/root/.cache/ccache
+              export FORCE_UNSAFE_CONFIGURE=1
+              export CFG_TEE_CORE_LOG_LEVEL=2
+
+              TOP=/root/optee_repo_qemu_riscv64
+              mv $TOP/optee_os $TOP/optee_os_old
+              ln -s /runner/optee_os $TOP/optee_os
+              cd $TOP/build
+
+              ccache -s -v
+              eval "$MAKE_COMMANDS"
+              ccache -s -v
+            '
   QEMUv8_arm64_image_build:
     name: Build QEMUv8 arm64 image
     runs-on: ubuntu-24.04-arm
