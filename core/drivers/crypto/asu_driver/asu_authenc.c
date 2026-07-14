@@ -170,6 +170,7 @@ static TEE_Result asu_aes_send(struct asu_authenc_ctx *ctx,
 {
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t header = 0;
+
 	*fw_status = 0;
 
 	header = asu_create_header(ASU_AES_OPERATION_CMD_ID,
@@ -856,8 +857,7 @@ static TEE_Result asu_authenc_enc_final(struct drvcrypt_authenc_final *dfinal)
 	memcpy(dfinal->tag.data, tag_dma, ae_ctx->tag_len);
 
 out:
-	if (tag_dma)
-		free_wipe(tag_dma);
+	free_wipe(tag_dma);
 	return ret;
 }
 
@@ -982,8 +982,7 @@ static TEE_Result asu_authenc_dec_final(struct drvcrypt_authenc_final *dfinal)
 
 out:
 	/* Scrub sensitive tag and decrypted data on failure */
-	if (tag_dma)
-		free_wipe(tag_dma);
+	free_wipe(tag_dma);
 	if (ret != TEE_SUCCESS)
 		memzero_explicit(dfinal->dst.data, offset);
 	return ret;
