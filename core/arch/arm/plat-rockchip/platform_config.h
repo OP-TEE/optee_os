@@ -244,6 +244,20 @@
 #define CRU_BASE		0xff3a0000
 #define CRU_SIZE		SIZE_K(128)
 
+#elif defined(PLATFORM_FLAVOR_rk3568)
+
+#define GIC_BASE		0xfd400000
+#define GIC_SIZE		SIZE_K(64)
+#define GICC_BASE		0
+#define GICD_BASE		GIC_BASE
+#define GICR_BASE		(GIC_BASE + 0x60000)
+
+#define UART0_BASE		0xfdd50000
+#define UART0_SIZE		SIZE_K(64)
+
+#define UART2_BASE		0xfe660000
+#define UART2_SIZE		SIZE_K(64)
+
 #else
 #error "Unknown platform flavor"
 #endif
