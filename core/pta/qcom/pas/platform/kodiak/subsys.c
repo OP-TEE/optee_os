@@ -9,9 +9,9 @@
 #include <util.h>
 
 #include "cdsp.h"
+#include "iris.h"
 #include "lpass.h"
 #include "pas_subsys.h"
-#include "venus.h"
 #include "wpss.h"
 
 static struct qcom_pas_subsys subsystems[] = {
@@ -47,11 +47,11 @@ static struct qcom_pas_subsys subsystems[] = {
 	},
 	{
 		.data = {
-			.pas_id = PAS_ID_VENUS,
+			.pas_id = PAS_ID_IRIS,
 			.base.pa = IRIS_BASE,
 			.size = IRIS_SIZE,
 		},
-		.ops = &venus_ops,
+		.ops = &iris_ops,
 		.reset_seq = QCOM_PAS_RESET_NONE,
 	},
 };
