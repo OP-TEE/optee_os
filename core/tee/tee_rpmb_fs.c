@@ -241,7 +241,6 @@ struct rpmb_raw_data {
 	uint8_t byte_offset;
 };
 
-#define RPMB_EMMC_CID_SIZE 16
 struct rpmb_dev_info {
 	uint8_t cid[RPMB_EMMC_CID_SIZE];
 	/* EXT CSD-slice 168 "RPMB Size" */
@@ -306,29 +305,24 @@ static const uint8_t rpmb_test_key[RPMB_KEY_MAC_SIZE] = {
 	0xAB, 0x56, 0xE6, 0xC6, 0x1B, 0xB7, 0x01, 0xE4
 };
 
-static TEE_Result tee_rpmb_key_gen(uint8_t *key, uint32_t len)
+TEE_Result tee_rpmb_key_gen(uint8_t *cid __unused, uint8_t *key, uint32_t len)
 {
-	TEE_Result res = TEE_SUCCESS;
-
-	if (!key || RPMB_KEY_MAC_SIZE != len) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	if (!key || RPMB_KEY_MAC_SIZE != len)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	DMSG("RPMB: Using test key");
 	memcpy(key, rpmb_test_key, RPMB_KEY_MAC_SIZE);
 
-out:
-	return res;
+	return TEE_SUCCESS;
 }
 
 #else /* !CFG_RPMB_TESTKEY */
 
-static TEE_Result tee_rpmb_key_gen(uint8_t *key, uint32_t len)
+TEE_Result tee_rpmb_key_gen(uint8_t *cid, uint8_t *key, uint32_t len)
 {
 	uint8_t message[RPMB_EMMC_CID_SIZE];
 
-	if (!key || RPMB_KEY_MAC_SIZE != len)
+	if (!cid || !key || RPMB_KEY_MAC_SIZE != len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	IMSG("RPMB: Using generated key");
@@ -341,7 +335,7 @@ static TEE_Result tee_rpmb_key_gen(uint8_t *key, uint32_t len)
 	 * CID [07: 01]: CRC (CRC7 checksum)
 	 * CID [00]: not used
 	 */
-	memcpy(message, rpmb_ctx->cid, RPMB_EMMC_CID_SIZE);
+	memcpy(message, cid, RPMB_EMMC_CID_SIZE);
 	memset(message + RPMB_CID_PRV_OFFSET, 0, 1);
 	memset(message + RPMB_CID_CRC_OFFSET, 0, 1);
 	return huk_subkey_derive(HUK_SUBKEY_RPMB, message, sizeof(message),
@@ -1171,7 +1165,8 @@ static TEE_Result legacy_rpmb_init(void)
 	if (!rpmb_ctx->key_derived) {
 		DMSG("RPMB INIT: Deriving key");
 
-		res = tee_rpmb_key_gen(rpmb_ctx->key, RPMB_KEY_MAC_SIZE);
+		res = tee_rpmb_key_gen(rpmb_ctx->cid, rpmb_ctx->key,
+				       RPMB_KEY_MAC_SIZE);
 		if (res != TEE_SUCCESS) {
 			EMSG("RPMB INIT: Deriving key failed with error 0x%x",
 				res);
@@ -1277,7 +1272,8 @@ next:
 			continue;
 		}
 
-		res = tee_rpmb_key_gen(rpmb_ctx->key, RPMB_KEY_MAC_SIZE);
+		res = tee_rpmb_key_gen(rpmb_ctx->cid, rpmb_ctx->key,
+				       RPMB_KEY_MAC_SIZE);
 		if (res)
 			return res;
 
