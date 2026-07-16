@@ -242,8 +242,9 @@ struct rpmb_raw_data {
 };
 
 #define RPMB_EMMC_CID_SIZE 16
+#define RPMB_CID_SIZE RPMB_EMMC_CID_SIZE
 struct rpmb_dev_info {
-	uint8_t cid[RPMB_EMMC_CID_SIZE];
+	uint8_t cid[RPMB_CID_SIZE];
 	/* EXT CSD-slice 168 "RPMB Size" */
 	uint8_t rpmb_size_mult;
 	/* EXT CSD-slice 222 "Reliable Write Sector Count" */
@@ -271,7 +272,7 @@ struct rpmb_dev_info {
  */
 struct tee_rpmb_ctx {
 	uint8_t key[RPMB_KEY_MAC_SIZE];
-	uint8_t cid[RPMB_EMMC_CID_SIZE];
+	uint8_t cid[RPMB_CID_SIZE];
 	uint32_t wr_cnt;
 	uint16_t max_blk_idx;
 	uint16_t rel_wr_blkcnt;
@@ -326,7 +327,7 @@ out:
 
 static TEE_Result tee_rpmb_key_gen(uint8_t *key, uint32_t len)
 {
-	uint8_t message[RPMB_EMMC_CID_SIZE];
+	uint8_t message[RPMB_CID_SIZE];
 
 	if (!key || RPMB_KEY_MAC_SIZE != len)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -341,7 +342,7 @@ static TEE_Result tee_rpmb_key_gen(uint8_t *key, uint32_t len)
 	 * CID [07: 01]: CRC (CRC7 checksum)
 	 * CID [00]: not used
 	 */
-	memcpy(message, rpmb_ctx->cid, RPMB_EMMC_CID_SIZE);
+	memcpy(message, rpmb_ctx->cid, RPMB_CID_SIZE);
 	memset(message + RPMB_CID_PRV_OFFSET, 0, 1);
 	memset(message + RPMB_CID_CRC_OFFSET, 0, 1);
 	return huk_subkey_derive(HUK_SUBKEY_RPMB, message, sizeof(message),
@@ -1134,7 +1135,7 @@ static TEE_Result rpmb_set_dev_info(const struct rpmb_dev_info *dev_info)
 	    SUB_OVERFLOW(nblocks, 1, &rpmb_ctx->max_blk_idx))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	memcpy(rpmb_ctx->cid, dev_info->cid, RPMB_EMMC_CID_SIZE);
+	memcpy(rpmb_ctx->cid, dev_info->cid, RPMB_CID_SIZE);
 
 	if (IS_ENABLED(CFG_RPMB_DRIVER_MULTIPLE_WRITE_FIXED))
 		rpmb_ctx->rel_wr_blkcnt = dev_info->rel_wr_sec_c * 2;
@@ -1243,7 +1244,7 @@ static TEE_Result tee_rpmb_init(void)
 				return res;
 			}
 			if (!memcmp(rpmb_ctx->cid, dev_info.cid,
-				    RPMB_EMMC_CID_SIZE)) {
+				    RPMB_CID_SIZE)) {
 				rpmb_ctx->reinit = false;
 				return TEE_SUCCESS;
 			}
