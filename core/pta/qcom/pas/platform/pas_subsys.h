@@ -77,4 +77,10 @@ struct qcom_pas_subsys {
  */
 struct qcom_pas_subsys *qcom_pas_platform_subsys(size_t *count);
 
+/*
+ * pas_lookup() : find the subsystem entry matching @pas_id in the platform's
+ * subsystem table, or NULL if unknown.
+ */
+struct qcom_pas_subsys *pas_lookup(uint32_t pas_id);
+
 #endif /* PAS_SUBSYS_H */

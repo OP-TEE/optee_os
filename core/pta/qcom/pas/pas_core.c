@@ -4,7 +4,6 @@
  */
 
 #include <drivers/clk_qcom.h>
-#include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_pas.h>
 #include <trace.h>
@@ -12,7 +11,7 @@
 
 #include "pas_subsys.h"
 
-static struct qcom_pas_subsys *pas_lookup(uint32_t pas_id)
+struct qcom_pas_subsys *pas_lookup(uint32_t pas_id)
 {
 	struct qcom_pas_subsys *subsys = NULL;
 	size_t count = 0;
@@ -125,10 +124,8 @@ TEE_Result pas_platform_auth_and_reset(uint32_t pas_id)
 		return qcom_clock_enable_pas_processor(data->clk_group);
 	case QCOM_PAS_RESET_CLK_ENABLE:
 		res = qcom_clock_enable(data->clk_group);
-		if (res != TEE_SUCCESS) {
-			EMSG("Failed to enable clocks: %d", res);
+		if (res != TEE_SUCCESS)
 			return res;
-		}
 
 		return subsys->ops->fw_start(data);
 	case QCOM_PAS_RESET_NONE:
@@ -141,9 +138,22 @@ TEE_Result pas_platform_auth_and_reset(uint32_t pas_id)
 TEE_Result pas_platform_shutdown(uint32_t pas_id)
 {
 	struct qcom_pas_subsys *subsys = pas_lookup(pas_id);
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!subsys || !subsys->ops->fw_shutdown)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	return subsys->ops->fw_shutdown(&subsys->data);
+	res = subsys->ops->fw_shutdown(&subsys->data);
+	if (!res) {
+		/*
+		 * Drop the cached carveout coordinates so a subsequent load of
+		 * the same subsystem must call MEM_SETUP first: VERIFY_IMAGE
+		 * cross-checks its fw_base argument against these fields and
+		 * would otherwise accept stale values.
+		 */
+		subsys->data.fw_base = 0;
+		subsys->data.fw_size = 0;
+	}
+
+	return res;
 }
