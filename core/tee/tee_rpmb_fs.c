@@ -294,6 +294,19 @@ struct tee_rpmb_ctx {
 
 static struct tee_rpmb_ctx *rpmb_ctx;
 
+/*
+ * List of RPMB device contexts that were probed but have no authentication
+ * key written yet. While probing we defer key provisioning until every device
+ * has been examined: if some device already has a working key we use it as is.
+ */
+struct rpmb_ctx_candidate {
+	struct tee_rpmb_ctx ctx;
+	TAILQ_ENTRY(rpmb_ctx_candidate) link;
+};
+
+static TAILQ_HEAD(rpmb_ctx_candidates_head, rpmb_ctx_candidate)
+	rpmb_ctx_candidates = TAILQ_HEAD_INITIALIZER(rpmb_ctx_candidates);
+
 /* If set to true, don't try to access RPMB until rebooted */
 static bool rpmb_dead;
 
@@ -1237,6 +1250,43 @@ static TEE_Result legacy_rpmb_init(void)
 	return res;
 }
 
+static bool rpmb_ctx_list_empty(void)
+{
+	return TAILQ_EMPTY(&rpmb_ctx_candidates);
+}
+
+static TEE_Result add_rpmb_ctx_to_list(void)
+{
+	struct rpmb_ctx_candidate *cand = calloc(1, sizeof(*cand));
+
+	if (!cand)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	memcpy(&cand->ctx, rpmb_ctx, sizeof(cand->ctx));
+	TAILQ_INSERT_TAIL(&rpmb_ctx_candidates, cand, link);
+
+	return TEE_SUCCESS;
+}
+
+static void restore_rpmb_ctx_candidate(void)
+{
+	struct rpmb_ctx_candidate *cand = TAILQ_FIRST(&rpmb_ctx_candidates);
+
+	/* current trivial algorithm is to pick the first candidate */
+	assert(cand);
+	memcpy(rpmb_ctx, &cand->ctx, sizeof(*rpmb_ctx));
+}
+
+static void delete_all_rpmb_ctx_in_list(void)
+{
+	struct rpmb_ctx_candidate *cand = NULL;
+
+	while ((cand = TAILQ_FIRST(&rpmb_ctx_candidates))) {
+		TAILQ_REMOVE(&rpmb_ctx_candidates, cand, link);
+		free(cand);
+	}
+}
+
 /* This function must never return TEE_SUCCESS if rpmb_ctx == NULL */
 static TEE_Result tee_rpmb_init(void)
 {
@@ -1285,9 +1335,6 @@ static TEE_Result tee_rpmb_init(void)
 		return TEE_SUCCESS;
 
 next:
-	if (IS_ENABLED(CFG_RPMB_WRITE_KEY))
-		return legacy_rpmb_init();
-
 	res = rpmb_probe_reset();
 	if (res) {
 		if (res != TEE_ERROR_NOT_SUPPORTED &&
@@ -1299,9 +1346,18 @@ next:
 	while (true) {
 		res = rpmb_probe_next(&dev_info);
 		if (res) {
+			if (!rpmb_ctx_list_empty()) {
+				restore_rpmb_ctx_candidate();
+
+				DMSG("RPMB INIT: Auth key not yet written");
+				res = tee_rpmb_write_and_verify_key();
+				if (res == TEE_SUCCESS)
+					goto done;
+			}
 			DMSG("rpmb_probe_next error %#"PRIx32, res);
-			return res;
+			goto out;
 		}
+
 		res = rpmb_set_dev_info(&dev_info);
 		if (res) {
 			DMSG("Invalid device info, looking for another device");
@@ -1310,19 +1366,32 @@ next:
 
 		res = tee_rpmb_key_gen(rpmb_ctx->key, RPMB_KEY_MAC_SIZE);
 		if (res)
-			return res;
+			goto out;
 
 		res = tee_rpmb_init_read_wr_cnt(&rpmb_ctx->wr_cnt);
-		if (res)
-			continue;
-		break;
-	}
+		if (res == TEE_SUCCESS) {
+			DMSG("Found working RPMB device");
+			goto done;
+		}
 
-	DMSG("Found working RPMB device");
+		if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+			/* Found a disk candidate to be provisioned */
+			if (!IS_ENABLED(CFG_RPMB_WRITE_KEY))
+				continue;
+
+			res = add_rpmb_ctx_to_list();
+			if (res)
+				goto out;
+		}
+	}
+done:
 	rpmb_ctx->key_verified = true;
 	rpmb_ctx->wr_cnt_synced = true;
+	res = TEE_SUCCESS;
 
-	return TEE_SUCCESS;
+out:
+	delete_all_rpmb_ctx_in_list();
+	return res;
 }
 
 TEE_Result tee_rpmb_reinit(void)
