@@ -1246,6 +1246,8 @@ static TEE_Result tee_rpmb_init(void)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct rpmb_dev_info dev_info = { };
+	struct tee_rpmb_ctx cand = { };
+	bool have_cand = false;
 
 	if (rpmb_dead)
 		return TEE_ERROR_COMMUNICATION;
@@ -1289,9 +1291,6 @@ static TEE_Result tee_rpmb_init(void)
 		return TEE_SUCCESS;
 
 next:
-	if (IS_ENABLED(CFG_RPMB_WRITE_KEY))
-		return legacy_rpmb_init();
-
 	res = rpmb_probe_reset();
 	if (res) {
 		if (res != TEE_ERROR_NOT_SUPPORTED &&
@@ -1303,9 +1302,18 @@ next:
 	while (true) {
 		res = rpmb_probe_next(&dev_info);
 		if (res) {
+			if (have_cand) {
+				memcpy(rpmb_ctx, &cand, sizeof(*rpmb_ctx));
+
+				DMSG("RPMB INIT: Auth key not yet written");
+				res = tee_rpmb_write_and_verify_key();
+				if (res == TEE_SUCCESS)
+					goto done;
+			}
 			DMSG("rpmb_probe_next error %#"PRIx32, res);
 			return res;
 		}
+
 		res = rpmb_set_dev_info(&dev_info);
 		if (res) {
 			DMSG("Invalid device info, looking for another device");
@@ -1317,12 +1325,23 @@ next:
 			return res;
 
 		res = tee_rpmb_init_read_wr_cnt(&rpmb_ctx->wr_cnt);
-		if (res)
-			continue;
-		break;
-	}
+		if (res == TEE_SUCCESS) {
+			DMSG("Found working RPMB device");
+			goto done;
+		}
 
-	DMSG("Found working RPMB device");
+		if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+			/* Remember the first candidate to be provisioned */
+			if (!IS_ENABLED(CFG_RPMB_WRITE_KEY))
+				continue;
+
+			if (!have_cand) {
+				memcpy(&cand, rpmb_ctx, sizeof(cand));
+				have_cand = true;
+			}
+		}
+	}
+done:
 	rpmb_ctx->key_verified = true;
 	rpmb_ctx->wr_cnt_synced = true;
 
