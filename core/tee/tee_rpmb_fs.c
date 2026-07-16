@@ -1136,7 +1136,7 @@ static TEE_Result rpmb_set_dev_info(const struct rpmb_dev_info *dev_info)
 
 	memcpy(rpmb_ctx->cid, dev_info->cid, RPMB_EMMC_CID_SIZE);
 
-	if (IS_ENABLED(RPMB_DRIVER_MULTIPLE_WRITE_FIXED))
+	if (IS_ENABLED(CFG_RPMB_DRIVER_MULTIPLE_WRITE_FIXED))
 		rpmb_ctx->rel_wr_blkcnt = dev_info->rel_wr_sec_c * 2;
 	else
 		rpmb_ctx->rel_wr_blkcnt = 1;
