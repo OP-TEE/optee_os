@@ -105,12 +105,35 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 			rflags |= TA_FLAG_DEVICE_ENUM_TEE_STORAGE_PRIVATE;
 		break;
 	case PTA_CMD_GET_DEVICES_RPMB:
-		if (!IS_ENABLED(CFG_REE_FS)) {
-			res = tee_rpmb_reinit();
-			if (res)
-				return TEE_ERROR_STORAGE_NOT_AVAILABLE;
+		/*
+		 * Issued by the kernel once it can route RPMB itself
+		 * (CFG_RPMB_ANNOUNCE_PROBE_CAP). This probe exists only to
+		 * bring up RPMB and enumerate RPMB-dependent devices, so
+		 * without CFG_RPMB_FS there is no RPMB device to init and
+		 * nothing to announce: rflags stays 0 and an empty list is
+		 * returned with TEE_SUCCESS (the probe completes cleanly
+		 * rather than erroring).
+		 *
+		 * tee_rpmb_reinit() brings up the RPMB device; failure means no
+		 * RPMB-backed storage, so fail the call.
+		 *
+		 * The DEVICE_ENUM_TEE_STORAGE_PRIVATE devices follow whatever
+		 * TEE_STORAGE_PRIVATE resolves to (tee_svc_storage_file_ops()):
+		 *   - no REE FS: it maps to RPMB, so announce them here.
+		 *   - REE FS enabled: it maps to REE FS, already announced on
+		 *     the SUPP path; announcing them here too would enumerate
+		 *     the same device twice, so rflags stays 0.
+		 */
+		if (!IS_ENABLED(CFG_RPMB_FS))
+			break;
+
+		res = tee_rpmb_reinit();
+		if (res)
+			return TEE_ERROR_STORAGE_NOT_AVAILABLE;
+
+		if (!IS_ENABLED(CFG_REE_FS))
 			rflags = TA_FLAG_DEVICE_ENUM_TEE_STORAGE_PRIVATE;
-		}
+
 		break;
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
