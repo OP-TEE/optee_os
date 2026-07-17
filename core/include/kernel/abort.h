@@ -11,6 +11,22 @@
 #define ABORT_TYPE_DATA			2
 /* Dump stack on user mode panic (not an abort) */
 #define ABORT_TYPE_USER_MODE_PANIC	3
+#define ABORT_TYPE_ILLEGAL_INST		4
+
+/* Opcode for Illegal inst */
+/* Standard Floating-Point Extension (F/D/Q) Major Opcodes */
+#define OPCODE_FL_LOAD            0x07    /* Floating-Point Load (flw, fld, flq) */
+#define OPCODE_FS_STORE           0x27    /* Floating-Point Store (fsw, fsd, fsq) */
+#define OPCODE_FMADD              0x43    /* Fused Multiply-Add */
+#define OPCODE_FMSUB              0x47    /* Fused Multiply-Subtract */
+#define OPCODE_FNMSUB             0x4B    /* Fused Negative Multiply-Subtract */
+#define OPCODE_FNMADD             0x4F    /* Fused Negative Multiply-Add */
+#define OPCODE_FP_ARITH           0x53    /* General Floating-Point Arithmetic (fadd, fsub, etc.) */
+
+/* Standard Vector Extension (V) Major Opcodes */
+#define OPCODE_V_LOAD             0x07    /* Vector Load Configuration (vle8, vle32, vl8r) */
+#define OPCODE_V_STORE            0x27    /* Vector Store Configuration (vse8, vse32, vs8r) */
+#define OPCODE_V_ARITH            0x57    /* Vector Arithmetic & Configurations (OP-V Space) */
 
 #ifndef __ASSEMBLER__
 

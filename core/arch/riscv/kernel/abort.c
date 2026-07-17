@@ -241,6 +241,12 @@ static void handle_user_mode_panic(struct abort_info *ai)
 }
 
 #ifdef CFG_WITH_VFP
+void vfp_disable(void)
+{
+	/* Clear FS bitmask via your platform's generic CSR clear instruction wrapper */
+	clear_csr(CSR_XSTATUS, CSR_XSTATUS_FS_MASK);
+}
+
 static void handle_user_mode_vfp(void)
 {
 	struct ts_session *s = ts_get_current_session();
@@ -267,7 +273,24 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 #if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
 static bool is_vfp_fault(struct abort_info *ai)
 {
-	/* Implement */
+	if (ai->abort_type != ABORT_TYPE_UNDEF)
+		return false;
+
+	if (ai->abort_type == ABORT_TYPE_ILLEGAL_INST) {
+		/*
+		 * Analyze the opcode inside tval to determine if it is
+		 * a Floating-Point or Vector instruction pattern.
+		 * Opcode 0x53 = FP Operations, Opcode 0x07/0x27/0x57 = Vector
+		 */
+		uint32_t opcode = ai->regs->tval & 0x7F;
+
+		switch(opcode) {
+		case OPCODE_FP_ARITH:
+			return true;
+		default:
+			return false;
+		}
+	}
 	return false;
 }
 #else /*CFG_WITH_VFP && CFG_WITH_USER_TA*/

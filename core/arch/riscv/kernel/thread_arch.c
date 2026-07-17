@@ -32,6 +32,9 @@
 #include <riscv.h>
 #include <trace.h>
 #include <util.h>
+#ifdef CFG_WITH_VFP
+#include <riscv_fp.h>
+#endif
 
 /*
  * This function is called as a guard after each ABI call which is not
@@ -88,12 +91,12 @@ void __nostackcheck thread_unmask_exceptions(uint32_t state)
 
 static void thread_lazy_save_ns_vfp(void)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+	thread_kernel_save_vfp();
 }
 
 static void thread_lazy_restore_ns_vfp(void)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+	thread_kernel_restore_vfp();
 }
 
 static void setup_unwind_user_mode(struct thread_scall_regs *regs)
@@ -555,3 +558,128 @@ void __thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 {
 	thread_rpc_xstatus(rv, xstatus_for_xret(false, PRV_S));
 }
+
+#ifdef CFG_WITH_VFP
+
+#ifdef RV64
+#define STATE_TOKEN_FP		SHIFT_U64(1, 0)
+#else
+#define STATE_TOKEN_FP		SHIFT_U32(1, 0)
+#endif
+
+static struct thread_vfp_state *get_thread_vfp_state(void)
+{
+	return &threads[thread_get_id()].vfp_state;
+}
+
+void thread_save_fp_state(struct riscv_fp_state *ctx)
+{
+	riscv_save_fp_state(ctx);
+}
+
+void thread_restore_fp_state(struct riscv_fp_state *ctx)
+{
+	riscv_restore_fp_state(ctx);
+}
+
+uint32_t thread_kernel_enable_vfp(void)
+{
+	unsigned long xstatus = read_csr(CSR_XSTATUS);
+	uint32_t active_token = 0;
+
+	if ((xstatus & CSR_XSTATUS_FS_MASK) != CSR_XSTATUS_FS_CLEAN) {
+#ifdef RV64
+		xstatus = set_field_u64(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_CLEAN);
+#else
+		xstatus = set_field_u32(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_CLEAN);
+#endif
+		active_token |= STATE_TOKEN_FP;
+	}
+
+	write_csr(CSR_XSTATUS, xstatus);
+	return active_token;
+}
+
+void thread_kernel_disable_vfp(uint32_t state_value)
+{
+	unsigned long xstatus = read_csr(CSR_XSTATUS);
+
+	if (state_value & STATE_TOKEN_FP)
+#ifdef RV64
+		xstatus = set_field_u64(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_OFF);
+#else
+		xstatus = set_field_u32(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_OFF);
+#endif
+
+	write_csr(CSR_XSTATUS, xstatus);
+}
+
+void thread_kernel_save_vfp(void)
+{
+	unsigned long xstatus = read_csr(CSR_XSTATUS);
+	struct thread_vfp_state *vfp_state = get_thread_vfp_state();
+
+	if ((xstatus & CSR_XSTATUS_FS_MASK) == CSR_XSTATUS_FS_DIRTY) {
+		thread_save_fp_state(&vfp_state->fp_ctx);
+		vfp_state->fp_saved = true;
+#ifdef RV64
+		xstatus = set_field_u64(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_CLEAN);
+#else
+		xstatus = set_field_u32(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_CLEAN);
+#endif
+	}
+
+	write_csr(CSR_XSTATUS, xstatus);
+}
+
+void thread_kernel_restore_vfp(void)
+{
+	unsigned long xstatus = read_csr(CSR_XSTATUS);
+	struct thread_vfp_state *vfp_state = get_thread_vfp_state();
+
+	if (vfp_state->fp_saved) {
+#ifdef RV64
+		xstatus = set_field_u64(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_CLEAN);
+#else
+		xstatus = set_field_u32(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_CLEAN);
+#endif
+		write_csr(CSR_XSTATUS, xstatus);
+		thread_restore_fp_state(&vfp_state->fp_ctx);
+		vfp_state->fp_saved = false;
+	}
+}
+
+void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp __unused)
+{
+	unsigned long xstatus = read_csr(CSR_XSTATUS);
+
+#ifdef RV64
+	xstatus = set_field_u64(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_INITIAL);
+#else
+	xstatus = set_field_u32(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_INITIAL);
+#endif
+
+	write_csr(CSR_XSTATUS, xstatus);
+}
+
+void thread_user_save_vfp(void)
+{
+	thread_kernel_save_vfp();
+}
+
+void thread_user_clear_vfp(struct user_mode_ctx *uctx __unused)
+{
+	unsigned long xstatus = read_csr(CSR_XSTATUS);
+	struct thread_vfp_state *vfp_state = get_thread_vfp_state();
+
+	vfp_state->fp_saved = false;
+
+#ifdef RV64
+	xstatus = set_field_u64(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_OFF);
+#else
+	xstatus = set_field_u32(xstatus, CSR_XSTATUS_FS_MASK, CSR_XSTATUS_FS_OFF);
+#endif
+
+	write_csr(CSR_XSTATUS, xstatus);
+}
+#endif // CFG_WITH_VFP
