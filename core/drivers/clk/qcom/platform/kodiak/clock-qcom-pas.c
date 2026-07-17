@@ -6,8 +6,6 @@
 
 #include <drivers/clk.h>
 #include <drivers/clk_qcom.h>
-
-#ifdef CFG_QCOM_PAS_PTA
 #include <io.h>
 #include <malloc.h>
 #include <mm/core_memprot.h>
@@ -21,6 +19,8 @@
 #define CBCR_BRANCH_ENABLE_BIT		BIT(0)
 #define CBCR_HW_CTL_ENABLE_BIT		BIT(1)
 #define CBCR_BRANCH_OFF_BIT		BIT(31)
+
+register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
 
 static inline bool vapss_gdscr_pwr_on(uint32_t val)
 {
@@ -122,6 +122,24 @@ static int lpass_gdsc_enable(void)
 	return qcom_clock_enable_cbc(gdsc_base + TOP_CC_LPI_Q6_AXIM_HS_CLK);
 }
 
+TEE_Result qcom_clock_enable_pas_processor(enum qcom_clk_group group __unused)
+{
+	/*
+	 * Kodiak releases the DSP core entirely within the PTA fw_start path;
+	 * there is no separate post-boot PLL/RCG step as on Lemans.
+	 */
+	return TEE_SUCCESS;
+}
+
+TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group __unused)
+{
+	/*
+	 * Kodiak does not perform a separate subsystem reset before bring-up;
+	 * the PTA fw_start path brings the DSP up from a known state.
+	 */
+	return TEE_SUCCESS;
+}
+
 TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group)
 {
 	struct io_pa_va base = { .pa = GCC_BASE };
@@ -167,10 +185,3 @@ timeout:
 	EMSG("Timeout trying to enable clock group %d\n", group);
 	return TEE_ERROR_TIMEOUT;
 }
-
-#else
-TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group __unused)
-{
-	return  TEE_ERROR_NOT_SUPPORTED;
-}
-#endif /* ! CFG_QCOM_PAS_PTA */
