@@ -242,11 +242,16 @@ struct rpmb_raw_data {
 };
 
 #define RPMB_EMMC_CID_SIZE 16
+#define RPMB_CID_SIZE RPMB_EMMC_CID_SIZE
 struct rpmb_dev_info {
-	uint8_t cid[RPMB_EMMC_CID_SIZE];
-	/* EXT CSD-slice 168 "RPMB Size" */
+	uint8_t cid[RPMB_CID_SIZE];
+
+	/* RPMB size in units of 128 kB (eMMC: EXT CSD-slice 168 "RPMB Size") */
 	uint8_t rpmb_size_mult;
-	/* EXT CSD-slice 222 "Reliable Write Sector Count" */
+	/*
+	 * Reliable write count. eMMC: EXT CSD-slice 222 "Reliable Write Sector
+	 * Count" in 512-byte sectors. UFS: number of 256-byte RPMB frames.
+	 */
 	uint8_t rel_wr_sec_c;
 	/* Check the ret code and accept the data only if it is OK. */
 	uint8_t ret_code;
@@ -260,6 +265,7 @@ struct rpmb_dev_info {
  * @wr_cnt           Current write counter.
  * @max_blk_idx      The highest block index supported by current device.
  * @rel_wr_blkcnt    Max number of data blocks for each reliable write.
+ * @dev_type         Kind of RPMB device in use (OPTEE_RPC_RPMB_*).
  * @dev_id           Device ID of the eMMC device.
  * @wr_cnt_synced    Flag indicating if write counter is synced to RPMB.
  * @key_derived      Flag indicating if key has been generated.
@@ -271,10 +277,11 @@ struct rpmb_dev_info {
  */
 struct tee_rpmb_ctx {
 	uint8_t key[RPMB_KEY_MAC_SIZE];
-	uint8_t cid[RPMB_EMMC_CID_SIZE];
+	uint8_t cid[RPMB_CID_SIZE];
 	uint32_t wr_cnt;
 	uint16_t max_blk_idx;
 	uint16_t rel_wr_blkcnt;
+	uint8_t dev_type;
 	uint16_t dev_id;
 	bool wr_cnt_synced;
 	bool key_derived;
@@ -286,6 +293,19 @@ struct tee_rpmb_ctx {
 };
 
 static struct tee_rpmb_ctx *rpmb_ctx;
+
+/*
+ * List of RPMB device contexts that were probed but have no authentication
+ * key written yet. While probing we defer key provisioning until every device
+ * has been examined: if some device already has a working key we use it as is.
+ */
+struct rpmb_ctx_candidate {
+	struct tee_rpmb_ctx ctx;
+	TAILQ_ENTRY(rpmb_ctx_candidate) link;
+};
+
+static TAILQ_HEAD(rpmb_ctx_candidates_head, rpmb_ctx_candidate)
+	rpmb_ctx_candidates = TAILQ_HEAD_INITIALIZER(rpmb_ctx_candidates);
 
 /* If set to true, don't try to access RPMB until rebooted */
 static bool rpmb_dead;
@@ -326,24 +346,29 @@ out:
 
 static TEE_Result tee_rpmb_key_gen(uint8_t *key, uint32_t len)
 {
-	uint8_t message[RPMB_EMMC_CID_SIZE];
+	uint8_t message[RPMB_CID_SIZE];
 
 	if (!key || RPMB_KEY_MAC_SIZE != len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	IMSG("RPMB: Using generated key");
 
+	memcpy(message, rpmb_ctx->cid, RPMB_CID_SIZE);
+
 	/*
-	 * PRV/CRC would be changed when doing eMMC FFU
-	 * The following fields should be masked off when deriving RPMB key
+	 * PRV/CRC would be changed when doing eMMC FFU, so those fields must be
+	 * masked off before deriving the RPMB key. UFS has no equivalent
+	 * mutable fields in its CID, so its raw identifier is used as-is.
 	 *
 	 * CID [55: 48]: PRV (Product revision)
 	 * CID [07: 01]: CRC (CRC7 checksum)
 	 * CID [00]: not used
 	 */
-	memcpy(message, rpmb_ctx->cid, RPMB_EMMC_CID_SIZE);
-	memset(message + RPMB_CID_PRV_OFFSET, 0, 1);
-	memset(message + RPMB_CID_CRC_OFFSET, 0, 1);
+	if (rpmb_ctx->dev_type == OPTEE_RPC_RPMB_EMMC) {
+		memset(message + RPMB_CID_PRV_OFFSET, 0, 1);
+		memset(message + RPMB_CID_CRC_OFFSET, 0, 1);
+	}
+
 	return huk_subkey_derive(HUK_SUBKEY_RPMB, message, sizeof(message),
 				 key, len);
 }
@@ -542,8 +567,14 @@ static TEE_Result rpmb_probe_next(struct rpmb_dev_info *dev_info)
 	if (res)
 		return res;
 
-	if (params[0].u.value.a != OPTEE_RPC_RPMB_EMMC)
+	switch (params[0].u.value.a) {
+	case OPTEE_RPC_RPMB_EMMC:
+	case OPTEE_RPC_RPMB_UFS:
+		break;
+	default:
 		return TEE_ERROR_NOT_SUPPORTED;
+	}
+	rpmb_ctx->dev_type = params[0].u.value.a;
 
 	*dev_info = (struct rpmb_dev_info){
 		.rpmb_size_mult = params[0].u.value.b,
@@ -1134,12 +1165,23 @@ static TEE_Result rpmb_set_dev_info(const struct rpmb_dev_info *dev_info)
 	    SUB_OVERFLOW(nblocks, 1, &rpmb_ctx->max_blk_idx))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	memcpy(rpmb_ctx->cid, dev_info->cid, RPMB_EMMC_CID_SIZE);
+	memcpy(rpmb_ctx->cid, dev_info->cid, RPMB_CID_SIZE);
 
-	if (IS_ENABLED(RPMB_DRIVER_MULTIPLE_WRITE_FIXED))
-		rpmb_ctx->rel_wr_blkcnt = dev_info->rel_wr_sec_c * 2;
-	else
+	if (IS_ENABLED(CFG_RPMB_DRIVER_MULTIPLE_WRITE_FIXED)) {
+		/*
+		 * eMMC reports the count in 512-byte sectors (two 256-byte RPMB
+		 * blocks each), so it is doubled; UFS already reports the block
+		 * count. Clamp to one block to avoid a divide-by-zero later.
+		 */
+		if (rpmb_ctx->dev_type == OPTEE_RPC_RPMB_EMMC)
+			rpmb_ctx->rel_wr_blkcnt = dev_info->rel_wr_sec_c * 2;
+		else
+			rpmb_ctx->rel_wr_blkcnt = dev_info->rel_wr_sec_c;
+		if (!rpmb_ctx->rel_wr_blkcnt)
+			rpmb_ctx->rel_wr_blkcnt = 1;
+	} else {
 		rpmb_ctx->rel_wr_blkcnt = 1;
+	}
 
 	return TEE_SUCCESS;
 }
@@ -1151,6 +1193,8 @@ static TEE_Result legacy_rpmb_init(void)
 
 	DMSG("Trying legacy RPMB init");
 	rpmb_ctx->legacy_operation = true;
+	/* The legacy interface only ever describes eMMC devices. */
+	rpmb_ctx->dev_type = OPTEE_RPC_RPMB_EMMC;
 	rpmb_ctx->dev_id = CFG_RPMB_FS_DEV_ID;
 	rpmb_ctx->shm_type = THREAD_SHM_TYPE_APPLICATION;
 
@@ -1206,6 +1250,43 @@ static TEE_Result legacy_rpmb_init(void)
 	return res;
 }
 
+static bool rpmb_ctx_list_empty(void)
+{
+	return TAILQ_EMPTY(&rpmb_ctx_candidates);
+}
+
+static TEE_Result add_rpmb_ctx_to_list(void)
+{
+	struct rpmb_ctx_candidate *cand = calloc(1, sizeof(*cand));
+
+	if (!cand)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	memcpy(&cand->ctx, rpmb_ctx, sizeof(cand->ctx));
+	TAILQ_INSERT_TAIL(&rpmb_ctx_candidates, cand, link);
+
+	return TEE_SUCCESS;
+}
+
+static void restore_rpmb_ctx_candidate(void)
+{
+	struct rpmb_ctx_candidate *cand = TAILQ_FIRST(&rpmb_ctx_candidates);
+
+	/* current trivial algorithm is to pick the first candidate */
+	assert(cand);
+	memcpy(rpmb_ctx, &cand->ctx, sizeof(*rpmb_ctx));
+}
+
+static void delete_all_rpmb_ctx_in_list(void)
+{
+	struct rpmb_ctx_candidate *cand = NULL;
+
+	while ((cand = TAILQ_FIRST(&rpmb_ctx_candidates))) {
+		TAILQ_REMOVE(&rpmb_ctx_candidates, cand, link);
+		free(cand);
+	}
+}
+
 /* This function must never return TEE_SUCCESS if rpmb_ctx == NULL */
 static TEE_Result tee_rpmb_init(void)
 {
@@ -1243,7 +1324,7 @@ static TEE_Result tee_rpmb_init(void)
 				return res;
 			}
 			if (!memcmp(rpmb_ctx->cid, dev_info.cid,
-				    RPMB_EMMC_CID_SIZE)) {
+				    RPMB_CID_SIZE)) {
 				rpmb_ctx->reinit = false;
 				return TEE_SUCCESS;
 			}
@@ -1254,9 +1335,6 @@ static TEE_Result tee_rpmb_init(void)
 		return TEE_SUCCESS;
 
 next:
-	if (IS_ENABLED(CFG_RPMB_WRITE_KEY))
-		return legacy_rpmb_init();
-
 	res = rpmb_probe_reset();
 	if (res) {
 		if (res != TEE_ERROR_NOT_SUPPORTED &&
@@ -1268,9 +1346,18 @@ next:
 	while (true) {
 		res = rpmb_probe_next(&dev_info);
 		if (res) {
+			if (!rpmb_ctx_list_empty()) {
+				restore_rpmb_ctx_candidate();
+
+				DMSG("RPMB INIT: Auth key not yet written");
+				res = tee_rpmb_write_and_verify_key();
+				if (res == TEE_SUCCESS)
+					goto done;
+			}
 			DMSG("rpmb_probe_next error %#"PRIx32, res);
-			return res;
+			goto out;
 		}
+
 		res = rpmb_set_dev_info(&dev_info);
 		if (res) {
 			DMSG("Invalid device info, looking for another device");
@@ -1279,19 +1366,32 @@ next:
 
 		res = tee_rpmb_key_gen(rpmb_ctx->key, RPMB_KEY_MAC_SIZE);
 		if (res)
-			return res;
+			goto out;
 
 		res = tee_rpmb_init_read_wr_cnt(&rpmb_ctx->wr_cnt);
-		if (res)
-			continue;
-		break;
-	}
+		if (res == TEE_SUCCESS) {
+			DMSG("Found working RPMB device");
+			goto done;
+		}
 
-	DMSG("Found working RPMB device");
+		if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+			/* Found a disk candidate to be provisioned */
+			if (!IS_ENABLED(CFG_RPMB_WRITE_KEY))
+				continue;
+
+			res = add_rpmb_ctx_to_list();
+			if (res)
+				goto out;
+		}
+	}
+done:
 	rpmb_ctx->key_verified = true;
 	rpmb_ctx->wr_cnt_synced = true;
+	res = TEE_SUCCESS;
 
-	return TEE_SUCCESS;
+out:
+	delete_all_rpmb_ctx_in_list();
+	return res;
 }
 
 TEE_Result tee_rpmb_reinit(void)

@@ -105,12 +105,10 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 			rflags |= TA_FLAG_DEVICE_ENUM_TEE_STORAGE_PRIVATE;
 		break;
 	case PTA_CMD_GET_DEVICES_RPMB:
-		if (!IS_ENABLED(CFG_REE_FS)) {
-			res = tee_rpmb_reinit();
-			if (res)
-				return TEE_ERROR_STORAGE_NOT_AVAILABLE;
-			rflags = TA_FLAG_DEVICE_ENUM_TEE_STORAGE_PRIVATE;
-		}
+		res = tee_rpmb_reinit();
+		if (res)
+			return TEE_ERROR_STORAGE_NOT_AVAILABLE;
+		rflags = TA_FLAG_DEVICE_ENUM_TEE_STORAGE_PRIVATE;
 		break;
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
