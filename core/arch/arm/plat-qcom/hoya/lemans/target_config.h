@@ -62,13 +62,6 @@
 #define IRIS_BASE			UL(0x0aa00000)
 #define IRIS_SIZE			ULL(0x00200000)
 
-#define PAS_ID_TURING			18
-#define PAS_ID_TURING1			30
-#define PAS_ID_QDSP6			1
-#define PAS_ID_IRIS			9
-#define PAS_ID_GPDSP0			39
-#define PAS_ID_GPDSP1			40
-
 /* CDSP0 content-protection shared channel (secure DDR); no CDSP1 equivalent. */
 #define CDSP_SECCHANNEL_BASE		UL(0xdb1dc000)
 #define CDSP_SECCHANNEL_SIZE		UL(0x2000)
