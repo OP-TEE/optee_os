@@ -255,6 +255,12 @@
 #define FIREWALL_DDR_BASE	0xfe200000
 #define FIREWALL_DDR_SIZE	SIZE_K(4)
 
+#define SCRU_BASE		0xfdd10000
+#define SCRU_SIZE		SIZE_K(4)
+
+#define TRNG_S_BASE		0xfe370000
+#define TRNG_S_SIZE		SIZE_K(64)
+
 #else
 #error "Unknown platform flavor"
 #endif
