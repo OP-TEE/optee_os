@@ -252,6 +252,9 @@
 #define UART2_BASE		0xfe660000
 #define UART2_SIZE		SIZE_K(64)
 
+#define FIREWALL_DDR_BASE	0xfe200000
+#define FIREWALL_DDR_SIZE	SIZE_K(4)
+
 #else
 #error "Unknown platform flavor"
 #endif
