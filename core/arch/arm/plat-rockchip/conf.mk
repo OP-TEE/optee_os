@@ -234,6 +234,17 @@ $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_AUTO_MAX_PA_BITS,y)
 $(call force,CFG_CRYPTO_WITH_CE,y)
 
+# The platform provides a hardware unique key (secure OTP) and TRNG-seeded
+# PRNG, so the insecure development stubs are not needed.
+CFG_INSECURE ?= n
+
+# Back secure storage with eMMC RPMB. This is required with CFG_INSECURE=n:
+# the default REE-FS integrity relies on a monotonic counter that the
+# platform does not otherwise provide, so without RPMB integrity secure
+# storage would fail to initialise. RPMB also provides the rollback
+# protection the fTPM relies on.
+CFG_RPMB_FS ?= y
+
 # BL32 load address expected by the Rockchip boot chain (rkbin
 # RK3568TRUST.ini BL32 ADDR); the OP-TEE v1 header advertises this so
 # U-Boot's FIT loads the TEE here and TF-A opteed dispatches to it.
