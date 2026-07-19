@@ -62,6 +62,42 @@ static inline uint64_t io_read64(vaddr_t addr)
 	return *(volatile uint64_t *)addr;
 }
 
+static inline void io_write32_off(vaddr_t base, size_t offset, uint32_t val)
+{
+	io_write32(base + offset, val);
+}
+
+static inline uint32_t io_read32_off(vaddr_t base, size_t offset)
+{
+	return io_read32(base + offset);
+}
+
+/*
+ * Get and set a field within a 32-bit register at @base + @offset.
+ *
+ * @mask selects the field's bits in the register. The shift is derived from
+ * @mask's lowest set bit, so callers only need to supply the mask.
+ *
+ * io_read32_off_field() returns the field's current value, right-justified.
+ * io_write32_off_field() updates only the bits covered by @mask, leaving the
+ * rest of the register unchanged.
+ */
+static inline uint32_t io_read32_off_field(vaddr_t base, size_t offset,
+					   uint32_t mask)
+{
+	return (io_read32_off(base, offset) & mask) / (mask & ~(mask - 1));
+}
+
+static inline void io_write32_off_field(vaddr_t base, size_t offset,
+					uint32_t mask, uint32_t val)
+{
+	uint32_t regval = io_read32_off(base, offset);
+
+	regval &= ~mask;
+	regval |= (val * (mask & ~(mask - 1))) & mask;
+	io_write32_off(base, offset, regval);
+}
+
 static inline void io_mask8(vaddr_t addr, uint8_t val, uint8_t mask)
 {
 	io_write8(addr, (io_read8(addr) & ~mask) | (val & mask));
