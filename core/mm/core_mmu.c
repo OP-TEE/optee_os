@@ -268,9 +268,10 @@ TEE_Result core_mmu_for_each_map(void *ptr,
 	return TEE_SUCCESS;
 }
 
-static struct tee_mmap_region *find_map_by_type(enum teecore_memtypes type)
+static struct tee_mmap_region *
+find_map_by_type_in_map(struct memory_map *mem_map,
+			enum teecore_memtypes type)
 {
-	struct memory_map *mem_map = get_memory_map();
 	size_t n = 0;
 
 	for (n = 0; n < mem_map->count; n++) {
@@ -278,6 +279,11 @@ static struct tee_mmap_region *find_map_by_type(enum teecore_memtypes type)
 			return mem_map->map + n;
 	}
 	return NULL;
+}
+
+static struct tee_mmap_region *find_map_by_type(enum teecore_memtypes type)
+{
+	return find_map_by_type_in_map(get_memory_map(), type);
 }
 
 static struct tee_mmap_region *
@@ -2430,6 +2436,7 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	vaddr_t end = 0;
 	paddr_t p = 0;
 	size_t l = 0;
+	size_t res_map_idx = 0;
 
 	if (!len)
 		return NULL;
@@ -2443,7 +2450,7 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 		return (void *)(vaddr_t)(map->va + addr - map->pa);
 
 	/* Find the reserved va space used for late mappings */
-	map = find_map_by_type(MEM_AREA_RES_VASPACE);
+	map = find_map_by_type_in_map(mem_map, MEM_AREA_RES_VASPACE);
 	if (!map)
 		return NULL;
 
@@ -2458,10 +2465,15 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	if (map->size < l)
 		return NULL;
 
-	if (static_memory_map.count >= static_memory_map.alloc_count)
-		return NULL;
+	/*
+	 * grow_mem_map() may realloc the map, so refresh the RES_VASPACE
+	 * pointer before using it below.
+	 */
+	res_map_idx = map - mem_map->map;
+	grow_mem_map(mem_map);
+	map = mem_map->map + res_map_idx;
 
-	mem_map->map[mem_map->count] = (struct tee_mmap_region){
+	mem_map->map[mem_map->count - 1] = (struct tee_mmap_region){
 		.va = map->va,
 		.size = l,
 		.type = type,
@@ -2471,8 +2483,7 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	};
 	map->va += l;
 	map->size -= l;
-	map = mem_map->map + mem_map->count;
-	mem_map->count++;
+	map = mem_map->map + mem_map->count - 1;
 
 	if (ADD_OVERFLOW(map->va, map->size, &end))
 		panic("VA overflow in add_mapping");
