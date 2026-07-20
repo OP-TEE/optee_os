@@ -19,7 +19,6 @@
 #define ASU_MODULE_ECC_ID		3U
 #define ASU_MODULE_RSA_ID               4U
 #define ASU_MODULE_AES_ID               5U
-#define ASU_MODULE_CIPHER_ID            5U
 #define ASU_MODULE_KEYMANAGER_ID	12U
 
 struct asu_client_params {
