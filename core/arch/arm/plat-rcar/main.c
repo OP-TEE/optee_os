@@ -38,7 +38,7 @@
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, SCIF_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
-#ifdef _CFG_ARM_V3_OR_V4
+#ifdef _CFG_ARM_GIC_V3_OR_V4
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE,
 			GIC_REDIST_REG_SIZE * CFG_TEE_CORE_NB_CORE);
 #else
@@ -104,7 +104,7 @@ unsigned long plat_get_aslr_seed(void)
 
 void boot_primary_init_intc(void)
 {
-#ifdef _CFG_ARM_V3_OR_V4
+#ifdef _CFG_ARM_GIC_V3_OR_V4
 	gic_init_v3(0, GICD_BASE, GICR_BASE);
 #else
 	gic_init(GICC_BASE, GICD_BASE);
