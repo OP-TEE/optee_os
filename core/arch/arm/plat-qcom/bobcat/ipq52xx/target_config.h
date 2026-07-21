@@ -20,4 +20,9 @@
 #define IMEM_BASE			UL(0x8600000)
 #define IMEM_SIZE			UL(0x18000)
 
+#define QCOM_RNG_REG_BASE		UL(0x4C5000)
+
+#define QCOM_WDT_TMR_BASE		UL(0x0B117000)
+#define QCOM_WDT_BARK_INT_ID		UL(0x23)
+
 #endif /* TARGET_CONFIG_H */
