@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2022-2023, 2025 NXP
+ * Copyright 2022-2023, 2025-2026 NXP
  */
 #include <drivers/imx_mu.h>
 #include <ele.h>
@@ -20,6 +20,7 @@
 #include <trace.h>
 #include <types_ext.h>
 #include <utee_types.h>
+#include <ecc.h>
 #include <util.h>
 
 #define ELE_BASE_ADDR MU_BASE
@@ -371,6 +372,19 @@ int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 
 	return 0;
 }
+
+static TEE_Result imx_ele_global_init(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = imx_ele_ecc_init();
+	if (res)
+		EMSG("ELE ECC driver registration failed");
+
+	return res;
+}
+
+driver_init(imx_ele_global_init);
 
 #if defined(CFG_MX93) || defined(CFG_MX91) || defined(CFG_MX95) || \
 	defined(CFG_MX943)
