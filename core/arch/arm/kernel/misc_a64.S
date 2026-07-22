@@ -40,7 +40,18 @@ WEAK_FUNC get_core_pos_mpidr , :
 	/* Calculate CorePos = (ClusterId * (cores/cluster)) + CoreId */
 	ubfx	x0, x3, #MPIDR_AFF1_SHIFT, #MPIDR_AFFINITY_BITS
 	ubfx	x1, x3, #MPIDR_AFF2_SHIFT, #MPIDR_AFFINITY_BITS
+#ifdef CFG_DYN_CLUSTER_SHIFT
+	/*
+	 * Cores/cluster is detected at runtime (init_dyn_cluster_shift())
+	 * instead of using the compile-time CFG_CORE_CLUSTER_SHIFT.
+	 */
+	adrp	x2, dyn_cluster_shift
+	ldr	w2, [x2, :lo12:dyn_cluster_shift]
+	lsl	x1, x1, x2
+	add	x0, x0, x1
+#else
 	add	x0, x0, x1, LSL #(CFG_CORE_CLUSTER_SHIFT)
+#endif
 #else
 	/*
 	 * Calculate CorePos =
@@ -49,7 +60,14 @@ WEAK_FUNC get_core_pos_mpidr , :
 	ubfx	x0, x3, #MPIDR_AFF0_SHIFT, #MPIDR_AFFINITY_BITS
 	ubfx	x1, x3, #MPIDR_AFF1_SHIFT, #MPIDR_AFFINITY_BITS
 	ubfx	x2, x3, #MPIDR_AFF2_SHIFT, #MPIDR_AFFINITY_BITS
+#ifdef CFG_DYN_CLUSTER_SHIFT
+	adrp	x4, dyn_cluster_shift
+	ldr	w4, [x4, :lo12:dyn_cluster_shift]
+	lsl	x2, x2, x4
+	add	x1, x1, x2
+#else
 	add	x1, x1, x2, LSL #(CFG_CORE_CLUSTER_SHIFT)
+#endif
 	add	x0, x0, x1, LSL #(CFG_CORE_THREAD_SHIFT)
 #endif
 #endif

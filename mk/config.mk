@@ -741,6 +741,13 @@ CFG_ATTESTATION_PTA_KEY_SIZE ?= 3072
 # Default is 2**(2) = 4 cores per cluster.
 CFG_CORE_CLUSTER_SHIFT ?= 2
 
+# Detect the cluster shift (log2 of cores per cluster) at runtime from the
+# DTB instead of solely trusting the compile-time CFG_CORE_CLUSTER_SHIFT.
+# Falls back to CFG_CORE_CLUSTER_SHIFT if detection fails or no DT is
+# available. Platforms that support multiple core/cluster variants from a
+# single binary should set this to y.
+CFG_DYN_CLUSTER_SHIFT ?= n
+
 # Define the number of threads per core used in calculating processing
 # element's position. The core number is shifted by this value and added to
 # the thread ID, so its value represents log2(threads/core).

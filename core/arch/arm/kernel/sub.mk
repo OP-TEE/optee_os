@@ -41,6 +41,11 @@ srcs-$(CFG_ARM64_core) += vfp_a64.S
 endif
 srcs-$(CFG_ARM32_core) += misc_a32.S
 srcs-$(CFG_ARM64_core) += misc_a64.S
+# CFG_DYN_CLUSTER_SHIFT is currently only wired up for AArch64
+# (misc_a64.S); it has no effect on AArch32 builds.
+ifeq ($(CFG_ARM64_core),y)
+srcs-$(CFG_DYN_CLUSTER_SHIFT) += dyn_cluster_shift.c
+endif
 srcs-$(CFG_WITH_STMM_SP) += stmm_sp.c
 srcs-$(CFG_SECURE_PARTITION) += secure_partition.c
 srcs-$(CFG_SECURE_PARTITION) += spmc_sp_handler.c
