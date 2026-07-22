@@ -672,6 +672,10 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct memory_map *mem_map);
 unsigned int asid_alloc(void);
 void asid_free(unsigned int asid);
 
+/* Number of allocated ASIDs / ASID pool capacity */
+unsigned int asid_get_num_used(void);
+size_t asid_get_num_total(void);
+
 #ifdef CFG_SECURE_DATA_PATH
 /* Alloc and fill SDP memory objects table - table is NULL terminated */
 struct mobj **core_sdp_mem_create_mobjs(void);

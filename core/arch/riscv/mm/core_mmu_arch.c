@@ -44,6 +44,26 @@
 static bitstr_t bit_decl(g_asid, RISCV_SATP_ASID_WIDTH) __nex_bss;
 static unsigned int g_asid_spinlock __nex_bss = SPINLOCK_UNLOCK;
 
+unsigned int asid_get_num_used(void)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&g_asid_spinlock);
+	unsigned int n = 0;
+	int i = 0;
+
+	for (i = 0; i < (int)RISCV_SATP_ASID_WIDTH; i++) {
+		if (bit_test(g_asid, i))
+			n++;
+	}
+
+	cpu_spin_unlock_xrestore(&g_asid_spinlock, exceptions);
+	return n;
+}
+
+size_t asid_get_num_total(void)
+{
+	return RISCV_SATP_ASID_WIDTH;
+}
+
 struct mmu_pte {
 	unsigned long entry;
 };

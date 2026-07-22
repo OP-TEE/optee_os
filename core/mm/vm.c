@@ -881,7 +881,8 @@ TEE_Result vm_info_init(struct user_mode_ctx *uctx, struct ts_ctx *ts_ctx)
 	uint32_t asid = asid_alloc();
 
 	if (!asid) {
-		DMSG("Failed to allocate ASID");
+		EMSG("ASID pool exhausted (%u/%zu used)",
+		     asid_get_num_used(), asid_get_num_total());
 		return TEE_ERROR_GENERIC;
 	}
 

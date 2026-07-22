@@ -580,8 +580,11 @@ struct mmu_partition *core_alloc_mmu_prtn(void *tables)
 
 	assert(((vaddr_t)tbl) % SMALL_PAGE_SIZE == 0);
 
-	if (!asid)
+	if (!asid) {
+		EMSG("ASID pool exhausted (%u/%zu)",
+		     asid_get_num_used(), asid_get_num_total());
 		return NULL;
+	}
 
 	prtn = nex_malloc(sizeof(*prtn));
 	if (!prtn)
