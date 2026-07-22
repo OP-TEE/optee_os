@@ -43,6 +43,12 @@ CFG_CRYPTO_WITH_CE ?= y
 # For AMD Versal Gen 2 there are 4 clusters and 2 cores per cluster.
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 
+# Detect the cluster shift at runtime from the DTB instead of relying
+# solely on the compile-time CFG_CORE_CLUSTER_SHIFT above, so a single
+# binary can support Versal Gen 2 variants with a different core/cluster
+# layout. Falls back to CFG_CORE_CLUSTER_SHIFT if detection fails.
+CFG_DYN_CLUSTER_SHIFT ?= y
+
 # By default optee_os is located at the following location.
 # This range to contain optee_os, TEE RAM and TA RAM.
 # Default size is 128MB.
