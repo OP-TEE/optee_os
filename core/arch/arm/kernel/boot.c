@@ -21,6 +21,7 @@
 #include <keep.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
+#include <kernel/dyn_cluster_shift.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -1070,6 +1071,9 @@ void __weak boot_init_primary_runtime(void)
 			IMSG("WARNING: This ARM core does not have NMFI enabled, no need for workaround");
 	}
 
+#ifdef CFG_DYN_CLUSTER_SHIFT
+	init_dyn_cluster_shift(get_external_dt());
+#endif
 	boot_primary_init_intc();
 	init_vfp_nsec();
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
