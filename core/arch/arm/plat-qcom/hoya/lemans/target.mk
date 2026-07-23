@@ -24,3 +24,5 @@ CFG_IN_TREE_EARLY_TAS += qcom_pas/cff7d191-7ca0-4784-af13-48223b9a4fbe
 endif
 
 CFG_QCOM_HWKM ?= y
+CFG_QCOM_CE_AES_ECB ?= y
+CFG_QCOM_CE_AES_CBC ?= y
