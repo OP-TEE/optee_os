@@ -33,6 +33,12 @@
 
 /* STATUS - engine status; reset 0. */
 #define CE_STATUS			0x100U
+/*
+ * MAC validation for the last authenticated operation failed; read-only,
+ * cleared by hardware when the next operation starts. Set by AES-GCM/CCM
+ * decrypt when the supplied tag does not match the computed tag.
+ */
+#define CE_STATUS_MAC_FAILED		BIT(31)
 /* Bytes available in DOUT FIFO (max 16); never read more or DOUT_ERR fires. */
 #define CE_STATUS_DOUT_SIZE_AVAIL_SHIFT	26U
 #define CE_STATUS_DOUT_SIZE_AVAIL	GENMASK_32(30, 26)
@@ -91,6 +97,9 @@
 #define CE_ENCR_SEG_CFG_MODE_MASK	GENMASK_32(9, 6)
 #define CE_ENCR_MODE_ECB		0U
 #define CE_ENCR_MODE_CBC		1U
+#define CE_ENCR_MODE_GCM		6U
+/* LAST [13]: last segment in CCM/GCM operation; triggers tag computation. */
+#define CE_ENCR_SEG_CFG_LAST		BIT(13)
 /* ENCR_KEY_SZ [5:3]: AES key size encoding; 0=128-bit, 2=256-bit. */
 #define CE_ENCR_SEG_CFG_KEY_SZ_SHIFT	3U
 #define CE_ENCR_SEG_CFG_KEY_SZ_MASK	GENMASK_32(5, 3)
@@ -118,6 +127,8 @@
  *                 IV0 = [127:96], IV3 = [31:0]; reset 0.
  * ECB: unused, written 0.
  * CBC: IV per segment, HW updates after completion.
+ * GCM: J0+1 (pre-counter block incremented once); only IV3 (bits[31:0])
+ *      increments per block; IV0..2 are frozen by ENCR_CNTR_MASKn=0.
  */
 #define CE_ENCR_IV0		0x20cU
 #define CE_ENCR_IV1		0x210U
@@ -133,11 +144,60 @@
 #define CE_ENCR_CNTR_MASK1	0x238U
 #define CE_ENCR_CNTR_MASK0	0x23cU
 
+/* ENCR_CCM_INIT_CNTRn - CCM/GCM initial counter J0 (n=0..3, step 4). */
+#define CE_ENCR_CCM_INIT_CNTR(n)	(0x220U + (n) * 4U)
+
 /*
  * AUTH_SEG_CFG - authentication engine configuration; reset 0.
  * Write 0 for cipher-only ops.
  */
 #define CE_AUTH_SEG_CFG			0x300U
+/* AUTH_ALG [2:0]: 0=NONE, 2=AES. */
+#define CE_AUTH_SEG_CFG_ALG_SHIFT	0U
+#define CE_AUTH_SEG_CFG_ALG_MASK	GENMASK_32(2, 0)
+#define CE_AUTH_ALG_AES			2U
+/* AUTH_KEY_SZ [5:3]: same encoding as ENCR_KEY_SZ; 0=AES-128, 2=AES-256. */
+#define CE_AUTH_SEG_CFG_KEY_SZ_SHIFT	3U
+#define CE_AUTH_SEG_CFG_KEY_SZ_MASK	GENMASK_32(5, 3)
+/* AUTH_MODE [8:6]: 0=CBC-MAC (CCM), 2=GHASH (GCM). */
+#define CE_AUTH_SEG_CFG_MODE_SHIFT	6U
+#define CE_AUTH_SEG_CFG_MODE_MASK	GENMASK_32(8, 6)
+#define CE_AUTH_MODE_GCM		2U
+/* AUTH_SIZE [13:9]: MAC output size in bytes minus 1. */
+#define CE_AUTH_SEG_CFG_SIZE_SHIFT	9U
+#define CE_AUTH_SEG_CFG_SIZE_MASK	GENMASK_32(13, 9)
+/* AUTH_POS [15:14]: 0 = auth before cipher, 1 = auth after cipher. */
+#define CE_AUTH_SEG_CFG_POS_AFTER	BIT(14)
+/* LAST [16]: last segment; triggers MAC finalisation. */
+#define CE_AUTH_SEG_CFG_LAST		BIT(16)
+/* FIRST [17]: first segment. */
+#define CE_AUTH_SEG_CFG_FIRST		BIT(17)
+
+/* AUTH_SEG_SIZE - bytes covered by the auth engine; reset 0. */
+#define CE_AUTH_SEG_SIZE		0x304U
+
+/* AUTH_SEG_START - byte offset within segment where auth begins; reset 0. */
+#define CE_AUTH_SEG_START		0x308U
+
+/* AUTH_IVn - authentication IV / GHASH accumulator (n=0..15, step 4). */
+#define CE_AUTH_IV(n)			(0x310U + (n) * 4U)
+#define CE_AUTH_IV_WORDS		16U
+
+/*
+ * AUTH_INFO_NONCEn - named for CCM where this holds the formatted nonce;
+ * for GCM it carries the length block {len(AAD) || len(P)} in bits
+ * (n=0..3, step 4).
+ */
+#define CE_AUTH_INFO_NONCE(n)		(0x350U + (n) * 4U)
+
+/* AUTH_BYTECNTn - authentication byte/bit counters (n=0..3). */
+#define CE_AUTH_BYTECNT0		0x390U
+#define CE_AUTH_BYTECNT1		0x394U
+#define CE_AUTH_BYTECNT2		0x398U
+#define CE_AUTH_BYTECNT3		0x39cU
+
+/* AUTH_KEYn - authentication key words (n=0..15, step 4); write-only. */
+#define CE_AUTH_KEY(n)			(0x3040U + (n) * 4U)
 
 /* CONFIG - core configuration; reset 0x100E001F. */
 #define CE_CONFIG			0x400U
@@ -165,6 +225,7 @@
 #define CE_ENCR_KEY(n)			(0x3000U + (n) * 4U)
 
 #define CE_MAX_KEY_WORDS		8U
+#define CE_MAX_AUTH_KEY_WORDS		16U
 /* 128-bit IV = four 32-bit words. */
 #define CE_IV_WORDS			4U
 /* Byte size of one CE register word. */

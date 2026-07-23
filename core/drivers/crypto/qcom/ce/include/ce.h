@@ -12,6 +12,7 @@
 #include <tee_api_types.h>
 #include <types_ext.h>
 
+/* ce_get_base() - Return the virtual base address of CRYPTO_REG. */
 vaddr_t ce_get_base(void);
 
 /*
@@ -44,5 +45,24 @@ uint32_t ce_auth_cfg(uint32_t mode, size_t key_len, bool encrypt,
  */
 TEE_Result ce_aes_xfer(vaddr_t base, uint32_t encr_cfg,
 		       const uint8_t *in, uint8_t *out, size_t len);
+
+/*
+ * ce_aes_aead_auth() - Feed @aad_len bytes of AAD through the auth engine.
+ * Caller must load/save AUTH_IVn/AUTH_BYTECNTn around each call.
+ */
+TEE_Result ce_aes_aead_auth(vaddr_t base, uint32_t encr_cfg, uint32_t auth_cfg,
+			    const uint8_t *aad, size_t aad_len);
+
+/*
+ * ce_aes_aead_xfer() - Encrypt/decrypt @len bytes with simultaneous auth.
+ * Caller must load/save AUTH_IVn/AUTH_BYTECNTn around each call. On the
+ * last segment, @tag/@tag_len carry the tag through the FIFO; pass tag_len=0
+ * for non-final segments.
+ */
+TEE_Result ce_aes_aead_xfer(vaddr_t base, uint32_t encr_cfg,
+			    uint32_t auth_cfg,
+			    const uint8_t *in, uint8_t *out,
+			    size_t len, uint8_t *tag, size_t tag_len,
+			    bool encrypt);
 
 #endif /* CE_H */
