@@ -658,10 +658,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: Clang
+            make_commands: |
+              export COMPILER=clang
+              make -j$(nproc) check
           - name: default
             make_commands: |
-              make -j$(nproc) all CMAKE_POLICY_VERSION_MINIMUM=3.5
-              make -j$(nproc) check XTEST_ARGS=1001
+              make -j$(nproc) check
     steps:
       - name: Checkout
         uses: actions/checkout@v4
