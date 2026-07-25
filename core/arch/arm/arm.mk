@@ -157,9 +157,9 @@ endif
 ifeq ($(CFG_CORE_PHYS_RELOCATABLE)-$(CFG_WITH_PAGER),y-y)
 $(error CFG_CORE_PHYS_RELOCATABLE and CFG_WITH_PAGER are not compatible)
 endif
-ifeq ($(CFG_CORE_PHYS_RELOCATABLE),y)
+ifeq ($(CFG_CORE_PHYS_RELOCATABLE)-$(CFG_CORE_FFA),y-y)
 ifneq ($(CFG_CORE_SEL2_SPMC),y)
-$(error CFG_CORE_PHYS_RELOCATABLE depends on CFG_CORE_SEL2_SPMC)
+$(error CFG_CORE_PHYS_RELOCATABLE with CFG_CORE_FFA depends on CFG_CORE_SEL2_SPMC)
 endif
 endif
 
