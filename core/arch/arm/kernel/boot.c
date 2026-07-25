@@ -1473,6 +1473,12 @@ void __weak boot_save_args(unsigned long a0, unsigned long a1,
 			boot_arg_nsec_entry = a4;
 #endif
 		}
+
+#if defined(CFG_TZDRAM_SIZE)
+		if (IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE))
+			core_mmu_set_secure_memory(core_mmu_tee_load_pa,
+						   CFG_TZDRAM_SIZE);
+#endif
 	}
 }
 
