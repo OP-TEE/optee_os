@@ -39,4 +39,19 @@
  */
 #define PTA_CMD_ICE_SET_CONFIG_KEY    1
 
+/*
+ * Generate a hardware-wrapped ICE storage key blob.
+ *
+ * Caller supplies an output buffer and its size.
+ *
+ * [out] params[0].memref.buffer     Output wrapped key blob buffer
+ * [in/out] params[0].memref.size    Input: buffer capacity
+ *                                   Output: actual blob size
+ *                                   Required size: 68 bytes (HWKM_MAX_BLOB_SIZE)
+ *                                   If too small, returns TEE_ERROR_SHORT_BUFFER
+ *                                   and updates size with required length.
+ */
+#define PTA_CMD_ICE_GENERATE_KEY      2
+
+
 #endif /* __PTA_QCOM_ICE_H */

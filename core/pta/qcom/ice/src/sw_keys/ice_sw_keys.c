@@ -16,14 +16,6 @@
 #include "ice_config.h"
 
 /*
- * Register the ICE (Inline Crypto Engine) LUT keys register region so this
- * PTA can program key slots.
- */
-register_phys_mem_pgdir(MEM_AREA_IO_SEC,
-			(ICE_LUT_KEYS & ~SMALL_PAGE_MASK),
-			ICE_LUT_KEYS_SIZE);
-
-/*
  * Virtual base of the ICE LUT-keys region, resolved once on first use.
  * All register accesses go through io_*_off() helpers relative to this.
  */
