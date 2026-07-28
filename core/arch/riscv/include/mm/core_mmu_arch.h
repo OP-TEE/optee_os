@@ -189,6 +189,14 @@ static inline void core_mmu_table_write_barrier(void)
 
 TEE_Result cache_op_inner(enum cache_op op, void *va, size_t len);
 
+static inline TEE_Result cache_op_outer(enum cache_op op __unused,
+					paddr_t pa __unused,
+					size_t len __unused)
+{
+	/* No outer cache to maintain */
+	return TEE_SUCCESS;
+}
+
 static inline bool core_mmu_check_max_pa(paddr_t pa)
 {
 	return pa <= (BIT64(RISCV_MMU_PA_WIDTH) - 1);
