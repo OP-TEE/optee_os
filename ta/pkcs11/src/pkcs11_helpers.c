@@ -203,6 +203,7 @@ static const struct any_id __maybe_unused string_ta_cmd[] = {
 	PKCS11_ID(PKCS11_CMD_GENERATE_KEY_PAIR),
 	PKCS11_ID(PKCS11_CMD_WRAP_KEY),
 	PKCS11_ID(PKCS11_CMD_UNWRAP_KEY),
+	PKCS11_ID(PKCS11_CMD_WIPE_STORAGE),
 };
 
 static const struct any_id __maybe_unused string_slot_flags[] = {
