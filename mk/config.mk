@@ -534,6 +534,11 @@ CFG_STACK_TMP_EXTRA ?= 0
 # When CFG_MAP_EXT_DT_SECURE is enabled the external device tree is expected to
 # be in the secure memory.
 #
+# When CFG_EXT_DT_CACHED is enabled the external device tree is mapped as
+# cached memory instead of non-cached memory, which speeds up parsing of the
+# device tree considerably. Platforms can enable it once it is known that the
+# external device tree resides in memory that can be mapped cached.
+#
 # When CFG_EMBED_DTB is enabled, CFG_EMBED_DTB_SOURCE_FILE shall define the
 # relative path of a DTS file located in core/arch/$(ARCH)/dts.
 # The DTS file is compiled into a DTB file which content is embedded in a
@@ -552,6 +557,7 @@ CFG_MAP_EXT_DT_SECURE ?= n
 ifeq ($(CFG_MAP_EXT_DT_SECURE),y)
 $(call force,CFG_DT,y)
 endif
+CFG_EXT_DT_CACHED ?= n
 
 # This option enables OP-TEE to support boot arguments handover via Transfer
 # List defined in Firmware Handoff specification.
