@@ -292,6 +292,152 @@ static TEE_Result gpce_init(void)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result hwkm_generate_tp_and_swap_keys(void)
+{
+	const struct hwkm_key_policy base_kdk_policy = {
+		.km_by_tz_allowed = true,
+		.alg_allowed = HWKM_ALGO_AES256_CMAC,
+		.enc_allowed = true,
+		.key_type = HWKM_KEY_TYPE_KDK,
+		.kdf_depth = 1,
+		.security_lvl = HWKM_KEY_SECURITY_LVL_HW_KEY,
+		.hw_destination = HWKM_KEY_DEST_KM_MASTER,
+	};
+	const struct hwkm_key_policy tpkey_policy = {
+		.km_by_tz_allowed = true,
+		.km_by_nsec_allowed = true,
+		.km_by_modem_allowed = true,
+		.km_by_spu_allowed = true,
+		.alg_allowed = HWKM_ALGO_AES256_SIV,
+		.enc_allowed = true,
+		.dec_allowed = true,
+		.key_type = HWKM_KEY_TYPE_TPKEY,
+		.security_lvl = HWKM_KEY_SECURITY_LVL_HW_KEY,
+		.hw_destination = HWKM_KEY_DEST_KM_MASTER,
+	};
+	const struct hwkm_key_policy swap_key_policy = {
+		.km_by_tz_allowed = true,
+		.alg_allowed = HWKM_ALGO_AES256_SIV,
+		.enc_allowed = true,
+		.dec_allowed = true,
+		.key_type = HWKM_KEY_TYPE_KSK,
+		.security_lvl = HWKM_KEY_SECURITY_LVL_HW_KEY,
+		.hw_destination = HWKM_KEY_DEST_KM_MASTER,
+	};
+	const struct hwkm_bsve bsve = {
+		.enabled = true,
+		.km_swc_en = true,
+	};
+	struct hwkm_transaction t_keygen = {
+		.cmd = {
+			.op = HWKM_OP_NIST_KEYGEN,
+			.keygen = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.policy = base_kdk_policy,
+			},
+		},
+	};
+	struct hwkm_transaction t_tpkey_kdf = {
+		.cmd = {
+			.op = HWKM_OP_SYSTEM_KDF,
+			.kdf = {
+				.dks = HWKM_SLOT_TPKEY_SLOT,
+				.kdk = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.policy = tpkey_policy,
+				.bsve = bsve,
+				.ctx_len = 16,
+				.ctx = {
+					0x54, 0x52, 0x41, 0x4e,
+					0x53, 0x50, 0x4f, 0x52,
+					0x54, 0x20, 0x4b, 0x45,
+					0x59, 0x00, 0x00, 0x00,
+				},
+			},
+		},
+	};
+	struct hwkm_transaction t_swap_kdf = {
+		.cmd = {
+			.op = HWKM_OP_SYSTEM_KDF,
+			.kdf = {
+				.dks = HWKM_SLOT_TZ_SWAP_KEY_SLOT,
+				.kdk = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.policy = swap_key_policy,
+				.bsve = bsve,
+				.ctx_len = 8,
+				.ctx = {
+					0x53, 0x57, 0x41, 0x50,
+					0x20, 0x4b, 0x45, 0x59,
+				},
+			},
+		},
+	};
+	struct hwkm_transaction t_clear = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.is_double_key = false,
+			},
+		},
+	};
+	TEE_Result res = TEE_ERROR_GENERIC;
+	int rc = HWKM_ERR_GENERIC;
+	struct hwkm_drv_ctx *drv = hwkm_get_context();
+	if (!drv)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	mutex_lock(&drv->hwkm_lock);
+	rc = hwkm_run_transactions(HWKM_KEY_DEST_KM_MASTER, 4,
+				   (struct hwkm_transaction *const[]){
+					&t_keygen, &t_tpkey_kdf,
+					&t_swap_kdf, &t_clear });
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto out_clear;
+	}
+
+	if (t_keygen.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("hwkm: initial NIST_KEYGEN failed: %s",
+		     hwkm_err2str(t_keygen.rsp.status));
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	if (t_tpkey_kdf.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("hwkm: initial TPKEY SYSTEM_KDF failed: %s",
+		     hwkm_err2str(t_tpkey_kdf.rsp.status));
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	if (t_swap_kdf.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("hwkm: initial SWAP SYSTEM_KDF failed: %s",
+		     hwkm_err2str(t_swap_kdf.rsp.status));
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	if (t_clear.rsp.status != HWKM_RSP_ERR_SUCCESS &&
+	    t_clear.rsp.status != HWKM_CLEAR_ERR_DKS_SLOT_EMPTY) {
+		EMSG("hwkm: initial KEY_SLOT_CLEAR failed: %s",
+		     hwkm_err2str(t_clear.rsp.status));
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	res = TEE_SUCCESS;
+out_clear:
+	/*
+	 * If any of the above transactions fail, make an attempt
+	 * to clear the TZ_GENERAL_PURPOSE_SLOT1 since it may have
+	 * been left with the key material.
+	 */
+	hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_clear);
+out:
+	mutex_unlock(&drv->hwkm_lock);
+	return res;
+}
+
 static TEE_Result hwkm_driver_init(void)
 {
 	struct tee_hw_unique_key huk = { };
@@ -306,6 +452,12 @@ static TEE_Result hwkm_driver_init(void)
 	res = gpce_init();
 	if (res) {
 		EMSG("hwkm: gpce init failed: 0x%08"PRIx32, res);
+		return res;
+	}
+
+	res = hwkm_generate_tp_and_swap_keys();
+	if (res) {
+		EMSG("hwkm: TP and SWAP key generation failed: 0x%08"PRIx32, res);
 		return res;
 	}
 
