@@ -191,6 +191,14 @@ $(foreach d, $(incdirs-host), \
 $(foreach f, $(incfiles-extra-host), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/host_include)))
 
+# Some dev kit consumers need the configuration before they can build
+# anything, typically to pick which sources to compile. Export the
+# configuration files alone; they are written by plain shell commands, so
+# this builds nothing.
+.PHONY: ta_dev_kit_conf
+ta_dev_kit_conf: $(foreach f, $(conf-file) $(conf-mk-file) $(conf-cmake-file), \
+	$(out-dir)/export-$(sm)/host_include/$(notdir $(f)))
+
 # Copy the src files
 ta-srcfiles = ta/user_ta_header.c ta/arch/$(ARCH)/ta.ld.S
 ifeq ($(ta-target),ta_arm32)
