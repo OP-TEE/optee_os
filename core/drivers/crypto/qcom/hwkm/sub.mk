@@ -6,3 +6,5 @@ incdirs-y += include
 srcs-y += hwkm.c
 srcs-y += huk.c
 srcs-y += transaction.c
+srcs-y += ice.c
+
