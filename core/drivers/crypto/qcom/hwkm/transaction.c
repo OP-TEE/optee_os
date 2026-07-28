@@ -5,7 +5,11 @@
 
 #include <assert.h>
 #include <hwkm.h>
+#include <hwkm_ice.h>
 #include <hwkm_regs.h>
+#include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
+#include <platform_config.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <string.h>
@@ -491,6 +495,33 @@ static int gpce_run_transaction(const uint32_t *cmd, size_t cmd_words,
 				    cmd, cmd_words, rsp, rsp_words);
 }
 
+static int ice_run_transaction(const uint32_t *cmd, size_t cmd_words,
+			       uint32_t *rsp, size_t rsp_words)
+{
+	struct hwkm_drv_ctx *ctx;
+	int rc = HWKM_ERR_GENERIC;
+
+	ctx = hwkm_get_context();
+	if (!ctx)
+		return HWKM_ERR_INVALID_ARG;
+
+	if (!ctx->ice_base)
+		ctx->ice_base = (vaddr_t)phys_to_virt(HWKM_ICE_BASE,
+						      MEM_AREA_IO_SEC,
+						      HWKM_ICE_SIZE);
+
+	/* ICE clocks and power are handled by Linux, so we need to re-configure
+	 * the hardware before submitting any new transactions.
+	 */
+	rc = hwkm_ice_configure(ctx->ice_base);
+	if (rc)
+		return rc;
+
+	return run_fifo_transaction(ctx->ice_base +
+				    HWKM_ICE_BANK0_REGS_OFFSET,
+				    cmd, cmd_words, rsp, rsp_words);
+}
+
 static int run_transaction(const struct hwkm_transaction *t,
 			   const uint32_t *cmd, size_t cmd_words,
 			   uint32_t *rsp, size_t rsp_words)
@@ -503,6 +534,8 @@ static int run_transaction(const struct hwkm_transaction *t,
 		return master_run_transaction(cmd, cmd_words, rsp, rsp_words);
 	case HWKM_KEY_DEST_GPCE_SLAVE:
 		return gpce_run_transaction(cmd, cmd_words, rsp, rsp_words);
+	case HWKM_KEY_DEST_ICE_SLAVE:
+		return ice_run_transaction(cmd, cmd_words, rsp, rsp_words);
 	default:
 		return HWKM_ERR_INVALID_DEST;
 	}
@@ -790,6 +823,7 @@ int hwkm_handle_init(struct hwkm_handle *hdl, enum hwkm_key_destination dest)
 	switch (dest) {
 	case HWKM_KEY_DEST_KM_MASTER:
 	case HWKM_KEY_DEST_GPCE_SLAVE:
+	case HWKM_KEY_DEST_ICE_SLAVE:
 		break;
 	default:
 		return HWKM_ERR_INVALID_DEST;

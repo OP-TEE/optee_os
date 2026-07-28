@@ -27,6 +27,14 @@
 #define HWKM_CRYPTO0_BANK1_AC_REGS_OFFSET	0x36000U
 #define HWKM_CRYPTO0_BANK2_AC_REGS_OFFSET	0x37000U
 
+/* ICE module's base offsets. */
+#define HWKM_ICE_SHARED_REGS_OFFSET		0x8000U
+#define HWKM_ICE_TZ_REGS_OFFSET			0x9000U
+#define HWKM_ICE_BANK0_REGS_OFFSET		0xa000U
+#define HWKM_ICE_BANK0_AC_REGS_OFFSET		0xd000U
+#define HWKM_ICE_BANK1_AC_REGS_OFFSET		0xe000U
+#define HWKM_ICE_BANK2_AC_REGS_OFFSET		0xf000U
+
 /* IP Catalog version: [31:24] major, [23:16] minor, [15:0] step. */
 #define HWKM_SHARED_IPCAT_VERSION	0x0000U
 /* Key-policy format version supported by this instance. */
@@ -40,7 +48,21 @@
 #define HWKM_TZ_KM_CTL_CRC_CHECK_EN \
 	BIT(HWKM_TZ_KM_CTL_CRC_CHECK_EN_SHIFT)
 
+/* Bit 5 - Enable ICE Legacy mode.
+ * 1 = ICE operating in Legacy mode.
+ * 0 = ICE operating in Standard mode.
+ */
+#define HWKM_TZ_KM_CTL_ICE_LEGACY_MODE_EN_OTP_SHIFT 0x05U
+#define HWKM_TZ_KM_CTL_ICE_LEGACY_MODE_EN_OTP \
+	BIT(HWKM_TZ_KM_CTL_ICE_LEGACY_MODE_EN_OTP_SHIFT)
+
 #define HWKM_TZ_KM_STATUS		0x0004U
+
+/* Hardware BIST completion status. */
+#define HWKM_TZ_KM_STATUS_BIST_DONE_SHIFT 0x10U
+#define HWKM_TZ_KM_STATUS_BIST_DONE \
+	BIT(HWKM_TZ_KM_STATUS_BIST_DONE_SHIFT)
+
 /*
  * Hardware BIST detected a fault in the key table or crypto logic.
  * If set, the instance must not be used; the driver treats this as
@@ -49,6 +71,11 @@
 #define HWKM_TZ_KM_STATUS_BIST_ERROR_SHIFT 0xfU
 #define HWKM_TZ_KM_STATUS_BIST_ERROR \
 	BIT(HWKM_TZ_KM_STATUS_BIST_ERROR_SHIFT)
+
+/* Crypto-library BIST completion status. */
+#define HWKM_TZ_KM_STATUS_CRYPTO_LIB_BIST_DONE_SHIFT 0xeU
+#define HWKM_TZ_KM_STATUS_CRYPTO_LIB_BIST_DONE \
+	BIT(HWKM_TZ_KM_STATUS_CRYPTO_LIB_BIST_DONE_SHIFT)
 /*
  * Internal crypto-library self-test failed. Treated identically to
  * BIST_ERROR by the driver; either bit causes bist_failed to be set.
@@ -56,6 +83,21 @@
 #define HWKM_TZ_KM_STATUS_CRYPTO_LIB_BIST_ERROR_SHIFT 0xdU
 #define HWKM_TZ_KM_STATUS_CRYPTO_LIB_BIST_ERROR \
 	BIT(HWKM_TZ_KM_STATUS_CRYPTO_LIB_BIST_ERROR_SHIFT)
+
+/* Boot command list 1 completion status. */
+#define HWKM_TZ_KM_STATUS_BOOT_CMD_LIST1_DONE_SHIFT 0x2U
+#define HWKM_TZ_KM_STATUS_BOOT_CMD_LIST1_DONE \
+	BIT(HWKM_TZ_KM_STATUS_BOOT_CMD_LIST1_DONE_SHIFT)
+
+/* Boot command list 0 completion status. */
+#define HWKM_TZ_KM_STATUS_BOOT_CMD_LIST0_DONE_SHIFT 0x1U
+#define HWKM_TZ_KM_STATUS_BOOT_CMD_LIST0_DONE \
+	BIT(HWKM_TZ_KM_STATUS_BOOT_CMD_LIST0_DONE_SHIFT)
+
+/* Key-table clear sequence completion status. */
+#define HWKM_TZ_KM_STATUS_KT_CLEAR_DONE_SHIFT 0x0U
+#define HWKM_TZ_KM_STATUS_KT_CLEAR_DONE \
+	BIT(HWKM_TZ_KM_STATUS_KT_CLEAR_DONE_SHIFT)
 
 #define HWKM_TZ_TPKEY_RECEIVE_CTL	0x001cU
 /* Arm (1) or disarm (0) the slave for TPKEY reception. */

@@ -22,6 +22,7 @@
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, HWKM_MASTER_BASE, HWKM_MASTER_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, HWKM_CRYPTO0_BASE, HWKM_CRYPTO0_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, HWKM_ICE_BASE, HWKM_ICE_SIZE);
 
 static_assert(HW_UNIQUE_KEY_LENGTH <= HWKM_MAX_KEY_SIZE);
 

@@ -6,6 +6,7 @@ incdirs-y += include
 srcs-y += hwkm.c
 srcs-y += huk.c
 srcs-y += transaction.c
+srcs-y += ice.c
 
 # Bitmap of fuse regions whose SHA256 digest is folded into the HUK KDF input.
 # Each bit corresponds to a fuse region index; set a bit to bind the HUK to
