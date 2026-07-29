@@ -51,7 +51,22 @@
  *                                   If too small, returns TEE_ERROR_SHORT_BUFFER
  *                                   and updates size with required length.
  */
+
 #define PTA_CMD_ICE_GENERATE_KEY      2
+
+/*
+ * Import key material and return a hardware-wrapped ICE storage key blob.
+ *
+ * [in]  params[0].memref.buffer      Input key material to import
+ * [in]  params[0].memref.size        Input key length (1..HWKM_MAX_KEY_SIZE)
+ * [out] params[1].memref.buffer      Output wrapped key blob buffer
+ * [in/out] params[1].memref.size     Input: buffer capacity
+ *                                    Output: actual blob size
+ *                                    Required size: 68 bytes (HWKM_MAX_BLOB_SIZE)
+ *                                    If too small, returns TEE_ERROR_SHORT_BUFFER
+ *                                    and updates size with required length.
+ */
+#define PTA_CMD_ICE_IMPORT_KEY        3
 
 
 #endif /* __PTA_QCOM_ICE_H */
