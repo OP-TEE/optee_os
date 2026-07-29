@@ -22,6 +22,7 @@ static const uint8_t optee_ctx[] = {
 
 static TEE_Result build_wrapping_kdf_ctx(const uint8_t *wrap_ctx,
 					size_t wrap_ctx_len,
+					bool implicit_context,
 					uint8_t out_ctx[HWKM_MAX_CTX_SIZE])
 {
 	void *hash_ctx = NULL;
@@ -38,9 +39,11 @@ static TEE_Result build_wrapping_kdf_ctx(const uint8_t *wrap_ctx,
 	if (res)
 		goto out;
 
-	res = crypto_hash_update(hash_ctx, optee_ctx, sizeof(optee_ctx));
-	if (res)
-		goto out;
+	if (implicit_context) {
+		res = crypto_hash_update(hash_ctx, optee_ctx, sizeof(optee_ctx));
+		if (res)
+			goto out;
+	}
 
 	res = crypto_hash_update(hash_ctx, wrap_ctx, wrap_ctx_len);
 	if (res)
@@ -51,6 +54,171 @@ static TEE_Result build_wrapping_kdf_ctx(const uint8_t *wrap_ctx,
 out:
 	crypto_hash_free_ctx(hash_ctx);
 	return res;
+}
+
+/*
+ * derive_ephemeral_wrapping_key() - Derive ephemeral KWK into
+ * TZ_GENERAL_PURPOSE_SLOT2.
+ *
+ * Uses SYSTEM_KDF from UKDK_L2 into the TZ_GENERAL_PURPOSE_SLOT2.
+ * The caller-provided 64-byte ephemeral context is mixed with
+ * enabled bindings in the derivation state so the resulting wrapping
+ * key is bound to a random ephemeral seed/context and cannot be reused
+ * across sessions.
+ *
+ * Caller must invoke clear_ephemeral_key() when done with the key.
+ */
+TEE_Result derive_ephemeral_wrapping_key(const uint8_t *ephemeral_ctx,
+					 size_t ctx_len)
+{
+	uint8_t hashed_ctx[HWKM_MAX_CTX_SIZE] = { };
+	struct hwkm_transaction t_kdf_eph_l3 = {
+		.cmd = {
+			.op = HWKM_OP_SYSTEM_KDF,
+			.kdf = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT2,
+				.kdk = HWKM_SLOT_TZ_UKDK_L2,
+				.policy = {
+					.km_by_tz_allowed = true,
+					.alg_allowed = HWKM_ALGO_AES256_CMAC,
+					.enc_allowed = true,
+					.key_type = HWKM_KEY_TYPE_KDK,
+					.kdf_depth = 1,
+					.security_lvl = HWKM_KEY_SECURITY_LVL_HW_KEY,
+					.hw_destination = HWKM_KEY_DEST_KM_MASTER,
+				},
+				.bsve = {
+					.enabled = true,
+					.km_key_policy_ver_en = true,
+					.km_apps_secure_en = true,
+					.km_msa_secure_en = true,
+					.km_child_key_policy_en = true,
+				},
+				.ctx_len = HWKM_MAX_CTX_SIZE,
+			},
+		},
+	};
+	struct hwkm_transaction t_kdf_eph_l4 = {
+		.cmd = {
+			.op = HWKM_OP_SYSTEM_KDF,
+			.kdf = {
+				.dks = HWKM_SLOT_TZ_WRAP_KEY_SLOT,
+				.kdk = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT2,
+				.policy = {
+					.km_by_tz_allowed = true,
+					.alg_allowed = HWKM_ALGO_AES256_SIV,
+					.enc_allowed = true,
+					.dec_allowed = true,
+					.key_type = HWKM_KEY_TYPE_KWK,
+					.kdf_depth = 0,
+					.security_lvl = HWKM_KEY_SECURITY_LVL_HW_KEY,
+					.hw_destination = HWKM_KEY_DEST_KM_MASTER,
+				},
+				.bsve = {
+					.enabled = true,
+					.km_key_policy_ver_en = true,
+					.km_apps_secure_en = true,
+					.km_msa_secure_en = true,
+					.km_child_key_policy_en = true,
+				},
+				.ctx_len = HWKM_MAX_CTX_SIZE,
+			},
+		},
+	};
+	struct hwkm_transaction t_clear_eph_l3 = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT2,
+				.is_double_key = false,
+			},
+		},
+	};
+	int rc = HWKM_ERR_GENERIC;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!ephemeral_ctx || ctx_len != HWKM_EPHEMERAL_CTX_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = build_wrapping_kdf_ctx(ephemeral_ctx, ctx_len, false, hashed_ctx);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	memcpy(t_kdf_eph_l3.cmd.kdf.ctx, hashed_ctx, sizeof(hashed_ctx));
+	memcpy(t_kdf_eph_l4.cmd.kdf.ctx, hashed_ctx, sizeof(hashed_ctx));
+
+	rc = hwkm_run_transactions(HWKM_KEY_DEST_KM_MASTER, 3,
+				   (struct hwkm_transaction *const[]){
+					&t_kdf_eph_l3, &t_kdf_eph_l4,
+					&t_clear_eph_l3 });
+
+	memset(t_kdf_eph_l3.cmd.kdf.ctx, 0, sizeof(t_kdf_eph_l3.cmd.kdf.ctx));
+	memset(t_kdf_eph_l4.cmd.kdf.ctx, 0, sizeof(t_kdf_eph_l4.cmd.kdf.ctx));
+	memset(hashed_ctx, 0, sizeof(hashed_ctx));
+
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto out_clear;
+	}
+
+	if (t_kdf_eph_l3.rsp.status != HWKM_RSP_ERR_SUCCESS ||
+	    t_kdf_eph_l4.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE eph-kdf: l3=0x%x l4=0x%x",
+		     (unsigned int)t_kdf_eph_l3.rsp.status,
+		     (unsigned int)t_kdf_eph_l4.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	if (t_clear_eph_l3.rsp.status != HWKM_RSP_ERR_SUCCESS &&
+	    t_clear_eph_l3.rsp.status != HWKM_CLEAR_ERR_DKS_SLOT_EMPTY) {
+		EMSG("ICE eph-kdf clear l3: status=0x%x",
+		     (unsigned int)t_clear_eph_l3.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	res = TEE_SUCCESS;
+out_clear:
+	/*
+	 * If any of the above transactions fail, make an attempt
+	 * to clear the TZ_GENERAL_PURPOSE_SLOT2 since it may have
+	 * been left with the key material.
+	 */
+	t_clear_eph_l3.hdl = NULL;
+	hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_clear_eph_l3);
+out:
+	return res;
+}
+
+/*
+ * clear_ephemeral_key() - Clear the L4 slot used for ephemeral wrapping key.
+ */
+TEE_Result clear_ephemeral_key(void)
+{
+	struct hwkm_transaction t_clear_ephemeral = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = HWKM_SLOT_TZ_WRAP_KEY_SLOT,
+				.is_double_key = true,
+			},
+		},
+	};
+	int rc = HWKM_ERR_GENERIC;
+
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_clear_ephemeral);
+	if (rc)
+		return hwkm_to_optee(rc);
+
+	if (t_clear_ephemeral.rsp.status != HWKM_RSP_ERR_SUCCESS &&
+	    t_clear_ephemeral.rsp.status != HWKM_CLEAR_ERR_DKS_SLOT_EMPTY) {
+		EMSG("ICE clear ephemeral failed: status=0x%x",
+		     (unsigned int)t_clear_ephemeral.rsp.status);
+		return TEE_ERROR_GENERIC;
+	}
+
+	return TEE_SUCCESS;
 }
 
 /*
@@ -129,7 +297,7 @@ TEE_Result derive_l4_wrapping_key(void)
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	res = build_wrapping_kdf_ctx(l4_wrap_ctx, sizeof(l4_wrap_ctx) - 1,
-				      kdf_ctx);
+				      true, kdf_ctx);
 	if (res != TEE_SUCCESS)
 		return res;
 

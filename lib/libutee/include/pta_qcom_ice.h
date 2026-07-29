@@ -68,5 +68,18 @@
  */
 #define PTA_CMD_ICE_IMPORT_KEY        3
 
+/*
+ * Export a wrapped ICE storage key using an ephemeral wrapping key.
+ *
+ * [in]  params[0].memref.buffer      Input wrapped key blob
+ * [in]  params[0].memref.size        Input blob size (must be 68 bytes)
+ * [out] params[1].memref.buffer      Output wrapped key blob buffer
+ * [in/out] params[1].memref.size     Input: buffer capacity
+ *                                    Output: actual blob size
+ *                                    Required size: 68 bytes (HWKM_MAX_BLOB_SIZE)
+ *                                    If too small, returns TEE_ERROR_SHORT_BUFFER
+ *                                    and updates size with required length.
+ */
+#define PTA_CMD_ICE_EXPORT_KEY        4
 
 #endif /* __PTA_QCOM_ICE_H */

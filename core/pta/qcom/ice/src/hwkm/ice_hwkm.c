@@ -5,12 +5,151 @@
 
 #include <drivers/hwkm.h>
 #include <drivers/hwkm_errno.h>
+#include <crypto/crypto.h>
 #include <kernel/mutex.h>
 #include <string.h>
 #include <trace.h>
 
 #include "hwkm/hwkm_derive_keys.h"
 #include "hwkm/ice_hwkm.h"
+
+static uint8_t g_ephemeral_ctx[HWKM_EPHEMERAL_CTX_SIZE] = { 0 };
+static bool g_ephemeral_ctx_set = false;
+
+static TEE_Result get_or_init_ephemeral_ctx(const uint8_t **ctx,
+					    size_t *ctx_len)
+{
+	if (!ctx || !ctx_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!g_ephemeral_ctx_set) {
+		if (crypto_rng_read(g_ephemeral_ctx,
+				    sizeof(g_ephemeral_ctx)) != TEE_SUCCESS)
+			return TEE_ERROR_GENERIC;
+
+		g_ephemeral_ctx_set = true;
+	}
+
+	*ctx = g_ephemeral_ctx;
+	*ctx_len = sizeof(g_ephemeral_ctx);
+	return TEE_SUCCESS;
+}
+
+/*
+ * export_hw_wrapped_key() - Rewrap wrapped key blob under an ephemeral key.
+ *
+ * Sequence:
+ * 1) Unwrap input blob with base wrapping key.
+ * 2) Derive ephemeral wrapping key from RNG-provided context.
+ * 3) Wrap key under ephemeral wrapping key.
+ * 4) Clear ephemeral key slot.
+ */
+TEE_Result export_hw_wrapped_key(const uint8_t *in_blob, size_t in_blob_len,
+				 uint8_t *out_blob, size_t *out_blob_len)
+{
+	const uint8_t *ephemeral_ctx = NULL;
+	size_t ephemeral_ctx_len = 0;
+	struct hwkm_transaction t_unwrap = {
+		.cmd = {
+			.op = HWKM_OP_KEY_UNWRAP_IMPORT,
+			.unwrap = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.kwk = HWKM_SLOT_TZ_WRAP_KEY_SLOT,
+			},
+		},
+	};
+	struct hwkm_transaction t_wrap_ephemeral = {
+		.cmd = {
+			.op = HWKM_OP_KEY_WRAP_EXPORT,
+			.wrap = {
+				.sks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.kwk = HWKM_SLOT_TZ_WRAP_KEY_SLOT,
+			},
+		},
+	};
+	struct hwkm_transaction t_clear_gp1 = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.is_double_key = false,
+			},
+		},
+	};
+	int rc = HWKM_ERR_GENERIC;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct hwkm_drv_ctx *drv = hwkm_get_context();
+	if (!drv)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (!in_blob || !out_blob || !out_blob_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (in_blob_len != HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (*out_blob_len < HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	res = get_or_init_ephemeral_ctx(&ephemeral_ctx, &ephemeral_ctx_len);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	mutex_lock(&drv->hwkm_lock);
+	res = derive_l4_wrapping_key();
+	if (res != TEE_SUCCESS)
+		goto cleanup;
+
+	memcpy(t_unwrap.cmd.unwrap.wkb, in_blob, HWKM_MAX_BLOB_SIZE);
+
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_unwrap);
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto cleanup;
+	}
+
+	if (t_unwrap.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE export unwrap: unwrap=0x%x",
+		     (unsigned int)t_unwrap.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto cleanup;
+	}
+
+	res = clear_l4_wrapping_key();
+	if (res != TEE_SUCCESS)
+		goto cleanup;
+
+	res = derive_ephemeral_wrapping_key(ephemeral_ctx, ephemeral_ctx_len);
+	if (res != TEE_SUCCESS)
+		goto cleanup;
+
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_wrap_ephemeral);
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto cleanup;
+	}
+
+	if (t_wrap_ephemeral.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE export rewrap: wrap=0x%x",
+		     (unsigned int)t_wrap_ephemeral.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto cleanup;
+	}
+
+	memcpy(out_blob, t_wrap_ephemeral.rsp.wrap.wkb, HWKM_MAX_BLOB_SIZE);
+	*out_blob_len = HWKM_MAX_BLOB_SIZE;
+	res = TEE_SUCCESS;
+
+cleanup:
+	(void)clear_ephemeral_key();
+	(void)clear_l4_wrapping_key();
+	(void)hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_clear_gp1);
+	mutex_unlock(&drv->hwkm_lock);
+
+	memset(t_unwrap.cmd.unwrap.wkb, 0, sizeof(t_unwrap.cmd.unwrap.wkb));
+	memset(t_wrap_ephemeral.rsp.wrap.wkb, 0, sizeof(t_wrap_ephemeral.rsp.wrap.wkb));
+	return res;
+}
 
 /*
  * import_and_wrap_with_hw_key() - Import caller key bytes then wrap under L4 key.

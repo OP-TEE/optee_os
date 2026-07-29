@@ -104,6 +104,42 @@ static TEE_Result cmd_ice_import_key(uint32_t param_types,
 					   &params[1].memref.size);
 }
 
+
+static TEE_Result cmd_ice_export_key(uint32_t param_types,
+				     TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+
+	if (param_types != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!params[0].memref.buffer || params[0].memref.size != HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!params[1].memref.buffer) {
+		if (params[1].memref.size == 0) {
+			params[1].memref.size = HWKM_MAX_BLOB_SIZE;
+			return TEE_ERROR_SHORT_BUFFER;
+		}
+
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	if (params[1].memref.size < HWKM_MAX_BLOB_SIZE) {
+		params[1].memref.size = HWKM_MAX_BLOB_SIZE;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	return export_hw_wrapped_key(params[0].memref.buffer,
+				     params[0].memref.size,
+				     params[1].memref.buffer,
+				     &params[1].memref.size);
+}
+
+
 /* PTA command dispatcher */
 static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 				 uint32_t param_types,
@@ -118,6 +154,8 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 		return cmd_ice_generate_key(param_types, params);
 	case PTA_CMD_ICE_IMPORT_KEY:
 		return cmd_ice_import_key(param_types, params);
+	case PTA_CMD_ICE_EXPORT_KEY:
+		return cmd_ice_export_key(param_types, params);
 	default:
 		break;
 	}
