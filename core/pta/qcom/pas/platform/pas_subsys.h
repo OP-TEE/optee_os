@@ -85,4 +85,16 @@ struct qcom_pas_subsys *qcom_pas_platform_subsys(size_t *count);
  */
 struct qcom_pas_subsys *qcom_pas_lookup(uint32_t pas_id);
 
+/*
+ * qcom_pas_is_loaded() : check whether @pas_id's firmware is loaded.
+ *
+ * Lets one subsystem's ops (see @dtb_pas_id in pas_data.h) determine
+ * whether a dependency is ready without reaching into that subsystem's
+ * private data.
+ *
+ * @pas_id: PAS_ID of the subsystem to check.
+ * Returns true if @pas_id is registered and currently loaded.
+ */
+bool qcom_pas_is_loaded(uint32_t pas_id);
+
 #endif /* PAS_SUBSYS_H */
