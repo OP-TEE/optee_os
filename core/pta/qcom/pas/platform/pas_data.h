@@ -9,6 +9,7 @@
 
 #include <drivers/clk_qcom.h>
 #include <mm/core_memprot.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 struct qcom_pas_data {
@@ -18,6 +19,8 @@ struct qcom_pas_data {
 	paddr_t fw_base;
 	size_t fw_size;
 	enum qcom_clk_group clk_group;
+	/* Map the controller window MEM_AREA_IO_SEC, e.g. when XPU-gated. */
+	bool secure;
 };
 
 #endif /* _PAS_DATA_H_ */
