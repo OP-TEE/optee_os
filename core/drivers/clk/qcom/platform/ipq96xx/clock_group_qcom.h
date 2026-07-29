@@ -1,0 +1,72 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+#ifndef _CLOCK_GROUP_QCOM_H_
+#define _CLOCK_GROUP_QCOM_H_
+
+#include <util.h>
+
+/* Sub-block offsets within the TURING window. */
+#define TURING_CC_OFFSET			0x00008000
+#define TURING_QDSP6SS_OFFSET			0x00300000
+
+/* GCC clock branch control registers. */
+#define GCC_Q6SS_TSCTR_1TO2_CLK_CBCR		0x1801c
+#define GCC_TURING_EPCB_RX_CLK_CBCR		0x18020
+#define GCC_TURING_Q6_AXIM_DIV_CLK_CBCR		0x18024
+#define GCC_TURING_PCLK_DBG_CLK_CBCR		0x18028
+#define GCC_TURING_Q6SS_TRIG_CLK_CBCR		0x1802c
+#define GCC_TURING_CXO_CLK_CBCR			0x18030
+#define GCC_TURING_ATBM_AT_CLK_CBCR		0x18034
+#define GCC_TURING_AHBS_CLK_CBCR		0x18038
+#define GCC_TURING_GEMNOC_CLK_CBCR		0x1907c
+#define GCC_CNOC_TURING_AHBS_CLK_CBCR		0x310c0
+
+/* Turing CC clock branch control registers. */
+#define TURING_CC_Q6SS_Q6_AXIM_CBCR		0x424
+#define TURING_CC_CENG_CDSP_CBCR		0x288
+#define TURING_CC_CENG_PROC_CBCR		0x294
+#define TURING_CC_CDSPNOC_CBCR			0x254
+#define TURING_CC_Q6SS_AHBS_AON_CBCR		0x408
+#define TURING_CC_CENG_CDSP_AO_CBCR		0x28c
+#define TURING_CC_CENG_AHBS_CBCR		0x240
+#define TURING_CC_CDSPNOC_AHBS_CBCR		0x244
+#define TURING_CC_CDSPAUX_XO_CBCR		0x250
+#define TURING_CC_Q6SS_AHBS_AON_MXC_CBCR	0x40c
+#define TURING_CC_XO_DIV_CBCR			0x050
+#define TURING_CC_CDSPNOC_APB_CBCR		0x268
+#define TURING_CC_Q6SS_AHBM_AON_CBCR		0x404
+#define TURING_CC_ALT_RESET_AON_CBCR		0x410
+#define TURING_CC_DEBUG_CBCR			0xfec
+#define TURING_CC_PLL_TEST_CBCR			0xffc
+
+/* CDSPAUX bus-bridge halt register. */
+#define CDSPAUX_BUS_BRIDGE_HALT			0x10010
+
+/* QDSP6SS clock branch control registers. */
+#define QDSP6SS_CORE_CBCR			0x41040
+#define QDSP6SS_SLPGEN_CBCR			0x41060
+#define QDSP6SS_L2MEM_SLPGEN_CBCR		0x41080
+#define QDSP6SS_L2VTCM_SLPGEN_CBCR		0x410c0
+#define QDSP6SS_MON_CBCR			0x41100
+#define QDSP6SS_DEBUG_CBCR			0x411c8
+
+/* Clock control bit definitions. */
+#define CBCR_CLK_ENABLE				BIT(0)
+#define CLK_ENABLE_BIT				BIT(0)
+#define CLK_HW_CTL_BIT				BIT(1)
+#define CLK_SLEEP_SHIFT				4
+#define CLK_WAKEUP_SHIFT			8
+#define CLK_SLEEP_CYCLES			0x2
+#define CLK_WAKEUP_CYCLES			0x2
+
+#define CLK_ENABLE_HW_CTL		(CLK_ENABLE_BIT | CLK_HW_CTL_BIT)
+#define CLK_ENABLE_WITH_TIMING \
+	(CLK_ENABLE_BIT | CLK_HW_CTL_BIT | \
+	 (CLK_SLEEP_CYCLES << CLK_SLEEP_SHIFT) | \
+	 (CLK_WAKEUP_CYCLES << CLK_WAKEUP_SHIFT))
+
+#define CDSPAUX_BRIDGE_DELAY_CYCLES		0x9
+
+#endif /* _CLOCK_GROUP_QCOM_H_ */
