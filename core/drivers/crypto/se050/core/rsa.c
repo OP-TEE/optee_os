@@ -353,6 +353,13 @@ static TEE_Result decrypt_nopad(struct rsa_keypair *key, const uint8_t *src,
 	}
 
 	rsa_len = crypto_bignum_num_bytes(key->n);
+
+	/* Input cannot be larger than the modulus */
+	if (src_len > rsa_len) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
 	memcpy(buf + rsa_len - src_len, src, src_len);
 
 	st = sss_se05x_asymmetric_decrypt(&ctx, buf, rsa_len, buf, &blen);
@@ -415,6 +422,13 @@ static TEE_Result encrypt_nopad(struct rsa_public_key *key, const uint8_t *src,
 	}
 
 	rsa_len = crypto_bignum_num_bytes(key->n);
+
+	/* Input cannot be larger than the modulus */
+	if (src_len > rsa_len) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
 	memcpy(buf + rsa_len - src_len, src, src_len);
 
 	st = sss_se05x_asymmetric_encrypt(&ctx, buf, rsa_len, buf, &blen);
