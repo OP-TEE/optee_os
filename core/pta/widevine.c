@@ -117,7 +117,7 @@ static TEE_Result open_session(uint32_t param_types __unused,
 	struct ts_session *session = ts_get_calling_session();
 
 	/* Make sure we are called from a TA */
-	if (!is_user_ta_ctx(session->ctx))
+	if (!session || !is_user_ta_ctx(session->ctx))
 		return TEE_ERROR_ACCESS_DENIED;
 
 	/* Make sure we are called from an allowed TA */
