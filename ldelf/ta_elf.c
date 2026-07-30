@@ -1285,6 +1285,10 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 		err(TEE_ERROR_BAD_FORMAT, "Invalid TA flags(s) %#"PRIx32,
 		    elf->head->flags & ~TA_FLAGS_MASK);
 
+	if (elf->head->flags & TA_FLAG_CONCURRENT)
+		err(TEE_ERROR_BAD_FORMAT, "Invalid TA flags(s) %#"PRIx32,
+		    elf->head->flags & TA_FLAG_CONCURRENT);
+
 	*ta_flags = elf->head->flags;
 	*sp = va + elf->head->stack_size;
 	ta_stack = va;
