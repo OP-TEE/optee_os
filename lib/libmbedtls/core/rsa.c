@@ -354,6 +354,12 @@ TEE_Result sw_crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 
 	rsa.len = crypto_bignum_num_bytes((void *)&rsa.N);
 
+	/* Input cannot be larger than the modulus */
+	if (src_len > rsa.len) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
 	blen = CFG_CORE_BIGNUM_MAX_BITS / 8;
 	buf = malloc(blen);
 	if (!buf) {
@@ -414,6 +420,12 @@ TEE_Result sw_crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 	res = rsa_init_and_complete_from_key_pair(&rsa, key);
 	if (res)
 		return res;
+
+	/* Input cannot be larger than the modulus */
+	if (src_len > rsa.len) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	blen = CFG_CORE_BIGNUM_MAX_BITS / 8;
 	buf = malloc(blen);
