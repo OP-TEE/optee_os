@@ -165,6 +165,10 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 		if (arg_bbuf->flags & ~TA_FLAGS_MASK)
 			return TEE_ERROR_BAD_FORMAT;
 
+		/* TA_FLAG_CONCURRENT is for pseudo-TAs only */
+		if (arg_bbuf->flags & TA_FLAG_CONCURRENT)
+			return TEE_ERROR_BAD_FORMAT;
+
 		to_user_ta_ctx(uctx->ts_ctx)->ta_ctx.flags = arg_bbuf->flags;
 	}
 
