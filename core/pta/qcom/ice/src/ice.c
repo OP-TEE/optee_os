@@ -25,12 +25,27 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 /*
  * Controller-agnostic entry points. These wrap the per-controller
  * implementation so the dispatcher stays independent of the underlying ICE
- * block.
+ * block. A hardware-key (HWKM) path is selected here at runtime, based on
+ * whether HWKM context is initialized and available.
  */
 static TEE_Result cmd_ice_invalidate_key(uint32_t param_types,
 					 TEE_Param params[TEE_NUM_PARAMS])
 {
-	return sw_cmd_ice_invalidate_key(param_types, params);
+	TEE_Result res;
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+
+	if (param_types != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = clear_ice_slave_slot_hwkm(params[0].value.a);
+	/* ICE is in legacy mode using software keys */
+	if (res == TEE_ERROR_NOT_SUPPORTED)
+		return sw_cmd_ice_invalidate_key(params);
+
+	return res;
 }
 
 static TEE_Result cmd_ice_set_config_key(uint32_t param_types,

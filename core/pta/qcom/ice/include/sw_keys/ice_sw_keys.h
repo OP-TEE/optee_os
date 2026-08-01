@@ -8,8 +8,8 @@
 
 #include <tee_api_types.h>
 
-TEE_Result sw_cmd_ice_invalidate_key(uint32_t param_types,
-				     TEE_Param params[TEE_NUM_PARAMS]);
+TEE_Result sw_cmd_ice_invalidate_key(TEE_Param params[TEE_NUM_PARAMS]);
+
 TEE_Result sw_cmd_ice_set_config_key(uint32_t param_types,
 				     TEE_Param params[TEE_NUM_PARAMS]);
 
