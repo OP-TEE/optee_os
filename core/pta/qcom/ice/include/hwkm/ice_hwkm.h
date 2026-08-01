@@ -8,7 +8,13 @@
 
 #include <tee_api_types.h>
 
+#define ICE_HWKM_TZ_REGS_OFFSET		0x9000U
+#define ICE_HWKM_TZ_KM_CTL		0x0000U
+#define ICE_LEGACY_MODE_EN_OTP		BIT(0x05U)
+
 #ifdef CFG_QCOM_HWKM
+TEE_Result clear_ice_slave_slot_hwkm(uint32_t slot);
+
 TEE_Result set_config_ice_key_using_hwkm(uint32_t slot,
 					 const uint8_t *wrapped_blob,
 					 size_t wrapped_blob_len);
@@ -21,6 +27,12 @@ TEE_Result import_and_wrap_with_hw_key(const uint8_t *in_key, size_t in_key_len,
 
 TEE_Result generate_hw_wrapped_key(uint8_t *out_blob, size_t *out_blob_len);
 #else
+static inline TEE_Result
+clear_ice_slave_slot_hwkm(uint32_t slot __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
 static inline TEE_Result
 set_config_ice_key_using_hwkm(uint32_t slot __unused,
 			      const uint8_t *wrapped_blob __unused,

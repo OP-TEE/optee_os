@@ -52,6 +52,86 @@ static TEE_Result get_or_init_ephemeral_ctx(const uint8_t **ctx,
 }
 
 /*
+ * is_ice_in_standard_mode() - Check whether ICE HWKM is in standard mode.
+ * @base: MMIO base address of the ICE HWKM module.
+ *
+ * Reads TZ_KM_CTL and validates that the mode value matches the expected
+ * standard-mode configuration.
+ *
+ * Return: true if standard mode is active, false otherwise.
+ */
+static bool is_ice_in_standard_mode(vaddr_t base)
+{
+	uint32_t mode = io_read32_off_field(base + ICE_HWKM_TZ_REGS_OFFSET,
+					    ICE_HWKM_TZ_KM_CTL,
+					    ICE_LEGACY_MODE_EN_OTP);
+
+	/* Standard mode */
+	if (mode == 0x0)
+		return true;
+
+	return false;
+}
+
+TEE_Result clear_ice_slave_slot_hwkm(uint32_t slot)
+{
+	struct hwkm_transaction t_clear = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = 0,
+				.is_double_key = true,
+			},
+		},
+	};
+	int rc = HWKM_ERR_GENERIC;
+	vaddr_t base = 0;
+	vaddr_t hwkm_base = 0;
+	struct hwkm_drv_ctx *drv = hwkm_get_context();
+	if (!drv)
+		return TEE_ERROR_BAD_STATE;
+
+	if (slot >= ICE_MAX_KEY_IDX)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	hwkm_base = (vaddr_t)phys_to_virt(HWKM_ICE_BASE, MEM_AREA_IO_SEC,
+					  HWKM_ICE_SIZE);
+	if (!hwkm_base) {
+		EMSG("Failed to map ICE HWKM region");
+		return TEE_ERROR_GENERIC;
+	}
+
+	if (!is_ice_in_standard_mode(hwkm_base))
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	base = (vaddr_t)phys_to_virt(ICE_LUT_KEYS, MEM_AREA_IO_SEC,
+				     ICE_LUT_KEYS_SIZE);
+
+	/* Disable slot first so stale key/config cannot be used. */
+	io_write32_off_field(base, ICE_CRYPTOCFG_r_16_OFF(slot),
+			     ICE_CRYPTOCFG_r_16_CFGE_BMSK,
+			     0x0);
+
+	t_clear.cmd.clear.dks = HWKM_ICE_MAP_SLOT(slot);
+
+	mutex_lock(&drv->hwkm_lock);
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_ICE_SLAVE, &t_clear);
+	mutex_unlock(&drv->hwkm_lock);
+	if (rc)
+		return hwkm_to_optee(rc);
+
+	if (t_clear.rsp.status != HWKM_RSP_ERR_SUCCESS &&
+	    t_clear.rsp.status != HWKM_CLEAR_ERR_DKS_SLOT_EMPTY) {
+		EMSG("ICE invalidate clear failed: slot=%u mapped=%u status=0x%x",
+		     slot, (unsigned int)t_clear.cmd.clear.dks,
+		     (unsigned int)t_clear.rsp.status);
+		return TEE_ERROR_GENERIC;
+	}
+
+	return TEE_SUCCESS;
+}
+
+/*
  * export_tpkey_wrapped_blob_from_ephemeral() - Unwrap input blob under
  * ephemeral wrapping key, then re-wrap/export under TPKEY.
  */
