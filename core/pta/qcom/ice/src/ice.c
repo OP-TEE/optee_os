@@ -25,9 +25,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 /*
  * Controller-agnostic entry points. These wrap the per-controller
  * implementation so the dispatcher stays independent of the underlying ICE
- * block. Only software-key programming exists today; a future hardware-key
- * (HWKM) path can be selected here at runtime, based on the key size passed
- * to the PTA, dispatching to hwkm_cmd_ice_*() instead of sw_cmd_ice_*().
+ * block.
  */
 static TEE_Result cmd_ice_invalidate_key(uint32_t param_types,
 					 TEE_Param params[TEE_NUM_PARAMS])
@@ -38,7 +36,28 @@ static TEE_Result cmd_ice_invalidate_key(uint32_t param_types,
 static TEE_Result cmd_ice_set_config_key(uint32_t param_types,
 					 TEE_Param params[TEE_NUM_PARAMS])
 {
-	return sw_cmd_ice_set_config_key(param_types, params);
+	uint32_t slot = 0;
+	const uint8_t *key_buf = NULL;
+	size_t key_len = 0;
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_MEMREF_INPUT,
+						TEE_PARAM_TYPE_NONE);
+
+	if (param_types != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	key_len = params[2].memref.size;
+	if (key_len != HWKM_MAX_BLOB_SIZE)
+		return sw_cmd_ice_set_config_key(param_types, params);
+
+	slot = params[0].value.a;
+	key_buf = params[2].memref.buffer;
+	if (!key_buf)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return set_config_ice_key_using_hwkm(slot, key_buf,
+					     key_len);
 }
 
 static TEE_Result cmd_ice_generate_key(uint32_t param_types,
