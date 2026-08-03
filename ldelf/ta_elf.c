@@ -1002,6 +1002,9 @@ static void map_segments(struct ta_elf *elf)
 	TEE_Result res = TEE_SUCCESS;
 
 	parse_load_segments(elf);
+	if (TAILQ_EMPTY(&elf->segs))
+		err(TEE_ERROR_BAD_FORMAT, "No loadable segments");
+
 	adjust_segments(elf);
 	if (TAILQ_FIRST(&elf->segs)->offset < SMALL_PAGE_SIZE) {
 		vaddr_t va = 0;
