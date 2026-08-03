@@ -78,6 +78,8 @@ ifeq ($(CFG_AMD_ASU_HASH),y)
 $(warning WARNING: ASU HASH engine do not support partial state copy operations)
 $(warning WARNING: Any attempt by the REE to perform a state copy operation \
   will result in a crash of the TEE.)
+# HMAC is merged into asu_hash.c and shares the SHA engine infrastructure.
+CFG_AMD_ASU_HMAC ?= n
 endif
 
 CFG_AMD_ASU_ECC ?= y

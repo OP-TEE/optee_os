@@ -27,6 +27,10 @@ $(call force,CFG_CRYPTO_DRV_ACIPHER,y)
 $(call force,CFG_CRYPTO_DRV_RSA,y)
 endif
 
+ifeq ($(CFG_AMD_ASU_HMAC),y)
+$(call force,CFG_CRYPTO_DRV_MAC,y)
+endif
+
 ifeq ($(CFG_AMD_ASU_AUTHENC),y)
 $(call force,CFG_CRYPTO_DRV_AUTHENC,y)
 $(call force,CFG_AMD_ASU_SW_FALLBACK,y)
