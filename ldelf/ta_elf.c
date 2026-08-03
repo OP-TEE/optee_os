@@ -1269,6 +1269,9 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 {
 	struct ta_elf *elf = queue_elf(uuid);
 	vaddr_t va = 0;
+	size_t stack_size = 0;
+	size_t stack_alignment = 0;
+	size_t rounded_stack_size = 0;
 	TEE_Result res = TEE_SUCCESS;
 
 	assert(elf);
@@ -1277,7 +1280,18 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 	load_main(elf);
 
 	*is_32bit = elf->is_32bit;
-	res = sys_map_zi(elf->head->stack_size, 0, &va, 0, 0);
+	stack_size = elf->head->stack_size;
+
+	/*
+	 * AArch32 is the only supported 32-bit format and requires 8-byte
+	 * stack alignment. AArch64 and RV64 require 16 bytes.
+	 */
+	stack_alignment = elf->is_32bit ? 8 : 16;
+	if (!stack_size || !IS_ALIGNED(stack_size, stack_alignment) ||
+	    ROUNDUP_OVERFLOW(stack_size, SMALL_PAGE_SIZE, &rounded_stack_size))
+		err(TEE_ERROR_BAD_FORMAT, "Invalid stack size");
+
+	res = sys_map_zi(stack_size, 0, &va, 0, 0);
 	if (res)
 		err(res, "sys_map_zi stack");
 
@@ -1290,14 +1304,14 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 		    elf->head->flags & TA_FLAG_CONCURRENT);
 
 	*ta_flags = elf->head->flags;
-	*sp = va + elf->head->stack_size;
+	*sp = va + stack_size;
 	ta_stack = va;
-	ta_stack_size = elf->head->stack_size;
+	ta_stack_size = stack_size;
 
 	if (IS_ENABLED(CFG_TA_SANITIZE_KADDRESS)) {
 		res = asan_user_map_shadow((void *)ta_stack,
 					   (void *)(ta_stack +
-					   roundup(ta_stack_size)),
+						    rounded_stack_size),
 					   ASAN_REG_STACK);
 		if (res) {
 			EMSG("Failed to map shadow stack for ELF (%pUl)",
