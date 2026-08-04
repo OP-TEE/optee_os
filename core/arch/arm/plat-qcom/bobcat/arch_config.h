@@ -12,4 +12,8 @@
 #define DIAG_LOG_START_INFO		(IMEM_BASE + IMEM_DIAG_OFFSET)
 #define TCSR_BOOT_MISC_DETECT		UL(0x195C100)
 
+/* SDC1 SDCC ICE (Inline Crypto Engine) LUT keys register region */
+#define SDCC_ICE_LUT_KEYS		UL(0x0780A000)
+#define SDCC_ICE_LUT_KEYS_SIZE		UL(0x2000)
+
 #endif /* ARCH_CONFIG_H */
