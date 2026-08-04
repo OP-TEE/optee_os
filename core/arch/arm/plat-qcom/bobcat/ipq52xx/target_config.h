@@ -37,4 +37,8 @@
 #define QCOM_SNOC_ERROR_INT_ID		UL(0x9D)
 #define QCOM_NSS_NOC_ERROR_INT_ID	UL(0xF2)
 
+/* eMMC (SDCC) is the ICE-backed storage controller on ipq52xx */
+#define ICE_LUT_KEYS			SDCC_ICE_LUT_KEYS
+#define ICE_LUT_KEYS_SIZE		SDCC_ICE_LUT_KEYS_SIZE
+
 #endif /* TARGET_CONFIG_H */
