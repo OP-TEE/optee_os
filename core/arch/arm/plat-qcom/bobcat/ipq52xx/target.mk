@@ -13,3 +13,6 @@ $(call force,CFG_WITH_SOFTWARE_PRNG,n)
 CFG_HWRNG_PTA ?= y
 CFG_HWRNG_QUALITY ?= 1024
 CFG_HWRNG_RATE ?= 0
+
+# Enable ICE filesystem-encryption PTA
+CFG_ICE_FS_ENC_PTA ?= y
