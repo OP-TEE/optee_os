@@ -253,6 +253,10 @@ jobs:
               _make PLATFORM=stm32mp1-135F_DK CFG_DRIVERS_CLK_PRINT_TREE=y CFG_DRIVERS_REGULATOR_PRINT_TREE=y
               _make PLATFORM=stm32mp1-135F_DK COMPILER=clang
               _make PLATFORM=stm32mp1 CFG_STM32MP1_OPTEE_IN_SYSRAM=y CFG_STM32MP_REMOTEPROC=y
+          - name: arm tegra
+            make_commands: |
+              _make PLATFORM=tegra-t234
+              _make PLATFORM=tegra-t264
           - name: arm ti
             make_commands: |
               _make PLATFORM=ti-dra7xx out/core/tee{,-pager,-pageable}.bin
