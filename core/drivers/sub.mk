@@ -88,6 +88,7 @@ srcs-$(CFG_VERSAL_PUF) += versal_puf.c
 srcs-$(CFG_VERSAL_HUK) += versal_huk.c
 srcs-$(CFG_VERSAL_OCP) += versal_ocp.c
 srcs-$(CFG_TEGRA_TCU) += tegra_combined_uart.c
+srcs-$(CFG_TEGRA_UTC) += tegra_utc.c
 srcs-$(CFG_CBMEM_CONSOLE) += cbmem_console.c
 srcs-$(CFG_RISCV_PLIC) += plic.c
 srcs-$(CFG_RISCV_APLIC) += aplic_priv.c aplic_direct.c
