@@ -230,6 +230,13 @@ R:	GM Lin <guan-gm.lin@mediatek.com> [@p870613]
 S:	Maintained
 F:	core/arch/arm/plat-mediatek/
 
+NVIDIA Tegra
+R:	Sungbae Yoo <sungbaey@nvidia.com> [@ysbnim]
+S:	Maintained
+F:	core/arch/arm/plat-tegra/
+F:	core/drivers/tegra_*.c
+F:	core/include/drivers/tegra_*.h
+
 NXP (Freescale) i.MX family
 R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
 R:	Silvano Di Ninno <silvano.dininno@nxp.com> [@sdininno]
