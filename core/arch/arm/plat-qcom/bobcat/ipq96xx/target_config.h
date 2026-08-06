@@ -19,4 +19,8 @@
 #define IMEM_BASE			UL(0x8600000)
 #define IMEM_SIZE			UL(0x20000)
 
+/* eMMC (SDCC) is the ICE-backed storage controller on ipq96xx */
+#define ICE_LUT_KEYS			SDCC_ICE_LUT_KEYS
+#define ICE_LUT_KEYS_SIZE		SDCC_ICE_LUT_KEYS_SIZE
+
 #endif /* TARGET_CONFIG_H */
