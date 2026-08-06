@@ -214,7 +214,7 @@ static TEE_Result check_hw_binding(const struct pas_oem_metadata *meta)
 	return check_soc_vers_binding(meta);
 }
 
-static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
+static TEE_Result verify_oem_signature(const struct pas_mbn *hs,
 				       uint32_t pas_id,
 				       const uint8_t *anchor)
 {
@@ -305,7 +305,7 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 }
 
 TEE_Result pas_sig_auth_segment_hash_len(const struct pas_md_slot *slot,
-					 uint32_t *segment_hash_len)
+						 uint32_t *segment_hash_len)
 {
 	uint32_t root_cert_sel = SECBOOT_DEFAULT_ROOT_CERT_SEL;
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -327,7 +327,7 @@ TEE_Result pas_sig_auth_segment_hash_len(const struct pas_md_slot *slot,
 	return TEE_SUCCESS;
 }
 
-TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
+TEE_Result pas_sig_auth_verify_image(const struct pas_mbn *hs,
 				     const uint8_t *meta_data,
 				     size_t meta_data_size,
 				     uint32_t pas_id,
@@ -341,7 +341,7 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	if (hs->qc_certs || hs->qc_sig) {
+	if (hs->qti_certs || hs->qti_sig) {
 		EMSG("PAS auth: QC-countersigned images are not supported");
 		return TEE_ERROR_NOT_SUPPORTED;
 	}

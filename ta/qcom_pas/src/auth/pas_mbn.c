@@ -6,6 +6,7 @@
 #include <auth/pas_mbn.h>
 #include <elf32.h>
 #include <elf64.h>
+#include <pas_mbn_parser_priv.h>
 #include <string.h>
 #include <tee_internal_api.h>
 #include <util.h>
@@ -17,18 +18,35 @@
 #define MBN_PT_FLAG_TYPE_MASK		0x07000000U
 #define MBN_PT_FLAG_HASH_TYPE_MASK	0x02000000U
 
-TEE_Result pas_mbn_get_hash_segment(const uint8_t *metadata,
-				    size_t metadata_size,
-				    const uint8_t **seg, size_t *seg_size)
+uint32_t pas_mbn_read_u32(const uint8_t *p)
 {
-	const unsigned char *ident = metadata;
+	uint32_t v = 0;
+
+	memcpy(&v, p, sizeof(v));
+
+	return v;
+}
+
+uint64_t pas_mbn_read_u64(const uint8_t *p)
+{
+	uint64_t v = 0;
+
+	memcpy(&v, p, sizeof(v));
+
+	return v;
+}
+
+TEE_Result pas_mbn_locate(const uint8_t *md, size_t md_size,
+			  const uint8_t **seg, size_t *seg_size)
+{
+	const unsigned char *ident = md;
 	size_t phdr_entry_len = 0;
 	size_t phdr_entry_min = 0;
 	size_t phdr_table_end = 0;
 	size_t phdr_offset = 0;
 	size_t phdr_count = 0;
 	uint32_t hash_flags = 0;
-	size_t hash_seg_size = 0;
+	size_t hash_seg_len = 0;
 	size_t elf_hdr_len = 0;
 	size_t hash_seg_offset = 0;
 	size_t hash_seg_end = 0;
@@ -36,7 +54,7 @@ TEE_Result pas_mbn_get_hash_segment(const uint8_t *metadata,
 	bool found = false;
 	size_t i = 0;
 
-	if (metadata_size < EI_NIDENT)
+	if (md_size < EI_NIDENT)
 		return TEE_ERROR_BAD_FORMAT;
 
 	if (ident[EI_MAG0] != ELFMAG0 || ident[EI_MAG1] != ELFMAG1 ||
@@ -58,17 +76,17 @@ TEE_Result pas_mbn_get_hash_segment(const uint8_t *metadata,
 		return TEE_ERROR_BAD_FORMAT;
 	}
 
-	if (metadata_size < elf_hdr_len)
+	if (md_size < elf_hdr_len)
 		return TEE_ERROR_BAD_FORMAT;
 
 	if (is_64) {
-		const Elf64_Ehdr *ehdr = (const void *)metadata;
+		const Elf64_Ehdr *ehdr = (const void *)md;
 
 		phdr_offset = ehdr->e_phoff;
 		phdr_entry_len = ehdr->e_phentsize;
 		phdr_count = ehdr->e_phnum;
 	} else {
-		const Elf32_Ehdr *ehdr = (const void *)metadata;
+		const Elf32_Ehdr *ehdr = (const void *)md;
 
 		phdr_offset = ehdr->e_phoff;
 		phdr_entry_len = ehdr->e_phentsize;
@@ -81,22 +99,22 @@ TEE_Result pas_mbn_get_hash_segment(const uint8_t *metadata,
 
 	if (MUL_OVERFLOW(phdr_entry_len, phdr_count, &phdr_table_end) ||
 	    ADD_OVERFLOW(phdr_table_end, phdr_offset, &phdr_table_end) ||
-	    phdr_table_end > metadata_size)
+	    phdr_table_end > md_size)
 		return TEE_ERROR_BAD_FORMAT;
 
 	for (i = 0; i < phdr_count; i++) {
-		const uint8_t *p = metadata + phdr_offset + i * phdr_entry_len;
+		const uint8_t *p = md + phdr_offset + i * phdr_entry_len;
 
 		if (is_64) {
 			const Elf64_Phdr *phdr = (const void *)p;
 
 			hash_flags = phdr->p_flags;
-			hash_seg_size = phdr->p_filesz;
+			hash_seg_len = phdr->p_filesz;
 		} else {
 			const Elf32_Phdr *phdr = (const void *)p;
 
 			hash_flags = phdr->p_flags;
-			hash_seg_size = phdr->p_filesz;
+			hash_seg_len = phdr->p_filesz;
 		}
 
 		if ((hash_flags & MBN_PT_FLAG_TYPE_MASK) ==
@@ -108,29 +126,25 @@ TEE_Result pas_mbn_get_hash_segment(const uint8_t *metadata,
 	if (!found)
 		return TEE_ERROR_BAD_FORMAT;
 
-	/*
-	 * The hash segment is packed immediately after the ELF header and
-	 * program-header table, so its offset is the ELF header length plus
-	 * the phdr table length. The phdr p_offset refers to the original
-	 * firmware file and must not be used here.
-	 */
+	/* The metadata stores the hash segment after the ELF header and
+	 * phdr table. */
 	if (MUL_OVERFLOW(phdr_entry_len, phdr_count, &hash_seg_offset) ||
 	    ADD_OVERFLOW(hash_seg_offset, elf_hdr_len, &hash_seg_offset))
 		return TEE_ERROR_BAD_FORMAT;
 
-	if (ADD_OVERFLOW(hash_seg_offset, hash_seg_size, &hash_seg_end) ||
-	    hash_seg_end > metadata_size || !hash_seg_size)
+	if (ADD_OVERFLOW(hash_seg_offset, hash_seg_len, &hash_seg_end) ||
+	    hash_seg_end > md_size || !hash_seg_len)
 		return TEE_ERROR_BAD_FORMAT;
 
-	*seg = metadata + hash_seg_offset;
-	*seg_size = hash_seg_size;
+	*seg = md + hash_seg_offset;
+	*seg_size = hash_seg_len;
 
 	return TEE_SUCCESS;
 }
 
-TEE_Result pas_mbn_get_region(const uint8_t *segment, size_t segment_size,
-			      size_t *offset, size_t len,
-			      const uint8_t **region, size_t *region_len)
+TEE_Result pas_mbn_reserve_region(const uint8_t *segment, size_t segment_size,
+				  size_t *offset, size_t len,
+				  const uint8_t **region, size_t *region_len)
 {
 	if (!len) {
 		*region = NULL;
@@ -148,54 +162,97 @@ TEE_Result pas_mbn_get_region(const uint8_t *segment, size_t segment_size,
 	return TEE_SUCCESS;
 }
 
-TEE_Result pas_mbn_parse(const uint8_t *metadata, size_t metadata_size,
-			 uint32_t hash_len, struct pas_hash_segment_info *out)
+TEE_Result pas_mbn_get_hash_segment(const uint8_t *md, size_t md_size,
+				    const uint8_t **seg, size_t *seg_size)
 {
-	struct pas_mbn_header_v6 header = { };
+	return pas_mbn_locate(md, md_size, seg, seg_size);
+}
+
+TEE_Result pas_mbn_get_region(const uint8_t *segment, size_t segment_size,
+			      size_t *offset, size_t len,
+			      const uint8_t **region, size_t *region_len)
+{
+	return pas_mbn_reserve_region(segment, segment_size, offset, len,
+				      region, region_len);
+}
+
+TEE_Result pas_mbn_parse(const uint8_t *md, size_t md_size,
+			 uint32_t hash_len, struct pas_mbn *out)
+{
 	TEE_Result res = TEE_ERROR_GENERIC;
-	const uint8_t *hash_seg = NULL;
+	uint32_t common_meta_size = 0;
 	uint32_t oem_cert_size = 0;
 	uint32_t oem_meta_size = 0;
+	const uint8_t *seg = NULL;
 	uint32_t oem_sig_size = 0;
 	uint32_t qc_cert_size = 0;
 	uint32_t qc_meta_size = 0;
-	size_t hash_seg_size = 0;
 	uint32_t qc_sig_size = 0;
 	size_t signed_size = 0;
 	uint32_t code_size = 0;
 	uint32_t version = 0;
 	size_t hdr_size = 0;
-	size_t offset = 0;
+	size_t seg_size = 0;
+	size_t cursor = 0;
 
-	if (!metadata || !metadata_size || !out || !hash_len)
+	if (!md || !md_size || !out || !hash_len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	memset(out, 0, sizeof(*out));
 
-	res = pas_mbn_get_hash_segment(metadata, metadata_size, &hash_seg,
-				       &hash_seg_size);
+	res = pas_mbn_locate(md, md_size, &seg, &seg_size);
 	if (res)
 		return res;
 
-	if (hash_seg_size < sizeof(header))
+	if (seg_size < MBN_HDR_SIZE_V6)
 		return TEE_ERROR_BAD_FORMAT;
 
-	memcpy(&header, hash_seg, sizeof(header));
-	version = header.version;
-	if (version != PAS_MBN_VERSION_6) {
-		EMSG("PAS auth: unsupported MBN version %#"PRIx32, version);
+	version = pas_mbn_read_u32(seg + MBN_OFF_VERSION);
+	switch (version) {
+	case PAS_MBN_VERSION_6:
+		hdr_size = MBN_HDR_SIZE_V6;
+		break;
+	case PAS_MBN_VERSION_7:
+		hdr_size = MBN_HDR_SIZE_V7;
+		break;
+	default:
+		EMSG("PAS auth: unsupported MBN version %"PRIu32, version);
 		return TEE_ERROR_BAD_FORMAT;
 	}
-	hdr_size = sizeof(header);
 
-	/* "code_size" is the hash-table length in bytes, not a code length. */
-	code_size = header.code_size;
-	qc_sig_size = header.qc_signature_size;
-	qc_cert_size = header.qc_cert_chain_size;
-	oem_sig_size = header.oem_signature_size;
-	oem_cert_size = header.oem_cert_chain_size;
-	qc_meta_size = header.qc_metadata_size;
-	oem_meta_size = header.oem_metadata_size;
+	if (seg_size < hdr_size)
+		return TEE_ERROR_BAD_FORMAT;
+
+	/*
+	 * The MBN header "code_size" field is the hash-table length in bytes,
+	 * i.e. num_entries * hash_size (one digest per program header).
+	 */
+	if (version == PAS_MBN_VERSION_7) {
+		code_size = pas_mbn_read_u32(seg + MBN_OFF_V7_CODE_SIZE);
+		qc_sig_size = pas_mbn_read_u32(seg + MBN_OFF_V7_QC_SIG_SIZE);
+		qc_cert_size = pas_mbn_read_u32(seg + MBN_OFF_V7_QC_CERT_SIZE);
+		oem_sig_size = pas_mbn_read_u32(seg + MBN_OFF_V7_OEM_SIG_SIZE);
+		oem_cert_size = pas_mbn_read_u32(seg +
+						 MBN_OFF_V7_OEM_CERT_SIZE);
+		common_meta_size = pas_mbn_read_u32(seg +
+						MBN_OFF_V7_COMMON_META_SIZE);
+		qc_meta_size = pas_mbn_read_u32(seg + MBN_OFF_V7_QC_META_SIZE);
+		oem_meta_size = pas_mbn_read_u32(seg +
+						 MBN_OFF_V7_OEM_META_SIZE);
+	} else {
+		/* "code_size" is the hash-table length in bytes, not a code length. */
+		code_size = pas_mbn_read_u32(seg + MBN_OFF_CODE_SIZE);
+		qc_sig_size = pas_mbn_read_u32(seg + MBN_OFF_QC_SIG_SIZE);
+		qc_cert_size = pas_mbn_read_u32(seg + MBN_OFF_QC_CERT_SIZE);
+		oem_sig_size = pas_mbn_read_u32(seg + MBN_OFF_OEM_SIG_SIZE);
+		oem_cert_size = pas_mbn_read_u32(seg + MBN_OFF_OEM_CERT_SIZE);
+		if (version == PAS_MBN_VERSION_6) {
+			qc_meta_size = pas_mbn_read_u32(seg +
+							MBN_OFF_QC_META_SIZE);
+			oem_meta_size = pas_mbn_read_u32(seg +
+							 MBN_OFF_OEM_META_SIZE);
+		}
+	}
 
 	if (!code_size || code_size % hash_len)
 		return TEE_ERROR_BAD_FORMAT;
@@ -206,61 +263,60 @@ TEE_Result pas_mbn_parse(const uint8_t *metadata, size_t metadata_size,
 	 * The signed region spans the header plus
 	 * [qc_meta || oem_meta || hash table].
 	 */
-	offset = hdr_size;
-	out->signed_region = hash_seg;
+	cursor = hdr_size;
+	out->signed_region = seg;
 
-	if (ADD_OVERFLOW(qc_meta_size, oem_meta_size, &signed_size) ||
+	if (ADD_OVERFLOW(common_meta_size, qc_meta_size, &signed_size) ||
+	    ADD_OVERFLOW(signed_size, oem_meta_size, &signed_size) ||
 	    ADD_OVERFLOW(signed_size, code_size, &signed_size) ||
 	    ADD_OVERFLOW(signed_size, hdr_size, &signed_size))
 		return TEE_ERROR_BAD_FORMAT;
 
-	if (signed_size > hash_seg_size)
+	if (signed_size > seg_size)
 		return TEE_ERROR_BAD_FORMAT;
 	out->signed_region_size = signed_size;
 
-	res = pas_mbn_get_region(hash_seg, hash_seg_size, &offset, qc_meta_size,
-				 &out->qc_meta, &out->qc_meta_size);
+	res = pas_mbn_reserve_region(seg, seg_size, &cursor, common_meta_size,
+				     &out->common_meta, &out->common_meta_size);
 	if (res)
 		return res;
-	res = pas_mbn_get_region(hash_seg, hash_seg_size, &offset,
-				 oem_meta_size, &out->oem_meta,
-				 &out->oem_meta_size);
+	res = pas_mbn_reserve_region(seg, seg_size, &cursor, qc_meta_size,
+				     &out->qti_meta, &out->qti_meta_size);
+	if (res)
+		return res;
+	res = pas_mbn_reserve_region(seg, seg_size, &cursor, oem_meta_size,
+				     &out->oem_meta, &out->oem_meta_size);
 	if (res)
 		return res;
 
-	out->hash_table = hash_seg + offset;
+	out->hash_table = seg + cursor;
 	out->hash_table_size = code_size;
 	out->hash_len = hash_len;
 	out->num_entries = code_size / hash_len;
-	offset += code_size;
+	cursor += code_size;
 
-	res = pas_mbn_get_region(hash_seg, hash_seg_size, &offset, qc_sig_size,
-				 &out->qc_sig, &out->qc_sig_size);
+	res = pas_mbn_reserve_region(seg, seg_size, &cursor, qc_sig_size,
+				     &out->qti_sig, &out->qti_sig_size);
 	if (res)
 		return res;
-	res = pas_mbn_get_region(hash_seg, hash_seg_size, &offset, qc_cert_size,
-				 &out->qc_certs, &out->qc_certs_size);
+	res = pas_mbn_reserve_region(seg, seg_size, &cursor, qc_cert_size,
+				     &out->qti_certs, &out->qti_certs_size);
 	if (res)
 		return res;
-	res = pas_mbn_get_region(hash_seg, hash_seg_size, &offset, oem_sig_size,
-				 &out->oem_sig, &out->oem_sig_size);
+	res = pas_mbn_reserve_region(seg, seg_size, &cursor, oem_sig_size,
+				     &out->oem_sig, &out->oem_sig_size);
 	if (res)
 		return res;
-	res = pas_mbn_get_region(hash_seg, hash_seg_size, &offset,
-				 oem_cert_size, &out->oem_certs,
-				 &out->oem_certs_size);
+	res = pas_mbn_reserve_region(seg, seg_size, &cursor, oem_cert_size,
+				     &out->oem_certs, &out->oem_certs_size);
 	if (res)
 		return res;
 
 	out->version = version;
 
-	if (offset + sizeof(uint32_t) <= hash_seg_size) {
-		uint32_t uie_magic = 0;
-
-		memcpy(&uie_magic, hash_seg + offset, sizeof(uie_magic));
-		if (uie_magic == UIE_ENC_PARAM_MAGIC)
-			out->uie_encrypted = true;
-	}
+	if (cursor + sizeof(uint32_t) <= seg_size &&
+	    pas_mbn_read_u32(seg + cursor) == UIE_ENC_PARAM_MAGIC)
+		out->uie_encrypted = true;
 
 	return TEE_SUCCESS;
 }

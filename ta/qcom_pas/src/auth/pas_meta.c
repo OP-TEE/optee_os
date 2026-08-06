@@ -14,11 +14,12 @@
 #include <utee_defines.h>
 #include <util.h>
 
+#include <pas_mbn_parser_priv.h>
+
 TEE_Result pas_meta_get_root_cert_sel(const uint8_t *meta_data,
 				      size_t meta_data_size,
 				      uint32_t *root_cert_sel)
 {
-	struct pas_mbn_header_v6 header = { };
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const uint8_t *oem_meta = NULL;
 	const uint8_t *qc_meta = NULL;
@@ -26,6 +27,9 @@ TEE_Result pas_meta_get_root_cert_sel(const uint8_t *meta_data,
 	size_t oem_metadata_size = 0;
 	size_t qc_metadata_size = 0;
 	size_t segment_size = 0;
+	uint32_t common_metadata_size = 0;
+	uint32_t oem_metadata_size_u32 = 0;
+	uint32_t qc_metadata_size_u32 = 0;
 	uint32_t version = 0;
 	size_t hdr_size = 0;
 	size_t offset = 0;
@@ -38,29 +42,50 @@ TEE_Result pas_meta_get_root_cert_sel(const uint8_t *meta_data,
 	if (res)
 		return res;
 
-	if (segment_size < sizeof(header))
+	if (segment_size < sizeof(uint32_t) * 2)
 		return TEE_ERROR_BAD_FORMAT;
 
-	memcpy(&header, segment, sizeof(header));
-	version = header.version;
-	if (version != PAS_MBN_VERSION_6) {
+	version = pas_mbn_read_u32(segment + MBN_OFF_VERSION);
+	switch (version) {
+	case PAS_MBN_VERSION_6:
+		hdr_size = MBN_HDR_SIZE_V6;
+		qc_metadata_size_u32 = pas_mbn_read_u32(segment +
+						       MBN_OFF_QC_META_SIZE);
+		oem_metadata_size_u32 = pas_mbn_read_u32(segment +
+							MBN_OFF_OEM_META_SIZE);
+		break;
+	case PAS_MBN_VERSION_7:
+		hdr_size = MBN_HDR_SIZE_V7;
+		common_metadata_size = pas_mbn_read_u32(segment +
+							MBN_OFF_V7_COMMON_META_SIZE);
+		qc_metadata_size_u32 = pas_mbn_read_u32(segment +
+						       MBN_OFF_V7_QC_META_SIZE);
+		oem_metadata_size_u32 = pas_mbn_read_u32(segment +
+							MBN_OFF_V7_OEM_META_SIZE);
+		break;
+	default:
 		EMSG("PAS auth: unsupported MBN version %#"PRIx32, version);
 		return TEE_ERROR_BAD_FORMAT;
 	}
 
-	hdr_size = sizeof(header);
 	if (segment_size < hdr_size)
 		return TEE_ERROR_BAD_FORMAT;
 
 	offset = hdr_size;
 	res = pas_mbn_get_region(segment, segment_size, &offset,
-				 header.qc_metadata_size, &qc_meta,
+				 common_metadata_size, &qc_meta,
 				 &qc_metadata_size);
 	if (res)
 		return res;
 
 	res = pas_mbn_get_region(segment, segment_size, &offset,
-				 header.oem_metadata_size, &oem_meta,
+				 qc_metadata_size_u32, &qc_meta,
+				 &qc_metadata_size);
+	if (res)
+		return res;
+
+	res = pas_mbn_get_region(segment, segment_size, &offset,
+				 oem_metadata_size_u32, &oem_meta,
 				 &oem_metadata_size);
 	if (res)
 		return res;
@@ -159,7 +184,7 @@ out:
 	return res;
 }
 
-TEE_Result pas_meta_get(const struct pas_hash_segment_info *hs,
+TEE_Result pas_meta_get(const struct pas_mbn *hs,
 			struct pas_oem_metadata *meta)
 {
 	const uint8_t *m = NULL;
@@ -200,7 +225,7 @@ static void zero_field(uint8_t *copy, size_t copy_len, size_t off)
 }
 
 TEE_Result
-pas_meta_get_signed_region_copy(const struct pas_hash_segment_info *hs,
+pas_meta_get_signed_region_copy(const struct pas_mbn *hs,
 				uint8_t **out, size_t *out_len)
 {
 	uint8_t *copy = NULL;
@@ -219,8 +244,8 @@ pas_meta_get_signed_region_copy(const struct pas_hash_segment_info *hs,
 		   offsetof(struct pas_mbn_header_v6, qc_signature_size));
 	zero_field(copy, hs->signed_region_size,
 		   offsetof(struct pas_mbn_header_v6, qc_cert_chain_size));
-	mask_meta_block(copy, hs->signed_region_size, hs->qc_meta,
-			hs->qc_meta_size, hs->signed_region);
+	mask_meta_block(copy, hs->signed_region_size, hs->qti_meta,
+			hs->qti_meta_size, hs->signed_region);
 
 	*out = copy;
 	*out_len = hs->signed_region_size;

@@ -30,7 +30,7 @@ struct pas_md_slot {
 	size_t meta_data_size;
 	uint32_t pas_id;
 	bool in_use;
-	struct pas_hash_segment_info mbn;
+	struct pas_mbn mbn;
 	bool ready;
 };
 
@@ -58,11 +58,11 @@ TEE_Result pas_meta_verify_elf_headers_hash(const uint8_t *meta_data,
 					    const uint8_t *hash_table,
 					    uint32_t hash_len);
 
-TEE_Result pas_meta_get(const struct pas_hash_segment_info *hs,
+TEE_Result pas_meta_get(const struct pas_mbn *hs,
 			struct pas_oem_metadata *meta);
 
 TEE_Result
-pas_meta_get_signed_region_copy(const struct pas_hash_segment_info *hs,
+pas_meta_get_signed_region_copy(const struct pas_mbn *hs,
 				uint8_t **out, size_t *out_len);
 
 #endif /* __AUTH_PAS_META_H */
