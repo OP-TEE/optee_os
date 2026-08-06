@@ -80,6 +80,12 @@ CFG_AMD_ASU_ECC ?= y
 CFG_AMD_ASU_TRNG ?= y
 CFG_WITH_SOFTWARE_PRNG ?= n
 
+# HWRNG PTA configuration for Linux kernel integration
+ifeq ($(CFG_AMD_ASU_TRNG),y)
+CFG_HWRNG_PTA ?= y
+CFG_HWRNG_QUALITY ?= 1024
+endif
+
 ifeq ($(CFG_RPMB_FS),y)
 $(call force,CFG_AMD_ASU_HUK,y)
 endif
