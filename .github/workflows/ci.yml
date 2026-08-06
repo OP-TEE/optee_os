@@ -12,7 +12,7 @@ jobs:
     container: jforissier/optee_os_ci
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0 # full history so checkpatch can check commit IDs in commit messages
       - name: Update Git config
@@ -350,7 +350,7 @@ jobs:
               _make PLATFORM=cva6
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Update Git config
         run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
       - name: Generate cache key
@@ -359,7 +359,7 @@ jobs:
           echo "CACHE_KEY=builds-cache-${HASH}-${GITHUB_SHA}" >> ${GITHUB_ENV}
           echo "CACHE_RESTORE_KEY=builds-cache-${HASH}" >> ${GITHUB_ENV}
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /github/home/.cache/ccache
           key: ${{ env.CACHE_KEY }}
@@ -429,7 +429,7 @@ jobs:
               make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_TA_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n CFG_DYN_CONFIG=n XTEST_ARGS="n_1001 n_1003 n_1004 n_1042"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
       - name: Host cleanup
@@ -448,7 +448,7 @@ jobs:
           echo "CACHE_KEY=qemuv7_check-cache-${HASH}-${GITHUB_SHA}" >> $GITHUB_ENV
           echo "CACHE_RESTORE_KEY=qemuv7_check-cache-${HASH}" >> ${GITHUB_ENV}
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /home/runner/work/ccache
           key: ${{ env.CACHE_KEY }}
@@ -573,7 +573,7 @@ jobs:
               make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
       - name: Host cleanup
@@ -592,7 +592,7 @@ jobs:
           echo "CACHE_KEY=qemuv8_check-cache-${HASH}-${GITHUB_SHA}" >> $GITHUB_ENV
           echo "CACHE_RESTORE_KEY=qemuv8_check-cache-${HASH}" >> ${GITHUB_ENV}
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /home/runner/work/ccache
           key: ${{ env.CACHE_KEY }}
@@ -664,7 +664,7 @@ jobs:
               make -j$(nproc) check CFG_CORE_UNSAFE_MODEXP=y
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
       - name: Host setup
@@ -683,7 +683,7 @@ jobs:
           echo "CACHE_KEY=qemuv8_arm64_check-cache-${HASH}-${GITHUB_SHA}" >> ${GITHUB_ENV}
           echo "CACHE_RESTORE_KEY=qemuv8_arm64_check-cache-${HASH}" >> ${GITHUB_ENV}
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /home/runner/work/ccache
           key: ${{ env.CACHE_KEY }}
