@@ -70,9 +70,16 @@ TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
 					   struct bignum *public_key,
 					   struct bignum *secret)
 {
-	int err;
+	dh_key pub_key = { .type = PK_PUBLIC, .y = public_key, };
+	int err = 0;
 
 	if (!private_key || !public_key || !secret)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	pub_key.base = private_key->g;
+	pub_key.prime = private_key->p;
+
+	if (dh_check_pubkey(&pub_key) != CRYPT_OK)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	err = mp_exptmod(public_key, private_key->x, private_key->p, secret);

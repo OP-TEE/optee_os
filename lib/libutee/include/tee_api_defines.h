@@ -434,6 +434,17 @@
 #define TEE_ATTR_DSA_BASE                   0xD0001231
 #define TEE_ATTR_DSA_PUBLIC_VALUE           0xD0000131
 #define TEE_ATTR_DSA_PRIVATE_VALUE          0xC0000231
+/*
+ * Note: DH security depends on using a safe prime modulus. Non-safe primes
+ * weaken the discrete logarithm problem and can expose private exponent
+ * bits via small-subgroup attacks, particularly when the same parameters
+ * are reused across exchanges (static DH).
+ *
+ * The implementation does not verify primality, safe-primality, or
+ * subgroup validity, and non-standard primes may hide undetectable
+ * backdoors regardless. Only use standardized, trustworthy ("nothing up my
+ * sleeve") primes, such as those in RFC 3526 or RFC 7919.
+ */
 #define TEE_ATTR_DH_PRIME                   0xD0001032
 #define TEE_ATTR_DH_SUBPRIME                0xD0001132
 #define TEE_ATTR_DH_BASE                    0xD0001232
