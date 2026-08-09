@@ -1656,6 +1656,7 @@ check_created_attrs_against_processing(uint32_t proc_id,
 	case PKCS11_CKM_ECDH1_DERIVE:
 	case PKCS11_CKM_AES_ECB:
 	case PKCS11_CKM_AES_CBC:
+	case PKCS11_CKM_AES_GCM:
 	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
 	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
 	case PKCS11_CKM_RSA_AES_KEY_WRAP:

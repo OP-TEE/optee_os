@@ -1133,10 +1133,14 @@ enum pkcs11_rc wrap_data_by_symm_enc(struct pkcs11_session *session,
 				     void *out_buf, uint32_t *out_sz)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct active_processing *proc = session->processing;
 	void *in_buf = NULL;
 	uint32_t align = 0;
 	uint32_t in_sz = data_sz;
+	size_t final_sz = 0;
+	size_t update_sz = 0;
+	size_t required = 0;
 	size_t tmp_sz = *out_sz;
 	uint8_t *tmp_buf = out_buf;
 
@@ -1192,6 +1196,29 @@ enum pkcs11_rc wrap_data_by_symm_enc(struct pkcs11_session *session,
 			TEE_Free(in_buf);
 
 		return tee2pkcs_error(res);
+	case PKCS11_CKM_AES_GCM:
+		required = data_sz + tee_ae_tag_size(session);
+		if (*out_sz < required) {
+			*out_sz = required;
+			return PKCS11_CKR_BUFFER_TOO_SMALL;
+		}
+
+		update_sz = *out_sz;
+		res = TEE_AEUpdate(proc->tee_op_handle, data, data_sz, tmp_buf,
+				   &update_sz);
+		if (res) {
+			assert(res != TEE_ERROR_SHORT_BUFFER);
+			return tee2pkcs_error(res);
+		}
+
+		final_sz = *out_sz - update_sz;
+		rc = tee_ae_encrypt_final(session, tmp_buf + update_sz,
+					  &final_sz);
+		if (rc)
+			return rc;
+
+		*out_sz = update_sz + final_sz;
+		return PKCS11_CKR_OK;
 	default:
 		return PKCS11_CKR_MECHANISM_INVALID;
 	}
@@ -1204,8 +1231,10 @@ enum pkcs11_rc unwrap_key_by_symm(struct pkcs11_session *session, void *data,
 				  uint32_t *out_sz)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct active_processing *proc = session->processing;
 	size_t tmp_sz = 0;
+	size_t tag_sz = 0;
 
 	if (input_data_size_is_valid(proc, PKCS11_FUNCTION_DECRYPT, data_sz))
 		return PKCS11_CKR_WRAPPED_KEY_LEN_RANGE;
@@ -1234,6 +1263,30 @@ enum pkcs11_rc unwrap_key_by_symm(struct pkcs11_session *session, void *data,
 			*out_buf = NULL;
 			return PKCS11_CKR_WRAPPED_KEY_INVALID;
 		}
+		break;
+	case PKCS11_CKM_AES_GCM:
+		tag_sz = tee_ae_tag_size(session);
+		if (data_sz < tag_sz)
+			return PKCS11_CKR_WRAPPED_KEY_LEN_RANGE;
+
+		rc = tee_ae_decrypt_update(session, data, data_sz);
+		if (rc)
+			return PKCS11_CKR_WRAPPED_KEY_INVALID;
+
+		tmp_sz = data_sz - tag_sz;
+		*out_buf = TEE_Malloc(tmp_sz ? tmp_sz : 1,
+				      TEE_MALLOC_FILL_ZERO);
+		if (!*out_buf)
+			return PKCS11_CKR_DEVICE_MEMORY;
+
+		rc = tee_ae_decrypt_final(session, *out_buf, &tmp_sz);
+		if (rc) {
+			TEE_Free(*out_buf);
+			*out_buf = NULL;
+			return PKCS11_CKR_WRAPPED_KEY_INVALID;
+		}
+
+		*out_sz = tmp_sz;
 		break;
 	default:
 		return PKCS11_CKR_MECHANISM_INVALID;
