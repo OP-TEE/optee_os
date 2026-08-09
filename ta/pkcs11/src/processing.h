@@ -182,6 +182,8 @@ enum pkcs11_rc tee_ae_decrypt_final(struct pkcs11_session *session,
 enum pkcs11_rc tee_ae_encrypt_final(struct pkcs11_session *session,
 				    void *out, size_t *out_size);
 
+size_t tee_ae_tag_size(struct pkcs11_session *session);
+
 void tee_release_gcm_operation(struct pkcs11_session *session);
 
 enum pkcs11_rc tee_init_gcm_operation(struct pkcs11_session *session,
