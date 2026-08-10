@@ -109,6 +109,9 @@ mx91-flavorlist = \
 mx943-flavorlist = \
 	mx943evk \
 
+mx952-flavorlist = \
+	mx952evk \
+
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6UL,y)
@@ -299,6 +302,16 @@ $(call force,CFG_TZC380,n)
 $(call force,CFG_NXP_CAAM,n)
 CFG_IMX_MU ?= y
 CFG_IMX_ELE ?= y
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx952-flavorlist)))
+$(call force,CFG_MX952,y)
+$(call force,CFG_ARM64_core,y)
+CFG_IMX_LPUART ?= y
+CFG_DRAM_BASE ?= 0x80000000
+CFG_TEE_CORE_NB_CORE ?= 6
+$(call force,CFG_NXP_SNVS,n)
+$(call force,CFG_IMX_OCOTP,n)
+$(call force,CFG_TZC380,n)
+$(call force,CFG_NXP_CAAM,n)
 else
 $(error Unsupported PLATFORM_FLAVOR "$(PLATFORM_FLAVOR)")
 endif
@@ -520,7 +533,7 @@ CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART1_BASE
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),mx95evk mx943evk))
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx95evk mx943evk mx952evk))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART1_BASE
 CFG_NSEC_DDR_1_BASE ?= 0x100000000UL
