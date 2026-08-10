@@ -59,7 +59,7 @@ struct get_info_rsp {
 	uint32_t oem_srkh[16];
 	uint8_t trng_state;
 	uint8_t csal_state;
-#if defined(CFG_MX95) || defined(CFG_MX943)
+#if defined(CFG_MX95) || defined(CFG_MX943) || defined(CFG_MX952)
 	uint8_t reserved[2];
 	uint32_t oem_pqc_srkh[16];
 	uint32_t rsvd[8];
