@@ -3,13 +3,12 @@
  * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#include <initcall.h>
 #include <kernel/pseudo_ta.h>
-#include <kernel/user_ta.h>
-#include <platform_config.h>
+#include <kernel/ts_manager.h>
 #include <platform_pas.h>
 #include <pta_qcom_pas.h>
 #include <string.h>
+#include <util.h>
 
 #define PTA_NAME	"pta.qcom.pas"
 
@@ -45,7 +44,7 @@ static TEE_Result qcom_pas_capabilities(uint32_t pt,
 
 	/* Capabilities flags reserved for future use */
 	params[1].value.a = 0;
-	return pas_platform_capabilities(params[1].value.a);
+	return pas_platform_capabilities(params[0].value.a);
 }
 
 static TEE_Result qcom_pas_init_image(uint32_t pt,

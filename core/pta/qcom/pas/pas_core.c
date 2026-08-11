@@ -4,7 +4,6 @@
  */
 
 #include <drivers/clk_qcom.h>
-#include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_pas.h>
 #include <trace.h>
@@ -12,7 +11,7 @@
 
 #include "pas_subsys.h"
 
-static struct qcom_pas_subsys *pas_lookup(uint32_t pas_id)
+struct qcom_pas_subsys *qcom_pas_lookup(uint32_t pas_id)
 {
 	struct qcom_pas_subsys *subsys = NULL;
 	size_t count = 0;
@@ -28,7 +27,7 @@ static struct qcom_pas_subsys *pas_lookup(uint32_t pas_id)
 
 TEE_Result pas_platform_is_supported(uint32_t pas_id)
 {
-	if (!pas_lookup(pas_id))
+	if (!qcom_pas_lookup(pas_id))
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	return TEE_SUCCESS;
@@ -41,7 +40,7 @@ TEE_Result pas_platform_capabilities(uint32_t pas_id __unused)
 
 TEE_Result pas_platform_init_image(uint32_t pas_id)
 {
-	if (!pas_lookup(pas_id))
+	if (!qcom_pas_lookup(pas_id))
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	return TEE_SUCCESS;
@@ -50,7 +49,7 @@ TEE_Result pas_platform_init_image(uint32_t pas_id)
 TEE_Result pas_platform_mem_setup(uint32_t pas_id, uint32_t fw_size,
 				  uint32_t fw_base_low, uint32_t fw_base_high)
 {
-	struct qcom_pas_subsys *subsys = pas_lookup(pas_id);
+	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
 	struct qcom_pas_data *data = NULL;
 
 	if (!subsys)
@@ -77,7 +76,7 @@ TEE_Result pas_platform_get_resource_table(uint32_t pas_id,
 					   struct resource_table *rt,
 					   size_t *size)
 {
-	struct qcom_pas_subsys *subsys = pas_lookup(pas_id);
+	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
 
 	if (!subsys || !subsys->ops->get_resource_table)
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -87,7 +86,7 @@ TEE_Result pas_platform_get_resource_table(uint32_t pas_id,
 
 TEE_Result pas_platform_set_remote_state(uint32_t pas_id, uint32_t state)
 {
-	struct qcom_pas_subsys *subsys = pas_lookup(pas_id);
+	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
 
 	if (!subsys || !subsys->ops->fw_set_state)
 		return TEE_ERROR_NOT_IMPLEMENTED;
@@ -97,9 +96,9 @@ TEE_Result pas_platform_set_remote_state(uint32_t pas_id, uint32_t state)
 
 TEE_Result pas_platform_auth_and_reset(uint32_t pas_id)
 {
-	struct qcom_pas_subsys *subsys = pas_lookup(pas_id);
-	struct qcom_pas_data *data = NULL;
+	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
 	TEE_Result res = TEE_ERROR_GENERIC;
+	struct qcom_pas_data *data = NULL;
 
 	if (!subsys)
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -140,10 +139,17 @@ TEE_Result pas_platform_auth_and_reset(uint32_t pas_id)
 
 TEE_Result pas_platform_shutdown(uint32_t pas_id)
 {
-	struct qcom_pas_subsys *subsys = pas_lookup(pas_id);
+	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!subsys || !subsys->ops->fw_shutdown)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	return subsys->ops->fw_shutdown(&subsys->data);
+	res = subsys->ops->fw_shutdown(&subsys->data);
+	if (!res) {
+		subsys->data.fw_base = 0;
+		subsys->data.fw_size = 0;
+	}
+
+	return res;
 }
