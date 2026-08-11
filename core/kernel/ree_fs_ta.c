@@ -40,6 +40,7 @@
 #include <crypto/crypto.h>
 #include <fault_mitigation.h>
 #include <initcall.h>
+#include <kernel/ree_fs_ta.h>
 #include <kernel/thread.h>
 #include <kernel/ts_store.h>
 #include <kernel/user_access.h>
@@ -203,6 +204,14 @@ out:
 	mutex_unlock(&ver_db_mutex);
 	return res;
 }
+
+
+TEE_Result ree_fs_check_update_ta_version(const uint8_t uuid[sizeof(TEE_UUID)],
+                                          uint32_t version)
+{
+	return check_update_version(ta_ver_db, uuid, version);
+}
+
 
 /*
  * Load a TA via RPC with UUID defined by input param @uuid. The virtual
