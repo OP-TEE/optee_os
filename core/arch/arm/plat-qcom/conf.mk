@@ -25,6 +25,10 @@ $(call force,CFG_HW_UNIQUE_KEY_LENGTH,32)
 # Make this value configurable per platform.
 CFG_QCOM_GENI_UART_RDY_WAIT_USEC ?= 1000
 
+# PIL PAS authentication metadata slots, defaults to 1.
+# Platform-specific configs may override this value.
+CFG_PAS_MD_SLOTS ?= 1
+
 ta-targets = ta_arm64
 supported-ta-targets ?= ta_arm64
 
