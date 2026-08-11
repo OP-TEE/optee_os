@@ -587,10 +587,10 @@ static TEE_Result cmd_get_ta_shdr_digest(uint32_t param_types,
 	size_t uuid_sz = params[0].memref.size;
 	uint8_t *nonce = params[1].memref.buffer;
 	size_t nonce_sz = params[1].memref.size;
-	uint8_t *out = params[2].memref.buffer;
 	size_t out_sz = params[2].memref.size;
 	size_t min_out_sz = 0;
 	TEE_Result res = TEE_SUCCESS;
+	uint8_t *out = NULL;
 
 	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 					   TEE_PARAM_TYPE_MEMREF_INPUT,
@@ -604,7 +604,7 @@ static TEE_Result cmd_get_ta_shdr_digest(uint32_t param_types,
 	if (!nonce || !nonce_sz)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!out && out_sz)
+	if (!params[2].memref.buffer && out_sz)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = init_key();
@@ -617,10 +617,19 @@ static TEE_Result cmd_get_ta_shdr_digest(uint32_t param_types,
 		return TEE_ERROR_SHORT_BUFFER;
 	out_sz = min_out_sz;
 
+	out = malloc(out_sz);
+	if (!out)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
 	res = hash_binary(uuid, out);
 	if (res)
-		return res;
-	return sign_buffer(out, out_sz, nonce, nonce_sz);
+		goto out;
+	res = sign_buffer(out, out_sz, nonce, nonce_sz);
+out:
+	if (!res)
+		memcpy(params[2].memref.buffer, out, out_sz);
+	free(out);
+	return res;
 }
 
 static TEE_Result cmd_hash_ta_memory(uint32_t param_types,
@@ -628,12 +637,12 @@ static TEE_Result cmd_hash_ta_memory(uint32_t param_types,
 {
 	uint8_t *nonce = params[0].memref.buffer;
 	size_t nonce_sz = params[0].memref.size;
-	uint8_t *out = params[1].memref.buffer;
 	size_t out_sz = params[1].memref.size;
 	struct user_mode_ctx *uctx = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	struct ts_session *s = NULL;
 	size_t min_out_sz = 0;
+	uint8_t *out = NULL;
 
 	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 					   TEE_PARAM_TYPE_MEMREF_OUTPUT,
@@ -644,7 +653,7 @@ static TEE_Result cmd_hash_ta_memory(uint32_t param_types,
 	if (!nonce || !nonce_sz)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!out && out_sz)
+	if (!params[1].memref.buffer && out_sz)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* Check that we're called from a user TA */
@@ -665,13 +674,22 @@ static TEE_Result cmd_hash_ta_memory(uint32_t param_types,
 		return TEE_ERROR_SHORT_BUFFER;
 	out_sz = min_out_sz;
 
+	out = malloc(out_sz);
+	if (!out)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
 	s = ts_pop_current_session();
 	res = hash_regions(&uctx->vm_info, out);
 	ts_push_current_session(s);
 	if (res)
-		return res;
+		goto out;
 
-	return sign_buffer(out, out_sz, nonce, nonce_sz);
+	res = sign_buffer(out, out_sz, nonce, nonce_sz);
+out:
+	if (!res)
+		memcpy(params[1].memref.buffer, out, out_sz);
+	free(out);
+	return res;
 }
 
 static TEE_Result cmd_hash_tee_memory(uint32_t param_types,
@@ -679,10 +697,10 @@ static TEE_Result cmd_hash_tee_memory(uint32_t param_types,
 {
 	uint8_t *nonce = params[0].memref.buffer;
 	size_t nonce_sz = params[0].memref.size;
-	uint8_t *out = params[1].memref.buffer;
 	size_t out_sz = params[1].memref.size;
 	TEE_Result res = TEE_SUCCESS;
 	size_t min_out_sz = 0;
+	uint8_t *out = NULL;
 	void *ctx = NULL;
 
 	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
@@ -694,7 +712,7 @@ static TEE_Result cmd_hash_tee_memory(uint32_t param_types,
 	if (!nonce || !nonce_sz)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!out && out_sz)
+	if (!params[1].memref.buffer && out_sz)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = init_key();
@@ -707,9 +725,13 @@ static TEE_Result cmd_hash_tee_memory(uint32_t param_types,
 		return TEE_ERROR_SHORT_BUFFER;
 	out_sz = min_out_sz;
 
+	out = malloc(out_sz);
+	if (!out)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
 	res = crypto_hash_alloc_ctx(&ctx, TEE_ALG_SHA256);
 	if (res)
-		return res;
+		goto out_free;
 	res = crypto_hash_init(ctx);
 	if (res)
 		goto out;
@@ -757,6 +779,10 @@ static TEE_Result cmd_hash_tee_memory(uint32_t param_types,
 	res = sign_buffer(out, out_sz, nonce, nonce_sz);
 out:
 	crypto_hash_free_ctx(ctx);
+	if (!res)
+		memcpy(params[1].memref.buffer, out, out_sz);
+out_free:
+	free(out);
 	return res;
 }
 
