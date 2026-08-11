@@ -21,6 +21,8 @@ ifeq ($(CFG_QCOM_PAS_PTA),y)
 # fits only one, so reserve 256 MB with headroom.
 CFG_RESERVED_VASPACE_SIZE ?= (256 * 1024 * 1024)
 CFG_IN_TREE_EARLY_TAS += qcom_pas/cff7d191-7ca0-4784-af13-48223b9a4fbe
+CFG_QCOM_PAS_AUTH ?= y
+CFG_PAS_MD_SLOTS = 8
 endif
 
 CFG_QCOM_HWKM ?= y
