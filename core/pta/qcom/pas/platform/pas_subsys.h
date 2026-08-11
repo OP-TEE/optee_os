@@ -77,4 +77,12 @@ struct qcom_pas_subsys {
  */
 struct qcom_pas_subsys *qcom_pas_platform_subsys(size_t *count);
 
+/*
+ * qcom_pas_lookup() : find the subsystem descriptor for @pas_id.
+ *
+ * @pas_id: PAS_ID of the subsystem to find.
+ * Returns the matching descriptor, or NULL if none is registered.
+ */
+struct qcom_pas_subsys *qcom_pas_lookup(uint32_t pas_id);
+
 #endif /* PAS_SUBSYS_H */
