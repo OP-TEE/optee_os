@@ -177,7 +177,7 @@ TEE_Result tee_fs_rpc_write_final(struct tee_fs_rpc_operation *op)
 	return operation_commit(op);
 }
 
-TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, size_t len)
+TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, tee_fs_off_t len)
 {
 	struct tee_fs_rpc_operation op = {
 		.id = id, .num_params = 1, .params = {
@@ -185,6 +185,9 @@ TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, size_t len)
 						 len),
 		}
 	};
+
+	if (len < 0)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	return operation_commit(&op);
 }
