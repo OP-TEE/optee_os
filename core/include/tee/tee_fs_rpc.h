@@ -43,7 +43,7 @@ TEE_Result tee_fs_rpc_write_init(struct tee_fs_rpc_operation *op,
 TEE_Result tee_fs_rpc_write_final(struct tee_fs_rpc_operation *op);
 
 
-TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, size_t len);
+TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, tee_fs_off_t len);
 TEE_Result tee_fs_rpc_remove_dfh(uint32_t id,
 				 const struct tee_fs_dirfile_fileh *dfh);
 #endif /* __TEE_TEE_FS_RPC_H */

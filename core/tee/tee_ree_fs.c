@@ -142,12 +142,13 @@ exit:
 }
 
 static TEE_Result get_offs_size(enum tee_fs_htree_type type, size_t idx,
-				uint8_t vers, size_t *offs, size_t *size)
+				uint8_t vers, tee_fs_off_t *offs, size_t *size)
 {
 	const size_t node_size = sizeof(struct tee_fs_htree_node_image);
 	const size_t block_nodes = BLOCK_SIZE / (node_size * 2);
-	size_t pbn;
-	size_t bidx;
+	const uint64_t idx64 = idx;
+	uint64_t pbn = 0;
+	uint64_t bidx = 0;
 
 	assert(vers == 0 || vers == 1);
 
@@ -207,14 +208,14 @@ static TEE_Result get_offs_size(enum tee_fs_htree_type type, size_t idx,
 		*size = sizeof(struct tee_fs_htree_image);
 		return TEE_SUCCESS;
 	case TEE_FS_HTREE_TYPE_NODE:
-		pbn = 1 + ((idx / block_nodes) * block_nodes * 2);
+		pbn = 1 + (idx64 / block_nodes) * block_nodes * 2;
 		*offs = pbn * BLOCK_SIZE +
-			2 * node_size * (idx % block_nodes) +
+			2 * node_size * (idx64 % block_nodes) +
 			node_size * vers;
 		*size = node_size;
 		return TEE_SUCCESS;
 	case TEE_FS_HTREE_TYPE_BLOCK:
-		bidx = 2 * idx + vers;
+		bidx = 2 * idx64 + vers;
 		pbn = 2 + bidx + bidx / (block_nodes * 2 - 1);
 		*offs = pbn * BLOCK_SIZE;
 		*size = BLOCK_SIZE;
@@ -231,7 +232,7 @@ static TEE_Result ree_fs_rpc_read_init(void *aux,
 {
 	struct tee_fs_fd *fdp = aux;
 	TEE_Result res;
-	size_t offs;
+	tee_fs_off_t offs = 0;
 	size_t size;
 
 	res = get_offs_size(type, idx, vers, &offs, &size);
@@ -249,7 +250,7 @@ static TEE_Result ree_fs_rpc_write_init(void *aux,
 {
 	struct tee_fs_fd *fdp = aux;
 	TEE_Result res;
-	size_t offs;
+	tee_fs_off_t offs = 0;
 	size_t size;
 
 	res = get_offs_size(type, idx, vers, &offs, &size);
@@ -287,7 +288,7 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 		if (res != TEE_SUCCESS)
 			return res;
 	} else {
-		size_t offs;
+		tee_fs_off_t offs = 0;
 		size_t sz;
 
 		res = get_offs_size(TEE_FS_HTREE_TYPE_BLOCK,
@@ -302,7 +303,7 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 			return res;
 
 		res = tee_fs_rpc_truncate(OPTEE_RPC_CMD_FS, fdp->fd,
-					  offs + sz);
+					  offs + (tee_fs_off_t)sz);
 		if (res != TEE_SUCCESS)
 			return res;
 
