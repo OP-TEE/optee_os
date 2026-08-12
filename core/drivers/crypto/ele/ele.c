@@ -42,6 +42,10 @@
 
 #define ELE_MU_IRQ 0x0
 
+#define ELE_RNG_FLAGS_NO_RESEED 0x0000
+#define ELE_RNG_FLAGS_BLOCK_RESEED 0x0001
+#define ELE_RNG_FLAGS_NON_BLOCK_RESEED 0x0002
+
 #define CACHELINE_SIZE 64
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, MU_BASE, MU_SIZE);
@@ -493,13 +497,15 @@ static TEE_Result imx_ele_rng_get_trng_state(void)
  * @buffer: data output
  * @size: RNG data size
  */
-static TEE_Result imx_ele_rng_get_random(uint8_t *buffer, size_t size)
+static TEE_Result imx_ele_rng_get_random(uint8_t *buffer, size_t size,
+					 uint16_t flags)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct imx_ele_buf rng = { };
 	struct rng_get_random_cmd {
-		uint32_t addr_msb;
-		uint32_t addr_lsb;
+		uint16_t rsvd;
+		uint16_t flags;
+		uint32_t addr;
 		uint32_t size;
 	} cmd = { };
 	struct imx_mu_msg msg = {
@@ -512,20 +518,21 @@ static TEE_Result imx_ele_rng_get_random(uint8_t *buffer, size_t size)
 	if (!buffer || !size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	cmd.flags = flags;
+
 	if (cpu_mmu_enabled()) {
 		res = imx_ele_buf_alloc(&rng, NULL, size);
 		if (res != TEE_SUCCESS)
 			return res;
 
-		cmd.addr_msb = rng.paddr_msb;
-		cmd.addr_lsb = rng.paddr_lsb;
+		cmd.addr = rng.paddr;
 	} else {
 		paddr_t pa = (paddr_t)buffer;
 
 		if (!IS_ALIGNED_WITH_TYPE(pa, uint32_t))
 			return TEE_ERROR_BAD_PARAMETERS;
 
-		reg_pair_from_64((uint64_t)pa, &cmd.addr_msb, &cmd.addr_lsb);
+		cmd.addr = pa;
 	}
 
 	cmd.size = (uint32_t)size;
@@ -558,7 +565,8 @@ unsigned long plat_get_aslr_seed(void)
 		if (timeout_elapsed(timeout))
 			panic("ELE RNG is busy");
 
-	if (imx_ele_rng_get_random((uint8_t *)&aslr, sizeof(aslr)))
+	if (imx_ele_rng_get_random((uint8_t *)&aslr, sizeof(aslr),
+				   ELE_RNG_FLAGS_BLOCK_RESEED))
 		panic("Cannot retrieve random data from ELE");
 
 	return aslr;
@@ -567,7 +575,8 @@ unsigned long plat_get_aslr_seed(void)
 #ifndef CFG_WITH_SOFTWARE_PRNG
 TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
-	return imx_ele_rng_get_random((uint8_t *)buf, len);
+	return imx_ele_rng_get_random((uint8_t *)buf, len,
+				      ELE_RNG_FLAGS_NO_RESEED);
 }
 #endif /* CFG_WITH_SOFTWARE_PRNG */
 #endif /* CFG_MX93 || CFG_MX91 */
