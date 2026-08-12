@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023, 2025 NXP
  */
+#include <crypto/crypto.h>
 #include <drivers/imx_mu.h>
 #include <ele.h>
 #include <initcall.h>
@@ -16,6 +17,7 @@
 #include <stdint.h>
 #include <string_ext.h>
 #include <tee/cache.h>
+#include <tee/tee_cryp_utl.h>
 #include <tee_api_defines.h>
 #include <trace.h>
 #include <types_ext.h>
@@ -577,6 +579,32 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
 	return imx_ele_rng_get_random((uint8_t *)buf, len,
 				      ELE_RNG_FLAGS_NO_RESEED);
+}
+#else /* CFG_WITH_SOFTWARE_PRNG */
+/*
+ * Seed the software PRNG from the ELE true random number generator. This
+ * overrides the weak default plat_init_soft_prng() so that the software PRNG
+ * is seeded with hardware entropy on ELE based platforms. Without this,
+ * linking with CFG_WITH_SOFTWARE_PRNG=y (and CFG_INSECURE=n) fails because no
+ * platform provides plat_init_soft_prng().
+ */
+void plat_init_soft_prng(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint8_t seed[64] = { };
+
+	res = imx_ele_rng_get_random(seed, sizeof(seed),
+				     ELE_RNG_FLAGS_NO_RESEED);
+	if (res) {
+		EMSG("Failed to read ELE RNG: %#" PRIx32, res);
+		panic();
+	}
+
+	res = crypto_rng_init(seed, sizeof(seed));
+	if (res) {
+		EMSG("Failed to initialize RNG: %#" PRIx32, res);
+		panic();
+	}
 }
 #endif /* CFG_WITH_SOFTWARE_PRNG */
 #endif /* CFG_MX93 || CFG_MX91 */
