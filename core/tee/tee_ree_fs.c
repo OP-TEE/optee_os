@@ -44,7 +44,7 @@ struct tee_fs_dir {
 	const TEE_UUID *uuid;
 };
 
-static int pos_to_block_num(int position)
+static size_t pos_to_block_num(size_t position)
 {
 	return position >> BLOCK_SHIFT;
 }
@@ -318,8 +318,8 @@ static TEE_Result ree_fs_read_primitive(struct tee_file_handle *fh, size_t pos,
 					size_t *len)
 {
 	TEE_Result res;
-	int start_block_num;
-	int end_block_num;
+	size_t start_block_num = 0;
+	size_t end_block_num = 0;
 	size_t remain_bytes;
 	uint8_t *data_core_ptr = buf_core;
 	uint8_t *data_user_ptr = buf_user;
