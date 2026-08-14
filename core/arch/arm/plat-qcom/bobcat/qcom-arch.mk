@@ -2,3 +2,9 @@
 # Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 
 CFG_QCOM_SEC_WDOG ?= y
+
+# XPU protection for TZDRAM and the OP-TEE DIAG log buffer
+CFG_QCOM_XPU_PROTECT ?= y
+ifeq ($(CFG_QCOM_XPU_PROTECT),y)
+$(call force,CFG_QCOM_XPUV4,y)
+endif
