@@ -36,6 +36,7 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <crypto/crypto.h>
 #include <fault_mitigation.h>
 #include <initcall.h>
@@ -83,6 +84,20 @@ static const char ta_ver_db[] = "ta_ver.db";
 static const char subkey_ver_db[] = "subkey_ver.db";
 static struct mutex ver_db_mutex = MUTEX_INITIALIZER;
 
+/*
+ * The version floor these databases hold is only meaningful while it
+ * cannot be lowered.
+ * CFG_TA_VERSION_DB_RPMB keeps them in RPMB, out of reach of a normal world
+ * which can otherwise delete the REE FS and drop the floor to zero.
+ */
+static uint32_t ver_db_storage_id(void)
+{
+	if (IS_ENABLED(CFG_TA_VERSION_DB_RPMB))
+		return TEE_STORAGE_PRIVATE_RPMB;
+
+	return TEE_STORAGE_PRIVATE;
+}
+
 static TEE_Result check_update_version(const char *db_name,
 				       const uint8_t uuid[sizeof(TEE_UUID)],
 				       uint32_t version)
@@ -100,7 +115,7 @@ static TEE_Result check_update_version(const char *db_name,
 		.obj_id_len = strlen(db_name) + 1,
 	};
 
-	ops = tee_svc_storage_file_ops(TEE_STORAGE_PRIVATE);
+	ops = tee_svc_storage_file_ops(ver_db_storage_id());
 	if (!ops)
 		return TEE_SUCCESS; /* Compiled with no secure storage */
 
