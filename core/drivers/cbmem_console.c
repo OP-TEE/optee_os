@@ -148,6 +148,7 @@ bool cbmem_console_init_from_dt(void *fdt)
 	int offset = 0;
 	paddr_t cb_addr = 0;
 	size_t cb_size = 0;
+	size_t console_size = 0;
 	paddr_t cbmem_console_base = 0;
 
 	if (!fdt)
@@ -177,6 +178,24 @@ bool cbmem_console_init_from_dt(void *fdt)
 	 * it later.
 	 */
 	cbmem_console.size = cbmem_console.console->size;
+
+	/*
+	 * The above memory mapping only maps the header part,
+	 * we'll need to remap the console buffer with actual size.
+	 */
+	core_mmu_remove_mapping(MEM_AREA_RAM_NSEC, cbmem_console.console,
+				sizeof(struct cbmem_console));
+	if (ADD_OVERFLOW(sizeof(struct cbmem_console), cbmem_console.size,
+			 &console_size)) {
+		cbmem_console.console = NULL;
+		return false;
+	}
+	cbmem_console.console = core_mmu_add_mapping(MEM_AREA_RAM_NSEC,
+						     cbmem_console_base,
+						     console_size);
+	if (!cbmem_console.console)
+		return false;
+
 	cbmem_console.chip.ops = &cbmem_console_ops;
 
 	register_serial_console(&cbmem_console.chip);
