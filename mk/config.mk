@@ -389,13 +389,19 @@ CFG_REE_FS_TA ?= y
 CFG_REE_FS_TA_BUFFERED ?= n
 $(eval $(call cfg-depends-all,CFG_REE_FS_TA_BUFFERED,CFG_REE_FS_TA))
 
+# Keep ta_ver.db and subkey_ver.db, holding the TA and subkey anti-rollback
+# version floor, in RPMB rather than in the REE FS where the normal world
+# can delete them and drop the floor to zero.
+CFG_TA_VERSION_DB_RPMB ?= n
+$(eval $(call cfg-depends-all,CFG_TA_VERSION_DB_RPMB,CFG_RPMB_FS))
+
 # When CFG_REE_FS=y:
 # Allow secure storage in the REE FS to be entirely deleted without causing
 # anti-rollback errors. That is, rm /data/tee/dirf.db or rm -rf /data/tee (or
 # whatever path is configured in tee-supplicant as CFG_TEE_FS_PARENT_PATH)
 # can be used to reset the secure storage to a clean, empty state.
 # Warning: the TA and subkey version floor kept in the REE FS is lost on
-# such a reset.
+# such a reset, unless CFG_TA_VERSION_DB_RPMB is enabled.
 CFG_REE_FS_ALLOW_RESET ?= n
 
 # Support for loading user TAs from a special section in the TEE binary.
