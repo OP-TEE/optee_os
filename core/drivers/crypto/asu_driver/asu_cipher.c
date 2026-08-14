@@ -538,31 +538,38 @@ static uint64_t asu_cipher_ctr_blocks_until_overflow(uint64_t *ctr)
  * @dma_src:	DMA-aligned source buffer (already filled by caller)
  * @dma_dst:	DMA-aligned destination buffer
  * @dst:	Output buffer to copy result into
- * @len:	Byte length to process (must be <= ASU_CIPHER_DATA_CHUNK_LEN)
+ * @dma_len:	Byte length to process on hardware; always a multiple of
+ *		ASU_CIPHER_BLOCK_SIZE
+ * @dstlen:	Bytes to copy into @dst; may be less than @dma_len for a
+ *		sub-block tail to avoid overflowing the caller's output buffer
  *
  * Return: TEE_SUCCESS or error code.
  */
 static TEE_Result asu_cipher_ctr_send_chunk(struct asu_cipher_ctx *ctx,
 					    struct asu_cipher_op_cmd *op,
 					    uint8_t *dma_src, uint8_t *dma_dst,
-					    uint8_t *dst, uint32_t len)
+					    uint8_t *dst, uint32_t dma_len,
+					    uint32_t dstlen)
 {
 	TEE_Result ret = TEE_SUCCESS;
 
-	op->datalen = len;
+	op->datalen = dma_len;
 	cache_operation(TEE_CACHEFLUSH, ctx->iv, ASU_CIPHER_BLOCK_SIZE);
-	cache_operation(TEE_CACHEFLUSH, dma_src, len);
-	cache_operation(TEE_CACHEFLUSH, dma_dst, len);
+	cache_operation(TEE_CACHEFLUSH, dma_src, dma_len);
+	cache_operation(TEE_CACHEFLUSH, dma_dst, dma_len);
 	op->inputdataaddr = virt_to_phys(dma_src);
 	op->outputdataaddr = virt_to_phys(dma_dst);
 	ctx->cparam.priority = ASU_PRIORITY_HIGH;
+
 	ret = asu_cipher_send(ctx, op);
 	if (ret) {
 		EMSG("CTR: FW send failed");
 		return ret;
 	}
-	cache_operation(TEE_CACHEINVALIDATE, dma_dst, len);
-	memcpy(dst, dma_dst, len);
+
+	cache_operation(TEE_CACHEINVALIDATE, dma_dst, dma_len);
+	memcpy(dst, dma_dst, dstlen);
+
 	return TEE_SUCCESS;
 }
 
@@ -659,6 +666,7 @@ static TEE_Result asu_cipher_ctr_update(struct asu_cipher_ctx *ctx,
 			memcpy(dma_src, src, process_len);
 			ret = asu_cipher_ctr_send_chunk(ctx, &op, dma_src,
 							dma_dst, dst,
+							process_len,
 							process_len);
 			if (ret)
 				goto out;
@@ -678,7 +686,8 @@ static TEE_Result asu_cipher_ctr_update(struct asu_cipher_ctx *ctx,
 		memzero_explicit(dma_src, ASU_CIPHER_BLOCK_SIZE);
 		memcpy(dma_src, src, remaining_len);
 		ret = asu_cipher_ctr_send_chunk(ctx, &op, dma_src, dma_dst,
-						dst, ASU_CIPHER_BLOCK_SIZE);
+						dst, ASU_CIPHER_BLOCK_SIZE,
+						remaining_len);
 		if (ret)
 			goto out;
 		/* Save keystream bytes not yet consumed for next call */
