@@ -472,7 +472,7 @@ out:
 		*fh = (struct tee_file_handle *)fdp;
 	} else {
 		if (res == TEE_ERROR_SECURITY)
-			DMSG("Secure storage corruption detected");
+			EMSG("Secure storage corruption detected");
 		if (fdp->fd != -1)
 			tee_fs_rpc_close(OPTEE_RPC_CMD_FS, fdp->fd);
 		/*
@@ -570,27 +570,50 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 	if (res)
 		return res;
 
-	res = tee_fs_dirfile_open(false, hashp, 0, &ree_dirf_ops, dirh);
+	if (hashp) {
+		res = tee_fs_dirfile_open(false, hashp, 0, &ree_dirf_ops, dirh);
+		if (res != TEE_ERROR_ITEM_NOT_FOUND)
+			goto out;
 
-	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		if (hashp) {
-			if (IS_ENABLED(CFG_REE_FS_ALLOW_RESET)) {
-				DMSG("dirf.db not found, clear hash in RPMB");
-				res = rpmb_fs_ops.truncate(ree_fs_rpmb_fh, 0);
-				if (res) {
-					DMSG("Can't clear hash: %#"PRIx32, res);
-					res = TEE_ERROR_SECURITY;
-					goto out;
-				}
-			} else {
-				DMSG("dirf.db file not found");
-				res = TEE_ERROR_SECURITY;
-				goto out;
-			}
+		if (!IS_ENABLED(CFG_REE_FS_ALLOW_RESET)) {
+			EMSG("dirf.db file not found");
+			res = TEE_ERROR_SECURITY;
+			goto out;
 		}
 
-		DMSG("Create dirf.db");
-		res = tee_fs_dirfile_open(true, NULL, 0, &ree_dirf_ops, dirh);
+		/*
+		 * Drop the anchor before creating the new dirf.db.
+		 * An interruption from here on leaves the anchor empty, which
+		 * is handled as uninitialized below and comes back to this
+		 * path on the next boot.
+		 */
+		IMSG("dirf.db not found, resetting secure storage");
+		res = rpmb_fs_ops.truncate(ree_fs_rpmb_fh, 0);
+		if (res) {
+			EMSG("Can't clear hash: %#"PRIx32, res);
+			res = TEE_ERROR_SECURITY;
+			goto out;
+		}
+	}
+
+	/*
+	 * Without an anchor no dirf.db can be authenticated, so secure
+	 * storage is uninitialized.
+	 * Create an empty dirf.db, overwriting anything left behind, and
+	 * anchor it before use so that this is the only state which can
+	 * be opened later.
+	 */
+	IMSG("Create dirf.db");
+	res = tee_fs_dirfile_open(true, hash, 0, &ree_dirf_ops, dirh);
+	if (res)
+		goto out;
+
+	res = rpmb_fs_ops.write(ree_fs_rpmb_fh, 0, hash, NULL, sizeof(hash));
+	if (res) {
+		EMSG("Can't anchor dirf.db: %#"PRIx32, res);
+		tee_fs_dirfile_close(*dirh);
+		*dirh = NULL;
+		res = TEE_ERROR_SECURITY;
 	}
 
 out:
@@ -643,7 +666,7 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
 		if (min_counter) {
 			if (!IS_ENABLED(CFG_REE_FS_ALLOW_RESET)) {
-				DMSG("dirf.db file not found");
+				EMSG("dirf.db file not found");
 				return TEE_ERROR_SECURITY;
 			}
 			DMSG("dirf.db not found, initializing with a non-zero monotonic counter");
