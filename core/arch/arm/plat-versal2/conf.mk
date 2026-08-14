@@ -59,6 +59,11 @@ CFG_TZDRAM_SIZE    ?= 0x8000000
 # device tree with additional nodes.
 CFG_DTB_MAX_SIZE ?= 0x200000
 
+# Reserved VA space for late/dynamic mappings (transfer list, ASU, etc.)
+# Default ARM value (10MB) is not enough once the transfer list (6MB) is
+# held mapped for most of boot alongside other dynamic IO_SEC mappings.
+CFG_RESERVED_VASPACE_SIZE ?= (24 * 1024 * 1024)
+
 # Console selection
 # 0 : UART0[pl011, pl011_0] (default)
 # 1 : UART1[pl011_1]

@@ -60,4 +60,12 @@
 #define CONSOLE_BAUDRATE	UART_BAUDRATE
 #endif
 
+/*
+ * Scale MAX_XLAT_TABLES with CFG_RESERVED_VASPACE_SIZE, else its fixed
+ * default can exhaust the xlat table pool even with VA-space bytes
+ * free. 12 = 9 (this platform's default MAX_XLAT_TABLES) + 3 (margin).
+ */
+#define MAX_XLAT_TABLES		(12 + (CFG_RESERVED_VASPACE_SIZE) / \
+				 (CORE_MMU_PGDIR_SIZE))
+
 #endif /* PLATFORM_CONFIG_H */
