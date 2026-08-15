@@ -5,6 +5,7 @@
 
 #include <auth/pas_auth.h>
 #include <auth/pas_meta.h>
+#include <auth/pas_fuse.h>
 #include <pta_qcom_pas.h>
 #include <ta_qcom_pas.h>
 #include <tee_internal_api.h>
@@ -29,7 +30,7 @@ static TEE_Result qcom_pas_init_image(struct qcom_pas_session *s, uint32_t pt,
 	if (res)
 		return res;
 
-	return pas_auth_prepare(s, params[0].value.a);
+	return pas_auth_prepare_and_authenticate(s, params[0].value.a);
 }
 
 static TEE_Result qcom_pas_auth_and_reset(struct qcom_pas_session *s,
@@ -121,6 +122,13 @@ TEE_Result TA_OpenSessionEntryPoint(uint32_t pt,
 			TEE_Free(s);
 			goto out;
 		}
+
+		res = pas_fuse_open();
+		if (res) {
+			TEE_CloseTASession(pta_session);
+			TEE_Free(s);
+			goto out;
+		}
 	}
 
 	session_refcount++;
@@ -147,8 +155,10 @@ void TA_CloseSessionEntryPoint(void *sess_ctx)
 
 	session_refcount--;
 
-	if (!session_refcount)
+	if (!session_refcount) {
+		pas_fuse_close();
 		TEE_CloseTASession(pta_session);
+	}
 }
 
 TEE_Result TA_InvokeCommandEntryPoint(void *sess_ctx, uint32_t cmd_id,

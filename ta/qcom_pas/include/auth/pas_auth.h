@@ -19,7 +19,8 @@ struct qcom_pas_session {
 TEE_Result pas_auth_save_metadata(struct qcom_pas_session *s, uint32_t pt,
 				  TEE_Param params[TEE_NUM_PARAMS]);
 
-TEE_Result pas_auth_prepare(struct qcom_pas_session *s, uint32_t pas_id);
+TEE_Result pas_auth_prepare_and_authenticate(struct qcom_pas_session *s,
+					     uint32_t pas_id);
 
 TEE_Result pas_auth_verify(struct qcom_pas_session *s,
 			   TEE_TASessionHandle pta_session,
@@ -38,8 +39,8 @@ pas_auth_save_metadata(struct qcom_pas_session *s __unused,
 }
 
 static inline TEE_Result
-pas_auth_prepare(struct qcom_pas_session *s __unused,
-		 uint32_t pas_id __unused)
+pas_auth_prepare_and_authenticate(struct qcom_pas_session *s __unused,
+				  uint32_t pas_id __unused)
 {
 	return TEE_SUCCESS;
 }
