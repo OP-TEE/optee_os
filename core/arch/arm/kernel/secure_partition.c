@@ -1806,11 +1806,14 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	uint32_t rpc_target_info = 0;
 	uint32_t panicked = false;
 	uint32_t panic_code = 0;
+	uint32_t cntkctl = 0;
 
 	sp_regs = &ctx->sp_regs;
 	ts_push_current_session(s);
 
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+	cntkctl = read_cntkctl();
+	write_cntkctl(cntkctl | CNTKCTL_PL0PCTEN);
 
 	/* Enable/disable foreign interrupts in CPSR/SPSR */
 	caller = ts_get_calling_session();
@@ -1826,6 +1829,7 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 		ffa_target_info_set(sp_s->endpoint_id, sp_s->thread_id);
 
 	__thread_enter_user_mode(sp_regs, &panicked, &panic_code);
+	write_cntkctl(cntkctl);
 
 	sp_s->thread_id = THREAD_ID_INVALID;
 
