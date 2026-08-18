@@ -36,4 +36,9 @@ $(call force,CFG_CRYPTO_DRV_AUTHENC,y)
 $(call force,CFG_AMD_ASU_SW_FALLBACK,y)
 endif
 
+ifeq ($(CFG_AMD_ASU_CMAC), y)
+$(call force,CFG_CRYPTO_DRV_MAC,y)
+$(call force,CFG_AMD_ASU_CMAC_SW_FALLBACK,y)
+endif
+
 endif

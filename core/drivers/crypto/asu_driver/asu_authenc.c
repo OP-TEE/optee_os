@@ -5,9 +5,12 @@
  */
 
 #include <assert.h>
+#include <crypto/crypto.h>
+#include <crypto/crypto_impl.h>
 #include <drivers/amd/asu_client.h>
 #include <drvcrypt.h>
 #include <drvcrypt_authenc.h>
+#include <drvcrypt_mac.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/mutex.h>
@@ -21,6 +24,7 @@
 #include <string_ext.h>
 #include <stdlib_ext.h>
 #include <tee/cache.h>
+#include <tee_api_defines.h>
 #include <trace.h>
 #include <util.h>
 
@@ -102,11 +106,12 @@ struct asu_aes_key_object {
 	uint32_t key_id;
 };
 
-/* Global device state serialises HW IPI sends */
+/*
+ * Shared AES engine device — serialises access from both the authenc
+ * (GCM/CCM) and CMAC.
+ */
 struct asu_authenc_dev {
-	/* Serializes ASUFW IPI accesses across authenc sessions */
 	struct mutex engine_lock;
-	/* True when no authenc context is currently using the AES engine */
 	bool aes_available;
 };
 
@@ -133,6 +138,34 @@ struct asu_authenc_ctx {
 	uint8_t operation_type;
 	uint8_t uniqueid;
 };
+
+#if defined(CFG_AMD_ASU_CMAC)
+
+/* CMAC operation modes */
+#define ASU_CMAC_MODE			0x8U
+
+/* CMAC AES block size in bytes */
+#define ASU_CMAC_TAG_SIZE		ASU_AES_BLOCK_SIZE
+#define ASU_CMAC_PENDING_SIZE		ASU_AES_BLOCK_SIZE
+
+/* CMAC private context */
+struct asu_cmac_ctx {
+	struct crypto_mac_ctx mac_ctx;
+	struct crypto_mac_ctx *sw_ctx;
+	struct asu_client_params cparam;
+	struct asu_aes_key_object key_obj;
+	uint32_t algo;
+	uint32_t keysize;
+	uint32_t hw_keysize;
+	uint32_t pending_len;
+	uint8_t uniqueid;
+	bool cmac_started;
+	bool use_sw_fallback;
+	uint8_t pending[ASU_CMAC_PENDING_SIZE];
+	uint8_t key[ASU_AES_KEY_SIZE_256_BYTES];
+};
+
+#endif /* CFG_AMD_ASU_CMAC */
 
 static struct asu_authenc_dev *asu_ae_dev;
 
@@ -1028,9 +1061,495 @@ static struct drvcrypt_authenc asu_authenc_ops = {
 	.copy_state = NULL,
 };
 
-static TEE_Result asu_authenc_driver_init(void)
+#if defined(CFG_AMD_ASU_CMAC)
+
+/*
+ * to_cmac_ctx() - Convert generic crypto_mac_ctx to asu_cmac_ctx
+ * @ctx:	Crypto MAC context to convert
+ *
+ * Return: Pointer to asu_cmac_ctx if ctx is valid, otherwise assert failure
+ */
+static struct asu_cmac_ctx *to_cmac_ctx(struct crypto_mac_ctx *ctx)
+{
+	assert(ctx && ctx->ops);
+	return container_of(ctx, struct asu_cmac_ctx, mac_ctx);
+}
+
+/*
+ * Software fallback functions for 192-bit key support.
+ */
+
+static void asu_cmac_sw_free_ctx(struct crypto_mac_ctx *ctx)
+{
+	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
+
+	if (cmac_ctx->sw_ctx) {
+		cmac_ctx->sw_ctx->ops->free_ctx(cmac_ctx->sw_ctx);
+		cmac_ctx->sw_ctx = NULL;
+	}
+}
+
+static TEE_Result asu_cmac_sw_final(struct crypto_mac_ctx *ctx,
+				    uint8_t *digest, size_t len)
+{
+	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
+
+	return cmac_ctx->sw_ctx->ops->final(cmac_ctx->sw_ctx, digest, len);
+}
+
+static TEE_Result asu_cmac_sw_update(struct crypto_mac_ctx *ctx,
+				     const uint8_t *data, size_t len)
+{
+	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
+
+	return cmac_ctx->sw_ctx->ops->update(cmac_ctx->sw_ctx, data, len);
+}
+
+static TEE_Result asu_cmac_sw_init(struct crypto_mac_ctx *ctx,
+				   const uint8_t *key, size_t len)
+{
+	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
+
+	return cmac_ctx->sw_ctx->ops->init(cmac_ctx->sw_ctx, key, len);
+}
+
+/*
+ * asu_cmac_sw_compute_empty() - Compute CMAC for empty message in software
+ * @ctx:	Crypto MAC context
+ * @digest:	Output buffer for computed CMAC tag
+ * @len:	Length of the output buffer
+ *
+ * Return: TEE_SUCCESS or error from software CMAC
+ */
+static TEE_Result asu_cmac_sw_compute_empty(struct crypto_mac_ctx *ctx,
+					    uint8_t *digest, size_t len)
+{
+	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
+	TEE_Result ret = TEE_SUCCESS;
+	bool local_sw_ctx = false;
+
+	if (!IS_ENABLED(CFG_AMD_ASU_CMAC_SW_FALLBACK) ||
+	    !cmac_ctx->sw_ctx) {
+		ret = crypto_aes_cmac_alloc_ctx(&cmac_ctx->sw_ctx);
+		if (ret) {
+			EMSG("SW fallback alloc failed ret=%#" PRIx32, ret);
+			return ret;
+		}
+		local_sw_ctx = true;
+	}
+
+	ret = asu_cmac_sw_init(ctx, cmac_ctx->key, cmac_ctx->keysize);
+	if (ret)
+		goto out;
+
+	/* No update needed for empty message, go directly to final */
+	ret = asu_cmac_sw_final(ctx, digest, len);
+
+out:
+	if (local_sw_ctx)
+		asu_cmac_sw_free_ctx(ctx);
+
+	return ret;
+}
+
+/*
+ * asu_cmac_send() - Send CMAC operation command to ASU firmware
+ * @cmac_ctx:	ASU CMAC context
+ * @op:		CMAC operation command structure with parameters
+ * create request header, send and wait for result from engine.
+ *
+ * Return: TEE_SUCCESS or TEE_ERROR_GENERIC
+ */
+static TEE_Result asu_cmac_send(struct asu_cmac_ctx *cmac_ctx,
+				struct asu_aes_params *op)
 {
 	TEE_Result ret = TEE_SUCCESS;
+	uint32_t header = 0;
+	uint32_t status = 0;
+
+	header = asu_create_header(ASU_AES_OPERATION_CMD_ID,
+				   cmac_ctx->uniqueid,
+				   ASU_MODULE_AES_ID,
+				   sizeof(*op) / sizeof(uint32_t));
+
+	ret = asu_update_queue_buffer_n_send_ipi(&cmac_ctx->cparam, op,
+						 sizeof(*op), header,
+						 &status);
+
+	if (!ret && status) {
+		EMSG("FW error status=%#" PRIx32, status);
+		ret = TEE_ERROR_GENERIC;
+	}
+
+	return ret;
+}
+
+/*
+ * asu_cmac_free_ctx() - Free ASU CMAC context and release the engine.
+ * @ctx:	Crypto MAC context to free
+ *
+ * Return: None
+ */
+static void asu_cmac_free_ctx(struct crypto_mac_ctx *ctx)
+{
+	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
+
+	if (cmac_ctx) {
+		if (IS_ENABLED(CFG_AMD_ASU_CMAC_SW_FALLBACK))
+			asu_cmac_sw_free_ctx(ctx);
+
+		asu_free_unique_id(cmac_ctx->uniqueid);
+
+		memzero_explicit(cmac_ctx->key, ASU_AES_KEY_SIZE_256_BYTES);
+		memzero_explicit(cmac_ctx->pending, ASU_CMAC_PENDING_SIZE);
+
+		mutex_lock(&asu_ae_dev->engine_lock);
+		assert(!asu_ae_dev->aes_available);
+		asu_ae_dev->aes_available = true;
+		mutex_unlock(&asu_ae_dev->engine_lock);
+		free(cmac_ctx);
+	}
+}
+
+/*
+ * asu_cmac_final() - Finalize the CMAC operation and compute the tag
+ * @ctx:	Crypto MAC context
+ * @digest:	Output buffer for computed CMAC tag
+ * @len:	Length of the output buffer
+ *
+ * Return: TEE_SUCCESS, TEE_ERROR_BAD_PARAMETERS or TEE_ERROR_GENERIC
+ */
+static TEE_Result asu_cmac_final(struct crypto_mac_ctx *ctx,
+				 uint8_t *digest, size_t len)
+{
+	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
+	size_t cacheline_len = dcache_get_line_size();
+	struct asu_aes_params op = { };
+	struct asu_aes_key_object *kobj = NULL;
+	uint8_t *dma_data = NULL;
+	uint8_t *tag_dma = NULL;
+	TEE_Result ret = TEE_SUCCESS;
+
+	if (!digest)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* Software fallback for 192-bit key */
+	if (cmac_ctx->use_sw_fallback)
+		return asu_cmac_sw_final(ctx, digest, len);
+
+	kobj = &cmac_ctx->key_obj;
+
+	/* For empty message fallback to software */
+	if (cmac_ctx->pending_len == 0 && !cmac_ctx->cmac_started)
+		return asu_cmac_sw_compute_empty(ctx, digest, len);
+
+	/* DMA-safe bounce buffers for data and tag */
+	dma_data = memalign(cacheline_len, cacheline_len * 2);
+	if (!dma_data) {
+		EMSG("Failed to allocate CMAC DMA buffer");
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+	tag_dma = dma_data + cacheline_len;
+
+	memcpy(dma_data, cmac_ctx->pending, cmac_ctx->pending_len);
+
+	cache_operation(TEE_CACHEFLUSH, dma_data, cmac_ctx->pending_len);
+	cache_operation(TEE_CACHEFLUSH, tag_dma, ASU_CMAC_TAG_SIZE);
+
+	memset(&op, 0, sizeof(op));
+	op.aad_addr = virt_to_phys(dma_data);
+	op.aad_len = cmac_ctx->pending_len;
+	op.tag_addr = virt_to_phys(tag_dma);
+	op.tag_len = ASU_CMAC_TAG_SIZE;
+	op.mode = ASU_CMAC_MODE;
+	op.is_last = 1;
+
+	if (!cmac_ctx->cmac_started) {
+		op.key_object_addr = virt_to_phys(kobj);
+		op.operation_flags |= ASU_AES_INIT;
+	}
+	op.operation_flags |= ASU_AES_UPDATE | ASU_AES_FINAL;
+
+	cache_operation(TEE_CACHEFLUSH, &op, sizeof(op));
+
+	ret = asu_cmac_send(cmac_ctx, &op);
+	if (ret) {
+		EMSG("Final FW send failed ret=%#" PRIx32, ret);
+		goto out;
+	}
+
+	cache_operation(TEE_CACHEINVALIDATE, tag_dma, ASU_CMAC_TAG_SIZE);
+	memcpy(digest, tag_dma, len);
+
+out:
+	free(dma_data);
+	return ret;
+}
+
+/*
+ * asu_cmac_update() - Update the CMAC operation with input data
+ * @ctx:	Crypto MAC context
+ * @data:	Input data buffer
+ * @len:	Length of the input data
+ *
+ * Return: TEE_SUCCESS, TEE_ERROR_BAD_PARAMETERS or TEE_ERROR_GENERIC
+ */
+static TEE_Result asu_cmac_update(struct crypto_mac_ctx *ctx,
+				  const uint8_t *data, size_t len)
+{
+	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
+	struct asu_aes_params op = { };
+	struct asu_aes_key_object *kobj = NULL;
+	size_t cacheline_len = dcache_get_line_size();
+	size_t full_size = 0;
+	size_t size_topost = 0;
+	size_t size_todo = 0;
+	size_t src_offset = 0;
+	size_t chunk_size = 0;
+	uint8_t *dma_data = NULL;
+	TEE_Result ret = TEE_SUCCESS;
+
+	/* Software fallback for 192-bit key */
+	if (cmac_ctx->use_sw_fallback)
+		return asu_cmac_sw_update(ctx, data, len);
+
+	/* Zero-length update: nothing to do */
+	if (!len)
+		return TEE_SUCCESS;
+	else if (!data)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	kobj = &cmac_ctx->key_obj;
+	full_size = cmac_ctx->pending_len + len;
+
+	/* Buffer less than or equal to 1 block of data */
+	if (full_size <= ASU_AES_BLOCK_SIZE) {
+		memcpy(cmac_ctx->pending + cmac_ctx->pending_len, data, len);
+		cmac_ctx->pending_len = full_size;
+		return TEE_SUCCESS;
+	}
+
+	dma_data = memalign(cacheline_len, ASU_AUTHENC_DATA_CHUNK_LEN);
+	if (!dma_data) {
+		EMSG("Failed to allocate CMAC DMA buffer");
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
+	/*
+	 * Engine cannot handle final request with empty data. Keep
+	 * 1 block of data for final call.
+	 */
+	size_topost = full_size % ASU_AES_BLOCK_SIZE;
+	if (size_topost == 0)
+		size_topost = ASU_AES_BLOCK_SIZE;
+
+	size_todo = full_size - size_topost;
+
+	while (size_todo > 0) {
+		chunk_size = ROUNDDOWN2(MIN(size_todo,
+					    ASU_AUTHENC_DATA_CHUNK_LEN),
+					ASU_AES_BLOCK_SIZE);
+		if (chunk_size == 0)
+			break;
+
+		if (cmac_ctx->pending_len > 0) {
+			memcpy(dma_data, cmac_ctx->pending,
+			       cmac_ctx->pending_len);
+			memcpy(dma_data + cmac_ctx->pending_len,
+			       data + src_offset,
+			       chunk_size - cmac_ctx->pending_len);
+			src_offset += chunk_size - cmac_ctx->pending_len;
+			cmac_ctx->pending_len = 0;
+		} else {
+			memcpy(dma_data, data + src_offset, chunk_size);
+			src_offset += chunk_size;
+		}
+		cache_operation(TEE_CACHEFLUSH, dma_data, chunk_size);
+
+		memset(&op, 0, sizeof(op));
+		op.aad_addr = virt_to_phys(dma_data);
+		op.aad_len = chunk_size;
+		op.mode = ASU_CMAC_MODE;
+
+		if (!cmac_ctx->cmac_started) {
+			op.key_object_addr = virt_to_phys(kobj);
+			op.operation_flags |= ASU_AES_INIT;
+		}
+		op.operation_flags |= ASU_AES_UPDATE;
+
+		cache_operation(TEE_CACHEFLUSH, &op, sizeof(op));
+		ret = asu_cmac_send(cmac_ctx, &op);
+		if (ret) {
+			EMSG("Update FW send failed ret=%#" PRIx32, ret);
+			goto out;
+		}
+		cmac_ctx->cmac_started = true;
+		size_todo -= chunk_size;
+	}
+
+	/* Buffer any remaining data for final */
+	if (size_topost > 0) {
+		memcpy(cmac_ctx->pending, data + src_offset, size_topost);
+		cmac_ctx->pending_len = size_topost;
+	}
+
+out:
+	free(dma_data);
+	return ret;
+}
+
+/*
+ * asu_cmac_init() - Initialize the ASU CMAC context
+ * @ctx:	Crypto MAC context
+ * @key:	CMAC key buffer
+ * @len:	Length of the CMAC key
+ *
+ * Return: TEE_SUCCESS, TEE_ERROR_BAD_PARAMETERS, TEE_ERROR_NOT_IMPLEMENTED or
+ *         TEE_ERROR_OUT_OF_MEMORY
+ */
+static TEE_Result asu_cmac_init(struct crypto_mac_ctx *ctx,
+				const uint8_t *key, size_t len)
+{
+	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
+	TEE_Result ret = TEE_SUCCESS;
+
+	if (!key) {
+		DMSG("Invalid key buffer");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	if (IS_ENABLED(CFG_AMD_ASU_CMAC_SW_FALLBACK) &&
+	    len == ASU_AES_KEY_SIZE_192_BYTES) {
+		ret = asu_cmac_sw_init(ctx, key, len);
+		if (ret) {
+			EMSG("Software fallback CMAC init failed ret=%#" PRIx32,
+			     ret);
+			return ret;
+		}
+		cmac_ctx->use_sw_fallback = true;
+		return ret;
+	}
+
+	/* ASU hardware only supports 128-bit and 256-bit keys */
+	if (len == ASU_AES_KEY_SIZE_128_BYTES) {
+		cmac_ctx->hw_keysize = ASU_AES_KEY_PARAM_128;
+		cmac_ctx->use_sw_fallback = false;
+	} else if (len == ASU_AES_KEY_SIZE_256_BYTES) {
+		cmac_ctx->hw_keysize = ASU_AES_KEY_PARAM_256;
+		cmac_ctx->use_sw_fallback = false;
+	} else {
+		DMSG("Unsupported key size %zu", len);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	memcpy(cmac_ctx->key, key, len);
+	cmac_ctx->keysize = len;
+
+	/* Setup client params */
+	cmac_ctx->cparam.priority = ASU_PRIORITY_HIGH;
+
+	/* Setup key object */
+	cmac_ctx->key_obj.key_address = virt_to_phys(cmac_ctx->key);
+	cmac_ctx->key_obj.key_size = cmac_ctx->hw_keysize;
+	cmac_ctx->key_obj.key_src = ASU_AES_USER_KEY_0;
+
+	/* Flush key and key object */
+	cache_operation(TEE_CACHEFLUSH, cmac_ctx->key, cmac_ctx->keysize);
+	cache_operation(TEE_CACHEFLUSH, &cmac_ctx->key_obj,
+			sizeof(cmac_ctx->key_obj));
+
+	cmac_ctx->pending_len = 0;
+	cmac_ctx->cmac_started = false;
+
+	return ret;
+}
+
+static const struct crypto_mac_ops asu_cmac_ops = {
+	.init = asu_cmac_init,
+	.update = asu_cmac_update,
+	.final = asu_cmac_final,
+	.free_ctx = asu_cmac_free_ctx,
+	/*
+	 * HW AES engine does not support partial state copy
+	 */
+	.copy_state = NULL,
+};
+
+/*
+ * asu_cmac_allocate() - Allocate Private CMAC context and claim the engine.
+ * @ctx:	Output pointer for allocated crypto_mac_ctx
+ * @algo:	TEE algo type.
+ *
+ * Return: TEE_SUCCESS, TEE_ERROR_NOT_IMPLEMENTED, or TEE_ERROR_OUT_OF_MEMORY
+ */
+static TEE_Result asu_cmac_allocate(struct crypto_mac_ctx **ctx, uint32_t algo)
+{
+	struct asu_cmac_ctx *cmac_ctx = NULL;
+	TEE_Result ret = TEE_SUCCESS;
+
+	if (algo != TEE_ALG_AES_CMAC) {
+		DMSG("Unsupported algorithm %#" PRIx32, algo);
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	/*
+	 * Intentionally return TEE_ERROR_NOT_IMPLEMENTED to fallback
+	 * request to software crypto
+	 */
+	mutex_lock(&asu_ae_dev->engine_lock);
+	if (!asu_ae_dev->aes_available) {
+		mutex_unlock(&asu_ae_dev->engine_lock);
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+	asu_ae_dev->aes_available = false;
+	mutex_unlock(&asu_ae_dev->engine_lock);
+
+	cmac_ctx = calloc(1, sizeof(*cmac_ctx));
+	if (!cmac_ctx) {
+		EMSG("Failed to allocate memory for CMAC context");
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto release_engine;
+	}
+
+	cmac_ctx->uniqueid = asu_alloc_unique_id();
+	if (cmac_ctx->uniqueid >= ASU_UNIQUE_ID_MAX) {
+		EMSG("Failed to get unique ID");
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
+		goto release_engine;
+	}
+
+	cmac_ctx->algo = algo;
+	cmac_ctx->mac_ctx.ops = &asu_cmac_ops;
+
+	if (IS_ENABLED(CFG_AMD_ASU_CMAC_SW_FALLBACK)) {
+		ret = crypto_aes_cmac_alloc_ctx(&cmac_ctx->sw_ctx);
+		if (ret) {
+			EMSG("SW fallback CMAC alloc failed: %#" PRIx32, ret);
+			asu_free_unique_id(cmac_ctx->uniqueid);
+			goto release_engine;
+		}
+	}
+
+	*ctx = &cmac_ctx->mac_ctx;
+	return TEE_SUCCESS;
+
+release_engine:
+	free(cmac_ctx);
+	mutex_lock(&asu_ae_dev->engine_lock);
+	asu_ae_dev->aes_available = true;
+	mutex_unlock(&asu_ae_dev->engine_lock);
+	return ret;
+}
+
+#endif /* CFG_AMD_ASU_CMAC */
+
+/*
+ * asu_authenc_driver_init() - Initialise the AES device and register
+ */
+static TEE_Result asu_authenc_driver_init(void)
+{
+	TEE_Result ret_authenc = TEE_SUCCESS;
+	TEE_Result ret_cmac = TEE_ERROR_GENERIC;
 
 	asu_ae_dev = calloc(1, sizeof(*asu_ae_dev));
 	if (!asu_ae_dev)
@@ -1039,11 +1558,23 @@ static TEE_Result asu_authenc_driver_init(void)
 	mutex_init(&asu_ae_dev->engine_lock);
 	asu_ae_dev->aes_available = true;
 
-	ret = drvcrypt_register_authenc(&asu_authenc_ops);
-	if (ret)
-		EMSG("ASU authenc register failed ret=%#"PRIx32, ret);
+	ret_authenc = drvcrypt_register_authenc(&asu_authenc_ops);
+	if (ret_authenc)
+		EMSG("ASU authenc register failed ret=%#" PRIx32, ret_authenc);
 
-	return ret;
+#if defined(CFG_AMD_ASU_CMAC)
+	ret_cmac = drvcrypt_register_cmac(asu_cmac_allocate);
+	if (ret_cmac)
+		EMSG("ASU CMAC register failed ret=%#" PRIx32, ret_cmac);
+#endif
+
+	if (ret_authenc && ret_cmac) {
+		free(asu_ae_dev);
+		asu_ae_dev = NULL;
+		return TEE_ERROR_GENERIC;
+	}
+	return TEE_SUCCESS;
+
 }
 
 driver_init(asu_authenc_driver_init);
