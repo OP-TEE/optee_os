@@ -713,6 +713,17 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_UnwrapKey().
 	 */
 	PKCS11_CMD_UNWRAP_KEY = 52,
+
+	/*
+	 * PKCS11_CMD_WIPE_STORAGE - Wipe all persistent storage (RMA/factory
+	 *                           reset use). Deletes all token objects and
+	 *                           token state.
+	 *
+	 * [in/out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * No session or token context required.
+	 */
+	PKCS11_CMD_WIPE_STORAGE = 53,
 };
 
 /*

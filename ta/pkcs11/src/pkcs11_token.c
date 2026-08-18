@@ -1610,6 +1610,113 @@ enum pkcs11_rc entry_ck_seed_random(struct pkcs11_client *client,
 	return PKCS11_CKR_OK;
 }
 
+static TEE_Result wipe_storage(void)
+{
+	TEE_ObjectEnumHandle enumerator = TEE_HANDLE_NULL;
+	TEE_ObjectHandle object = TEE_HANDLE_NULL;
+	TEE_ObjectInfo object_info = {};
+	TEE_Result res = TEE_ERROR_GENERIC;
+	char obj_id[TEE_OBJECT_ID_MAX_LEN];
+	size_t obj_id_sz = 0;
+
+	res = TEE_AllocatePersistentObjectEnumerator(&enumerator);
+	if (res != TEE_SUCCESS) {
+		EMSG("enumerator alloc failed 0x%08x", res);
+		return res;
+	}
+
+	/*
+	 * Restart-after-delete drain loop: the enumerator is invalidated by
+	 * any storage modification, so restart after each deletion and stop
+	 * only when the first GetNext returns TEE_ERROR_ITEM_NOT_FOUND.
+	 */
+	while (true) {
+		res = TEE_StartPersistentObjectEnumerator(enumerator,
+							  TEE_STORAGE_PRIVATE);
+		if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+			res = TEE_SUCCESS;
+			break;
+		}
+		if (res != TEE_SUCCESS) {
+			EMSG("start enumerator failed 0x%08x", res);
+			break;
+		}
+
+		obj_id_sz = sizeof(obj_id);
+		res = TEE_GetNextPersistentObject(enumerator, &object_info,
+						  obj_id, &obj_id_sz);
+		if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+			res = TEE_SUCCESS;
+			break;
+		}
+		if (res != TEE_SUCCESS) {
+			EMSG("get next object failed 0x%08x", res);
+			break;
+		}
+
+		res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
+					       obj_id, obj_id_sz,
+					       TEE_DATA_FLAG_ACCESS_READ |
+					       TEE_DATA_FLAG_ACCESS_WRITE_META,
+					       &object);
+		if (res != TEE_SUCCESS) {
+			EMSG("open persistent object failed 0x%08x", res);
+			break;
+		}
+
+		res = TEE_CloseAndDeletePersistentObject1(object);
+		if (res != TEE_SUCCESS) {
+			EMSG("close and delete failed 0x%08x", res);
+			break;
+		}
+	}
+
+	if (res != TEE_SUCCESS)
+		EMSG("pkcs11 wipe incomplete, res=0x%08x", res);
+	else
+		IMSG("pkcs11 storage wiped successfully");
+
+	TEE_FreePersistentObjectEnumerator(enumerator);
+	return res;
+}
+
+static bool caller_is_ree_kernel(void)
+{
+	TEE_Identity identity = {};
+	TEE_Result res = TEE_SUCCESS;
+
+	res = TEE_GetPropertyAsIdentity(TEE_PROPSET_CURRENT_CLIENT,
+					"gpd.client.identity", &identity);
+	if (res != TEE_SUCCESS)
+		return false;
+
+	return identity.login == TEE_LOGIN_REE_KERNEL;
+}
+
+enum pkcs11_rc entry_wipe_storage(uint32_t ptypes, TEE_Param *params __unused)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+
+	if (ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	if (!IS_ENABLED(CFG_PKCS11_TA_WIPE_STORAGE))
+		return PKCS11_CKR_FUNCTION_FAILED;
+
+	if (IS_ENABLED(CFG_PKCS11_TA_WIPE_STORAGE_REQUIRES_KERNEL)) {
+		if (!caller_is_ree_kernel())
+			return PKCS11_CKR_FUNCTION_REJECTED;
+	}
+
+	if (wipe_storage() != TEE_SUCCESS)
+		return PKCS11_CKR_DEVICE_ERROR;
+
+	return PKCS11_CKR_OK;
+}
+
 enum pkcs11_rc entry_ck_generate_random(struct pkcs11_client *client,
 					uint32_t ptypes, TEE_Param *params)
 {

@@ -18,6 +18,13 @@ CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE ?= y
 # Raw RSA can be unsafe if client uses a weak clear data padding scheme.
 CFG_PKCS11_TA_RSA_X_509 ?= n
 
+# When enabled, implement a TA command to wipe all PKCS#11 TA persistent storage.
+CFG_PKCS11_TA_WIPE_STORAGE ?= n
+
+# Restrict the PKCS11_CMD_WIPE_STORAGE command to callers whose TEE client
+# identity login type is TEE_LOGIN_REE_KERNEL (i.e. REE kernel module clients).
+CFG_PKCS11_TA_WIPE_STORAGE_REQUIRES_KERNEL ?= y
+
 global-incdirs-y += include
 global-incdirs-y += src
 subdirs-y += src

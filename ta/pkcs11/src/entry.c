@@ -356,6 +356,9 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 		rc = entry_processing_key(client, ptypes, params,
 					  PKCS11_FUNCTION_UNWRAP);
 		break;
+	case PKCS11_CMD_WIPE_STORAGE:
+		rc = entry_wipe_storage(ptypes, params);
+		break;
 	default:
 		EMSG("Command %#"PRIx32" is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;
