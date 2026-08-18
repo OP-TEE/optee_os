@@ -451,8 +451,12 @@ shadow_stack_access_ok:
 #endif
 
 #if defined(CFG_DYN_CONFIG)
+#ifdef CFG_WITH_PAGER
+	ldr	r0, =__vcore_free_end
+#else
 	ldr	r0, =boot_embdata_ptr
 	ldr	r0, [r0]
+#endif
 	sub	r1, r0, #THREAD_BOOT_INIT_TMP_ALLOC
 
 	/* Clear the allocated struct thread_core_local */
@@ -534,23 +538,20 @@ shadow_stack_access_ok:
 	bl	boot_save_args
 	add	sp, sp, #(2 * 4)
 
-#ifdef CFG_WITH_PAGER
-	ldr	r0, =__init_end	/* pointer to boot_embdata */
-	ldr	r1, [r0]	/* struct boot_embdata::total_len */
-	add	r0, r0, r1
-	mov_imm	r1, 0xfff
-	add	r0, r0, r1	/* round up */
-	bic	r0, r0, r1	/* to next page */
-	mov_imm r1, (TEE_RAM_PH_SIZE + TEE_RAM_START)
-	mov	r2, r1
-#else
 	ldr	r0, =__vcore_free_start
+	ldr	r2, =__vcore_free_end
+#ifdef CFG_WITH_PAGER
+#ifdef CFG_DYN_CONFIG
+	sub	r1, r2, #THREAD_BOOT_INIT_TMP_ALLOC
+#else
+	mov	r1, r2
+#endif
+#else
 	ldr	r1, =boot_embdata_ptr
 	ldr	r1, [r1]
 #ifdef CFG_DYN_CONFIG
 	sub	r1, r1, #THREAD_BOOT_INIT_TMP_ALLOC
 #endif
-	ldr	r2, =__vcore_free_end
 #endif
 	bl	boot_mem_init
 

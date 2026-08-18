@@ -14,5 +14,6 @@ void nex_page_alloc_init(void);
 void page_alloc_init(void);
 
 vaddr_t virt_page_alloc(size_t count, uint32_t flags);
+struct mobj *mobj_page_alloc(size_t count, uint32_t flags);
 
 #endif /*__MM_PAGE_ALLOC_H*/
