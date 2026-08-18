@@ -109,6 +109,11 @@ ifeq ($(CFG_AMD_ASU_AUTHENC),y)
 $(warning WARNING: ASU authenc engine do not support partial state copy operations)
 $(warning WARNING: Any attempt by the REE to perform a state copy operation \
   will result in a crash of the TEE.)
+# CMAC is merged into asu_authenc.c and shares the asu_aes_dev engine lock
+# with the authenc (GCM/CCM) driver. This serialises CMAC and authenc
+# operations on the same underlying AES hardware engine, preventing
+# concurrent access.
+CFG_AMD_ASU_CMAC ?= n
 endif
 
 ifeq ($(CFG_AMD_PS_GPIO),y)
