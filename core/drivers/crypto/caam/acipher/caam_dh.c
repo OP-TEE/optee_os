@@ -508,6 +508,7 @@ static struct drvcrypt_dh driver_dh = {
 	.alloc_keypair = do_allocate_keypair,
 	.gen_keypair = do_gen_keypair,
 	.shared_secret = do_shared_secret,
+	.secret_extra_bits = CAAM_KEY_EXTRA_BITS,
 };
 
 enum caam_status caam_dh_init(struct caam_jrcfg *caam_jrcfg)

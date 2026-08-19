@@ -898,6 +898,7 @@ static struct drvcrypt_ecc driver_ecc = {
 	.sign = do_sign,
 	.verify = do_verify,
 	.shared_secret = do_shared_secret,
+	.secret_extra_bits = CAAM_KEY_EXTRA_BITS,
 };
 
 enum caam_status caam_ecc_init(struct caam_jrcfg *caam_jrcfg)

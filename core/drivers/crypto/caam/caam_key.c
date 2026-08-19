@@ -432,6 +432,24 @@ enum caam_status caam_key_deserialize_from_bin(uint8_t *data, size_t size,
 	blob.sec_size = sec_size;
 	blob.is_blob = true;
 
+	/*
+	 * Validate the input size against the expected key size. The buffer
+	 * allocated below is derived from blob.sec_size (either the provided
+	 * size or the blob header), so the input must not exceed it, otherwise
+	 * the memcpys would write out of bounds. A crafted blob may carry a
+	 * lying header sec_size, so this check is required in addition to any
+	 * size bound enforced by the caller.
+	 */
+	if (blob.key_type == CAAM_KEY_PLAIN_TEXT) {
+		if (size > blob.sec_size)
+			return CAAM_BAD_PARAM;
+	} else {
+		size_t buf_size = get_key_buf_size(data, size);
+
+		if (buf_size > blob.sec_size + BLOB_PAD_SIZE)
+			return CAAM_BAD_PARAM;
+	}
+
 	if (blob.key_type == CAAM_KEY_PLAIN_TEXT) {
 		key->sec_size = blob.sec_size;
 		key->key_type = blob.key_type;

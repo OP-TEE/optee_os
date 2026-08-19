@@ -102,6 +102,9 @@ struct drvcrypt_rsa {
 		/* RSA Encoded Signature Verification */
 		TEE_Result (*ssa_verify)(struct drvcrypt_rsa_ssa *ssa_data);
 	} optional;
+
+	/* Extra bits a secret key may need in a driver container */
+	size_t secret_extra_bits;
 };
 
 /*
@@ -172,6 +175,9 @@ struct drvcrypt_ecc {
 	TEE_Result (*encrypt)(struct drvcrypt_ecc_ed *cdata);
 	/* ECC Decrypt */
 	TEE_Result (*decrypt)(struct drvcrypt_ecc_ed *cdata);
+
+	/* Extra bits a secret key may need in a driver container */
+	size_t secret_extra_bits;
 };
 
 /*
@@ -195,6 +201,9 @@ struct drvcrypt_dh {
 				  size_t size_bits);
 	/* DH Shared Secret */
 	TEE_Result (*shared_secret)(struct drvcrypt_secret_data *sdata);
+
+	/* Extra bits a secret key may need in a driver container */
+	size_t secret_extra_bits;
 };
 
 /*
@@ -226,6 +235,9 @@ struct drvcrypt_dsa {
 	/* DSA Verify a message's signature */
 	TEE_Result (*verify)(struct drvcrypt_sign_data *sdata, size_t l_bytes,
 			     size_t n_bytes);
+
+	/* Extra bits a secret key may need in a driver container */
+	size_t secret_extra_bits;
 };
 
 /*

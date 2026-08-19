@@ -1708,6 +1708,7 @@ static const struct drvcrypt_rsa driver_rsa = {
 	.decrypt = do_decrypt,
 	.optional.ssa_sign = NULL,
 	.optional.ssa_verify = NULL,
+	.secret_extra_bits = CAAM_KEY_EXTRA_BITS,
 };
 
 enum caam_status caam_rsa_init(struct caam_jrcfg *caam_jrcfg)
