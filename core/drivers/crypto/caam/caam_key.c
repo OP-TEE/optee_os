@@ -104,7 +104,9 @@ static struct caam_key_serialized *data_to_serialized_key(const uint8_t *data,
 							  size_t size)
 {
 	assert(data && size);
-	assert(size > sizeof(struct caam_key_serialized));
+
+	if (size <= sizeof(struct caam_key_serialized))
+		return NULL;
 
 	/*
 	 * It's important to make sure uint8_t and caam_key_serialized{} are
@@ -135,7 +137,7 @@ static enum caam_key_type get_key_type(const uint8_t *data, size_t size)
 {
 	struct caam_key_serialized *key = data_to_serialized_key(data, size);
 
-	if (key->magic_number != MAGIC_NUMBER)
+	if (!key || key->magic_number != MAGIC_NUMBER)
 		return CAAM_KEY_PLAIN_TEXT;
 
 	return key->key_type;
@@ -151,7 +153,7 @@ static size_t get_key_sec_size(const uint8_t *data, size_t size)
 {
 	struct caam_key_serialized *key = data_to_serialized_key(data, size);
 
-	if (key->magic_number != MAGIC_NUMBER)
+	if (!key || key->magic_number != MAGIC_NUMBER)
 		return size;
 
 	return key->sec_size;
@@ -167,7 +169,7 @@ static unsigned long get_key_buf_offset(const uint8_t *data, size_t size)
 {
 	struct caam_key_serialized *key = data_to_serialized_key(data, size);
 
-	if (key->magic_number != MAGIC_NUMBER)
+	if (!key || key->magic_number != MAGIC_NUMBER)
 		return 0;
 	else
 		return offsetof(struct caam_key_serialized, key);
@@ -182,6 +184,7 @@ static unsigned long get_key_buf_offset(const uint8_t *data, size_t size)
 static size_t get_key_buf_size(const uint8_t *data, size_t size)
 {
 	struct caam_key_serialized *key = data_to_serialized_key(data, size);
+	assert(key);
 
 	/*
 	 * In the caam_key_serialized{}, the last element of the structure is
