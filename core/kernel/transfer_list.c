@@ -58,7 +58,9 @@ struct transfer_list_header *transfer_list_map(paddr_t pa)
 		}
 		old_sz = sz;
 
-		if (transfer_list_check_header(tl) == TL_OPS_NONE) {
+		/* Perform checksum calculation only after entire TL mapping */
+		if (tl->max_size <= sz &&
+		    transfer_list_check_header(tl) == TL_OPS_NONE) {
 			unmap_list(tl, sz);
 			return NULL;
 		}
