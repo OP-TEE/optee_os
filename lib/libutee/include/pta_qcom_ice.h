@@ -89,4 +89,14 @@
  */
 #define PTA_CMD_ICE_EXPORT_KEY        4
 
+/*
+ * Derive raw secret from an ephemeral wrapped key blob.
+ *
+ * [in]  params[0].memref.buffer      Input wrapped key blob
+ * [in]  params[0].memref.size        Input blob size (must be 68 bytes)
+ * [out] params[1].memref.buffer      Output raw secret buffer
+ * [in/out] params[1].memref.size     Must be exactly 32 bytes
+ */
+#define PTA_CMD_ICE_GET_RAW_SECRET    5
+
 #endif /* __PTA_QCOM_ICE_H */
