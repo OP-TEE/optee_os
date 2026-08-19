@@ -38,6 +38,10 @@
 #if defined(CFG_CRYPTO_PBKDF2)
 #include <tee/tee_cryp_pbkdf2.h>
 #endif
+#if IS_ENABLED(CFG_CRYPTO_DRIVER)
+#include <drvcrypt.h>
+#include <drvcrypt_acipher.h>
+#endif
 
 enum cryp_state {
 	CRYP_STATE_INITIALIZED = 0,
@@ -75,6 +79,7 @@ struct tee_cryp_obj_secret {
 #define TEE_TYPE_ATTR_GEN_KEY_OPT	BIT(4)
 #define TEE_TYPE_ATTR_GEN_KEY_REQ	BIT(5)
 #define TEE_TYPE_ATTR_BIGNUM_MAXBITS	BIT(6)
+#define TEE_TYPE_ATTR_BIGNUM_SECRET	BIT(7)
 
     /* Handle storing of generic secret keys of varying lengths */
 #define ATTR_OPS_INDEX_SECRET     0
@@ -148,42 +153,48 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_rsa_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIVATE_EXPONENT,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, d)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIME1,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, p)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIME2,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, q)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_EXPONENT1,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, dp)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_EXPONENT2,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, dq)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_COEFFICIENT,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, qp)
 	},
@@ -247,7 +258,8 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_DSA_PRIVATE_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_keypair, x)
 	},
@@ -286,7 +298,8 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dh_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_DH_PRIVATE_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dh_keypair, x)
 	},
@@ -372,7 +385,8 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_pub_key_attrs[] = {
 static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_keypair_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_ECC_PRIVATE_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct ecc_keypair, d)
 	},
@@ -1894,6 +1908,39 @@ static TEE_Result get_ec_key_size(uint32_t curve, size_t *key_size)
 	return TEE_SUCCESS;
 }
 
+/*
+ * Returns the extra bits a secret key of @obj_type may need in the active
+ * crypto driver's key container, 0 if none.
+ */
+static size_t get_secret_key_overhead(uint32_t obj_type __maybe_unused)
+{
+#ifdef CFG_CRYPTO_DRIVER
+#define GET_BITS(algo_id, ops_struct) (__extension__({			    \
+		const struct ops_struct *ops = drvcrypt_get_ops(algo_id);   \
+		ops ? ops->secret_extra_bits : 0; }))
+
+	switch (obj_type) {
+	case TEE_TYPE_RSA_KEYPAIR:
+		return GET_BITS(CRYPTO_RSA, drvcrypt_rsa);
+	case TEE_TYPE_DSA_KEYPAIR:
+		return GET_BITS(CRYPTO_DSA, drvcrypt_dsa);
+	case TEE_TYPE_DH_KEYPAIR:
+		return GET_BITS(CRYPTO_DH, drvcrypt_dh);
+	case TEE_TYPE_ECDSA_KEYPAIR:
+	case TEE_TYPE_ECDH_KEYPAIR:
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
+	case TEE_TYPE_SM2_KEP_KEYPAIR:
+		return GET_BITS(CRYPTO_ECC, drvcrypt_ecc);
+	default:
+		return 0;
+	}
+#undef GET_BITS
+#else
+	return 0;
+#endif
+}
+
 static TEE_Result check_dsa_key_pair(struct bignum *g,
 				     struct bignum *p,
 				     struct bignum *q,
@@ -1912,7 +1959,15 @@ static TEE_Result check_dsa_key_pair(struct bignum *g,
 	    crypto_bignum_compare(y, p) >= 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (x && crypto_bignum_compare(x, q) >= 0)
+	/*
+	 * x may be an opaque key container (e.g. a CAAM black key blob)
+	 * rather than a plain scalar whenever the active crypto driver
+	 * declares a secret key overhead for DSA keypairs -- its bytes
+	 * aren't a number in that case, so x < q can't be checked here.
+	 * The driver validates x at first use instead.
+	 */
+	if (x && !get_secret_key_overhead(TEE_TYPE_DSA_KEYPAIR) &&
+	    crypto_bignum_compare(x, q) >= 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	return TEE_SUCCESS;
@@ -1994,16 +2049,35 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 		 * If obj_size was set there is a SIZE_INDICATOR parameter that
 		 * limits the size of attributes with BIGNUM_MAXBITS.
 		 */
+
 		for (n = 0; n < type_props->num_type_attrs; n++) {
+			uint32_t flags = type_props->type_attrs[n].flags;
+			uint32_t obj_type = o->info.objectType;
+			size_t max_bits = obj_size;
+
 			if (!(have_attrs & BIT32(n)))
 				continue;
-			if (!(type_props->type_attrs[n].flags &
-			      TEE_TYPE_ATTR_BIGNUM_MAXBITS))
+			if (!(flags & TEE_TYPE_ATTR_BIGNUM_MAXBITS))
 				continue;
+
+			/*
+			 * A secret attribute may additionally carry the
+			 * driver specific overhead of an opaque key
+			 * container, e.g. a serialized black key blob.
+			 * The container is built on the byte-aligned key
+			 * material, so round the key size up to a byte
+			 * boundary before adding the byte-based overhead.
+			 * Otherwise curves whose bit size is not a multiple
+			 * of 8 (e.g. NIST P-521) would be under-counted.
+			 */
+			if (flags & TEE_TYPE_ATTR_BIGNUM_SECRET)
+				max_bits = ROUNDUP(max_bits, 8) +
+					   get_secret_key_overhead(obj_type);
+
 			attr = (uint8_t *)o->attr +
 			       type_props->type_attrs[n].raw_offs;
 			if (crypto_bignum_num_bits(*(struct bignum **)attr) >
-			    obj_size)
+			    max_bits)
 				return TEE_ERROR_BAD_PARAMETERS;
 		}
 	}
