@@ -95,7 +95,8 @@ static TEE_Result qcom_pas_get_resource_table(uint32_t pt,
 }
 
 static TEE_Result
-qcom_pas_set_remote_state(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
+qcom_pas_set_remote_state(uint32_t pt,
+			  TEE_Param params[TEE_NUM_PARAMS]__maybe_unused)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 						TEE_PARAM_TYPE_NONE,
@@ -126,7 +127,8 @@ static TEE_Result qcom_pas_auth_and_reset(uint32_t pt,
 }
 
 static TEE_Result
-qcom_pas_shutdown(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
+qcom_pas_shutdown(uint32_t pt,
+		  TEE_Param params[TEE_NUM_PARAMS] __maybe_unused)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 						TEE_PARAM_TYPE_NONE,
@@ -138,41 +140,6 @@ qcom_pas_shutdown(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
 	return pas_platform_shutdown(params[0].value.a);
-}
-
-static TEE_Result
-qcom_pas_verify_image(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
-{
-	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-						TEE_PARAM_TYPE_VALUE_INPUT,
-						TEE_PARAM_TYPE_MEMREF_INPUT,
-						TEE_PARAM_TYPE_VALUE_INPUT);
-	struct pas_metadata metadata = { };
-	struct pas_hash_table hash = { };
-	struct pas_fw_region fw = { };
-	const uint8_t *buf = NULL;
-
-	if (pt != exp_pt)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	if (!params[2].memref.buffer || !params[2].memref.size)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	metadata.size = params[3].value.b;
-	if (!metadata.size || metadata.size >= params[2].memref.size)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	buf = params[2].memref.buffer;
-	metadata.data = buf;
-	hash.table = buf + metadata.size;
-	hash.len = params[2].memref.size - metadata.size;
-	hash.entry_size = params[3].value.a;
-
-	fw.base = reg_pair_to_64(params[1].value.b, params[1].value.a);
-	fw.size = params[0].value.b;
-
-	return pas_platform_verify_image(params[0].value.a, &fw, &metadata,
-					 &hash);
 }
 
 static TEE_Result pta_qcom_pas_invoke_command(void *session __unused,
@@ -197,8 +164,6 @@ static TEE_Result pta_qcom_pas_invoke_command(void *session __unused,
 		return qcom_pas_set_remote_state(param_types, params);
 	case PTA_QCOM_PAS_SHUTDOWN:
 		return qcom_pas_shutdown(param_types, params);
-	case PTA_QCOM_PAS_VERIFY_IMAGE:
-		return qcom_pas_verify_image(param_types, params);
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
