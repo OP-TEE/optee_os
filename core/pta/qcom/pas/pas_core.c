@@ -4,6 +4,7 @@
  */
 
 #include <drivers/clk_qcom.h>
+#include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_pas.h>
 #include <trace.h>
@@ -11,7 +12,7 @@
 
 #include "pas_subsys.h"
 
-struct qcom_pas_subsys *pas_lookup(uint32_t pas_id)
+static struct qcom_pas_subsys *pas_lookup(uint32_t pas_id)
 {
 	struct qcom_pas_subsys *subsys = NULL;
 	size_t count = 0;
@@ -97,8 +98,8 @@ TEE_Result pas_platform_set_remote_state(uint32_t pas_id, uint32_t state)
 TEE_Result pas_platform_auth_and_reset(uint32_t pas_id)
 {
 	struct qcom_pas_subsys *subsys = pas_lookup(pas_id);
-	TEE_Result res = TEE_ERROR_GENERIC;
 	struct qcom_pas_data *data = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!subsys)
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -140,16 +141,9 @@ TEE_Result pas_platform_auth_and_reset(uint32_t pas_id)
 TEE_Result pas_platform_shutdown(uint32_t pas_id)
 {
 	struct qcom_pas_subsys *subsys = pas_lookup(pas_id);
-	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!subsys || !subsys->ops->fw_shutdown)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	res = subsys->ops->fw_shutdown(&subsys->data);
-	if (!res) {
-		subsys->data.fw_base = 0;
-		subsys->data.fw_size = 0;
-	}
-
-	return res;
+	return subsys->ops->fw_shutdown(&subsys->data);
 }
