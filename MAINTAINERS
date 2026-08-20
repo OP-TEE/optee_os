@@ -304,6 +304,12 @@ R:	Joakim Bech <joakim.bech@gmail.com> [@jockebech]
 S:	Maintained
 F:	core/arch/arm/plat-rpi3/
 
+Raspberry Pi4
+R:	Sahil Kaushal <sahil.kaushal@arm.com> [@sah01Kaushal]
+R:	Arteom Katkov <arteom.katkov@arm.com> [@artkat-arm]
+S:	Maintained
+F:	core/arch/arm/plat-rpi4/
+
 Renesas RCAR
 R:	Volodymyr Babchuk <vlad.babchuk@gmail.com> [@lorc]
 S:	Maintained
