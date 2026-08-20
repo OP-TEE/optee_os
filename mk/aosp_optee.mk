@@ -148,6 +148,12 @@ $(OPTEE_TA_DEV_KIT_MK):
 	+$(HOST_MAKE) $(OPTEE_MAKE_LINE) \
 		CFG_USER_TA_TARGETS=$(PRIVATE_TA_TARGET) ta_dev_kit
 	@echo "Finished building ta_dev_kit ($(PRIVATE_TA_TARGET))..."
+
+# Both rules run make over the same output directory, and their goals overlap
+# since "all" builds the dev kit too, so run them one by one. The dev kit goes
+# first, as the TAs are built against it and an early TA setup feeds them back
+# into the core build
+$(OPTEE_BIN): $(OPTEE_TA_DEV_KIT_MK)
 endif
 
 ##########################################################
