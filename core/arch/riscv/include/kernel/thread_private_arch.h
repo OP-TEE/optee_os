@@ -9,6 +9,9 @@
 #ifndef __ASSEMBLER__
 
 #include <kernel/thread.h>
+#ifdef CFG_WITH_VFP
+#include <riscv_fp.h>
+#endif
 
 #define STACK_TMP_OFFS		0
 
@@ -57,6 +60,44 @@ struct thread_user_mode_rec {
 	 */
 	unsigned long x[13];
 };
+
+#ifdef CFG_WITH_VFP
+/*
+ * Identifies the context currently resident in the hardware FP
+ * registers on this OP-TEE thread.
+ */
+enum riscv_fp_owner {
+	RISCV_FP_OWNER_NONE = 0,
+	RISCV_FP_OWNER_NS,
+	RISCV_FP_OWNER_KERNEL,
+	RISCV_FP_OWNER_USER,
+};
+
+/*
+ * Per-thread FP contexts.
+ *
+ * ns  - normal-world FP state
+ * sec - secure-kernel FP state, if persistent kernel FP state is needed
+ * uvfp - currently associated user-TA FP state
+ * owner - context currently resident in the physical FP registers.
+ */
+struct thread_vfp_state {
+	/* Normal-world FP context */
+	struct riscv_fp_state ns;
+
+	/* Secure-kernel FP context */
+	struct riscv_fp_state sec;
+
+	/* User-TA FP context associated with this thread */
+	struct thread_user_vfp_state *uvfp;
+
+	/* Context currently held in the physical FP registers */
+	enum riscv_fp_owner owner;
+
+	bool ns_valid;
+	bool sec_valid;
+};
+#endif
 
 extern long thread_user_kcode_offset;
 
@@ -128,6 +169,10 @@ static inline void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 }
 
 void thread_scall_handler(struct thread_scall_regs *regs);
+
+#ifdef CFG_WITH_VFP
+void vfp_disable(void);
+#endif
 
 #endif /*__ASSEMBLER__*/
 

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright 2022-2023 NXP
+ * Copyright 2026, RISCStar Solutions Limited
  */
 
 #ifndef __RISCV_H
@@ -18,6 +19,9 @@
 
 #define RISCV_XLEN_BITS		(__riscv_xlen)
 #define RISCV_XLEN_BYTES	(__riscv_xlen / 8)
+
+#define RISCV_FLEN_BITS		(__riscv_flen)
+#define RISCV_FLEN_BYTES	(__riscv_flen / 8)
 
 /* Bind registers to their ABI names */
 #define REG_RA	1
@@ -74,6 +78,45 @@
 #define CSR_XSTATUS_SPP		BIT(8)
 #define CSR_XSTATUS_SUM		BIT(18)
 #define CSR_XSTATUS_MXR		BIT(19)
+
+#define CSR_XSTATUS_FS_BIT	13
+#define CSR_XSTATUS_FS_MASK	SHIFT_U64(3, CSR_XSTATUS_FS_BIT)
+
+#define CSR_XSTATUS_FS_OFF	0
+#define CSR_XSTATUS_FS_INITIAL	1
+#define CSR_XSTATUS_FS_CLEAN	2
+#define CSR_XSTATUS_FS_DIRTY	3
+
+#if RISCV_FLEN_BITS == 64
+#define RISCV_FP_REG_BYTES	8
+#elif RISCV_FLEN_BITS == 32
+#define RISCV_FP_REG_BYTES	4
+#else
+#error Unsupported RISCV_XLEN_BITS
+#endif
+
+/* Opcode for Illegal inst */
+/* Standard Floating-Point Extension (F/D/Q) Major Opcodes */
+#define OPCODE_FL_LOAD          0x07 /* FP Load (flw, fld, flq) */
+#define OPCODE_FS_STORE         0x27 /* FP Store (fsw, fsd, fsq) */
+#define OPCODE_FMADD            0x43 /* Fused Multiply-Add */
+#define OPCODE_FMSUB            0x47 /* Fused Multiply-Subtract */
+#define OPCODE_FNMSUB           0x4B /* Fused Negative Multiply-Subtract */
+#define OPCODE_FNMADD           0x4F /* Fused Negative Multiply-Add */
+#define OPCODE_FP_ARITH         0x53 /* Gen FP Arithmetic (fadd, fsub, etc.) */
+
+/* RISC-V Compressed Instruction Format Definitions */
+#define INSN_QUADRANT_MASK       0x3
+#define INSN_FUNCT3_SHIFT        13
+#define INSN_FUNCT3_MASK         0x7
+
+#define QUADRANT_0               0
+#define QUADRANT_2               2
+
+#define FUNCT3_C_FLD             1  /* Also C.FLDSP */
+#define FUNCT3_C_FLW             3  /* Also C.FLWSP (RV32 only) */
+#define FUNCT3_C_FSD             5  /* Also C.FSDSP */
+#define FUNCT3_C_FSW             7  /* Also C.FSWSP (RV32 only) */
 
 #define CSR_XCAUSE_INTR_FLAG	BIT64(__riscv_xlen - 1)
 
