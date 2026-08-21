@@ -14,16 +14,20 @@
 					 TA_FLAG_SINGLE_INSTANCE | \
 					 TA_FLAG_INSTANCE_KEEP_ALIVE)
 
-/* Provisioned stack size */
+/*
+ * Provisioned stack size. mbedtls X.509/ECDSA verification recurses
+ * deeply and needs more than the hash-only default.
+ */
+#ifdef CFG_QCOM_PAS_AUTH
+#define TA_STACK_SIZE			(32 * 1024)
+#else
 #define TA_STACK_SIZE			(4 * 1024)
+#endif
 
-/* Provisioned heap size for TEE_Malloc() and friends */
 #define TA_DATA_SIZE			CFG_PAS_TA_HEAP_SIZE
 
-/* The gpd.ta.version property */
 #define TA_VERSION	"1.0"
 
-/* The gpd.ta.description property */
 #define TA_DESCRIPTION	"remote processor firmware management"
 
 #endif /* USER_TA_HEADER_DEFINES_H */

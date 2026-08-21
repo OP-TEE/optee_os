@@ -7,12 +7,6 @@ ifneq ($(CFG_INSECURE),y)
 CFG_QCOM_QFPROM_FUSEPROV ?= y
 endif
 
-ifeq ($(CFG_QCOM_QFPROM_FUSEPROV),y)
-$(call force,CFG_QCOM_CMD_DB,y)
-$(call force,CFG_QCOM_RPMH_CLIENT,y)
-$(call force,CFG_QCOM_QFPROM,y)
-endif
-
 CFG_QCOM_PAS_PTA ?= y
 
 ifeq ($(CFG_QCOM_PAS_PTA),y)
@@ -22,7 +16,23 @@ ifeq ($(CFG_QCOM_PAS_PTA),y)
 CFG_RESERVED_VASPACE_SIZE ?= (256 * 1024 * 1024)
 CFG_IN_TREE_EARLY_TAS += qcom_pas/cff7d191-7ca0-4784-af13-48223b9a4fbe
 CFG_QCOM_PAS_AUTH ?= y
-CFG_PAS_MD_SLOTS = 8
 endif
 
 CFG_QCOM_HWKM ?= y
+
+ifeq ($(CFG_QCOM_PAS_AUTH),y)
+$(call force,CFG_QCOM_FUSE_PTA,y)
+CFG_PAS_MD_SLOTS = 8
+# This chip's OEM_CONFIG2 fuse row has a per-root-cert hash function
+# select bit; targets without it always use SHA-384.
+$(call force,CFG_QCOM_SEGMENT_HASH_SELECT,y)
+endif
+
+ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_FUSE_PTA)),)
+$(call force,CFG_QCOM_QFPROM,y)
+endif
+
+ifeq ($(CFG_QCOM_QFPROM),y)
+$(call force,CFG_QCOM_CMD_DB,y)
+$(call force,CFG_QCOM_RPMH_CLIENT,y)
+endif
