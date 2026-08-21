@@ -238,6 +238,54 @@
 #define FW_DDR_BASE		0xff900000
 #define FW_DDR_SIZE		SIZE_K(64)
 
+#elif defined(PLATFORM_FLAVOR_rk3568)
+
+#define GIC_BASE		0xfd400000
+#define GIC_SIZE		SIZE_K(64)
+#define GICC_BASE		0
+#define GICD_BASE		GIC_BASE
+#define GICR_BASE		(GIC_BASE + 0x60000)
+
+#define UART0_BASE		0xfdd50000
+#define UART0_SIZE		SIZE_K(64)
+
+#define UART2_BASE		0xfe660000
+#define UART2_SIZE		SIZE_K(64)
+
+#define FIREWALL_DDR_BASE	0xfe200000
+#define FIREWALL_DDR_SIZE	SIZE_K(4)
+
+#define SCRU_BASE		0xfdd10000
+#define SCRU_SIZE		SIZE_K(4)
+
+#define TRNG_S_BASE		0xfe370000
+#define TRNG_S_SIZE		SIZE_K(64)
+
+#define CRU_BASE		0xfdd20000
+#define CRU_SIZE		SIZE_K(4)
+
+#define SGRF_BASE		0xfdd18000
+#define SGRF_SIZE		SIZE_K(4)
+
+#define OTP_S_BASE		0xfe3a0000
+#define OTP_S_SIZE		SIZE_K(16)
+
+/*
+ * Halfword address/count in the secure OTP region (0x000-0x1bf). The
+ * area starting at 0x100 (byte 0x200) is well clear of the cells used
+ * by the boot chain (secure-boot enable flag at byte 0x80, RSA pubkey
+ * hash at bytes 0x90-0xaf, anti-rollback counter at bytes 0xe0-0xe7)
+ * and lies in the range the vendor secure OTP driver allows writing.
+ *
+ * A provisioning marker halfword is burned last, after the key has been
+ * written and verified, so an interrupted first-boot burn is detectable
+ * (the marker stays blank) and never mistaken for a valid short key.
+ */
+#define ROCKCHIP_OTP_HUK_ADDR		0x100
+#define ROCKCHIP_OTP_HUK_SIZE		0x8
+#define ROCKCHIP_OTP_HUK_MARKER_ADDR	0x108
+#define ROCKCHIP_OTP_HUK_MARKER		0x4b48
+
 #else
 #error "Unknown platform flavor"
 #endif

@@ -5,6 +5,7 @@ srcs-$(PLATFORM_FLAVOR_px30) += platform_px30.c
 srcs-$(PLATFORM_FLAVOR_rk322x) += platform_rk322x.c
 srcs-$(PLATFORM_FLAVOR_rk3399) += platform_rk3399.c
 srcs-$(PLATFORM_FLAVOR_rk3506) += platform_rk3506.c
+srcs-$(PLATFORM_FLAVOR_rk3568) += platform_rk3568.c
 srcs-$(PLATFORM_FLAVOR_rk3576) += platform_rk3576.c
 srcs-$(PLATFORM_FLAVOR_rk3588) += platform_rk3588.c
 srcs-$(PLATFORM_FLAVOR_rv1106) += platform_rv1106.c
