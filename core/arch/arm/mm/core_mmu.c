@@ -31,6 +31,26 @@
 static bitstr_t bit_decl(g_asid, MMU_NUM_ASID_PAIRS) __nex_bss;
 static unsigned int g_asid_spinlock __nex_bss = SPINLOCK_UNLOCK;
 
+unsigned int asid_get_num_used(void)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&g_asid_spinlock);
+	unsigned int n = 0;
+	int i = 0;
+
+	for (i = 0; i < MMU_NUM_ASID_PAIRS; i++) {
+		if (bit_test(g_asid, i))
+			n++;
+	}
+
+	cpu_spin_unlock_xrestore(&g_asid_spinlock, exceptions);
+	return n * 2;
+}
+
+size_t asid_get_num_total(void)
+{
+	return MMU_NUM_ASID_PAIRS * 2;
+}
+
 void tlbi_va_range(vaddr_t va, size_t len, size_t granule)
 {
 	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
