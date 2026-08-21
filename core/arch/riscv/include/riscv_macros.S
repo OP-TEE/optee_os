@@ -76,3 +76,31 @@
 		j	.
 #endif
 	.endm
+
+	/*
+	 * Advance base pointer to next group of eight vector registers.
+	 *
+	 * One whole-register instruction (vs8r.v/vl8r.v) stores or restores
+	 * eight vector registers, so advance by 8 * VLENB bytes.
+	 */
+	.macro __vreg_advance base_reg, vlenb_reg
+		slli	t3, \vlenb_reg, 3         /* t3 = vlenb * 8 */
+		add	\base_reg, \base_reg, t3  /* Advance pointer by 8 vector registers */
+	.endm
+
+	/* Helper macro to save/restore all 32 vector registers in chunks of 8 */
+	.macro do_all_vreg_chunks op, base_reg, vlenb_reg
+		.option push
+		.option arch, +v, +zicsr, +m
+
+		\op	v0, (\base_reg)
+		__vreg_advance \base_reg, \vlenb_reg
+		\op	v8, (\base_reg)
+		__vreg_advance \base_reg, \vlenb_reg
+		\op	v16, (\base_reg)
+		__vreg_advance \base_reg, \vlenb_reg
+		\op	v24, (\base_reg)
+
+		.option pop
+	.endm
+

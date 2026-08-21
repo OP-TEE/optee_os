@@ -99,7 +99,6 @@ $(call force,CFG_PAGED_USER_TA,n)
 $(call force,CFG_WITH_PAGER,n)
 $(call force,CFG_GIC,n)
 $(call force,CFG_ARM_GICV3,n)
-$(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 

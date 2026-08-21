@@ -11,6 +11,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_private.h>
 #include <kernel/user_mode_ctx.h>
+#include <kernel/thread_arch.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <riscv.h>
@@ -240,12 +241,25 @@ static void handle_user_mode_panic(struct abort_info *ai)
 	ai->regs->ie = 0;
 }
 
-#ifdef CFG_WITH_VFP
+#if defined(CFG_WITH_VFP)
+void vfp_disable(void)
+{
+	/* Clear the VS field. */
+	clear_csr(CSR_XSTATUS, CSR_XSTATUS_VS_MASK);
+}
+
 static void handle_user_mode_vfp(void)
 {
-	struct ts_session *s = ts_get_current_session();
+	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = NULL;
 
-	thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
+	assert(sess);
+	assert(sess->ctx);
+
+	uctx = to_user_mode_ctx(sess->ctx);
+	assert(uctx);
+
+	thread_user_enable_vfp(&uctx->vfp);
 }
 #endif /*CFG_WITH_VFP*/
 
@@ -265,10 +279,41 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 #endif /*CFG_WITH_USER_TA*/
 
 #if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
+static bool is_riscv_vector_insn(uint32_t insn)
+{
+	uint32_t opcode = insn & 0x7f;
+	uint32_t funct3 = (insn >> 12) & 0x7;
+
+	if (opcode == OPCODE_VECTOR_ARITH)
+		return true;
+
+	if (opcode != OPCODE_VECTOR_LOAD &&
+	    opcode != OPCODE_VECTOR_STORE)
+		return false;
+
+	return funct3 == 0 || funct3 == 5 ||
+	       funct3 == 6 || funct3 == 7;
+}
+
 static bool is_vfp_fault(struct abort_info *ai)
 {
-	/* Implement */
-	return false;
+	uint32_t insn = ai->regs->tval;
+
+	if (!abort_is_user_exception(ai))
+		return false;
+
+	if (ai->regs->cause != CAUSE_ILLEGAL_INSTRUCTION)
+		return false;
+
+	/*
+	 * Only treat the illegal instruction as an FP-disabled trap when
+	 * the saved user VS field is Off.
+	 */
+	if ((ai->regs->status & CSR_XSTATUS_VS_MASK) !=
+	    SHIFT_U64(CSR_XSTATUS_VS_OFF, CSR_XSTATUS_VS_BIT))
+		return false;
+
+	return is_riscv_vector_insn(insn);
 }
 #else /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
 static bool is_vfp_fault(struct abort_info *ai __unused)
@@ -364,6 +409,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		break;
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_MODE_VFP:
+		vfp_disable();
 		handle_user_mode_vfp();
 		break;
 #endif
