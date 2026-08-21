@@ -69,6 +69,10 @@
 #define SUNXI_DRAM_NS_SIZE	(CFG_DRAM_SIZE - \
 					(CFG_TZDRAM_SIZE + CFG_SHMEM_SIZE))
 
+/* SID Register */
+#define SUNXI_SID_BASE		0x03006000
+#define SUNXI_SID_SIZE		0x1000
+
 #endif
 
 #endif /* PLATFORM_CONFIG_H */
