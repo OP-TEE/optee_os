@@ -4,6 +4,10 @@
 incdirs-y += include
 srcs-y += hwkm.c hwkm_huk.c hwkm_transaction.c
 
+subdirs-$(CFG_QCOM_CE) += ce
+subdirs-$(CFG_QCOM_CE_CIPHER) += cipher
+subdirs-$(CFG_QCOM_CE_AUTHENC) += authenc
+
 # Bitmap of fuse regions whose SHA256 digest is folded into the HUK KDF input.
 # Each bit corresponds to a fuse region index; set a bit to bind the HUK to
 # that region's content. Defaults to 0 (no fuse regions included).

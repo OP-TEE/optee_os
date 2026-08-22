@@ -21,6 +21,7 @@
 #include <util.h>
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, HWKM_MASTER_BASE, HWKM_MASTER_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, HWKM_CRYPTO0_BASE, HWKM_CRYPTO0_SIZE);
 
 static_assert(HW_UNIQUE_KEY_LENGTH <= HWKM_MAX_KEY_SIZE);
 
@@ -208,7 +209,8 @@ static TEE_Result hwkm_init(void)
 		return TEE_ERROR_GENERIC;
 
 	/* Check the hardware self-test status. */
-	status = io_read32_off(base, HWKM_TZ_KM_STATUS);
+	status = io_read32_off(base + HWKM_MASTER_TZ_REGS_OFFSET,
+			       HWKM_TZ_KM_STATUS);
 	if (status & (HWKM_TZ_KM_STATUS_BIST_ERROR |
 		      HWKM_TZ_KM_STATUS_CRYPTO_LIB_BIST_ERROR)) {
 		EMSG("hwkm: BIST failed, status=0x%08"PRIx32, status);
@@ -216,15 +218,19 @@ static TEE_Result hwkm_init(void)
 	}
 
 	/* Disable CRC checking on command packets. */
-	io_write32_off_field(base, HWKM_TZ_KM_CTL,
+	io_write32_off_field(base + HWKM_MASTER_TZ_REGS_OFFSET, HWKM_TZ_KM_CTL,
 			     HWKM_TZ_KM_CTL_CRC_CHECK_EN, 0);
 
-	io_write32_off(base, HWKM_BANK0_AC + HWKM_BANKn_AC_BBAC_0,
-		       HWKM_BANK0_BBAC_0);
-	io_write32_off(base, HWKM_BANK0_AC + HWKM_BANKn_AC_BBAC_1, 0);
-	io_write32_off(base, HWKM_BANK0_AC + HWKM_BANKn_AC_BBAC_2, 0);
-	io_write32_off(base, HWKM_BANK0_AC + HWKM_BANKn_AC_BBAC_3, 0);
-	io_write32_off(base, HWKM_BANK0_AC + HWKM_BANKn_AC_BBAC_4, 0);
+	io_write32_off(base + HWKM_MASTER_BANK0_AC_REGS_OFFSET,
+		       HWKM_BANKn_AC_BBAC_0, HWKM_BANK0_BBAC_0);
+	io_write32_off(base + HWKM_MASTER_BANK0_AC_REGS_OFFSET,
+		       HWKM_BANKn_AC_BBAC_1, 0);
+	io_write32_off(base + HWKM_MASTER_BANK0_AC_REGS_OFFSET,
+		       HWKM_BANKn_AC_BBAC_2, 0);
+	io_write32_off(base + HWKM_MASTER_BANK0_AC_REGS_OFFSET,
+		       HWKM_BANKn_AC_BBAC_3, 0);
+	io_write32_off(base + HWKM_MASTER_BANK0_AC_REGS_OFFSET,
+		       HWKM_BANKn_AC_BBAC_4, 0);
 
 	/*
 	 * Clear the spurious RSP_FIFO_FULL sticky bit.
@@ -233,11 +239,55 @@ static TEE_Result hwkm_init(void)
 	 * it does not interfere with CMD_DONE polling in
 	 * master_run_transaction().
 	 */
-	io_write32_off(base, HWKM_BANK0_KM_IRQ_STATUS,
+	io_write32_off(base + HWKM_MASTER_BANK0_REGS_OFFSET,
+		       HWKM_BANK0_KM_IRQ_STATUS,
 		       HWKM_BANK0_KM_IRQ_STATUS_RSP_FIFO_FULL);
 
 	hwkm_ctx.base = base;
 	hwkm_ctx.initialized = true;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result gpce_init(void)
+{
+	uint32_t status = 0;
+	vaddr_t base = 0;
+
+	base = (vaddr_t)phys_to_virt(HWKM_CRYPTO0_BASE, MEM_AREA_IO_SEC,
+				     HWKM_CRYPTO0_SIZE);
+	if (!base)
+		return TEE_ERROR_GENERIC;
+
+	/* Check the hardware self-test status. */
+	status = io_read32_off(base + HWKM_CRYPTO0_TZ_REGS_OFFSET,
+			       HWKM_TZ_KM_STATUS);
+	if (status & (HWKM_TZ_KM_STATUS_BIST_ERROR |
+		      HWKM_TZ_KM_STATUS_CRYPTO_LIB_BIST_ERROR)) {
+		EMSG("hwkm: gpce BIST failed, status=0x%08"PRIx32, status);
+		return TEE_ERROR_GENERIC;
+	}
+
+	/* Disable CRC checking on command packets. */
+	io_write32_off_field(base + HWKM_CRYPTO0_TZ_REGS_OFFSET, HWKM_TZ_KM_CTL,
+			     HWKM_TZ_KM_CTL_CRC_CHECK_EN, 0);
+
+	/* Grant TZ (BANK0) unrestricted access to all key slots. */
+	io_write32_off(base + HWKM_CRYPTO0_BANK0_AC_REGS_OFFSET,
+		       HWKM_BANKn_AC_BBAC_0, 0xFFFFFFFF);
+	io_write32_off(base + HWKM_CRYPTO0_BANK0_AC_REGS_OFFSET,
+		       HWKM_BANKn_AC_BBAC_1, 0xFFFFFFFF);
+	io_write32_off(base + HWKM_CRYPTO0_BANK0_AC_REGS_OFFSET,
+		       HWKM_BANKn_AC_BBAC_2, 0xFFFFFFFF);
+	io_write32_off(base + HWKM_CRYPTO0_BANK0_AC_REGS_OFFSET,
+		       HWKM_BANKn_AC_BBAC_3, 0xFFFFFFFF);
+
+	/* Clear spurious RSP_FIFO_FULL sticky bit (HW errata QCTDD06252768). */
+	io_write32_off(base + HWKM_CRYPTO0_BANK0_REGS_OFFSET,
+		       HWKM_BANK0_KM_IRQ_STATUS,
+		       HWKM_BANK0_KM_IRQ_STATUS_RSP_FIFO_FULL);
+
+	hwkm_ctx.crypto0_base = base;
 
 	return TEE_SUCCESS;
 }
@@ -250,6 +300,12 @@ static TEE_Result hwkm_driver_init(void)
 	res = hwkm_init();
 	if (res) {
 		EMSG("hwkm: init failed: 0x%08"PRIx32, res);
+		return res;
+	}
+
+	res = gpce_init();
+	if (res) {
+		EMSG("hwkm: gpce init failed: 0x%08"PRIx32, res);
 		return res;
 	}
 
