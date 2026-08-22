@@ -16,6 +16,7 @@
 #define PAS_ID_IRIS		9
 #define PAS_ID_TURING		18
 #define PAS_ID_TURING1		30
+#define PAS_ID_CAMERA		33
 #define PAS_ID_GPDSP0		39
 #define PAS_ID_GPDSP1		40
 

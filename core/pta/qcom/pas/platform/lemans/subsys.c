@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <util.h>
 
+#include "camera.h"
 #include "cdsp0.h"
 #include "cdsp1.h"
 #include "gpdsp0.h"
@@ -74,6 +75,15 @@ static struct qcom_pas_subsys subsystems[] = {
 			.size = IRIS_SIZE,
 		},
 		.ops = &iris_ops,
+		.reset_seq = QCOM_PAS_RESET_NONE,
+	},
+	{
+		.data = {
+			.pas_id = PAS_ID_CAMERA,
+			.base.pa = TITAN_SS_BASE,
+			.size = TITAN_SS_SIZE,
+		},
+		.ops = &camera_ops,
 		.reset_seq = QCOM_PAS_RESET_NONE,
 	},
 };
