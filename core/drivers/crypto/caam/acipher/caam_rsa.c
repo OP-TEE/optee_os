@@ -816,6 +816,12 @@ static TEE_Result do_oaep_decoding(struct drvcrypt_rsa_ed *rsa_data)
 	 *  hLen is the Hash digest length
 	 *  mLen is the input RSA message length
 	 */
+	/* Ensure the modulus is large enough to hold the OAEP overhead */
+	if (rsa_data->key.n_size <= rsa_data->digest_size + 1) {
+		ret = TEE_ERROR_BAD_PARAMETERS;
+		goto exit_oaep_decrypt;
+	}
+
 	/* Calculate the DB size */
 	db_size = rsa_data->key.n_size - rsa_data->digest_size - 1;
 	RSA_TRACE("DB is %zu bytes", db_size);
