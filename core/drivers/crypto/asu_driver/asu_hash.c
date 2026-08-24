@@ -6,6 +6,8 @@
 
 #include <assert.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/asu_fw_info.h>
+#include <drivers/amd/fw_compat.h>
 #include <drvcrypt_hash.h>
 #include <drvcrypt_mac.h>
 #include <initcall.h>
@@ -894,24 +896,68 @@ err_release_engine:
 
 #endif /* CFG_AMD_ASU_HMAC */
 
+static bool asu_module_fw_compatible(const char *name, uint32_t module_id,
+				     uint16_t min_major, uint16_t min_minor)
+{
+	const struct fw_module_info *mod = fw_compat_get_module_info(module_id);
+
+	if (!asu_module_version_at_least(mod, min_major, min_minor)) {
+		EMSG("ASU %s version below min %u.%u, skip HW registration",
+		     name, min_major, min_minor);
+		return false;
+	}
+
+	IMSG("ASU %s HW available", name);
+	return true;
+}
+
 static TEE_Result asu_hash_init(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
+	bool hash_registered = false;
+	bool hmac_registered = false;
 
 	asu_shadev = calloc(1, sizeof(*asu_shadev));
+	if (!asu_shadev)
+		return TEE_ERROR_OUT_OF_MEMORY;
 	mutex_init(&asu_shadev->engine_lock);
 	asu_shadev->sha2_available = true;
 	asu_shadev->sha3_available = true;
 
-	ret = drvcrypt_register_hash(&asu_hash_ctx_allocate);
-	if (ret)
-		EMSG("ASU hash register to crypto fail ret=%#"PRIx32, ret);
+	if (!asu_module_fw_compatible("SHA2", ASU_MODULE_SHA2_ID,
+				      CFG_AMD_ASU_SHA2_MINVER_MAJ,
+				      CFG_AMD_ASU_SHA2_MINVER_MNR) ||
+	    !asu_module_fw_compatible("SHA3", ASU_MODULE_SHA3_ID,
+				      CFG_AMD_ASU_SHA3_MINVER_MAJ,
+				      CFG_AMD_ASU_SHA3_MINVER_MNR)) {
+		IMSG("ASU hash driver not registered, using SW fallback");
+	} else {
+		ret = drvcrypt_register_hash(asu_hash_ctx_allocate);
+		if (ret)
+			EMSG("ASU hash register to crypto fail ret=%#"PRIx32,
+			     ret);
+		else
+			hash_registered = true;
+	}
 
 #if defined(CFG_AMD_ASU_HMAC)
-	ret = drvcrypt_register_hmac(asu_hmac_ctx_allocate);
-	if (ret)
-		EMSG("ASU HMAC register failed ret=%#"PRIx32, ret);
+	if (!asu_module_fw_compatible("HMAC", ASU_MODULE_HMAC_ID,
+				      CFG_AMD_ASU_HMAC_MINVER_MAJ,
+				      CFG_AMD_ASU_HMAC_MINVER_MNR)) {
+		IMSG("ASU HMAC driver not registered, using SW fallback");
+	} else {
+		ret = drvcrypt_register_hmac(asu_hmac_ctx_allocate);
+		if (ret)
+			EMSG("ASU HMAC register failed ret=%#"PRIx32, ret);
+		else
+			hmac_registered = true;
+	}
 #endif
+
+	if (!hash_registered && !hmac_registered) {
+		free(asu_shadev);
+		asu_shadev = NULL;
+	}
 
 	return ret;
 }
