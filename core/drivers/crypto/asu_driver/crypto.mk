@@ -36,6 +36,12 @@ endif
 ifeq ($(CFG_AMD_ASU_RSA),y)
 $(call force,CFG_CRYPTO_DRV_ACIPHER,y)
 $(call force,CFG_CRYPTO_DRV_RSA,y)
+
+# Minimum ASU RSA module version required to use HW-accelerated RSA (see
+# asu_rsa_init()). Below this, or when the FeatureCaps bit for the
+# requested operation is not set, the driver falls back to software RSA.
+CFG_AMD_ASU_RSA_MINVER_MAJ ?= 2
+CFG_AMD_ASU_RSA_MINVER_MNR ?= 0
 endif
 
 ifeq ($(CFG_AMD_ASU_HMAC),y)
