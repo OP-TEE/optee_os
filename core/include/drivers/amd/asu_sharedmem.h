@@ -105,6 +105,12 @@ struct asu_channel_memory {
  */
 #define ASU_MODULE_CAP_ENABLED		BIT(0)
 
+/* RSA module (ASU_MODULE_RSA_ID) FeatureCaps bits - always-enabled module */
+#define ASU_RSA_CAP_PADDING		BIT(0)
+#define ASU_RSA_CAP_2048_KEYGEN		BIT(1)
+#define ASU_RSA_CAP_3072_KEYGEN		BIT(2)
+#define ASU_RSA_CAP_4096_KEYGEN		BIT(3)
+
 /*
  * Per-module runtime info exposed by ASUFW at
  * RTCA + ASU_RTCA_MODULE_INFO_OFFSET
