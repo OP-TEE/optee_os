@@ -5,3 +5,4 @@
 #
 
 srcs-y += asu_main.c
+srcs-y += asu_fw_info.c

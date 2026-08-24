@@ -6,6 +6,8 @@
 
 #include <crypto/crypto.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/asu_fw_info.h>
+#include <drivers/amd/fw_compat.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/spinlock.h>
@@ -135,6 +137,32 @@ err:
 	return ret;
 }
 
+/*
+ * Check that ASUFW reports the HUK module at least at the configured
+ * minimum version. There is no software fallback for the HUK - a
+ * software-derived key would not be hardware-rooted - so a mismatch here
+ * is always a hard failure.
+ */
+static bool asu_huk_fw_compatible(void)
+{
+	const struct fw_module_info *mod = NULL;
+
+	mod = fw_compat_get_module_info(ASU_MODULE_ID_HUK);
+	if (!mod || !mod->valid) {
+		EMSG("ASUFW does not report HUK module info");
+		return false;
+	}
+
+	if (!asu_module_version_at_least(mod, CFG_AMD_ASU_HUK_MINVER_MAJ,
+					 CFG_AMD_ASU_HUK_MINVER_MNR)) {
+		EMSG("HUK module version below minimum %u.%u",
+		     CFG_AMD_ASU_HUK_MINVER_MAJ, CFG_AMD_ASU_HUK_MINVER_MNR);
+		return false;
+	}
+
+	return true;
+}
+
 /* Validate HUK is non-zero (all-zero indicates ASU firmware failure) */
 static bool is_huk_valid(const uint8_t *huk)
 {
@@ -188,6 +216,16 @@ static TEE_Result asu_fetch_and_cache_huk(void)
 		cached_huk.fetch_in_progress = true;
 		cpu_spin_unlock_xrestore(&cached_huk.lock, exceptions);
 		break;
+	}
+
+	/*
+	 * Check ASUFW reports the HUK module as present and compatible
+	 * before sending an IPI request for it - avoids a multi-second IPI
+	 * timeout against firmware that was built without this module.
+	 */
+	if (!asu_huk_fw_compatible()) {
+		ret = TEE_ERROR_NOT_SUPPORTED;
+		goto err;
 	}
 
 	/* Fetch into temporary buffer without holding lock (IPI blocks) */
