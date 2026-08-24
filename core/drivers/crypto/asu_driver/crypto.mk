@@ -10,7 +10,18 @@ $(call force,CFG_CRYPTO_DRIVER,y)
 CFG_CRYPTO_DRIVER_DEBUG ?= 0
 $(call force,CFG_CRYPTO_DRV_HASH,y)
 
+# Minimum ASUFW version OP-TEE requires to boot (see fw_compat_check()).
+# Boot panics if the ASUFW version reported via RTCA is older than this.
+CFG_AMD_ASU_MINVER_MAJ ?= 2
+CFG_AMD_ASU_MINVER_MNR ?= 0
+
 CFG_AMD_ASU_HUK ?= y
+
+# Minimum ASU HUK module version required to trust the HUK fetched from
+# ASUFW (see asu_fetch_and_cache_huk()). There is no software fallback for
+# the HUK, so a mismatch is a hard error rather than a degraded mode.
+CFG_AMD_ASU_HUK_MINVER_MAJ ?= 1
+CFG_AMD_ASU_HUK_MINVER_MNR ?= 0
 
 ifeq ($(CFG_AMD_ASU_ECC),y)
 $(call force,CFG_CRYPTO_DRV_ECC,y)
