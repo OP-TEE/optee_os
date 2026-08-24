@@ -15,6 +15,12 @@ $(call force,CFG_CRYPTO_DRV_HASH,y)
 CFG_AMD_ASU_MINVER_MAJ ?= 2
 CFG_AMD_ASU_MINVER_MNR ?= 0
 
+# Minimum ASU SHA2/SHA3 module versions (hard fail, no SW fallback)
+CFG_AMD_ASU_SHA2_MINVER_MAJ ?= 2
+CFG_AMD_ASU_SHA2_MINVER_MNR ?= 0
+CFG_AMD_ASU_SHA3_MINVER_MAJ ?= 2
+CFG_AMD_ASU_SHA3_MINVER_MNR ?= 0
+
 CFG_AMD_ASU_HUK ?= y
 
 # Minimum ASU HUK module version required to trust the HUK fetched from
@@ -26,11 +32,25 @@ CFG_AMD_ASU_HUK_MINVER_MNR ?= 0
 ifeq ($(CFG_AMD_ASU_ECC),y)
 $(call force,CFG_CRYPTO_DRV_ECC,y)
 $(call force,CFG_CRYPTO_DRV_ACIPHER,y)
+
+# Minimum ASU ECC module version; below this, or if a curve's FeatureCaps
+# bit is unset, that curve falls back to software
+CFG_AMD_ASU_ECC_MINVER_MAJ ?= 2
+CFG_AMD_ASU_ECC_MINVER_MNR ?= 0
+
+# Minimum ASU KeyManager module version, used internally by ECC HW key-pair
+# generation. Below this, key-pair generation falls back to software.
+CFG_AMD_ASU_KEYMANAGER_MINVER_MAJ ?= 1
+CFG_AMD_ASU_KEYMANAGER_MINVER_MNR ?= 0
 endif
 
 ifeq ($(CFG_AMD_ASU_CIPHER),y)
 $(call force,CFG_CRYPTO_DRV_CIPHER,y)
 CFG_AMD_ASU_SW_FALLBACK ?= y
+
+# Minimum ASU Cipher module version; below this, falls back to software
+CFG_AMD_ASU_CIPHER_MINVER_MAJ ?= 2
+CFG_AMD_ASU_CIPHER_MINVER_MNR ?= 0
 endif
 
 ifeq ($(CFG_AMD_ASU_RSA),y)
@@ -46,11 +66,23 @@ endif
 
 ifeq ($(CFG_AMD_ASU_HMAC),y)
 $(call force,CFG_CRYPTO_DRV_MAC,y)
+
+CFG_AMD_ASU_HMAC_MINVER_MAJ ?= 2
+CFG_AMD_ASU_HMAC_MINVER_MNR ?= 0
 endif
 
 ifeq ($(CFG_AMD_ASU_AUTHENC),y)
 $(call force,CFG_CRYPTO_DRV_AUTHENC,y)
 $(call force,CFG_AMD_ASU_SW_FALLBACK,y)
+
+# Minimum ASU AES module version for GCM/CCM; below this, use SW fallback
+CFG_AMD_ASU_AUTHENC_MINVER_MAJ ?= 2
+CFG_AMD_ASU_AUTHENC_MINVER_MNR ?= 0
+endif
+
+ifeq ($(CFG_AMD_ASU_TRNG),y)
+CFG_AMD_ASU_TRNG_MINVER_MAJ ?= 2
+CFG_AMD_ASU_TRNG_MINVER_MNR ?= 0
 endif
 
 endif

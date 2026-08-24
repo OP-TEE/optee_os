@@ -6,6 +6,8 @@
 
 #include <assert.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/asu_fw_info.h>
+#include <drivers/amd/fw_compat.h>
 #include <drvcrypt.h>
 #include <drvcrypt_authenc.h>
 #include <initcall.h>
@@ -135,6 +137,23 @@ struct asu_authenc_ctx {
 };
 
 static struct asu_authenc_dev *asu_ae_dev;
+
+/* Validate the ASU AES module version used by the GCM/CCM driver */
+static bool asu_authenc_check_fw_compat(void)
+{
+	const struct fw_module_info *mod =
+		fw_compat_get_module_info(ASU_MODULE_AES_ID);
+
+	if (asu_module_version_at_least(mod, CFG_AMD_ASU_AUTHENC_MINVER_MAJ,
+					CFG_AMD_ASU_AUTHENC_MINVER_MNR)) {
+		IMSG("ASU authenc HW available");
+		return true;
+	}
+
+	EMSG("ASU authenc module version below min %u.%u, skip HW registration",
+	     CFG_AMD_ASU_AUTHENC_MINVER_MAJ, CFG_AMD_ASU_AUTHENC_MINVER_MNR);
+	return false;
+}
 
 /**
  * asu_authenc_get_mode() - Map TEE algorithm to ASU AES engine mode.
@@ -508,7 +527,7 @@ static TEE_Result asu_authenc_init(struct drvcrypt_authenc_init *dinit)
 	ae_ctx->use_sw_fallback = false;
 
 	/*
-	 * Software fallback for 192-bit keys (unsupported by ASUFW) or
+	 * Software fallback for 192-bit keys (unsupported by ASUFW), or for
 	 * GCM with non-16-byte-aligned AAD length.
 	 */
 
@@ -1031,6 +1050,11 @@ static struct drvcrypt_authenc asu_authenc_ops = {
 static TEE_Result asu_authenc_driver_init(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
+
+	if (!asu_authenc_check_fw_compat()) {
+		IMSG("ASU authenc driver not registered, using SW fallback");
+		return TEE_SUCCESS;
+	}
 
 	asu_ae_dev = calloc(1, sizeof(*asu_ae_dev));
 	if (!asu_ae_dev)

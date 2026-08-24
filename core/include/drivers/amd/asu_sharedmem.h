@@ -105,6 +105,17 @@ struct asu_channel_memory {
  */
 #define ASU_MODULE_CAP_ENABLED		BIT(0)
 
+/*
+ * ECC module (ASU_MODULE_ECC_ID) FeatureCaps bits - always-enabled module.
+ * Only the NIST curves supported by this driver are defined here; see
+ * ASUFW xasufw_alginfo.h (XASU_ECC_CAP_*) for the full bit layout.
+ */
+#define ASU_ECC_CAP_NIST_P192		BIT(1)
+#define ASU_ECC_CAP_NIST_P224		BIT(2)
+#define ASU_ECC_CAP_NIST_P256		BIT(3)
+#define ASU_ECC_CAP_NIST_P384		BIT(4)
+#define ASU_ECC_CAP_NIST_P521		BIT(5)
+
 /* RSA module (ASU_MODULE_RSA_ID) FeatureCaps bits - always-enabled module */
 #define ASU_RSA_CAP_PADDING		BIT(0)
 #define ASU_RSA_CAP_2048_KEYGEN		BIT(1)
