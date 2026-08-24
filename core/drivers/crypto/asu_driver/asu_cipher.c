@@ -7,6 +7,8 @@
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/asu_fw_info.h>
+#include <drivers/amd/fw_compat.h>
 #include <drvcrypt.h>
 #include <drvcrypt_cipher.h>
 #include <initcall.h>
@@ -101,6 +103,25 @@ struct asu_cipher_ctx {
 	bool use_sw_fallback;
 	struct crypto_cipher_ctx *sw_ctx;
 };
+
+/* Cached ASUFW Cipher compatibility; AES has no FeatureCaps bits to check */
+
+/* Validate the ASU Cipher module version */
+static bool asu_cipher_check_fw_compat(void)
+{
+	const struct fw_module_info *mod =
+		fw_compat_get_module_info(ASU_MODULE_AES_ID);
+
+	if (asu_module_version_at_least(mod, CFG_AMD_ASU_CIPHER_MINVER_MAJ,
+					CFG_AMD_ASU_CIPHER_MINVER_MNR)) {
+		IMSG("ASU Cipher HW available");
+		return true;
+	}
+
+	EMSG("ASU Cipher module version below min %u.%u, skip HW registration",
+	     CFG_AMD_ASU_CIPHER_MINVER_MAJ, CFG_AMD_ASU_CIPHER_MINVER_MNR);
+	return false;
+}
 
 /*
  * asu_cipher_get_cipher_mode() - Map TEE algorithm to ASU cipher mode.
@@ -885,6 +906,11 @@ static struct drvcrypt_cipher asu_cipher_op = {
 static TEE_Result asu_cipher_init(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
+
+	if (!asu_cipher_check_fw_compat()) {
+		IMSG("ASU Cipher driver not registered, using SW fallback");
+		return TEE_SUCCESS;
+	}
 
 	ret = drvcrypt_register_cipher(&asu_cipher_op);
 	if (ret)

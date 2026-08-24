@@ -7,6 +7,8 @@
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/asu_fw_info.h>
+#include <drivers/amd/fw_compat.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
 #include <initcall.h>
@@ -144,23 +146,64 @@ struct asu_ecc_verify_cbctx {
 static const struct crypto_ecc_keypair_ops *sw_pair_ops;
 static const struct crypto_ecc_public_ops *sw_pub_ops;
 
+/* Cached ASUFW ECC compatibility, populated at driver_init() */
+static struct {
+	bool hw_available;
+	uint16_t feature_caps;
+} asu_ecc_fw_caps;
+
 /*
- * Bitmask of ECC curves enabled in OP-TEE build for ASU FW offload.
- *
- * The set of HW-offloaded curves is fixed at build time, so this is a
- * compile-time constant rather than a value computed at runtime.
+ * Validate the ASU ECC and KeyManager module versions and cache ECC's
+ * FeatureCaps. The driver needs both modules (KeyManager is used
+ * internally by asu_ecc_gen_keypair() for HW keygen), so hw_available
+ * is only set when both meet their minimum version.
  */
-#define ASU_ECC_HW_CURVES_MASK \
-	(SHIFT_U32(IS_ENABLED(CFG_AMD_ASU_ECC_CURVE_NIST_P192), \
-		   ASU_ECC_CURVE_NIST_P192) | \
-	 SHIFT_U32(IS_ENABLED(CFG_AMD_ASU_ECC_CURVE_NIST_P224), \
-		   ASU_ECC_CURVE_NIST_P224) | \
-	 SHIFT_U32(IS_ENABLED(CFG_AMD_ASU_ECC_CURVE_NIST_P256), \
-		   ASU_ECC_CURVE_NIST_P256) | \
-	 SHIFT_U32(IS_ENABLED(CFG_AMD_ASU_ECC_CURVE_NIST_P384), \
-		   ASU_ECC_CURVE_NIST_P384) | \
-	 SHIFT_U32(IS_ENABLED(CFG_AMD_ASU_ECC_CURVE_NIST_P521), \
-		   ASU_ECC_CURVE_NIST_P521))
+static void asu_ecc_check_fw_compat(void)
+{
+	const struct fw_module_info *ecc_mod = NULL;
+	const struct fw_module_info *km_mod = NULL;
+
+	ecc_mod = fw_compat_get_module_info(ASU_MODULE_ECC_ID);
+	if (!asu_module_version_at_least(ecc_mod, CFG_AMD_ASU_ECC_MINVER_MAJ,
+					 CFG_AMD_ASU_ECC_MINVER_MNR)) {
+		EMSG("ASU ECC module unavailable or below min %u.%u, using SW",
+		     CFG_AMD_ASU_ECC_MINVER_MAJ, CFG_AMD_ASU_ECC_MINVER_MNR);
+		return;
+	}
+
+	km_mod = fw_compat_get_module_info(ASU_MODULE_KEYMANAGER_ID);
+	if (!asu_module_version_at_least(km_mod,
+					 CFG_AMD_ASU_KEYMANAGER_MINVER_MAJ,
+					 CFG_AMD_ASU_KEYMANAGER_MINVER_MNR)) {
+		EMSG("ASU KeyManager unavailable or below min %u.%u, using SW",
+		     CFG_AMD_ASU_KEYMANAGER_MINVER_MAJ,
+		     CFG_AMD_ASU_KEYMANAGER_MINVER_MNR);
+		return;
+	}
+
+	asu_ecc_fw_caps.hw_available = true;
+	asu_ecc_fw_caps.feature_caps = ecc_mod->feature_caps;
+	IMSG("ASU ECC HW available, caps=%#"PRIx16, ecc_mod->feature_caps);
+}
+
+/* Map an ASU curve ID to its ASUFW FeatureCaps bit, 0 if none defined */
+static uint16_t asu_ecc_curve_cap_bit(enum asu_ecc_curve_id asu_curve_id)
+{
+	switch (asu_curve_id) {
+	case ASU_ECC_CURVE_NIST_P192:
+		return ASU_ECC_CAP_NIST_P192;
+	case ASU_ECC_CURVE_NIST_P224:
+		return ASU_ECC_CAP_NIST_P224;
+	case ASU_ECC_CURVE_NIST_P256:
+		return ASU_ECC_CAP_NIST_P256;
+	case ASU_ECC_CURVE_NIST_P384:
+		return ASU_ECC_CAP_NIST_P384;
+	case ASU_ECC_CURVE_NIST_P521:
+		return ASU_ECC_CAP_NIST_P521;
+	default:
+		return 0;
+	}
+}
 
 /*
  * asu_ecc_alloc_align_buf() - Allocate zeroed cacheline-aligned memory
@@ -181,24 +224,27 @@ static void *asu_ecc_alloc_align_buf(size_t len)
 	return buf;
 }
 
+/* Curve must be reported compatible by ASUFW's per-curve FeatureCaps bit */
+static bool asu_ecc_curve_fw_enabled(enum asu_ecc_curve_id asu_curve_id)
+{
+	if (asu_curve_id >= ASU_ECC_CURVE_MAX)
+		return false;
+
+	return asu_ecc_fw_caps.hw_available &&
+	       (asu_ecc_fw_caps.feature_caps &
+		asu_ecc_curve_cap_bit(asu_curve_id));
+}
+
 /* Return "HW" if the curve is HW-offloaded, "SW" otherwise */
 static const char *asu_ecc_curve_mode(enum asu_ecc_curve_id asu_curve_id)
 {
-	if (ASU_ECC_HW_CURVES_MASK & BIT(asu_curve_id))
+	if (asu_ecc_curve_fw_enabled(asu_curve_id))
 		return "HW";
 
 	return "SW";
 }
 
-/*
- * asu_ecc_log_curve_modes() - Log per-curve HW/SW assignment
- *
- * By default AMD ASUFW only enables the NIST P-256 curve for ECC, and the
- * driver mirrors that default through the CFG_AMD_ASU_ECC_CURVE_* build
- * flags; curves not enabled for HW offload use the software fallback. This
- * logs which curves are hardware-accelerated so the active configuration is
- * unambiguous to the user. Call once during driver init.
- */
+/* Log per-curve HW/SW assignment. Call after asu_ecc_check_fw_compat() */
 static void asu_ecc_log_curve_modes(void)
 {
 	IMSG("ASU ECC: NIST_P192=%s NIST_P224=%s NIST_P256=%s",
@@ -210,15 +256,7 @@ static void asu_ecc_log_curve_modes(void)
 	     asu_ecc_curve_mode(ASU_ECC_CURVE_NIST_P521));
 }
 
-/* Check if ECC curve is enabled for HW offload in build configuration */
-static bool asu_ecc_curve_fw_enabled(enum asu_ecc_curve_id asu_curve_id)
-{
-	if (asu_curve_id >= ASU_ECC_CURVE_MAX)
-		return false;
-	return ASU_ECC_HW_CURVES_MASK & BIT(asu_curve_id);
-}
-
-/* ECC key-pair generation SW fallback for curves disabled in build config */
+/* ECC key-pair generation SW fallback for curves ASUFW reports as disabled */
 static TEE_Result asu_ecc_sw_gen_keypair(struct ecc_keypair *key,
 					 size_t size_bits)
 {
@@ -228,7 +266,7 @@ static TEE_Result asu_ecc_sw_gen_keypair(struct ecc_keypair *key,
 	return sw_pair_ops->generate(key, size_bits);
 }
 
-/* ECDSA sign SW fallback for curves disabled in build config */
+/* ECDSA sign SW fallback for curves ASUFW reports as disabled */
 static TEE_Result asu_ecc_sw_sign(struct drvcrypt_sign_data *sdata)
 {
 	if (!sw_pair_ops || !sw_pair_ops->sign || !sdata || !sdata->key)
@@ -240,7 +278,7 @@ static TEE_Result asu_ecc_sw_sign(struct drvcrypt_sign_data *sdata)
 				 &sdata->signature.length);
 }
 
-/* ECDSA verify SW fallback for curves disabled in build config */
+/* ECDSA verify SW fallback for curves ASUFW reports as disabled */
 static TEE_Result asu_ecc_sw_verify(struct drvcrypt_sign_data *sdata)
 {
 	if (!sw_pub_ops || !sw_pub_ops->verify || !sdata || !sdata->key)
@@ -252,7 +290,7 @@ static TEE_Result asu_ecc_sw_verify(struct drvcrypt_sign_data *sdata)
 				  sdata->signature.length);
 }
 
-/* ECDH shared-secret SW fallback for curves disabled in build config */
+/* ECDH shared-secret SW fallback for curves ASUFW reports as disabled */
 static TEE_Result asu_ecc_sw_shared_secret(struct drvcrypt_secret_data *sdata)
 {
 	TEE_Result ret = TEE_SUCCESS;
@@ -576,11 +614,15 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 	}
 
 	ret = asu_ecc_get_curve_info(key->curve, &asu_curve_id, &key_len);
-	/* Use software fallback if curve is disabled in build config */
+	/* Use software fallback if ASUFW reports the curve as disabled */
 	if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 		return asu_ecc_sw_gen_keypair(key, size_bits);
 	else if (ret != TEE_SUCCESS)
 		goto out;
+
+	/* ECC or KeyManager module unavailable/incompatible, use SW keygen */
+	if (!asu_ecc_fw_caps.hw_available)
+		return asu_ecc_sw_gen_keypair(key, size_bits);
 
 	keypair_obj = asu_ecc_alloc_align_buf(sizeof(*keypair_obj));
 	if (!keypair_obj) {
@@ -682,7 +724,7 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 
 	/* Validate curve and derive key length before acquiring any resource */
 	ret = asu_ecc_get_curve_info(key->curve, &asu_curve_id, &key_len);
-	/* Use software fallback if curve is disabled in build config */
+	/* Use software fallback if ASUFW reports the curve as disabled */
 	if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 		return asu_ecc_sw_sign(sdata);
 	else if (ret != TEE_SUCCESS)
@@ -805,7 +847,7 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 	key = sdata->key;
 
 	ret = asu_ecc_get_curve_info(key->curve, &asu_curve_id, &key_len);
-	/* Use software fallback if curve is disabled in build config */
+	/* Use software fallback if ASUFW reports the curve as disabled */
 	if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 		return asu_ecc_sw_verify(sdata);
 	else if (ret != TEE_SUCCESS)
@@ -953,7 +995,7 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 	}
 
 	ret = asu_ecc_get_curve_info(priv_key->curve, &asu_curve_id, &key_len);
-	/* Use software fallback if curve is disabled in build config */
+	/* Use software fallback if ASUFW reports the curve as disabled */
 	if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 		return asu_ecc_sw_shared_secret(sdata);
 	else if (ret != TEE_SUCCESS)
@@ -1072,6 +1114,7 @@ static TEE_Result asu_ecc_init(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
 
+	asu_ecc_check_fw_compat();
 	asu_ecc_log_curve_modes();
 
 	sw_pair_ops = crypto_asym_get_ecc_keypair_ops(TEE_TYPE_ECDSA_KEYPAIR);
