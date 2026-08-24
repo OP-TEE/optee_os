@@ -69,4 +69,52 @@ struct asu_channel_memory {
 	struct asu_channel_queue p1_chnl_q;
 };
 
+/*
+ * ASUFW firmware version register. Bits [15:8] hold the major version and
+ * bits [7:0] the minor version. Firmware predating this register reads
+ * back as 0 (version unknown / pre-v2.0).
+ */
+#define ASU_RTCA_FW_VERSION_OFFSET	0x1A0U
+#define ASU_FW_VERSION_MAJOR_SHIFT	8U
+#define ASU_FW_VERSION_MAJOR_MASK	0x0000FF00U
+#define ASU_FW_VERSION_MINOR_MASK	0x000000FFU
+
+/*
+ * Per-module crypto capability info array (XAsu_CryptoAlgInfo in ASUFW),
+ * indexed by ASU module ID (see ASU_MODULE_*_ID in asu_client.h).
+ */
+#define ASU_RTCA_MODULE_INFO_OFFSET	0x00A8U
+#define ASU_RTCA_MODULE_INFO_STRIDE	12U
+#define ASU_RTCA_MODULE_COUNT		14U
+
+/*
+ * Per-module Version field layout (offset 0 of struct asu_crypto_alg_info):
+ * bits [31:16] hold the module's major version, bits [15:0] the minor
+ * version. This is a separate, per-module counter from the overall ASUFW
+ * version register above.
+ */
+#define ASU_MODULE_VERSION_MAJOR_SHIFT	16U
+#define ASU_MODULE_VERSION_MAJOR_MASK	0xFFFF0000U
+#define ASU_MODULE_VERSION_MINOR_MASK	0x0000FFFFU
+
+/*
+ * FeatureCaps bit shared by optional modules (HUK, HMAC, KDF, ECIES,
+ * Keywrap, OCP, KeyManager, LMS) to indicate the module is present in the
+ * current ASUFW build. Always-enabled modules (TRNG, ECC, RSA, AES) use
+ * this same field for per-algorithm/curve capability bits instead.
+ */
+#define ASU_MODULE_CAP_ENABLED		BIT(0)
+
+/*
+ * Per-module runtime info exposed by ASUFW at
+ * RTCA + ASU_RTCA_MODULE_INFO_OFFSET
+ */
+struct asu_crypto_alg_info {
+	uint32_t version;
+	uint8_t nist_status;
+	uint8_t kat_status;
+	uint16_t feature_caps;
+	uint32_t reserved4;
+};
+
 #endif /* __ASU_SHAREDMEM_H_ */
