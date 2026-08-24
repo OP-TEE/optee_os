@@ -558,13 +558,16 @@ static TEE_Result asu_authenc_init(struct drvcrypt_authenc_init *dinit)
 	ae_ctx->use_sw_fallback = false;
 
 	/*
-	 * Software fallback for 192-bit keys (unsupported by ASUFW), or for
-	 * GCM with non-16-byte-aligned AAD length.
+	 * Software fallback for:
+	 * - 192-bit keys
+	 * - GCM with non-16-byte-aligned AAD
+	 * - GCM with zero-length AAD and payload
 	 */
 
 	if (key_len == ASU_AES_KEY_SIZE_192_BYTES ||
 	    (ae_ctx->mode == ASU_AES_GCM_MODE &&
-	     (dinit->aad_len % ASU_AES_BLOCK_SIZE) != 0)) {
+	     ((dinit->aad_len % ASU_AES_BLOCK_SIZE) != 0 ||
+	      (!dinit->aad_len && !dinit->payload_len)))) {
 		/* SW fallback is needed, check if it's explicitly enabled */
 		if (!IS_ENABLED(CFG_AMD_ASU_SW_FALLBACK)) {
 			DMSG("SW fallback is not enabled");
