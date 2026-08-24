@@ -7,6 +7,9 @@
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/asu_fw_info.h>
+#include <drivers/amd/asu_sharedmem.h>
+#include <drivers/amd/fw_compat.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
 #include <initcall.h>
@@ -168,6 +171,71 @@ struct asu_rsa_km_params {
 	uint32_t wrapped_input_len;
 	uint8_t reserved[4];
 };
+
+/*
+ * Cached ASUFW RSA module compatibility, populated once by
+ * asu_rsa_check_fw_compat() at driver_init() from the fw_compat_check()
+ * snapshot. @hw_available is false when the RSA module version is below
+ * CFG_AMD_ASU_RSA_MINVER_MAJ/_MNR, in which case every
+ * operation below falls back to software regardless of @feature_caps.
+ */
+static struct {
+	bool hw_available;
+	uint16_t feature_caps;
+} asu_rsa_fw_caps;
+
+/*
+ * asu_rsa_check_fw_compat() - Validate the ASU RSA module version and
+ * cache its FeatureCaps for use by the HW/SW fallback checks below
+ */
+static void asu_rsa_check_fw_compat(void)
+{
+	const struct fw_module_info *mod = NULL;
+
+	mod = fw_compat_get_module_info(ASU_MODULE_RSA_ID);
+	if (!asu_module_version_at_least(mod, CFG_AMD_ASU_RSA_MINVER_MAJ,
+					 CFG_AMD_ASU_RSA_MINVER_MNR)) {
+		EMSG("ASU RSA module unavailable or below min %u.%u, using SW",
+		     CFG_AMD_ASU_RSA_MINVER_MAJ, CFG_AMD_ASU_RSA_MINVER_MNR);
+		return;
+	}
+
+	asu_rsa_fw_caps.hw_available = true;
+	asu_rsa_fw_caps.feature_caps = mod->feature_caps;
+
+	IMSG("ASU RSA HW available, caps=%#"PRIx16, mod->feature_caps);
+}
+
+/* Whether HW-accelerated padded RSA (OAEP/PSS) operations can be used */
+static bool asu_rsa_hw_supports_padding(void)
+{
+	return asu_rsa_fw_caps.hw_available &&
+	       (asu_rsa_fw_caps.feature_caps & ASU_RSA_CAP_PADDING);
+}
+
+/* Whether HW-accelerated raw (NOPAD) RSA operations can be used */
+static bool asu_rsa_hw_supports_nopad(void)
+{
+	return asu_rsa_fw_caps.hw_available;
+}
+
+/* Whether HW RSA key-pair generation is available for a given key size */
+static bool asu_rsa_hw_supports_keygen(size_t size_bits)
+{
+	if (!asu_rsa_fw_caps.hw_available)
+		return false;
+
+	switch (size_bits) {
+	case 2048:
+		return asu_rsa_fw_caps.feature_caps & ASU_RSA_CAP_2048_KEYGEN;
+	case 3072:
+		return asu_rsa_fw_caps.feature_caps & ASU_RSA_CAP_3072_KEYGEN;
+	case 4096:
+		return asu_rsa_fw_caps.feature_caps & ASU_RSA_CAP_4096_KEYGEN;
+	default:
+		return false;
+	}
+}
 
 /* Calculate the length of the RSA key-pair blob */
 static size_t asu_rsa_keypair_blob_len(size_t size_bytes)
@@ -1199,7 +1267,8 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 			ret = asu_rsa_sw_rsaes_encrypt(rsa_data);
 			goto out;
 		}
-		if (asu_rsa_validate_key_size(rsa_data->key.n_size)) {
+		if (asu_rsa_validate_key_size(rsa_data->key.n_size) ||
+		    !asu_rsa_hw_supports_padding()) {
 			ret = asu_rsa_sw_rsaes_encrypt(rsa_data);
 			goto out;
 		}
@@ -1211,7 +1280,8 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 			goto out;
 		}
 
-		if (asu_rsa_validate_key_size(rsa_data->key.n_size)) {
+		if (asu_rsa_validate_key_size(rsa_data->key.n_size) ||
+		    !asu_rsa_hw_supports_nopad()) {
 			ret = asu_rsa_sw_rsanopad_encrypt(rsa_data);
 			goto out;
 		}
@@ -1370,7 +1440,8 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 			ret = TEE_ERROR_BAD_PARAMETERS;
 			goto out;
 		}
-		if (asu_rsa_validate_key_size(rsa_data->key.n_size)) {
+		if (asu_rsa_validate_key_size(rsa_data->key.n_size) ||
+		    !asu_rsa_hw_supports_padding()) {
 			ret = asu_rsa_sw_rsaes_decrypt(rsa_data);
 			goto out;
 		}
@@ -1383,7 +1454,8 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 		}
 
 		if (asu_rsa_validate_key_size(rsa_data->key.n_size) ||
-		    rsa_data->cipher.length != rsa_data->key.n_size) {
+		    rsa_data->cipher.length != rsa_data->key.n_size ||
+		    !asu_rsa_hw_supports_nopad()) {
 			ret = asu_rsa_sw_rsanopad_decrypt(rsa_data);
 			goto out;
 		}
@@ -1596,7 +1668,8 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 		goto out;
 	}
 
-	if (asu_rsa_validate_key_size(ssa_data->key.n_size)) {
+	if (asu_rsa_validate_key_size(ssa_data->key.n_size) ||
+	    !asu_rsa_hw_supports_padding()) {
 		ret = asu_rsa_sw_rsassa_sign(ssa_data);
 		goto out;
 	}
@@ -1725,8 +1798,14 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 		goto out;
 	}
 
-	if (asu_rsa_validate_key_size(ssa_data->key.n_size)) {
-		ret = asu_rsa_sw_rsassa_verify(ssa_data);
+	if (asu_rsa_validate_key_size(ssa_data->key.n_size) ||
+	    !asu_rsa_hw_supports_padding()) {
+		/*
+		 * TODO: SW fallback here triggers an FTMN assertion under
+		 * CFG_FAULT_MITIGATION=y (nested FTMN completion corrupts
+		 * caller state). Fail closed until that shared bug is fixed.
+		 */
+		ret = TEE_ERROR_NOT_SUPPORTED;
 		goto out;
 	}
 
@@ -1819,7 +1898,8 @@ static TEE_Result asu_rsa_gen_keypair(struct rsa_keypair *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (asu_rsa_size_bits_to_bytes(size_bits, &size_bytes) ||
-	    asu_rsa_pubexp_is_f4(key->e))
+	    asu_rsa_pubexp_is_f4(key->e) ||
+	    !asu_rsa_hw_supports_keygen(size_bits))
 		return sw_crypto_acipher_gen_rsa_key(key, size_bits);
 
 	key_obj_req_len = asu_rsa_keypair_blob_len(size_bytes);
@@ -1990,6 +2070,8 @@ static struct drvcrypt_rsa driver_rsa = {
 static TEE_Result asu_rsa_init(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
+
+	asu_rsa_check_fw_compat();
 
 	ret = drvcrypt_register_rsa(&driver_rsa);
 	if (ret) {
