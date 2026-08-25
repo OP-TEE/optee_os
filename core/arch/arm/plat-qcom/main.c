@@ -7,6 +7,7 @@
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/qcom_geni_uart.h>
+#include <el3_intr_delegation.h>
 #include <kernel/boot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -72,4 +73,5 @@ void boot_primary_init_intc(void)
 void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
+	el3_intr_delegation_init_per_cpu();
 }
