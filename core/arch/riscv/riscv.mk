@@ -103,6 +103,16 @@ $(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 
+CFG_RISCV_VECTOR ?= n
+CFG_RISCV_ZVKNG ?= n
+
+ifeq ($(CFG_RISCV_ZVKNG),y)
+$(call force,CFG_RISCV_VECTOR,y,required by CFG_RISCV_ZVKNG)
+endif
+ifeq ($(CFG_RISCV_VECTOR),y)
+$(call force,CFG_WITH_VFP,y,required by CFG_RISCV_VECTOR)
+endif
+
 # Enable generic timer
 $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
 
@@ -127,11 +137,14 @@ endif
 ifeq ($(CFG_RISCV_ISA_C),y)
 ISA_C = c
 endif
+ifeq ($(CFG_RISCV_VECTOR),y)
+ISA_V = v
+endif
 ifeq ($(CFG_RISCV_ISA_ZBB),y)
 ISA_ZBB = _zbb
 endif
 
-riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei
+riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_V)$(ISA_ZBB)_zicsr_zifencei
 riscv-abi = $(ABI_BASE)$(ABI_D)
 
 rv64-platform-cflags += -mcmodel=$(riscv-platform-mcmodel)
