@@ -2064,11 +2064,27 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 	}
 }
 
+/*
+ * The leaf translation table covering a virtual address only changes every
+ * CORE_MMU_PGDIR_SIZE. A loop mapping one small page at a time can therefore
+ * reuse the table found for the previous page instead of walking the
+ * translation tables from the base table again for every page.
+ *
+ * Returns true if @ti still describes the table covering @va. Note that @va
+ * below @ti->va_base wraps the unsigned subtraction into a large value and
+ * thus correctly reports the table as not covering @va.
+ */
+static bool tbl_info_covers_va(struct core_mmu_table_info *ti, vaddr_t va)
+{
+	return ti->table &&
+	       va - ti->va_base < BIT64(ti->shift) * ti->num_entries;
+}
+
 TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 			      enum teecore_memtypes memtype)
 {
 	TEE_Result ret;
-	struct core_mmu_table_info tbl_info;
+	struct core_mmu_table_info tbl_info = { };
 	struct tee_mmap_region *mm;
 	unsigned int idx;
 	uint32_t old_attr;
@@ -2099,21 +2115,25 @@ TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 			goto err;
 		}
 
-		while (true) {
+		while (!tbl_info_covers_va(&tbl_info, vaddr)) {
 			if (!core_mmu_find_table(NULL, vaddr, UINT_MAX,
 						 &tbl_info))
 				panic("Can't find pagetable for vaddr ");
 
-			idx = core_mmu_va2idx(&tbl_info, vaddr);
 			if (tbl_info.shift == SMALL_PAGE_SHIFT)
 				break;
 
 			/* This is supertable. Need to divide it. */
+			idx = core_mmu_va2idx(&tbl_info, vaddr);
 			if (!core_mmu_entry_to_finer_grained(&tbl_info, idx,
 							     secure))
 				panic("Failed to spread pgdir on small tables");
+
+			/* Force a new walk to reach the divided table */
+			tbl_info.table = NULL;
 		}
 
+		idx = core_mmu_va2idx(&tbl_info, vaddr);
 		core_mmu_get_entry(&tbl_info, idx, NULL, &old_attr);
 		if (old_attr)
 			panic("Page is already mapped");
@@ -2172,21 +2192,25 @@ TEE_Result core_mmu_map_contiguous_pages(vaddr_t vstart, paddr_t pstart,
 		panic("Trying to map into static region");
 
 	for (i = 0; i < num_pages; i++) {
-		while (true) {
+		while (!tbl_info_covers_va(&tbl_info, vaddr)) {
 			if (!core_mmu_find_table(NULL, vaddr, UINT_MAX,
 						 &tbl_info))
 				panic("Can't find pagetable for vaddr ");
 
-			idx = core_mmu_va2idx(&tbl_info, vaddr);
 			if (tbl_info.shift == SMALL_PAGE_SHIFT)
 				break;
 
 			/* This is supertable. Need to divide it. */
+			idx = core_mmu_va2idx(&tbl_info, vaddr);
 			if (!core_mmu_entry_to_finer_grained(&tbl_info, idx,
 							     secure))
 				panic("Failed to spread pgdir on small tables");
+
+			/* Force a new walk to reach the divided table */
+			tbl_info.table = NULL;
 		}
 
+		idx = core_mmu_va2idx(&tbl_info, vaddr);
 		core_mmu_get_entry(&tbl_info, idx, NULL, &old_attr);
 		if (old_attr)
 			panic("Page is already mapped");
@@ -2274,7 +2298,7 @@ static void maybe_remove_from_mem_map(vaddr_t vstart, size_t num_pages)
 
 void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 {
-	struct core_mmu_table_info tbl_info;
+	struct core_mmu_table_info tbl_info = { };
 	size_t i;
 	unsigned int idx;
 	uint32_t exceptions;
@@ -2284,11 +2308,14 @@ void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 	maybe_remove_from_mem_map(vstart, num_pages);
 
 	for (i = 0; i < num_pages; i++, vstart += SMALL_PAGE_SIZE) {
-		if (!core_mmu_find_table(NULL, vstart, UINT_MAX, &tbl_info))
-			panic("Can't find pagetable");
+		if (!tbl_info_covers_va(&tbl_info, vstart)) {
+			if (!core_mmu_find_table(NULL, vstart, UINT_MAX,
+						 &tbl_info))
+				panic("Can't find pagetable");
 
-		if (tbl_info.shift != SMALL_PAGE_SHIFT)
-			panic("Invalid pagetable level");
+			if (tbl_info.shift != SMALL_PAGE_SHIFT)
+				panic("Invalid pagetable level");
+		}
 
 		idx = core_mmu_va2idx(&tbl_info, vstart);
 		core_mmu_set_entry(&tbl_info, idx, 0, 0);
