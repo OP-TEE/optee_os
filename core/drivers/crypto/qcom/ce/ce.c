@@ -374,3 +374,181 @@ TEE_Result ce_aes_xfer(vaddr_t base, uint32_t encr_cfg,
 
 	return TEE_SUCCESS;
 }
+
+/* AUTHENC. */
+
+static TEE_Result aead_transfer(vaddr_t base, uint32_t encr_cfg,
+				uint32_t auth_cfg,
+				const uint8_t *in, uint8_t *out,
+				size_t auth_start, size_t auth_len,
+				size_t cipher_start, size_t cipher_len,
+				uint8_t *tag, size_t tag_len, bool encrypt)
+{
+	/* For AAD-only or non-final payload segments, no tag. */
+	size_t dec_tag = (tag_len && !encrypt) ? tag_len : 0;
+	size_t enc_tag = (tag_len && encrypt) ? tag_len : 0;
+	/*
+	 * Callers pass either cipher_len = 0 (AAD-only) or
+	 * auth_len = cipher_len (payload); the two are never independently
+	 * non-zero and different.
+	 */
+	size_t din_pay = cipher_len ? cipher_len : auth_len;
+	/* dec_tag bytes fed via DATA_IN are consumed for MAC comparison. */
+	size_t din_bytes = din_pay + dec_tag;
+	/*
+	 * The engine always emits enc_tag tag bytes at the end of the final
+	 * encrypt segment regardless of payload size. When the cipher engine
+	 * is active it also emits cipher_len bytes of ciphertext;
+	 * when idle (cipher_len = 0) the AAD bytes pass through.
+	 */
+	size_t dout_bytes = (cipher_len ? cipher_len : auth_len) + enc_tag;
+	size_t seg_size = MAX(auth_start + auth_len,
+			      cipher_start + cipher_len + dec_tag);
+
+	size_t din_done = 0;
+	size_t dout_done = 0;
+	uint32_t status = 0;
+	uint64_t timeout = 0;
+
+	TEE_Result res = TEE_SUCCESS;
+
+	io_write32_off(base, CE_AUTH_SEG_SIZE, auth_len);
+	io_write32_off(base, CE_AUTH_SEG_START, auth_start);
+	io_write32_off(base, CE_AUTH_SEG_CFG, auth_cfg);
+	io_write32_off(base, CE_ENCR_SEG_SIZE, cipher_len + dec_tag);
+	io_write32_off(base, CE_ENCR_SEG_START, cipher_start);
+	io_write32_off(base, CE_SEG_SIZE, seg_size);
+	io_write32_off(base, CE_ENCR_SEG_CFG, encr_cfg);
+
+	/*
+	 * Clear W0C error bits left over from any prior operation.
+	 * STATUS[19:15] and STATUS2[29] (KEY_ERR) are sticky W0C.
+	 */
+	io_write32_off(base, CE_STATUS, 0);
+	io_write32_off(base, CE_STATUS2, 0);
+
+	ce_go(base);
+
+	/*
+	 * DATA_IN/DATA_OUT loop. Every byte clocked in passes through to
+	 * DATA_OUT, so the loop always both feeds @din_bytes and drains
+	 * @dout_bytes; leaving any DATA_OUT byte unread parks the engine in
+	 * FINAL_READS and blocks OPERATION_DONE.
+	 */
+	timeout = timeout_init_us(CE_POLL_TIMEOUT_US);
+	while (din_done < din_bytes || dout_done < dout_bytes) {
+		uint32_t avail = 0;
+
+		if (timeout_elapsed(timeout)) {
+			if (out)
+				memzero_explicit(out, cipher_len);
+			return TEE_ERROR_BUSY;
+		}
+
+		status = io_read32_off(base, CE_STATUS);
+
+		if ((status & CE_STATUS_DIN_RDY) && din_done < din_bytes) {
+			uint32_t s2 = io_read32_off(base, CE_STATUS);
+			unsigned int i = 0;
+
+			avail = ce_din_avail(s2);
+			while (avail && din_done < din_bytes) {
+				uint8_t wb[sizeof(uint32_t)] = { };
+				uint32_t w = 0;
+				unsigned int b = 0;
+
+				for (b = 0; b < sizeof(uint32_t) &&
+				     din_done < din_bytes; b++, din_done++) {
+					if (din_done < din_pay)
+						wb[b] = in[din_done];
+					else
+						wb[b] = tag[din_done - din_pay];
+				}
+				memcpy(&w, wb, sizeof(w));
+				ce_fifo_write(base, i, w);
+
+				i++;
+				avail--;
+			}
+		}
+
+		if ((status & CE_STATUS_DOUT_RDY) && dout_done < dout_bytes) {
+			uint32_t s2 = io_read32_off(base, CE_STATUS);
+			unsigned int i = 0;
+
+			avail = ce_dout_avail(s2);
+			while (avail && dout_done < dout_bytes) {
+				uint8_t wb[sizeof(uint32_t)] = { };
+				uint32_t w = 0;
+				unsigned int b = 0;
+
+				w = ce_fifo_read(base, i);
+				memcpy(wb, &w, sizeof(w));
+				for (b = 0; b < sizeof(uint32_t) &&
+				     dout_done < dout_bytes; b++, dout_done++) {
+					if (dout_done < cipher_len)
+						out[dout_done] = wb[b];
+					else if (enc_tag)
+						tag[dout_done - cipher_len] =
+							wb[b];
+				}
+				i++;
+				avail--;
+			}
+		}
+	}
+
+	/* Auth engine requires OPERATION_DONE poll. */
+	timeout = timeout_init_us(CE_POLL_TIMEOUT_US);
+	while (!(io_read32_off(base, CE_STATUS) & CE_STATUS_OPERATION_DONE)) {
+		if (timeout_elapsed(timeout)) {
+			if (out)
+				memzero_explicit(out, cipher_len);
+			return TEE_ERROR_BUSY;
+		}
+	}
+
+	/*
+	 * The engine compares the supplied tag internally and
+	 * flags a mismatch in STATUS.MAC_FAILED. Report it as an invalid MAC.
+	 */
+	if (tag_len && !encrypt &&
+	    (io_read32_off(base, CE_STATUS) & CE_STATUS_MAC_FAILED)) {
+		if (out)
+			memzero_explicit(out, cipher_len);
+		return TEE_ERROR_MAC_INVALID;
+	}
+
+	res = ce_get_state(base);
+	if (res && out)
+		memzero_explicit(out, cipher_len);
+
+	return res;
+}
+
+/*
+ * ce_aes_aead_auth() - Feed @aad_len bytes of AAD through the auth engine.
+ * Caller must load/save AUTH_IVn/AUTH_BYTECNTn around each call.
+ */
+TEE_Result ce_aes_aead_auth(vaddr_t base, uint32_t encr_cfg, uint32_t auth_cfg,
+			    const uint8_t *aad, size_t aad_len)
+{
+	return aead_transfer(base, encr_cfg, auth_cfg, aad, NULL,
+			     0, aad_len, aad_len, 0, NULL, 0, false);
+}
+
+/*
+ * ce_aes_aead_xfer() - Encrypt/decrypt @len bytes with simultaneous auth.
+ * Caller must load/save AUTH_IVn/AUTH_BYTECNTn around each call. On the
+ * last segment, @tag/@tag_len carry the tag through the FIFO; pass tag_len=0
+ * for non-final segments.
+ */
+TEE_Result ce_aes_aead_xfer(vaddr_t base, uint32_t encr_cfg,
+			    uint32_t auth_cfg,
+			    const uint8_t *in, uint8_t *out,
+			    size_t len, uint8_t *tag, size_t tag_len,
+			    bool encrypt)
+{
+	return aead_transfer(base, encr_cfg, auth_cfg, in, out,
+			     0, len, 0, len, tag, tag_len, encrypt);
+}

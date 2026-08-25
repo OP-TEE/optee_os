@@ -7,3 +7,4 @@ incdirs-y += include
 srcs-y += ce.c
 
 subdirs-$(CFG_QCOM_CE_CIPHER) += cipher
+subdirs-$(CFG_QCOM_CE_AUTHENC) += authenc
