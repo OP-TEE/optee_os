@@ -3,7 +3,11 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <drivers/qcom/cmd_db/cmd_db.h>
+#include <drivers/qcom/rpmh/rpmh_client.h>
+#include <inttypes.h>
 #include <qfprom_target.h>
+#include <trace.h>
 
 #include "qfprom_priv.h"
 
@@ -74,8 +78,75 @@ const struct qfprom_region_info region_data[] = {
 
 const size_t region_count = ARRAY_SIZE(region_data);
 
+static struct rpmh_client *rpmh_handle;
+
+static TEE_Result qfprom_platform_init(void)
+{
+	uint32_t vrm_addr = 0;
+	uint32_t req_id = 0;
+
+	if (!rpmh_handle) {
+		rpmh_handle = rpmh_create_handle(RSC_DRV_SECURE, "qfprom");
+		if (!rpmh_handle) {
+			EMSG("RPMH client creation failed");
+			return TEE_ERROR_GENERIC;
+		}
+	}
+
+	/* Enable MX voltage rail for QFPROM operations */
+	if (cmd_db_get_addr(PM_QFPROM_VREG_A, &vrm_addr) != TEE_SUCCESS) {
+		EMSG("QFPROM voltage rail '%s' not found in CMD_DB",
+		     PM_QFPROM_VREG_A);
+		return TEE_ERROR_GENERIC;
+	}
+
+	if (rpmh_send_command(rpmh_handle, RPMH_SET_ACTIVE, true,
+			      vrm_addr, QFPROM_VOLTAGE_ON, &req_id) !=
+	    TEE_SUCCESS) {
+		EMSG("RPMH enable MX failed: addr 0x%"PRIx32" req_id %"PRIu32,
+		     vrm_addr, req_id);
+		return TEE_ERROR_GENERIC;
+	}
+
+	rpmh_barrier_single(rpmh_handle, req_id);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result qfprom_platform_deinit(void)
+{
+	uint32_t vrm_addr = 0;
+	uint32_t req_id = 0;
+
+	if (!rpmh_handle) {
+		EMSG("RPMH not initialized");
+		return TEE_ERROR_GENERIC;
+	}
+
+	/* Disable MX voltage rail after QFPROM operations */
+	if (cmd_db_get_addr(PM_QFPROM_VREG_A, &vrm_addr) != TEE_SUCCESS) {
+		EMSG("QFPROM voltage rail '%s' not found in CMD_DB",
+		     PM_QFPROM_VREG_A);
+		return TEE_ERROR_GENERIC;
+	}
+
+	if (rpmh_send_command(rpmh_handle, RPMH_SET_ACTIVE, true,
+			      vrm_addr, QFPROM_VOLTAGE_OFF, &req_id) !=
+	    TEE_SUCCESS) {
+		EMSG("RPMH disable MX failed: addr 0x%"PRIx32" req_id %"PRIu32,
+		     vrm_addr, req_id);
+		return TEE_ERROR_GENERIC;
+	}
+
+	rpmh_barrier_single(rpmh_handle, req_id);
+
+	return TEE_SUCCESS;
+}
+
 const struct qfprom_platform_config plat_config = {
 	.name = "Kodiak",
+	.init = qfprom_platform_init,
+	.deinit = qfprom_platform_deinit,
 	.qfprom_raw_base = QFPROM_RAW_BASE,
 	.qfprom_corr_base = QFPROM_CORR_BASE,
 	.qfprom_size = QFPROM_SIZE,
