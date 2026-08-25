@@ -3962,6 +3962,11 @@ ecdh_out:
 		};
 		struct tee_obj *ko2 = NULL;
 
+		if (kep_parms.out_len > sk->alloc_size) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+
 		res = tee_obj_get(utc, cs->key2, &ko2);
 		if (res != TEE_SUCCESS)
 			goto out;
