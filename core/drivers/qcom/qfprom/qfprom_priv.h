@@ -41,6 +41,8 @@ struct qfprom_region_info {
 
 struct qfprom_platform_config {
 	const char *name;
+	TEE_Result (*init)(void);
+	TEE_Result (*deinit)(void);
 	paddr_t qfprom_raw_base;
 	paddr_t qfprom_corr_base;
 	size_t qfprom_size;
@@ -70,9 +72,6 @@ struct qfprom_context *qfprom_get_context(void);
 
 TEE_Result qfprom_write_set_clock_settings(void);
 TEE_Result qfprom_write_reset_clock_settings(void);
-
-TEE_Result qfprom_enable_voltage(void);
-TEE_Result qfprom_disable_voltage(void);
 
 TEE_Result qfprom_acquire_hw_mutex(void);
 TEE_Result qfprom_release_hw_mutex(void);

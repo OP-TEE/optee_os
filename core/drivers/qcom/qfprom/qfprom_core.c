@@ -387,20 +387,22 @@ TEE_Result qfprom_hw_init(void)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = qfprom_enable_voltage();
-	if (res != TEE_SUCCESS)
-		goto err_unlock;
+	if (drv->config->init) {
+		res = drv->config->init();
+		if (res != TEE_SUCCESS)
+			goto err_unlock;
+	}
 
 	res = qfprom_write_set_clock_settings();
 	if (res != TEE_SUCCESS)
-		goto err_disable_voltage;
+		goto err_deinit;
 
 	drv->write_op_allowed = true;
 	return TEE_SUCCESS;
 
-err_disable_voltage:
-	if (qfprom_disable_voltage() != TEE_SUCCESS)
-		EMSG("Failed to disable voltage");
+err_deinit:
+	if (drv->config->deinit && drv->config->deinit() != TEE_SUCCESS)
+		EMSG("Failed to deinit platform");
 err_unlock:
 	qfprom_release_hw_mutex();
 	return res;
@@ -412,8 +414,8 @@ void qfprom_hw_deinit(void)
 
 	drv->write_op_allowed = false;
 	qfprom_write_reset_clock_settings();
-	if (qfprom_disable_voltage() != TEE_SUCCESS)
-		EMSG("Failed to disable voltage");
+	if (drv->config->deinit && drv->config->deinit() != TEE_SUCCESS)
+		EMSG("Failed to deinit platform");
 	qfprom_release_hw_mutex();
 }
 

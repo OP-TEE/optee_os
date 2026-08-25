@@ -4,9 +4,6 @@
  */
 
 #include <drivers/clk_qcom.h>
-#include <drivers/qcom/cmd_db/cmd_db.h>
-#include <drivers/qcom/rpmh/rpmh_client.h>
-#include <inttypes.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/panic.h>
@@ -61,83 +58,6 @@ TEE_Result qfprom_write_reset_clock_settings(void)
 
 	return TEE_SUCCESS;
 }
-
-#ifdef CFG_QFPROM_MX_RAIL_WA
-static struct rpmh_client *rpmh_handle;
-
-TEE_Result qfprom_enable_voltage(void)
-{
-	uint32_t vrm_addr = 0;
-	uint32_t req_id = 0;
-
-	if (!rpmh_handle) {
-		rpmh_handle = rpmh_create_handle(RSC_DRV_SECURE, "qfprom");
-		if (!rpmh_handle) {
-			EMSG("RPMH client creation failed");
-			return TEE_ERROR_GENERIC;
-		}
-	}
-
-	/* Enable MX voltage rail for QFPROM operations */
-	if (cmd_db_get_addr(PM_QFPROM_VREG_A, &vrm_addr) != TEE_SUCCESS) {
-		EMSG("QFPROM voltage rail '%s' not found in CMD_DB",
-		     PM_QFPROM_VREG_A);
-		return TEE_ERROR_GENERIC;
-	}
-
-	if (rpmh_send_command(rpmh_handle, RPMH_SET_ACTIVE, true,
-			      vrm_addr, QFPROM_VOLTAGE_ON, &req_id) !=
-	    TEE_SUCCESS) {
-		EMSG("RPMH enable MX failed: addr 0x%"PRIx32" req_id %"PRIu32,
-		     vrm_addr, req_id);
-		return TEE_ERROR_GENERIC;
-	}
-
-	rpmh_barrier_single(rpmh_handle, req_id);
-
-	return TEE_SUCCESS;
-}
-
-TEE_Result qfprom_disable_voltage(void)
-{
-	uint32_t vrm_addr = 0;
-	uint32_t req_id = 0;
-
-	if (!rpmh_handle) {
-		EMSG("RPMH not initialized");
-		return TEE_ERROR_GENERIC;
-	}
-
-	/* Disable MX voltage rail after QFPROM operations */
-	if (cmd_db_get_addr(PM_QFPROM_VREG_A, &vrm_addr) != TEE_SUCCESS) {
-		EMSG("QFPROM voltage rail '%s' not found in CMD_DB",
-		     PM_QFPROM_VREG_A);
-		return TEE_ERROR_GENERIC;
-	}
-
-	if (rpmh_send_command(rpmh_handle, RPMH_SET_ACTIVE, true,
-			      vrm_addr, QFPROM_VOLTAGE_OFF, &req_id) !=
-	    TEE_SUCCESS) {
-		EMSG("RPMH disable MX failed: addr 0x%"PRIx32" req_id %"PRIu32,
-		     vrm_addr, req_id);
-		return TEE_ERROR_GENERIC;
-	}
-
-	rpmh_barrier_single(rpmh_handle, req_id);
-
-	return TEE_SUCCESS;
-}
-#else
-TEE_Result qfprom_enable_voltage(void)
-{
-	return TEE_SUCCESS;
-}
-
-TEE_Result qfprom_disable_voltage(void)
-{
-	return TEE_SUCCESS;
-}
-#endif /* CFG_QFPROM_MX_RAIL_WA */
 
 TEE_Result qfprom_acquire_hw_mutex(void)
 {
