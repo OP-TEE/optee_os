@@ -477,6 +477,20 @@ static int master_run_transaction(const uint32_t *cmd, size_t cmd_words,
 				    cmd, cmd_words, rsp, rsp_words);
 }
 
+static int gpce_run_transaction(const uint32_t *cmd, size_t cmd_words,
+				uint32_t *rsp, size_t rsp_words)
+{
+	struct hwkm_drv_ctx *ctx = NULL;
+
+	ctx = hwkm_get_context();
+	if (!ctx || !ctx->crypto0_base)
+		return HWKM_ERR_INVALID_ARG;
+
+	return run_fifo_transaction(ctx->crypto0_base +
+				    HWKM_CRYPTO0_BANK0_REGS_OFFSET,
+				    cmd, cmd_words, rsp, rsp_words);
+}
+
 static int run_transaction(const struct hwkm_transaction *t,
 			   const uint32_t *cmd, size_t cmd_words,
 			   uint32_t *rsp, size_t rsp_words)
@@ -487,6 +501,8 @@ static int run_transaction(const struct hwkm_transaction *t,
 	switch (t->hdl->dest) {
 	case HWKM_KEY_DEST_KM_MASTER:
 		return master_run_transaction(cmd, cmd_words, rsp, rsp_words);
+	case HWKM_KEY_DEST_GPCE_SLAVE:
+		return gpce_run_transaction(cmd, cmd_words, rsp, rsp_words);
 	default:
 		return HWKM_ERR_INVALID_DEST;
 	}
@@ -773,6 +789,7 @@ int hwkm_handle_init(struct hwkm_handle *hdl, enum hwkm_key_destination dest)
 {
 	switch (dest) {
 	case HWKM_KEY_DEST_KM_MASTER:
+	case HWKM_KEY_DEST_GPCE_SLAVE:
 		break;
 	default:
 		return HWKM_ERR_INVALID_DEST;
