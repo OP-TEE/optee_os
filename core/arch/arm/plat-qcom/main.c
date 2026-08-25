@@ -12,6 +12,7 @@
 #include <platform_config.h>
 
 #include "diag_log.h"
+#include "gicv2_el3_intr_delegation.h"
 
 /*
  * Register the physical memory area for peripherals etc. Here we are
@@ -72,4 +73,5 @@ void boot_primary_init_intc(void)
 void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
+	qcom_gicv2_el3_intr_delegation_init_per_cpu();
 }
