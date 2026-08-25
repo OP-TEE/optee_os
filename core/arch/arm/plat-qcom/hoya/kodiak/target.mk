@@ -8,11 +8,16 @@ CFG_QCOM_QFPROM_FUSEPROV ?= y
 endif
 
 ifeq ($(CFG_QCOM_QFPROM_FUSEPROV),y)
-$(call force,CFG_QCOM_CMD_DB,y)
-$(call force,CFG_QCOM_RPMH_CLIENT,y)
 $(call force,CFG_QCOM_QFPROM,y)
+endif
+
+ifeq ($(CFG_QCOM_QFPROM),y)
 # Kodiak requires MX voltage rail workaround for QFPROM fuse blowing
-$(call force,CFG_QFPROM_MX_RAIL_WA,y)
+$(call force,CFG_QCOM_RPMH_CLIENT,y)
+endif
+
+ifeq ($(CFG_QCOM_RPMH_CLIENT),y)
+$(call force,CFG_QCOM_CMD_DB,y)
 endif
 
 CFG_QCOM_PAS_PTA ?= y
