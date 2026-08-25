@@ -74,4 +74,5 @@ void boot_primary_init_intc(void)
 void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
+	qcom_gicv2_el3_intr_delegation_init_per_cpu();
 }
