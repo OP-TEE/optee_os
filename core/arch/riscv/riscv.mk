@@ -122,7 +122,8 @@ endif
 # CFG_CORE_CRYPTO_*_ACCEL options by default here: each option switches
 # libtomcrypt to the corresponding crypto_drv implementation and must only be
 # selected once every required entry point is supplied.
-ifneq ($(call cfg-one-enabled,CFG_CORE_CRYPTO_AES_ACCEL),n)
+ifneq ($(call cfg-one-enabled,CFG_CORE_CRYPTO_AES_ACCEL \
+	CFG_CORE_CRYPTO_SHA256_ACCEL CFG_CORE_CRYPTO_SHA512_ACCEL),n)
 $(call force,CFG_RISCV_ZVKNG,y,required by RISC-V crypto acceleration)
 endif
 
