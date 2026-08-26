@@ -36,6 +36,10 @@
 #define ASU_SHA_UPDATE				0x2U
 #define ASU_SHA_FINISH				0x4U
 
+/* SHAKE256 XOF continuation flag */
+#define ASU_SHA_NEXT_XOF_DISABLE		0U
+#define ASU_SHA_NEXT_XOF_ENABLE			1U
+
 /* SHA hash lengths */
 #define ASU_SHA_256_HASH_LEN			32U
 #define ASU_SHA_384_HASH_LEN			48U
@@ -43,8 +47,6 @@
 #define ASU_SHAKE_256_HASH_LEN			32U
 #define ASU_SHAKE_256_MAX_HASH_LEN		136U
 #define ASU_DATA_CHUNK_LEN			4096U
-
-#define ASU_DMA_ALIGNMENT			64U
 
 #if defined(CFG_AMD_ASU_HMAC)
 /* HMAC command IDs (used as cmdid in asu_create_header) */
@@ -78,7 +80,7 @@ struct asu_sha_op_cmd {
 	uint8_t shamode;
 	uint8_t islast;
 	uint8_t opflags;
-	uint8_t shakereserved;
+	uint8_t xofenableflag;
 };
 
 struct asu_hash_ctx {
@@ -222,6 +224,10 @@ static TEE_Result asu_hash_get_alg(uint32_t algo,
 		*module = ASU_MODULE_SHA3_ID;
 		*mode = ASU_SHA_MODE_SHA512;
 		break;
+	case TEE_ALG_SHAKE256:
+		*module = ASU_MODULE_SHA3_ID;
+		*mode = ASU_SHA_MODE_SHAKE256;
+		break;
 	default:
 		ret = TEE_ERROR_NOT_IMPLEMENTED;
 		break;
@@ -296,6 +302,7 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 	TEE_Result ret = TEE_SUCCESS;
 	struct asu_sha_op_cmd op = {};
 	struct asu_client_params *cparam = NULL;
+	size_t cacheline_len = dcache_get_line_size();
 	uint32_t remaining = 0;
 
 	/* Inputs of client request */
@@ -304,7 +311,7 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 	cparam->cbhandler = NULL;
 
 	/* Inputs of SHA request */
-	cache_operation(TEE_CACHEFLUSH, data, len);
+	cache_operation(TEE_CACHEFLUSH, data, ROUNDUP(len, cacheline_len));
 	op.hashaddr = 0;
 	op.hashbufsize = 0;
 	op.shamode = asu_hashctx->shamode;
@@ -365,6 +372,12 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 	struct asu_sha_op_cmd op = {};
 	struct asu_client_params *cparam = NULL;
 	uint8_t *dma_digest = NULL;
+	size_t cacheline_len = dcache_get_line_size();
+	size_t alloc_len = ROUNDUP(ASU_SHAKE_256_MAX_HASH_LEN, cacheline_len);
+	size_t remaining = 0;
+	size_t offset = 0;
+	size_t block_len = 0;
+	size_t block_len_aligned = 0;
 
 	if (!digest || len == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -376,15 +389,26 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 	/* Inputs of SHA request */
 	op.dataaddr = 0;
 	op.datasize = 0;
-	op.hashbufsize = len;
-	if (asu_hashctx->shamode == ASU_SHA_MODE_SHA256)
-		op.hashbufsize = ASU_SHA_256_HASH_LEN;
-	else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA384)
-		op.hashbufsize = ASU_SHA_384_HASH_LEN;
-	else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA512)
-		op.hashbufsize = ASU_SHA_512_HASH_LEN;
 
-	dma_digest = memalign(ASU_DMA_ALIGNMENT, op.hashbufsize);
+	if (asu_hashctx->shamode == ASU_SHA_MODE_SHAKE256) {
+		op.hashbufsize = ASU_SHAKE_256_MAX_HASH_LEN;
+	} else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA256 &&
+		   (len <= ASU_SHA_256_HASH_LEN)) {
+		op.hashbufsize = ASU_SHA_256_HASH_LEN;
+	} else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA384 &&
+		   (len <= ASU_SHA_384_HASH_LEN)) {
+		op.hashbufsize = ASU_SHA_384_HASH_LEN;
+	} else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA512 &&
+		   (len <= ASU_SHA_512_HASH_LEN)) {
+		op.hashbufsize = ASU_SHA_512_HASH_LEN;
+	} else {
+		EMSG("Invalid digest length for algorithm %" PRIu32,
+		     asu_hashctx->shamode);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	/* Buffer sized for the largest possible digest (SHAKE256 XOF chunk) */
+	dma_digest = memalign(cacheline_len, alloc_len);
 	if (!dma_digest) {
 		EMSG("Failed to allocate DMA buffer for hash digest");
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -392,16 +416,32 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 
 	op.shamode = asu_hashctx->shamode;
 	op.islast = 1;
-	op.opflags = ASU_SHA_FINISH | asu_hashctx->shastart;
 	op.hashaddr = virt_to_phys(dma_digest);
-	cache_operation(TEE_CACHEFLUSH, dma_digest, op.hashbufsize);
-	ret = asu_sha_op(asu_hashctx, &op, asu_hashctx->module);
-	if (ret) {
-		EMSG("SHA final operation failed");
-		goto out;
+	remaining = len;
+	while (remaining) {
+		block_len = MIN(remaining, (size_t)ASU_SHAKE_256_MAX_HASH_LEN);
+		block_len_aligned = ROUNDUP(block_len, cacheline_len);
+		remaining -= block_len;
+		op.opflags = ASU_SHA_FINISH | asu_hashctx->shastart;
+		if (asu_hashctx->shamode == ASU_SHA_MODE_SHAKE256 && remaining)
+			op.xofenableflag = ASU_SHA_NEXT_XOF_ENABLE;
+		else
+			op.xofenableflag = ASU_SHA_NEXT_XOF_DISABLE;
+
+		cache_operation(TEE_CACHEFLUSH, dma_digest, block_len_aligned);
+		ret = asu_sha_op(asu_hashctx, &op, asu_hashctx->module);
+		if (ret) {
+			EMSG("SHA final operation failed");
+			goto out;
+		}
+
+		cache_operation(TEE_CACHEINVALIDATE, dma_digest,
+				block_len_aligned);
+		memcpy(digest + offset, dma_digest, block_len);
+
+		asu_hashctx->shastart = 0;
+		offset += block_len;
 	}
-	cache_operation(TEE_CACHEINVALIDATE, dma_digest, op.hashbufsize);
-	memcpy(digest, dma_digest, op.hashbufsize);
 
 out:
 	free(dma_digest);
