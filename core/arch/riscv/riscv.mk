@@ -127,7 +127,7 @@ $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
+	$(addprefix $(arch-dir)/, kernel crypto mm tee) $(platform-dir)
 
 # Default values for "-mcmodel" compiler flag
 riscv-platform-mcmodel ?= medany
@@ -149,6 +149,9 @@ endif
 ifeq ($(CFG_RISCV_VECTOR),y)
 ISA_V = v
 endif
+ifeq ($(CFG_RISCV_ZVKNG),y)
+ISA_ZVKNG = _zvkng
+endif
 ifeq ($(CFG_RISCV_ISA_ZBB),y)
 ISA_ZBB = _zbb
 endif
@@ -167,7 +170,7 @@ endif
 # ordinary core code, which can run while sstatus.VS is Off. RVV instructions
 # are restricted to explicitly managed assembly routines instead.
 riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
-riscv-asm-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_V)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
+riscv-asm-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_V)$(ISA_ZBB)$(ISA_ZVKNG)_zicsr_zifencei$(ISA_ZICBOM)
 riscv-abi = $(ABI_BASE)$(ABI_D)
 
 CFG_WITH_VFP ?= $(CFG_RISCV_FPU)
