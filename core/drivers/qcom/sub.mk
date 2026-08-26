@@ -8,6 +8,8 @@ srcs-$(CFG_QCOM_RAMBLUR_PIMEM_V3) += ramblur/ramblur_pimem_v3.c
 srcs-$(CFG_QCOM_CSRNG) += rng/qcom-csrng.c
 srcs-$(CFG_QCOM_HASH_DRBG) += rng/hash_drbg.c
 srcs-$(CFG_QCOM_HASH_DRBG_KAT) += rng/hash_drbg_kat.c
+srcs-$(CFG_QCOM_HW_DRBG_KAT) += rng/qrng_hw_kat.c
+srcs-$(CFG_QCOM_HW_DRBG_KAT) += rng/qrng_hw_kat_test.c
 srcs-$(CFG_QCOM_SEC_WDOG) += wdt/qcom-wdt.c
 
 subdirs-$(CFG_QCOM_CMD_DB) += cmd_db
