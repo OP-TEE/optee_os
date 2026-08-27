@@ -344,6 +344,11 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 		goto cleanup;
 	}
 
+	if (mem_acc_size < sizeof(struct ffa_mem_access_common)) {
+		res = FFA_INVALID_PARAMETERS;
+		goto cleanup;
+	}
+
 	/* Store the ffa_mem_transaction */
 	smem->sender_id = sender_id;
 	smem->mem_reg_attr = mem_trans->mem_reg_attr;
@@ -671,6 +676,12 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 					tot_len, frag_len, &mem_trans);
 	if (ret)
 		goto err_set;
+
+	if (mem_trans.mem_access_size < sizeof(struct ffa_mem_access_common) ||
+	    mem_trans.mem_access_count < 1) {
+		ret = FFA_INVALID_PARAMETERS;
+		goto err_set;
+	}
 
 	smem = sp_mem_lookup_and_read_lock(mem_trans.global_handle);
 	if (!smem) {

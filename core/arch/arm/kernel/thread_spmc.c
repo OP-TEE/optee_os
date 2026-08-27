@@ -1078,6 +1078,9 @@ static int get_acc_perms(vaddr_t mem_acc_base, unsigned int mem_access_size,
 	struct ffa_mem_access_perm *descr = NULL;
 	unsigned int n = 0;
 
+	if (mem_access_size < sizeof(struct ffa_mem_access_common))
+		return FFA_INVALID_PARAMETERS;
+
 	for (n = 0; n < mem_access_count; n++) {
 		mem_acc = (void *)(mem_acc_base + mem_access_size * n);
 		descr = &mem_acc->access_perm;
@@ -1205,6 +1208,9 @@ static bool is_sp_op(struct ffa_mem_transaction_x *mem_trans, void *buf)
 		return false;
 
 	if (mem_trans->mem_access_count < 1)
+		return false;
+
+	if (mem_trans->mem_access_size < sizeof(struct ffa_mem_access_common))
 		return false;
 
 	mem_acc = (void *)((vaddr_t)buf + mem_trans->mem_access_offs);
@@ -2866,6 +2872,10 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
 	 */
 	if (!IS_ALIGNED_WITH_TYPE(frag_len, struct ffa_address_range) ||
 	    !IS_ALIGNED_WITH_TYPE(tot_len, struct ffa_address_range))
+		goto out;
+	if (retrieve_desc.mem_access_size <
+	    sizeof(struct ffa_mem_access_common) ||
+	    retrieve_desc.mem_access_count < 1)
 		goto out;
 	mem_acc = (void *)((vaddr_t)buf + retrieve_desc.mem_access_offs);
 	/*
