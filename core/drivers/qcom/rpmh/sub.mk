@@ -10,3 +10,5 @@ srcs-y += rpmh_client.c
 
 # RPMH hardware abstraction layer
 srcs-y += rpmh_hal.c
+
+global-incdirs-y += $(PLATFORM_FLAVOR)

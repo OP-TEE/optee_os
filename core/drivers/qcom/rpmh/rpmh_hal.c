@@ -114,8 +114,8 @@ enum hal_status hal_rpmh_write_cmd(uint32_t tcs_id, uint32_t cmd_idx,
 	msgid |= SHIFT_U32((completion ? 1 : 0), MSGID_RES_REQ_SHIFT);
 	msgid |= SHIFT_U32(1, MSGID_MSG_LENGTH_SHIFT);
 
-	slave_id = (addr >> 16) & 0x7;
-	offset = addr & 0xFFFF;
+	slave_id = (addr >> 16) & ADDR_SLV_ID_MASK;
+	offset = addr & ADDR_OFFSET_MASK;
 	addr_reg = SHIFT_U32(slave_id, ADDR_SLV_ID_SHIFT) |
 		   SHIFT_U32(offset, ADDR_OFFSET_SHIFT);
 
