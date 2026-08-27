@@ -97,6 +97,7 @@ static uint32_t issue_cmd_set_internal(struct client *client,
 	struct rpmh_resource_command temp_rc = { };
 	struct rpmh_resource_command *rc = NULL;
 	uint32_t enable_mask = 0;
+	uint32_t wait_mask = 0;
 	bool completion = false;
 	uint32_t req_id = 0;
 	bool dirty = false;
@@ -142,10 +143,17 @@ static uint32_t issue_cmd_set_internal(struct client *client,
 			     set->commands[i].address);
 			return 0;
 		}
+
+		if (set->commands[i].completion)
+			wait_mask |= BIT(i);
 	}
 
+	/* Clear and enable the AMC-finished interrupt before triggering. */
+	hal_rpmh_clear_amc_status(client->drv_id, 0);
+	hal_rpmh_enable_amc_status(client->drv_id, 0);
+
 	enable_mask = GENMASK_32(set->count - 1, 0);
-	if (hal_rpmh_send_tcs(client->drv_id, 0, enable_mask) !=
+	if (hal_rpmh_send_tcs(client->drv_id, 0, enable_mask, wait_mask) !=
 	    HAL_STATUS_SUCCESS) {
 		EMSG("Failed to send TCS for drv %"PRIu32, client->drv_id);
 		return 0;
@@ -218,6 +226,10 @@ static bool wait_for_cmd(struct client *client, uint32_t req_id,
 
 		udelay(1);
 	}
+
+	/* Clear the AMC-finished interrupt now that it's been consumed. */
+	if (cmd_complete)
+		hal_rpmh_clear_amc_status(client->drv_id, 0);
 
 	if (cmd_complete && client->num_reqs_in_progress > 0)
 		client->num_reqs_in_progress--;
@@ -357,14 +369,5 @@ out:
 	return res;
 }
 
-void rpmh_barrier_single(struct rpmh_client *handle, uint32_t req_id)
-{
-	struct client *client = (struct client *)handle;
-
-	if (!client)
-		return;
-
-	wait_for_cmd(client, req_id, false);
-}
 
 early_init(rpmh_client_init);

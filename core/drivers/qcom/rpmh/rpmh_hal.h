@@ -23,9 +23,10 @@ enum hal_status {
 #define RSC_DRV_IRQ_CLEAR		0x0d08
 
 #define RSC_DRV_TCS_CONFIG		0x0C
-#define TCS_BASE_OFFSET			0x0D10  /* CMD_WAIT_FOR_CMPL base */
+#define TCS_BASE_OFFSET			0x0D10
 #define TCS_STRIDE			0x2A0
 
+#define TCS_CMD_WAIT_FOR_CMPL_OFFSET	0x00
 #define TCS_CONTROL_OFFSET		0x04
 #define TCS_STATUS_OFFSET		0x08
 #define TCS_CMD_ENABLE_OFFSET		0x0C
@@ -75,7 +76,8 @@ enum hal_status hal_rpmh_get_amc_status(enum rsc_drv_id drv_id,
 					bool *finished);
 enum hal_status hal_rpmh_send_tcs(enum rsc_drv_id drv_id,
 				  uint32_t tcs_id,
-				  uint32_t enable_mask);
+				  uint32_t enable_mask,
+				  uint32_t wait_mask);
 enum hal_status hal_rpmh_write_cmd(enum rsc_drv_id drv_id,
 				   uint32_t tcs_id, uint32_t cmd_idx,
 				   uint32_t addr, uint32_t data,

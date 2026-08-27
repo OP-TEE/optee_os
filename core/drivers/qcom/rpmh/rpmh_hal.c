@@ -187,7 +187,8 @@ enum hal_status hal_rpmh_get_amc_status(enum rsc_drv_id drv_id,
 
 enum hal_status hal_rpmh_send_tcs(enum rsc_drv_id drv_id,
 				  uint32_t tcs_id,
-				  uint32_t enable_mask)
+				  uint32_t enable_mask,
+				  uint32_t wait_mask)
 {
 	vaddr_t tcs_base = 0;
 	uint32_t control = 0;
@@ -198,6 +199,7 @@ enum hal_status hal_rpmh_send_tcs(enum rsc_drv_id drv_id,
 		return HAL_STATUS_INVALID_PARAM;
 
 	tcs_base = get_tcs_base(base, tcs_id);
+	hal_write32(tcs_base + TCS_CMD_WAIT_FOR_CMPL_OFFSET, wait_mask);
 	hal_write32(tcs_base + TCS_CMD_ENABLE_OFFSET, enable_mask);
 	control = hal_read32(tcs_base + TCS_CONTROL_OFFSET);
 	control |= TCS_CONTROL_AMC_MODE_EN;

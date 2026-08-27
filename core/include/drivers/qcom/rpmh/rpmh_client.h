@@ -51,7 +51,4 @@ TEE_Result rpmh_send_command(struct rpmh_client *handle,
 			     bool completion, uint32_t address,
 			     uint32_t data, uint32_t *req_id);
 
-/* Wait for command completion */
-void rpmh_barrier_single(struct rpmh_client *handle, uint32_t req_id);
-
 #endif /* __RPMH_CLIENT_H__ */
