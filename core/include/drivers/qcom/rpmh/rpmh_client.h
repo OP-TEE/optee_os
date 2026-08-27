@@ -10,8 +10,6 @@
 #include <stdint.h>
 #include <tee_api_types.h>
 
-#define RPMH_MAX_TCS_SIZE    16
-
 enum rpmh_set {
 	RPMH_SET_ACTIVE = 0,
 	RPMH_SET_SLEEP = 1,
@@ -20,17 +18,7 @@ enum rpmh_set {
 };
 
 enum rsc_drv_id {
-	RSC_DRV_SECURE        = 0,
-	RSC_DRV_CPUCP         = 1,
-	RSC_DRV_L3            = RSC_DRV_CPUCP,
-	RSC_DRV_HLOS          = 2,
-	RSC_DRV_HYP           = 3,
-	RSC_DRV_MAX,
-
-	/* Virtual DRVs */
-	RSC_DRV_VIRTUAL_DRVS = 0x3FFFFF00,
-	RSC_DRV_VIRTUAL_SENSORS,
-	RSC_DRV_VIRTUAL_MAX = 0x3FFFFFFF,
+	RSC_DRV_SECURE = 0,
 };
 
 struct rpmh_command {
