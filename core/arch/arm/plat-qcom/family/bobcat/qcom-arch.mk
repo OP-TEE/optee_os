@@ -12,8 +12,17 @@ endif
 CFG_PAS_MD_SLOTS ?= 1
 CFG_PAS_TA_HEAP_SIZE ?= (4 * 1024)
 
-# The IPC client forces on what it needs (COM -> MBOX), so disabling the
-# mailbox means disabling the client too.
+# Each client forces on what it needs (HUK -> KM -> COM -> MBOX), so disabling
+# a layer means disabling the clients above it too.
+CFG_QCOM_TMEL_HUK ?= y
+ifeq ($(CFG_QCOM_TMEL_HUK),y)
+$(call force,CFG_QCOM_TMEL_KM,y,required by CFG_QCOM_TMEL_HUK)
+endif
+
+ifeq ($(CFG_QCOM_TMEL_KM),y)
+$(call force,CFG_QCOM_TMEL_COM,y,required by CFG_QCOM_TMEL_KM)
+endif
+
 CFG_QCOM_TMEL_COM ?= y
 ifeq ($(CFG_QCOM_TMEL_COM),y)
 $(call force,CFG_QCOM_MBOX,y,required by CFG_QCOM_TMEL_COM)
