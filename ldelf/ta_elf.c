@@ -974,16 +974,17 @@ static void parse_property_segment(struct ta_elf *elf)
 	do {
 		Elf_Prop *prop = (void *)(desc + prop_offset);
 		size_t data_offset = prop_offset + sizeof(*prop);
+		size_t cdo = 0;
 
 		if (note->n_descsz < data_offset)
 			return;
 
-		data_offset = confine_array_index(data_offset, note->n_descsz);
+		cdo = confine_array_index(data_offset, note->n_descsz);
 
 		if (prop->pr_type == GNU_PROPERTY_AARCH64_FEATURE_1_AND) {
-			uint32_t *pr_data = (void *)(desc + data_offset);
+			uint32_t *pr_data = (void *)(desc + cdo);
 
-			if (note->n_descsz < (data_offset + sizeof(*pr_data)) &&
+			if (note->n_descsz < (data_offset + sizeof(*pr_data)) ||
 			    prop->pr_datasz != sizeof(*pr_data))
 				return;
 
