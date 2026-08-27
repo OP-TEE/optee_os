@@ -17,4 +17,21 @@
 #define QCOM_SERIAL_NUM_FUSE_ADDR	UL(0xA60A8)
 #endif
 
+#if defined(CFG_QCOM_TMEL_KM)
+/* TCSR HW key fuse registers for key management (same on all bobcat SoCs) */
+#define TCSR_FUSE_PRI_HW_KEY_BASE_START	UL(0x193D404)
+#define TCSR_FUSE_PRI_HW_KEY_REG_COUNT	8
+#define TCSR_FUSE_SEC_HW_KEY_BASE_START	UL(0x193D424)
+#define TCSR_FUSE_SEC_HW_KEY_REG_COUNT	8
+#endif
+
+#if defined(CFG_QCOM_TMEL_COM)
+/*
+ * Coherent carveout at the end of TZDRAM for TMEL IPC buffers.
+ */
+#define TMECOM_IPCBUF_CARVEOUT_SIZE	CFG_TMECOM_IPCBUF_CARVEOUT_SIZE
+#define TMECOM_IPC_BUF_PA		\
+	(CFG_TZDRAM_START + CFG_TZDRAM_SIZE - TMECOM_IPCBUF_CARVEOUT_SIZE)
+#endif
+
 #endif /* ARCH_CONFIG_H */
