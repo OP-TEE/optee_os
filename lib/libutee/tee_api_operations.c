@@ -2144,7 +2144,7 @@ TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
-	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	__utee_check_outbuf_annotation(destData, destLen);
 
 	if (operation->info.operationClass != TEE_OPERATION_AE) {
 		res = TEE_ERROR_BAD_PARAMETERS;
