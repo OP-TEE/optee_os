@@ -983,7 +983,7 @@ static void parse_property_segment(struct ta_elf *elf)
 		if (prop->pr_type == GNU_PROPERTY_AARCH64_FEATURE_1_AND) {
 			uint32_t *pr_data = (void *)(desc + data_offset);
 
-			if (note->n_descsz < (data_offset + sizeof(*pr_data)) &&
+			if (note->n_descsz < (data_offset + sizeof(*pr_data)) ||
 			    prop->pr_datasz != sizeof(*pr_data))
 				return;
 
