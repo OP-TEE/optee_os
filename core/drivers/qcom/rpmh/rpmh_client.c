@@ -25,9 +25,6 @@
 /* The secure DRV's only AMC TCS, used for runtime voting. */
 #define RPMH_AMC_TCS	0
 
-/* Commands a single TCS can hold. */
-#define RPMH_MAX_TCS_SIZE	16
-
 /* Timeout waiting for the AMC TCS to go idle before dispatch. */
 #define RPMH_TCS_IDLE_TIMEOUT_US	10000
 

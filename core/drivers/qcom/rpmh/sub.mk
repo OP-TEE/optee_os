@@ -10,3 +10,5 @@ srcs-y += rpmh_client.c
 
 # RPMH hardware abstraction layer
 srcs-y += rpmh_hal.c
+
+global-incdirs-y += $(QCOM_ARCH_FAMILY)
