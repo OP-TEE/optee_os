@@ -221,6 +221,7 @@ TEE_Result rpmh_tcs_send(struct rpmh_cmd *cmd, enum rsc_drv_id drv_id)
 	const struct drv_config *drv = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t enable_mask = 0;
+	uint32_t wait_mask = 0;
 	uint32_t drv_index = 0;
 	struct tcs *tcs = NULL;
 	uint32_t amcs = 0;
@@ -254,6 +255,8 @@ TEE_Result rpmh_tcs_send(struct rpmh_cmd *cmd, enum rsc_drv_id drv_id)
 		if (status != HAL_STATUS_SUCCESS)
 			return TEE_ERROR_GENERIC;
 		enable_mask |= BIT(j);
+		if (cmd->details[j].completion)
+			wait_mask |= BIT(j);
 	}
 
 	hal_rpmh_clear_amc_status(drv->hw_drv, tcs->id);
@@ -265,7 +268,8 @@ TEE_Result rpmh_tcs_send(struct rpmh_cmd *cmd, enum rsc_drv_id drv_id)
 	tcs->sent_at = get_timestamp();
 	tcs->cmds = cmd;
 
-	status = hal_rpmh_send_tcs(drv->hw_drv, tcs->id, enable_mask);
+	status = hal_rpmh_send_tcs(drv->hw_drv, tcs->id, enable_mask,
+				   wait_mask);
 	if (status != HAL_STATUS_SUCCESS) {
 		tcs->state = TCS_AMC_IDLE;
 		return TEE_ERROR_GENERIC;
