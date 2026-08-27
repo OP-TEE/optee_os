@@ -231,6 +231,12 @@ CFG_RPMB_TESTKEY ?= n
 # - RPMB key provisioning in a controlled environment (factory setup)
 CFG_RPMB_WRITE_KEY ?= n
 
+# Restricts RPMB key provisioning to the device whose CID matches this
+# upper-case hex string (2 * RPMB_CID_SIZE chars). Empty: provision the first.
+# Set as a quoted string, e.g.
+# CFG_RPMB_WRITE_KEY_CID='"112233445566778899AABBCCDDEEFF00"'
+CFG_RPMB_WRITE_KEY_CID ?= ""
+
 # For the kernel driver to enable in-kernel RPMB routing it must know in
 # advance that OP-TEE supports it. Setting CFG_RPMB_ANNOUNCE_PROBE_CAP=y
 # will announce OP-TEE's capability for RPMB probing to the kernel and it

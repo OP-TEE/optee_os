@@ -1177,6 +1177,24 @@ static TEE_Result rpmb_set_dev_info(const struct rpmb_dev_info *dev_info)
 	return TEE_SUCCESS;
 }
 
+static bool rpmb_cid_match(const uint8_t *cid)
+{
+	const char *hs = CFG_RPMB_WRITE_KEY_CID;
+	uint8_t want[RPMB_CID_SIZE] = { };
+	uint32_t n = 0;
+
+	if (!hs[0])
+		return true;
+
+	n = tee_hs2b((uint8_t *)hs, want, strlen(hs), sizeof(want));
+	if (n != RPMB_CID_SIZE) {
+		EMSG("Invalid CFG_RPMB_WRITE_KEY_CID");
+		return false;
+	}
+
+	return !memcmp(cid, want, RPMB_CID_SIZE);
+}
+
 static TEE_Result legacy_rpmb_init(void)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -1231,7 +1249,10 @@ static TEE_Result legacy_rpmb_init(void)
 			 * Need to write the key here and verify it.
 			 */
 			DMSG("RPMB INIT: Auth key not yet written");
-			res = tee_rpmb_write_and_verify_key();
+			if (rpmb_cid_match(rpmb_ctx->cid))
+				res = tee_rpmb_write_and_verify_key();
+			else
+				EMSG("CID mismatch, CFG_RPMB_WRITE_KEY_CID");
 		} else {
 			EMSG("Verify key failed! %#"PRIx32, res);
 			EMSG("Make sure key here matches device key");
@@ -1336,6 +1357,9 @@ next:
 				continue;
 
 			if (!have_cand) {
+				if (!rpmb_cid_match(rpmb_ctx->cid))
+					continue;
+
 				memcpy(&cand, rpmb_ctx, sizeof(cand));
 				have_cand = true;
 			}
