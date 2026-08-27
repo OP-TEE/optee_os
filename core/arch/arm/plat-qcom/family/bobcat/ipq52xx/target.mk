@@ -43,6 +43,8 @@ CFG_TEE_RAM_VA_SIZE ?= $(CFG_TZDRAM_SIZE)
 $(call force,CFG_QCOM_CSRNG,y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,n)
 
+$(call force,CFG_QCOM_TMEL_RNG,n,CFG_QCOM_CSRNG provides the hwrng)
+
 CFG_HWRNG_PTA ?= y
 CFG_HWRNG_QUALITY ?= 1024
 CFG_HWRNG_RATE ?= 0
