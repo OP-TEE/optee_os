@@ -17,3 +17,6 @@ subdirs-$(CFG_QCOM_TLMM) += tlmm
 
 # TME-Lite communication client
 subdirs-$(CFG_QCOM_TMEL_COM) += tmel_com
+
+# Hardware Unique Key provider (derives the HUK via TME-Lite KM)
+subdirs-$(CFG_QCOM_TMEL_HUK) += tmel_huk
