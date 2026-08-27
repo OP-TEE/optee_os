@@ -60,6 +60,15 @@ static const struct xpu_region xpu_regions[] = {
 		.enabled = true,
 	},
 	{
+		/* Right above TZDRAM, so TZDRAM's region does not cover it */
+		.name = "TMEL IPC buffers",
+		.base = TMEL_COM_IPC_BUF_ADDR,
+		.size = CFG_TMEL_COM_IPCBUF_CARVEOUT_SIZE,
+		.read_qad = TZDRAM_XPU_READ_QAD,
+		.write_qad = TZDRAM_XPU_WRITE_QAD,
+		.enabled = IS_ENABLED(CFG_QCOM_TMEL_COM),
+	},
+	{
 		/*
 		 * The DIAG log buffer only holds data when the log itself
 		 * is built in, so protecting it otherwise would lock a

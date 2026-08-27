@@ -7,11 +7,19 @@ $(call force,CFG_QCOM_GICV2_EL3_INTR_DELEGATION,y)
 CFG_QCOM_DIAG_LOG ?= $(CFG_TEE_CORE_DEBUG)
 
 CFG_TZDRAM_START ?= 0x87D80000
+# The TMEL IPC coherent carveout sits right above TZDRAM, outside OP-TEE's
+# memory pool.
+ifeq ($(CFG_QCOM_TMEL_COM),y)
+CFG_TZDRAM_SIZE ?= (0x280000 - $(CFG_TMEL_COM_IPCBUF_CARVEOUT_SIZE))
+else
 CFG_TZDRAM_SIZE ?= 0x280000
-CFG_TEE_RAM_VA_SIZE ?= 0x280000
+endif
+CFG_TEE_RAM_VA_SIZE ?= $(CFG_TZDRAM_SIZE)
 
 $(call force,CFG_QCOM_CSRNG,y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,n)
+
+$(call force,CFG_QCOM_TMEL_RNG,n,CFG_QCOM_CSRNG provides the hwrng)
 
 CFG_HWRNG_PTA ?= y
 CFG_HWRNG_QUALITY ?= 1024
