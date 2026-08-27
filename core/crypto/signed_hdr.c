@@ -382,21 +382,24 @@ TEE_Result shdr_verify_signature2(struct shdr_pub_key *key,
 	if (is_weak_hash_algo(hash_algo))
 		goto err;
 
-	if (is_weak_key_size(shdr->algo, ta_pub_key_modulus_size * 8))
-		goto err;
-
 	if (tee_alg_get_digest_size(hash_algo, &hash_size) ||
 	    hash_size != shdr->hash_size)
 		goto err;
 
 	switch (key->main_algo) {
-	case TEE_MAIN_ALGO_RSA:
+	case TEE_MAIN_ALGO_RSA: {
+		size_t n_bits = crypto_bignum_num_bits(key->pub_key.rsa->n);
+
+		if (is_weak_key_size(shdr->algo, n_bits))
+			goto err;
+
 		FTMN_CALL_FUNC(res, &ftmn, FTMN_INCR0,
 			       crypto_acipher_rsassa_verify, shdr->algo,
 			       key->pub_key.rsa, shdr->hash_size,
 			       SHDR_GET_HASH(shdr), shdr->hash_size,
 			       SHDR_GET_SIG(shdr), shdr->sig_size);
 		break;
+	}
 	default:
 		panic();
 	}
