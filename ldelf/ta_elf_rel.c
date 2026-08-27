@@ -52,7 +52,7 @@ static bool sym_compare(struct ta_elf *elf, unsigned int st_bind,
 
 	if (!st_name)
 		return false;
-	if (st_name > elf->dynstr_size)
+	if (st_name >= elf->dynstr_size)
 		err(TEE_ERROR_BAD_FORMAT, "Symbol name out of range");
 	if (strcmp(name, elf->dynstr + st_name))
 		return false;
