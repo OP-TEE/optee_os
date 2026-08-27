@@ -17,6 +17,10 @@
 #define TME_QMP_LITE_MBOX_SIZE		32U
 #endif
 
+#if defined(CFG_QCOM_TMEL_HUK)
+#define QCOM_SERIAL_NUM_FUSE_ADDR	UL(0xA60A8)
+#endif
+
 #define TMEL_COM_IPC_BUF_ADDR		(CFG_TZDRAM_START + CFG_TZDRAM_SIZE)
 
 #endif /* ARCH_CONFIG_H */
