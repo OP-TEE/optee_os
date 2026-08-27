@@ -23,4 +23,13 @@
 
 #define TME_MSG_UID_ACTION_ID(v)	((v) & GENMASK_32(7, 0))
 
+#define TME_MSG_HCS			0x0B /* Host crypto services */
+
+#define TME_ACTION_HCS_RNG_GET		0x0C
+
+/* Message: struct tmel_rng_get_msg */
+#define TME_MSG_UID_HCS_RNG_GET \
+		TME_MSG_UID_CREATE(TME_MSG_HCS, \
+		TME_ACTION_HCS_RNG_GET)
+
 #endif /* __TMEL_MESSAGES_UIDS_H */
