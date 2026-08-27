@@ -12,4 +12,9 @@
 #define DIAG_LOG_START_INFO		(IMEM_BASE + IMEM_DIAG_OFFSET)
 #define TCSR_BOOT_MISC_DETECT		UL(0x195C100)
 
+#if defined(CFG_QCOM_TMEL_HUK)
+/* Serial-number fuse used as the die ID (identical across bobcat SoCs) */
+#define QCOM_SERIAL_NUM_FUSE_ADDR	UL(0xA60A8)
+#endif
+
 #endif /* ARCH_CONFIG_H */
