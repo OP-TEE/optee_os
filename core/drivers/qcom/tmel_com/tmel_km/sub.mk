@@ -4,8 +4,4 @@
 #
 
 global-incdirs-y += .
-srcs-y += tmecom_client.c
-
-# TME-Lite feature clients
-subdirs-$(CFG_QCOM_TMEL_RNG) += tmel_rng
-subdirs-$(CFG_QCOM_TMEL_KM) += tmel_km
+srcs-y += tmekm_client.c
