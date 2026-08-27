@@ -16,3 +16,4 @@ subdirs-$(CFG_QCOM_XPUV4) += xpu
 subdirs-$(CFG_QCOM_TLMM) += tlmm
 
 subdirs-$(CFG_QCOM_TMEL_COM) += tmel_com
+subdirs-$(CFG_QCOM_TMEL_HUK) += tmel_huk
