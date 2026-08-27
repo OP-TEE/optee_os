@@ -156,6 +156,9 @@ static TEE_Result load_rsa_key(const struct shdr_subkey *subkey,
 	if (!modulus)
 		return TEE_ERROR_SECURITY;
 
+	if (is_weak_key_size(subkey->algo, modulus->size * 8))
+		return TEE_ERROR_SECURITY;
+
 	key = calloc(1, sizeof(*key));
 	if (!key)
 		return TEE_ERROR_OUT_OF_MEMORY;
