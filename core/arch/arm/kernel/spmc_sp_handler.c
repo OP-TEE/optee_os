@@ -251,21 +251,20 @@ err:
 }
 
 static int spmc_sp_add_nw_region(struct sp_mem *smem,
-				 struct ffa_mem_region *mem_reg)
+				 struct ffa_mem_region *mem_reg,
+				 size_t addr_range_cnt, size_t total_page_count)
 {
-	uint64_t page_count = READ_ONCE(mem_reg->total_page_count);
 	struct sp_mem_map_region *region = NULL;
-	struct mobj *m = sp_mem_new_mobj(page_count, TEE_MATTR_MEM_TYPE_CACHED,
-					 false);
+	struct mobj *m = sp_mem_new_mobj(total_page_count,
+					 TEE_MATTR_MEM_TYPE_CACHED, false);
 	unsigned int i = 0;
 	unsigned int idx = 0;
 	int res = FFA_OK;
-	uint64_t address_count = READ_ONCE(mem_reg->address_range_count);
 
 	if (!m)
 		return FFA_NO_MEMORY;
 
-	for (i = 0; i < address_count; i++) {
+	for (i = 0; i < addr_range_cnt; i++) {
 		struct ffa_address_range *addr_range = NULL;
 
 		addr_range = &mem_reg->address_range_array[i];
@@ -284,7 +283,7 @@ static int spmc_sp_add_nw_region(struct sp_mem *smem,
 	}
 
 	region->mobj = m;
-	region->page_count = page_count;
+	region->page_count = total_page_count;
 
 	if (!sp_has_exclusive_access(region, NULL)) {
 		free(region);
@@ -424,7 +423,8 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 				goto cleanup;
 		}
 	} else {
-		res = spmc_sp_add_nw_region(smem, mem_reg);
+		res = spmc_sp_add_nw_region(smem, mem_reg, addr_range_cnt,
+					    total_page_count);
 		if (res)
 			goto cleanup;
 	}
