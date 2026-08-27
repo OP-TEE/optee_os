@@ -9,9 +9,14 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <tee_api_types.h>
+#include <types_ext.h>
+
+/* 1 second, in microseconds */
+#define TMEL_COM_DEFAULT_TIMEOUT 1000000
 
 #define TME_STATUS_SUCCESS		0
 #define TME_STATUS_INVALID_INPUT	2
+#define TME_STATUS_UNKNOWN		0xFFFFFFFF
 
 /*
  * struct tme_sequencer_status - Error status TME-Lite appends to a reply
@@ -36,7 +41,9 @@ struct tme_sequencer_status {
  * @out:     buffer the shared buffer's content is copied to after a good reply
  * @out_len: size of @out in bytes; 0 if there is none
  *
- * Both sizes are limited to the shared buffer.
+ * TME-Lite reads and writes this data at tmel_com_client_data_pa(), so the
+ * request has to carry that address. Both sizes are limited to the shared
+ * buffer.
  */
 struct tmel_com_data {
 	const void *in;
@@ -44,6 +51,11 @@ struct tmel_com_data {
 	void *out;
 	size_t out_len;
 };
+
+/*
+ * tmel_com_client_data_pa() - Address TME-Lite sees the shared buffer at
+ */
+paddr_t tmel_com_client_data_pa(void);
 
 /*
  * tmel_com_client_send_message() - Send one request and wait for the reply

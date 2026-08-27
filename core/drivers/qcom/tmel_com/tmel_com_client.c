@@ -100,6 +100,11 @@ static void *ipc_client_buf;
 /* As large as the mailbox, so a reply never gets TEE_ERROR_SHORT_BUFFER */
 static uint8_t ipc_rx_buf[TME_QMP_LITE_MBOX_SIZE];
 
+paddr_t tmel_com_client_data_pa(void)
+{
+	return TMEL_COM_CLIENT_BUF_ADDR;
+}
+
 TEE_Result tme_status_to_tee_result(uint32_t tme_status)
 {
 	switch (tme_status) {
