@@ -13,3 +13,6 @@ subdirs-$(CFG_QCOM_MBOX) += mbox
 subdirs-$(CFG_QCOM_RPMH_CLIENT) += rpmh
 subdirs-$(CFG_QCOM_QFPROM) += qfprom
 subdirs-$(CFG_QCOM_XPUV4) += xpu
+
+# TME-Lite communication client
+subdirs-$(CFG_QCOM_TMEL_COM) += tmel_com
