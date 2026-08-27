@@ -23,7 +23,12 @@
 
 #define TME_MSG_UID_ACTION_ID(v)	((v) & GENMASK_32(7, 0))
 
+#define TME_MSG_KM			0x07 /* Key management services */
 #define TME_MSG_HCS			0x0B /* Host crypto services */
+
+#define TME_ACTION_KM_CLEAR		0x01
+#define TME_ACTION_KM_DERIVE		0x04
+#define TME_ACTION_KM_DISTRIBUTE	0x07
 
 #define TME_ACTION_HCS_RNG_GET		0x0C
 
@@ -31,5 +36,20 @@
 #define TME_MSG_UID_HCS_RNG_GET \
 		TME_MSG_UID_CREATE(TME_MSG_HCS, \
 		TME_ACTION_HCS_RNG_GET)
+
+/* Message: struct tmel_km_clear_key_msg */
+#define TME_MSG_UID_KM_CLEAR \
+		TME_MSG_UID_CREATE(TME_MSG_KM, \
+		TME_ACTION_KM_CLEAR)
+
+/* Message: struct tmel_km_derive_key_msg */
+#define TME_MSG_UID_KM_DERIVE \
+		TME_MSG_UID_CREATE(TME_MSG_KM, \
+		TME_ACTION_KM_DERIVE)
+
+/* Message: struct tmel_km_distribute_key_msg */
+#define TME_MSG_UID_KM_DISTRIBUTE \
+		TME_MSG_UID_CREATE(TME_MSG_KM, \
+		TME_ACTION_KM_DISTRIBUTE)
 
 #endif /* __TMEL_MESSAGES_UIDS_H */
