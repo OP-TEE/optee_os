@@ -497,6 +497,7 @@ check_retrieve_request(struct sp_mem_receiver *receiver, uint32_t ffa_vers,
 	uint32_t retr_flags = mem_trans->flags;
 	uint64_t retr_tag = mem_trans->tag;
 	struct sp_mem_map_region *reg = NULL;
+	size_t mem_acc_size = 0;
 
 	/*
 	 * The request came from the endpoint. It should only have one
@@ -533,14 +534,17 @@ check_retrieve_request(struct sp_mem_receiver *receiver, uint32_t ffa_vers,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	/*
-	 * Check if there is enough space in the tx buffer to send the respons.
-	 */
+	/* Check that the response fits in the tx buffer. */
+	if (ffa_vers <= FFA_VERSION_1_1)
+		mem_acc_size = sizeof(struct ffa_mem_access_1_0);
+	else
+		mem_acc_size = sizeof(struct ffa_mem_access_1_2);
+
 	if (ffa_vers <= FFA_VERSION_1_0)
 		tx_len -= sizeof(struct ffa_mem_transaction_1_0);
 	else
 		tx_len -= sizeof(struct ffa_mem_transaction_1_1);
-	tx_len -= mem_trans->mem_access_size + sizeof(struct ffa_mem_region);
+	tx_len -= mem_acc_size + sizeof(struct ffa_mem_region);
 
 	if (tx_len < 0)
 		return FFA_NO_MEMORY;
