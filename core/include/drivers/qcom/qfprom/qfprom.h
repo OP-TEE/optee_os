@@ -31,10 +31,42 @@ enum qfprom_error {
 	QFPROM_ERROR_TIMEOUT = 0x11,
 };
 
+struct qcom_secboot_device_ids {
+	uint32_t oem_id;
+	uint32_t model_id;
+	uint32_t jtag_id;
+	uint32_t serial_num;
+};
+
 /* Read QFPROM row data */
 TEE_Result qfprom_read_row(uint32_t addr,
 			   enum qfprom_addr_space type,
 			   uint32_t *data);
+
+/* Is secure boot (authentication) enabled on this device? */
+TEE_Result qcom_secboot_is_enabled(bool *enabled);
+
+/* Is the serial-number fuse used as part of device binding? */
+TEE_Result qcom_secboot_is_use_serial_num_enabled(bool *enabled);
+
+/* Read the OEM root-of-trust anchor hash (PK_HASH0). */
+TEE_Result qcom_secboot_get_root_of_trust(uint8_t *hash, size_t len);
+
+/* Read the OEM/model/JTAG/serial device-identity fuses. */
+TEE_Result qcom_secboot_get_device_ids(struct qcom_secboot_device_ids *ids);
+
+/* Read the SoC family/device word from TCSR_SOC_HW_VERSION. */
+TEE_Result qcom_secboot_get_soc_hw_version(uint32_t *fam_dev);
+
+/*
+ * Segment/hash-table digest size for @root_cert_sel; unrelated to
+ * cert-chain or root-of-trust hashing.
+ */
+TEE_Result qcom_secboot_get_segment_hash_len(uint32_t root_cert_sel,
+					     uint32_t *hash_len);
+
+/* Is code-signing EKU enforcement required for this device? */
+TEE_Result qcom_secboot_get_eku_enforcement_en(bool *enabled);
 
 /* Write QFPROM row data */
 TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data);
