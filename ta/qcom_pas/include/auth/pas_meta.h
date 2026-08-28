@@ -49,13 +49,6 @@ struct pas_oem_metadata {
 	uint32_t anti_rollback;
 };
 
-TEE_Result pas_meta_get_version(const uint8_t *meta_data,
-				size_t meta_data_size, uint32_t *version);
-
-TEE_Result pas_meta_segment_hash_len(const uint8_t *meta_data,
-				     size_t meta_data_size,
-				     uint32_t *hash_len);
-
 TEE_Result pas_meta_get_root_cert_sel(const uint8_t *meta_data,
 				      size_t meta_data_size,
 				      uint32_t *root_cert_sel);

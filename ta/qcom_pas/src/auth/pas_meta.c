@@ -14,54 +14,6 @@
 #include <utee_defines.h>
 #include <util.h>
 
-TEE_Result pas_meta_get_version(const uint8_t *meta_data,
-				size_t meta_data_size, uint32_t *version)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	const uint8_t *seg = NULL;
-	size_t seg_size = 0;
-
-	if (!meta_data || !meta_data_size || !version)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	res = pas_mbn_get_hash_segment(meta_data, meta_data_size, &seg,
-				       &seg_size);
-	if (res)
-		return res;
-
-	if (seg_size < offsetof(struct pas_mbn_header_v6, version) +
-		       sizeof(uint32_t))
-		return TEE_ERROR_BAD_FORMAT;
-
-	memcpy(version, seg + offsetof(struct pas_mbn_header_v6, version),
-	       sizeof(*version));
-
-	return TEE_SUCCESS;
-}
-
-TEE_Result pas_meta_segment_hash_len(const uint8_t *meta_data,
-				     size_t meta_data_size, uint32_t *hash_len)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	uint32_t version = 0;
-
-	if (!hash_len)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	res = pas_meta_get_version(meta_data, meta_data_size, &version);
-	if (res)
-		return res;
-
-	switch (version) {
-	case PAS_MBN_VERSION_6:
-		*hash_len = TEE_SHA384_HASH_SIZE;
-		return TEE_SUCCESS;
-	default:
-		EMSG("PAS auth: unsupported MBN version %#"PRIx32, version);
-		return TEE_ERROR_NOT_SUPPORTED;
-	}
-}
-
 TEE_Result pas_meta_get_root_cert_sel(const uint8_t *meta_data,
 				      size_t meta_data_size,
 				      uint32_t *root_cert_sel)
