@@ -4,6 +4,7 @@
  */
 
 #include <io.h>
+#include <pta_qcom_pas.h>
 #include <stdint.h>
 #include <string.h>
 

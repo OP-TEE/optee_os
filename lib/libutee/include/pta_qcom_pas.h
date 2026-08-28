@@ -14,6 +14,15 @@
  * of the remote processor management
  */
 
+#define PAS_ID_QDSP6		1
+#define PAS_ID_WPSS		6
+#define PAS_ID_IRIS		9
+#define PAS_ID_TURING		18
+#define PAS_ID_TURING1		30
+#define PAS_ID_CAMERA		33
+#define PAS_ID_GPDSP0		39
+#define PAS_ID_GPDSP1		40
+
 #define PTA_QCOM_PAS_UUID { 0xdaedbae4, 0xcf3e, 0x4b76, \
 		{ 0xa5, 0xc5, 0xdb, 0xf8, 0xb6, 0xfd, 0x5a, 0xf4} }
 
