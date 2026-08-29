@@ -9,6 +9,7 @@
 #include <sbi.h>
 #include <sbi_mpxy.h>
 #include <string.h>
+#include <tee_api_types.h>
 #include <util.h>
 
 /*
@@ -659,4 +660,39 @@ sbi_mpxy_get_notification_events(uint32_t channel_id,
 out:
 	thread_unmask_exceptions(exceptions);
 	return ret;
+}
+
+/**
+ * sbi_mpxy_to_tee_result - Convert an SBI error code to a TEE_Result
+ * @sbi_err: Return value from one of the sbi_mpxy_* functions
+ *
+ * Return: The closest matching TEE_Result.
+ */
+TEE_Result sbi_mpxy_to_tee_result(int sbi_err)
+{
+	switch (sbi_err) {
+	case SBI_SUCCESS:
+		return TEE_SUCCESS;
+	case SBI_ERR_NOT_SUPPORTED:
+		return TEE_ERROR_NOT_SUPPORTED;
+	case SBI_ERR_INVALID_PARAM:
+	case SBI_ERR_INVALID_ADDRESS:
+	case SBI_ERR_BAD_RANGE:
+		return TEE_ERROR_BAD_PARAMETERS;
+	case SBI_ERR_DENIED:
+	case SBI_ERR_DENIED_LOCKED:
+		return TEE_ERROR_ACCESS_DENIED;
+	case SBI_ERR_NO_SHMEM:
+	case SBI_ERR_INVALID_STATE:
+	case SBI_ERR_ALREADY_AVAILABLE:
+	case SBI_ERR_ALREADY_STARTED:
+	case SBI_ERR_ALREADY_STOPPED:
+		return TEE_ERROR_BAD_STATE;
+	case SBI_ERR_TIMEOUT:
+		return TEE_ERROR_TIMEOUT;
+	case SBI_ERR_IO:
+		return TEE_ERROR_COMMUNICATION;
+	default:
+		return TEE_ERROR_GENERIC;
+	}
 }

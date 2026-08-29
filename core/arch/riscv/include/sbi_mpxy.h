@@ -38,6 +38,7 @@
 #include <limits.h>
 #include <stdint.h>
 #include <sys/cdefs.h>
+#include <tee_api_types.h>
 #include <types_ext.h>
 #include <util.h>
 
@@ -173,7 +174,7 @@ sbi_mpxy_get_notification_events(uint32_t channel_id,
 				 struct sbi_mpxy_notification_data *notif_data,
 				 unsigned long max_events_data_len,
 				 unsigned long *events_data_len);
-
+TEE_Result sbi_mpxy_to_tee_result(int sbi_err);
 #endif /*__ASSEMBLER__*/
 
 #else /*!defined(CFG_RISCV_SBI_MPXY)*/
