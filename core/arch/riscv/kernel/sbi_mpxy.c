@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  */
 
+#include <config.h>
 #include <kernel/misc.h>
 #include <mm/core_memprot.h>
 #include <sbi.h>
 #include <sbi_mpxy.h>
 #include <string.h>
+#include <util.h>
 
 /*
  * struct mpxy_core_local - MPXY per-hart local context
  * @shmem:       Virtual base address of MPXY shared memory
  * @shmem_pa:    Physical base address of MPXY shared memory
+ * @shmem_size:  Size in bytes of MPXY shared memory
  * @shmem_active:Indicates whether shared memory is active for this hart
  *
  * Holds MPXY-related per-hart data required for message exchange via
@@ -21,6 +24,7 @@
 struct mpxy_core_local {
 	void *shmem;
 	paddr_t shmem_pa;
+	unsigned long shmem_size;
 	bool shmem_active;
 };
 
@@ -70,9 +74,10 @@ int sbi_mpxy_get_shmem_size(unsigned long *shmem_size)
 /**
  * sbi_mpxy_set_shmem - Set up MPXY shared memory on the current hart
  *
- * Allocates and registers a 4 KiB shared memory region, aligned to 4 KiB,
- * as required by the MPXY extension. This memory is used for sending and
- * receiving messages. Registers the shared memory with the SBI MPXY extension.
+ * Queries the shared memory size required by the SBI implementation,
+ * allocates a region of that size aligned to its own size, and registers
+ * it with the SBI MPXY extension for the calling hart. This memory is used
+ * for sending and receiving messages.
  *
  * Return: SBI_SUCCESS on success, negative SBI error code on failure.
  */
@@ -80,28 +85,63 @@ int sbi_mpxy_set_shmem(void)
 {
 	struct mpxy_core_local *mpxy = NULL;
 	struct sbiret sbiret = {};
+	unsigned long shmem_size = 0;
+	unsigned long shmem_phys_lo = 0;
+	unsigned long shmem_phys_hi = 0;
 	void *shmem = NULL;
 	uint32_t exceptions = 0;
 	int ret = SBI_ERR_FAILURE;
 
+	ret = sbi_mpxy_get_shmem_size(&shmem_size);
+	if (ret)
+		return ret;
+
+	/*
+	 * The SBI spec requires shmem_size to be a multiple of 4 KiB and
+	 * the region to be aligned to shmem_size.
+	 */
+	if (!shmem_size || shmem_size < SMALL_PAGE_SIZE ||
+	    !IS_POWER_OF_TWO(shmem_size))
+		return SBI_ERR_INVALID_PARAM;
+
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
 	mpxy = mpxy_get_core_local();
-	if (mpxy->shmem_active)
-		goto out;
 
-	shmem = memalign(SMALL_PAGE_SIZE, SMALL_PAGE_SIZE);
-	if (!shmem)
+	if (mpxy->shmem_active) {
+		ret = SBI_SUCCESS;
 		goto out;
+	}
+
+	shmem = memalign(shmem_size, shmem_size);
+	if (!shmem) {
+		ret = SBI_ERR_FAILURE;
+		goto out;
+	}
+	memset(shmem, 0, shmem_size);
 
 	mpxy->shmem = shmem;
 	mpxy->shmem_pa = virt_to_phys(shmem);
+	mpxy->shmem_size = shmem_size;
 
-	sbiret = sbi_ecall(SBI_EXT_MPXY, SBI_EXT_MPXY_SET_SHMEM, mpxy->shmem_pa,
-			   0, 0);
+	/*
+	 * On RV64 the whole physical address goes in shmem_phys_lo and
+	 * shmem_phys_hi is unused. On RV32 the address is split.
+	 */
+	if (IS_ENABLED(CFG_RV32_core)) {
+		shmem_phys_lo = low32_from_64(mpxy->shmem_pa);
+		shmem_phys_hi = high32_from_64(mpxy->shmem_pa);
+	} else {
+		shmem_phys_lo = mpxy->shmem_pa;
+	}
+
+	sbiret = sbi_ecall(SBI_EXT_MPXY, SBI_EXT_MPXY_SET_SHMEM,
+			   shmem_phys_lo, shmem_phys_hi,
+			   SBI_MPXY_SHMEM_FLAG_OVERWRITE);
 	if (sbiret.error) {
-		EMSG("MPXY SBI call failed: error=%ld", sbiret.error);
+		EMSG("MPXY SET_SHMEM failed: error=%ld", sbiret.error);
 		free(shmem);
+		memset(mpxy, 0, sizeof(*mpxy));
 		ret = sbiret.error;
 		goto out;
 	}
@@ -109,6 +149,45 @@ int sbi_mpxy_set_shmem(void)
 	mpxy->shmem_active = true;
 
 	ret = SBI_SUCCESS;
+
+out:
+	thread_unmask_exceptions(exceptions);
+	return ret;
+}
+
+/**
+ * sbi_mpxy_disable_shmem - Disable MPXY shared memory on the current hart
+ *
+ * Tells the SBI implementation to stop using the shared memory registered
+ * for this hart and releases the memory.
+ *
+ * Return: SBI_SUCCESS on success, negative SBI error code on failure.
+ */
+int sbi_mpxy_disable_shmem(void)
+{
+	struct mpxy_core_local *mpxy = NULL;
+	struct sbiret sbiret = {};
+	uint32_t exceptions = 0;
+	int ret = SBI_SUCCESS;
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
+	mpxy = mpxy_get_core_local();
+	if (!mpxy->shmem_active)
+		goto out;
+
+	sbiret = sbi_ecall(SBI_EXT_MPXY, SBI_EXT_MPXY_SET_SHMEM,
+			   SBI_MPXY_SHMEM_DISABLE, SBI_MPXY_SHMEM_DISABLE,
+			   SBI_MPXY_SHMEM_FLAG_OVERWRITE);
+	if (sbiret.error) {
+		EMSG("MPXY SET_SHMEM (disable) failed: error=%ld",
+		     sbiret.error);
+		ret = sbiret.error;
+		goto out;
+	}
+
+	free(mpxy->shmem);
+	memset(mpxy, 0, sizeof(*mpxy));
 
 out:
 	thread_unmask_exceptions(exceptions);
