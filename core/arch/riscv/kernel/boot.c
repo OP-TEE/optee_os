@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2023 Andes Technology Corporation
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023, 2026 NXP
  */
 
 #include <assert.h>
@@ -25,6 +25,8 @@
 #include <riscv.h>
 #include <rng_support.h>
 #include <sbi.h>
+#include <sbi_mpxy.h>
+#include <sbi_mpxy_rpmi.h>
 #include <stdalign.h>
 #include <stdio.h>
 #include <trace.h>
@@ -245,6 +247,9 @@ void __weak boot_init_primary_runtime(void)
 	boot_primary_init_core_ids();
 	init_tee_runtime();
 	boot_mem_release_tmp_alloc();
+
+	if (!sbi_mpxy_init())
+		sbi_mpxy_rpmi_probe_channels();
 }
 
 void __weak boot_init_primary_final(void)
@@ -273,6 +278,7 @@ static void init_secondary_helper(void)
 
 	thread_init_per_cpu();
 	boot_secondary_init_intc();
+	sbi_mpxy_init();
 
 	IMSG("Secondary CPU%zu (hart%"PRIu32") initialized",
 	     pos, thread_get_hartid());
