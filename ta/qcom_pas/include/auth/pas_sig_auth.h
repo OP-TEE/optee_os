@@ -29,4 +29,11 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 				     uint32_t segment_hash_len,
 				     const uint8_t *anchor);
 
+/*
+ * Advance the device's PIL anti-rollback floor to @hs's OEM metadata
+ * version, once the image it belongs to has been verified.
+ */
+TEE_Result pas_sig_auth_commit_rollback(const struct pas_hash_segment_info *hs,
+					uint32_t pas_id);
+
 #endif /* __AUTH_PAS_SIG_AUTH_H */
