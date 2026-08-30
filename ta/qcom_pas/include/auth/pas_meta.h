@@ -6,6 +6,7 @@
 #ifndef __AUTH_PAS_META_H
 #define __AUTH_PAS_META_H
 
+#include <auth/pas_fuse.h>
 #include <auth/pas_mbn.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -31,7 +32,8 @@ struct pas_md_slot {
 	uint32_t pas_id;
 	bool in_use;
 	struct pas_hash_segment_info mbn;
-	bool ready;
+	bool ready;				/* INIT_IMAGE checks passed */
+	enum pas_secboot_state secboot_state;	/* state they ran in */
 };
 
 struct pas_oem_metadata {
