@@ -15,3 +15,4 @@ subdirs-$(CFG_QCOM_XPUV4) += xpu
 subdirs-$(CFG_QCOM_TLMM) += tlmm
 subdirs-$(CFG_QCOM_ICB) += icb
 subdirs-$(CFG_QCOM_SMEM) += smem
+subdirs-$(CFG_QCOM_CHIPINFO) += chipinfo

@@ -24,3 +24,5 @@ CFG_WITH_SOFTWARE_PRNG ?= n
 
 # Enable SMEM support
 CFG_QCOM_SMEM ?= y
+
+CFG_QCOM_CHIPINFO ?= y
