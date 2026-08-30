@@ -30,6 +30,8 @@
 #include <mm/tee_mm.h>
 #include <mm/vm.h>
 #include <riscv.h>
+#include <riscv_fp.h>
+#include <string.h>
 #include <trace.h>
 #include <util.h>
 
@@ -86,14 +88,97 @@ void __nostackcheck thread_unmask_exceptions(uint32_t state)
 	thread_set_exceptions(state & THREAD_EXCP_ALL);
 }
 
-static void thread_lazy_save_ns_vfp(void)
+#ifdef CFG_WITH_VFP
+/*
+ * The normal world FP context is switched eagerly at the domain boundary:
+ * the f registers are saved on the way in and the FP unit is disabled, so
+ * nothing of the normal world is reachable from secure code, and whatever
+ * secure code puts in the registers is overwritten before the normal world
+ * resumes. Lazy switching cannot give that, since it leaves the peer's
+ * registers live and relies on a trap that only fires if the other side
+ * happens to touch FP.
+ */
+static void thread_fp_release(struct thread_ctx *thr)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+	switch (thr->vfp_state.owner) {
+	case RISCV_FP_OWNER_NONE:
+		return;
+	case RISCV_FP_OWNER_NS:
+		riscv_save_fp_state(&thr->vfp_state.ns);
+		thr->vfp_state.ns_valid = true;
+		break;
+	case RISCV_FP_OWNER_KERNEL:
+		riscv_save_fp_state(&thr->vfp_state.sec);
+		thr->vfp_state.sec_valid = true;
+		break;
+	default:
+		panic();
+	}
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	riscv_fp_disable();
+}
+#endif /*CFG_WITH_VFP*/
+
+static void thread_save_ns_vfp(void)
+{
+#ifdef CFG_WITH_VFP
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_NS);
+
+	/*
+	 * The save cannot be made conditional on the normal world FS. A
+	 * monitor that gives each domain its own S-mode CSRs, as OpenSBI
+	 * does for the domain it runs OP-TEE in, swaps xstatus across the
+	 * domain switch while leaving the f registers shared. The FS read
+	 * here is therefore OP-TEE's own and says nothing about whether the
+	 * normal world has a live FP context.
+	 *
+	 * FS is saved and put back all the same, so that a monitor which
+	 * does share xstatus between the domains gets the normal world FS
+	 * it had on entry rather than the Off that OP-TEE runs with.
+	 */
+	thr->vfp_state.ns_fs = riscv_fp_read_fs();
+	riscv_save_fp_state(&thr->vfp_state.ns);
+	thr->vfp_state.ns_valid = true;
+	thr->vfp_state.sec_used = false;
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	riscv_fp_disable();
+#endif /*CFG_WITH_VFP*/
 }
 
-static void thread_lazy_restore_ns_vfp(void)
+static void thread_restore_ns_vfp(void)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+#ifdef CFG_WITH_VFP
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vfp_state.owner != RISCV_FP_OWNER_KERNEL);
+
+	/* Release the f registers from whatever secure context holds them */
+	thread_fp_release(thr);
+
+	/*
+	 * This is where the FS tracking pays off. Secure code only reaches
+	 * the f registers by taking FS out of Off, so if that never happened
+	 * the registers still hold exactly what the normal world left in
+	 * them and the restore can be skipped. A thread running a TA that
+	 * never touches FP, which is most of them, costs one save per call
+	 * and no restore.
+	 */
+	if (thr->vfp_state.sec_used) {
+		assert(thr->vfp_state.ns_valid);
+		riscv_restore_fp_state(&thr->vfp_state.ns);
+	}
+
+	thr->vfp_state.ns_valid = false;
+	thr->vfp_state.sec_used = false;
+	riscv_fp_write_fs(thr->vfp_state.ns_fs);
+	thr->vfp_state.owner = RISCV_FP_OWNER_NS;
+#endif /*CFG_WITH_VFP*/
 }
 
 static void setup_unwind_user_mode(struct thread_scall_regs *regs)
@@ -225,6 +310,19 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 	thread->regs.a7 = a7;
 }
 
+static void init_vfp_state(struct thread_ctx *thread __maybe_unused)
+{
+#ifdef CFG_WITH_VFP
+	/*
+	 * The thread slot may have been used before, so start from a clean
+	 * state. The f registers hold the normal world context at this
+	 * point, which thread_save_ns_vfp() takes care of below.
+	 */
+	memset(&thread->vfp_state, 0, sizeof(thread->vfp_state));
+	thread->vfp_state.owner = RISCV_FP_OWNER_NS;
+#endif /*CFG_WITH_VFP*/
+}
+
 static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 				   uint32_t a3, uint32_t a4, uint32_t a5,
 				   uint32_t a6, uint32_t a7,
@@ -255,8 +353,9 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 
 	threads[n].flags = 0;
 	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
+	init_vfp_state(threads + n);
 
-	thread_lazy_save_ns_vfp();
+	thread_save_ns_vfp();
 
 	l->flags &= ~THREAD_CLF_TMP;
 
@@ -381,7 +480,7 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
-	thread_lazy_save_ns_vfp();
+	thread_save_ns_vfp();
 
 	if (threads[n].have_user_map)
 		ftrace_resume();
@@ -399,7 +498,7 @@ void thread_state_free(void)
 
 	assert(ct != THREAD_ID_INVALID);
 
-	thread_lazy_restore_ns_vfp();
+	thread_restore_ns_vfp();
 
 	thread_lock_global();
 
@@ -430,7 +529,7 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 		tee_ta_update_session_utime_suspend();
 		tee_ta_gprof_sample_pc(pc);
 	}
-	thread_lazy_restore_ns_vfp();
+	thread_restore_ns_vfp();
 
 	thread_lock_global();
 
@@ -555,3 +654,89 @@ void __thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 {
 	thread_rpc_xstatus(rv, xstatus_for_xret(false, PRV_S));
 }
+
+#ifdef CFG_WITH_VFP
+uint32_t thread_kernel_enable_vfp(void)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	/*
+	 * The FP section runs to thread_kernel_disable_vfp(), which is also
+	 * where the foreign interrupt mask is restored. Nesting is not
+	 * supported.
+	 */
+	assert(thr->vfp_state.owner != RISCV_FP_OWNER_KERNEL);
+
+	/* Take the f registers away from whoever holds them */
+	thread_fp_release(thr);
+
+	if (thr->vfp_state.sec_valid) {
+		riscv_restore_fp_state(&thr->vfp_state.sec);
+		thr->vfp_state.sec_valid = false;
+		riscv_fp_write_fs(CSR_XSTATUS_FS_CLEAN);
+	} else {
+		riscv_fp_write_fs(CSR_XSTATUS_FS_INITIAL);
+	}
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_KERNEL;
+	thr->vfp_state.sec_used = true;
+
+	return exceptions;
+}
+
+void thread_kernel_disable_vfp(uint32_t state)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = 0;
+
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_KERNEL);
+	assert(riscv_fp_is_enabled());
+
+	/*
+	 * The secure kernel FP context has no life beyond the section that
+	 * is ending here, so it is dropped rather than saved.
+	 */
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	thr->vfp_state.sec_valid = false;
+	riscv_fp_disable();
+
+	exceptions = thread_get_exceptions();
+	assert(exceptions & THREAD_EXCP_FOREIGN_INTR);
+	exceptions &= ~THREAD_EXCP_FOREIGN_INTR;
+	exceptions |= state & THREAD_EXCP_FOREIGN_INTR;
+	thread_set_exceptions(exceptions);
+}
+
+void thread_kernel_save_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+	if (thr->vfp_state.owner != RISCV_FP_OWNER_KERNEL)
+		return;
+
+	riscv_save_fp_state(&thr->vfp_state.sec);
+	thr->vfp_state.sec_valid = true;
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	riscv_fp_disable();
+}
+
+void thread_kernel_restore_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_NONE);
+
+	if (!thr->vfp_state.sec_valid)
+		return;
+
+	riscv_restore_fp_state(&thr->vfp_state.sec);
+	thr->vfp_state.sec_valid = false;
+	riscv_fp_write_fs(CSR_XSTATUS_FS_CLEAN);
+	thr->vfp_state.owner = RISCV_FP_OWNER_KERNEL;
+	thr->vfp_state.sec_used = true;
+}
+#endif /*CFG_WITH_VFP*/
