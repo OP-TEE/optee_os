@@ -11,6 +11,7 @@
 #include <mm/core_mmu.h>
 #include <mm/core_mmu_arch.h>
 #include <riscv_fp.h>
+#include <riscv_vector.h>
 #include <types_ext.h>
 
 DEFINES
@@ -114,5 +115,18 @@ DEFINES
 #ifdef CFG_WITH_VFP
 	/* struct riscv_fp_state */
 	DEFINE(RISCV_FP_FCSR_OFF, offsetof(struct riscv_fp_state, fcsr));
+#endif
+#ifdef CFG_RISCV_WITH_VECTOR
+	/* struct riscv_vector_state */
+	DEFINE(RISCV_VECTOR_VSTART_OFF,
+	       offsetof(struct riscv_vector_state, vstart));
+	DEFINE(RISCV_VECTOR_VTYPE_OFF,
+	       offsetof(struct riscv_vector_state, vtype));
+	DEFINE(RISCV_VECTOR_VL_OFF, offsetof(struct riscv_vector_state, vl));
+	DEFINE(RISCV_VECTOR_VCSR_OFF,
+	       offsetof(struct riscv_vector_state, vcsr));
+	DEFINE(RISCV_VECTOR_VREGS_OFF,
+	       offsetof(struct riscv_vector_state, vregs));
+	DEFINE(RISCV_VECTOR_NREGS, RISCV_VECTOR_NUM_REGS);
 #endif
 }

@@ -96,6 +96,19 @@
 #define CSR_XSTATUS_FS_CLEAN	2
 #define CSR_XSTATUS_FS_DIRTY	3
 
+/*
+ * xstatus.VS holds the state of the vector unit. The field is two bits wide
+ * and always resides in the low 32 bits of xstatus, on RV32 as well as on
+ * RV64.
+ */
+#define CSR_XSTATUS_VS_SHIFT	9
+#define CSR_XSTATUS_VS_MASK	SHIFT_U32(3, CSR_XSTATUS_VS_SHIFT)
+
+#define CSR_XSTATUS_VS_OFF	0
+#define CSR_XSTATUS_VS_INITIAL	1
+#define CSR_XSTATUS_VS_CLEAN	2
+#define CSR_XSTATUS_VS_DIRTY	3
+
 #define CSR_XCAUSE_INTR_FLAG	BIT64(__riscv_xlen - 1)
 
 #ifndef __ASSEMBLER__

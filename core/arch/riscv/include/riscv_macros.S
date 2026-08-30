@@ -93,6 +93,48 @@
 	.endm
 
 	/*
+	 * This helper macro transfers the whole vector register file, eight
+	 * registers at a time.
+	 *
+	 * The whole-register forms vs8r.v and vl8r.v are used because they
+	 * move a fixed amount of state regardless of the vtype and vl in
+	 * effect, so the context can be moved without first having to
+	 * reconstruct the configuration it was taken under.
+	 *
+	 * base_reg is advanced by 8 * vlenb between chunks and is left
+	 * pointing past the end. tmp_reg is clobbered. The vector ISA is
+	 * enabled for this block alone, so the file assembles for a core
+	 * that is otherwise built without it.
+	 */
+	.macro _do_vregs instr, base_reg, vlenb_reg, tmp_reg
+		.option push
+		.option arch, +v
+		slli	\tmp_reg, \vlenb_reg, 3
+		\instr	v0, (\base_reg)
+		add	\base_reg, \base_reg, \tmp_reg
+		\instr	v8, (\base_reg)
+		add	\base_reg, \base_reg, \tmp_reg
+		\instr	v16, (\base_reg)
+		add	\base_reg, \base_reg, \tmp_reg
+		\instr	v24, (\base_reg)
+		.option pop
+	.endm
+
+	/*
+	 * Stores registers v0..v31 at [base_reg], vlenb bytes each
+	 */
+	.macro store_vregs base_reg, vlenb_reg, tmp_reg
+		_do_vregs vs8r.v, \base_reg, \vlenb_reg, \tmp_reg
+	.endm
+
+	/*
+	 * Loads registers v0..v31 from [base_reg], vlenb bytes each
+	 */
+	.macro load_vregs base_reg, vlenb_reg, tmp_reg
+		_do_vregs vl8r.v, \base_reg, \vlenb_reg, \tmp_reg
+	.endm
+
+	/*
 	 * Multiplication macro for RISC-V harts without M extension.
 	 */
 	.macro mult, reg_op0, reg_op1, reg_res

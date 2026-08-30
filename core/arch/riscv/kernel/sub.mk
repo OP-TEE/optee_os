@@ -19,6 +19,7 @@ srcs-$(CFG_SEMIHOSTING) += semihosting_rv.S
 srcs-y += thread_optee_abi.c
 srcs-y += thread_optee_abi_rv.S
 srcs-$(CFG_WITH_VFP) += riscv_fp.S
+srcs-$(CFG_RISCV_WITH_VECTOR) += riscv_vector.S
 asm-defines-y += asm-defines.c
 
 ifeq ($(CFG_SYSCALL_FTRACE),y)
