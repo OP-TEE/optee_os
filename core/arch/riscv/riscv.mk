@@ -165,6 +165,14 @@ core-platform-cflags += $(platform-cflags-debug-info)
 core-platform-aflags += $(platform-aflags-generic)
 core-platform-aflags += $(platform-aflags-debug-info)
 
+ifeq ($(CFG_WITH_VFP),y)
+ifeq ($(COMPILER_core),clang)
+# store_fpregs/load_fpregs recurse once per floating-point register, which is
+# deeper than the 20 levels Clang's integrated assembler allows by default.
+core-platform-aflags += -mllvm -asm-macro-max-nesting-depth=100
+endif
+endif
+
 ifeq ($(CFG_CORE_ASLR),y)
 core-platform-cflags += -fpie
 endif

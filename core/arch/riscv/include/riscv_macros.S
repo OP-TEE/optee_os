@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023 NXP
  * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 	.altmacro
@@ -47,6 +48,48 @@
 	.macro load_xregs base_reg, base_offs, from_regnum, to_regnum
 		_do_regs LDR, RISCV_XLEN_BYTES, \base_reg, \base_offs, \
 			 \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * This helper macro concatenates instr_prefix, instr_suffix, to
+	 * create a f(lw,ld)/f(sw,sd) instruction.
+	 */
+	.macro __do_fpreg instr_prefix, base_reg, base_offs, reg
+		\instr_prefix f\reg, \base_offs(\base_reg)
+	.endm
+
+	/*
+	 * This helper macro uses recursion to create a loop with a single
+	 * floating-point load/store.
+	 */
+	.macro _do_fpregs instr_prefix, reg_bytes, base_reg, base_offs, \
+			  from_regnum, to_regnum
+
+		.if (\to_regnum - \from_regnum + 1) > 1
+			_do_fpregs \instr_prefix, \reg_bytes, \base_reg, \
+				%(\base_offs + 1 * \reg_bytes), \
+				%(\from_regnum + 1), \to_regnum
+		.endif
+
+		__do_fpreg \instr_prefix, \base_reg, \base_offs, \from_regnum
+	.endm
+
+	/*
+	 * Stores registers f[from_regnum]..f[to_regnum] at
+	 * [base_reg, #base_offs]
+	 */
+	.macro store_fpregs base_reg, base_offs, from_regnum, to_regnum
+		_do_fpregs FST, RISCV_FLEN_BYTES, \base_reg, \base_offs, \
+			   \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * Loads registers f[from_regnum]..f[to_regnum] at
+	 * [base_reg, #base_offs]
+	 */
+	.macro load_fpregs base_reg, base_offs, from_regnum, to_regnum
+		_do_fpregs FLD, RISCV_FLEN_BYTES, \base_reg, \base_offs, \
+			   \from_regnum, \to_regnum
 	.endm
 
 	/*
