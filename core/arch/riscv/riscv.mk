@@ -99,10 +99,25 @@ $(call force,CFG_PAGED_USER_TA,n)
 $(call force,CFG_WITH_PAGER,n)
 $(call force,CFG_GIC,n)
 $(call force,CFG_ARM_GICV3,n)
-$(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 
+# CFG_WITH_VFP asks OP-TEE to context switch the extended register state.
+# Which register files that covers follows the extensions the platform says
+# the hart has, so the vector registers are switched when CFG_RISCV_VEC=y
+# and are left alone otherwise.
+#
+# Floating-point context switching is a separate series. The generic
+# CFG_WITH_VFP machinery in core stays off here because it would pull in
+# floating-point entry points this series does not implement, so the flag is
+# consumed for the vector decision and then cleared.
+CFG_RISCV_VEC ?= n
+
+CFG_RISCV_WITH_VECTOR := n
+ifeq ($(CFG_WITH_VFP)-$(CFG_RISCV_VEC),y-y)
+CFG_RISCV_WITH_VECTOR := y
+endif
+override CFG_WITH_VFP := n
 
 # Enable generic timer
 $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
@@ -125,6 +140,9 @@ ifeq ($(CFG_RISCV_FPU),y)
 ISA_D = fd
 ABI_D = d
 endif
+ifeq ($(CFG_RISCV_WITH_VECTOR),y)
+TA_ISA_V = v
+endif
 ifeq ($(CFG_RISCV_ISA_C),y)
 ISA_C = c
 endif
@@ -134,6 +152,13 @@ endif
 
 riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei
 riscv-abi = $(ABI_BASE)$(ABI_D)
+
+# The core is deliberately not built for the vector ISA even when vector
+# context switching is on. riscv_vector.S turns it on for the two save and
+# restore routines with .option arch, and leaving it off everywhere else
+# means the compiler cannot put vector instructions into core code, which
+# would otherwise trap against the VS == Off that core runs with.
+riscv-ta-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(TA_ISA_V)$(ISA_ZBB)_zicsr_zifencei
 
 rv64-platform-cflags += -mcmodel=$(riscv-platform-mcmodel)
 rv64-platform-cflags += -march=$(riscv-isa) -mabi=$(riscv-abi)
@@ -261,9 +286,14 @@ ta_rv64-platform-cflags += $(rv64-platform-cflags-hard-float)
 else
 ta_rv64-platform-cflags += $(rv64-platform-cflags-no-hard-float)
 endif
+# TAs are built for the vector ISA when the context is being switched, even
+# though the core is not, so this has to come after the core flags were
+# inherited above.
+ta_rv64-platform-cflags += -march=$(riscv-ta-isa)
 ta_rv64-platform-aflags += $(platform-aflags-generic)
 ta_rv64-platform-aflags += $(platform-aflags-debug-info)
 ta_rv64-platform-aflags += $(rv64-platform-aflags)
+ta_rv64-platform-aflags += -march=$(riscv-ta-isa)
 
 ta_rv64-platform-cxxflags += -fpic
 ta_rv64-platform-cxxflags += $(platform-cflags-optimization)
