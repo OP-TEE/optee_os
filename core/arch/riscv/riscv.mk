@@ -103,6 +103,7 @@ $(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 
+
 # Enable generic timer
 $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
 
