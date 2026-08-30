@@ -65,6 +65,156 @@ TEE_Result qcom_secboot_is_use_serial_num_enabled(bool *enabled)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result read_corr_reg(uint32_t offset, uint32_t *out)
+{
+	struct qfprom_context *drv = qfprom_get_context();
+
+	if (!drv->corr_base_va)
+		return TEE_ERROR_BAD_STATE;
+
+	*out = io_read32(drv->corr_base_va + offset);
+
+	return TEE_SUCCESS;
+}
+
+/*
+ * Count set bits in @bitmask.
+ * Cannot use __builtin_popcount(): OP-TEE core builds AArch64 with
+ * -mgeneral-regs-only, so the compiler cannot inline the NEON sequence
+ * and falls back to a libgcc call core does not link against.
+ */
+static uint32_t popcount32(uint32_t bitmask)
+{
+	uint32_t nb = 0;
+
+	while (bitmask) {
+		if (bitmask & 1)
+			nb++;
+		bitmask >>= 1;
+	}
+
+	return nb;
+}
+
+TEE_Result qcom_secboot_get_pil_rollback_version(uint32_t *version)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	bool secboot = false;
+	uint32_t lsb = 0;
+	uint32_t msb = 0;
+	uint32_t en = 0;
+
+	if (!version)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*version = 0;
+
+	res = qcom_secboot_is_enabled(&secboot);
+	if (res)
+		return res;
+	if (!secboot)
+		return TEE_SUCCESS;
+
+	res = read_corr_reg(PIL_ARB_EN_OFFSET, &en);
+	if (res)
+		return res;
+	if (!(en & PIL_ARB_EN_BMSK))
+		return TEE_SUCCESS;
+
+	res = read_corr_reg(PIL_ARB_LSB_OFFSET, &lsb);
+	if (res)
+		return res;
+
+	*version = popcount32(lsb & PIL_ARB_LSB_BMSK);
+
+	if (PIL_ARB_MSB_ENABLED) {
+		res = read_corr_reg(PIL_ARB_MSB_OFFSET, &msb);
+		if (res)
+			return res;
+		*version += popcount32(msb & PIL_ARB_MSB_BMSK);
+	}
+
+	return TEE_SUCCESS;
+}
+
+static uint32_t unary_mask(uint32_t n)
+{
+	if (n >= 32)
+		return 0xffffffffu;
+	if (!n)
+		return 0;
+	return GENMASK_32(n - 1, 0);
+}
+
+TEE_Result qcom_secboot_blow_pil_rollback_version(uint32_t version)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t row[2] = { };
+	uint32_t cur_lsb = 0;
+	uint32_t cur_msb = 0;
+	bool secboot = false;
+	uint32_t lsb_n = 0;
+	uint32_t msb_n = 0;
+	uint32_t cur = 0;
+	uint32_t en = 0;
+
+	res = qcom_secboot_is_enabled(&secboot);
+	if (res)
+		return res;
+	if (!secboot)
+		return TEE_SUCCESS;
+
+	res = read_corr_reg(PIL_ARB_EN_OFFSET, &en);
+	if (res)
+		return res;
+	if (!(en & PIL_ARB_EN_BMSK))
+		return TEE_SUCCESS;
+
+	res = read_corr_reg(PIL_ARB_LSB_OFFSET, &cur_lsb);
+	if (res)
+		return res;
+	cur = popcount32(cur_lsb & PIL_ARB_LSB_BMSK);
+	if (PIL_ARB_MSB_ENABLED) {
+		res = read_corr_reg(PIL_ARB_MSB_OFFSET, &cur_msb);
+		if (res)
+			return res;
+		cur += popcount32(cur_msb & PIL_ARB_MSB_BMSK);
+	}
+
+	if (version <= cur)
+		return TEE_SUCCESS;
+
+	if (version > PIL_ARB_LSB_MAX_VERSION + PIL_ARB_MSB_MAX_VERSION) {
+		EMSG("PAS ARB: version %#"PRIx32" exceeds fuse capacity",
+		     version);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	/* qfprom_write_row() only blows 0->1 bits; OR in current contents. */
+	lsb_n = MIN(version, (uint32_t)PIL_ARB_LSB_MAX_VERSION);
+	if (version > PIL_ARB_LSB_MAX_VERSION)
+		msb_n = version - PIL_ARB_LSB_MAX_VERSION;
+
+	row[0] = (cur_lsb & PIL_ARB_LSB_BMSK) | unary_mask(lsb_n);
+	row[1] = (cur_msb & PIL_ARB_MSB_BMSK) | unary_mask(msb_n);
+
+	res = qfprom_hw_init();
+	if (res)
+		return res;
+
+	res = qfprom_write_row(PIL_ARB_RAW_ADDR, row);
+	qfprom_hw_deinit();
+	if (res) {
+		EMSG("PAS ARB: fuse write failed: %#"PRIx32, res);
+		return res;
+	}
+
+	DMSG("PAS ARB: advanced device version %#"PRIx32" -> %#"PRIx32, cur,
+	     version);
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result qcom_secboot_get_root_of_trust(uint8_t *hash, size_t len)
 {
 	size_t off = 0;
