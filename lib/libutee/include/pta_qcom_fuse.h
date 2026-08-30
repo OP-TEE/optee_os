@@ -70,4 +70,28 @@
  */
 #define PTA_QCOM_FUSE_GET_USE_SERIAL_NUM	7
 
+/*
+ * Read the PIL subsystem anti-rollback device version.
+ *
+ * [out] params[0].value.a:  device version (0 when ARB enforcement is off)
+ */
+#define PTA_QCOM_FUSE_GET_PIL_ROLLBACK_VERSION	8
+
+/*
+ * Advance the PIL subsystem anti-rollback fuse to a new device version.
+ *
+ * [in] params[0].value.a:  image version to record as the new floor
+ */
+#define PTA_QCOM_FUSE_BLOW_PIL_ROLLBACK_VERSION	9
+
+/*
+ * Read the multiple-root-certificate (MRC) provisioning state.
+ *
+ * [out] params[0].value.a:  1 if root selection is enabled, 0 otherwise
+ * [out] params[0].value.b:  number of provisioned roots (1 when disabled)
+ * [out] params[1].value.a:  per-index activation bitmap
+ * [out] params[1].value.b:  per-index revocation bitmap
+ */
+#define PTA_QCOM_FUSE_GET_MRC_INFO		10
+
 #endif /* __PTA_QCOM_FUSE_H */
