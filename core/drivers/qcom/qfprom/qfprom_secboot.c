@@ -19,18 +19,6 @@
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, TCSR_SOC_HW_VERSION_ADDR,
 			CORE_MMU_PGDIR_SIZE);
 
-static TEE_Result read_sense_reg(uint32_t offset, uint32_t *out)
-{
-	struct qfprom_context *drv = qfprom_get_context();
-
-	if (!drv->raw_base)
-		return TEE_ERROR_BAD_STATE;
-
-	*out = io_read32(drv->raw_base + offset);
-
-	return TEE_SUCCESS;
-}
-
 TEE_Result qcom_secboot_is_enabled(bool *enabled)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
