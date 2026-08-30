@@ -84,3 +84,47 @@ TEE_Result qcom_secboot_blow_pil_rollback_version(uint32_t version)
 
 	return TEE_SUCCESS;
 }
+
+TEE_Result qcom_secboot_get_mrc_info(struct qcom_secboot_mrc_info *info)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t total = 1;
+	uint32_t val = 0;
+
+	if (!info)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* MRC is off unless the fuses say otherwise: one root, no lists */
+	info->num_roots = 1;
+	info->activation_list = 0;
+	info->revocation_list = 0;
+
+	res = read_sense_reg(SECURE_BOOT_APPS_OFFSET, &val);
+	if (res)
+		return res;
+	if (!(val & SECURE_BOOT_PK_HASH_IN_FUSE_BMSK))
+		return TEE_SUCCESS;
+
+	res = read_sense_reg(OEM_CONFIG0_OFFSET, &val);
+	if (res)
+		return res;
+
+	/* The first root is implicit, the field counts the others */
+	total += (val & ROOT_CERT_TOTAL_NUM_BMSK) >> ROOT_CERT_TOTAL_NUM_SHFT;
+	if (total <= 1)
+		return TEE_SUCCESS;
+
+	res = read_sense_reg(MRC_ACTIVATION_LIST_OFFSET, &val);
+	if (res)
+		return res;
+	info->activation_list = val & MRC_ROOT_CERT_LIST_BMSK;
+
+	res = read_sense_reg(MRC_REVOCATION_LIST_OFFSET, &val);
+	if (res)
+		return res;
+	info->revocation_list = val & MRC_ROOT_CERT_LIST_BMSK;
+
+	info->num_roots = total;
+
+	return TEE_SUCCESS;
+}

@@ -39,6 +39,12 @@ struct qcom_secboot_device_ids {
 	uint32_t serial_num;
 };
 
+struct qcom_secboot_mrc_info {
+	uint32_t num_roots;
+	uint32_t activation_list;
+	uint32_t revocation_list;
+};
+
 /* Read QFPROM row data */
 TEE_Result qfprom_read_row(uint32_t addr,
 			   enum qfprom_addr_space type,
@@ -106,6 +112,29 @@ TEE_Result qcom_secboot_get_segment_hash_len(uint32_t root_cert_sel,
 
 /* Is code-signing EKU enforcement required for this device? */
 TEE_Result qcom_secboot_get_eku_enforcement_en(bool *enabled);
+
+#ifdef CFG_QCOM_QFPROM_ARB_MRC
+/*
+ * Report the number of provisioned roots (1 when the anchor isn't
+ * fuse-resident with multiple roots) and, when more than one, the
+ * per-index activation/revocation bitmaps.
+ */
+TEE_Result qcom_secboot_get_mrc_info(struct qcom_secboot_mrc_info *info);
+#else
+/* No MRC fuses on this platform: the single default root is used. */
+static inline TEE_Result
+qcom_secboot_get_mrc_info(struct qcom_secboot_mrc_info *info)
+{
+	if (!info)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	info->num_roots = 1;
+	info->activation_list = 0;
+	info->revocation_list = 0;
+
+	return TEE_SUCCESS;
+}
+#endif
 
 /* Write QFPROM row data */
 TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data);
