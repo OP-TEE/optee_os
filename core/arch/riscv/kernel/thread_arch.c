@@ -111,6 +111,11 @@ static void thread_fp_release(struct thread_ctx *thr)
 		riscv_save_fp_state(&thr->vfp_state.sec);
 		thr->vfp_state.sec_valid = true;
 		break;
+	case RISCV_FP_OWNER_USER:
+		assert(thr->vfp_state.uvfp);
+		riscv_save_fp_state(&thr->vfp_state.uvfp->fp);
+		thr->vfp_state.uvfp->valid = true;
+		break;
 	default:
 		panic();
 	}
@@ -119,6 +124,21 @@ static void thread_fp_release(struct thread_ctx *thr)
 	riscv_fp_disable();
 }
 #endif /*CFG_WITH_VFP*/
+
+/*
+ * A TA runs with the FP unit disabled until it executes an FP instruction
+ * and traps, so whenever its FP context is saved and released the saved
+ * xstatus has to go back to FS == Off. Unlike the ARM FPEXC.EN, FS is part
+ * of the register frame restored on the way back to user mode, so it is
+ * the saved copy that decides whether the TA traps again.
+ */
+static unsigned long user_status_disable_fp(unsigned long status)
+{
+	if (IS_ENABLED(CFG_WITH_VFP))
+		return riscv_fp_set_fs(status, CSR_XSTATUS_FS_OFF);
+
+	return status;
+}
 
 static void thread_save_ns_vfp(void)
 {
@@ -213,6 +233,7 @@ void thread_scall_handler(struct thread_scall_regs *regs)
 	thread_unmask_exceptions(state & ~THREAD_EXCP_NATIVE_INTR);
 
 	thread_user_save_vfp();
+	regs->status = user_status_disable_fp(regs->status);
 
 	sess = ts_get_current_session();
 
@@ -526,6 +547,7 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 
 	if (is_from_user(status)) {
 		thread_user_save_vfp();
+		status = user_status_disable_fp(status);
 		tee_ta_update_session_utime_suspend();
 		tee_ta_gprof_sample_pc(pc);
 	}
@@ -641,7 +663,8 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 	 */
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	regs = thread_get_ctx_regs();
-	status = xstatus_for_xret(true, PRV_U);
+	/* A TA starts with FP disabled and is given the FP unit on first use */
+	status = user_status_disable_fp(xstatus_for_xret(true, PRV_U));
 	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, status, ie,
 		     NULL);
 	rc = __thread_enter_user_mode(regs, exit_status0, exit_status1);
@@ -720,6 +743,101 @@ void thread_kernel_save_vfp(void)
 	riscv_save_fp_state(&thr->vfp_state.sec);
 	thr->vfp_state.sec_valid = true;
 	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	riscv_fp_disable();
+}
+
+static void thread_fp_clear_regs(void)
+{
+	struct riscv_fp_state zero_state = { };
+
+	riscv_restore_fp_state(&zero_state);
+}
+
+/*
+ * A TA is given the FP unit the first time it executes an FP instruction,
+ * rather than on every entry to user mode. Within the TEE, OP-TEE owns FS
+ * and no other context can look at the f registers behind our back, so
+ * there is nothing to defend against here, and most TAs never touch FP.
+ * Enabling on first use keeps those TAs from paying for a context switch
+ * they have no use for.
+ */
+void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	assert(uvfp);
+
+	/* Take the f registers away from whoever holds them */
+	thread_fp_release(thr);
+
+	if (uvfp->valid) {
+		riscv_restore_fp_state(&uvfp->fp);
+		riscv_fp_write_fs(CSR_XSTATUS_FS_CLEAN);
+	} else {
+		/*
+		 * This TA has no FP context yet. Clear the registers before
+		 * handing them over: FS == Initial says the context is new,
+		 * but enabling the FP unit does not architecturally clear
+		 * the register file, so the TA would otherwise start out
+		 * seeing what the previous owner left there.
+		 */
+		thread_fp_clear_regs();
+		riscv_fp_write_fs(CSR_XSTATUS_FS_INITIAL);
+	}
+
+	thr->vfp_state.uvfp = uvfp;
+	thr->vfp_state.owner = RISCV_FP_OWNER_USER;
+	thr->vfp_state.sec_used = true;
+
+	thread_set_exceptions(exceptions);
+}
+
+void thread_user_save_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+	/* The TA either never used FP or has already been saved */
+	if (thr->vfp_state.owner != RISCV_FP_OWNER_USER)
+		return;
+
+	thread_fp_release(thr);
+}
+
+void thread_user_clear_vfp(struct user_mode_ctx *uctx)
+{
+	struct thread_user_vfp_state *uvfp = &uctx->vfp;
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	if (uvfp == thr->vfp_state.uvfp) {
+		if (thr->vfp_state.owner == RISCV_FP_OWNER_USER) {
+			thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+			riscv_fp_disable();
+		}
+		thr->vfp_state.uvfp = NULL;
+	}
+
+	memset(uvfp, 0, sizeof(*uvfp));
+
+	thread_set_exceptions(exceptions);
+}
+
+void vfp_disable(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	/*
+	 * The TA is about to be killed and its FP context dies with it, so
+	 * the registers are released rather than saved. What they hold is
+	 * overwritten by the normal world context before that world resumes,
+	 * see thread_restore_ns_vfp().
+	 */
+	if (thr->vfp_state.owner == RISCV_FP_OWNER_USER)
+		thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+
 	riscv_fp_disable();
 }
 

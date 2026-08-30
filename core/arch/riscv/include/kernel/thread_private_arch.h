@@ -65,18 +65,21 @@ struct thread_user_mode_rec {
  *
  * OP-TEE owns xstatus.FS while it runs, so one owner per OP-TEE thread is
  * enough to describe the hardware: the registers hold either nothing worth
- * preserving, the normal world context, or a secure kernel context.
+ * preserving, the normal world context, a secure kernel context, or the
+ * context of the TA the thread is running.
  */
 enum riscv_fp_owner {
 	RISCV_FP_OWNER_NONE = 0,
 	RISCV_FP_OWNER_NS,
 	RISCV_FP_OWNER_KERNEL,
+	RISCV_FP_OWNER_USER,
 };
 
 /*
  * struct thread_vfp_state - per OP-TEE thread FP bookkeeping
  * @ns:		saved normal world FP context
  * @sec:	saved secure kernel FP context
+ * @uvfp:	FP context of the TA this thread is running, if it has one
  * @owner:	context the f registers currently hold
  * @ns_fs:	xstatus.FS the normal world had on entry to OP-TEE
  * @ns_valid:	@ns holds a saved normal world context
@@ -86,6 +89,7 @@ enum riscv_fp_owner {
 struct thread_vfp_state {
 	struct riscv_fp_state ns;
 	struct riscv_fp_state sec;
+	struct thread_user_vfp_state *uvfp;
 	enum riscv_fp_owner owner;
 	unsigned long ns_fs;
 	bool ns_valid;
@@ -164,6 +168,11 @@ static inline void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 }
 
 void thread_scall_handler(struct thread_scall_regs *regs);
+
+#ifdef CFG_WITH_VFP
+/* Releases the FP unit from a TA that is about to be killed */
+void vfp_disable(void);
+#endif
 
 #endif /*__ASSEMBLER__*/
 
