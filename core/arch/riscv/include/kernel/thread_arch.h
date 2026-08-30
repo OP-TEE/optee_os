@@ -13,6 +13,7 @@
 
 #include <platform_config.h>
 #include <riscv.h>
+#include <riscv_fp.h>
 
 /*
  * Each RISC-V platform must define their own values.
@@ -51,6 +52,9 @@ struct thread_core_local {
 } THREAD_CORE_LOCAL_ALIGNED;
 
 struct thread_user_vfp_state {
+	struct riscv_fp_state fp;
+	/* True when @fp holds a saved copy of the TA's FP registers */
+	bool valid;
 };
 
 struct thread_abi_args {
@@ -170,10 +174,14 @@ struct user_mode_ctx;
 #ifdef CFG_WITH_VFP
 uint32_t thread_kernel_enable_vfp(void);
 void thread_kernel_disable_vfp(uint32_t state);
-void thread_kernel_save_vfp(void);
-void thread_kernel_restore_vfp(void);
 void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp);
-#else /*CFG_WITH_VFP*/
+#endif /*CFG_WITH_VFP*/
+
+/*
+ * On Arm these bracket tee_pager_handle_fault(), so that a kernel FP
+ * section interrupted by a page fault survives it. RISC-V has no pager
+ * (CFG_WITH_PAGER is forced off), so there is no caller and nothing to do.
+ */
 static inline void thread_kernel_save_vfp(void)
 {
 }
@@ -181,7 +189,6 @@ static inline void thread_kernel_save_vfp(void)
 static inline void thread_kernel_restore_vfp(void)
 {
 }
-#endif /*CFG_WITH_VFP*/
 #ifdef CFG_WITH_VFP
 void thread_user_save_vfp(void);
 #else

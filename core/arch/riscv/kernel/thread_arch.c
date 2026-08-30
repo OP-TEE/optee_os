@@ -30,6 +30,8 @@
 #include <mm/tee_mm.h>
 #include <mm/vm.h>
 #include <riscv.h>
+#include <riscv_fp.h>
+#include <string.h>
 #include <trace.h>
 #include <util.h>
 
@@ -86,14 +88,93 @@ void __nostackcheck thread_unmask_exceptions(uint32_t state)
 	thread_set_exceptions(state & THREAD_EXCP_ALL);
 }
 
-static void thread_lazy_save_ns_vfp(void)
+#ifdef CFG_WITH_VFP
+/*
+ * The REE FP context is switched lazily, the way the Arm port does it. On
+ * entry the FP unit is disabled and nothing is saved: the f registers keep
+ * holding the REE context, and stay that way for the many calls in which
+ * the TEE never touches floating point. The context is saved only when
+ * secure code first asks for the unit, in thread_kernel_enable_vfp() or
+ * thread_user_enable_vfp(), and restored on exit only if that happened.
+ *
+ * Nothing here depends on what M-mode does at the domain switch. A monitor
+ * that saves and restores the f registers itself makes the restore below
+ * redundant but harmless; one that does not is what the restore is for.
+ */
+static void thread_fp_release(struct thread_ctx *thr)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+	switch (thr->vfp_state.owner) {
+	case THREAD_FP_OWNER_NONE:
+		return;
+	case THREAD_FP_OWNER_REE:
+		/* First secure use since entry: the REE context goes now */
+		riscv_save_fp_state(&thr->vfp_state.ree);
+		thr->vfp_state.ree_saved = true;
+		break;
+	case THREAD_FP_OWNER_KERNEL:
+		/*
+		 * A kernel FP section runs with foreign interrupts masked
+		 * from end to end, so it cannot be preempted and its
+		 * registers have no life beyond it. Nothing to save.
+		 */
+		break;
+	default:
+		panic();
+	}
+
+	thr->vfp_state.owner = THREAD_FP_OWNER_NONE;
+	riscv_fp_disable();
+}
+#endif /*CFG_WITH_VFP*/
+
+static void thread_lazy_save_ree_vfp(void)
+{
+#ifdef CFG_WITH_VFP
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	/*
+	 * Every exit to the REE hands the registers back to it, and so does
+	 * thread initialisation, so every entry finds them owned by the REE.
+	 */
+	assert(thr->vfp_state.owner == THREAD_FP_OWNER_REE);
+
+	/*
+	 * Only FS is taken now. The registers are left where they are and
+	 * the unit is disabled, so the first secure FP use goes through
+	 * thread_fp_release() and pays for the save; a call that never uses
+	 * FP pays nothing.
+	 */
+	thr->vfp_state.ree_fs = riscv_fp_read_fs();
+	thr->vfp_state.ree_saved = false;
+	riscv_fp_disable();
+#endif /*CFG_WITH_VFP*/
 }
 
-static void thread_lazy_restore_ns_vfp(void)
+static void thread_lazy_restore_ree_vfp(void)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+#ifdef CFG_WITH_VFP
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vfp_state.owner != THREAD_FP_OWNER_KERNEL);
+
+	/* Release the f registers from whatever secure context holds them */
+	thread_fp_release(thr);
+
+	/*
+	 * If secure code never asked for the unit the registers still hold
+	 * exactly what the REE left in them, and there is nothing to put
+	 * back.
+	 */
+	if (thr->vfp_state.ree_saved) {
+		riscv_restore_fp_state(&thr->vfp_state.ree);
+		thr->vfp_state.ree_saved = false;
+	}
+
+	riscv_fp_write_fs(thr->vfp_state.ree_fs);
+	thr->vfp_state.owner = THREAD_FP_OWNER_REE;
+#endif /*CFG_WITH_VFP*/
 }
 
 static void setup_unwind_user_mode(struct thread_scall_regs *regs)
@@ -225,6 +306,19 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 	thread->regs.a7 = a7;
 }
 
+static void init_vfp_state(struct thread_ctx *thread __maybe_unused)
+{
+#ifdef CFG_WITH_VFP
+	/*
+	 * The thread slot may have been used before, so start from a clean
+	 * state. The f registers hold the REE context at this point, which
+	 * thread_lazy_save_ree_vfp() takes care of below.
+	 */
+	memset(&thread->vfp_state, 0, sizeof(thread->vfp_state));
+	thread->vfp_state.owner = THREAD_FP_OWNER_REE;
+#endif /*CFG_WITH_VFP*/
+}
+
 static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 				   uint32_t a3, uint32_t a4, uint32_t a5,
 				   uint32_t a6, uint32_t a7,
@@ -255,8 +349,9 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 
 	threads[n].flags = 0;
 	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
+	init_vfp_state(threads + n);
 
-	thread_lazy_save_ns_vfp();
+	thread_lazy_save_ree_vfp();
 
 	l->flags &= ~THREAD_CLF_TMP;
 
@@ -381,7 +476,7 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
-	thread_lazy_save_ns_vfp();
+	thread_lazy_save_ree_vfp();
 
 	if (threads[n].have_user_map)
 		ftrace_resume();
@@ -399,7 +494,7 @@ void thread_state_free(void)
 
 	assert(ct != THREAD_ID_INVALID);
 
-	thread_lazy_restore_ns_vfp();
+	thread_lazy_restore_ree_vfp();
 
 	thread_lock_global();
 
@@ -430,7 +525,7 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 		tee_ta_update_session_utime_suspend();
 		tee_ta_gprof_sample_pc(pc);
 	}
-	thread_lazy_restore_ns_vfp();
+	thread_lazy_restore_ree_vfp();
 
 	thread_lock_global();
 
@@ -555,3 +650,49 @@ void __thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 {
 	thread_rpc_xstatus(rv, xstatus_for_xret(false, PRV_S));
 }
+
+#ifdef CFG_WITH_VFP
+uint32_t thread_kernel_enable_vfp(void)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	/*
+	 * The FP section runs to thread_kernel_disable_vfp(), which is also
+	 * where the foreign interrupt mask is restored. Nesting is not
+	 * supported.
+	 */
+	assert(thr->vfp_state.owner != THREAD_FP_OWNER_KERNEL);
+
+	/* Take the f registers away from whoever holds them */
+	thread_fp_release(thr);
+
+	/*
+	 * FS == Initial enables the unit and says the registers hold no
+	 * context worth preserving, which is what core code wants: it does
+	 * not expect to find anything in them.
+	 */
+	riscv_fp_write_fs(CSR_XSTATUS_FS_INITIAL);
+	thr->vfp_state.owner = THREAD_FP_OWNER_KERNEL;
+
+	return exceptions;
+}
+
+void thread_kernel_disable_vfp(uint32_t state)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = 0;
+
+	assert(thr->vfp_state.owner == THREAD_FP_OWNER_KERNEL);
+	assert(riscv_fp_is_enabled());
+
+	thr->vfp_state.owner = THREAD_FP_OWNER_NONE;
+	riscv_fp_disable();
+
+	exceptions = thread_get_exceptions();
+	assert(exceptions & THREAD_EXCP_FOREIGN_INTR);
+	exceptions &= ~THREAD_EXCP_FOREIGN_INTR;
+	exceptions |= state & THREAD_EXCP_FOREIGN_INTR;
+	thread_set_exceptions(exceptions);
+}
+#endif /*CFG_WITH_VFP*/

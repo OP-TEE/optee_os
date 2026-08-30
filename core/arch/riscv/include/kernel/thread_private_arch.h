@@ -9,6 +9,7 @@
 #ifndef __ASSEMBLER__
 
 #include <kernel/thread.h>
+#include <riscv_fp.h>
 
 #define STACK_TMP_OFFS		0
 
@@ -57,6 +58,35 @@ struct thread_user_mode_rec {
 	 */
 	unsigned long x[13];
 };
+
+#ifdef CFG_WITH_VFP
+/*
+ * Which context the f registers of this hart currently hold.
+ *
+ * OP-TEE owns xstatus.FS while it runs, so one owner per OP-TEE thread is
+ * enough to describe the hardware: the registers hold either nothing worth
+ * preserving, the REE context, or a secure kernel context.
+ */
+enum thread_fp_owner {
+	THREAD_FP_OWNER_NONE = 0,
+	THREAD_FP_OWNER_REE,
+	THREAD_FP_OWNER_KERNEL,
+};
+
+/*
+ * struct thread_vfp_state - per OP-TEE thread FP bookkeeping
+ * @ree:	the REE context, saved the first time the TEE uses FP
+ * @owner:	context the f registers currently hold
+ * @ree_fs:	xstatus.FS the REE had on entry to OP-TEE
+ * @ree_saved:	@ree holds the REE context and has to be restored on exit
+ */
+struct thread_vfp_state {
+	struct riscv_fp_state ree;
+	enum thread_fp_owner owner;
+	unsigned long ree_fs;
+	bool ree_saved;
+};
+#endif /*CFG_WITH_VFP*/
 
 extern long thread_user_kcode_offset;
 
