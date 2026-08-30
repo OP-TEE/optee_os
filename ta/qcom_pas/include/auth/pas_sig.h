@@ -23,6 +23,11 @@ TEE_Result pas_sig_verify_cert_chain(const uint8_t *chain_der,
 				     const uint8_t **roots_der,
 				     size_t *roots_der_len);
 
+TEE_Result pas_sig_check_root_cert_index(uint32_t root_cert_sel,
+					 uint32_t num_roots,
+					 uint32_t activation_list,
+					 uint32_t revocation_list);
+
 TEE_Result pas_sig_check_root_of_trust(uint32_t rot_hash_algo,
 				       size_t rot_hash_len,
 				       const uint8_t *root_der,

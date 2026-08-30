@@ -9,7 +9,7 @@
 #include <auth/pas_policy.h>
 #include <pta_qcom_pas.h>
 
-static const struct pas_swid_entry pas_swid_map[] = {
+static const struct pas_policy_entry pas_policy_map[] = {
 	{ PAS_ID_QDSP6, SECBOOT_ADSP_SW_TYPE },
 	{ PAS_ID_IRIS, SECBOOT_IRIS_SW_TYPE },
 	{ PAS_ID_TURING, SECBOOT_TURING_SW_TYPE },
