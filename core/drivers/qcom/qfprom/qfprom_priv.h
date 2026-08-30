@@ -80,4 +80,20 @@ TEE_Result qfprom_release_hw_mutex(void);
 
 const struct qfprom_platform_config *qfprom_get_platform_config(void);
 
+/*
+ * PIL anti-rollback fuse access, implemented per platform in
+ * <platform>/qfprom_pil_arb.c, which owns the fuse layout.
+ */
+
+TEE_Result qfprom_target_pil_arb_enabled(bool *enabled);
+
+/* Read the rollback version, the number of counter bits set. */
+TEE_Result qfprom_target_get_pil_arb(uint32_t *version);
+
+/*
+ * Raise the rollback version to @version, saturating at the counter
+ * capacity. Call between qfprom_hw_init() and qfprom_hw_deinit().
+ */
+TEE_Result qfprom_target_blow_pil_arb(uint32_t version);
+
 #endif /* __QFPROM_PRIV_H__ */
