@@ -13,6 +13,7 @@
 
 #include <platform_config.h>
 #include <riscv.h>
+#include <riscv_vector.h>
 
 /*
  * Each RISC-V platform must define their own values.
