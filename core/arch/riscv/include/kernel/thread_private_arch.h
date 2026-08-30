@@ -10,6 +10,7 @@
 
 #include <kernel/thread.h>
 #include <riscv_fp.h>
+#include <riscv_vector.h>
 
 #define STACK_TMP_OFFS		0
 
@@ -97,6 +98,35 @@ struct thread_vfp_state {
 	bool sec_used;
 };
 #endif /*CFG_WITH_VFP*/
+#ifdef CFG_RISCV_WITH_VECTOR
+/*
+ * Which context the vector registers of this hart currently hold.
+ *
+ * OP-TEE owns xstatus.VS while it runs, so one owner per OP-TEE thread is
+ * enough to describe the hardware: the registers hold either nothing worth
+ * preserving or the normal world context.
+ */
+enum riscv_vector_owner {
+	RISCV_VECTOR_OWNER_NONE = 0,
+	RISCV_VECTOR_OWNER_NS,
+};
+
+/*
+ * struct thread_vector_state - per OP-TEE thread vector bookkeeping
+ * @ns:		saved normal world vector context, allocated at boot
+ * @owner:	context the vector registers currently hold
+ * @ns_vs:	xstatus.VS the normal world had on entry to OP-TEE
+ * @ns_valid:	@ns holds a saved normal world context
+ * @sec_used:	secure code has written the vector registers since entry
+ */
+struct thread_vector_state {
+	struct riscv_vector_state *ns;
+	enum riscv_vector_owner owner;
+	unsigned long ns_vs;
+	bool ns_valid;
+	bool sec_used;
+};
+#endif /*CFG_RISCV_WITH_VECTOR*/
 
 extern long thread_user_kcode_offset;
 

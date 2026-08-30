@@ -29,8 +29,11 @@
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
 #include <mm/vm.h>
+#include <initcall.h>
+#include <malloc.h>
 #include <riscv.h>
 #include <riscv_fp.h>
+#include <riscv_vector.h>
 #include <string.h>
 #include <trace.h>
 #include <util.h>
@@ -199,6 +202,137 @@ static void thread_restore_ns_vfp(void)
 	riscv_fp_write_fs(thr->vfp_state.ns_fs);
 	thr->vfp_state.owner = RISCV_FP_OWNER_NS;
 #endif /*CFG_WITH_VFP*/
+}
+
+#ifdef CFG_RISCV_WITH_VECTOR
+/*
+ * The normal world vector context is switched eagerly at the domain
+ * boundary: the registers are saved on the way in and the unit is
+ * disabled, so nothing of the normal world is reachable from secure code,
+ * and whatever secure code puts in the registers is overwritten before the
+ * normal world resumes.
+ */
+static void thread_vector_release(struct thread_ctx *thr)
+{
+	switch (thr->vector_state.owner) {
+	case RISCV_VECTOR_OWNER_NONE:
+		return;
+	case RISCV_VECTOR_OWNER_NS:
+		riscv_vector_save_state(thr->vector_state.ns);
+		thr->vector_state.ns_valid = true;
+		break;
+	default:
+		panic();
+	}
+
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_NONE;
+	riscv_vector_disable();
+}
+
+/*
+ * A context is sized from the vlenb of the hart it will run on, so the
+ * normal world contexts are allocated once here rather than in the domain
+ * switch, which then has no allocation and so no failure path in it.
+ */
+static TEE_Result riscv_vector_init(void)
+{
+	size_t size = riscv_vector_state_size();
+	size_t n = 0;
+
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		threads[n].vector_state.ns = memalign(__alignof__(long), size);
+		if (!threads[n].vector_state.ns) {
+			EMSG("Failed to allocate %zu bytes of vector context",
+			     size);
+			panic();
+		}
+		memset(threads[n].vector_state.ns, 0, size);
+	}
+
+	DMSG("Vector context switching enabled, vlenb %lu, %zu bytes a context",
+	     riscv_vector_vlenb(), size);
+
+	return TEE_SUCCESS;
+}
+service_init(riscv_vector_init);
+#endif /*CFG_RISCV_WITH_VECTOR*/
+
+static void init_vector_state(struct thread_ctx *thread __maybe_unused)
+{
+#ifdef CFG_RISCV_WITH_VECTOR
+	/*
+	 * The thread slot may have been used before, so start from a clean
+	 * state, keeping the buffer allocated for it at boot. The vector
+	 * registers hold the normal world context at this point, which
+	 * thread_save_ns_vector() takes care of below.
+	 */
+	struct riscv_vector_state *ns = thread->vector_state.ns;
+
+	memset(&thread->vector_state, 0, sizeof(thread->vector_state));
+	thread->vector_state.ns = ns;
+	thread->vector_state.owner = RISCV_VECTOR_OWNER_NS;
+#endif /*CFG_RISCV_WITH_VECTOR*/
+}
+
+static void thread_save_ns_vector(void)
+{
+#ifdef CFG_RISCV_WITH_VECTOR
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vector_state.owner == RISCV_VECTOR_OWNER_NS);
+
+	/*
+	 * The save cannot be made conditional on the normal world VS. A
+	 * monitor that gives each domain its own S-mode CSRs, as OpenSBI
+	 * does for the domain it runs OP-TEE in, swaps xstatus across the
+	 * domain switch while leaving the vector registers shared. The VS
+	 * read here is therefore OP-TEE's own and says nothing about
+	 * whether the normal world has a live vector context.
+	 *
+	 * VS is saved and put back all the same, so that a monitor which
+	 * does share xstatus between the domains gets the normal world VS
+	 * it had on entry rather than the Off that OP-TEE runs with.
+	 */
+	assert(thr->vector_state.ns);
+	thr->vector_state.ns_vs = riscv_vector_read_vs();
+	riscv_vector_save_state(thr->vector_state.ns);
+	thr->vector_state.ns_valid = true;
+	thr->vector_state.sec_used = false;
+
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_NONE;
+	riscv_vector_disable();
+#endif /*CFG_RISCV_WITH_VECTOR*/
+}
+
+static void thread_restore_ns_vector(void)
+{
+#ifdef CFG_RISCV_WITH_VECTOR
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+	/* Release the registers from whatever secure context holds them */
+	thread_vector_release(thr);
+
+	/*
+	 * This is where the VS tracking pays off. Secure code only reaches
+	 * the vector registers by taking VS out of Off, so if that never
+	 * happened they still hold exactly what the normal world left in
+	 * them and the restore can be skipped. A thread running a TA that
+	 * never touches vector, which is most of them, costs one save per
+	 * call and no restore.
+	 */
+	if (thr->vector_state.sec_used) {
+		assert(thr->vector_state.ns_valid);
+		riscv_vector_restore_state(thr->vector_state.ns);
+	}
+
+	thr->vector_state.ns_valid = false;
+	thr->vector_state.sec_used = false;
+	riscv_vector_write_vs(thr->vector_state.ns_vs);
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_NS;
+#endif /*CFG_RISCV_WITH_VECTOR*/
 }
 
 static void setup_unwind_user_mode(struct thread_scall_regs *regs)
@@ -375,8 +509,10 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 	threads[n].flags = 0;
 	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
 	init_vfp_state(threads + n);
+	init_vector_state(threads + n);
 
 	thread_save_ns_vfp();
+	thread_save_ns_vector();
 
 	l->flags &= ~THREAD_CLF_TMP;
 
@@ -502,6 +638,7 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 	}
 
 	thread_save_ns_vfp();
+	thread_save_ns_vector();
 
 	if (threads[n].have_user_map)
 		ftrace_resume();
@@ -520,6 +657,7 @@ void thread_state_free(void)
 	assert(ct != THREAD_ID_INVALID);
 
 	thread_restore_ns_vfp();
+	thread_restore_ns_vector();
 
 	thread_lock_global();
 
@@ -552,6 +690,7 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 		tee_ta_gprof_sample_pc(pc);
 	}
 	thread_restore_ns_vfp();
+	thread_restore_ns_vector();
 
 	thread_lock_global();
 
