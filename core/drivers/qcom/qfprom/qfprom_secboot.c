@@ -65,6 +65,144 @@ TEE_Result qcom_secboot_is_use_serial_num_enabled(bool *enabled)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result read_pil_arb_en(bool *en)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t row[2] = { };
+
+	res = qfprom_read_row_locked(PIL_ARB_EN_RAW_ADDR,
+				     QFPROM_ADDR_SPACE_CORR, row);
+	if (res)
+		return res;
+
+	*en = (row[1] & PIL_ARB_EN_BMSK) != 0;
+
+	return TEE_SUCCESS;
+}
+
+/*
+ * Count set bits in @bitmask.
+ * Cannot use __builtin_popcount(): OP-TEE core builds AArch64 with
+ * -mgeneral-regs-only, so the compiler cannot inline the NEON sequence
+ * and falls back to a libgcc call core does not link against.
+ */
+static uint32_t popcount32(uint32_t bitmask)
+{
+	uint32_t nb = 0;
+
+	while (bitmask) {
+		if (bitmask & 1)
+			nb++;
+		bitmask >>= 1;
+	}
+
+	return nb;
+}
+
+TEE_Result qcom_secboot_get_pil_rollback_version(uint32_t *version)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	bool secboot = false;
+	uint32_t lsb = 0;
+	uint32_t msb = 0;
+	bool en = false;
+
+	if (!version)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*version = 0;
+
+	res = qcom_secboot_is_enabled(&secboot);
+	if (res)
+		return res;
+	if (!secboot)
+		return TEE_SUCCESS;
+
+	res = read_pil_arb_en(&en);
+	if (res)
+		return res;
+	if (!en)
+		return TEE_SUCCESS;
+
+	res = qfprom_target_read_pil_arb(&lsb, &msb);
+	if (res)
+		return res;
+
+	*version = popcount32(lsb);
+	if (PIL_ARB_MSB_ENABLED)
+		*version += popcount32(msb);
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result qcom_secboot_blow_pil_rollback_version(uint32_t version)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result cleanup_res = TEE_SUCCESS;
+	uint32_t cur_lsb = 0;
+	uint32_t cur_msb = 0;
+	bool secboot = false;
+	uint32_t lsb_n = 0;
+	uint32_t msb_n = 0;
+	uint32_t cur = 0;
+	bool en = false;
+
+	res = qcom_secboot_is_enabled(&secboot);
+	if (res)
+		return res;
+	if (!secboot)
+		return TEE_SUCCESS;
+
+	res = read_pil_arb_en(&en);
+	if (res)
+		return res;
+	if (!en)
+		return TEE_SUCCESS;
+
+	res = qfprom_target_read_pil_arb(&cur_lsb, &cur_msb);
+	if (res)
+		return res;
+	cur = popcount32(cur_lsb);
+	if (PIL_ARB_MSB_ENABLED)
+		cur += popcount32(cur_msb);
+
+	if (version <= cur)
+		return TEE_SUCCESS;
+
+	res = qfprom_hw_init();
+	if (res)
+		return res;
+
+	/* Saturate each word at its capacity, programming the LSB first. */
+	lsb_n = MIN(version, (uint32_t)PIL_ARB_LSB_MAX_VERSION);
+	res = qfprom_target_write_pil_arb_lsb(lsb_n);
+	if (res)
+		goto out;
+
+	if (PIL_ARB_MSB_ENABLED && version > PIL_ARB_LSB_MAX_VERSION) {
+		msb_n = MIN(version - PIL_ARB_LSB_MAX_VERSION,
+			    (uint32_t)PIL_ARB_MSB_MAX_VERSION);
+		res = qfprom_target_write_pil_arb_msb(msb_n);
+	}
+
+out:
+	cleanup_res = qfprom_hw_deinit();
+	if (cleanup_res)
+		EMSG("PAS ARB: programming cleanup failed: %#"PRIx32,
+		     cleanup_res);
+	if (!res)
+		res = cleanup_res;
+	if (res) {
+		EMSG("PAS ARB: programming failed: %#"PRIx32, res);
+		EMSG("PAS ARB: fuses may be partially programmed");
+		return res;
+	}
+
+	DMSG("PAS ARB: fuse update completed");
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result qcom_secboot_get_root_of_trust(uint8_t *hash, size_t len)
 {
 	size_t off = 0;
