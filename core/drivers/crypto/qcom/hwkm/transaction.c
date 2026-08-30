@@ -4,7 +4,7 @@
  */
 
 #include <assert.h>
-#include <hwkm.h>
+#include <drivers/hwkm.h>
 #include <hwkm_ice.h>
 #include <hwkm_regs.h>
 #include <mm/core_memprot.h>
