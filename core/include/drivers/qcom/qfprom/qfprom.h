@@ -74,6 +74,16 @@ TEE_Result qcom_secboot_get_segment_hash_len(uint32_t root_cert_sel,
 /* Is code-signing EKU enforcement required for this device? */
 TEE_Result qcom_secboot_get_eku_enforcement_en(bool *enabled);
 
+/*
+ * Report whether the anchor is fuse-resident with more than one
+ * provisioned root, and if so, the root count and the per-index
+ * activation/revocation bitmaps.
+ */
+TEE_Result qcom_secboot_get_mrc_info(bool *root_sel_enabled,
+				     uint32_t *num_roots,
+				     uint32_t *activation_list,
+				     uint32_t *revocation_list);
+
 /* Write QFPROM row data */
 TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data);
 
