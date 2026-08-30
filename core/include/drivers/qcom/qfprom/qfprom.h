@@ -38,6 +38,12 @@ struct qcom_secboot_device_ids {
 	uint32_t serial_num;
 };
 
+struct qcom_secboot_mrc_info {
+	uint32_t num_roots;
+	uint32_t activation_list;
+	uint32_t revocation_list;
+};
+
 /* Read QFPROM row data */
 TEE_Result qfprom_read_row(uint32_t addr,
 			   enum qfprom_addr_space type,
@@ -82,6 +88,13 @@ TEE_Result qcom_secboot_get_segment_hash_len(uint32_t root_cert_sel,
 
 /* Is code-signing EKU enforcement required for this device? */
 TEE_Result qcom_secboot_get_eku_enforcement_en(bool *enabled);
+
+/*
+ * Report the number of provisioned roots (1 when the anchor isn't
+ * fuse-resident with multiple roots) and, when more than one, the
+ * per-index activation/revocation bitmaps.
+ */
+TEE_Result qcom_secboot_get_mrc_info(struct qcom_secboot_mrc_info *info);
 
 /* Write QFPROM row data */
 TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data);
