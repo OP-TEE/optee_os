@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023 NXP
  * Copyright (c) 2015-2022, Linaro Limited
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #include <kernel/abort.h>
@@ -14,6 +15,7 @@
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <riscv.h>
+#include <riscv_fp.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
 #include <unw/unwind.h>
@@ -241,11 +243,20 @@ static void handle_user_mode_panic(struct abort_info *ai)
 }
 
 #ifdef CFG_WITH_VFP
-static void handle_user_mode_vfp(void)
+static void handle_user_mode_vfp(struct abort_info *ai)
 {
 	struct ts_session *s = ts_get_current_session();
 
 	thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
+
+	/*
+	 * xstatus is restored from the saved context on the way back to the
+	 * TA, so handing it the FP unit means updating FS there and not only
+	 * in the live CSR. Without this the TA would resume with FS still
+	 * Off and trap on the very same instruction again.
+	 */
+	ai->regs->status = riscv_fp_set_fs(ai->regs->status,
+					   riscv_fp_read_fs());
 }
 #endif /*CFG_WITH_VFP*/
 
@@ -265,10 +276,123 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 #endif /*CFG_WITH_USER_TA*/
 
 #if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
+/* Major opcodes of the F/D/Q extensions, all instructions are 32-bit */
+#define OPCODE_MASK		0x7f
+#define OPCODE_LOAD_FP		0x07	/* flw, fld, flq */
+#define OPCODE_STORE_FP		0x27	/* fsw, fsd, fsq */
+#define OPCODE_MADD		0x43	/* fmadd */
+#define OPCODE_MSUB		0x47	/* fmsub */
+#define OPCODE_NMSUB		0x4b	/* fnmsub */
+#define OPCODE_NMADD		0x4f	/* fnmadd */
+#define OPCODE_OP_FP		0x53	/* fadd, fsub, fcvt, fmv, ... */
+#define OPCODE_SYSTEM		0x73	/* csrrw and friends */
+
+#define INSN_FUNCT3_SHIFT	12
+#define INSN_FUNCT3_MASK	0x7
+#define INSN_CSR_SHIFT		20
+#define INSN_CSR_MASK		0xfff
+
+/*
+ * With FS == Off a hart traps reads and writes of the floating-point CSRs
+ * exactly as it traps the floating-point instructions themselves, so a TA
+ * that looks at the rounding mode or the accrued exception flags before it
+ * does any arithmetic has to be given a context just the same.
+ */
+static bool is_fp_csr_insn(uint32_t insn)
+{
+	uint32_t csr = (insn >> INSN_CSR_SHIFT) & INSN_CSR_MASK;
+
+	/* funct3 zero is ecall, ebreak and friends, not a CSR access */
+	if (!((insn >> INSN_FUNCT3_SHIFT) & INSN_FUNCT3_MASK))
+		return false;
+
+	return csr == CSR_FFLAGS || csr == CSR_FRM || csr == CSR_FCSR;
+}
+
+static bool is_fp_insn(uint32_t insn)
+{
+	switch (insn & OPCODE_MASK) {
+	case OPCODE_LOAD_FP:
+	case OPCODE_STORE_FP:
+	case OPCODE_MADD:
+	case OPCODE_MSUB:
+	case OPCODE_NMSUB:
+	case OPCODE_NMADD:
+	case OPCODE_OP_FP:
+		return true;
+	case OPCODE_SYSTEM:
+		return is_fp_csr_insn(insn);
+	default:
+		return false;
+	}
+}
+
+/*
+ * The two low bits of an instruction are 0b11 for the 32-bit encodings and
+ * anything else for the 16-bit compressed ones, which are identified
+ * further by their quadrant and funct3 fields.
+ */
+#define INSN_LEN_MASK		0x3
+#define INSN_LEN_32BIT		0x3
+
+#define C_QUADRANT_MASK		0x3
+#define C_QUADRANT_0		0x0
+#define C_QUADRANT_2		0x2
+#define C_FUNCT3_SHIFT		13
+#define C_FUNCT3_MASK		0x7
+
+#define C_FUNCT3_FLD		1	/* c.fld, c.fldsp */
+#define C_FUNCT3_FLW		3	/* c.flw, c.flwsp, RV32 only. On RV64
+					 * this and C_FUNCT3_FSW are c.ld/c.sd
+					 * and c.ldsp/c.sdsp, which are integer
+					 * instructions.
+					 */
+#define C_FUNCT3_FSD		5	/* c.fsd, c.fsdsp */
+#define C_FUNCT3_FSW		7	/* c.fsw, c.fswsp, RV32 only */
+
+static bool is_compressed_fp_insn(uint16_t insn)
+{
+	uint16_t quadrant = insn & C_QUADRANT_MASK;
+	uint16_t funct3 = (insn >> C_FUNCT3_SHIFT) & C_FUNCT3_MASK;
+
+	if (quadrant != C_QUADRANT_0 && quadrant != C_QUADRANT_2)
+		return false;
+
+	if (funct3 == C_FUNCT3_FLD || funct3 == C_FUNCT3_FSD)
+		return true;
+
+#ifdef RV32
+	if (funct3 == C_FUNCT3_FLW || funct3 == C_FUNCT3_FSW)
+		return true;
+#endif
+
+	return false;
+}
+
+/*
+ * An FP instruction executed with xstatus.FS == Off traps as an illegal
+ * instruction. Recognising that case is what turns the first FP use by a
+ * TA into a request for an FP context instead of a panic.
+ *
+ * The decision is made on the faulting instruction, which the hart reports
+ * in xtval, so that a TA executing a genuinely illegal instruction still
+ * panics rather than being resumed on it forever.
+ */
 static bool is_vfp_fault(struct abort_info *ai)
 {
-	/* Implement */
-	return false;
+	unsigned long insn = ai->regs->tval;
+
+	if (ai->regs->cause != CAUSE_ILLEGAL_INSTRUCTION)
+		return false;
+
+	/* Only a context that had FP disabled can be asking for it */
+	if (riscv_fp_state_is_enabled(ai->regs->status))
+		return false;
+
+	if ((insn & INSN_LEN_MASK) != INSN_LEN_32BIT)
+		return is_compressed_fp_insn((uint16_t)insn);
+
+	return is_fp_insn((uint32_t)insn);
 }
 #else /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
 static bool is_vfp_fault(struct abort_info *ai __unused)
@@ -364,7 +488,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		break;
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_MODE_VFP:
-		handle_user_mode_vfp();
+		handle_user_mode_vfp(&ai);
 		break;
 #endif
 	case FAULT_TYPE_PAGE_FAULT:
