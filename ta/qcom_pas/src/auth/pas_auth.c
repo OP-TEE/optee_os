@@ -59,6 +59,7 @@ TEE_Result pas_auth_prepare_and_authenticate(struct qcom_pas_session *s,
 			goto out;
 	}
 
+	slot->secboot_state = secboot_state;
 	slot->ready = true;
 	res = TEE_SUCCESS;
 out:
@@ -115,5 +116,9 @@ TEE_Result pas_auth_verify(struct qcom_pas_session *s,
 				  PTA_QCOM_PAS_VERIFY_IMAGE, pt, vp, NULL);
 
 	TEE_Free(buffer);
-	return res;
+	if (res)
+		return res;
+
+	return pas_sig_auth_commit_rollback(&slot->mbn, pas_id,
+					    slot->secboot_state);
 }

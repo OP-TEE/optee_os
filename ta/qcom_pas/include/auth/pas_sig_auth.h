@@ -8,6 +8,7 @@
 
 #include <tee_internal_api.h>
 
+#include "pas_fuse.h"
 #include "pas_mbn.h"
 #include "pas_meta.h"
 
@@ -28,5 +29,18 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 				     uint32_t pas_id,
 				     uint32_t segment_hash_len,
 				     const uint8_t *anchor);
+
+/*
+ * Advance the device's PIL anti-rollback floor to @hs's OEM metadata
+ * version, once the image it belongs to has been verified. Another image
+ * sharing the counter may have raised the floor since INIT_IMAGE checked
+ * this one, so an image now below the floor is refused with
+ * TEE_ERROR_SECURITY. The floor only applies with secure boot, so nothing
+ * changes when @secboot_state is PAS_SECBOOT_OFF or anti-rollback is not
+ * enabled.
+ */
+TEE_Result pas_sig_auth_commit_rollback(const struct pas_hash_segment_info *hs,
+					uint32_t pas_id,
+					enum pas_secboot_state secboot_state);
 
 #endif /* __AUTH_PAS_SIG_AUTH_H */
