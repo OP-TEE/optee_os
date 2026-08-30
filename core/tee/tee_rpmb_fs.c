@@ -1296,9 +1296,15 @@ next:
 
 TEE_Result tee_rpmb_reinit(void)
 {
+	TEE_Result res = TEE_SUCCESS;
+
+	mutex_lock(&rpmb_mutex);
 	if (rpmb_ctx)
 		rpmb_ctx->reinit = true;
-	return tee_rpmb_init();
+	res = tee_rpmb_init();
+	mutex_unlock(&rpmb_mutex);
+
+	return res;
 }
 
 /*
