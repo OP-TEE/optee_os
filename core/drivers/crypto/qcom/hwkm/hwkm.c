@@ -3,8 +3,8 @@
  * Copyright (c) 2026, Qualcomm Technologies, Inc.
  */
 
-#include <hwkm.h>
-#include <hwkm_errno.h>
+#include <drivers/hwkm.h>
+#include <drivers/hwkm_errno.h>
 #include <hwkm_regs.h>
 #include <initcall.h>
 #include <io.h>
