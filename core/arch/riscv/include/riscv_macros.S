@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023 NXP
  * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 	.altmacro
@@ -47,6 +48,36 @@
 	.macro load_xregs base_reg, base_offs, from_regnum, to_regnum
 		_do_regs LDR, RISCV_XLEN_BYTES, \base_reg, \base_offs, \
 			 \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * This helper macro concatenates instr_prefix, instr_suffix, to
+	 * create a f(lw,ld)/f(sw,sd) instruction.
+	 */
+	.macro __do_fpreg instr_prefix, base_reg, base_offs, reg
+		\instr_prefix f\reg, \base_offs(\base_reg)
+	.endm
+
+	/*
+	 * Stores f0..f31 at [base_reg, #base_offs]. The register list is
+	 * unrolled with .irp rather than by recursion, so it assembles within
+	 * the default macro nesting depth of every assembler.
+	 */
+	.macro store_fpregs base_reg, base_offs
+		.irp n, 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15, \
+			16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
+			__do_fpreg FST, \base_reg, \
+				   %(\base_offs + \n * RISCV_FLEN_BYTES), \n
+		.endr
+	.endm
+
+	/* Loads f0..f31 from [base_reg, #base_offs], as above */
+	.macro load_fpregs base_reg, base_offs
+		.irp n, 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15, \
+			16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
+			__do_fpreg FLD, \base_reg, \
+				   %(\base_offs + \n * RISCV_FLEN_BYTES), \n
+		.endr
 	.endm
 
 	/*

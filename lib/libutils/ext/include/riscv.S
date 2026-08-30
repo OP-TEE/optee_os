@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2023 Andes Technology Corporation
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #if __riscv_xlen == 32
@@ -11,4 +12,12 @@
 #define STR       sd
 #define LDR       ld
 #define REGOFF(x) ((x) * 8)
+#endif
+
+#if __riscv_flen == 32
+#define FST       fsw
+#define FLD       flw
+#elif __riscv_flen == 64
+#define FST       fsd
+#define FLD       fld
 #endif
