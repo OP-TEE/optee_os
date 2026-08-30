@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <drivers/qcom/cmd_db/cmd_db.h>
@@ -32,9 +32,8 @@ struct rpmh_rail {
 	struct rpmh_rail_hlvl cx;
 	struct rpmh_rail_hlvl mx;	/* .addr stays 0 if none */
 	/*
-	 * Refcount per corner requested, indexed via cx's table (always
-	 * present, unlike mx). Demand tracking only -- both rails are still
-	 * voted independently in rpmh_rail_apply().
+	 * Refcount per corner, indexed via cx's table (always present, unlike
+	 * mx). Demand tracking only -- both rails voted independently.
 	 */
 	uint16_t votes[RPMH_RAIL_HLVL_MAX];
 };

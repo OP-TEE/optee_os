@@ -6,7 +6,7 @@
 #ifndef __QFPROM_TARGET_H__
 #define __QFPROM_TARGET_H__
 
-#include <clock_group_qcom.h>
+#include <clock_group.h>
 #include <platform_config.h>
 #include <stddef.h>
 #include <stdint.h>
