@@ -56,6 +56,8 @@ struct thread_core_local {
 #endif
 	long kcode_offset;
 	short int curr_thread;
+	/* Previous PL0PCTEN state for the active counter grant on this PE */
+	bool cntpct_was_enabled;
 	uint32_t flags;
 	vaddr_t abt_stack_va_end;
 #ifdef CFG_TEE_CORE_DEBUG
@@ -358,6 +360,14 @@ unsigned long thread_system_reset_handler(unsigned long a0, unsigned long a1);
 #define THREAD_EXCP_ALL			(THREAD_EXCP_FOREIGN_INTR	\
 					| THREAD_EXCP_NATIVE_INTR	\
 					| (ARM32_CPSR_A >> ARM32_CPSR_F_SHIFT))
+
+/*
+ * Grant and revoke EL0 physical-counter access for the current user context.
+ * Calls may be nested and the grant remains requested while the thread is
+ * suspended. Foreign interrupts must be masked when calling these functions.
+ */
+void thread_user_enable_cntpct(void);
+void thread_user_disable_cntpct(void);
 
 #ifdef CFG_WITH_VFP
 /*
