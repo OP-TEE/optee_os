@@ -117,6 +117,12 @@ static void thread_vector_release(struct thread_ctx *thr)
 		riscv_vector_save_state(thr->vector_state.ns);
 		thr->vector_state.ns_valid = true;
 		break;
+	case RISCV_VECTOR_OWNER_USER:
+		assert(thr->vector_state.uvect &&
+		       thr->vector_state.uvect->state);
+		riscv_vector_save_state(thr->vector_state.uvect->state);
+		thr->vector_state.uvect->valid = true;
+		break;
 	default:
 		panic();
 	}
@@ -168,6 +174,21 @@ static void init_vector_state(struct thread_ctx *thread __maybe_unused)
 	thread->vector_state.ns = ns;
 	thread->vector_state.owner = RISCV_VECTOR_OWNER_NS;
 #endif /*CFG_RISCV_WITH_VECTOR*/
+}
+
+/*
+ * A TA runs with the vector unit disabled until it executes a vector
+ * instruction and traps, so whenever its context is saved and released the
+ * saved xstatus has to go back to VS == Off. VS is part of the register
+ * frame restored on the way back to user mode, so it is the saved copy
+ * that decides whether the TA traps again.
+ */
+static unsigned long user_status_disable_vector(unsigned long status)
+{
+	if (IS_ENABLED(CFG_RISCV_WITH_VECTOR))
+		return riscv_vector_set_vs(status, CSR_XSTATUS_VS_OFF);
+
+	return status;
 }
 
 static void thread_save_ns_vector(void)
@@ -263,6 +284,8 @@ void thread_scall_handler(struct thread_scall_regs *regs)
 	thread_unmask_exceptions(state & ~THREAD_EXCP_NATIVE_INTR);
 
 	thread_user_save_vfp();
+	thread_user_save_vector();
+	regs->status = user_status_disable_vector(regs->status);
 
 	sess = ts_get_current_session();
 
@@ -566,6 +589,8 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 
 	if (is_from_user(status)) {
 		thread_user_save_vfp();
+		thread_user_save_vector();
+		status = user_status_disable_vector(status);
 		tee_ta_update_session_utime_suspend();
 		tee_ta_gprof_sample_pc(pc);
 	}
@@ -682,7 +707,8 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 	 */
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	regs = thread_get_ctx_regs();
-	status = xstatus_for_xret(true, PRV_U);
+	/* A TA starts with vector disabled and is given it on first use */
+	status = user_status_disable_vector(xstatus_for_xret(true, PRV_U));
 	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, status, ie,
 		     NULL);
 	rc = __thread_enter_user_mode(regs, exit_status0, exit_status1);
@@ -695,3 +721,104 @@ void __thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 {
 	thread_rpc_xstatus(rv, xstatus_for_xret(false, PRV_S));
 }
+
+#ifdef CFG_RISCV_WITH_VECTOR
+static void thread_vector_clear_regs(struct riscv_vector_state *state)
+{
+	memset(state, 0, riscv_vector_state_size());
+	riscv_vector_restore_state(state);
+}
+
+/*
+ * A TA is given the vector unit the first time it executes a vector
+ * instruction, rather than on every entry to user mode. Within the TEE,
+ * OP-TEE alone owns VS and no other context can look at the vector
+ * registers behind our back, so there is nothing to defend against here,
+ * and most TAs never touch vector. Enabling on first use keeps those TAs
+ * from paying for a context switch they have no use for, which for vector
+ * is a good deal larger than it is for floating point.
+ */
+bool thread_user_enable_vector(struct thread_user_vector_state *uvect)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = 0;
+
+	assert(uvect);
+
+	/*
+	 * The TA's context is allocated the first time it asks for the
+	 * vector unit, so a TA that never uses vector costs nothing beyond
+	 * the flag. Do it before masking, allocation may sleep on a mutex.
+	 */
+	if (!uvect->state) {
+		uvect->state = memalign(__alignof__(long),
+					riscv_vector_state_size());
+		if (!uvect->state)
+			return false;
+		uvect->valid = false;
+	}
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	/* Take the vector registers away from whoever holds them */
+	thread_vector_release(thr);
+
+	if (uvect->valid) {
+		riscv_vector_restore_state(uvect->state);
+		riscv_vector_write_vs(CSR_XSTATUS_VS_CLEAN);
+	} else {
+		/*
+		 * This TA has no vector context yet. Clear the registers
+		 * before handing them over: VS == Initial says the context
+		 * is new, but enabling the unit does not architecturally
+		 * clear the register file, so the TA would otherwise start
+		 * out seeing what the previous owner left there.
+		 */
+		thread_vector_clear_regs(uvect->state);
+		riscv_vector_write_vs(CSR_XSTATUS_VS_INITIAL);
+	}
+
+	thr->vector_state.uvect = uvect;
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_USER;
+	thr->vector_state.sec_used = true;
+
+	thread_set_exceptions(exceptions);
+
+	return true;
+}
+
+void thread_user_save_vector(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+	/* The TA either never used vector or has already been saved */
+	if (thr->vector_state.owner != RISCV_VECTOR_OWNER_USER)
+		return;
+
+	thread_vector_release(thr);
+}
+
+void thread_user_clear_vector(struct user_mode_ctx *uctx)
+{
+	struct thread_user_vector_state *uvect = &uctx->vector;
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	if (uvect == thr->vector_state.uvect) {
+		if (thr->vector_state.owner == RISCV_VECTOR_OWNER_USER) {
+			thr->vector_state.owner = RISCV_VECTOR_OWNER_NONE;
+			riscv_vector_disable();
+		}
+		thr->vector_state.uvect = NULL;
+	}
+
+	uvect->valid = false;
+
+	thread_set_exceptions(exceptions);
+
+	free(uvect->state);
+	uvect->state = NULL;
+}
+#endif /*CFG_RISCV_WITH_VECTOR*/

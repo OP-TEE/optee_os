@@ -437,6 +437,19 @@ static inline void thread_user_clear_vfp(struct user_mode_ctx *uctx __unused)
 }
 #endif
 
+/*
+ * thread_user_clear_vector() - Releases a user context's vector state
+ * @uctx:	the user context being torn down
+ *
+ * Only RISC-V has a vector register file to release, and only there is it
+ * heap allocated. The generic teardown paths call this next to
+ * thread_user_clear_vfp(), so every other architecture needs the empty
+ * definition.
+ */
+static inline void thread_user_clear_vector(struct user_mode_ctx *uctx __unused)
+{
+}
+
 #ifdef ARM64
 /*
  * thread_get_saved_thread_sp() - Returns the saved sp of current thread
