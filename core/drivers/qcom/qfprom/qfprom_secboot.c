@@ -4,6 +4,7 @@
  */
 
 #include <config.h>
+#include <initcall.h>
 #include <inttypes.h>
 #include <io.h>
 #include <mm/core_memprot.h>
@@ -73,6 +74,18 @@ static TEE_Result read_corr_reg(uint32_t offset, uint32_t *out)
 		return TEE_ERROR_BAD_STATE;
 
 	*out = io_read32(drv->corr_base_va + offset);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result write_sense_reg(uint32_t offset, uint32_t val)
+{
+	struct qfprom_context *drv = qfprom_get_context();
+
+	if (!drv->raw_base_va)
+		return TEE_ERROR_BAD_STATE;
+
+	io_write32(drv->raw_base_va + offset, val);
 
 	return TEE_SUCCESS;
 }
@@ -369,6 +382,74 @@ TEE_Result qcom_secboot_get_mrc_info(bool *root_sel_enabled,
 
 	return TEE_SUCCESS;
 }
+
+#ifdef CFG_QCOM_PAS_AUTH
+/*
+ * The MRC row is write-protected once the sticky bit is set, so skip
+ * straight to the sticky-bit check rather than attempting (and expecting
+ * to fail) a write on every normal boot.
+ */
+static TEE_Result qcom_secboot_blow_mrc_fuses(uint32_t activation_list,
+					      uint32_t revocation_list)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t row[2] = { };
+	uint32_t sticky = 0;
+
+	if (activation_list & ~MRC_ROOT_CERT_LIST_BMSK ||
+	    revocation_list & ~MRC_ROOT_CERT_LIST_BMSK) {
+		EMSG("MRC: activation/revocation list out of range: %#"PRIx32
+		     "/%#"PRIx32, activation_list, revocation_list);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	res = read_sense_reg(MRC_STICKY_BIT_OFFSET, &sticky);
+	if (res)
+		return res;
+
+	if (sticky & MRC_STICKY_BIT_BMSK) {
+		DMSG("MRC: fuse row locked for this boot, skipping");
+		return TEE_SUCCESS;
+	}
+
+	res = qfprom_hw_init();
+	if (res)
+		return res;
+
+	/* Antifuse writes only set bits; safe to write the bitmap directly. */
+	row[0] = activation_list;
+	res = qfprom_write_row(MRC_ACTIVATION_LIST_RAW_ADDR, row);
+	if (res) {
+		DMSG("MRC: activation list fuse write failed: %#"PRIx32, res);
+		goto out;
+	}
+
+	row[0] = revocation_list;
+	res = qfprom_write_row(MRC_REVOCATION_LIST_RAW_ADDR, row);
+	if (res) {
+		DMSG("MRC: revocation list fuse write failed: %#"PRIx32, res);
+		goto out;
+	}
+
+	res = write_sense_reg(MRC_STICKY_BIT_OFFSET, MRC_STICKY_BIT_BMSK);
+	if (res)
+		EMSG("MRC: failed to set sticky bit: %#"PRIx32, res);
+
+out:
+	qfprom_hw_deinit();
+	return res;
+}
+
+static TEE_Result qcom_secboot_provision_mrc_fuses(void)
+{
+	if (!CFG_QCOM_MRC_ACTIVATION_LIST && !CFG_QCOM_MRC_REVOCATION_LIST)
+		return TEE_SUCCESS;
+
+	return qcom_secboot_blow_mrc_fuses(CFG_QCOM_MRC_ACTIVATION_LIST,
+					    CFG_QCOM_MRC_REVOCATION_LIST);
+}
+driver_init(qcom_secboot_provision_mrc_fuses);
+#endif /* CFG_QCOM_PAS_AUTH */
 
 TEE_Result qcom_secboot_get_soc_hw_version(uint32_t *fam_dev)
 {
