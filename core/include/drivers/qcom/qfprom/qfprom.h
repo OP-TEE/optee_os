@@ -84,6 +84,11 @@ TEE_Result qcom_secboot_get_mrc_info(bool *root_sel_enabled,
 				     uint32_t *activation_list,
 				     uint32_t *revocation_list);
 
+#ifdef CFG_QCOM_PAS_AUTH
+/* Apply configured MRC masks and the per-boot lock before sec.elf writes. */
+TEE_Result qcom_secboot_provision_mrc_fuses(void);
+#endif
+
 /* Write QFPROM row data */
 TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data);
 

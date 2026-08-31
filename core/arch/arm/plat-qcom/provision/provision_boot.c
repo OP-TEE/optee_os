@@ -40,6 +40,14 @@ static TEE_Result execute_provisioning(void)
 
 	COMPILE_TIME_ASSERT(sizeof(struct secdat_hdr) <= CFG_SEC_ELF_DDR_SIZE);
 
+#ifdef CFG_QCOM_PAS_AUTH
+	/* Configure MRC before the sec.elf path and its DLOAD gate. */
+	res = qcom_secboot_provision_mrc_fuses();
+	if (res)
+		EMSG("MRC provisioning failed: %#"PRIx32, res);
+	res = TEE_ERROR_GENERIC;
+#endif
+
 	boot_misc_va = (vaddr_t)phys_to_virt(TCSR_BOOT_MISC_DETECT,
 					  MEM_AREA_IO_SEC, sizeof(uint32_t));
 	if (!boot_misc_va) {
