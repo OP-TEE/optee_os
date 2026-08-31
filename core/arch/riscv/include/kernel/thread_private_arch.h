@@ -104,16 +104,19 @@ struct thread_vfp_state {
  *
  * OP-TEE owns xstatus.VS while it runs, so one owner per OP-TEE thread is
  * enough to describe the hardware: the registers hold either nothing worth
- * preserving or the normal world context.
+ * preserving, the normal world context, or the context of the TA the
+ * thread is running.
  */
 enum riscv_vector_owner {
 	RISCV_VECTOR_OWNER_NONE = 0,
 	RISCV_VECTOR_OWNER_NS,
+	RISCV_VECTOR_OWNER_USER,
 };
 
 /*
  * struct thread_vector_state - per OP-TEE thread vector bookkeeping
  * @ns:		saved normal world vector context, allocated at boot
+ * @uvect:	vector context of the TA this thread is running, if it has one
  * @owner:	context the vector registers currently hold
  * @ns_vs:	xstatus.VS the normal world had on entry to OP-TEE
  * @ns_valid:	@ns holds a saved normal world context
@@ -121,6 +124,7 @@ enum riscv_vector_owner {
  */
 struct thread_vector_state {
 	struct riscv_vector_state *ns;
+	struct thread_user_vector_state *uvect;
 	enum riscv_vector_owner owner;
 	unsigned long ns_vs;
 	bool ns_valid;
