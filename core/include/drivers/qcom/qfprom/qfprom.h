@@ -136,6 +136,17 @@ qcom_secboot_get_mrc_info(struct qcom_secboot_mrc_info *info)
 }
 #endif
 
+/* Apply configured MRC masks and the per-boot lock before sec.elf writes. */
+#ifdef CFG_QCOM_QFPROM_ARB_MRC
+TEE_Result qcom_secboot_provision_mrc_fuses(void);
+#else
+/* No MRC fuse rows on this platform; nothing to provision. */
+static inline TEE_Result qcom_secboot_provision_mrc_fuses(void)
+{
+	return TEE_SUCCESS;
+}
+#endif
+
 /* Write QFPROM row data */
 TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data);
 
