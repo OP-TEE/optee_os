@@ -102,6 +102,35 @@ $(call force,CFG_ARM_GICV3,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 
+# AES acceleration with the Zvkned vector crypto extension, and its CTR mode
+# with Zvkb on top. The assembly turns each extension on for itself with
+# .option arch, so the core is not built for them, but the vector registers
+# they use are real state that OP-TEE has to preserve, so this selects both
+# the vector ISA and the context switching. It has to come before those two
+# are given their defaults below, because force refuses to move a flag that
+# already has a value.
+#
+# Zvkb is a separate flag because it is a separate extension, needed only by
+# the CTR code, but the two are not separable in practice: CTR is one of the
+# entry points the LibTomCrypt glue names unconditionally, so the
+# accelerator cannot be built without it. The standard vector crypto suites
+# bundle them anyway (Zvkn is Zvkned + Zvknhb + Zvkb), so a platform with the
+# AES instructions has vrev8.v as well.
+#
+# XTS is the remaining accelerated entry point and is not implemented here,
+# so a core built with this on does not link yet.
+CFG_CRYPTO_AES_RISCV_ZVKNED ?= n
+ifeq ($(CFG_CRYPTO_AES_RISCV_ZVKNED),y)
+ifneq ($(CFG_RV64_core),y)
+$(error CFG_CRYPTO_AES_RISCV_ZVKNED requires CFG_RV64_core=y)
+endif
+$(call force,CFG_CRYPTO_AES_RISCV_ZVKNED_ZVKB,y,required by \
+	CFG_CRYPTO_AES_RISCV_ZVKNED)
+$(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_AES_RISCV_ZVKNED)
+$(call force,CFG_RISCV_VEC,y,required by CFG_CRYPTO_AES_RISCV_ZVKNED)
+endif
+
+
 # CFG_WITH_VFP asks OP-TEE to context switch the extended register state.
 # Which register files that covers follows the extensions the platform says
 # the hart has: the floating-point registers when CFG_RISCV_FPU=y and the
@@ -131,7 +160,7 @@ $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
+	$(addprefix $(arch-dir)/, kernel mm tee crypto) $(platform-dir)
 
 # Default values for "-mcmodel" compiler flag
 riscv-platform-mcmodel ?= medany
