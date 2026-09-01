@@ -104,12 +104,13 @@ struct thread_vfp_state {
  *
  * OP-TEE owns xstatus.VS while it runs, so one owner per OP-TEE thread is
  * enough to describe the hardware: the registers hold either nothing worth
- * preserving, the normal world context, or the context of the TA the
- * thread is running.
+ * preserving, the normal world context, a secure kernel section, or the
+ * context of the TA the thread is running.
  */
 enum riscv_vector_owner {
 	RISCV_VECTOR_OWNER_NONE = 0,
 	RISCV_VECTOR_OWNER_NS,
+	RISCV_VECTOR_OWNER_KERNEL,
 	RISCV_VECTOR_OWNER_USER,
 };
 

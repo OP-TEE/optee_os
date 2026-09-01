@@ -180,6 +180,16 @@ struct thread_user_vector_state {
 	bool valid;
 };
 
+/*
+ * Opens and closes a secure kernel vector section. Core code that wants to
+ * use the vector unit has to bracket it with these, the same way
+ * thread_kernel_enable_vfp() brackets floating-point use: the pair takes
+ * the registers from whoever holds them and gives them back, and keeps
+ * foreign interrupts masked in between.
+ */
+uint32_t thread_kernel_enable_vector(void);
+void thread_kernel_disable_vector(uint32_t state);
+
 /* Returns false if a context could not be allocated for the TA */
 bool thread_user_enable_vector(struct thread_user_vector_state *uvect);
 void thread_user_save_vector(void);

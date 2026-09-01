@@ -221,6 +221,13 @@ static void thread_vector_release(struct thread_ctx *thr)
 		riscv_vector_save_state(thr->vector_state.ns);
 		thr->vector_state.ns_valid = true;
 		break;
+	case RISCV_VECTOR_OWNER_KERNEL:
+		/*
+		 * A secure kernel section runs with foreign interrupts
+		 * masked from end to end, so it cannot be preempted and
+		 * its registers have no life beyond it. Nothing to save.
+		 */
+		break;
 	case RISCV_VECTOR_OWNER_USER:
 		assert(thr->vector_state.uvect &&
 		       thr->vector_state.uvect->state);
@@ -332,6 +339,7 @@ static void thread_restore_ns_vector(void)
 	struct thread_ctx *thr = threads + thread_get_id();
 
 	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vector_state.owner != RISCV_VECTOR_OWNER_KERNEL);
 
 	/* Release the registers from whatever secure context holds them */
 	thread_vector_release(thr);
@@ -1044,6 +1052,52 @@ static void thread_vector_clear_regs(struct riscv_vector_state *state)
  * from paying for a context switch they have no use for, which for vector
  * is a good deal larger than it is for floating point.
  */
+uint32_t thread_kernel_enable_vector(void)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	/*
+	 * The section runs to thread_kernel_disable_vector(), which is also
+	 * where the foreign interrupt mask is restored. Nesting is not
+	 * supported.
+	 */
+	assert(thr->vector_state.owner != RISCV_VECTOR_OWNER_KERNEL);
+
+	/* Take the vector registers away from whoever holds them */
+	thread_vector_release(thr);
+
+	/*
+	 * VS == Initial enables the unit and says the registers hold no
+	 * context worth preserving, which is what core code wants: it sets
+	 * up its own vtype and vl before touching them.
+	 */
+	riscv_vector_write_vs(CSR_XSTATUS_VS_INITIAL);
+
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_KERNEL;
+	thr->vector_state.sec_used = true;
+
+	return exceptions;
+}
+
+void thread_kernel_disable_vector(uint32_t state)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = 0;
+
+	assert(thr->vector_state.owner == RISCV_VECTOR_OWNER_KERNEL);
+	assert(riscv_vector_is_enabled());
+
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_NONE;
+	riscv_vector_disable();
+
+	exceptions = thread_get_exceptions();
+	assert(exceptions & THREAD_EXCP_FOREIGN_INTR);
+	exceptions &= ~THREAD_EXCP_FOREIGN_INTR;
+	exceptions |= state & THREAD_EXCP_FOREIGN_INTR;
+	thread_set_exceptions(exceptions);
+}
+
 bool thread_user_enable_vector(struct thread_user_vector_state *uvect)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
