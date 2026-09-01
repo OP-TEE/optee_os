@@ -53,3 +53,37 @@ void crypto_accel_aes_ecb_dec(void *out, const void *in, const void *key,
 			      round_count);
 	thread_kernel_disable_vector(state);
 }
+
+void crypto_accel_aes_cbc_enc(void *out, const void *in, const void *key,
+			      unsigned int round_count,
+			      unsigned int block_count, void *iv)
+{
+	uint32_t state = 0;
+
+	assert(iv);
+	if (!aes_accel_args_ok(out, in, key, round_count) || !block_count)
+		return;
+
+	state = thread_kernel_enable_vector();
+	riscv_aes_cbc_encrypt(key, in, out,
+			      (size_t)block_count * TEE_AES_BLOCK_SIZE, iv,
+			      round_count);
+	thread_kernel_disable_vector(state);
+}
+
+void crypto_accel_aes_cbc_dec(void *out, const void *in, const void *key,
+			      unsigned int round_count,
+			      unsigned int block_count, void *iv)
+{
+	uint32_t state = 0;
+
+	assert(iv);
+	if (!aes_accel_args_ok(out, in, key, round_count) || !block_count)
+		return;
+
+	state = thread_kernel_enable_vector();
+	riscv_aes_cbc_decrypt(key, in, out,
+			      (size_t)block_count * TEE_AES_BLOCK_SIZE, iv,
+			      round_count);
+	thread_kernel_disable_vector(state);
+}

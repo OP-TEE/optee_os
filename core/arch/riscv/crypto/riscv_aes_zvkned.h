@@ -20,4 +20,10 @@ void riscv_aes_ecb_encrypt(const void *key, const void *src, void *dst,
 void riscv_aes_ecb_decrypt(const void *key, const void *src, void *dst,
 			   size_t len, unsigned int rounds);
 
+/* As above, and @iv is the chaining value, updated in place */
+void riscv_aes_cbc_encrypt(const void *key, const void *src, void *dst,
+			   size_t len, void *iv, unsigned int rounds);
+void riscv_aes_cbc_decrypt(const void *key, const void *src, void *dst,
+			   size_t len, void *iv, unsigned int rounds);
+
 #endif /* __RISCV_AES_ZVKNED_H */
