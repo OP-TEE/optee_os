@@ -377,7 +377,6 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 	size_t remaining = 0;
 	size_t offset = 0;
 	size_t block_len = 0;
-	size_t block_len_aligned = 0;
 
 	if (!digest || len == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -390,22 +389,14 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 	op.dataaddr = 0;
 	op.datasize = 0;
 
-	if (asu_hashctx->shamode == ASU_SHA_MODE_SHAKE256) {
+	if (asu_hashctx->shamode == ASU_SHA_MODE_SHAKE256)
 		op.hashbufsize = ASU_SHAKE_256_MAX_HASH_LEN;
-	} else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA256 &&
-		   (len <= ASU_SHA_256_HASH_LEN)) {
+	else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA256)
 		op.hashbufsize = ASU_SHA_256_HASH_LEN;
-	} else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA384 &&
-		   (len <= ASU_SHA_384_HASH_LEN)) {
+	else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA384)
 		op.hashbufsize = ASU_SHA_384_HASH_LEN;
-	} else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA512 &&
-		   (len <= ASU_SHA_512_HASH_LEN)) {
+	else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA512)
 		op.hashbufsize = ASU_SHA_512_HASH_LEN;
-	} else {
-		EMSG("Invalid digest length for algorithm %" PRIu32,
-		     asu_hashctx->shamode);
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
 
 	/* Buffer sized for the largest possible digest (SHAKE256 XOF chunk) */
 	dma_digest = memalign(cacheline_len, alloc_len);
@@ -417,10 +408,10 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 	op.shamode = asu_hashctx->shamode;
 	op.islast = 1;
 	op.hashaddr = virt_to_phys(dma_digest);
-	remaining = len;
+	remaining = asu_hashctx->shamode == ASU_SHA_MODE_SHAKE256 ?
+		    len : MIN(len, op.hashbufsize);
 	while (remaining) {
 		block_len = MIN(remaining, (size_t)ASU_SHAKE_256_MAX_HASH_LEN);
-		block_len_aligned = ROUNDUP(block_len, cacheline_len);
 		remaining -= block_len;
 		op.opflags = ASU_SHA_FINISH | asu_hashctx->shastart;
 		if (asu_hashctx->shamode == ASU_SHA_MODE_SHAKE256 && remaining)
@@ -428,7 +419,7 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 		else
 			op.xofenableflag = ASU_SHA_NEXT_XOF_DISABLE;
 
-		cache_operation(TEE_CACHEFLUSH, dma_digest, block_len_aligned);
+		cache_operation(TEE_CACHEFLUSH, dma_digest, block_len);
 		ret = asu_sha_op(asu_hashctx, &op, asu_hashctx->module);
 		if (ret) {
 			EMSG("SHA final operation failed");
@@ -436,7 +427,7 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 		}
 
 		cache_operation(TEE_CACHEINVALIDATE, dma_digest,
-				block_len_aligned);
+				block_len);
 		memcpy(digest + offset, dma_digest, block_len);
 
 		asu_hashctx->shastart = 0;
