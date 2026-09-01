@@ -169,7 +169,7 @@ struct asu_cmac_ctx {
 
 static struct asu_authenc_dev *asu_ae_dev;
 
-/**
+/*
  * asu_authenc_get_mode() - Map TEE algorithm to ASU AES engine mode.
  * @algo:   TEE algorithm identifier
  * @mode:   Output engine mode
@@ -190,7 +190,7 @@ static TEE_Result asu_authenc_get_mode(uint32_t algo, uint8_t *mode)
 	}
 }
 
-/**
+/*
  * asu_aes_send() - Build header and send AES command to ASUFW.
  * @ctx:    Private authenc context
  * @params: AES params struct
@@ -222,7 +222,7 @@ static TEE_Result asu_aes_send(struct asu_authenc_ctx *ctx,
 	return ret;
 }
 
-/**
+/*
  * asu_authenc_set_init_params() - Set INIT-phase parameters in AES params.
  * @ae_ctx: Private authenc context
  * @params: AES params struct to populate
@@ -333,7 +333,7 @@ static void __maybe_unused asu_authenc_sw_final(struct asu_authenc_ctx *ctx)
 		ctx->sw_ctx->ops->final(ctx->sw_ctx);
 }
 
-/**
+/*
  * asu_authenc_alloc_ctx() - Allocate authenticated encryption context.
  * @ctx:  Output context pointer
  * @algo: TEE algorithm type
@@ -441,7 +441,7 @@ free_ctx:
 	return ret;
 }
 
-/**
+/*
  * asu_authenc_free_ctx() - Free context and release engine.
  * @ctx: Context to free
  */
@@ -471,7 +471,7 @@ static void asu_authenc_free_ctx(void *ctx)
 	free(ae_ctx);
 }
 
-/**
+/*
  * asu_authenc_init() - Initialize authenticated encryption operation.
  * @dinit: Initialization parameters (key, nonce, tag/aad/payload lengths)
  *
@@ -619,7 +619,7 @@ cleanup:
 	return ret;
 }
 
-/**
+/*
  * asu_authenc_update_aad() - Feed Additional Authenticated Data.
  * @dupdate: AAD update parameters
  *
@@ -693,7 +693,7 @@ out:
 	return ret;
 }
 
-/**
+/*
  * asu_authenc_update_payload() - Process payload data (encrypt/decrypt).
  * @dupdate: Payload update parameters
  *
@@ -776,7 +776,7 @@ out:
 	return ret;
 }
 
-/**
+/*
  * asu_authenc_enc_final() - Finalize encryption, produce tag.
  * @dfinal: Final parameters (optional remaining payload + tag output)
  *
@@ -894,7 +894,7 @@ out:
 	return ret;
 }
 
-/**
+/*
  * asu_authenc_dec_final() - Finalize decryption, verify tag.
  * @dfinal: Final parameters (optional remaining payload + expected tag)
  *
@@ -1021,7 +1021,7 @@ out:
 	return ret;
 }
 
-/**
+/*
  * asu_authenc_final() - Clean-up after operation completes.
  * @ctx: Context
  */
