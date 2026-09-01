@@ -181,7 +181,7 @@ static void asu_shadev_release(uint8_t module)
 
 /* ---- SHA hash functions ---- */
 
-/**
+/*
  * asu_hash_get_alg() - Get fw engine module ID and Hash mode.
  * @algo:	TEE algo type.
  * @module:	Engine module ID
@@ -230,7 +230,7 @@ static TEE_Result asu_hash_get_alg(uint32_t algo,
 	return ret;
 }
 
-/**
+/*
  * asu_hash_initialize() - Initialize private asu_hash_ctx for hash operation.
  * @ctx: crypto context used by the crypto_hash_*() functions
  * Initialize hash operation request
@@ -245,7 +245,7 @@ static TEE_Result asu_hash_initialize(struct crypto_hash_ctx *ctx)
 	return TEE_SUCCESS;
 }
 
-/**
+/*
  * asu_sha_op() - Perform hash operation.
  * @asu_hashctx:Request private hash context
  * @op:		asu_sha_op_cmd parameters for fw engine
@@ -279,7 +279,7 @@ static TEE_Result asu_sha_op(struct asu_hash_ctx *asu_hashctx,
 	return ret;
 }
 
-/**
+/*
  * asu_hash_update() - Send update request to engine.
  * @asu_hashctx:Request private hash context
  * @data:	Input data buffer
@@ -347,7 +347,7 @@ static TEE_Result asu_hash_do_update(struct crypto_hash_ctx *ctx,
 	return asu_hash_update(asu_hashctx, (uint8_t *)data, len);
 }
 
-/**
+/*
  * asu_hash_final() - Send final request to engine.
  * @asu_hashctx:Request private hash context
  * @digest:	Output digest buffer
@@ -418,7 +418,7 @@ static TEE_Result asu_hash_do_final(struct crypto_hash_ctx *ctx,
 	return asu_hash_final(asu_hashctx, digest, len);
 }
 
-/**
+/*
  * asu_hash_ctx_free() - Free Private context.
  * @crypto_hash_ctx: crypto context used by the crypto_hash_*() functions
  * Release crypto engine and free private context memory.
@@ -459,7 +459,7 @@ static struct asu_hash_ctx *to_hash_ctx(struct crypto_hash_ctx *ctx)
 	return container_of(ctx, struct asu_hash_ctx, hash_ctx);
 }
 
-/**
+/*
  * asu_hash_ctx_allocate() - Allocate Private context.
  * @crypto_hash_ctx: crypto context used by the crypto_hash_*() functions
  * @algo:	TEE algo type.
