@@ -606,17 +606,20 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (e->dir) {
+	if (e->dir) 
 		e->fops->closedir(e->dir);
-		e->dir = NULL;
-	}
+
+	e->dir = NULL;
+	e->fops = NULL;
 
 	if (!fops)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	e->fops = fops;
+	res = fops->opendir(&sess->ctx->uuid, &e->dir);
+	if (!res)
+		e->fops = fops;
 
-	return fops->opendir(&sess->ctx->uuid, &e->dir);
+	return res;
 }
 
 TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
