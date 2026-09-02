@@ -8,4 +8,22 @@ CFG_QCOM_DIAG_LOG ?= $(CFG_TEE_CORE_DEBUG)
 
 CFG_TZDRAM_START ?= 0x8A680000
 CFG_TZDRAM_SIZE ?= 0x280000
+# Reserve the TMEL IPC coherent carveout at the end of TZDRAM.
+ifeq ($(CFG_QCOM_TMEL_COM),y)
+CFG_TEE_RAM_VA_SIZE ?= (0x280000 - $(CFG_TMECOM_IPCBUF_CARVEOUT_SIZE))
+else
 CFG_TEE_RAM_VA_SIZE ?= 0x280000
+endif
+
+# Hardware RNG via the TME-Lite RNG service. The RNG client is built as part
+# of the TME-Lite COM stack, so it can only provide hw_get_random_bytes()
+# while that stack is enabled.
+ifeq ($(CFG_QCOM_TMEL_COM),y)
+CFG_HWRNG_PTA ?= y
+ifeq ($(CFG_HWRNG_PTA),y)
+$(call force,CFG_WITH_SOFTWARE_PRNG,n)
+$(call force,CFG_QCOM_TMEL_RNG,y)
+CFG_HWRNG_QUALITY ?= 1024
+CFG_HWRNG_RATE ?= 0
+endif
+endif
