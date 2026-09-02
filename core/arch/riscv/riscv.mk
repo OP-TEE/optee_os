@@ -103,9 +103,15 @@ $(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 
-CFG_RISCV_VECTOR ?= n
-CFG_RISCV_ZVKNG ?= n
-CFG_RISCV_ZVKSG ?= n
+# The crypto_drv API is architecture neutral. On RISC-V, SHA-2
+# implementations require the Zvkng extension. Do not enable these
+# CFG_CORE_CRYPTO_*_ACCEL options by default here: each option switches
+# libtomcrypt to the corresponding crypto_drv implementation and must only be
+# selected once every required entry point is supplied.
+ifneq ($(call cfg-one-enabled,CFG_CORE_CRYPTO_AES_ACCEL \
+	CFG_CORE_CRYPTO_SHA256_ACCEL CFG_CORE_CRYPTO_SHA512_ACCEL),n)
+$(call force,CFG_RISCV_ZVKNG,y,required by RISC-V crypto acceleration)
+endif
 
 ifeq ($(CFG_RISCV_ZVKNG),y)
 $(call force,CFG_RISCV_VECTOR,y,required by CFG_RISCV_ZVKNG)
@@ -117,15 +123,9 @@ ifeq ($(CFG_RISCV_VECTOR),y)
 $(call force,CFG_WITH_VFP,y,required by CFG_RISCV_VECTOR)
 endif
 
-# The crypto_drv API is architecture neutral. On RISC-V, SHA-2
-# implementations require the Zvkng extension. Do not enable these
-# CFG_CORE_CRYPTO_*_ACCEL options by default here: each option switches
-# libtomcrypt to the corresponding crypto_drv implementation and must only be
-# selected once every required entry point is supplied.
-ifneq ($(call cfg-one-enabled,CFG_CORE_CRYPTO_AES_ACCEL \
-	CFG_CORE_CRYPTO_SHA256_ACCEL CFG_CORE_CRYPTO_SHA512_ACCEL),n)
-$(call force,CFG_RISCV_ZVKNG,y,required by RISC-V crypto acceleration)
-endif
+CFG_RISCV_VECTOR ?= n
+CFG_RISCV_ZVKNG ?= n
+CFG_RISCV_ZVKSG ?= n
 
 # Enable generic timer
 $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
