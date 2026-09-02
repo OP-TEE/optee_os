@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout base branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install python3-github
         run: |
           sudo apt-get update
@@ -34,7 +34,7 @@ jobs:
           grep message= output.txt >> $GITHUB_OUTPUT
       - name: Comment on PR
         if: steps.compute.outputs.message != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const message = "${{ steps.compute.outputs.message }}";
