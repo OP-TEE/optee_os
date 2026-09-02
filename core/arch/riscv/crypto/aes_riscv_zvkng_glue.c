@@ -110,6 +110,129 @@ static void make_linux_key(struct riscv_aes_key *dst, const void *src,
 	dst->key_len = key_len_from_round_count(round_count);
 }
 
+static void aes_ecb_crypt(void *out, const void *in, const void *key,
+			  unsigned int round_count, unsigned int block_count,
+			  bool decrypt)
+{
+	struct riscv_aes_key linux_key = { };
+	uint32_t vfp_state = 0;
+	size_t len = block_count * TEE_AES_BLOCK_SIZE;
+
+	assert(out && in && key);
+	assert(block_count);
+	make_linux_key(&linux_key, key, round_count);
+	assert(linux_key.key_len);
+
+	vfp_state = thread_kernel_enable_vfp();
+	if (decrypt)
+		aes_ecb_decrypt_zvkned(&linux_key, in, out, len);
+	else
+		aes_ecb_encrypt_zvkned(&linux_key, in, out, len);
+	thread_kernel_disable_vfp(vfp_state);
+	memzero_explicit(&linux_key, sizeof(linux_key));
+}
+
+void crypto_accel_aes_ecb_enc(void *out, const void *in, const void *key,
+			      unsigned int round_count,
+			      unsigned int block_count)
+{
+	aes_ecb_crypt(out, in, key, round_count, block_count, false);
+}
+
+void crypto_accel_aes_ecb_dec(void *out, const void *in, const void *key,
+			      unsigned int round_count,
+			      unsigned int block_count)
+{
+	aes_ecb_crypt(out, in, key, round_count, block_count, true);
+}
+
+static void aes_cbc_crypt(void *out, const void *in, const void *key,
+			  unsigned int round_count, unsigned int block_count,
+			  void *iv,
+			  bool decrypt)
+{
+	struct riscv_aes_key linux_key = { };
+	uint32_t vfp_state = 0;
+	size_t len = block_count * TEE_AES_BLOCK_SIZE;
+
+	assert(out && in && key && iv);
+	assert(block_count);
+	make_linux_key(&linux_key, key, round_count);
+	assert(linux_key.key_len);
+
+	vfp_state = thread_kernel_enable_vfp();
+	if (decrypt)
+		aes_cbc_decrypt_zvkned(&linux_key, in, out, len, iv);
+	else
+		aes_cbc_encrypt_zvkned(&linux_key, in, out, len, iv);
+	thread_kernel_disable_vfp(vfp_state);
+	memzero_explicit(&linux_key, sizeof(linux_key));
+}
+
+void crypto_accel_aes_cbc_enc(void *out, const void *in, const void *key,
+			      unsigned int round_count,
+			      unsigned int block_count, void *iv)
+{
+	aes_cbc_crypt(out, in, key, round_count, block_count, iv, false);
+}
+
+void crypto_accel_aes_cbc_dec(void *out, const void *in, const void *key,
+			      unsigned int round_count,
+			      unsigned int block_count, void *iv)
+{
+	aes_cbc_crypt(out, in, key, round_count, block_count, iv, true);
+}
+
+void crypto_accel_aes_ctr_be_enc(void *out, const void *in, const void *key,
+				 unsigned int round_count,
+				 unsigned int block_count, void *iv)
+{
+	struct riscv_aes_key linux_key = { };
+	uint8_t *counter = iv;
+	uint32_t low = 0;
+	uint64_t until_wrap = 0;
+	size_t first_len = 0;
+	uint32_t vfp_state = 0;
+	size_t len = (size_t)block_count * TEE_AES_BLOCK_SIZE;
+	int i = 0;
+
+	assert(out && in && key && iv);
+	assert(block_count);
+	make_linux_key(&linux_key, key, round_count);
+	assert(linux_key.key_len);
+
+	low = ((uint32_t)counter[12] << 24) |
+	      ((uint32_t)counter[13] << 16) |
+	      ((uint32_t)counter[14] << 8) | counter[15];
+	until_wrap = (UINT64_C(1) << 32) - low;
+	vfp_state = thread_kernel_enable_vfp();
+	if ((uint64_t)block_count < until_wrap) {
+		aes_ctr32_crypt_zvkned_zvkb(&linux_key, in, out, len, iv);
+	} else {
+		first_len = (size_t)until_wrap * TEE_AES_BLOCK_SIZE;
+		aes_ctr32_crypt_zvkned_zvkb(&linux_key, in, out,
+					    first_len, iv);
+		/* Carry the low 32-bit wrap into the upper 96 bits. */
+		for (i = 11; i >= 0; i--) {
+			counter[i]++;
+			if (counter[i])
+				break;
+		}
+		if (len > first_len) {
+			const uint8_t *next_in = in;
+			uint8_t *next_out = out;
+
+			next_in += first_len;
+			next_out += first_len;
+			aes_ctr32_crypt_zvkned_zvkb(&linux_key, next_in,
+						    next_out,
+						    len - first_len, iv);
+		}
+	}
+	thread_kernel_disable_vfp(vfp_state);
+	memzero_explicit(&linux_key, sizeof(linux_key));
+}
+
 static void aes_xts_crypt(void *out, const void *in, const void *key1,
 			  unsigned int round_count, unsigned int block_count,
 			  const void *key2, void *tweak, bool decrypt)
