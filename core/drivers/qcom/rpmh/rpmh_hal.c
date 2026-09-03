@@ -230,9 +230,9 @@ enum hal_status hal_rpmh_write_cmd(enum rsc_drv_id drv_id,
 	cmd_base = tcs_base + TCS_CMD_BASE_OFFSET + (cmd_idx * TCS_CMD_STRIDE);
 
 	msgid = 0;
-	msgid |= SHIFT_U32(0, MSGID_READ_OR_WRITE_SHIFT);
+	msgid |= SHIFT_U32(MSGID_WRITE, MSGID_READ_OR_WRITE_SHIFT);
 	msgid |= SHIFT_U32((completion ? 1 : 0), MSGID_RES_REQ_SHIFT);
-	msgid |= SHIFT_U32(1, MSGID_MSG_LENGTH_SHIFT);
+	msgid |= SHIFT_U32(MSGID_MSG_LENGTH_VALUE, MSGID_MSG_LENGTH_SHIFT);
 
 	slave_id = (addr >> 16) & 0x7;
 	offset = addr & 0xFFFF;

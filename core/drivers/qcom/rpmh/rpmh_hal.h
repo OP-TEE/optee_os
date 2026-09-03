@@ -53,6 +53,12 @@ enum hal_status {
 #define MSGID_RES_REQ_SHIFT		0x8
 #define MSGID_MSG_LENGTH_SHIFT		0x0
 
+#define MSGID_READ			0x0
+#define MSGID_WRITE			0x1
+
+/* Each RPMh command transfers a single 32-bit word (encoded as 8 bytes). */
+#define MSGID_MSG_LENGTH_VALUE		0x8
+
 #define ADDR_SLV_ID_SHIFT		0x10
 #define ADDR_OFFSET_SHIFT		0x0
 
