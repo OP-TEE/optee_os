@@ -87,6 +87,10 @@
 #define ASU_RSA_KM_USAGE_COUNT_NON_DEPLETING	0xFFFFFFFFU
 #define ASU_RSA_KM_KEY_ATTR_PRIME_PRESENT	2U
 
+/* KeyManager first-error status code */
+#define ASU_RSA_FW_STATUS_CODE_MASK		0x3FFU
+#define ASU_RSA_KM_KEY_NOT_FOUND		0x1BCU
+
 /* Public key payload expected by ASU FW */
 struct asu_rsa_pub_key_comp {
 	uint32_t key_size;
@@ -1932,9 +1936,17 @@ static TEE_Result asu_rsa_gen_keypair(struct rsa_keypair *key,
 			       ASU_KM_GEN_RSA_KEY_PAIR_CMD_ID,
 			       NULL, &fw_status);
 	if (ret) {
-		DMSG("HW key-pair unavailable status=0x%08"PRIx32
-		     ", using SW fallback", fw_status);
-		ret = sw_crypto_acipher_gen_rsa_key(key, size_bits);
+		/* Fall back to SW only when the key vault is empty */
+		if ((fw_status & ASU_RSA_FW_STATUS_CODE_MASK) ==
+		    ASU_RSA_KM_KEY_NOT_FOUND) {
+			EMSG("HW key vault empty status=0x%08"PRIx32
+			     ", using SW fallback", fw_status);
+			ret = sw_crypto_acipher_gen_rsa_key(key, size_bits);
+			goto out;
+		}
+
+		EMSG("ASU KeyManager key-pair gen failed ret=%#"PRIx32
+		     " status=0x%08"PRIx32, ret, fw_status);
 		goto out;
 	}
 
