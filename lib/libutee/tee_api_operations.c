@@ -950,8 +950,13 @@ TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
 		 * This is not an Extendable-Output Function and we have
 		 * already started extracting
 		 */
-		len = MIN(operation->block_size - operation->buffer_offs,
-			  *hashLen);
+		len = operation->block_size - operation->buffer_offs;
+		if (*hashLen < len) {
+			*hashLen = len;
+			res = TEE_ERROR_SHORT_BUFFER;
+			goto out;
+		}
+
 		memcpy(hash, operation->buffer + operation->buffer_offs, len);
 		*hashLen = len;
 	} else {
