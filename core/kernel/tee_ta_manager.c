@@ -468,14 +468,23 @@ static void close_session(struct tee_ta_session *sess,
 	}
 
 	ctx = ts_to_ta_ctx(ts_ctx);
-	if (ctx->panicked) {
-		destroy_session(sess, open_sessions);
-	} else {
-		tee_ta_set_busy(ctx);
-		set_invoke_timeout(sess, TEE_TIMEOUT_INFINITE);
-		ts_ctx->ops->enter_close_session(&sess->ts_sess);
+	if (tee_ta_try_set_busy(ctx)) {
+		if (!ctx->panicked) {
+			set_invoke_timeout(sess, TEE_TIMEOUT_INFINITE);
+			ts_ctx->ops->enter_close_session(&sess->ts_sess);
+		}
 		destroy_session(sess, open_sessions);
 		tee_ta_clear_busy(ctx);
+	} else {
+		/*
+		 * Deadlock avoided: ctx is already busy and we're
+		 * holding the single-instance lock, so we can't
+		 * safely enter the TA to run its close entry point,
+		 * regardless of whether it has panicked. Tear down
+		 * the session state without the busy protection,
+		 * matching the old behaviour for a panicked context.
+		 */
+		destroy_session(sess, open_sessions);
 	}
 
 	mutex_lock(&tee_ta_mutex);
