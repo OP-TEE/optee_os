@@ -206,3 +206,10 @@ void __noreturn do_reset(const char *str __maybe_unused)
 	/* Cannot occur */
 	panic();
 }
+
+void stm32mp_get_bsec3_static_cfg(struct stm32_bsec3_static_cfg *cfg)
+{
+	cfg->base = BSEC3_BASE;
+	cfg->upper_start = STM32MP2_UPPER_OTP_START;
+	cfg->max_id = STM32MP2_OTP_MAX_ID;
+}
