@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright 2022-2023 NXP
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #ifndef __RISCV_H
@@ -18,6 +19,13 @@
 
 #define RISCV_XLEN_BITS		(__riscv_xlen)
 #define RISCV_XLEN_BYTES	(__riscv_xlen / 8)
+
+/*
+ * Width of a floating-point register. Only defined when the core is built
+ * for a hart with the F or D extension, that is when CFG_RISCV_FPU=y.
+ */
+#define RISCV_FLEN_BITS		(__riscv_flen)
+#define RISCV_FLEN_BYTES	(__riscv_flen / 8)
 
 /* Bind registers to their ABI names */
 #define REG_RA	1
@@ -74,6 +82,32 @@
 #define CSR_XSTATUS_SPP		BIT(8)
 #define CSR_XSTATUS_SUM		BIT(18)
 #define CSR_XSTATUS_MXR		BIT(19)
+
+/*
+ * xstatus.FS holds the state of the floating-point unit. The field is two
+ * bits wide and always resides in the low 32 bits of xstatus, on RV32 as
+ * well as on RV64.
+ */
+#define CSR_XSTATUS_FS_SHIFT	13
+#define CSR_XSTATUS_FS_MASK	SHIFT_U32(3, CSR_XSTATUS_FS_SHIFT)
+
+#define CSR_XSTATUS_FS_OFF	0
+#define CSR_XSTATUS_FS_INITIAL	1
+#define CSR_XSTATUS_FS_CLEAN	2
+#define CSR_XSTATUS_FS_DIRTY	3
+
+/*
+ * xstatus.VS holds the state of the vector unit. The field is two bits wide
+ * and always resides in the low 32 bits of xstatus, on RV32 as well as on
+ * RV64.
+ */
+#define CSR_XSTATUS_VS_SHIFT	9
+#define CSR_XSTATUS_VS_MASK	SHIFT_U32(3, CSR_XSTATUS_VS_SHIFT)
+
+#define CSR_XSTATUS_VS_OFF	0
+#define CSR_XSTATUS_VS_INITIAL	1
+#define CSR_XSTATUS_VS_CLEAN	2
+#define CSR_XSTATUS_VS_DIRTY	3
 
 #define CSR_XCAUSE_INTR_FLAG	BIT64(__riscv_xlen - 1)
 

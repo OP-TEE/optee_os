@@ -99,16 +99,68 @@ $(call force,CFG_PAGED_USER_TA,n)
 $(call force,CFG_WITH_PAGER,n)
 $(call force,CFG_GIC,n)
 $(call force,CFG_ARM_GICV3,n)
-$(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
+
+# AES acceleration with the Zvkned vector crypto extension, and its CTR mode
+# with Zvkb on top. The assembly turns each extension on for itself with
+# .option arch, so the core is not built for them, but the vector registers
+# they use are real state that OP-TEE has to preserve, so this selects both
+# the vector ISA and the context switching. It has to come before those two
+# are given their defaults below, because force refuses to move a flag that
+# already has a value.
+#
+# Zvkb is a separate flag because it is a separate extension, needed only by
+# the CTR code, but the two are not separable in practice: CTR is one of the
+# entry points the LibTomCrypt glue names unconditionally, so the
+# accelerator cannot be built without it. The standard vector crypto suites
+# bundle them anyway (Zvkn is Zvkned + Zvknhb + Zvkb), so a platform with the
+# AES instructions has vrev8.v as well.
+#
+# XTS is the remaining accelerated entry point and is not implemented here,
+# so a core built with this on does not link yet.
+CFG_CRYPTO_AES_RISCV_ZVKNED ?= n
+ifeq ($(CFG_CRYPTO_AES_RISCV_ZVKNED),y)
+ifneq ($(CFG_RV64_core),y)
+$(error CFG_CRYPTO_AES_RISCV_ZVKNED requires CFG_RV64_core=y)
+endif
+$(call force,CFG_CRYPTO_AES_RISCV_ZVKNED_ZVKB,y,required by \
+	CFG_CRYPTO_AES_RISCV_ZVKNED)
+$(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_AES_RISCV_ZVKNED)
+$(call force,CFG_RISCV_VEC,y,required by CFG_CRYPTO_AES_RISCV_ZVKNED)
+endif
+
+
+# CFG_WITH_VFP asks OP-TEE to context switch the extended register state.
+# Which register files that covers follows the extensions the platform says
+# the hart has: the floating-point registers when CFG_RISCV_FPU=y and the
+# vector registers when CFG_RISCV_VEC=y. Neither needs a knob of its own.
+#
+# The floating-point half is not optional once the flag is on, because the
+# generic entry points core calls under CFG_WITH_VFP are the floating-point
+# ones, so a hart without F or D is a configuration error rather than a
+# silent no-op. The save and restore routines use FP load and store
+# instructions, so the core has to be built for such a hart anyway.
+CFG_WITH_VFP ?= n
+ifeq ($(CFG_WITH_VFP),y)
+$(call force,CFG_RISCV_FPU,y,required by CFG_WITH_VFP)
+endif
+
+# 'y' if the hart has the vector extension. The context is switched only
+# when CFG_WITH_VFP asks for it as well.
+CFG_RISCV_VEC ?= n
+
+CFG_RISCV_WITH_VECTOR := n
+ifeq ($(CFG_WITH_VFP)-$(CFG_RISCV_VEC),y-y)
+CFG_RISCV_WITH_VECTOR := y
+endif
 
 # Enable generic timer
 $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
+	$(addprefix $(arch-dir)/, kernel mm tee crypto) $(platform-dir)
 
 # Default values for "-mcmodel" compiler flag
 riscv-platform-mcmodel ?= medany
@@ -124,6 +176,9 @@ ifeq ($(CFG_RISCV_FPU),y)
 ISA_D = fd
 ABI_D = d
 endif
+ifeq ($(CFG_RISCV_WITH_VECTOR),y)
+TA_ISA_V = v
+endif
 ifeq ($(CFG_RISCV_ISA_C),y)
 ISA_C = c
 endif
@@ -133,6 +188,13 @@ endif
 
 riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei
 riscv-abi = $(ABI_BASE)$(ABI_D)
+
+# The core is deliberately not built for the vector ISA even when vector
+# context switching is on. riscv_vector.S turns it on for the two save and
+# restore routines with .option arch, and leaving it off everywhere else
+# means the compiler cannot put vector instructions into core code, which
+# would otherwise trap against the VS == Off that core runs with.
+riscv-ta-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(TA_ISA_V)$(ISA_ZBB)_zicsr_zifencei
 
 rv64-platform-cflags += -mcmodel=$(riscv-platform-mcmodel)
 rv64-platform-cflags += -march=$(riscv-isa) -mabi=$(riscv-abi)
@@ -164,6 +226,14 @@ core-platform-cflags += $(platform-cflags-debug-info)
 
 core-platform-aflags += $(platform-aflags-generic)
 core-platform-aflags += $(platform-aflags-debug-info)
+
+ifeq ($(CFG_WITH_VFP),y)
+ifeq ($(COMPILER_core),clang)
+# store_fpregs/load_fpregs recurse once per floating-point register, which is
+# deeper than the 20 levels Clang's integrated assembler allows by default.
+core-platform-aflags += -mllvm -asm-macro-max-nesting-depth=100
+endif
+endif
 
 ifeq ($(CFG_CORE_ASLR),y)
 core-platform-cflags += -fpie
@@ -260,9 +330,14 @@ ta_rv64-platform-cflags += $(rv64-platform-cflags-hard-float)
 else
 ta_rv64-platform-cflags += $(rv64-platform-cflags-no-hard-float)
 endif
+# TAs are built for the vector ISA when the context is being switched, even
+# though the core is not, so this has to come after the core flags were
+# inherited above.
+ta_rv64-platform-cflags += -march=$(riscv-ta-isa)
 ta_rv64-platform-aflags += $(platform-aflags-generic)
 ta_rv64-platform-aflags += $(platform-aflags-debug-info)
 ta_rv64-platform-aflags += $(rv64-platform-aflags)
+ta_rv64-platform-aflags += -march=$(riscv-ta-isa)
 
 ta_rv64-platform-cxxflags += -fpic
 ta_rv64-platform-cxxflags += $(platform-cflags-optimization)
