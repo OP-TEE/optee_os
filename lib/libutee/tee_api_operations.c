@@ -16,6 +16,14 @@
 #include <util.h>
 #include "tee_api_private.h"
 
+/*
+ * Used for a stack based temporary buffer when discarding the output from
+ * cipher/authenc updates. Must be a multiple of the largest cipher block
+ * size
+ */
+#define MAX_BLOCK_SIZE		TEE_AES_BLOCK_SIZE
+#define DISCARD_BUF_SIZE	MAX_BLOCK_SIZE
+
 struct __TEE_OperationHandle {
 	TEE_OperationInfo info;
 	TEE_ObjectHandle key1;
@@ -1283,6 +1291,103 @@ TEE_Result __GP11_TEE_CipherUpdate(TEE_OperationHandle operation,
 	return res;
 }
 
+/*
+ * Feeds src_data through update_func via tee_buffer_update(), in bounded
+ * chunks, discarding the output. Used to perform a cipher/authenc update
+ * when the caller asked for the output to be discarded ([outbufopt] with
+ * destLen == NULL).
+ */
+static TEE_Result
+buffer_update_discard(TEE_OperationHandle op,
+		      TEE_Result (*update_func)(unsigned long state,
+						const void *src, size_t slen,
+						void *dst, uint64_t *dlen),
+		      const void *src_data, size_t src_len)
+{
+	uint8_t discard_buf[DISCARD_BUF_SIZE] = { };
+	TEE_Result res = TEE_SUCCESS;
+	const uint8_t *src = src_data;
+	size_t slen = src_len;
+
+	assert(sizeof(discard_buf) % op->block_size == 0);
+
+	while (slen) {
+		uint64_t dlen = sizeof(discard_buf);
+		size_t l = MIN(slen, dlen);
+
+		res = tee_buffer_update(op, update_func, src, l, discard_buf,
+					&dlen);
+		if (res)
+			return res;
+		src += l;
+		slen -= l;
+	}
+
+	return TEE_SUCCESS;
+}
+
+/*
+ * Cipher variant of the block_size == 1 (stream-cipher) finalize call: the
+ * original single call takes the whole srcData/srcLen directly, so it is
+ * chunked into repeated _utee_cipher_update() calls, keeping the last
+ * (possibly zero-length) chunk for _utee_cipher_final().
+ */
+static TEE_Result cipher_stream_final_discard(unsigned long state,
+					      const void *src_data,
+					      size_t src_len)
+{
+	uint8_t discard_buf[DISCARD_BUF_SIZE] = { };
+	const uint8_t *src = src_data;
+	TEE_Result res = TEE_SUCCESS;
+	size_t slen = src_len;
+	uint64_t dlen = 0;
+
+	while (slen > sizeof(discard_buf)) {
+		dlen = sizeof(discard_buf);
+		res = _utee_cipher_update(state, src, sizeof(discard_buf),
+					  discard_buf, &dlen);
+		if (res)
+			return res;
+		src += sizeof(discard_buf);
+		slen -= sizeof(discard_buf);
+	}
+
+	dlen = sizeof(discard_buf);
+	return _utee_cipher_final(state, src, slen, discard_buf, &dlen);
+}
+
+/*
+ * Performs a TEE_CipherDoFinal() with the output discarded, as required by
+ * the [outbufopt] destLen == NULL case.
+ */
+static TEE_Result cipher_do_final_discard(TEE_OperationHandle op,
+					  const void *src_data,
+					  size_t src_len)
+{
+	/*
+	 * Add an extra block needed for Ciphertext Stealing modes, that
+	 * is, XTS and CTS.
+	 */
+	uint8_t discard_buf[DISCARD_BUF_SIZE + MAX_BLOCK_SIZE] = { };
+	TEE_Result res = TEE_SUCCESS;
+	uint64_t dlen = 0;
+
+	if (op->block_size == 1)
+		return cipher_stream_final_discard(op->state, src_data,
+						   src_len);
+
+	if (src_len) {
+		res = buffer_update_discard(op, _utee_cipher_update, src_data,
+					    src_len);
+		if (res)
+			return res;
+	}
+
+	dlen = sizeof(discard_buf);
+	return _utee_cipher_final(op->state, op->buffer, op->buffer_offs,
+				   discard_buf, &dlen);
+}
+
 TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 			     const void *srcData, size_t srcLen,
 			     void *destData, size_t *destLen)
@@ -1292,13 +1397,14 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 	size_t acc_dlen = 0;
 	uint64_t tmp_dlen = 0;
 	size_t req_dlen = 0;
+	size_t dlen = 0;
 
 	if (operation == TEE_HANDLE_NULL || (!srcData && srcLen)) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 	if (destLen)
-		__utee_check_inout_annotation(destLen, sizeof(*destLen));
+		__utee_check_outbuf_annotation(destData, destLen);
 
 	if (operation->info.operationClass != TEE_OPERATION_CIPHER) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1344,41 +1450,54 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 	} else {
 		req_dlen = srcLen;
 	}
-	if (destLen)
-		tmp_dlen = *destLen;
-	if (tmp_dlen < req_dlen) {
-		if (destLen)
+	if (destLen) {
+		dlen = *destLen;
+		if (dlen < req_dlen) {
 			*destLen = req_dlen;
-		res = TEE_ERROR_SHORT_BUFFER;
-		goto out;
-	}
-
-	if (operation->block_size > 1) {
-		if (srcLen) {
-			res = tee_buffer_update(operation, _utee_cipher_update,
-						srcData, srcLen, dst,
-						&tmp_dlen);
-			if (res != TEE_SUCCESS)
-				goto out;
-
-			dst += tmp_dlen;
-			acc_dlen += tmp_dlen;
-
-			tmp_dlen = *destLen - acc_dlen;
+			res = TEE_ERROR_SHORT_BUFFER;
+			goto out;
 		}
-		res = _utee_cipher_final(operation->state, operation->buffer,
-					 operation->buffer_offs, dst,
-					 &tmp_dlen);
-	} else {
-		res = _utee_cipher_final(operation->state, srcData, srcLen, dst,
-					 &tmp_dlen);
 	}
-	if (res != TEE_SUCCESS)
-		goto out;
 
-	acc_dlen += tmp_dlen;
-	if (destLen)
+	if (!destLen) {
+		/*
+		 * [outbufopt]: destLen == NULL means the output SHALL be
+		 * discarded, but the operation still has to be performed.
+		 */
+		res = cipher_do_final_discard(operation, srcData, srcLen);
+		if (res != TEE_SUCCESS)
+			goto out;
+	} else {
+		tmp_dlen = dlen;
+
+		if (operation->block_size > 1) {
+			if (srcLen) {
+				res = tee_buffer_update(operation,
+							_utee_cipher_update,
+							srcData, srcLen, dst,
+							&tmp_dlen);
+				if (res != TEE_SUCCESS)
+					goto out;
+
+				dst += tmp_dlen;
+				acc_dlen += tmp_dlen;
+
+				tmp_dlen = dlen - acc_dlen;
+			}
+			res = _utee_cipher_final(operation->state,
+						 operation->buffer,
+						 operation->buffer_offs, dst,
+						 &tmp_dlen);
+		} else {
+			res = _utee_cipher_final(operation->state, srcData,
+						 srcLen, dst, &tmp_dlen);
+		}
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		acc_dlen += tmp_dlen;
 		*destLen = acc_dlen;
+	}
 
 	operation->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
 
@@ -1399,13 +1518,15 @@ TEE_Result __GP11_TEE_CipherDoFinal(TEE_OperationHandle operation,
 	TEE_Result res = TEE_SUCCESS;
 	size_t dl = 0;
 
-	if (destLen) {
-		__utee_check_inout_annotation(destLen, sizeof(*destLen));
-		dl = *destLen;
-	}
+	if (!destLen)
+		return TEE_CipherDoFinal(operation, srcData, srcLen, destData,
+					 NULL);
+
+	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	dl = *destLen;
 	res = TEE_CipherDoFinal(operation, srcData, srcLen, destData, &dl);
-	if (destLen)
-		*destLen = dl;
+	*destLen = dl;
+
 	return res;
 }
 
@@ -1812,6 +1933,68 @@ out:
 	return res;
 }
 
+/*
+ * AE variant of the block_size == 1 (stream-cipher) finalize call: the
+ * original single call takes the whole srcData/srcLen directly, so it is
+ * chunked into repeated _utee_authenc_update_payload() calls, keeping the
+ * last (possibly zero-length) chunk for _utee_authenc_enc_final(), which
+ * still produces the real tag/tagLen.
+ */
+static TEE_Result ae_stream_enc_final_discard(unsigned long state,
+					      const void *src_data,
+					      size_t src_len, void *tag,
+					      uint64_t *tag_len)
+{
+	uint8_t discard_buf[DISCARD_BUF_SIZE] = { };
+	const uint8_t *src = src_data;
+	TEE_Result res = TEE_SUCCESS;
+	size_t slen = src_len;
+	uint64_t dlen = 0;
+
+	while (slen > sizeof(discard_buf)) {
+		dlen = sizeof(discard_buf);
+		res = _utee_authenc_update_payload(state, src,
+						   sizeof(discard_buf),
+						   discard_buf, &dlen);
+		if (res)
+			return res;
+		src += sizeof(discard_buf);
+		slen -= sizeof(discard_buf);
+	}
+
+	dlen = sizeof(discard_buf);
+	return _utee_authenc_enc_final(state, src, slen, discard_buf, &dlen,
+					tag, tag_len);
+}
+
+/*
+ * Performs a TEE_AEEncryptFinal() with the output discarded, as required by
+ * the [outbufopt] destLen == NULL case, without allocating a buffer sized
+ * for the whole output.
+ */
+static TEE_Result ae_encrypt_final_discard(TEE_OperationHandle op,
+					   const void *src_data,
+					   size_t src_len, void *tag,
+					   uint64_t *tag_len)
+{
+	uint8_t discard_buf[DISCARD_BUF_SIZE] = { };
+	TEE_Result res = TEE_SUCCESS;
+	uint64_t dlen = 0;
+
+	if (op->block_size == 1)
+		return ae_stream_enc_final_discard(op->state, src_data,
+						   src_len, tag, tag_len);
+
+	res = buffer_update_discard(op, _utee_authenc_update_payload,
+				    src_data, src_len);
+	if (res)
+		return res;
+
+	dlen = sizeof(discard_buf);
+	return _utee_authenc_enc_final(op->state, op->buffer, op->buffer_offs,
+				       discard_buf, &dlen, tag, tag_len);
+}
+
 TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
 			      const void *srcData, size_t srcLen,
 			      void *destData, size_t *destLen, void *tag,
@@ -1822,14 +2005,16 @@ TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
 	size_t acc_dlen = 0;
 	uint64_t tmp_dlen = 0;
 	size_t req_dlen = 0;
+	size_t dlen = 0;
 	uint64_t tl = 0;
 
 	if (operation == TEE_HANDLE_NULL || (!srcData && srcLen)) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
-	__utee_check_inout_annotation(destLen, sizeof(*destLen));
 	__utee_check_inout_annotation(tagLen, sizeof(*tagLen));
+	if (destLen)
+		__utee_check_outbuf_annotation(destData, destLen);
 
 	if (operation->info.operationClass != TEE_OPERATION_AE) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1852,9 +2037,12 @@ TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
 	res = TEE_ERROR_GENERIC;
 
 	req_dlen = operation->buffer_offs + srcLen;
-	if (*destLen < req_dlen) {
-		*destLen = req_dlen;
-		res = TEE_ERROR_SHORT_BUFFER;
+	if (destLen) {
+		dlen = *destLen;
+		if (dlen < req_dlen) {
+			*destLen = req_dlen;
+			res = TEE_ERROR_SHORT_BUFFER;
+		}
 	}
 
 	if (*tagLen < operation->info.digestLength) {
@@ -1866,32 +2054,48 @@ TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
 		goto out;
 
 	tl = *tagLen;
-	tmp_dlen = *destLen - acc_dlen;
-	if (operation->block_size > 1) {
-		res = tee_buffer_update(operation, _utee_authenc_update_payload,
-					srcData, srcLen, dst, &tmp_dlen);
+
+	if (!destLen) {
+		/*
+		 * [outbufopt]: destLen == NULL means the output SHALL be
+		 * discarded, but the operation still has to be performed.
+		 */
+		res = ae_encrypt_final_discard(operation, srcData, srcLen,
+					       tag, &tl);
+		*tagLen = tl;
+		if (res != TEE_SUCCESS)
+			goto out;
+	} else {
+		tmp_dlen = dlen - acc_dlen;
+		if (operation->block_size > 1) {
+			res = tee_buffer_update(operation,
+						_utee_authenc_update_payload,
+						srcData, srcLen, dst,
+						&tmp_dlen);
+			if (res != TEE_SUCCESS)
+				goto out;
+
+			dst += tmp_dlen;
+			acc_dlen += tmp_dlen;
+
+			tmp_dlen = dlen - acc_dlen;
+			res = _utee_authenc_enc_final(operation->state,
+						      operation->buffer,
+						      operation->buffer_offs,
+						      dst, &tmp_dlen, tag,
+						      &tl);
+		} else {
+			res = _utee_authenc_enc_final(operation->state, srcData,
+						      srcLen, dst, &tmp_dlen,
+						      tag, &tl);
+		}
+		*tagLen = tl;
 		if (res != TEE_SUCCESS)
 			goto out;
 
-		dst += tmp_dlen;
 		acc_dlen += tmp_dlen;
-
-		tmp_dlen = *destLen - acc_dlen;
-		res = _utee_authenc_enc_final(operation->state,
-					      operation->buffer,
-					      operation->buffer_offs, dst,
-					      &tmp_dlen, tag, &tl);
-	} else {
-		res = _utee_authenc_enc_final(operation->state, srcData,
-					      srcLen, dst, &tmp_dlen,
-					      tag, &tl);
+		*destLen = acc_dlen;
 	}
-	*tagLen = tl;
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	acc_dlen += tmp_dlen;
-	*destLen = acc_dlen;
 
 	operation->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
 
@@ -1925,6 +2129,68 @@ TEE_Result __GP11_TEE_AEEncryptFinal(TEE_OperationHandle operation,
 	return res;
 }
 
+/*
+ * AE variant of the block_size == 1 (stream-cipher) finalize call for
+ * decrypt: the original single call takes the whole srcData/srcLen
+ * directly, so it is chunked into repeated _utee_authenc_update_payload()
+ * calls, keeping the last (possibly zero-length) chunk for
+ * _utee_authenc_dec_final(), which still verifies the tag.
+ */
+static TEE_Result ae_stream_dec_final_discard(unsigned long state,
+					      const void *src_data,
+					      size_t src_len, const void *tag,
+					      size_t tag_len)
+{
+	uint8_t discard_buf[DISCARD_BUF_SIZE] = { };
+	const uint8_t *src = src_data;
+	TEE_Result res = TEE_SUCCESS;
+	size_t slen = src_len;
+	uint64_t dlen = 0;
+
+	while (slen > sizeof(discard_buf)) {
+		dlen = sizeof(discard_buf);
+		res = _utee_authenc_update_payload(state, src,
+						   sizeof(discard_buf),
+						   discard_buf, &dlen);
+		if (res)
+			return res;
+		src += sizeof(discard_buf);
+		slen -= sizeof(discard_buf);
+	}
+
+	dlen = sizeof(discard_buf);
+	return _utee_authenc_dec_final(state, src, slen, discard_buf, &dlen,
+					tag, tag_len);
+}
+
+/*
+ * Performs a TEE_AEDecryptFinal() with the output discarded, as required by
+ * the [outbufopt] destLen == NULL case, without allocating a buffer sized
+ * for the whole output.
+ */
+static TEE_Result ae_decrypt_final_discard(TEE_OperationHandle op,
+					   const void *src_data,
+					   size_t src_len, const void *tag,
+					   size_t tag_len)
+{
+	uint8_t discard_buf[DISCARD_BUF_SIZE] = { };
+	TEE_Result res = TEE_SUCCESS;
+	uint64_t dlen = 0;
+
+	if (op->block_size == 1)
+		return ae_stream_dec_final_discard(op->state, src_data,
+						   src_len, tag, tag_len);
+
+	res = buffer_update_discard(op, _utee_authenc_update_payload,
+				    src_data, src_len);
+	if (res)
+		return res;
+
+	dlen = sizeof(discard_buf);
+	return _utee_authenc_dec_final(op->state, op->buffer, op->buffer_offs,
+				       discard_buf, &dlen, tag, tag_len);
+}
+
 TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
 			      const void *srcData, size_t srcLen,
 			      void *destData, size_t *destLen, void *tag,
@@ -1935,12 +2201,14 @@ TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
 	size_t acc_dlen = 0;
 	uint64_t tmp_dlen = 0;
 	size_t req_dlen = 0;
+	size_t dlen = 0;
 
 	if (operation == TEE_HANDLE_NULL || (!srcData && srcLen)) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
-	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	if (destLen)
+		__utee_check_outbuf_annotation(destData, destLen);
 
 	if (operation->info.operationClass != TEE_OPERATION_AE) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1958,41 +2226,58 @@ TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
 	 * can't restore sync with this API.
 	 */
 	req_dlen = operation->buffer_offs + srcLen;
-	if (*destLen < req_dlen) {
-		*destLen = req_dlen;
-		res = TEE_ERROR_SHORT_BUFFER;
-		goto out;
+	if (destLen) {
+		dlen = *destLen;
+		if (dlen < req_dlen) {
+			*destLen = req_dlen;
+			res = TEE_ERROR_SHORT_BUFFER;
+			goto out;
+		}
 	}
 
-	tmp_dlen = *destLen - acc_dlen;
-	if (operation->block_size > 1) {
-		res = tee_buffer_update(operation, _utee_authenc_update_payload,
-					srcData, srcLen, dst, &tmp_dlen);
+	if (!destLen) {
+		/*
+		 * [outbufopt]: destLen == NULL means the output SHALL be
+		 * discarded, but the operation still has to be performed.
+		 */
+		res = ae_decrypt_final_discard(operation, srcData, srcLen,
+					       tag, tagLen);
+		if (res != TEE_SUCCESS)
+			goto out;
+	} else {
+		tmp_dlen = dlen - acc_dlen;
+		if (operation->block_size > 1) {
+			res = tee_buffer_update(operation,
+						_utee_authenc_update_payload,
+						srcData, srcLen, dst,
+						&tmp_dlen);
+			if (res != TEE_SUCCESS)
+				goto out;
+
+			dst += tmp_dlen;
+			acc_dlen += tmp_dlen;
+
+			tmp_dlen = dlen - acc_dlen;
+			res = _utee_authenc_dec_final(operation->state,
+						      operation->buffer,
+						      operation->buffer_offs,
+						      dst, &tmp_dlen, tag,
+						      tagLen);
+		} else {
+			res = _utee_authenc_dec_final(operation->state, srcData,
+						      srcLen, dst, &tmp_dlen,
+						      tag, tagLen);
+		}
 		if (res != TEE_SUCCESS)
 			goto out;
 
-		dst += tmp_dlen;
 		acc_dlen += tmp_dlen;
-
-		tmp_dlen = *destLen - acc_dlen;
-		res = _utee_authenc_dec_final(operation->state,
-					      operation->buffer,
-					      operation->buffer_offs, dst,
-					      &tmp_dlen, tag, tagLen);
-	} else {
-		res = _utee_authenc_dec_final(operation->state, srcData,
-					      srcLen, dst, &tmp_dlen,
-					      tag, tagLen);
+		*destLen = acc_dlen;
 	}
-	if (res != TEE_SUCCESS)
-		goto out;
 
 	/* Supplied tagLen should match what we initiated with */
 	if (tagLen != operation->info.digestLength)
 		res = TEE_ERROR_MAC_INVALID;
-
-	acc_dlen += tmp_dlen;
-	*destLen = acc_dlen;
 
 	operation->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
 
