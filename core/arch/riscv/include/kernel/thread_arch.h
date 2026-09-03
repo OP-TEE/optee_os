@@ -13,6 +13,7 @@
 
 #include <platform_config.h>
 #include <riscv.h>
+#include <riscv_fp.h>
 
 /*
  * Each RISC-V platform must define their own values.
@@ -51,6 +52,9 @@ struct thread_core_local {
 } THREAD_CORE_LOCAL_ALIGNED;
 
 struct thread_user_vfp_state {
+	struct riscv_fp_state fp;
+	/* True when @fp holds a saved copy of the TA's FP registers */
+	bool valid;
 };
 
 struct thread_abi_args {

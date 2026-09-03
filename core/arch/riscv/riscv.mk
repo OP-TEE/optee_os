@@ -99,9 +99,23 @@ $(call force,CFG_PAGED_USER_TA,n)
 $(call force,CFG_WITH_PAGER,n)
 $(call force,CFG_GIC,n)
 $(call force,CFG_ARM_GICV3,n)
-$(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
+
+# CFG_WITH_VFP asks OP-TEE to context switch the extended register state.
+# Which register files that covers follows the extensions the platform says
+# the hart has, so this series switches the floating-point registers when
+# CFG_RISCV_FPU=y. It does not need a knob of its own.
+#
+# The floating-point half is not optional once the flag is on, because the
+# generic entry points core calls under CFG_WITH_VFP are the floating-point
+# ones, so a hart without F or D is a configuration error rather than a
+# silent no-op. The save and restore routines use FP load and store
+# instructions, so the core has to be built for such a hart anyway.
+CFG_WITH_VFP ?= n
+ifeq ($(CFG_WITH_VFP),y)
+$(call force,CFG_RISCV_FPU,y,required by CFG_WITH_VFP)
+endif
 
 # Enable generic timer
 $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
@@ -164,6 +178,14 @@ core-platform-cflags += $(platform-cflags-debug-info)
 
 core-platform-aflags += $(platform-aflags-generic)
 core-platform-aflags += $(platform-aflags-debug-info)
+
+ifeq ($(CFG_WITH_VFP),y)
+ifeq ($(COMPILER_core),clang)
+# store_fpregs/load_fpregs recurse once per floating-point register, which is
+# deeper than the 20 levels Clang's integrated assembler allows by default.
+core-platform-aflags += -mllvm -asm-macro-max-nesting-depth=100
+endif
+endif
 
 ifeq ($(CFG_CORE_ASLR),y)
 core-platform-cflags += -fpie
