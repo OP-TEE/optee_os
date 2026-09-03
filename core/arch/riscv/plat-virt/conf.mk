@@ -22,7 +22,7 @@ $(call force,CFG_CORE_SANITIZE_KADDRESS,n)
 # Hart-related flags
 CFG_TEE_CORE_NB_CORE ?= 1
 CFG_NUM_THREADS ?= 1
-$(call force,CFG_BOOT_SYNC_CPU,n)
+CFG_BOOT_SYNC_CPU ?= y
 
 # Interrupt controller
 CFG_RISCV_PLIC ?= y
