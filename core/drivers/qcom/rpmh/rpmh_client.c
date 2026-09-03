@@ -5,7 +5,6 @@
 
 #include <assert.h>
 #include <compiler.h>
-#include <drivers/qcom/cmd_db/cmd_db.h>
 #include <drivers/qcom/rpmh/rpmh_client.h>
 #include <initcall.h>
 #include <inttypes.h>
@@ -22,16 +21,19 @@
 #include <util.h>
 
 #include "rpmh_hal.h"
-#include "rpmh_resource_commands.h"
-#include "rpmh_tcs.h"
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, AOP_MSG_RAM_BASE,
 			CORE_MMU_PGDIR_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, RPMH_BASE_ADDR,
 			CORE_MMU_PGDIR_SIZE);
 
+/* The secure DRV's only AMC TCS, used for active-set dispatch. */
+#define RPMH_AMC_TCS	0
+
+/* Commands a single TCS can hold. */
+#define RPMH_MAX_TCS_SIZE	16
+
 struct rpmh_driver_data {
-	vaddr_t rsc_base;
 	struct client_queue *queue;
 	struct mutex lock; /* Protects driver state and client operations */
 };
@@ -40,22 +42,12 @@ struct client {
 	enum rsc_drv_id drv_id;
 	const char *name;
 	uint32_t req_id;
-	uint32_t oldest_req_id;
-	uint32_t num_reqs_in_progress;
-	struct explicit_cmd_set *cmds;
 	SLIST_ENTRY(client) link;
 };
 
-struct explicit_cmd_set {
-	uint32_t in_use;
-	uint32_t total;
-	struct cmd_set_internal *sets;
-};
-
-struct cmd_set_internal {
+struct rpmh_command_set {
 	enum rpmh_set set;
-	uint32_t count;
-	uint32_t dependency_bmsk;
+	uint32_t num_commands;
 	struct rpmh_command commands[RPMH_MAX_TCS_SIZE];
 };
 
@@ -78,62 +70,43 @@ static struct rpmh_driver_data driver_state = {
 	.lock = MUTEX_INITIALIZER,
 };
 
-static bool tcs_is_idle(enum rsc_drv_id drv_id, uint32_t timeout_us)
+static bool tcs_is_idle(uint32_t timeout_us)
 {
 	uint64_t timer = timeout_init_us(timeout_us);
+	bool idle = false;
 
-	while (!rpmh_tcs_is_amc_free(drv_id)) {
+	while (true) {
+		if (hal_rpmh_is_tcs_idle(RPMH_AMC_TCS, &idle) ==
+		    HAL_STATUS_SUCCESS && idle)
+			return true;
+
 		if (timeout_elapsed(timer))
 			return false;
+
 		udelay(1);
 	}
-
-	return true;
 }
 
-static uint32_t issue_cmd_set_internal(struct client *client,
-				       struct cmd_set_internal *set)
+static uint32_t issue_cmd_set(struct client *client,
+			      struct rpmh_command_set *set)
 {
-	struct rpmh_resource_command temp_rc = { };
-	struct rpmh_resource_command *rc = NULL;
 	uint32_t enable_mask = 0;
-	bool completion = false;
+	uint32_t wait_mask = 0;
 	uint32_t req_id = 0;
-	bool dirty = false;
-	uint32_t addr = 0;
-	uint32_t data = 0;
 	uint32_t i = 0;
 
-	for (i = 0; i < set->count; i++) {
-		addr = set->commands[i].address;
-		data = set->commands[i].data;
-		completion = set->commands[i].completion;
-
-		rc = rpmh_find_resource_command(addr);
-		if (!rc) {
-			rpmh_resource_command_init(&temp_rc, addr);
-			rc = &temp_rc;
-		}
-
-		if (rpmh_resource_command_update(rc, set->set, data,
-						 completion, client->drv_id,
-						 false))
-			dirty = true;
-	}
-
-	if (!dirty || set->set != RPMH_SET_ACTIVE)
+	if (set->set != RPMH_SET_ACTIVE)
 		return 0;
 
-	if (!tcs_is_idle(client->drv_id, 1000)) {
+	if (!tcs_is_idle(1000)) {
 		EMSG("TCS idle timeout for drv %"PRIu32, client->drv_id);
 		return 0;
 	}
 
 	req_id = ++client->req_id;
-	client->num_reqs_in_progress++;
 
-	for (i = 0; i < set->count; i++) {
-		if (hal_rpmh_write_cmd(client->drv_id, 0, i,
+	for (i = 0; i < set->num_commands; i++) {
+		if (hal_rpmh_write_cmd(RPMH_AMC_TCS, i,
 				       set->commands[i].address,
 				       set->commands[i].data,
 				       set->commands[i].completion) !=
@@ -142,10 +115,17 @@ static uint32_t issue_cmd_set_internal(struct client *client,
 			     set->commands[i].address);
 			return 0;
 		}
+
+		enable_mask |= BIT(i);
+		if (set->commands[i].completion)
+			wait_mask |= BIT(i);
 	}
 
-	enable_mask = GENMASK_32(set->count - 1, 0);
-	if (hal_rpmh_send_tcs(client->drv_id, 0, enable_mask) !=
+	/* Clear and enable the AMC-finished interrupt before triggering. */
+	hal_rpmh_clear_amc_status(RPMH_AMC_TCS);
+	hal_rpmh_enable_amc_status(RPMH_AMC_TCS);
+
+	if (hal_rpmh_send_tcs(RPMH_AMC_TCS, enable_mask, wait_mask) !=
 	    HAL_STATUS_SUCCESS) {
 		EMSG("Failed to send TCS for drv %"PRIu32, client->drv_id);
 		return 0;
@@ -168,7 +148,7 @@ static struct client *find_client(enum rsc_drv_id drv_id,
 }
 
 static struct client *create_client(enum rsc_drv_id drv_id,
-				    const char *name, bool explicit)
+				    const char *name)
 {
 	struct client *client = find_client(drv_id, name);
 
@@ -182,23 +162,12 @@ static struct client *create_client(enum rsc_drv_id drv_id,
 	client->drv_id = drv_id;
 	client->name = name;
 	client->req_id = 0;
-	client->oldest_req_id = 0;
-	client->num_reqs_in_progress = 0;
-
-	if (explicit) {
-		client->cmds = calloc(1, sizeof(struct explicit_cmd_set));
-		if (!client->cmds) {
-			free(client);
-			return NULL;
-		}
-	}
 
 	SLIST_INSERT_HEAD(&driver_state.queue->handles, client, link);
 	return client;
 }
 
-static bool wait_for_cmd(struct client *client, uint32_t req_id,
-			 bool wait_all)
+static bool wait_for_cmd(uint32_t req_id)
 {
 	uint64_t timer = timeout_init_us(10000);
 	bool cmd_complete = false;
@@ -207,10 +176,7 @@ static bool wait_for_cmd(struct client *client, uint32_t req_id,
 		return true;
 
 	while (!timeout_elapsed(timer)) {
-		if (wait_all)
-			cmd_complete = (client->num_reqs_in_progress == 0);
-		else if (hal_rpmh_get_amc_status(client->drv_id, 0,
-						 &cmd_complete))
+		if (hal_rpmh_get_amc_status(RPMH_AMC_TCS, &cmd_complete))
 			cmd_complete = false;
 
 		if (cmd_complete)
@@ -219,8 +185,9 @@ static bool wait_for_cmd(struct client *client, uint32_t req_id,
 		udelay(1);
 	}
 
-	if (cmd_complete && client->num_reqs_in_progress > 0)
-		client->num_reqs_in_progress--;
+	/* Clear the AMC-finished interrupt now that it's been consumed. */
+	if (cmd_complete)
+		hal_rpmh_clear_amc_status(RPMH_AMC_TCS);
 
 	return cmd_complete;
 }
@@ -265,6 +232,7 @@ static TEE_Result check_aop_init(void)
 static TEE_Result rpmh_client_init(void)
 {
 	TEE_Result res = TEE_SUCCESS;
+	vaddr_t base = 0;
 
 	res = check_aop_init();
 	if (res != TEE_SUCCESS) {
@@ -272,12 +240,16 @@ static TEE_Result rpmh_client_init(void)
 		goto err_panic;
 	}
 
-	driver_state.rsc_base = (vaddr_t)phys_to_virt(RPMH_BASE_ADDR,
-						      MEM_AREA_IO_SEC,
-						      RPMH_RSC_SIZE);
-	if (!driver_state.rsc_base) {
+	base = (vaddr_t)phys_to_virt(RPMH_BASE_ADDR, MEM_AREA_IO_SEC,
+				     RPMH_RSC_SIZE);
+	if (!base) {
 		EMSG("Failed to get VA for RSC base at PA 0x%lx",
 		     (unsigned long)RPMH_BASE_ADDR);
+		goto err_panic;
+	}
+
+	if (hal_rpmh_init(base) != HAL_STATUS_SUCCESS) {
+		EMSG("Failed to initialize RPMH HAL");
 		goto err_panic;
 	}
 
@@ -288,12 +260,6 @@ static TEE_Result rpmh_client_init(void)
 	}
 
 	SLIST_INIT(&driver_state.queue->handles);
-
-	if (hal_rpmh_init(driver_state.rsc_base) != HAL_STATUS_SUCCESS ||
-	    rpmh_tcs_init() != TEE_SUCCESS) {
-		EMSG("Failed to initialize HAL/TCS");
-		goto err_panic;
-	}
 
 	return TEE_SUCCESS;
 
@@ -310,7 +276,7 @@ struct rpmh_client *rpmh_create_handle(enum rsc_drv_id drv_id,
 		return NULL;
 
 	mutex_lock(&driver_state.lock);
-	handle = (struct rpmh_client *)create_client(drv_id, name, false);
+	handle = (struct rpmh_client *)create_client(drv_id, name);
 	mutex_unlock(&driver_state.lock);
 
 	return handle;
@@ -322,7 +288,7 @@ TEE_Result rpmh_send_command(struct rpmh_client *handle,
 			     uint32_t *req_id)
 {
 	struct client *client = (struct client *)handle;
-	struct cmd_set_internal cmd_set = { };
+	struct rpmh_command_set cmd_set = { };
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t id = 0;
 
@@ -332,20 +298,19 @@ TEE_Result rpmh_send_command(struct rpmh_client *handle,
 	*req_id = 0;
 	mutex_lock(&driver_state.lock);
 
+	cmd_set.set = set;
+	cmd_set.num_commands = 1;
 	cmd_set.commands[0].address = address;
 	cmd_set.commands[0].data = data;
 	cmd_set.commands[0].completion = completion;
-	cmd_set.set = set;
-	cmd_set.count = 1;
-	cmd_set.dependency_bmsk = 0;
 
-	id = issue_cmd_set_internal(client, &cmd_set);
+	id = issue_cmd_set(client, &cmd_set);
 	if (id == 0) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
 
-	if (!wait_for_cmd(client, id, false)) {
+	if (!wait_for_cmd(id)) {
 		res = TEE_ERROR_BUSY;
 		goto out;
 	}
@@ -355,16 +320,6 @@ TEE_Result rpmh_send_command(struct rpmh_client *handle,
 out:
 	mutex_unlock(&driver_state.lock);
 	return res;
-}
-
-void rpmh_barrier_single(struct rpmh_client *handle, uint32_t req_id)
-{
-	struct client *client = (struct client *)handle;
-
-	if (!client)
-		return;
-
-	wait_for_cmd(client, req_id, false);
 }
 
 early_init(rpmh_client_init);

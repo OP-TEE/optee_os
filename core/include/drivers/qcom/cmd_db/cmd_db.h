@@ -15,8 +15,4 @@
 /* Get resource address by resource ID */
 TEE_Result cmd_db_get_addr(const char *res_id, uint32_t *addr);
 
-/* Get resource priority for driver ID */
-TEE_Result cmd_db_get_priority(uint32_t addr, uint8_t drv_id,
-			       uint32_t *priority);
-
 #endif /* __CMD_DB_H__ */
