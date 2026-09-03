@@ -8,3 +8,5 @@ endif
 ifeq ($(CFG_QCOM_QFPROM_FUSEPROV),y)
 $(call force,CFG_QCOM_QFPROM,y)
 endif
+
+CFG_QCOM_PAS_PTA ?= y
