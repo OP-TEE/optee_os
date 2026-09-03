@@ -4,7 +4,8 @@ permissions:
   contents: read
 concurrency:
   group: ci-${{ github.ref }}  # unique per branch
-  cancel-in-progress: true     # cancel previous runs on the same branch
+  # cancel previous runs on the same branch, except for master
+  cancel-in-progress: ${{ github.ref != 'master' }}
 jobs:
   code_style:
     name: Code style
@@ -12,7 +13,7 @@ jobs:
     container: jforissier/optee_os_ci
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history so checkpatch can check commit IDs in commit messages
       - name: Update Git config
@@ -355,7 +356,7 @@ jobs:
               _make PLATFORM=cva6
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Update Git config
         run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
       - name: Generate cache key
@@ -395,10 +396,6 @@ jobs:
     name: Build QEMUv7 image
     runs-on: ubuntu-latest
     steps:
-      - name: Host cleanup
-        run: |
-          wget https://raw.githubusercontent.com/OP-TEE/optee_os/refs/heads/master/scripts/ci-host-cleanup.sh
-          bash ci-host-cleanup.sh
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
@@ -410,7 +407,7 @@ jobs:
           docker build -t qemuv7_image .
           docker save qemuv7_image | zstd -T0 -o qemuv7_image.tar.zst
       - name: Upload Docker image
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: qemuv7_image
           path: qemuv7_image.tar.zst
@@ -434,13 +431,11 @@ jobs:
               make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_TA_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n CFG_DYN_CONFIG=n XTEST_ARGS="n_1001 n_1003 n_1004 n_1042"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
-      - name: Host cleanup
-        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Download Docker image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: qemuv7_image
           path: .
@@ -489,10 +484,6 @@ jobs:
     name: Build QEMUv8 image
     runs-on: ubuntu-latest
     steps:
-      - name: Host cleanup
-        run: |
-          wget https://raw.githubusercontent.com/OP-TEE/optee_os/refs/heads/master/scripts/ci-host-cleanup.sh
-          bash ci-host-cleanup.sh
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
@@ -504,7 +495,7 @@ jobs:
           docker build -t qemuv8_image .
           docker save qemuv8_image | zstd -T0 -o qemuv8_image.tar.zst
       - name: Upload Docker image
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: qemuv8_image
           path: qemuv8_image.tar.zst
@@ -578,13 +569,11 @@ jobs:
               make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
-      - name: Host cleanup
-        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Download Docker image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: qemuv8_image
           path: .
@@ -635,10 +624,6 @@ jobs:
     name: Build QEMUv8 arm64 image
     runs-on: ubuntu-24.04-arm
     steps:
-      - name: Host cleanup
-        run: |
-          wget https://raw.githubusercontent.com/OP-TEE/optee_os/refs/heads/master/scripts/ci-host-cleanup.sh
-          bash ci-host-cleanup.sh
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
@@ -650,7 +635,7 @@ jobs:
           docker build -t qemuv8_arm64_image .
           docker save qemuv8_arm64_image | zstd -T0 -o qemuv8_arm64_image.tar.zst
       - name: Upload Docker image
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: qemuv8_arm64_image
           path: qemuv8_arm64_image.tar.zst
@@ -669,13 +654,11 @@ jobs:
               make -j$(nproc) check CFG_CORE_UNSAFE_MODEXP=y
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
-      - name: Host setup
-        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Download Docker image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: qemuv8_arm64_image
           path: .
