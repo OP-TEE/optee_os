@@ -4,7 +4,8 @@ permissions:
   contents: read
 concurrency:
   group: ci-${{ github.ref }}  # unique per branch
-  cancel-in-progress: true     # cancel previous runs on the same branch
+  # cancel previous runs on the same branch, except for master
+  cancel-in-progress: ${{ github.ref != 'master' }}
 jobs:
   code_style:
     name: Code style
