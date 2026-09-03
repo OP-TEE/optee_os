@@ -1005,6 +1005,8 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 			uint32_t dtb_max_sz = mapped_tl->max_size -
 					      mapped_tl->size + tl_e->data_size;
 
+			dtb_max_sz = MIN(dtb_max_sz, CFG_DTB_MAX_SIZE);
+
 			if (!transfer_list_set_data_size(mapped_tl, tl_e,
 							 dtb_max_sz)) {
 				EMSG("Failed to extend DTB size to %#"PRIx32,
