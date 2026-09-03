@@ -141,6 +141,12 @@ CFG_OPTEE_REVISION_MAJOR ?= 4
 CFG_OPTEE_REVISION_MINOR ?= 10
 CFG_OPTEE_REVISION_EXTRA ?=
 
+# Optional vendor revision, works the same way as CFG_OPTEE_REVISION_* above
+# and is reported via OPTEE_SMC_CALL_GET_OS_REVISION registers 3,4,5.
+CFG_OPTEE_VENDOR_REVISION_MAJOR ?= 0
+CFG_OPTEE_VENDOR_REVISION_MINOR ?= 0
+CFG_OPTEE_VENDOR_REVISION_EXTRA ?= 0
+
 # Trusted OS implementation version
 TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || \
 		      echo Unknown_$(CFG_OPTEE_REVISION_MAJOR).$(CFG_OPTEE_REVISION_MINOR))$(CFG_OPTEE_REVISION_EXTRA)
