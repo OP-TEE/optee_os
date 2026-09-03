@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/fw_compat.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/delay.h>
@@ -492,6 +493,8 @@ static TEE_Result asu_init(void)
 	asu->slock = SPINLOCK_UNLOCK;
 	asu->p0_last_index = ASU_MAX_BUFFERS - 1;
 	asu->p1_last_index = ASU_MAX_BUFFERS - 1;
+
+	fw_compat_check();
 
 	IMSG("ASU initialization complete");
 

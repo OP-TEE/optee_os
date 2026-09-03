@@ -5,6 +5,9 @@
 
 #include <crypto/crypto.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/asu_fw_info.h>
+#include <drivers/amd/asu_sharedmem.h>
+#include <drivers/amd/fw_compat.h>
 #include <kernel/panic.h>
 #include <rng_support.h>
 #include <string.h>
@@ -13,6 +16,29 @@
 
 #define ASU_TRNG_BYTES_PER_REQUEST	32U /* Bytes per request */
 #define ASU_TRNG_OPERATION_CMD_ID	0U  /* ASU command ID */
+
+/* No SW fallback, hard fail. Checked once on the first call, then cached */
+static bool asu_trng_fw_compatible(void)
+{
+	static bool checked;
+	static bool compatible;
+	const struct fw_module_info *mod;
+
+	if (checked)
+		return compatible;
+
+	mod = fw_compat_get_module_info(ASU_MODULE_TRNG_ID);
+	compatible = asu_module_version_at_least(mod,
+						 CFG_AMD_ASU_TRNG_MINVER_MAJ,
+						 CFG_AMD_ASU_TRNG_MINVER_MNR);
+	if (!compatible)
+		EMSG("ASU TRNG module version below minimum %u.%u",
+		     CFG_AMD_ASU_TRNG_MINVER_MAJ,
+		     CFG_AMD_ASU_TRNG_MINVER_MNR);
+
+	checked = true;
+	return compatible;
+}
 
 /* TRNG callback context */
 struct asu_trng_cbctx {
@@ -105,6 +131,9 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 		EMSG("Invalid parameters: buf=%p, len=%zu", buf, len);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
+
+	if (!asu_trng_fw_compatible())
+		return TEE_ERROR_NOT_SUPPORTED;
 
 	/* Allocate unique request ID */
 	uniqueid = asu_alloc_unique_id();
