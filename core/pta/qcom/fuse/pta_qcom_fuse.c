@@ -171,6 +171,70 @@ static TEE_Result get_use_serial_num(uint32_t param_types,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result get_pil_rollback_version(uint32_t param_types,
+					   TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t version = 0;
+
+	if (param_types != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = qcom_secboot_get_pil_rollback_version(&version);
+	if (res)
+		return res;
+
+	params[0].value.a = version;
+	return TEE_SUCCESS;
+}
+
+static TEE_Result blow_pil_rollback_version(uint32_t param_types,
+					    TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+
+	if (param_types != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return qcom_secboot_blow_pil_rollback_version(params[0].value.a);
+}
+
+static TEE_Result get_mrc_info(uint32_t param_types,
+			       TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT,
+						TEE_PARAM_TYPE_VALUE_OUTPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Result res = TEE_ERROR_GENERIC;
+	bool root_sel_enabled = false;
+	uint32_t activation_list = 0;
+	uint32_t revocation_list = 0;
+	uint32_t num_roots = 0;
+
+	if (param_types != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = qcom_secboot_get_mrc_info(&root_sel_enabled, &num_roots,
+					&activation_list, &revocation_list);
+	if (res)
+		return res;
+
+	params[0].value.a = root_sel_enabled;
+	params[0].value.b = num_roots;
+	params[1].value.a = activation_list;
+	params[1].value.b = revocation_list;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result invoke_command(void *sess_ctx __unused,
 				 uint32_t cmd_id,
 				 uint32_t param_types,
@@ -191,6 +255,12 @@ static TEE_Result invoke_command(void *sess_ctx __unused,
 		return get_eku_enforcement_en(param_types, params);
 	case PTA_QCOM_FUSE_GET_USE_SERIAL_NUM:
 		return get_use_serial_num(param_types, params);
+	case PTA_QCOM_FUSE_GET_PIL_ROLLBACK_VERSION:
+		return get_pil_rollback_version(param_types, params);
+	case PTA_QCOM_FUSE_BLOW_PIL_ROLLBACK_VERSION:
+		return blow_pil_rollback_version(param_types, params);
+	case PTA_QCOM_FUSE_GET_MRC_INFO:
+		return get_mrc_info(param_types, params);
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}

@@ -172,3 +172,70 @@ TEE_Result pas_fuse_get_segment_hash_len(uint32_t root_cert_sel,
 
 	return TEE_SUCCESS;
 }
+
+TEE_Result pas_fuse_get_mrc_info(struct pas_fuse_mrc_info *info)
+{
+	TEE_Param params[TEE_NUM_PARAMS] = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t pt = 0;
+
+	info->num_roots = 1;
+	info->activation_list = 0;
+	info->revocation_list = 0;
+
+	pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT,
+			     TEE_PARAM_TYPE_VALUE_OUTPUT, TEE_PARAM_TYPE_NONE,
+			     TEE_PARAM_TYPE_NONE);
+	res = fuse_pta_invoke(PTA_QCOM_FUSE_GET_MRC_INFO, pt, params);
+	if (res) {
+		EMSG("PAS fuse: cannot read MRC info: %#"PRIx32, res);
+		return res;
+	}
+
+	if (!params[0].value.a)
+		return TEE_SUCCESS;
+
+	info->num_roots = params[0].value.b;
+	info->activation_list = params[1].value.a;
+	info->revocation_list = params[1].value.b;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result pas_fuse_get_pil_rollback_version(uint32_t *dev_ver)
+{
+	TEE_Param params[TEE_NUM_PARAMS] = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t pt = 0;
+
+	pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT, TEE_PARAM_TYPE_NONE,
+			     TEE_PARAM_TYPE_NONE, TEE_PARAM_TYPE_NONE);
+	res = fuse_pta_invoke(PTA_QCOM_FUSE_GET_PIL_ROLLBACK_VERSION, pt,
+			      params);
+	if (res) {
+		EMSG("PAS fuse: cannot read PIL rollback version: %#"PRIx32,
+		     res);
+		return res;
+	}
+
+	*dev_ver = params[0].value.a;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result pas_fuse_blow_pil_rollback_version(uint32_t version)
+{
+	TEE_Param params[TEE_NUM_PARAMS] = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t pt = 0;
+
+	params[0].value.a = version;
+	pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT, TEE_PARAM_TYPE_NONE,
+			     TEE_PARAM_TYPE_NONE, TEE_PARAM_TYPE_NONE);
+	res = fuse_pta_invoke(PTA_QCOM_FUSE_BLOW_PIL_ROLLBACK_VERSION, pt,
+			      params);
+	if (res)
+		IMSG("PAS ARB: fuse advance failed: %#"PRIx32, res);
+
+	return res;
+}
