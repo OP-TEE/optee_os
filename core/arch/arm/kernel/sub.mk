@@ -42,8 +42,15 @@ endif
 srcs-$(CFG_ARM32_core) += misc_a32.S
 srcs-$(CFG_ARM64_core) += misc_a64.S
 srcs-$(CFG_DYN_CLUSTER_SHIFT) += dyn_cluster_shift.c
-srcs-$(CFG_WITH_STMM_SP) += stmm_sp.c
-srcs-$(CFG_WITH_STMM_SP) += stmm_sp_ffa.c
+ifeq ($(CFG_WITH_STMM_SP),y)
+srcs-y += stmm_sp.c
+srcs-y += stmm_sp_ffa.c
+ifeq ($(CFG_STMM_FFA_VERSION),11)
+srcs-y += stmm_sp_ffa_1_1.c
+else
+srcs-y += stmm_sp_ffa_1_2.c
+endif
+endif
 srcs-$(CFG_SECURE_PARTITION) += secure_partition.c
 srcs-$(CFG_SECURE_PARTITION) += spmc_sp_handler.c
 
