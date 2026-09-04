@@ -926,13 +926,19 @@ _CFG_SCMI_PTA_SMT_HEADER ?= n
 _CFG_SCMI_PTA_MSG_HEADER ?= n
 endif
 
+# FF-A ABI used between OP-TEE and StandaloneMm: 11 for v1.1, 12 for v1.2.
+CFG_STMM_FFA_VERSION ?= 12
+$(call cfg-check-value,STMM_FFA_VERSION,11 12)
+
 ifneq ($(CFG_STMM_PATH),)
 $(call force,CFG_WITH_STMM_SP,y)
-$(call force,CFG_EFILIB,y)
 else
 CFG_WITH_STMM_SP ?= n
 endif
 ifeq ($(CFG_WITH_STMM_SP),y)
+ifeq ($(CFG_STMM_FFA_VERSION),12)
+$(call force,CFG_EFILIB,y)
+endif
 $(call force,CFG_ZLIB,y)
 # Number of 4KiB pages reserved for the StandaloneMm SP heap. The default
 # of 402 pages (~1.6MiB) is sufficient for minimal configurations, but

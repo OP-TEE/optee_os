@@ -5,8 +5,6 @@
  */
 
 #include <crypto/crypto.h>
-#include <efi/hob.h>
-#include <ffa.h>
 #include <keep.h>
 #include <kernel/abort.h>
 #include <kernel/stmm_sp.h>
@@ -24,42 +22,9 @@
 #include <tee/tee_svc_storage.h>
 #include <zlib.h>
 
-#ifdef ARM64
-#define SVC_REGS_A0(_regs)	((_regs)->x0)
-#define SVC_REGS_A1(_regs)	((_regs)->x1)
-#define SVC_REGS_A2(_regs)	((_regs)->x2)
-#define SVC_REGS_A3(_regs)	((_regs)->x3)
-#define SVC_REGS_A4(_regs)	((_regs)->x4)
-#define SVC_REGS_A5(_regs)	((_regs)->x5)
-#define SVC_REGS_A6(_regs)	((_regs)->x6)
-#define SVC_REGS_A7(_regs)	((_regs)->x7)
-#define __FFA_SVC_RPMB_READ		FFA_SVC_RPMB_READ
-#define __FFA_SVC_RPMB_WRITE		FFA_SVC_RPMB_WRITE
-#define __FFA_MSG_SEND_DIRECT_RESP	FFA_MSG_SEND_DIRECT_RESP_64
-#define __FFA_MSG_SEND_DIRECT_REQ	FFA_MSG_SEND_DIRECT_REQ_64
-#define __FFA_MEM_PERM_GET	FFA_MEM_PERM_GET_64
-#define __FFA_MEM_PERM_SET	FFA_MEM_PERM_SET_64
-#endif
-#ifdef ARM32
-#define SVC_REGS_A0(_regs)	((_regs)->r0)
-#define SVC_REGS_A1(_regs)	((_regs)->r1)
-#define SVC_REGS_A2(_regs)	((_regs)->r2)
-#define SVC_REGS_A3(_regs)	((_regs)->r3)
-#define SVC_REGS_A4(_regs)	((_regs)->r4)
-#define SVC_REGS_A5(_regs)	((_regs)->r5)
-#define SVC_REGS_A6(_regs)	((_regs)->r6)
-#define SVC_REGS_A7(_regs)	((_regs)->r7)
-#define __FFA_SVC_RPMB_READ		FFA_SVC_RPMB_READ_32
-#define __FFA_SVC_RPMB_WRITE		FFA_SVC_RPMB_WRITE_32
-#define __FFA_MSG_SEND_DIRECT_RESP	FFA_MSG_SEND_DIRECT_RESP_32
-#define __FFA_MSG_SEND_DIRECT_REQ	FFA_MSG_SEND_DIRECT_REQ_32
-#define __FFA_MEM_PERM_GET	FFA_MEM_PERM_GET_32
-#define __FFA_MEM_PERM_SET	FFA_MEM_PERM_SET_32
-#endif
+#include "stmm_sp_ffa.h"
 
 static const TEE_UUID stmm_uuid = PTA_STMM_UUID;
-static TEE_UUID ns_buf_guid = MM_NS_BUFFER_GUID;
-static TEE_UUID mmram_resv_guid = MM_PEI_MMRAM_MEMORY_RESERVE_GUID;
 
 /*
  * Once a complete FFA spec is added, these will become discoverable.
@@ -68,7 +33,6 @@ static TEE_UUID mmram_resv_guid = MM_PEI_MMRAM_MEMORY_RESERVE_GUID;
  */
 static const uint16_t stmm_id = 1U;
 static const uint16_t stmm_pta_id = 2U;
-static const uint16_t ffa_storage_id = 4U;
 
 static_assert(CFG_STMM_HEAP_PAGE_COUNT >= 402,
 	      "CFG_STMM_HEAP_PAGE_COUNT must be at least 402");
@@ -81,11 +45,6 @@ static const unsigned int stmm_ns_comm_buf_size = 4 * SMALL_PAGE_SIZE;
 extern unsigned char stmm_image[];
 extern const unsigned int stmm_image_size;
 extern const unsigned int stmm_image_uncompressed_size;
-
-static vaddr_t stmm_image_addr;
-static vaddr_t stmm_heap_addr;
-static vaddr_t stmm_ns_comm_buf_addr;
-static vaddr_t stmm_sec_buf_addr;
 
 const TEE_UUID *stmm_get_uuid(void)
 {
@@ -157,12 +116,13 @@ static TEE_Result stmm_enter_user_mode(struct stmm_ctx *spc)
 #ifdef ARM64
 static void init_stmm_regs(struct stmm_ctx *spc, unsigned long a0,
 			   unsigned long a1, unsigned long a2, unsigned long a3,
-				 unsigned long pc)
+			   unsigned long sp, unsigned long pc)
 {
 	spc->regs.x[0] = a0;
 	spc->regs.x[1] = a1;
 	spc->regs.x[2] = a2;
 	spc->regs.x[3] = a3;
+	spc->regs.sp = sp;
 	spc->regs.pc = pc;
 }
 #endif
@@ -181,12 +141,13 @@ static uint32_t __maybe_unused get_spsr(void)
 
 static void init_stmm_regs(struct stmm_ctx *spc, unsigned long a0,
 			   unsigned long a1, unsigned long a2, unsigned long a3,
-				 unsigned long pc)
+			   unsigned long sp, unsigned long pc)
 {
 	spc->regs.r0 = a0;
 	spc->regs.r1 = a1;
 	spc->regs.r2 = a2;
 	spc->regs.r3 = a3;
+	spc->regs.usr_sp = sp;
 	spc->regs.cpsr = get_spsr();
 	spc->regs.pc = pc;
 }
@@ -246,110 +207,25 @@ static void uncompress_image(void *dst, size_t dst_size, void *src,
 		panic("inflateEnd");
 }
 
-static struct efi_hob_handoff_info_table *
-build_stmm_boot_hob_list(vaddr_t sp_addr,
-			 uint32_t sp_size, uint32_t *hob_table_size)
-{
-	struct efi_hob_handoff_info_table *hob_table = NULL;
-	unsigned int uncompressed_size_roundup = 0;
-	struct efi_mmram_descriptor *mmram_desc_data = NULL;
-	struct efi_mmram_hob_descriptor_block *mmram_resv_data = NULL;
-	uint16_t mmram_resv_data_size = 0;
-	TEE_Result ret = TEE_ERROR_GENERIC;
-	uint32_t hob_table_offset = 0;
-	void *guid_hob_data = NULL;
-
-	uncompressed_size_roundup = ROUNDUP(stmm_image_uncompressed_size,
-					    SMALL_PAGE_SIZE);
-	stmm_image_addr = sp_addr;
-	stmm_heap_addr = stmm_image_addr + uncompressed_size_roundup;
-	stmm_sec_buf_addr = stmm_heap_addr + stmm_heap_size;
-	hob_table_offset = sizeof(struct ffa_boot_info_header_1_1) +
-			   sizeof(struct ffa_boot_info_1_1);
-
-	hob_table = efi_create_hob_list(sp_addr, sp_size,
-					stmm_sec_buf_addr + hob_table_offset,
-					stmm_sec_buf_size - hob_table_offset);
-	if (!hob_table) {
-		EMSG("Failed to create hob_table.");
-		return NULL;
-	}
-
-	ret = efi_create_fv_hob(hob_table, sp_addr, uncompressed_size_roundup);
-	if (ret) {
-		EMSG("Failed to create fv hob.");
-		return NULL;
-	}
-
-	ret = efi_create_guid_hob(hob_table, &ns_buf_guid,
-				  sizeof(struct efi_mmram_descriptor),
-				  &guid_hob_data);
-	if (ret) {
-		EMSG("Failed to create ns buffer hob.");
-		return NULL;
-	}
-
-	mmram_desc_data = guid_hob_data;
-	mmram_desc_data->physical_start = stmm_ns_comm_buf_addr;
-	mmram_desc_data->physical_size = stmm_ns_comm_buf_size;
-	mmram_desc_data->cpu_start = stmm_ns_comm_buf_addr;
-	mmram_desc_data->region_state = EFI_CACHEABLE | EFI_ALLOCATED;
-
-	mmram_resv_data_size = sizeof(struct efi_mmram_hob_descriptor_block) +
-			       sizeof(struct efi_mmram_descriptor) * 5;
-
-	ret = efi_create_guid_hob(hob_table, &mmram_resv_guid,
-				  mmram_resv_data_size, &guid_hob_data);
-	if (ret) {
-		EMSG("Failed to create mm range hob");
-		return NULL;
-	}
-
-	mmram_resv_data = guid_hob_data;
-	mmram_resv_data->number_of_mm_reserved_regions = 4;
-	mmram_desc_data = &mmram_resv_data->descriptor[0];
-
-	mmram_desc_data[0].physical_start = stmm_image_addr;
-	mmram_desc_data[0].physical_size = uncompressed_size_roundup;
-	mmram_desc_data[0].cpu_start = stmm_image_addr;
-	mmram_desc_data[0].region_state = EFI_CACHEABLE | EFI_ALLOCATED;
-
-	mmram_desc_data[1].physical_start = stmm_sec_buf_addr;
-	mmram_desc_data[1].physical_size = stmm_sec_buf_size;
-	mmram_desc_data[1].cpu_start = stmm_sec_buf_addr;
-	mmram_desc_data[1].region_state = EFI_CACHEABLE | EFI_ALLOCATED;
-
-	mmram_desc_data[2].physical_start = stmm_ns_comm_buf_addr;
-	mmram_desc_data[2].physical_size = stmm_ns_comm_buf_size;
-	mmram_desc_data[2].cpu_start = stmm_ns_comm_buf_addr;
-	mmram_desc_data[2].region_state = EFI_CACHEABLE | EFI_ALLOCATED;
-
-	mmram_desc_data[3].physical_start = stmm_heap_addr;
-	mmram_desc_data[3].physical_size = stmm_heap_size;
-	mmram_desc_data[3].cpu_start = stmm_heap_addr;
-	mmram_desc_data[3].region_state = EFI_CACHEABLE;
-
-	*hob_table_size = hob_table->efi_free_memory_bottom -
-			  (efi_physical_address_t)hob_table;
-
-	return hob_table;
-}
-
 static TEE_Result load_stmm(struct stmm_ctx *spc)
 {
-	struct ffa_boot_info_header_1_1 *hdr = NULL;
-	struct ffa_boot_info_1_1 *desc = NULL;
-	struct efi_hob_handoff_info_table *hob_table = NULL;
-	uint32_t hob_table_size = 0;
+	struct stmm_ffa_init_regs regs = { };
+	struct stmm_ffa_mem mem = { };
 	vaddr_t sp_addr = 0;
+	vaddr_t stmm_image_addr = 0;
+	vaddr_t stmm_heap_addr = 0;
+	vaddr_t stmm_stack_addr = 0;
+	vaddr_t stmm_ns_comm_buf_addr = 0;
+	vaddr_t stmm_sec_buf_addr = 0;
 	unsigned int sp_size = 0;
 	unsigned int uncompressed_size_roundup = 0;
+	unsigned int stack_size = stmm_ffa_get_stack_size();
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	uncompressed_size_roundup = ROUNDUP(stmm_image_uncompressed_size,
 					    SMALL_PAGE_SIZE);
 	sp_size = uncompressed_size_roundup + stmm_heap_size +
-		  stmm_sec_buf_size;
+		  stack_size + stmm_sec_buf_size;
 	res = alloc_and_map_sp_fobj(spc, sp_size,
 				    TEE_MATTR_PRW, &sp_addr);
 	if (res)
@@ -365,29 +241,29 @@ static TEE_Result load_stmm(struct stmm_ctx *spc)
 	if (res)
 		return res;
 
-	hob_table = build_stmm_boot_hob_list(sp_addr, sp_size, &hob_table_size);
-	if (!hob_table)
-		return TEE_ERROR_NO_DATA;
+	stmm_image_addr = sp_addr;
+	stmm_heap_addr = stmm_image_addr + uncompressed_size_roundup;
+	stmm_stack_addr = stmm_heap_addr + stmm_heap_size;
+	stmm_sec_buf_addr = stmm_stack_addr + stack_size;
 
-	hdr = (void *)stmm_sec_buf_addr;
-
-	hdr->signature = FFA_BOOT_INFO_SIGNATURE;
-	hdr->version = FFA_VERSION_1_2;
-	hdr->desc_size = sizeof(struct ffa_boot_info_1_1);
-	hdr->desc_count = 1;
-	hdr->desc_offset = sizeof(struct ffa_boot_info_header_1_1);
-	hdr->reserved = 0;
-	hdr->blob_size = hdr->desc_size * hdr->desc_count + hdr->desc_offset;
-
-	desc = (void *)(stmm_sec_buf_addr + hdr->desc_offset);
-
-	memset(desc->name, 0, FFA_BOOT_INFO_NAME_LEN);
-	desc->type = FFA_BOOT_INFO_TYPE_ID_HOB;
-	desc->flags = FFA_BOOT_INFO_FLAG_NAME_FORMAT_UUID |
-				    (FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_ADDR <<
-				    FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_SHIFT);
-	desc->size = hob_table_size;
-	desc->contents = (vaddr_t)hob_table;
+	mem = (struct stmm_ffa_mem){
+		.sp_addr = sp_addr,
+		.sp_size = sp_size,
+		.image_addr = stmm_image_addr,
+		.image_size = stmm_image_size,
+		.image_region_size = uncompressed_size_roundup,
+		.heap_addr = stmm_heap_addr,
+		.heap_size = stmm_heap_size,
+		.stack_addr = stmm_stack_addr,
+		.stack_size = stack_size,
+		.ns_comm_buf_addr = stmm_ns_comm_buf_addr,
+		.ns_comm_buf_size = stmm_ns_comm_buf_size,
+		.sec_buf_addr = stmm_sec_buf_addr,
+		.sec_buf_size = stmm_sec_buf_size,
+	};
+	res = stmm_ffa_init(&mem, &regs);
+	if (res)
+		return res;
 
 	vm_set_ctx(&spc->ta_ctx.ts_ctx);
 	uncompress_image((void *)stmm_image_addr, stmm_image_uncompressed_size,
@@ -404,6 +280,14 @@ static TEE_Result load_stmm(struct stmm_ctx *spc)
 	if (res)
 		return res;
 
+	if (stack_size) {
+		res = vm_set_prot(&spc->uctx, stmm_stack_addr,
+				  stack_size,
+				  TEE_MATTR_URW | TEE_MATTR_PRW);
+		if (res)
+			return res;
+	}
+
 	res = vm_set_prot(&spc->uctx, stmm_sec_buf_addr, stmm_sec_buf_size,
 			  TEE_MATTR_URW | TEE_MATTR_PRW);
 	if (res)
@@ -414,7 +298,8 @@ static TEE_Result load_stmm(struct stmm_ctx *spc)
 	spc->ns_comm_buf_addr = stmm_ns_comm_buf_addr;
 	spc->ns_comm_buf_size = stmm_ns_comm_buf_size;
 
-	init_stmm_regs(spc, (unsigned long)hdr, 0, 0, 0, stmm_image_addr);
+	init_stmm_regs(spc, regs.a0, regs.a1, 0, 0, regs.sp,
+		       stmm_image_addr);
 
 	return stmm_enter_user_mode(spc);
 }
@@ -524,26 +409,8 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 		goto out_va;
 	}
 
-#ifdef ARM64
-	spc->regs.x[0] = __FFA_MSG_SEND_DIRECT_REQ;
-	spc->regs.x[1] = (stmm_pta_id << 16) | stmm_id;
-	spc->regs.x[2] = FFA_PARAM_MBZ;
-	spc->regs.x[3] = spc->ns_comm_buf_addr;
-	spc->regs.x[4] = ns_buf_size;
-	spc->regs.x[5] = 0;
-	spc->regs.x[6] = 0;
-	spc->regs.x[7] = 0;
-#endif
-#ifdef ARM32
-	spc->regs.r0 = __FFA_MSG_SEND_DIRECT_REQ;
-	spc->regs.r1 = (stmm_pta_id << 16) | stmm_id;
-	spc->regs.r2 = FFA_PARAM_MBZ;
-	spc->regs.r3 = spc->ns_comm_buf_addr;
-	spc->regs.r4 = ns_buf_size;
-	spc->regs.r5 = 0;
-	spc->regs.r6 = 0;
-	spc->regs.r7 = 0;
-#endif
+	stmm_ffa_set_direct_req(&spc->regs, stmm_pta_id, stmm_id,
+				spc->ns_comm_buf_addr, ns_buf_size);
 
 	ts_push_current_session(s);
 
@@ -556,12 +423,8 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 	 * Copy the SPM response from secure partition back to the non-secure
 	 * buffer of the client that called us.
 	 */
-#ifdef ARM64
-	ta_sess->param->u[1].val.a = spc->regs.x[4];
-#endif
-#ifdef ARM32
-	ta_sess->param->u[1].val.a = spc->regs.r4;
-#endif
+	ta_sess->param->u[1].val.a =
+		stmm_ffa_get_direct_resp_size(&spc->regs);
 
 	memcpy(va, (void *)spc->ns_comm_buf_addr, ns_buf_size);
 
@@ -645,28 +508,6 @@ static void return_from_sp_helper(bool panic, uint32_t panic_code,
 	SVC_REGS_A0(regs) = 0;
 	SVC_REGS_A1(regs) = panic;
 	SVC_REGS_A2(regs) = panic_code;
-}
-
-static void service_compose_direct_resp(struct thread_scall_regs *regs,
-					uint32_t ret_val)
-{
-	uint16_t src_id = 0;
-	uint16_t dst_id = 0;
-
-	/* extract from request */
-	src_id = (SVC_REGS_A1(regs) >> 16) & UINT16_MAX;
-	dst_id = SVC_REGS_A1(regs) & UINT16_MAX;
-
-	/* compose message */
-	SVC_REGS_A0(regs) = __FFA_MSG_SEND_DIRECT_RESP;
-	/* swap endpoint ids */
-	SVC_REGS_A1(regs) = SHIFT_U32(dst_id, 16) | src_id;
-	SVC_REGS_A2(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A3(regs) = ret_val;
-	SVC_REGS_A4(regs) = 0;
-	SVC_REGS_A5(regs) = 0;
-	SVC_REGS_A6(regs) = 0;
-	SVC_REGS_A7(regs) = 0;
 }
 
 /*
@@ -765,38 +606,6 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 	return res;
 }
 
-static uint32_t tee2ffa_ret_val(TEE_Result res)
-{
-	switch (res) {
-	case TEE_SUCCESS:
-		return FFA_OK;
-	case TEE_ERROR_NOT_IMPLEMENTED:
-	case TEE_ERROR_NOT_SUPPORTED:
-		return FFA_NOT_SUPPORTED;
-	case TEE_ERROR_OUT_OF_MEMORY:
-		return FFA_NO_MEMORY;
-	case TEE_ERROR_ACCESS_DENIED:
-		return FFA_DENIED;
-	case TEE_ERROR_NO_DATA:
-		return FFA_NO_DATA;
-	case TEE_ERROR_BAD_PARAMETERS:
-	default:
-		return FFA_INVALID_PARAMETERS;
-	}
-}
-
-static void spm_eret_error(int32_t error_code, struct thread_scall_regs *regs)
-{
-	SVC_REGS_A0(regs) = FFA_ERROR;
-	SVC_REGS_A1(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A2(regs) = error_code;
-	SVC_REGS_A3(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A4(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A5(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A6(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A7(regs) = FFA_PARAM_MBZ;
-}
-
 #define FILENAME "EFI_VARS"
 static void stmm_handle_storage_service(struct thread_scall_regs *regs)
 {
@@ -804,189 +613,54 @@ static void stmm_handle_storage_service(struct thread_scall_regs *regs)
 			 TEE_DATA_FLAG_ACCESS_WRITE |
 			 TEE_DATA_FLAG_SHARE_READ |
 			 TEE_DATA_FLAG_SHARE_WRITE;
-	uint32_t action = SVC_REGS_A3(regs);
-	void *va = (void *)SVC_REGS_A4(regs);
-	unsigned long len = SVC_REGS_A5(regs);
-	unsigned long offset = SVC_REGS_A6(regs);
+	struct stmm_ffa_storage_req req = { };
 	char obj_id[] = FILENAME;
 	size_t obj_id_len = strlen(obj_id);
-	TEE_Result res = TEE_SUCCESS;
-	uint32_t stmm_rc = STMM_RET_INVALID_PARAM;
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
 
-	switch (action) {
-	case __FFA_SVC_RPMB_READ:
+	stmm_ffa_get_storage_req(regs, &req);
+	switch (req.op) {
+	case STMM_FFA_STORAGE_OP_READ:
 		DMSG("RPMB read");
 		res = sec_storage_obj_read(TEE_STORAGE_PRIVATE_RPMB, obj_id,
-					   obj_id_len, va, len, offset, flags);
-		stmm_rc = tee2ffa_ret_val(res);
+					   obj_id_len, req.data, req.data_len,
+					   req.offset, flags);
 		break;
-	case __FFA_SVC_RPMB_WRITE:
+	case STMM_FFA_STORAGE_OP_WRITE:
 		DMSG("RPMB write");
 		res = sec_storage_obj_write(TEE_STORAGE_PRIVATE_RPMB, obj_id,
-					    obj_id_len, va, len, offset, flags);
-		stmm_rc = tee2ffa_ret_val(res);
+					    obj_id_len, req.data, req.data_len,
+					    req.offset, flags);
+		break;
+	case STMM_FFA_STORAGE_OP_INVALID:
 		break;
 	default:
-		EMSG("Undefined service id %#"PRIx32, action);
-		break;
+		panic();
 	}
 
-	service_compose_direct_resp(regs, stmm_rc);
-}
-
-static void spm_handle_direct_req(struct thread_scall_regs *regs)
-{
-	uint16_t dst_id = SVC_REGS_A1(regs) & UINT16_MAX;
-
-	if (dst_id == ffa_storage_id) {
-		stmm_handle_storage_service(regs);
-	} else {
-		EMSG("Undefined endpoint id %#"PRIx16, dst_id);
-		spm_eret_error(STMM_RET_INVALID_PARAM, regs);
-	}
-}
-
-static void spm_handle_get_mem_attr(struct thread_scall_regs *regs)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	struct ts_session *sess = NULL;
-	struct stmm_ctx *spc = NULL;
-	uint16_t attrs = 0;
-	uint16_t perm = 0;
-	vaddr_t va = 0;
-	uint32_t ffa_ret = FFA_INVALID_PARAMETERS;
-
-	sess = ts_get_current_session();
-	spc = to_stmm_ctx(sess->ctx);
-
-	va = SVC_REGS_A1(regs);
-	if (!va)
-		goto err;
-
-	res = vm_get_prot(&spc->uctx, va, SMALL_PAGE_SIZE, &attrs);
-	if (res)
-		goto err;
-
-	if ((attrs & TEE_MATTR_URW) == TEE_MATTR_URW)
-		perm |= FFA_MEM_PERM_RW;
-	else if ((attrs & TEE_MATTR_UR) == TEE_MATTR_UR)
-		perm |= FFA_MEM_PERM_RO;
-
-	if (!(attrs & TEE_MATTR_UX))
-		perm |= FFA_MEM_PERM_NX;
-
-	SVC_REGS_A0(regs) = FFA_SUCCESS_32;
-	SVC_REGS_A1(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A2(regs) = perm;
-	SVC_REGS_A3(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A4(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A5(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A6(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A7(regs) = FFA_PARAM_MBZ;
-
-	return;
-
-err:
-	spm_eret_error(ffa_ret, regs);
-}
-
-static void spm_handle_set_mem_attr(struct thread_scall_regs *regs)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	struct ts_session *sess = NULL;
-	struct stmm_ctx *spc = NULL;
-	uintptr_t va = SVC_REGS_A1(regs);
-	uint32_t nr_pages = SVC_REGS_A2(regs);
-	uint32_t perm = SVC_REGS_A3(regs);
-	size_t sz = 0;
-	uint32_t prot = 0;
-	uint32_t ffa_ret = FFA_INVALID_PARAMETERS;
-
-	if (!va || !nr_pages ||
-	    MUL_OVERFLOW(nr_pages, SMALL_PAGE_SIZE, &sz) ||
-	    (perm & FFA_MEM_PERM_RESERVED))
-		goto err;
-
-	sess = ts_get_current_session();
-	spc = to_stmm_ctx(sess->ctx);
-
-	if ((perm & FFA_MEM_PERM_DATA_PERM) == FFA_MEM_PERM_RO)
-		prot |= TEE_MATTR_UR;
-	else if ((perm & FFA_MEM_PERM_DATA_PERM) == FFA_MEM_PERM_RW)
-		prot |= TEE_MATTR_URW;
-
-	if ((perm & FFA_MEM_PERM_INSTRUCTION_PERM) != FFA_MEM_PERM_NX)
-		prot |= TEE_MATTR_UX;
-
-	res = vm_set_prot(&spc->uctx, va, sz, prot);
-	if (res) {
-		ffa_ret = FFA_DENIED;
-		goto err;
-	}
-
-	SVC_REGS_A0(regs) = FFA_SUCCESS_32;
-	SVC_REGS_A1(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A2(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A3(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A4(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A5(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A6(regs) = FFA_PARAM_MBZ;
-	SVC_REGS_A7(regs) = FFA_PARAM_MBZ;
-
-	return;
-
-err:
-	spm_eret_error(ffa_ret, regs);
+	stmm_ffa_complete_storage(regs, stmm_ffa_storage_result(res));
 }
 
 /* Return true if returning to SP, false if returning to caller */
 static bool spm_handle_scall(struct thread_scall_regs *regs)
 {
-#ifdef ARM64
-	uint64_t *a0 = &regs->x0;
-#endif
-#ifdef ARM32
-	uint32_t *a0 = &regs->r0;
-#endif
+	struct ts_session *sess = ts_get_current_session();
+	struct stmm_ctx *spc = to_stmm_ctx(sess->ctx);
 
-	switch (*a0) {
-	case FFA_VERSION:
-		DMSG("Received FFA version");
-		*a0 = FFA_VERSION_1_2;
+	switch (stmm_ffa_handle_scall(&spc->uctx, regs)) {
+	case STMM_FFA_RESUME:
 		return true;
-	case FFA_ID_GET:
-		DMSG("Received FFA ID GET");
-		SVC_REGS_A0(regs) = FFA_SUCCESS_32;
-		SVC_REGS_A2(regs) = stmm_id;
-		return true;
-	case FFA_MSG_WAIT:
-		DMSG("Received FFA_MSG_WAIT");
+	case STMM_FFA_RETURN:
 		return_from_sp_helper(false, 0, regs);
 		return false;
-	case __FFA_MSG_SEND_DIRECT_RESP:
-		DMSG("Received FFA direct response");
-		return_from_sp_helper(false, 0, regs);
-		return false;
-	case __FFA_MSG_SEND_DIRECT_REQ:
-		DMSG("Received FFA direct request");
-		spm_handle_direct_req(regs);
+	case STMM_FFA_STORAGE:
+		stmm_handle_storage_service(regs);
 		return true;
-	case __FFA_MEM_PERM_GET:
-		DMSG("Received FFA mem perm get");
-		spm_handle_get_mem_attr(regs);
-		return true;
-	case __FFA_MEM_PERM_SET:
-		DMSG("Received FFA mem perm set");
-		spm_handle_set_mem_attr(regs);
-		return true;
-	case FFA_ERROR:
-		EMSG("Received FFA error");
-		return_from_sp_helper(true /*panic*/, 0xabcd, regs);
+	case STMM_FFA_PANIC:
+		return_from_sp_helper(true, 0xabcd, regs);
 		return false;
 	default:
-		DMSG("Undefined syscall %#"PRIx32, (uint32_t)*a0);
-		spm_eret_error(FFA_NOT_SUPPORTED, regs);
-		return true;
+		panic();
 	}
 }
 
