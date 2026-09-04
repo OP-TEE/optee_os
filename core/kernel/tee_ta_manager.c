@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020, Arm Limited
- * Copyright (c) 2025, NVIDIA Corporation & AFFILIATES.
+ * Copyright (c) 2025, NVIDIA CORPORATION & AFFILIATES.
  */
 
 #include <assert.h>
