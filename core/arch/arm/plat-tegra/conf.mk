@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2020-2026, NVIDIA CORPORATION
+# Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES
 #
 
 include core/arch/arm/cpu/cortex-armv8-0.mk

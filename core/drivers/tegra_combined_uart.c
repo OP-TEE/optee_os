@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2021-2026, NVIDIA CORPORATION
+ * Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES
  */
 
 #include <drivers/tegra_combined_uart.h>
