@@ -317,6 +317,11 @@ R:	Volodymyr Babchuk <vlad.babchuk@gmail.com> [@lorc]
 S:	Maintained
 F:	core/arch/arm/plat-rcar/
 
+Renesas RCAR Gen5
+R:	Marek Vasut <marek.vasut+renesas@mailbox.org> [@marex]
+S:	Maintained
+F:	core/arch/arm/plat-rcar_gen5/
+
 Renesas RZ/G2
 R:	Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com> [@prabhakarlad]
 R:	Biju Das <biju.das.jz@bp.renesas.com> [@bijucdas]
