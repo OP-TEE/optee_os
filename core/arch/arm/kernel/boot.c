@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2015-2023, Linaro Limited
  * Copyright (c) 2023, Arm Limited
- * Copyright (c) 2025-2026, NVIDIA Corporation & AFFILIATES.
+ * Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES.
  */
 
 #include <arm.h>
