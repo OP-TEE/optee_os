@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2026, STMicroelectronics
  */
 
 #ifndef __PTA_INVOKE_TESTS_H
@@ -134,6 +135,31 @@
 #define PTA_INVOKE_TESTS_STACK_PROTECTOR_RANDOMIZED	BIT(1)
 #define PTA_INVOKE_TESTS_STACK_PROTECTOR_CANARY		BIT(2)
 #define PTA_INVOKE_TESTS_STACK_PROTECTOR_DETECTED	BIT(3)
+
+/*
+ * Tests Mailbox
+ * [in]  value[0].a	Test group PTA_MBOX_TEST_*
+ */
+
+/* Run all the mailbox framework tests */
+#define PTA_MBOX_TEST_ALL		0
+/* Controller registration */
+#define PTA_MBOX_TEST_REGISTER		1
+/* Channel request and release */
+#define PTA_MBOX_TEST_CHANNEL		2
+/* Synchronous send and receive */
+#define PTA_MBOX_TEST_SYNC		3
+/*
+ * Blocking receive, requires CFG_CORE_ASYNC_NOTIF, else
+ * TEE_ERROR_NOT_SUPPORTED is returned. Both commands are not part of
+ * PTA_MBOX_TEST_ALL and must be invoked concurrently from two threads:
+ * PTA_MBOX_TEST_BLOCK_RECV waits up to 5 seconds in mbox_recv_sync() for
+ * the message sent by PTA_MBOX_TEST_BLOCK_SEND.
+ */
+#define PTA_MBOX_TEST_BLOCK_RECV	4
+#define PTA_MBOX_TEST_BLOCK_SEND	5
+/* Launch test of mailbox */
+#define PTA_INVOKE_TESTS_CMD_MBOX_TESTS 1000
 
 #endif /*__PTA_INVOKE_TESTS_H*/
 
