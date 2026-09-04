@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
  * Copyright (c) 2020-2023, ARM Limited. All rights reserved.
- * Copyright (c) 2025, NVIDIA Corporation & AFFILIATES.
+ * Copyright (c) 2025, NVIDIA CORPORATION & AFFILIATES.
  */
 
 #include <compiler.h>
