@@ -609,6 +609,10 @@ CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= $(CFG_ENABLE_EMBEDDED_TESTS)
 CFG_TRANSFER_LIST_TEST ?= $(call cfg-all-enabled,CFG_TRANSFER_LIST \
 			    CFG_TEE_CORE_EMBED_INTERNAL_TESTS)
 
+# Embed mailbox framework self tests when the framework is enabled
+CFG_MBOX_TEST ?= $(call cfg-all-enabled,CFG_DRIVERS_MAILBOX \
+		    CFG_TEE_CORE_EMBED_INTERNAL_TESTS)
+
 # Compiles bget_main_test() to be called from a test TA
 CFG_TA_BGET_TEST ?= $(CFG_ENABLE_EMBEDDED_TESTS)
 
