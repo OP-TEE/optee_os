@@ -172,6 +172,9 @@ struct asu_rsa_km_params {
 	uint8_t reserved[4];
 };
 
+/* Public exponent prefix size in the KeyManager key-pair object */
+#define ASU_RSA_KM_PUBEXP_SIZE_IN_BYTES		4U
+
 /*
  * Cached ASUFW RSA module compatibility, populated once by
  * asu_rsa_check_fw_compat() at driver_init() from the fw_compat_check()
@@ -242,7 +245,8 @@ static size_t asu_rsa_keypair_blob_len(size_t size_bytes)
 {
 	size_t prime_bytes = size_bytes / 2U;
 
-	return (size_bytes * 2U) + (prime_bytes * 5U);
+	return ASU_RSA_KM_PUBEXP_SIZE_IN_BYTES + (size_bytes * 2U) +
+	       (prime_bytes * 5U);
 }
 
 /*
@@ -717,7 +721,6 @@ asu_rsa_import_generated_keypair(struct rsa_keypair *key,
 				 size_t size_bytes,
 				 uint8_t *obj)
 {
-	const uint8_t e_f4[] = { 0x01U, 0x00U, 0x01U };
 	size_t prime_bytes = size_bytes / 2U;
 	size_t keyobj_len = asu_rsa_keypair_blob_len(size_bytes);
 	uint8_t *p = obj;
@@ -728,6 +731,11 @@ asu_rsa_import_generated_keypair(struct rsa_keypair *key,
 
 	if (keyobj_len > asu_rsa_keypair_blob_len(ASU_RSA_MAX_MOD_LEN))
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	ret = crypto_bignum_bin2bn(p, ASU_RSA_KM_PUBEXP_SIZE_IN_BYTES, key->e);
+	if (ret)
+		return ret;
+	p += ASU_RSA_KM_PUBEXP_SIZE_IN_BYTES;
 
 	ret = crypto_bignum_bin2bn(p, size_bytes, key->n);
 	if (ret)
@@ -760,10 +768,6 @@ asu_rsa_import_generated_keypair(struct rsa_keypair *key,
 	p += prime_bytes;
 
 	ret = crypto_bignum_bin2bn(p, prime_bytes, key->qp);
-	if (ret)
-		return ret;
-
-	ret = crypto_bignum_bin2bn(e_f4, sizeof(e_f4), key->e);
 
 	return ret;
 }
