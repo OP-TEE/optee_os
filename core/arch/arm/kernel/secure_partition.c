@@ -1825,7 +1825,11 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	thread_get_tsd()->rpc_target_info =
 		ffa_target_info_set(sp_s->endpoint_id, sp_s->thread_id);
 
+	thread_user_enable_cntpct();
 	__thread_enter_user_mode(sp_regs, &panicked, &panic_code);
+	/* User-mode return may leave foreign interrupts enabled. */
+	thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	thread_user_disable_cntpct();
 
 	sp_s->thread_id = THREAD_ID_INVALID;
 
