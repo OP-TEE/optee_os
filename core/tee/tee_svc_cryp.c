@@ -2072,10 +2072,10 @@ TEE_Result syscall_cryp_obj_copy(unsigned long dst, unsigned long src)
 	dst_o->info.objectSize = src_o->info.objectSize;
 	if (src_o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) {
 		tee_pobj_lock_usage(src_o->pobj);
-		dst_o->info.objectUsage = src_o->pobj->obj_info_usage;
+		dst_o->info.objectUsage &= src_o->pobj->obj_info_usage;
 		tee_pobj_unlock_usage(src_o->pobj);
 	} else {
-		dst_o->info.objectUsage = src_o->info.objectUsage;
+		dst_o->info.objectUsage &= src_o->info.objectUsage;
 	}
 	return TEE_SUCCESS;
 }
