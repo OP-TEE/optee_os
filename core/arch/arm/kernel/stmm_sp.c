@@ -116,12 +116,13 @@ static TEE_Result stmm_enter_user_mode(struct stmm_ctx *spc)
 #ifdef ARM64
 static void init_stmm_regs(struct stmm_ctx *spc, unsigned long a0,
 			   unsigned long a1, unsigned long a2, unsigned long a3,
-				 unsigned long pc)
+			   unsigned long sp, unsigned long pc)
 {
 	spc->regs.x[0] = a0;
 	spc->regs.x[1] = a1;
 	spc->regs.x[2] = a2;
 	spc->regs.x[3] = a3;
+	spc->regs.sp = sp;
 	spc->regs.pc = pc;
 }
 #endif
@@ -140,12 +141,13 @@ static uint32_t __maybe_unused get_spsr(void)
 
 static void init_stmm_regs(struct stmm_ctx *spc, unsigned long a0,
 			   unsigned long a1, unsigned long a2, unsigned long a3,
-				 unsigned long pc)
+			   unsigned long sp, unsigned long pc)
 {
 	spc->regs.r0 = a0;
 	spc->regs.r1 = a1;
 	spc->regs.r2 = a2;
 	spc->regs.r3 = a3;
+	spc->regs.usr_sp = sp;
 	spc->regs.cpsr = get_spsr();
 	spc->regs.pc = pc;
 }
@@ -207,21 +209,23 @@ static void uncompress_image(void *dst, size_t dst_size, void *src,
 
 static TEE_Result load_stmm(struct stmm_ctx *spc)
 {
+	struct stmm_ffa_init_regs regs = { };
 	struct stmm_ffa_mem mem = { };
-	unsigned long boot_info = 0;
 	vaddr_t sp_addr = 0;
 	vaddr_t stmm_image_addr = 0;
 	vaddr_t stmm_heap_addr = 0;
+	vaddr_t stmm_stack_addr = 0;
 	vaddr_t stmm_ns_comm_buf_addr = 0;
 	vaddr_t stmm_sec_buf_addr = 0;
 	unsigned int sp_size = 0;
 	unsigned int uncompressed_size_roundup = 0;
+	unsigned int stack_size = stmm_ffa_get_stack_size();
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	uncompressed_size_roundup = ROUNDUP(stmm_image_uncompressed_size,
 					    SMALL_PAGE_SIZE);
 	sp_size = uncompressed_size_roundup + stmm_heap_size +
-		  stmm_sec_buf_size;
+		  stack_size + stmm_sec_buf_size;
 	res = alloc_and_map_sp_fobj(spc, sp_size,
 				    TEE_MATTR_PRW, &sp_addr);
 	if (res)
@@ -239,21 +243,25 @@ static TEE_Result load_stmm(struct stmm_ctx *spc)
 
 	stmm_image_addr = sp_addr;
 	stmm_heap_addr = stmm_image_addr + uncompressed_size_roundup;
-	stmm_sec_buf_addr = stmm_heap_addr + stmm_heap_size;
+	stmm_stack_addr = stmm_heap_addr + stmm_heap_size;
+	stmm_sec_buf_addr = stmm_stack_addr + stack_size;
 
 	mem = (struct stmm_ffa_mem){
 		.sp_addr = sp_addr,
 		.sp_size = sp_size,
 		.image_addr = stmm_image_addr,
+		.image_size = stmm_image_size,
 		.image_region_size = uncompressed_size_roundup,
 		.heap_addr = stmm_heap_addr,
 		.heap_size = stmm_heap_size,
+		.stack_addr = stmm_stack_addr,
+		.stack_size = stack_size,
 		.ns_comm_buf_addr = stmm_ns_comm_buf_addr,
 		.ns_comm_buf_size = stmm_ns_comm_buf_size,
 		.sec_buf_addr = stmm_sec_buf_addr,
 		.sec_buf_size = stmm_sec_buf_size,
 	};
-	res = stmm_ffa_init(&mem, &boot_info);
+	res = stmm_ffa_init(&mem, &regs);
 	if (res)
 		return res;
 
@@ -272,6 +280,14 @@ static TEE_Result load_stmm(struct stmm_ctx *spc)
 	if (res)
 		return res;
 
+	if (stack_size) {
+		res = vm_set_prot(&spc->uctx, stmm_stack_addr,
+				  stack_size,
+				  TEE_MATTR_URW | TEE_MATTR_PRW);
+		if (res)
+			return res;
+	}
+
 	res = vm_set_prot(&spc->uctx, stmm_sec_buf_addr, stmm_sec_buf_size,
 			  TEE_MATTR_URW | TEE_MATTR_PRW);
 	if (res)
@@ -282,7 +298,8 @@ static TEE_Result load_stmm(struct stmm_ctx *spc)
 	spc->ns_comm_buf_addr = stmm_ns_comm_buf_addr;
 	spc->ns_comm_buf_size = stmm_ns_comm_buf_size;
 
-	init_stmm_regs(spc, boot_info, 0, 0, 0, stmm_image_addr);
+	init_stmm_regs(spc, regs.a0, regs.a1, 0, 0, regs.sp,
+		       stmm_image_addr);
 
 	return stmm_enter_user_mode(spc);
 }
@@ -621,7 +638,7 @@ static void stmm_handle_storage_service(struct thread_scall_regs *regs)
 		panic();
 	}
 
-	stmm_ffa_complete_storage(regs, res);
+	stmm_ffa_complete_storage(regs, stmm_ffa_storage_result(res));
 }
 
 /* Return true if returning to SP, false if returning to caller */
