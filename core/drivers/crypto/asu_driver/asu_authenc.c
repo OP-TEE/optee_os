@@ -88,17 +88,15 @@ struct asu_aes_params {
 	uint64_t output_data_addr;
 	uint64_t aad_addr;
 	uint64_t key_object_addr;
-	uint64_t iv_addr;
 	uint64_t tag_addr;
+	struct asu_aes_iv_object iv_obj;
 	uint32_t data_len;
 	uint32_t aad_len;
-	uint32_t iv_len;
 	uint32_t tag_len;
 	uint8_t mode;
 	uint8_t operation_flags;
 	uint8_t is_last;
 	uint8_t operation_type;
-	uint32_t iv_id;
 };
 
 struct asu_aes_key_object {
@@ -252,8 +250,8 @@ static TEE_Result asu_aes_send(struct asu_authenc_ctx *ctx,
 static void asu_authenc_set_init_params(struct asu_authenc_ctx *ae_ctx,
 					struct asu_aes_params *params)
 {
-	params->iv_addr = virt_to_phys(ae_ctx->nonce_buf);
-	params->iv_len = ae_ctx->nonce_len;
+	params->iv_obj.iv_addr = virt_to_phys(ae_ctx->nonce_buf);
+	params->iv_obj.iv_len = ae_ctx->nonce_len;
 	params->key_object_addr = virt_to_phys(&ae_ctx->key_obj);
 	params->mode = ae_ctx->mode;
 	params->operation_flags |= ASU_AES_INIT;

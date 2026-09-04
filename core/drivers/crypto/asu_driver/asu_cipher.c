@@ -74,17 +74,15 @@ struct asu_cipher_op_cmd {
 	uint64_t outputdataaddr;
 	uint64_t aadaddr;
 	uint64_t keyobjectaddr;
-	uint64_t ivaddr;
 	uint64_t tagaddr;
+	struct asu_aes_iv_object iv_obj;
 	uint32_t datalen;
 	uint32_t aadlen;
-	uint32_t ivlen;
 	uint32_t taglen;
 	uint8_t enginemode;
 	uint8_t operationflags;
 	uint8_t islast;
 	uint8_t operationtype;
-	uint32_t ivid;
 };
 
 struct asu_cipher_ctx {
@@ -463,8 +461,8 @@ static TEE_Result asu_cipher_cbc_update(struct asu_cipher_ctx *asu_cipherctx,
 	op.keyobjectaddr = virt_to_phys(kobj);
 	op.enginemode = ASU_CIPHER_CBC_MODE;
 	op.operationtype = asu_cipherctx->optype;
-	op.ivaddr = virt_to_phys(asu_cipherctx->iv);
-	op.ivlen = ASU_CIPHER_BLOCK_SIZE;
+	op.iv_obj.iv_addr = virt_to_phys(asu_cipherctx->iv);
+	op.iv_obj.iv_len = ASU_CIPHER_BLOCK_SIZE;
 	op.operationflags = ASU_CIPHER_INIT | ASU_CIPHER_UPDATE |
 			    ASU_CIPHER_FINAL;
 	op.islast = 1;
@@ -662,8 +660,8 @@ static TEE_Result asu_cipher_ctr_update(struct asu_cipher_ctx *ctx,
 	op.keyobjectaddr = virt_to_phys(kobj);
 	op.enginemode = ASU_CIPHER_CTR_MODE;
 	op.operationtype = ctx->optype;
-	op.ivaddr = virt_to_phys(ctx->iv);
-	op.ivlen = ASU_CIPHER_BLOCK_SIZE;
+	op.iv_obj.iv_addr = virt_to_phys(ctx->iv);
+	op.iv_obj.iv_len = ASU_CIPHER_BLOCK_SIZE;
 	op.operationflags = ASU_CIPHER_INIT | ASU_CIPHER_UPDATE |
 			    ASU_CIPHER_FINAL;
 	op.islast = 1;
