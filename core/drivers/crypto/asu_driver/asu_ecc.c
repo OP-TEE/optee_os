@@ -72,6 +72,8 @@ struct asu_ecc_key_object {
 	uint64_t key_addr;
 	uint32_t key_id;
 	uint32_t key_len;
+	uint32_t curve_type;
+	uint8_t reserved[4];
 };
 
 /* ECC sign/verify params passed to ASU firmware */
@@ -79,8 +81,8 @@ struct asu_ecc_params {
 	struct asu_ecc_key_object key;
 	uint64_t digest_addr;
 	uint64_t sign_addr;
-	uint32_t curve_type;
 	uint32_t digest_len;
+	uint8_t reserved[4];
 };
 
 /* Key manager metadata for ECC key-pair generation */
@@ -126,8 +128,6 @@ struct asu_ecc_ecdh_params {
 	struct asu_ecc_key_object pub_key;
 	uint64_t shared_secret_addr;
 	uint64_t shared_secret_obj_id_addr;
-	uint32_t curve_type;
-	uint8_t reserved[4];
 };
 
 /* Callback context for key pair generation */
@@ -781,9 +781,9 @@ static TEE_Result asu_ecc_sign(struct drvcrypt_sign_data *sdata)
 	ecc_params.key.key_addr = virt_to_phys(priv_key);
 	ecc_params.key.key_id = 0U;
 	ecc_params.key.key_len = key_len;
+	ecc_params.key.curve_type = asu_curve_id;
 	ecc_params.digest_addr = virt_to_phys(sdata->message.data);
 	ecc_params.sign_addr = virt_to_phys(sdata->signature.data);
-	ecc_params.curve_type = asu_curve_id;
 	ecc_params.digest_len = digest_len;
 
 	ret = asu_update_queue_buffer_n_send_ipi(&cparams, &ecc_params,
@@ -907,9 +907,9 @@ static TEE_Result asu_ecc_verify(struct drvcrypt_sign_data *sdata)
 	ecc_params.key.key_addr = virt_to_phys(pub_key);
 	ecc_params.key.key_id = 0U;
 	ecc_params.key.key_len = key_len;
+	ecc_params.key.curve_type = asu_curve_id;
 	ecc_params.digest_addr = virt_to_phys(sdata->message.data);
 	ecc_params.sign_addr = virt_to_phys(sdata->signature.data);
-	ecc_params.curve_type = asu_curve_id;
 	ecc_params.digest_len = digest_len;
 
 	ret = asu_update_queue_buffer_n_send_ipi(&cparams, &ecc_params,
@@ -1061,12 +1061,13 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 	ecdh_params.pvt_key.key_addr = virt_to_phys(priv_key_buf);
 	ecdh_params.pvt_key.key_id = 0U;
 	ecdh_params.pvt_key.key_len = key_len;
+	ecdh_params.pvt_key.curve_type = asu_curve_id;
 	ecdh_params.pub_key.key_addr = virt_to_phys(pub_key_buf);
 	ecdh_params.pub_key.key_id = 0U;
 	ecdh_params.pub_key.key_len = key_len;
+	ecdh_params.pub_key.curve_type = asu_curve_id;
 	ecdh_params.shared_secret_addr = virt_to_phys(shared_secret_buf);
 	ecdh_params.shared_secret_obj_id_addr = 0;
-	ecdh_params.curve_type = asu_curve_id;
 
 	ret = asu_update_queue_buffer_n_send_ipi(&cparams, &ecdh_params,
 						 sizeof(ecdh_params), header,

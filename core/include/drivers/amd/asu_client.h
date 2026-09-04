@@ -22,6 +22,12 @@
 #define ASU_MODULE_HMAC_ID              6U
 #define ASU_MODULE_KEYMANAGER_ID	12U
 
+struct asu_aes_iv_object {
+	uint64_t iv_addr;
+	uint32_t iv_len;
+	uint32_t iv_id;
+};
+
 struct asu_client_params {
 	TEE_Result (*cbhandler)(void *cbrefptr, struct asu_resp_buf *resp);
 	void *cbptr;
