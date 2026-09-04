@@ -90,6 +90,9 @@ $(call force,CFG_MAP_EXT_DT_SECURE,y)
 $(call force,CFG_EARLY_TA,y)
 $(call force,CFG_EMBEDDED_TS,y)
 
+CFG_STMM_HEAP_PAGE_COUNT ?= 1024
+$(call force,CFG_STMM_FFA_VERSION,11)
+
 # Enable Pointer Authentication for core (S-EL1)
 $(call force,CFG_CORE_PAUTH,y)
 
@@ -118,6 +121,9 @@ $(call force,CFG_MAP_EXT_DT_SECURE,y)
 # Enable Early TA support
 $(call force,CFG_EARLY_TA,y)
 $(call force,CFG_EMBEDDED_TS,y)
+
+CFG_STMM_HEAP_PAGE_COUNT ?= 1024
+$(call force,CFG_STMM_FFA_VERSION,11)
 
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_CORE_FFA,y)
