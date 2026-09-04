@@ -40,13 +40,22 @@ struct stmm_ffa_mem {
 	vaddr_t sp_addr;
 	unsigned int sp_size;
 	vaddr_t image_addr;
+	unsigned int image_size;
 	unsigned int image_region_size;
 	vaddr_t heap_addr;
 	unsigned int heap_size;
+	vaddr_t stack_addr;
+	unsigned int stack_size;
 	vaddr_t ns_comm_buf_addr;
 	unsigned int ns_comm_buf_size;
 	vaddr_t sec_buf_addr;
 	unsigned int sec_buf_size;
+};
+
+struct stmm_ffa_init_regs {
+	unsigned long a0;
+	unsigned long a1;
+	unsigned long sp;
 };
 
 enum stmm_ffa_action {
@@ -79,8 +88,10 @@ void stmm_ffa_get_storage_req(const struct thread_scall_regs *regs,
 void stmm_ffa_complete_storage(struct thread_scall_regs *regs,
 			       TEE_Result res);
 
+unsigned int stmm_ffa_get_stack_size(void);
+
 TEE_Result stmm_ffa_init(const struct stmm_ffa_mem *mem,
-			 unsigned long *boot_info);
+			 struct stmm_ffa_init_regs *regs);
 enum stmm_ffa_action stmm_ffa_handle_scall(struct user_mode_ctx *uctx,
 					   struct thread_scall_regs *regs);
 
