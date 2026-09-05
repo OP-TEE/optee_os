@@ -891,15 +891,10 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_TRANSFER_LIST:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_EXT_DT:
-		/*
-		 * If CFG_MAP_EXT_DT_SECURE is enabled map the external device
-		 * tree as secure non-cached memory, otherwise, fall back to
-		 * non-secure mapping.
-		 */
-		if (IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
-			return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW |
-			       noncache;
-		fallthrough;
+		return attr | TEE_MATTR_PRW |
+		       (IS_ENABLED(CFG_EXT_DT_CACHED) ? cached : noncache) |
+		       (IS_ENABLED(CFG_MAP_EXT_DT_SECURE) ? TEE_MATTR_SECURE
+							  : 0);
 	case MEM_AREA_IO_NSEC:
 		return attr | TEE_MATTR_PRW | noncache;
 	case MEM_AREA_IO_SEC:
