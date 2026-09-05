@@ -19,7 +19,7 @@ $(call force,CFG_CORE_SANITIZE_KADDRESS,n)
 # Hart-related flags
 $(call force,CFG_TEE_CORE_NB_CORE,4)
 CFG_NUM_THREADS ?= 8
-$(call force,CFG_BOOT_SYNC_CPU,n)
+CFG_BOOT_SYNC_CPU ?= y
 
 $(call force,CFG_RISCV_M_MODE,n)
 $(call force,CFG_RISCV_S_MODE,y)

@@ -52,8 +52,8 @@
 	slli	t0, t0, 2
 	add	t1, t1, t0
 	li	t2, SEM_CPU_READY
+	fence	rw, w
 	sw	t2, 0(t1)
-	fence
 #endif
 .endm
 
@@ -74,9 +74,9 @@
 	lla	t0, sem_cpu_sync
 	li	t2, SEM_CPU_READY
 1:
-	fence	w, w
 	lw	t1, 0(t0)
 	bne	t1, t2, 1b
+	fence	r, rw
 #endif
 .endm
 
@@ -90,22 +90,13 @@
 	beqz	t1, 3f
 	addi	t0, t0, 4
 2:
-	fence
-	lw	t1, 0(t0)
-	bne	t1, t2, 2b
+	lw	t3, 0(t0)
+	bne	t3, t2, 2b
+	fence	r, rw
 	j	1b
 3:
 #endif
 .endm
-
-#ifdef CFG_BOOT_SYNC_CPU
-#define flush_cpu_semaphores \
-		lla	t0, sem_cpu_sync_start
-		lla	t1, sem_cpu_sync_end
-		fence
-#else
-#define flush_cpu_semaphores
-#endif
 
 FUNC _start , :
 	/*
@@ -372,7 +363,6 @@ UNWIND(	.cantunwind)
 #endif
 
 	cpu_is_ready
-	flush_cpu_semaphores
 	wait_secondary
 
 	jal	thread_clr_boot_thread
@@ -521,15 +511,7 @@ LOCAL_DATA hart_lottery , :
 	.word	0
 END_DATA hart_lottery
 
-#ifdef CFG_BOOT_SYNC_CPU
-LOCAL_DATA sem_cpu_sync_start , :
-	.word	sem_cpu_sync
-END_DATA sem_cpu_sync_start
 
-LOCAL_DATA sem_cpu_sync_end , :
-	.word	sem_cpu_sync + (CFG_TEE_CORE_NB_CORE << 2)
-END_DATA sem_cpu_sync_end
-#endif
 
 #if !defined(CFG_DYN_CONFIG)
 LOCAL_DATA stack_tmp_rel , :
