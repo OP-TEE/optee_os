@@ -313,7 +313,7 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 	cparam->cbhandler = NULL;
 
 	/* Inputs of SHA request */
-	cache_operation(TEE_CACHEFLUSH, data, ROUNDUP(len, cacheline_len));
+	cache_operation(TEE_CACHEFLUSH, data, len);
 	op.hashaddr = 0;
 	op.hashbufsize = 0;
 	op.shamode = asu_hashctx->shamode;
@@ -748,8 +748,7 @@ static TEE_Result asu_hmac_do_update(struct crypto_mac_ctx *ctx,
 		op.opflags = hmac_ctx->hmacstart | ASU_HMAC_OP_UPDATE;
 
 		memcpy(dma_buf, data, op.msglen);
-		cache_operation(TEE_CACHEFLUSH, dma_buf,
-				ROUNDUP(op.msglen, cacheline_len));
+		cache_operation(TEE_CACHEFLUSH, dma_buf, op.msglen);
 
 		ret = asu_hmac_send_cmd(hmac_ctx, &op);
 		if (ret)
