@@ -301,6 +301,15 @@ R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelv
 S:	Maintained
 F:	core/arch/arm/plat-qcom/provision/
 
+Qualcomm PAS Authentication
+R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
+S:	Maintained
+F:	core/pta/qcom/fuse/
+F:	core/pta/qcom/pas/pas_auth.c
+F:	lib/libutee/include/pta_qcom_fuse.h
+F:	ta/qcom_pas/include/auth/
+F:	ta/qcom_pas/src/auth/
+
 Raspberry Pi3
 R:	Joakim Bech <joakim.bech@gmail.com> [@jockebech]
 S:	Maintained
