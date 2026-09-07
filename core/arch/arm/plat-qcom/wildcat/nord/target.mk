@@ -8,9 +8,9 @@ $(call force,CFG_TEE_CORE_NB_CORE,18)
 # memory encryption IP similar to pIMEM but on wildcat arch
 # it is setup by TME root-of-trust, no specific driver needed
 # in OP-TEE for that.
-CFG_TZDRAM_START ?= 0xBC280000
+CFG_TZDRAM_START ?= 0xBC600000
 CFG_TEE_RAM_VA_SIZE ?= 0x00200000
-CFG_TA_RAM_VA_SIZE ?= 0x07B80000
+CFG_TA_RAM_VA_SIZE ?= 0x07800000
 
 CFG_QCOM_RPMH_CLIENT ?= y
 ifeq ($(CFG_QCOM_RPMH_CLIENT),y)
