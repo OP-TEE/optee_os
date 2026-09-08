@@ -164,6 +164,20 @@ S:	Maintained
 F:	core/drivers/qcom/rpmh/
 F:	core/include/drivers/qcom/rpmh/
 
+Core Drivers QCOM WDT
+R:	Harikrishna <hart@qti.qualcomm.com> [@thariaruchamy-bit]
+R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
+S:	Maintained
+F:	core/drivers/qcom/wdt/
+
+Core Drivers QCOM XPU
+R:	Harikrishna <hart@qti.qualcomm.com> [@thariaruchamy-bit]
+R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
+S:	Maintained
+F:	core/arch/arm/plat-qcom/xpu_policy.c
+F:	core/drivers/qcom/xpu/
+F:	core/include/drivers/qcom/xpu*
+
 Core Drivers ZYNQMP
 R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
 S:	Maintained
