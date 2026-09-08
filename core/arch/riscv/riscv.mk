@@ -99,7 +99,6 @@ $(call force,CFG_PAGED_USER_TA,n)
 $(call force,CFG_WITH_PAGER,n)
 $(call force,CFG_GIC,n)
 $(call force,CFG_ARM_GICV3,n)
-$(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 
@@ -121,6 +120,8 @@ $(call force,CFG_RISCV_VECTOR,y,required by CFG_RISCV_ZVKSG)
 endif
 ifeq ($(CFG_RISCV_VECTOR),y)
 $(call force,CFG_WITH_VFP,y,required by CFG_RISCV_VECTOR)
+else
+$(call force,CFG_WITH_VFP,n,required when CFG_RISCV_VECTOR is disabled)
 endif
 
 CFG_RISCV_VECTOR ?= n
