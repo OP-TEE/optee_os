@@ -305,6 +305,7 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 	struct asu_sha_op_cmd op = {};
 	struct asu_client_params *cparam = NULL;
 	size_t cacheline_len = dcache_get_line_size();
+	uint8_t *dma_buf = NULL;
 	uint32_t remaining = 0;
 
 	/* Inputs of client request */
@@ -312,25 +313,36 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 	cparam->priority = ASU_PRIORITY_HIGH;
 	cparam->cbhandler = NULL;
 
-	/* Inputs of SHA request */
-	cache_operation(TEE_CACHEFLUSH, data, len);
+	/* Bounce copy: ASU DMA needs a physically contiguous buffer. */
+	dma_buf = memalign(cacheline_len, ASU_DATA_CHUNK_LEN);
+	if (!dma_buf) {
+		EMSG("Failed to allocate SHA data DMA buffer");
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
 	op.hashaddr = 0;
 	op.hashbufsize = 0;
 	op.shamode = asu_hashctx->shamode;
 	op.islast = 0;
+	op.dataaddr = virt_to_phys(dma_buf);
 	remaining = len;
 	while (remaining) {
 		op.datasize = MIN(remaining, ASU_DATA_CHUNK_LEN);
 		op.opflags = ASU_SHA_UPDATE | asu_hashctx->shastart;
-		op.dataaddr = virt_to_phys(data);
-		remaining -= op.datasize;
-		data += op.datasize;
+
+		memcpy(dma_buf, data, op.datasize);
+		cache_operation(TEE_CACHEFLUSH, dma_buf, op.datasize);
+
 		ret = asu_sha_op(asu_hashctx, &op, asu_hashctx->module);
 		if (ret)
 			break;
+
 		asu_hashctx->shastart = 0;
+		data += op.datasize;
+		remaining -= op.datasize;
 	}
 
+	free(dma_buf);
 	return ret;
 }
 
