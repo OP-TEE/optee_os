@@ -3153,7 +3153,8 @@ static TEE_Result rpmb_fs_create(struct tee_pobj *po, bool overwrite,
 {
 	TEE_Result res;
 	size_t pos = 0;
-	struct rpmb_file_handle *fh = alloc_file_handle(po, po->temporary);
+	bool temporary = po->temporary || overwrite;
+	struct rpmb_file_handle *fh = alloc_file_handle(po, temporary);
 
 	/* One of data_core and data_user must be NULL */
 	assert(!data_core || !data_user);
@@ -3202,18 +3203,16 @@ static TEE_Result rpmb_fs_create(struct tee_pobj *po, bool overwrite,
 		}
 	}
 
-	if (po->temporary) {
+	if (temporary) {
 		/*
-		 * If it's a temporary filename (which it normally is)
-		 * rename into the final filename now that the file is
-		 * fully initialized.
+		 * Rename the fully initialized temporary file into place.
+		 * Always use a temporary file for overwrite, including when
+		 * another handle keeps the persistent object alive.
 		 */
-		po->temporary = false;
 		res = rpmb_fs_rename_internal(po, NULL, overwrite);
-		if (res) {
-			po->temporary = true;
+		if (res)
 			goto out;
-		}
+		po->temporary = false;
 		/* Update file handle after rename. */
 		create_filename(fh->filename, sizeof(fh->filename), po, false);
 	}
