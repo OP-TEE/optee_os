@@ -2751,7 +2751,8 @@ static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, size_t pos,
 		res = rpmb_fs_write_primitive((struct rpmb_file_handle *)tfh,
 					      pos, buf_core, size);
 	} else if (buf_user) {
-		uint32_t f = TEE_MEMORY_ACCESS_READ;
+		uint32_t f = TEE_MEMORY_ACCESS_READ |
+			     TEE_MEMORY_ACCESS_ANY_OWNER;
 
 		res = check_user_access(f, buf_user, size);
 		if (res)
