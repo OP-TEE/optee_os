@@ -204,6 +204,7 @@ struct shdr_pub_key {
 	uint32_t version;
 	union {
 		struct rsa_public_key *rsa;
+		struct ecc_public_key *ecc;
 	} pub_key;
 };
 
