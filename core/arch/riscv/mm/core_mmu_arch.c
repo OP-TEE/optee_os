@@ -42,7 +42,21 @@
 
 #define IS_PAGE_ALIGNED(addr)	IS_ALIGNED(addr, SMALL_PAGE_SIZE)
 
-static bitstr_t bit_decl(g_asid, RISCV_SATP_ASID_WIDTH) __nex_bss;
+/*
+ * Number of ASIDs handed out to user mode contexts. ASID 0 is reserved for
+ * the core mappings, so the pool covers 1..RISCV_MMU_NUM_ASIDS, which must
+ * fit in the satp ASID field of every SvXX mode. An implementation with
+ * ASIDLEN < ASIDMAX ignores the upper bits of both satp.ASID and the
+ * SFENCE.VMA rs2 operand (privileged spec, "Supervisor Address Translation
+ * and Protection Register" and "Supervisor Memory-Management Fence
+ * Instruction"), so a pool wider than the hardware only over-fences,
+ * which is always legal.
+ */
+#define RISCV_MMU_NUM_ASIDS	U(256)
+
+static_assert(RISCV_MMU_NUM_ASIDS <= RISCV_SATP_ASID_MASK);
+
+static bitstr_t bit_decl(g_asid, RISCV_MMU_NUM_ASIDS) __nex_bss;
 static unsigned int g_asid_spinlock __nex_bss = SPINLOCK_UNLOCK;
 
 struct mmu_pte {
@@ -764,7 +778,7 @@ unsigned int asid_alloc(void)
 	unsigned int r = 0;
 	int i = 0;
 
-	bit_ffc(g_asid, (int)RISCV_SATP_ASID_WIDTH, &i);
+	bit_ffc(g_asid, (int)RISCV_MMU_NUM_ASIDS, &i);
 	if (i == -1) {
 		r = 0;
 	} else {
@@ -784,7 +798,7 @@ void asid_free(unsigned int asid)
 	if (asid) {
 		unsigned int i = asid - 1;
 
-		assert(i < RISCV_SATP_ASID_WIDTH && bit_test(g_asid, i));
+		assert(i < RISCV_MMU_NUM_ASIDS && bit_test(g_asid, i));
 		bit_clear(g_asid, i);
 	}
 
