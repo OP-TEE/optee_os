@@ -113,11 +113,76 @@ TEE_Result shdr_get_hash_algo(uint32_t algo, uint32_t *hash_algo)
 	return TEE_SUCCESS;
 }
 
+static size_t ecc_curve_size_bits(uint32_t curve)
+{
+	switch (curve) {
+	case TEE_ECC_CURVE_NIST_P256:
+		return 256;
+	case TEE_ECC_CURVE_NIST_P384:
+		return 384;
+	case TEE_ECC_CURVE_NIST_P521:
+		return 521;
+	default:
+		return 0;
+	}
+}
+
+static TEE_Result alloc_ecc_pub_key(struct ecc_public_key *key, uint32_t curve,
+				    const uint8_t *x, size_t x_size,
+				    const uint8_t *y, size_t y_size)
+{
+	size_t key_size_bits = ecc_curve_size_bits(curve);
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!key_size_bits)
+		return TEE_ERROR_SECURITY;
+
+	/* The public values must fit in the field of the curve */
+	if (x_size > (key_size_bits + 7) / 8 ||
+	    y_size > (key_size_bits + 7) / 8)
+		return TEE_ERROR_SECURITY;
+
+	res = crypto_acipher_alloc_ecc_public_key(key,
+						  TEE_TYPE_ECDSA_PUBLIC_KEY,
+						  key_size_bits);
+	if (res)
+		return res;
+
+	key->curve = curve;
+	if (crypto_bignum_bin2bn(x, x_size, key->x) ||
+	    crypto_bignum_bin2bn(y, y_size, key->y)) {
+		crypto_acipher_free_ecc_public_key(key);
+		return TEE_ERROR_SECURITY;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result alloc_ta_pub_rsa_key(struct rsa_public_key *key)
+{
+	uint32_t e = TEE_U32_TO_BIG_ENDIAN(ta_pub_key_exponent);
+	TEE_Result res = TEE_SUCCESS;
+
+	res = crypto_acipher_alloc_rsa_public_key(key,
+						  ta_pub_key_modulus_size * 8);
+	if (res)
+		return res;
+
+	/* The caller frees @key also if this function fails */
+	if (crypto_bignum_bin2bn((uint8_t *)&e, sizeof(e), key->e) ||
+	    crypto_bignum_bin2bn(ta_pub_key_modulus, ta_pub_key_modulus_size,
+				 key->n))
+		return TEE_ERROR_SECURITY;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result shdr_verify_signature(const struct shdr *shdr)
 {
-	struct rsa_public_key key = { };
+	struct ecc_public_key ecc_key = { };
+	struct rsa_public_key rsa_key = { };
+	bool ecc_key_alloced = false;
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t e = TEE_U32_TO_BIG_ENDIAN(ta_pub_key_exponent);
 	struct ftmn ftmn = { };
 	unsigned int err_incr = 2;
 	uint32_t hash_algo = 0;
@@ -126,14 +191,11 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 	if (shdr->magic != SHDR_MAGIC)
 		goto err;
 
-	if (TEE_ALG_GET_MAIN_ALG(shdr->algo) != TEE_MAIN_ALGO_RSA)
+	if (TEE_ALG_GET_MAIN_ALG(shdr->algo) != ta_pub_key_main_algo)
 		goto err;
 
 	res = shdr_get_hash_algo(shdr->algo, &hash_algo);
 	if (res)
-		goto err;
-
-	if (is_weak_key_size(shdr->algo, ta_pub_key_modulus_size * 8))
 		goto err;
 
 	res = tee_alg_get_digest_size(hash_algo, &hash_size);
@@ -142,23 +204,40 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 	if (hash_size != shdr->hash_size)
 		goto err;
 
-	res = crypto_acipher_alloc_rsa_public_key(&key,
-						  ta_pub_key_modulus_size * 8);
-	if (res)
-		goto err;
+	switch (ta_pub_key_main_algo) {
+	case TEE_MAIN_ALGO_RSA:
+		if (is_weak_key_size(shdr->algo, ta_pub_key_modulus_size * 8))
+			goto err;
 
-	res = crypto_bignum_bin2bn((uint8_t *)&e, sizeof(e), key.e);
-	if (res)
-		goto err;
-	res = crypto_bignum_bin2bn(ta_pub_key_modulus, ta_pub_key_modulus_size,
-				   key.n);
-	if (res)
-		goto err;
+		res = alloc_ta_pub_rsa_key(&rsa_key);
+		if (res)
+			goto err;
 
-	FTMN_CALL_FUNC(res, &ftmn, FTMN_INCR0,
-		       crypto_acipher_rsassa_verify, shdr->algo, &key,
-		       shdr->hash_size, SHDR_GET_HASH(shdr), shdr->hash_size,
-		       SHDR_GET_SIG(shdr), shdr->sig_size);
+		FTMN_CALL_FUNC(res, &ftmn, FTMN_INCR0,
+			       crypto_acipher_rsassa_verify, shdr->algo,
+			       &rsa_key, shdr->hash_size, SHDR_GET_HASH(shdr),
+			       shdr->hash_size, SHDR_GET_SIG(shdr),
+			       shdr->sig_size);
+		break;
+	case TEE_MAIN_ALGO_ECDSA:
+		res = alloc_ecc_pub_key(&ecc_key, ta_pub_key_ecc_curve,
+					ta_pub_key_ecc_xy,
+					ta_pub_key_ecc_size,
+					ta_pub_key_ecc_xy + ta_pub_key_ecc_size,
+					ta_pub_key_ecc_size);
+		if (res)
+			goto err;
+		ecc_key_alloced = true;
+
+		FTMN_CALL_FUNC(res, &ftmn, FTMN_INCR0,
+			       crypto_acipher_ecc_verify, shdr->algo, &ecc_key,
+			       SHDR_GET_HASH(shdr), shdr->hash_size,
+			       SHDR_GET_SIG(shdr), shdr->sig_size);
+		break;
+	default:
+		goto err;
+	}
+
 	if (!res) {
 		ftmn_checkpoint(&ftmn, FTMN_INCR0);
 		goto out;
@@ -169,7 +248,9 @@ err:
 	FTMN_SET_CHECK_RES_NOT_ZERO(&ftmn, err_incr * FTMN_INCR0, res);
 out:
 	FTMN_CALLEE_DONE_CHECK(&ftmn, FTMN_INCR0, FTMN_STEP_COUNT(2), res);
-	crypto_acipher_free_rsa_public_key(&key);
+	crypto_acipher_free_rsa_public_key(&rsa_key);
+	if (ecc_key_alloced)
+		crypto_acipher_free_ecc_public_key(&ecc_key);
 	return res;
 }
 
@@ -225,6 +306,44 @@ err:
 err_key:
 	free(key);
 	return TEE_ERROR_SECURITY;
+}
+
+static TEE_Result load_ecc_key(const struct shdr_subkey *subkey,
+			       struct ecc_public_key **key_pp)
+{
+	const uint8_t *base = (const uint8_t *)subkey;
+	const struct shdr_subkey_attr *pub_x = NULL;
+	const struct shdr_subkey_attr *pub_y = NULL;
+	const struct shdr_subkey_attr *curve = NULL;
+	struct ecc_public_key *key = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t curve_val = 0;
+
+	curve = find_attr(subkey, TEE_ATTR_ECC_CURVE);
+	if (!curve || curve->size != sizeof(curve_val))
+		return TEE_ERROR_SECURITY;
+	pub_x = find_attr(subkey, TEE_ATTR_ECC_PUBLIC_VALUE_X);
+	if (!pub_x)
+		return TEE_ERROR_SECURITY;
+	pub_y = find_attr(subkey, TEE_ATTR_ECC_PUBLIC_VALUE_Y);
+	if (!pub_y)
+		return TEE_ERROR_SECURITY;
+
+	memcpy(&curve_val, base + curve->offs, sizeof(curve_val));
+
+	key = calloc(1, sizeof(*key));
+	if (!key)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = alloc_ecc_pub_key(key, curve_val, base + pub_x->offs, pub_x->size,
+				base + pub_y->offs, pub_y->size);
+	if (res) {
+		free(key);
+		return TEE_ERROR_SECURITY;
+	}
+
+	*key_pp = key;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result check_attrs(const struct shdr_subkey *subkey, size_t img_size)
@@ -384,6 +503,9 @@ TEE_Result shdr_load_pub_key(const struct shdr *shdr, size_t offs,
 	case TEE_MAIN_ALGO_RSA:
 		res = load_rsa_key(subkey, &key->pub_key.rsa);
 		break;
+	case TEE_MAIN_ALGO_ECDSA:
+		res = load_ecc_key(subkey, &key->pub_key.ecc);
+		break;
 	default:
 		res = TEE_ERROR_SECURITY;
 		break;
@@ -403,6 +525,10 @@ void shdr_free_pub_key(struct shdr_pub_key *key)
 		case TEE_MAIN_ALGO_RSA:
 			crypto_acipher_free_rsa_public_key(key->pub_key.rsa);
 			free(key->pub_key.rsa);
+			break;
+		case TEE_MAIN_ALGO_ECDSA:
+			crypto_acipher_free_ecc_public_key(key->pub_key.ecc);
+			free(key->pub_key.ecc);
 			break;
 		default:
 			panic();
@@ -446,6 +572,13 @@ TEE_Result shdr_verify_signature2(struct shdr_pub_key *key,
 			       SHDR_GET_SIG(shdr), shdr->sig_size);
 		break;
 	}
+	case TEE_MAIN_ALGO_ECDSA:
+		FTMN_CALL_FUNC(res, &ftmn, FTMN_INCR0,
+			       crypto_acipher_ecc_verify, shdr->algo,
+			       key->pub_key.ecc, SHDR_GET_HASH(shdr),
+			       shdr->hash_size, SHDR_GET_SIG(shdr),
+			       shdr->sig_size);
+		break;
 	default:
 		panic();
 	}
