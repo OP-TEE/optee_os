@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <util.h>
+#include "rpmh_common.h"
 
 enum hal_status {
 	HAL_STATUS_SUCCESS = 0,
