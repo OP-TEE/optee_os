@@ -70,9 +70,10 @@ static bool is_weak_key_size(uint32_t algo, size_t key_size_bits)
 
 TEE_Result shdr_verify_signature(const struct shdr *shdr)
 {
+	size_t modulus_size = ta_pub_key.rsa.modulus_size;
 	struct rsa_public_key key = { };
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t e = TEE_U32_TO_BIG_ENDIAN(ta_pub_key_exponent);
+	uint32_t e = TEE_U32_TO_BIG_ENDIAN(ta_pub_key.rsa.exponent);
 	struct ftmn ftmn = { };
 	unsigned int err_incr = 2;
 	size_t hash_size = 0;
@@ -88,7 +89,7 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 	if (is_weak_hash_algo(hash_algo))
 		goto err;
 
-	if (is_weak_key_size(shdr->algo, ta_pub_key_modulus_size * 8))
+	if (is_weak_key_size(shdr->algo, modulus_size * 8))
 		goto err;
 
 	res = tee_alg_get_digest_size(hash_algo, &hash_size);
@@ -97,16 +98,14 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 	if (hash_size != shdr->hash_size)
 		goto err;
 
-	res = crypto_acipher_alloc_rsa_public_key(&key,
-						  ta_pub_key_modulus_size * 8);
+	res = crypto_acipher_alloc_rsa_public_key(&key, modulus_size * 8);
 	if (res)
 		goto err;
 
 	res = crypto_bignum_bin2bn((uint8_t *)&e, sizeof(e), key.e);
 	if (res)
 		goto err;
-	res = crypto_bignum_bin2bn(ta_pub_key_modulus, ta_pub_key_modulus_size,
-				   key.n);
+	res = crypto_bignum_bin2bn(ta_pub_key.bin, modulus_size, key.n);
 	if (res)
 		goto err;
 
