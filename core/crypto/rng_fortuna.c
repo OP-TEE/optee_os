@@ -208,11 +208,11 @@ static size_t pop_ring_buffer(uint8_t *snum, uint8_t *pnum,
 
 	next_end = (ring_buffer.end + 1) % ARRAY_SIZE(ring_buffer.elem);
 
-	*snum = ring_buffer.elem[ring_buffer.end].snum;
-	*pnum = ring_buffer.elem[ring_buffer.end].pnum;
-	dlen = MIN(ring_buffer.elem[ring_buffer.end].dlen, RING_BUF_DATA_SIZE);
-	assert(ring_buffer.elem[ring_buffer.end].dlen == dlen);
-	memcpy(data, ring_buffer.elem[ring_buffer.end].data, dlen);
+	*snum = ring_buffer.elem[next_end].snum;
+	*pnum = ring_buffer.elem[next_end].pnum;
+	dlen = MIN(ring_buffer.elem[next_end].dlen, RING_BUF_DATA_SIZE);
+	assert(ring_buffer.elem[next_end].dlen == dlen);
+	memcpy(data, ring_buffer.elem[next_end].data, dlen);
 
 	atomic_store_uint(&ring_buffer.end, next_end);
 
