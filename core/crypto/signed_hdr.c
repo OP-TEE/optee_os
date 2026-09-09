@@ -68,6 +68,51 @@ static bool is_weak_key_size(uint32_t algo, size_t key_size_bits)
 	return false;
 }
 
+TEE_Result shdr_get_hash_algo(const struct shdr *shdr, uint32_t *hash_algo)
+{
+	uint32_t ha = 0;
+
+	switch (TEE_ALG_GET_MAIN_ALG(shdr->algo)) {
+	case TEE_MAIN_ALGO_RSA:
+		ha = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
+		break;
+	case TEE_MAIN_ALGO_ECDSA:
+		/*
+		 * The digest is not encoded in the same way in the ECDSA
+		 * algorithm identifiers as it is for instance for RSA, so
+		 * TEE_DIGEST_HASH_TO_ALGO() can't be used here.
+		 */
+		switch (shdr->algo) {
+		case TEE_ALG_ECDSA_SHA1:
+			ha = TEE_ALG_SHA1;
+			break;
+		case TEE_ALG_ECDSA_SHA224:
+			ha = TEE_ALG_SHA224;
+			break;
+		case TEE_ALG_ECDSA_SHA256:
+			ha = TEE_ALG_SHA256;
+			break;
+		case TEE_ALG_ECDSA_SHA384:
+			ha = TEE_ALG_SHA384;
+			break;
+		case TEE_ALG_ECDSA_SHA512:
+			ha = TEE_ALG_SHA512;
+			break;
+		default:
+			return TEE_ERROR_SECURITY;
+		}
+		break;
+	default:
+		return TEE_ERROR_SECURITY;
+	}
+
+	if (is_weak_hash_algo(ha))
+		return TEE_ERROR_SECURITY;
+
+	*hash_algo = ha;
+	return TEE_SUCCESS;
+}
+
 TEE_Result shdr_verify_signature(const struct shdr *shdr)
 {
 	size_t modulus_size = ta_pub_key.rsa.modulus_size;
@@ -76,8 +121,8 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 	uint32_t e = TEE_U32_TO_BIG_ENDIAN(ta_pub_key.rsa.exponent);
 	struct ftmn ftmn = { };
 	unsigned int err_incr = 2;
+	uint32_t hash_algo = 0;
 	size_t hash_size = 0;
-	size_t hash_algo = 0;
 
 	if (shdr->magic != SHDR_MAGIC)
 		goto err;
@@ -85,8 +130,8 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 	if (TEE_ALG_GET_MAIN_ALG(shdr->algo) != TEE_MAIN_ALGO_RSA)
 		goto err;
 
-	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
-	if (is_weak_hash_algo(hash_algo))
+	res = shdr_get_hash_algo(shdr, &hash_algo);
+	if (res)
 		goto err;
 
 	if (is_weak_key_size(shdr->algo, modulus_size * 8))
@@ -268,6 +313,7 @@ TEE_Result shdr_load_pub_key(const struct shdr *shdr, size_t offs,
 {
 	struct shdr_subkey *subkey = NULL;
 	TEE_Result res = TEE_SUCCESS;
+	uint32_t hash_algo = 0;
 	void *digest = NULL;
 	uint8_t *img = NULL;
 	void *ctx = NULL;
@@ -289,7 +335,8 @@ TEE_Result shdr_load_pub_key(const struct shdr *shdr, size_t offs,
 	subkey = (void *)(img + shdr->hash_size);
 	digest = img;
 
-	if (crypto_hash_alloc_ctx(&ctx, TEE_DIGEST_HASH_TO_ALGO(shdr->algo))) {
+	if (shdr_get_hash_algo(shdr, &hash_algo) ||
+	    crypto_hash_alloc_ctx(&ctx, hash_algo)) {
 		res = TEE_ERROR_SECURITY;
 		goto out_mempool;
 	}
@@ -368,8 +415,8 @@ TEE_Result shdr_verify_signature2(struct shdr_pub_key *key,
 	TEE_Result res = TEE_SUCCESS;
 	unsigned int err_incr = 2;
 	struct ftmn ftmn = { };
+	uint32_t hash_algo = 0;
 	size_t hash_size = 0;
-	size_t hash_algo = 0;
 
 	if (shdr->magic != SHDR_MAGIC)
 		goto err;
@@ -377,8 +424,7 @@ TEE_Result shdr_verify_signature2(struct shdr_pub_key *key,
 	if (TEE_ALG_GET_MAIN_ALG(shdr->algo) != key->main_algo)
 		goto err;
 
-	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
-	if (is_weak_hash_algo(hash_algo))
+	if (shdr_get_hash_algo(shdr, &hash_algo))
 		goto err;
 
 	if (tee_alg_get_digest_size(hash_algo, &hash_size) ||
