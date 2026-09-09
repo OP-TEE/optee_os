@@ -43,6 +43,7 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 	TEE_Result res;
 	struct tee_tadb_ta_write *ta;
 	void *hash_ctx = NULL;
+	uint32_t hash_algo = 0;
 	size_t offs;
 	const size_t buf_size = 1024;
 	void *buf;
@@ -66,8 +67,10 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 	 * Initialize a hash context and run the algorithm over the signed
 	 * header (less the final file hash and its signature of course)
 	 */
-	res = crypto_hash_alloc_ctx(&hash_ctx,
-				    TEE_DIGEST_HASH_TO_ALGO(shdr->algo));
+	res = shdr_get_hash_algo(shdr->algo, &hash_algo);
+	if (res)
+		goto err;
+	res = crypto_hash_alloc_ctx(&hash_ctx, hash_algo);
 	if (res)
 		goto err;
 	res = crypto_hash_init(hash_ctx);

@@ -207,6 +207,15 @@ struct shdr_pub_key {
 	} pub_key;
 };
 
+/*
+ * Returns the hash algorithm used together with the signature algorithm
+ * @algo in *@hash_algo.
+ *
+ * Returns TEE_SUCCESS on success or TEE_ERROR_SECURITY if @algo isn't
+ * supported or if it uses a hash algorithm which is too weak.
+ */
+TEE_Result shdr_get_hash_algo(uint32_t algo, uint32_t *hash_algo);
+
 TEE_Result shdr_load_pub_key(const struct shdr *shdr, size_t offs,
 			     const uint8_t *ns_img, size_t ns_img_size,
 			     const uint8_t next_uuid[sizeof(TEE_UUID)],
