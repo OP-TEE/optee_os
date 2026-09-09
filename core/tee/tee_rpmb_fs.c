@@ -2936,8 +2936,13 @@ static TEE_Result rpmb_fs_truncate(struct tee_file_handle *tfh, size_t length)
 			goto out;
 
 		mm = tee_mm_alloc(&p, newsize);
+		if (!mm) {
+			res = TEE_ERROR_STORAGE_NO_SPACE;
+			goto out;
+		}
+
 		newbuf = calloc(1, newsize);
-		if (!mm || !newbuf) {
+		if (!newbuf) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
 		}
