@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  */
 
 #include <assert.h>
@@ -19,6 +19,7 @@
 #include <mm/phys_mem.h>
 #include <platform_config.h>
 #include <riscv.h>
+#include <sbi.h>
 #include <stdalign.h>
 #include <stdlib.h>
 #include <string.h>
@@ -571,9 +572,79 @@ static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 	}
 }
 
+/*
+ * tlbi_remote() - Invalidate TLB entries on the other harts
+ * @va:		Start of the virtual address range, 0 with @len == 0 for all
+ * @len:	Length of the range, 0 with @va == 0 for the whole address space
+ * @asid:	ASID to target when @with_asid is true
+ * @with_asid:	Restrict the invalidation to @asid
+ *
+ * SFENCE.VMA only orders the calling hart. The remaining harts of the
+ * OP-TEE domain are reached through the SBI RFENCE extension, which has
+ * the M-mode firmware execute the fence on each of them and wait for
+ * completion. SBI_HART_MASK_BASE_ALL targets every hart available to the
+ * supervisor, which for a domain-isolated OP-TEE is exactly the hart set
+ * of its domain.
+ *
+ * The remote fence is executed in M-mode, so it is safe to call this
+ * with S-mode interrupts masked, for instance while holding a spinlock.
+ *
+ * Without SBI (CFG_RISCV_M_MODE=y) there is no remote fence: a
+ * multi-hart M-mode configuration keeps hart-local invalidation.
+ */
+static void tlbi_remote(vaddr_t va __maybe_unused, size_t len __maybe_unused,
+			unsigned long asid __maybe_unused,
+			bool with_asid __maybe_unused)
+{
+#ifdef CFG_RISCV_SBI
+	int rc = SBI_SUCCESS;
+
+	if (CFG_TEE_CORE_NB_CORE == 1)
+		return;
+
+	if (with_asid)
+		rc = sbi_remote_sfence_vma_asid(0, SBI_HART_MASK_BASE_ALL, va,
+						len, asid);
+	else
+		rc = sbi_remote_sfence_vma(0, SBI_HART_MASK_BASE_ALL, va, len);
+
+	if (rc) {
+		EMSG("SBI remote SFENCE.VMA failed: %d", rc);
+		panic();
+	}
+#endif
+}
+
+void tlbi_all(void)
+{
+	tlbi_all_local();
+	tlbi_remote(0, 0, 0, false);
+}
+
+void tlbi_va_allasid(vaddr_t va)
+{
+	tlbi_va_allasid_local(va);
+	tlbi_remote(va, SMALL_PAGE_SIZE, 0, false);
+}
+
+void tlbi_asid(unsigned long asid)
+{
+	tlbi_asid_local(asid);
+	tlbi_remote(0, 0, asid, true);
+}
+
+void tlbi_va_asid(vaddr_t va, uint32_t asid)
+{
+	tlbi_va_asid_local(va, asid);
+	tlbi_remote(va, SMALL_PAGE_SIZE, asid, true);
+}
+
 void tlbi_va_range(vaddr_t va, size_t len,
 		   size_t granule)
 {
+	vaddr_t v = va;
+	size_t l = len;
+
 	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
 	assert(!(va & (granule - 1)) && !(len & (granule - 1)));
 
@@ -582,11 +653,13 @@ void tlbi_va_range(vaddr_t va, size_t len,
 	 * with TLB invalidation.
 	 */
 	mb();
-	while (len) {
-		tlbi_va_allasid(va);
-		len -= granule;
-		va += granule;
+	while (l) {
+		tlbi_va_allasid_local(v);
+		l -= granule;
+		v += granule;
 	}
+	/* One remote fence covers the whole range */
+	tlbi_remote(va, len, 0, false);
 	/*
 	 * After invalidating TLB entries, a memory barrier is required
 	 * to ensure that the page table entries become visible to other harts
@@ -598,6 +671,9 @@ void tlbi_va_range(vaddr_t va, size_t len,
 void tlbi_va_range_asid(vaddr_t va, size_t len,
 			size_t granule, uint32_t asid)
 {
+	vaddr_t v = va;
+	size_t l = len;
+
 	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
 	assert(!(va & (granule - 1)) && !(len & (granule - 1)));
 
@@ -606,11 +682,13 @@ void tlbi_va_range_asid(vaddr_t va, size_t len,
 	 * and correctness of memory accesses.
 	 */
 	mb();
-	while (len) {
-		tlbi_va_asid(va, asid);
-		len -= granule;
-		va += granule;
+	while (l) {
+		tlbi_va_asid_local(v, asid);
+		l -= granule;
+		v += granule;
 	}
+	/* One remote fence covers the whole range */
+	tlbi_remote(va, len, asid, true);
 	/* Enforce ordering of memory operations and ensure that all
 	 * preceding memory operations are completed after TLB
 	 * invalidation.
@@ -967,7 +1045,8 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 		core_mmu_table_write_barrier();
 	}
 
-	tlbi_all();
+	/* The user mapping is per hart, no need to reach the other harts */
+	tlbi_all_local();
 	thread_unmask_exceptions(exceptions);
 }
 
