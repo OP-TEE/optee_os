@@ -696,6 +696,33 @@ void tlbi_va_range_asid(vaddr_t va, size_t len,
 	mb();
 }
 
+/*
+ * icache_inv_remote() - Execute FENCE.I on the other harts
+ *
+ * FENCE.I only synchronizes instruction fetches of the calling hart with
+ * its own prior stores. Code written by this hart (TA loading, W^X
+ * transitions) may run on any hart of the domain, so reach the others
+ * through the SBI RFENCE extension. See tlbi_remote() for the hart mask
+ * and M-mode considerations.
+ */
+static void icache_inv_remote(void)
+{
+#ifdef CFG_RISCV_SBI
+	int rc = SBI_SUCCESS;
+
+	if (CFG_TEE_CORE_NB_CORE == 1)
+		return;
+
+	/* Make the instruction memory stores visible to the other harts */
+	mb();
+	rc = sbi_remote_fence_i(0, SBI_HART_MASK_BASE_ALL);
+	if (rc) {
+		EMSG("SBI remote FENCE.I failed: %d", rc);
+		panic();
+	}
+#endif
+}
+
 TEE_Result cache_op_inner(enum cache_op op, void *va, size_t len)
 {
 	switch (op) {
@@ -713,9 +740,11 @@ TEE_Result cache_op_inner(enum cache_op op, void *va, size_t len)
 		break;
 	case ICACHE_INVALIDATE:
 		icache_inv_all();
+		icache_inv_remote();
 		break;
 	case ICACHE_AREA_INVALIDATE:
 		icache_inv_range(va, len);
+		icache_inv_remote();
 		break;
 	case DCACHE_CLEAN_INV:
 		dcache_op_all(DCACHE_OP_CLEAN_INV);
