@@ -511,10 +511,6 @@ jobs:
         include:
           - name: BTI+MTE+PAC
             make_commands: |
-              # The BTI-enabled toolchain is aarch64-unknown-linux-uclibc-gcc in /usr/local/bin
-              export PATH=/usr/local/bin:$PATH
-              export AARCH64_CROSS_COMPILE=aarch64-unknown-linux-uclibc-
-
               # xtest 1031 is excluded because 1031.4 (C++ exception from shared library) fails with this cross-compiler
               # Rust is disabled because of a link error in the examples with this toolchain
               make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y SEL0_SPS=y MEMTAG=y PAUTH=y RUST_ENABLE=n XTEST_ARGS="-x n_1031" check
