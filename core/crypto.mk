@@ -138,6 +138,23 @@ CFG_AES_GCM_TABLE_BASED ?= y
 
 endif #!CFG_CRYPTO_WITH_CE
 
+# RISC-V AES acceleration with the Zvkned vector crypto extension, and its
+# CTR mode with Zvkb on top. This sits outside the CFG_CRYPTO_WITH_CE region
+# above, which is the Arm Cryptographic Extensions and is never on for
+# RISC-V, but it feeds the same generic CFG_CORE_CRYPTO_AES_ACCEL that the
+# LibTomCrypt glue keys off.
+#
+# The ISA side of the selection lives in core/arch/riscv/riscv.mk.
+CFG_CRYPTO_AES_RISCV_ZVKNED ?= n
+ifeq ($(CFG_CRYPTO_AES_RISCV_ZVKNED),y)
+$(call force,CFG_CORE_CRYPTO_AES_ACCEL,y,required by \
+	CFG_CRYPTO_AES_RISCV_ZVKNED)
+$(call force,CFG_CRYPTO_AES,y,required by CFG_CRYPTO_AES_RISCV_ZVKNED)
+$(call force,CFG_CRYPTO_ECB,y,required by CFG_CRYPTO_AES_RISCV_ZVKNED)
+$(call force,CFG_CRYPTO_CBC,y,required by CFG_CRYPTO_AES_RISCV_ZVKNED)
+$(call force,CFG_CRYPTO_CTR,y,required by CFG_CRYPTO_AES_RISCV_ZVKNED)
+endif
+
 
 # Cryptographic extensions can only be used safely when OP-TEE knows how to
 # preserve the VFP context

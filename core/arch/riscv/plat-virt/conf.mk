@@ -4,6 +4,10 @@ $(call force,CFG_RV64_core,y)
 $(call force,CFG_RISCV_ISA_C,y)
 $(call force,CFG_RISCV_FPU,y)
 
+# QEMU virt provides the vector crypto extensions
+CFG_CRYPTO_AES_RISCV_ZVKNED ?= n
+CFG_RISCV_VEC ?= y
+
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_RESERVED_SHM,n)
 $(call force,CFG_CORE_DYN_SHM,y)
