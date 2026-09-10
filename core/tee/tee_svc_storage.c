@@ -217,7 +217,9 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 	res = tee_svc_storage_read_head(o);
 	tee_pobj_unlock_usage(o->pobj);
 	if (res != TEE_SUCCESS) {
-		if (res == TEE_ERROR_CORRUPT_OBJECT) {
+		if (res == TEE_ERROR_CORRUPT_OBJECT ||
+		    res == TEE_ERROR_NO_DATA ||
+		    res == TEE_ERROR_BAD_FORMAT) {
 			EMSG("Object corrupt");
 			goto err;
 		}
