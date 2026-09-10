@@ -15,6 +15,10 @@ $(call force,CFG_WITH_SOFTWARE_PRNG,n)
 $(call force,CFG_HWRNG_PTA,y)
 $(call force,CFG_HWRNG_QUALITY,1024)
 $(call force,CFG_RISCV_ZKR_RNG,y)
+# AES accel flags
+$(call force,CFG_CRYPTO_RISCV_WITH_ZVKNED,y)
+$(call force,CFG_CRYPTO_RISCV_WITH_ZVKNED_ZVKB,y)
+$(call force,CFG_CRYPTO_XTS,n)
 
 # Protection flags
 $(call force,CFG_CORE_SANITIZE_KADDRESS,n)
