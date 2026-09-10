@@ -3,6 +3,7 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
+#include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/tee_time.h>
 #include <string.h>
@@ -17,54 +18,69 @@ struct tee_ta_time_offs {
 
 static struct tee_ta_time_offs *tee_time_offs;
 static size_t tee_time_num_offs;
+static struct mutex tee_time_offs_lock = MUTEX_INITIALIZER;
 
 static TEE_Result tee_time_ta_get_offs(const TEE_UUID *uuid,
-				       const TEE_Time **offs, bool *positive)
+				       TEE_Time *offs, bool *positive)
 {
-	size_t n;
+	TEE_Result res = TEE_ERROR_TIME_NOT_SET;
+	size_t n = 0;
 
+	mutex_read_lock(&tee_time_offs_lock);
 	for (n = 0; n < tee_time_num_offs; n++) {
 		if (memcmp(uuid, &tee_time_offs[n].uuid, sizeof(TEE_UUID))
 				== 0) {
-			*offs = &tee_time_offs[n].offs;
+			/* Copy values instead of returning a table pointer. */
+			*offs = tee_time_offs[n].offs;
 			*positive = tee_time_offs[n].positive;
-			return TEE_SUCCESS;
+			res = TEE_SUCCESS;
+			break;
 		}
 	}
-	return TEE_ERROR_TIME_NOT_SET;
+	mutex_read_unlock(&tee_time_offs_lock);
+
+	return res;
 }
 
 static TEE_Result tee_time_ta_set_offs(const TEE_UUID *uuid,
 				       const TEE_Time *offs, bool positive)
 {
-	size_t n;
-	struct tee_ta_time_offs *o;
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_ta_time_offs *o = NULL;
+	size_t n = 0;
 
+	mutex_lock(&tee_time_offs_lock);
 	for (n = 0; n < tee_time_num_offs; n++) {
 		if (memcmp(uuid, &tee_time_offs[n].uuid, sizeof(TEE_UUID))
 				== 0) {
 			tee_time_offs[n].offs = *offs;
 			tee_time_offs[n].positive = positive;
-			return TEE_SUCCESS;
+			goto out;
 		}
 	}
 
 	n = tee_time_num_offs + 1;
 	o = realloc(tee_time_offs, n * sizeof(struct tee_ta_time_offs));
-	if (!o)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (!o) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
 	tee_time_offs = o;
 	tee_time_offs[tee_time_num_offs].uuid = *uuid;
 	tee_time_offs[tee_time_num_offs].offs = *offs;
 	tee_time_offs[tee_time_num_offs].positive = positive;
 	tee_time_num_offs = n;
-	return TEE_SUCCESS;
+
+out:
+	mutex_unlock(&tee_time_offs_lock);
+	return res;
 }
 
 TEE_Result tee_time_get_ta_time(const TEE_UUID *uuid, TEE_Time *time)
 {
 	TEE_Result res;
-	const TEE_Time *offs;
+	TEE_Time offs;
 	bool positive;
 	TEE_Time t;
 	TEE_Time t2;
@@ -78,13 +94,13 @@ TEE_Result tee_time_get_ta_time(const TEE_UUID *uuid, TEE_Time *time)
 		return res;
 
 	if (positive) {
-		TEE_TIME_ADD(t, *offs, t2);
+		TEE_TIME_ADD(t, offs, t2);
 
 		/* Detect wrapping, the wrapped time should be returned. */
 		if (TEE_TIME_LT(t2, t))
 			res = TEE_ERROR_OVERFLOW;
 	} else {
-		TEE_TIME_SUB(t, *offs, t2);
+		TEE_TIME_SUB(t, offs, t2);
 
 		/* Detect wrapping, the wrapped time should be returned. */
 		if (TEE_TIME_LE(t, t2))
