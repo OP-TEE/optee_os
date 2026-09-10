@@ -85,6 +85,11 @@ void boot_start_secondary_cores(void)
 	/* The primary CPU is always indexed by 0 */
 	assert(get_core_pos() == 0);
 
+	if (CFG_TEE_CORE_NB_CORE > 1 && !sbi_ext_available(SBI_EXT_HSM)) {
+		EMSG("SBI HSM extension required to start secondary harts");
+		panic();
+	}
+
 	for (i = 0; i < CFG_TEE_CORE_NB_CORE; i++) {
 		hartid = hartids[i];
 

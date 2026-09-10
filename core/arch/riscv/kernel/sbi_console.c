@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2022 NXP
+ * Copyright 2022,2026 NXP
  */
 
 #include <assert.h>
@@ -33,7 +33,7 @@ static void sbi_console_putc(struct serial_chip *chip __unused, int ch)
 
 static void sbi_console_init(struct sbi_console_data *pd)
 {
-	if (sbi_probe_extension(SBI_EXT_DBCN))
+	if (sbi_ext_available(SBI_EXT_DBCN))
 		sbi_console_ops.putc = sbi_console_putc;
 	else
 		sbi_console_ops.putc = sbi_console_putc_legacy;
