@@ -179,7 +179,6 @@ TEE_Result tee_pobj_rename(struct tee_pobj *obj, void *obj_id,
 			   uint32_t obj_id_len)
 {
 	TEE_Result res = TEE_SUCCESS;
-	void *new_obj_id = NULL;
 
 	if (obj == NULL || obj_id == NULL)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -190,21 +189,12 @@ TEE_Result tee_pobj_rename(struct tee_pobj *obj, void *obj_id,
 		goto exit;
 	}
 
-	new_obj_id = malloc(obj_id_len);
-	if (new_obj_id == NULL) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto exit;
-	}
-	memcpy(new_obj_id, obj_id, obj_id_len);
-
 	/* update internal data */
 	free(obj->obj_id);
-	obj->obj_id = new_obj_id;
+	obj->obj_id = obj_id;
 	obj->obj_id_len = obj_id_len;
-	new_obj_id = NULL;
 
 exit:
 	mutex_unlock(&pobjs_mutex);
-	free(new_obj_id);
 	return res;
 }

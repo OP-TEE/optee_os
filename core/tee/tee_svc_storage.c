@@ -483,6 +483,7 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 	struct tee_obj *o = NULL;
 	char *new_file = NULL;
 	char *old_file = NULL;
+	void *new_obj_id = NULL;
 	void *oid_bbuf = NULL;
 
 	if (object_id_len > TEE_OBJECT_ID_MAX_LEN)
@@ -520,16 +521,27 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
+	/* Allocate everything needed before committing the backend rename */
+	new_obj_id = malloc(po->obj_id_len);
+	if (!new_obj_id) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto exit;
+	}
+	memcpy(new_obj_id, po->obj_id, po->obj_id_len);
+
 	/* move */
 	res = fops->rename(o->pobj, po, false /* no overwrite */);
 	if (res)
 		goto exit;
 
-	res = tee_pobj_rename(o->pobj, po->obj_id, po->obj_id_len);
+	res = tee_pobj_rename(o->pobj, new_obj_id, po->obj_id_len);
+	if (!res)
+		new_obj_id = NULL;
 
 exit:
 	tee_pobj_release(po);
 
+	free(new_obj_id);
 	free(new_file);
 	free(old_file);
 
