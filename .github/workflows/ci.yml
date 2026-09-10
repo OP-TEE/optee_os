@@ -10,7 +10,7 @@ jobs:
   code_style:
     name: Code style
     runs-on: ubuntu-latest
-    container: jforissier/optee_os_ci
+    container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'OP-TEE' }}/optee_os/ci-image
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -60,7 +60,7 @@ jobs:
   builds:
     name: Build (${{ matrix.name }})
     runs-on: ubuntu-latest
-    container: jforissier/optee_os_ci
+    container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'OP-TEE' }}/optee_os/ci-image
     strategy:
       fail-fast: false
       matrix:
@@ -399,7 +399,7 @@ jobs:
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
-          FROM jforissier/optee_os_ci:qemu_check
+          FROM ghcr.io/${{ vars.CI_IMAGE_OWNER || 'OP-TEE' }}/optee_os/ci-image
           RUN /root/get_optee.sh default /root/optee_repo_qemu
           EOF
       - name: Build Docker image
@@ -488,7 +488,7 @@ jobs:
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
-          FROM jforissier/optee_os_ci:qemu_check
+          FROM ghcr.io/${{ vars.CI_IMAGE_OWNER || 'OP-TEE' }}/optee_os/ci-image
           RUN /root/get_optee.sh qemu_v8 /root/optee_repo_qemu_v8
           EOF
       - name: Build Docker image
@@ -629,7 +629,7 @@ jobs:
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
-          FROM jforissier/optee_os_ci:qemu_check_arm64
+          FROM ghcr.io/${{ vars.CI_IMAGE_OWNER || 'OP-TEE' }}/optee_os/ci-image
           RUN /root/get_optee.sh qemu_v8 /root/optee_repo_qemu_v8
           EOF
       - name: Build Docker image
