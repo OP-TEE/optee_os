@@ -190,6 +190,7 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 				     &utc->ta_ctx.panic_code);
 
 	thread_user_clear_vfp(&utc->uctx);
+	thread_user_clear_vector(&utc->uctx);
 
 	if (utc->ta_ctx.panicked) {
 		abort_print_current_ts();

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright 2022-2023 NXP
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #ifndef __RISCV_H
@@ -74,6 +75,19 @@
 #define CSR_XSTATUS_SPP		BIT(8)
 #define CSR_XSTATUS_SUM		BIT(18)
 #define CSR_XSTATUS_MXR		BIT(19)
+
+/*
+ * xstatus.VS holds the state of the vector unit. The field is two bits wide
+ * and always resides in the low 32 bits of xstatus, on RV32 as well as on
+ * RV64.
+ */
+#define CSR_XSTATUS_VS_SHIFT	9
+#define CSR_XSTATUS_VS_MASK	SHIFT_U32(3, CSR_XSTATUS_VS_SHIFT)
+
+#define CSR_XSTATUS_VS_OFF	0
+#define CSR_XSTATUS_VS_INITIAL	1
+#define CSR_XSTATUS_VS_CLEAN	2
+#define CSR_XSTATUS_VS_DIRTY	3
 
 #define CSR_XCAUSE_INTR_FLAG	BIT64(__riscv_xlen - 1)
 

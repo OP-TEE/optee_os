@@ -13,6 +13,7 @@
 
 #include <platform_config.h>
 #include <riscv.h>
+#include <riscv_vector.h>
 
 /*
  * Each RISC-V platform must define their own values.
@@ -166,6 +167,29 @@ struct thread_ctx_regs {
 };
 
 struct user_mode_ctx;
+
+#ifdef CFG_RISCV_WITH_VECTOR
+struct thread_user_vector_state {
+	/* Allocated the first time the TA asks for the vector unit */
+	struct riscv_vector_state *state;
+	/* True when @state holds a saved copy of the TA's vector registers */
+	bool valid;
+};
+
+/* Returns false if a context could not be allocated for the TA */
+bool thread_user_enable_vector(struct thread_user_vector_state *uvect);
+void thread_user_save_vector(void);
+void thread_user_clear_vector(struct user_mode_ctx *uctx);
+#else /*CFG_RISCV_WITH_VECTOR*/
+static inline void thread_user_save_vector(void)
+{
+}
+
+static inline void thread_user_clear_vector(struct user_mode_ctx *uctx
+					    __unused)
+{
+}
+#endif /*CFG_RISCV_WITH_VECTOR*/
 
 #ifdef CFG_WITH_VFP
 uint32_t thread_kernel_enable_vfp(void);
