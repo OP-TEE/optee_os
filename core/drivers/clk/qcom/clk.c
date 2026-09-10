@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2025, Linaro Ltd
- * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <drivers/clk.h>
 #include <drivers/clk_qcom.h>
 #include <io.h>
 #include <mm/core_mmu.h>
+#include <trace.h>
 
 register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
 
@@ -50,22 +51,12 @@ register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
 /* PLL_USER_CTL_U fields */
 #define PLL_USER_CTL_U_FINE_LOCK_DET	BIT(0)
 
-static inline bool cbcr_branch_on(uint32_t val)
-{
-	return !(val & CBCR_BRANCH_OFF_BIT);
-}
-
 TEE_Result qcom_clock_enable_cbc(vaddr_t cbcr)
 {
 	int ret = 0;
 
 	io_setbits32(cbcr, CBCR_BRANCH_ENABLE_BIT);
 
-	/*
-	 * In hardware clock-control mode (HW_CTL set) CLK_OFF is driven by HW,
-	 * not the software CLK_ENABLE write, so skip the poll to avoid
-	 * spinning.
-	 */
 	if (io_read32(cbcr) & CBCR_HW_CTL_ENABLE_BIT)
 		return TEE_SUCCESS;
 
@@ -88,18 +79,15 @@ TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
 	uint32_t user_val = 0;
 	int ret = 0;
 
-	/* Reg settings: program the static PLL trim/config registers. */
 	io_write32(pll_base + PLL_CONFIG_CTL, cfg->config_ctl);
 	io_write32(pll_base + PLL_CONFIG_CTL_U, cfg->config_ctl_u);
 	io_write32(pll_base + PLL_CONFIG_CTL_U1, cfg->config_ctl_u1);
 	io_write32(pll_base + PLL_USER_CTL, cfg->user_ctl);
 	io_write32(pll_base + PLL_USER_CTL_U, cfg->user_ctl_u);
 
-	/* ConfigPLL: program L value and fractional value. */
 	io_mask32(pll_base + PLL_L_VAL, cfg->l_val, PLL_L_VAL_L_MASK);
 	io_write32(pll_base + PLL_ALPHA_VAL, cfg->alpha_val);
 
-	/* Select fractional format and program the pre-/post-div ratios. */
 	user_val = io_read32(pll_base + PLL_USER_CTL);
 	if (cfg->frac_mode_mn)
 		user_val |= PLL_USER_CTL_FRAC_FORMAT_SEL;
@@ -115,24 +103,19 @@ TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
 			    PLL_USER_CTL_PRE_DIV_MASK;
 	io_write32(pll_base + PLL_USER_CTL, user_val);
 
-	/* Always use fine-grained lock detection. */
 	io_setbits32(pll_base + PLL_USER_CTL_U, PLL_USER_CTL_U_FINE_LOCK_DET);
 
-	/* SetCalConfig: program the calibration L value. */
 	io_mask32(pll_base + PLL_L_VAL,
 		  SHIFT_U32(cfg->cal_l_val, PLL_L_VAL_CAL_L_SHIFT),
 		  PLL_L_VAL_CAL_L_MASK);
 
-	/* Enable: select RUN opmode and take the PLL out of reset. */
 	io_write32(pll_base + PLL_OPMODE, PLL_OPMODE_RUN);
 	io_setbits32(pll_base + PLL_MODE, PLL_MODE_RESET_N);
 
-	/* Wait for the PLL to lock. */
 	REG_POLL_TIMEOUT(pll_base + PLL_MODE, 10 * 1000, 10, &ret, pll_locked);
 	if (ret < 0)
 		return TEE_ERROR_TIMEOUT;
 
-	/* Enable PLL outputs and the main output. */
 	io_setbits32(pll_base + PLL_MODE, PLL_MODE_OUTCTRL);
 	io_setbits32(pll_base + PLL_USER_CTL, PLL_USER_CTL_PLLOUT_MAIN_EN);
 
@@ -165,7 +148,7 @@ TEE_Result qcom_clock_enable(enum qcom_clk_group group)
 	case QCOM_CLKS_GPDSP1:
 		return qcom_clock_enable_pas(group);
 	default:
-		EMSG("Unsupported clock group %d\n", group);
+		EMSG("Unsupported clock group %d", group);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 }

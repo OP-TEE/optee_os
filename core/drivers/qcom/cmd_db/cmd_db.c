@@ -247,12 +247,21 @@ static TEE_Result copy_aux_data(uint16_t slv_idx, struct entry_header *entry,
 				uint8_t *data)
 {
 	struct slv_id_info *slv_info = &query_db.data->slv_id_info[slv_idx];
-	uint32_t len = MIN(result->len, entry->len);
+	uint32_t len = entry->len;
 	size_t offset = 0;
 	size_t bounds = 0;
 
 	if (!data)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * Report the size the caller needs rather than copying a partial blob;
+	 * a truncated aux list is indistinguishable from a complete one.
+	 */
+	if (len > result->len) {
+		result->len = len;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
 
 	if (ADD_OVERFLOW(slv_info->data_offset, entry->offset, &offset) ||
 	    ADD_OVERFLOW(sizeof(struct db_header), offset, &bounds) ||
@@ -297,8 +306,10 @@ cmd_db_get_entry_by_res_id(const char *res_id,
 	result->priority[1] = entry.priority[1];
 	result->version = query_db.data->slv_id_info[slv_idx].version;
 
-	if (entry.len == 0)
+	if (entry.len == 0) {
+		result->len = 0;
 		return TEE_SUCCESS;
+	}
 
 	if (result->len == 0) {
 		result->len = entry.len;
@@ -367,6 +378,32 @@ TEE_Result cmd_db_get_addr(const char *res_id, uint32_t *addr)
 	res = cmd_db_get_entry_by_res_id(res_id, &result, NULL);
 	if (res == TEE_SUCCESS)
 		*addr = result.addr;
+
+	mutex_unlock(&query_db.lock);
+	return res;
+}
+
+TEE_Result cmd_db_get_aux(const char *res_id, uint8_t *buf, size_t *len)
+{
+	struct cmd_db_query_result_type result = { };
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!buf || !len || !*len || *len > UINT32_MAX ||
+	    !is_valid_res_id(res_id))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	result.len = *len;
+
+	mutex_lock(&query_db.lock);
+
+	if (!query_db.data) {
+		mutex_unlock(&query_db.lock);
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	res = cmd_db_get_entry_by_res_id(res_id, &result, buf);
+	if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER)
+		*len = result.len;
 
 	mutex_unlock(&query_db.lock);
 	return res;

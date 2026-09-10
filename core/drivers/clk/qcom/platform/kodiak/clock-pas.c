@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2025, Linaro Ltd
- * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <drivers/clk.h>
@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <trace.h>
 
-#include "clock_group_qcom.h"
+#include "clock_group.h"
 
 #define CBCR_BRANCH_ENABLE_BIT		BIT(0)
 #define CBCR_HW_CTL_ENABLE_BIT		BIT(1)

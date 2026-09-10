@@ -31,3 +31,12 @@ endif
 ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_FUSE_PTA)),)
 $(call force,CFG_QCOM_QFPROM,y)
 endif
+
+# QUPv3 serial-engine (bus) clock set-rate/DFS walker, consumed on-demand by a
+# future TEE-side SPI/I2C driver. Set-rate votes CX/MX via RPMh, so pull
+# cmd_db/RPMh client in whenever the walker is built.
+CFG_QCOM_CLK_CFG ?= y
+ifeq ($(CFG_QCOM_CLK_CFG),y)
+$(call force,CFG_QCOM_CMD_DB,y)
+$(call force,CFG_QCOM_RPMH_CLIENT,y)
+endif
