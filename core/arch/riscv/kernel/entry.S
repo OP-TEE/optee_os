@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2023 Andes Technology Corporation
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  */
 
 #include <asm.S>
@@ -215,6 +215,9 @@ UNWIND(	.cantunwind)
 	sw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
 #endif
 
+#ifdef CFG_RISCV_SBI
+	jal	sbi_init
+#endif
 	jal	plat_primary_init_early
 	jal	console_init
 
