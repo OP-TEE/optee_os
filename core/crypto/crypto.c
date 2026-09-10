@@ -9,6 +9,7 @@
 #include <compiler.h>
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
+#include <fault_mitigation.h>
 #include <kernel/panic.h>
 #include <stdlib.h>
 #include <utee_defines.h>
@@ -774,12 +775,19 @@ TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 				     const uint8_t *msg, size_t msg_len,
 				     const uint8_t *sig, size_t sig_len)
 {
+	TEE_Result res = TEE_ERROR_NOT_IMPLEMENTED;
+
 	assert(key->ops);
 
-	if (!key->ops->verify)
-		return TEE_ERROR_NOT_IMPLEMENTED;
+	if (key->ops->verify)
+		res = key->ops->verify(algo, key, msg, msg_len, sig, sig_len);
 
-	return key->ops->verify(algo, key, msg, msg_len, sig, sig_len);
+	/*
+	 * Record the result for a caller which has called this function as
+	 * a linked call. It's a no-op if it hasn't.
+	 */
+	FTMN_CALLEE_DONE(res);
+	return res;
 }
 
 TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,

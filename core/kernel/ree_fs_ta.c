@@ -262,6 +262,7 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	struct shdr *shdr = NULL;
 	struct mobj *mobj = NULL;
 	void *hash_ctx = NULL;
+	uint32_t hash_algo = 0;
 	struct shdr *ta = NULL;
 	size_t ta_size = 0;
 	TEE_Result res = TEE_SUCCESS;
@@ -384,8 +385,10 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	 * Initialize a hash context and run the algorithm over the signed
 	 * header (less the final file hash and its signature of course)
 	 */
-	res = crypto_hash_alloc_ctx(&hash_ctx,
-				    TEE_DIGEST_HASH_TO_ALGO(shdr->algo));
+	res = shdr_get_hash_algo(shdr->algo, &hash_algo);
+	if (res != TEE_SUCCESS)
+		goto error_free_payload;
+	res = crypto_hash_alloc_ctx(&hash_ctx, hash_algo);
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
 	res = crypto_hash_init(hash_ctx);
