@@ -573,6 +573,22 @@ static TEE_Result rpmb_probe_next(struct rpmb_dev_info *dev_info)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result rpmb_probe_select_cid(const struct tee_rpmb_ctx *ctx)
+{
+	struct rpmb_dev_info dev_info = { };
+	TEE_Result res = TEE_SUCCESS;
+
+	while (true) {
+		res = rpmb_probe_next(&dev_info);
+		if (res) {
+			EMSG("rpmb_probe_next error %#"PRIx32, res);
+			return res;
+		}
+		if (!memcmp(ctx->cid, dev_info.cid, RPMB_CID_SIZE))
+			return TEE_SUCCESS;
+	}
+}
+
 static bool is_zero(const uint8_t *buf, size_t size)
 {
 	size_t i;
@@ -1294,18 +1310,10 @@ static TEE_Result tee_rpmb_init(void)
 				return res;
 			return legacy_rpmb_init();
 		}
-		while (true) {
-			res = rpmb_probe_next(&dev_info);
-			if (res) {
-				DMSG("rpmb_probe_next error %#"PRIx32, res);
-				return res;
-			}
-			if (!memcmp(rpmb_ctx->cid, dev_info.cid,
-				    RPMB_CID_SIZE)) {
-				rpmb_ctx->reinit = false;
-				return TEE_SUCCESS;
-			}
-		}
+		res = rpmb_probe_select_cid(rpmb_ctx);
+		if (res == TEE_SUCCESS)
+			rpmb_ctx->reinit = false;
+		return res;
 	}
 
 	if (rpmb_ctx->key_verified)
@@ -1323,15 +1331,28 @@ next:
 	while (true) {
 		res = rpmb_probe_next(&dev_info);
 		if (res) {
-			if (have_cand) {
-				memcpy(rpmb_ctx, &cand, sizeof(*rpmb_ctx));
-
-				DMSG("RPMB INIT: Auth key not yet written");
-				res = tee_rpmb_write_and_verify_key();
-				if (res == TEE_SUCCESS)
-					goto done;
+			if (!have_cand) {
+				DMSG("rpmb_probe_next error %#"PRIx32, res);
+				return res;
 			}
-			DMSG("rpmb_probe_next error %#"PRIx32, res);
+
+			memcpy(rpmb_ctx, &cand, sizeof(*rpmb_ctx));
+
+			res = rpmb_probe_reset();
+			if (res)
+				return res;
+
+			res = rpmb_probe_select_cid(rpmb_ctx);
+			if (res) {
+				EMSG("Failed to reselect matched CID");
+				return res;
+			}
+
+			DMSG("RPMB INIT: Auth key not yet written");
+			res = tee_rpmb_write_and_verify_key();
+			if (res == TEE_SUCCESS)
+				goto done;
+
 			return res;
 		}
 
