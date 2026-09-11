@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2023, STMicroelectronics
+ * Copyright (c) 2023-2026, STMicroelectronics
  */
 
 #ifndef PLATFORM_CONFIG_H
@@ -88,7 +88,13 @@
 
 #define SYSRAM_BASE			0x0e000000
 
+#ifdef CFG_STM32MP21
+#define SRAM1_BASE			0x0e060000
+#define DBGMCU_BASE			0x440a0000
+#else
 #define SRAM1_BASE			0x0e040000
+#define DBGMCU_BASE			0x4a010000
+#endif
 
 /* GIC resources */
 #define GIC_SIZE			0x80000
