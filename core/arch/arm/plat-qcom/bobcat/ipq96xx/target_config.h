@@ -22,4 +22,12 @@
 #define QCOM_WDT_TMR_BASE		UL(0x0F411000)
 #define QCOM_WDT_BARK_INT_ID		UL(0x36)
 
+#if defined(CFG_QCOM_TMEL_KM)
+/* TCSR hardware key fuse registers for key management */
+#define CFG_TCSR_FUSE_PRI_HW_KEY_BASE_START	UL(0x193D404)
+#define CFG_TCSR_FUSE_PRI_HW_KEY_REG_COUNT	8
+#define CFG_TCSR_FUSE_SEC_HW_KEY_BASE_START	UL(0x193D424)
+#define CFG_TCSR_FUSE_SEC_HW_KEY_REG_COUNT	8
+#endif
+
 #endif /* TARGET_CONFIG_H */
