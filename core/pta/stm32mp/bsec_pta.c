@@ -14,7 +14,7 @@
 #include <string.h>
 #include <util.h>
 
-static_assert(IS_ENABLED(CFG_STM32_BSEC));
+static_assert(IS_ENABLED(CFG_STM32_BSEC) || IS_ENABLED(CFG_STM32_BSEC3));
 
 #define PTA_NAME "bsec.pta"
 
