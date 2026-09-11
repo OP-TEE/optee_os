@@ -47,7 +47,12 @@
 
 .macro cpu_is_ready
 #ifdef CFG_BOOT_SYNC_CPU
-	csrr	t0, CSR_XSCRATCH
+	lw	t0, THREAD_CORE_LOCAL_HART_INDEX(tp)
+#ifdef CFG_TEE_CORE_DEBUG
+	/* Sanity check for hart index */
+	li	t2, CFG_TEE_CORE_NB_CORE
+	bgeu	t0, t2, unhandled_cpu
+#endif
 	lla	t1, sem_cpu_sync
 	slli	t0, t0, 2
 	add	t1, t1, t0
