@@ -103,3 +103,6 @@ endif
 ifneq (,$(filter y, $(CFG_ZYNQMP_CSU_PUF) $(CFG_ZYNQMP_CSUDMA) $(CFG_ZYNQMP_CSU_AES)))
 $(call force,CFG_ZYNQMP_CSU,y,Mandated by CFG_ZYNQMP_CSU* clients)
 endif
+
+# Add the TA endorsement seed property (see core/tee/vendor_props.c).
+CFG_TEE_ENDORSEMENT_SEED ?= y
