@@ -404,9 +404,8 @@ UNWIND(	.cantunwind)
 	set_sp
 	set_tp
 #endif
-	cpu_is_ready
-
 	jal	boot_init_secondary
+	cpu_is_ready
 #ifdef CFG_RISCV_WITH_M_MODE_SM
 	/* Return to untrusted domain */
 	li	a0, TEEABI_OPTEED_RETURN_ON_DONE
