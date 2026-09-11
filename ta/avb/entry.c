@@ -299,7 +299,8 @@ out:
 }
 
 static TEE_Result read_persist_value(uint32_t pt,
-				      TEE_Param params[TEE_NUM_PARAMS])
+				     TEE_Param params[TEE_NUM_PARAMS],
+				     bool truncate)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 						TEE_PARAM_TYPE_MEMREF_INOUT,
@@ -309,6 +310,7 @@ static TEE_Result read_persist_value(uint32_t pt,
 			 TEE_DATA_FLAG_ACCESS_WRITE;
 	TEE_Result res = TEE_SUCCESS;
 	TEE_ObjectHandle h = TEE_HANDLE_NULL;
+	TEE_ObjectInfo info = { };
 	char name_full[TEE_OBJECT_ID_MAX_LEN];
 	uint32_t name_full_sz = 0;
 	uint32_t name_buf_sz = 0;
@@ -337,6 +339,27 @@ static TEE_Result read_persist_value(uint32_t pt,
 	if (res) {
 		EMSG("Can't open named object value, res = 0x%x", res);
 		goto out_free;
+	}
+
+	if (!truncate) {
+		/*
+		 * For TA_AVB_CMD_READ_PERSIST_VALUE2, do not silently
+		 * return a truncated result. Instead, inform the
+		 * caller of the true size of the value and return
+		 * TEE_ERROR_SHORT_BUFFER so that the caller can
+		 * allocate a large enough buffer and retry.
+		 */
+		res = TEE_GetObjectInfo1(h, &info);
+		if (res) {
+			EMSG("Can't get object info, res = 0x%"PRIx32, res);
+			goto out;
+		}
+
+		if (info.dataSize > value_sz) {
+			params[1].memref.size = info.dataSize;
+			res = TEE_ERROR_SHORT_BUFFER;
+			goto out;
+		}
 	}
 
 	res =  TEE_ReadObjectData(h, value, value_sz, &count);
@@ -389,7 +412,9 @@ TEE_Result TA_InvokeCommandEntryPoint(void *sess __unused, uint32_t cmd,
 	case TA_AVB_CMD_WRITE_LOCK_STATE:
 		return write_lock_state(pt, params);
 	case TA_AVB_CMD_READ_PERSIST_VALUE:
-		return read_persist_value(pt, params);
+		return read_persist_value(pt, params, true /* truncate */);
+	case TA_AVB_CMD_READ_PERSIST_VALUE2:
+		return read_persist_value(pt, params, false /* !truncate */);
 	case TA_AVB_CMD_WRITE_PERSIST_VALUE:
 		return write_persist_value(pt, params);
 	default:
