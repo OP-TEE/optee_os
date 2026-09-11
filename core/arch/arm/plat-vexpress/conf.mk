@@ -200,3 +200,6 @@ endif
 
 CFG_PKCS11_TA ?= y
 CFG_PKCS11_TA_RSA_X_509 ?= y
+
+# Add the TA endorsement seed property (see core/tee/vendor_props.c).
+CFG_TEE_ENDORSEMENT_SEED ?= y
