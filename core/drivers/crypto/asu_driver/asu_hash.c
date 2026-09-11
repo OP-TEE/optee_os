@@ -387,7 +387,6 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 	struct asu_client_params *cparam = NULL;
 	uint8_t *dma_digest = NULL;
 	size_t cacheline_len = dcache_get_line_size();
-	size_t alloc_len = ROUNDUP(ASU_SHAKE_256_MAX_HASH_LEN, cacheline_len);
 	size_t remaining = 0;
 	size_t offset = 0;
 	size_t block_len = 0;
@@ -413,7 +412,8 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 		op.hashbufsize = ASU_SHA_512_HASH_LEN;
 
 	/* Buffer sized for the largest possible digest (SHAKE256 XOF chunk) */
-	dma_digest = memalign(cacheline_len, alloc_len);
+	dma_digest = memalign(cacheline_len,
+			      ROUNDUP(op.hashbufsize, cacheline_len));
 	if (!dma_digest) {
 		EMSG("Failed to allocate DMA buffer for hash digest");
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -422,10 +422,12 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 	op.shamode = asu_hashctx->shamode;
 	op.islast = 1;
 	op.hashaddr = virt_to_phys(dma_digest);
-	remaining = asu_hashctx->shamode == ASU_SHA_MODE_SHAKE256 ?
-		    len : MIN(len, op.hashbufsize);
+	if (asu_hashctx->shamode == ASU_SHA_MODE_SHAKE256)
+		remaining = len;
+	else
+		remaining = MIN(len, op.hashbufsize);
 	while (remaining) {
-		block_len = MIN(remaining, (size_t)ASU_SHAKE_256_MAX_HASH_LEN);
+		block_len = MIN(remaining, op.hashbufsize);
 		remaining -= block_len;
 		op.opflags = ASU_SHA_FINISH | asu_hashctx->shastart;
 		if (asu_hashctx->shamode == ASU_SHA_MODE_SHAKE256 && remaining)
