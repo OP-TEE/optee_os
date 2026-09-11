@@ -13,4 +13,10 @@
 #define DRAM1_BASE			ULL(0x800000000)
 #define DRAM1_SIZE			ULL(0x800000000)
 
+/*
+ * IRIS video-codec subsystem.
+ */
+#define IRIS_BASE			UL(0x0aa00000)
+#define IRIS_SIZE			ULL(0x00200000)
+
 #endif /* TARGET_CONFIG_H */
