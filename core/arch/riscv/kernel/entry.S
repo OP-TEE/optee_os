@@ -47,7 +47,7 @@
 
 .macro cpu_is_ready
 #ifdef CFG_BOOT_SYNC_CPU
-	csrr	t0, CSR_XSCRATCH
+	lw	t0, THREAD_CORE_LOCAL_HART_INDEX(tp)
 	lla	t1, sem_cpu_sync
 	slli	t0, t0, 2
 	add	t1, t1, t0
