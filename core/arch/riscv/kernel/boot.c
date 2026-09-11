@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2023 Andes Technology Corporation
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  */
 
 #include <assert.h>
@@ -85,6 +85,11 @@ void boot_start_secondary_cores(void)
 	/* The primary CPU is always indexed by 0 */
 	assert(get_core_pos() == 0);
 
+	if (CFG_TEE_CORE_NB_CORE > 1 && !sbi_ext_available(SBI_EXT_HSM)) {
+		EMSG("SBI HSM extension required to start secondary harts");
+		panic();
+	}
+
 	for (i = 0; i < CFG_TEE_CORE_NB_CORE; i++) {
 		hartid = hartids[i];
 
@@ -142,6 +147,9 @@ static void init_primary(void)
 
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 	IMSG_RAW("\n");
+#ifdef CFG_RISCV_SBI
+	sbi_print_info();
+#endif
 	if (IS_ENABLED(CFG_DYN_CONFIG)) {
 		size_t sz = sizeof(struct thread_core_local) *
 			    CFG_TEE_CORE_NB_CORE;
