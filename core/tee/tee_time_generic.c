@@ -103,7 +103,7 @@ TEE_Result tee_time_get_ta_time(const TEE_UUID *uuid, TEE_Time *time)
 		TEE_TIME_SUB(t, offs, t2);
 
 		/* Detect wrapping, the wrapped time should be returned. */
-		if (TEE_TIME_LE(t, t2))
+		if (TEE_TIME_LT(t, t2))
 			res = TEE_ERROR_OVERFLOW;
 	}
 	*time = t2;
