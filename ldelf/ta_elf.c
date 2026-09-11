@@ -198,6 +198,27 @@ static TEE_Result e64_parse_ehdr(struct ta_elf *elf, Elf64_Ehdr *ehdr)
 }
 #endif /* RV64 */
 
+/*
+ * Checks that [addr, addr + sz) (relative to 0, i.e., not yet offset by
+ * elf->load_addr) is fully covered by a single PT_LOAD segment. There can
+ * be unmapped gaps between PT_LOAD segments, so being within
+ * elf->load_addr..elf->max_addr is not sufficient.
+ */
+static bool range_is_in_segment(struct ta_elf *elf, vaddr_t addr, size_t sz)
+{
+	struct segment *seg = NULL;
+	vaddr_t end_addr = 0;
+
+	if (ADD_OVERFLOW(addr, sz, &end_addr))
+		return false;
+
+	TAILQ_FOREACH(seg, &elf->segs, link)
+		if (addr >= seg->vaddr && end_addr <= seg->vaddr + seg->memsz)
+			return true;
+
+	return false;
+}
+
 static void check_phdr_in_range(struct ta_elf *elf, unsigned int type,
 				vaddr_t addr, size_t memsz)
 {
@@ -213,6 +234,11 @@ static void check_phdr_in_range(struct ta_elf *elf, unsigned int type,
 	 */
 	if (max_addr > elf->max_addr - elf->load_addr)
 		err(TEE_ERROR_BAD_FORMAT, "Program header %#x out of bounds",
+		    type);
+
+	if (!range_is_in_segment(elf, addr, memsz))
+		err(TEE_ERROR_BAD_FORMAT,
+		    "Program header %#x not covered by a PT_LOAD segment",
 		    type);
 }
 
@@ -246,6 +272,11 @@ static void check_range(struct ta_elf *elf, const char *name, const void *ptr,
 	if (max_addr > elf->max_addr)
 		err(TEE_ERROR_BAD_FORMAT,
 		    "%s %p..%#zx out of range", name, ptr, max_addr);
+
+	if (!range_is_in_segment(elf, (vaddr_t)ptr - elf->load_addr, sz))
+		err(TEE_ERROR_BAD_FORMAT,
+		    "%s %p..%#zx not covered by a PT_LOAD segment",
+		    name, ptr, max_addr);
 }
 
 static void check_hashtab(struct ta_elf *elf, void *ptr, size_t num_buckets,
@@ -352,9 +383,12 @@ static void save_soname_from_segment(struct ta_elf *elf, unsigned int type,
 	unsigned int tag = 0;
 	size_t val = 0;
 	char *str_tab = NULL;
+	size_t str_tab_sz = 0;
 
 	if (type != PT_DYNAMIC)
 		return;
+
+	check_phdr_in_range(elf, type, addr, memsz);
 
 	if (elf->is_32bit)
 		dyn_entsize = sizeof(Elf32_Dyn);
@@ -364,16 +398,21 @@ static void save_soname_from_segment(struct ta_elf *elf, unsigned int type,
 	assert(!(memsz % dyn_entsize));
 	num_dyns = memsz / dyn_entsize;
 
-	for (n = 0; n < num_dyns; n++) {
+	for (n = 0; n < num_dyns && !(str_tab && str_tab_sz); n++) {
 		read_dyn(elf, addr, n, &tag, &val);
-		if (tag == DT_STRTAB) {
+		if (tag == DT_STRTAB)
 			str_tab = (char *)(val + elf->load_addr);
-			break;
-		}
+		else if (tag == DT_STRSZ)
+			str_tab_sz = val;
 	}
+	check_range(elf, ".dynstr/STRTAB", str_tab, str_tab_sz);
+
 	for (n = 0; n < num_dyns; n++) {
 		read_dyn(elf, addr, n, &tag, &val);
 		if (tag == DT_SONAME) {
+			if (val >= str_tab_sz)
+				err(TEE_ERROR_BAD_FORMAT,
+				    "Offset into .dynstr/STRTAB out of range");
 			elf->soname = str_tab + val;
 			break;
 		}
