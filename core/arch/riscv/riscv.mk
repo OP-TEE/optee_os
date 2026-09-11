@@ -130,8 +130,18 @@ endif
 ifeq ($(CFG_RISCV_ISA_ZBB),y)
 ISA_ZBB = _zbb
 endif
+# Zicbom cache-block management operations, used for the data cache range
+# maintenance in cache_helpers_rv.S. The M-mode firmware must allow them
+# from S-mode (menvcfg.CBCFE and menvcfg.CBIE), which OpenSBI does when
+# the hart advertises the extension.
+CFG_RISCV_ISA_ZICBOM ?= n
+ifeq ($(CFG_RISCV_ISA_ZICBOM),y)
+ISA_ZICBOM = _zicbom
+# Cache block size in bytes ("riscv,cbom-block-size" in the device tree)
+CFG_RISCV_CBOM_BLOCK_SIZE ?= 64
+endif
 
-riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei
+riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
 riscv-abi = $(ABI_BASE)$(ABI_D)
 
 rv64-platform-cflags += -mcmodel=$(riscv-platform-mcmodel)

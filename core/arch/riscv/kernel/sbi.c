@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2022 NXP
+ * Copyright 2022,2026 NXP
  */
 
 #include <riscv.h>
@@ -83,4 +83,76 @@ int sbi_hsm_hart_get_status(uint32_t hartid, enum sbi_hsm_hart_state *status)
 
 	*status = ret.value;
 	return SBI_SUCCESS;
+}
+
+/**
+ * sbi_remote_fence_i() - Execute FENCE.I on remote harts
+ * @hart_mask:      Bit-vector of target hart IDs, relative to @hart_mask_base
+ * @hart_mask_base: First hart ID covered by @hart_mask, or
+ *                  SBI_HART_MASK_BASE_ALL to target every hart available
+ *                  to the supervisor
+ *
+ * Return:          SBI error code (SBI_SUCCESS = 0 on success)
+ */
+int sbi_remote_fence_i(unsigned long hart_mask, unsigned long hart_mask_base)
+{
+	struct sbiret ret = { };
+
+	ret = sbi_ecall(SBI_EXT_RFENCE, SBI_EXT_RFENCE_REMOTE_FENCE_I,
+			hart_mask, hart_mask_base);
+
+	return ret.error;
+}
+
+/**
+ * sbi_remote_sfence_vma() - Execute SFENCE.VMA on remote harts
+ * @hart_mask:      Bit-vector of target hart IDs, relative to @hart_mask_base
+ * @hart_mask_base: First hart ID covered by @hart_mask, or
+ *                  SBI_HART_MASK_BASE_ALL to target every hart available
+ *                  to the supervisor
+ * @start_addr:     First virtual address of the range to fence
+ * @size:           Size of the range to fence
+ *
+ * The whole address space is fenced when @start_addr and @size are both 0,
+ * or when @size is -1 (SBI spec, "RFENCE Extension").
+ *
+ * Return:          SBI error code (SBI_SUCCESS = 0 on success)
+ */
+int sbi_remote_sfence_vma(unsigned long hart_mask, unsigned long hart_mask_base,
+			  unsigned long start_addr, unsigned long size)
+{
+	struct sbiret ret = { };
+
+	ret = sbi_ecall(SBI_EXT_RFENCE, SBI_EXT_RFENCE_REMOTE_SFENCE_VMA,
+			hart_mask, hart_mask_base, start_addr, size);
+
+	return ret.error;
+}
+
+/**
+ * sbi_remote_sfence_vma_asid() - Execute SFENCE.VMA with ASID on remote harts
+ * @hart_mask:      Bit-vector of target hart IDs, relative to @hart_mask_base
+ * @hart_mask_base: First hart ID covered by @hart_mask, or
+ *                  SBI_HART_MASK_BASE_ALL to target every hart available
+ *                  to the supervisor
+ * @start_addr:     First virtual address of the range to fence
+ * @size:           Size of the range to fence
+ * @asid:           Address space identifier to fence
+ *
+ * The whole address space of @asid is fenced when @start_addr and @size
+ * are both 0, or when @size is -1 (SBI spec, "RFENCE Extension").
+ *
+ * Return:          SBI error code (SBI_SUCCESS = 0 on success)
+ */
+int sbi_remote_sfence_vma_asid(unsigned long hart_mask,
+			       unsigned long hart_mask_base,
+			       unsigned long start_addr, unsigned long size,
+			       unsigned long asid)
+{
+	struct sbiret ret = { };
+
+	ret = sbi_ecall(SBI_EXT_RFENCE, SBI_EXT_RFENCE_REMOTE_SFENCE_VMA_ASID,
+			hart_mask, hart_mask_base, start_addr, size, asid);
+
+	return ret.error;
 }
