@@ -108,8 +108,6 @@ static TEE_Result qfprom_platform_init(void)
 		return TEE_ERROR_GENERIC;
 	}
 
-	rpmh_barrier_single(rpmh_handle, req_id);
-
 	return TEE_SUCCESS;
 }
 
@@ -137,8 +135,6 @@ static TEE_Result qfprom_platform_deinit(void)
 		     vrm_addr, req_id);
 		return TEE_ERROR_GENERIC;
 	}
-
-	rpmh_barrier_single(rpmh_handle, req_id);
 
 	return TEE_SUCCESS;
 }
