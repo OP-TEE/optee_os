@@ -120,6 +120,46 @@ void __nostackcheck thread_unmask_exceptions(uint32_t state)
 	thread_set_exceptions(state & THREAD_EXCP_ALL);
 }
 
+static void enable_user_cntpct(struct thread_core_local *l)
+{
+	uint32_t cntkctl = read_cntkctl();
+
+	/*
+	 * CNTKCTL (CNTKCTL_EL1 on AArch64) controls EL0 counter access in the
+	 * EL1&0 execution regime, but not in VHE host mode. It is per PE, so
+	 * save its previous state per PE.
+	 */
+	l->cntpct_was_enabled = cntkctl & CNTKCTL_PL0PCTEN;
+	write_cntkctl(cntkctl | CNTKCTL_PL0PCTEN);
+}
+
+static void disable_user_cntpct(struct thread_core_local *l)
+{
+	if (!l->cntpct_was_enabled)
+		write_cntkctl(read_cntkctl() & ~CNTKCTL_PL0PCTEN);
+}
+
+void thread_user_enable_cntpct(void)
+{
+	struct thread_core_local *l = thread_get_core_local();
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	if (!thr->cntpct_access_depth)
+		enable_user_cntpct(l);
+	thr->cntpct_access_depth++;
+}
+
+void thread_user_disable_cntpct(void)
+{
+	struct thread_core_local *l = thread_get_core_local();
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thr->cntpct_access_depth);
+	thr->cntpct_access_depth--;
+	if (!thr->cntpct_access_depth)
+		disable_user_cntpct(l);
+}
+
 static void thread_lazy_save_ns_vfp(void)
 {
 #ifdef CFG_WITH_VFP
@@ -463,6 +503,10 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 	if (threads[n].have_user_map)
 		ftrace_resume();
 
+	/* Reapply a pending grant using the state of the destination PE. */
+	if (threads[n].cntpct_access_depth)
+		enable_user_cntpct(l);
+
 	l->flags &= ~THREAD_CLF_TMP;
 	thread_resume(&threads[n].regs);
 	/*NOTREACHED*/
@@ -518,6 +562,7 @@ void thread_state_free(void)
 	thread_lock_global();
 
 	assert(threads[ct].state == THREAD_STATE_ACTIVE);
+	assert(!threads[ct].cntpct_access_depth);
 	threads[ct].state = THREAD_STATE_FREE;
 	threads[ct].flags = 0;
 	l->curr_thread = THREAD_ID_INVALID;
@@ -560,6 +605,9 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 	int ct = l->curr_thread;
 
 	assert(ct != THREAD_ID_INVALID);
+	/* Do not leave a per-PE grant active while this thread is suspended. */
+	if (threads[ct].cntpct_access_depth)
+		disable_user_cntpct(l);
 
 	if (core_mmu_user_mapping_is_active())
 		ftrace_suspend();

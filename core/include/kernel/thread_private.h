@@ -37,6 +37,10 @@ struct thread_ctx {
 	enum thread_state state;
 	vaddr_t stack_va_end;
 	uint32_t flags;
+#if defined(ARM32) || defined(ARM64)
+	/* Nested requests for EL0 physical-counter access */
+	unsigned int cntpct_access_depth;
+#endif
 	struct core_mmu_user_map user_map;
 	bool have_user_map;
 #if defined(ARM64) || defined(RV64)
