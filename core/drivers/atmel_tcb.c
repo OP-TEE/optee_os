@@ -92,7 +92,7 @@ TEE_Result tee_time_get_sys_time(TEE_Time *time)
 	cv0 |= cv1 << 32;
 
 	time->seconds = cv0 / tcb_rate;
-	time->millis = (cv0 % tcb_rate) / (tcb_rate / TEE_TIME_MILLIS_BASE);
+	time->millis = (cv0 % tcb_rate) * TEE_TIME_MILLIS_BASE / tcb_rate;
 
 	return TEE_SUCCESS;
 }
