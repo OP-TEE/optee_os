@@ -203,6 +203,41 @@ static TEE_Result check_chain_sig_algos(const mbedtls_x509_crt *leaf,
 #define PAS_TOTAL_MAX_CERTS	(PAS_MAX_NUM_ROOT_CERTS + \
 				 PAS_MAX_CERT_CHAIN_LEVEL - 1)
 
+/* The fixed root index accepted when no provisioned root is usable. */
+#define PAS_DEFAULT_SAFE_ROOT_INDEX	3U
+
+TEE_Result pas_sig_check_root_cert_index(uint32_t root_cert_sel,
+					 uint32_t num_roots,
+					 uint32_t activation_list,
+					 uint32_t revocation_list)
+{
+	uint32_t non_avail = 0;
+	uint32_t mask = 0;
+
+	if (!num_roots || num_roots > PAS_MAX_NUM_ROOT_CERTS ||
+	    root_cert_sel >= num_roots)
+		return TEE_ERROR_SECURITY;
+
+	mask = GENMASK_32(PAS_MAX_NUM_ROOT_CERTS - 1, 0);
+	non_avail = (revocation_list & mask) | (~activation_list & mask);
+
+	if (__builtin_popcount(non_avail) >= (int)PAS_MAX_NUM_ROOT_CERTS) {
+		if (root_cert_sel == PAS_DEFAULT_SAFE_ROOT_INDEX)
+			return TEE_SUCCESS;
+		EMSG("PAS auth: no usable root cert, sel %#"PRIx32,
+		     root_cert_sel);
+		return TEE_ERROR_SECURITY;
+	}
+
+	if ((activation_list >> root_cert_sel) & 1U &&
+	    !((revocation_list >> root_cert_sel) & 1U))
+		return TEE_SUCCESS;
+
+	EMSG("PAS auth: root cert %#"PRIx32" inactive or revoked",
+	     root_cert_sel);
+	return TEE_ERROR_SECURITY;
+}
+
 TEE_Result pas_sig_verify_cert_chain(const uint8_t *chain_der,
 				     size_t chain_der_len, bool eku_enforced,
 				     uint32_t num_roots,

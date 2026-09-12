@@ -221,11 +221,13 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 	uint32_t rot_hash_algo = TEE_ALG_SHA384;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct pas_oem_metadata meta = { };
+	struct pas_fuse_mrc_info mrc = { };
 	uint8_t *signed_copy = NULL;
 	const uint8_t *roots = NULL;
 	uint32_t sig_hash_algo = 0;
 	const uint8_t *leaf = NULL;
 	bool eku_enforced = false;
+	uint32_t root_cert_sel = SECBOOT_DEFAULT_ROOT_CERT_SEL;
 	uint32_t sig_algo = 0;
 	size_t signed_len = 0;
 	size_t roots_len = 0;
@@ -236,6 +238,32 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 		return TEE_ERROR_SECURITY;
 	}
 
+	if (pas_meta_get(hs, &meta) == TEE_SUCCESS)
+		root_cert_sel = meta.root_cert_sel;
+
+	res = pas_fuse_get_mrc_info(&mrc);
+	if (res) {
+		EMSG("PAS auth: cannot read MRC info: %#"PRIx32, res);
+		return res;
+	}
+	if (root_cert_sel >= mrc.num_roots) {
+		EMSG("PAS auth: root_cert_sel %#"PRIx32" >= %#"PRIx32" roots",
+		     root_cert_sel, mrc.num_roots);
+		return TEE_ERROR_SECURITY;
+	}
+
+	if (mrc.num_roots > 1) {
+		res = pas_sig_check_root_cert_index(root_cert_sel,
+						    mrc.num_roots,
+						    mrc.activation_list,
+						    mrc.revocation_list);
+		if (res) {
+			EMSG("PAS auth: root cert %#"PRIx32" not usable",
+			     root_cert_sel);
+			return res;
+		}
+	}
+
 	res = pas_fuse_get_eku_enforcement_en(&eku_enforced);
 	if (res) {
 		EMSG("PAS auth: cannot read EKU enforcement fuse: %#"PRIx32,
@@ -244,8 +272,8 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 	}
 
 	res = pas_sig_verify_cert_chain(hs->oem_certs, hs->oem_certs_size,
-					eku_enforced, 1,
-					SECBOOT_DEFAULT_ROOT_CERT_SEL, &leaf,
+					eku_enforced, mrc.num_roots,
+					root_cert_sel, &leaf,
 					&leaf_len, &roots, &roots_len);
 	if (res) {
 		EMSG("PAS auth: OEM cert chain invalid: %#"PRIx32, res);
@@ -304,6 +332,91 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result check_anti_rollback(const struct pas_hash_segment_info *hs,
+				      uint32_t pas_id)
+{
+	enum pas_arb_fuse_bank bank = PAS_ARB_HLOS_FUSE_BANK;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct pas_oem_metadata meta = { };
+	uint32_t dev_ver = 0;
+
+	res = pas_policy_expected_arb_bank(pas_id, &bank);
+	if (res)
+		return res;
+	if (bank == PAS_ARB_SEPARATE_FUSE_BANK) {
+		EMSG("PAS ARB: pas_id=%#"PRIx32" needs a dedicated fuse bank",
+		     pas_id);
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	res = pas_meta_get(hs, &meta);
+	if (res == TEE_ERROR_NO_DATA)
+		return TEE_SUCCESS;
+	if (res) {
+		EMSG("PAS ARB: bad OEM metadata");
+		return res;
+	}
+
+	res = pas_fuse_get_pil_rollback_version(&dev_ver);
+	if (res)
+		return res;
+
+	if (!dev_ver)
+		return TEE_SUCCESS;
+
+	if (meta.anti_rollback < dev_ver) {
+		EMSG("PAS ARB: image version %#"PRIx32" < device %#"PRIx32,
+		     meta.anti_rollback, dev_ver);
+		return TEE_ERROR_SECURITY;
+	}
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result pas_sig_auth_commit_rollback(const struct pas_hash_segment_info *hs,
+					uint32_t pas_id)
+{
+	enum pas_arb_fuse_bank bank = PAS_ARB_HLOS_FUSE_BANK;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct pas_oem_metadata meta = { };
+	uint32_t dev_ver = 0;
+
+	res = pas_policy_expected_arb_bank(pas_id, &bank);
+	if (res)
+		return res;
+	if (bank == PAS_ARB_SEPARATE_FUSE_BANK) {
+		EMSG("PAS ARB: pas_id=%#"PRIx32" needs a dedicated fuse bank",
+		     pas_id);
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+
+	res = pas_meta_get(hs, &meta);
+	if (res == TEE_ERROR_NO_DATA)
+		return TEE_SUCCESS;
+	if (res)
+		return res;
+
+	res = pas_fuse_get_pil_rollback_version(&dev_ver);
+	if (res)
+		return res;
+
+	/*
+	 * A lower version was already rejected in check_anti_rollback();
+	 * an equal version is already the floor, so nothing to advance.
+	 */
+	if (meta.anti_rollback <= dev_ver)
+		return TEE_SUCCESS;
+
+	res = pas_fuse_blow_pil_rollback_version(meta.anti_rollback);
+	if (res) {
+		EMSG("PAS ARB: fuse advance to %#"PRIx32" failed: %#"PRIx32,
+		     meta.anti_rollback, res);
+		return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result pas_sig_auth_segment_hash_len(const struct pas_md_slot *slot,
 					 uint32_t *segment_hash_len)
 {
@@ -353,6 +466,10 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 	res = pas_meta_verify_elf_headers_hash(meta_data, meta_data_size,
 					       hs->hash_table,
 					       segment_hash_len);
+	if (res)
+		return res;
+
+	res = check_anti_rollback(hs, pas_id);
 	if (res)
 		return res;
 
