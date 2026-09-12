@@ -792,7 +792,8 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 	}
 
 	/* Guard o->info.dataPosition += bytes below from overflowing */
-	if (ADD_OVERFLOW(o->info.dataPosition, len, &pos_tmp)) {
+	if (ADD_OVERFLOW(o->info.dataPosition, len, &pos_tmp) ||
+	    pos_tmp > TEE_DATA_MAX_POSITION) {
 		res = TEE_ERROR_OVERFLOW;
 		goto exit;
 	}
