@@ -871,6 +871,9 @@ TEE_Result syscall_storage_obj_trunc(unsigned long obj, size_t len)
 		EMSG("Object corruption");
 		remove_corrupt_obj(to_user_ta_ctx(sess->ctx), o);
 		break;
+	case TEE_ERROR_STORAGE_NO_SPACE:
+	case TEE_ERROR_STORAGE_NOT_AVAILABLE:
+		break;
 	default:
 		res = TEE_ERROR_GENERIC;
 		break;
