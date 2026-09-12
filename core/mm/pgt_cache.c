@@ -10,6 +10,7 @@
 #include <kernel/user_mode_ctx.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <mm/page_alloc.h>
 #include <mm/pgt_cache.h>
 #include <mm/phys_mem.h>
 #include <mm/tee_pager.h>
@@ -405,6 +406,28 @@ void pgt_init(void)
 		}
 	}
 }
+#elif defined(CFG_DYN_CONFIG)
+/* Simple allocation of translation tables with virt_page_alloc() */
+void pgt_init(void)
+{
+	uint8_t *tbls = NULL;
+	size_t page_count = 0;
+	size_t n = 0;
+
+	page_count = ROUNDUP_DIV(PGT_CACHE_SIZE * PGT_SIZE, SMALL_PAGE_SIZE);
+	tbls = (uint8_t *)virt_page_alloc(page_count,
+					  MAF_CORE_MEM | MAF_ZERO_INIT);
+	if (!tbls)
+		panic();
+
+	for (n = 0; n < PGT_CACHE_SIZE; n++) {
+		struct pgt *p = pgt_entries + n;
+
+		p->tbl = tbls + n * PGT_SIZE;
+		SLIST_INSERT_HEAD(&pgt_free_list, p, link);
+	}
+}
+
 #else
 /* Static allocation of translation tables */
 void pgt_init(void)
