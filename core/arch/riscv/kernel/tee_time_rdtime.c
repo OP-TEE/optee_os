@@ -40,7 +40,7 @@ TEE_Result tee_time_get_sys_time(TEE_Time *time)
 	uint64_t rate = read_cntfrq();
 
 	time->seconds = tm / rate;
-	time->millis = (tm % rate) / (rate / TEE_TIME_MILLIS_BASE);
+	time->millis = (tm % rate) * TEE_TIME_MILLIS_BASE / rate;
 
 	return TEE_SUCCESS;
 }
