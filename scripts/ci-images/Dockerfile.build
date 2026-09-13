@@ -70,10 +70,13 @@ RUN sed -i 's/Components: main/Components: main contrib/g' /etc/apt/sources.list
 
 # Get latest Clang 20.x version from snapshot server
 # https://github.com/OP-TEE/optee_os/issues/7408
-RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /etc/apt/keyrings/llvm-snapshot.gpg && chmod a+r /etc/apt/keyrings/llvm-snapshot.gpg
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/oracular/ llvm-toolchain-oracular-20 main" | tee /etc/apt/sources.list.d/llvm-snapshot.list > /dev/null
-RUN apt-get update && apt-get install -y clang-20 llvm-20 lld-20
-RUN bash -c 'for i in /usr/bin/{clang,clang++,lld,ld.lld,ld64.lld,lld-link,wasm-ld}-20 $(ls /usr/bin/llvm*-20); do tool_name=$(basename $i -20); update-alternatives --install /usr/bin/$tool_name $tool_name $i 100; done'
+RUN wget -q https://apt.llvm.org/llvm-snapshot.gpg.key \
+ && echo "8b2a587ffd672c4687e7581dad4b2f6c1bb2ad6b480cd9771ba2ff48e0b8c75d  llvm-snapshot.gpg.key" | sha256sum -c \
+ && gpg -o /etc/apt/keyrings/llvm-snapshot.gpg --dearmor llvm-snapshot.gpg.key \
+ && rm -f llvm-snapshot.gpg.key \
+ && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/oracular/ llvm-toolchain-oracular-20 main" | tee /etc/apt/sources.list.d/llvm-snapshot.list > /dev/null \
+ && apt-get update && apt-get install -y clang-20 llvm-20 lld-20 \
+ && bash -c 'for i in /usr/bin/{clang,clang++,lld,ld.lld,ld64.lld,lld-link,wasm-ld}-20 $(ls /usr/bin/llvm*-20); do tool_name=$(basename $i -20); update-alternatives --install /usr/bin/$tool_name $tool_name $i 100; done'
 
 # Needed for repo
 RUN git config --global user.name "CI user" \
