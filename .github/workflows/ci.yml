@@ -393,25 +393,12 @@ jobs:
           eval "$MAKE_COMMANDS"
           ccache -s -v
   QEMUv7_checks_image_build:
-    name: Build QEMUv7 image
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create Dockerfile
-        run: |
-          cat > Dockerfile <<'EOF'
-          FROM ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image
-          RUN /root/get_optee.sh default /root/optee_repo_qemu
-          EOF
-      - name: Build Docker image
-        run: |
-          docker build -t qemuv7_image .
-          docker save qemuv7_image | zstd -T0 -o qemuv7_image.tar.zst
-      - name: Upload Docker image
-        uses: actions/upload-artifact@v7
-        with:
-          name: qemuv7_image
-          path: qemuv7_image.tar.zst
-          retention-days: 5
+    name: QEMUv7 image
+    uses: ./.github/workflows/qemu-checks-image.yml
+    with:
+      builder: ubuntu-24.04
+      target: default
+      tag: qemuv7_image
   QEMUv7_checks:
     name: Run (QEMUv7) (${{ matrix.name }})
     needs: QEMUv7_checks_image_build
@@ -482,25 +469,12 @@ jobs:
               ccache -s -v
             '
   QEMUv8_checks_image_build:
-    name: Build QEMUv8 image
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create Dockerfile
-        run: |
-          cat > Dockerfile <<'EOF'
-          FROM ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image
-          RUN /root/get_optee.sh qemu_v8 /root/optee_repo_qemu_v8
-          EOF
-      - name: Build Docker image
-        run: |
-          docker build -t qemuv8_image .
-          docker save qemuv8_image | zstd -T0 -o qemuv8_image.tar.zst
-      - name: Upload Docker image
-        uses: actions/upload-artifact@v7
-        with:
-          name: qemuv8_image
-          path: qemuv8_image.tar.zst
-          retention-days: 5
+    name: QEMUv8 image
+    uses: ./.github/workflows/qemu-checks-image.yml
+    with:
+      builder: ubuntu-24.04
+      target: qemu_v8
+      tag: qemuv8_image
   QEMUv8_checks:
     name: Run (QEMUv8) (${{ matrix.name }})
     needs: QEMUv8_checks_image_build
@@ -607,7 +581,7 @@ jobs:
               export CFG_ATTESTATION_PTA_KEY_SIZE=1024
               export DUMP_LOGS_ON_ERROR=1
 
-              TOP=/root/optee_repo_qemu_v8
+              TOP=/root/optee_repo_qemu
               mv $TOP/optee_os $TOP/optee_os_old
               ln -s /runner/optee_os $TOP/optee_os
               cd $TOP/build
@@ -617,25 +591,12 @@ jobs:
               ccache -s -v
             '
   QEMUv8_arm64_image_build:
-    name: Build QEMUv8 arm64 image
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - name: Create Dockerfile
-        run: |
-          cat > Dockerfile <<'EOF'
-          FROM ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image
-          RUN /root/get_optee.sh qemu_v8 /root/optee_repo_qemu_v8
-          EOF
-      - name: Build Docker image
-        run: |
-          docker build -t qemuv8_arm64_image .
-          docker save qemuv8_arm64_image | zstd -T0 -o qemuv8_arm64_image.tar.zst
-      - name: Upload Docker image
-        uses: actions/upload-artifact@v7
-        with:
-          name: qemuv8_arm64_image
-          path: qemuv8_arm64_image.tar.zst
-          retention-days: 5
+    name: QEMUv8 arm64 image
+    uses: ./.github/workflows/qemu-checks-image.yml
+    with:
+      builder: ubuntu-24.04-arm
+      target: qemu_v8
+      tag: qemuv8_arm64_image
   QEMUv8_checks_arm64:
     name: Run (QEMUv8 on arm64) (${{ matrix.name }})
     needs: QEMUv8_arm64_image_build
@@ -693,7 +654,7 @@ jobs:
               export CFG_ATTESTATION_PTA_KEY_SIZE=1024
               export DUMP_LOGS_ON_ERROR=1
 
-              TOP=/root/optee_repo_qemu_v8
+              TOP=/root/optee_repo_qemu
               mv $TOP/optee_os $TOP/optee_os_old
               ln -s /runner/optee_os $TOP/optee_os
               cd $TOP/build
