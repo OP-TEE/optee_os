@@ -57,6 +57,7 @@ RUN sed -i 's/Components: main/Components: main contrib/g' /etc/apt/sources.list
   python3-pyelftools \
   python3-tomli \
   python3-venv \
+  qemu-system-arm \
   repo \
   rsync \
   swig \
