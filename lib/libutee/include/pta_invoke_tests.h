@@ -6,6 +6,8 @@
 #ifndef __PTA_INVOKE_TESTS_H
 #define __PTA_INVOKE_TESTS_H
 
+#include <util.h>
+
 #define PTA_INVOKE_TESTS_UUID \
 		{ 0xd96a5b40, 0xc3e5, 0x21e3, \
 			{ 0x87, 0x94, 0x10, 0x02, 0xa5, 0xd5, 0xc6, 0x1b } }
@@ -112,6 +114,26 @@
  * Retrieve results of the transfer list internal test
  */
 #define PTA_INVOKE_TESTS_CMD_TRANSFER_LIST_TESTS	12
+
+/*
+ * Core ASLR status
+ *
+ * [out]    value[0].a	PTA_INVOKE_TESTS_ASLR_* flags
+ */
+#define PTA_INVOKE_TESTS_CMD_ASLR		13
+#define PTA_INVOKE_TESTS_ASLR_ENABLED		BIT(0)
+#define PTA_INVOKE_TESTS_ASLR_RANDOMIZED	BIT(1)
+
+/*
+ * Core stack protector status
+ *
+ * [out]    value[0].a	PTA_INVOKE_TESTS_STACK_PROTECTOR_* flags
+ */
+#define PTA_INVOKE_TESTS_CMD_STACK_PROTECTOR	14
+#define PTA_INVOKE_TESTS_STACK_PROTECTOR_ENABLED	BIT(0)
+#define PTA_INVOKE_TESTS_STACK_PROTECTOR_RANDOMIZED	BIT(1)
+#define PTA_INVOKE_TESTS_STACK_PROTECTOR_CANARY		BIT(2)
+#define PTA_INVOKE_TESTS_STACK_PROTECTOR_DETECTED	BIT(3)
 
 #endif /*__PTA_INVOKE_TESTS_H*/
 
