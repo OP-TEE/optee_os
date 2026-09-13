@@ -24,11 +24,12 @@ jobs:
         run: |
           cat > Dockerfile <<'EOF'
           FROM ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image
-          RUN /root/get_optee.sh ${{ inputs.target }} /root/optee_repo_qemu
+          ARG MANIFEST_OWNER
+          RUN /root/get_optee.sh ${{ inputs.target }} /root/optee_repo_qemu "$MANIFEST_OWNER"
           EOF
       - name: Build Docker image
         run: |
-          docker build -t ${{ inputs.tag }} .
+          docker build --build-arg MANIFEST_OWNER="${{ vars.MANIFEST_OWNER }}" -t ${{ inputs.tag }} .
           docker save ${{ inputs.tag }} | zstd -T0 -o ${{ inputs.tag }}.tar.zst
       - name: Upload Docker image
         uses: actions/upload-artifact@v7
