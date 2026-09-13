@@ -9,7 +9,8 @@
 FROM debian:trixie
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update \
+RUN sed -i 's/Components: main/Components: main contrib/g' /etc/apt/sources.list.d/debian.sources \
+ && apt-get update \
  && apt-get install -y \
   acpica-tools \
   android-tools-fastboot \
@@ -56,6 +57,7 @@ RUN apt-get update \
   python3-pyelftools \
   python3-tomli \
   python3-venv \
+  repo \
   rsync \
   swig \
   sudo \
@@ -73,9 +75,8 @@ RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/llv
 RUN apt-get update && apt-get install -y clang-20 llvm-20 lld-20
 RUN bash -c 'for i in /usr/bin/{clang,clang++,lld,ld.lld,ld64.lld,lld-link,wasm-ld}-20 $(ls /usr/bin/llvm*-20); do tool_name=$(basename $i -20); update-alternatives --install /usr/bin/$tool_name $tool_name $i 100; done'
 
-RUN curl -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo \
- && chmod a+x /usr/local/bin/repo \
- && git config --global user.name "CI user" \
+# Needed for repo
+RUN git config --global user.name "CI user" \
  && git config --global user.email "ci@invalid"
 
 COPY --chmod=755 scripts/ci-images/get_optee.sh /root
