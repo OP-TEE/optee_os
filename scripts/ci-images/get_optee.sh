@@ -6,10 +6,12 @@
 
 PLAT=${1:-default}
 ROOT_DIR=${2:-/root/optee}
+MANIFEST_OWNER=${3:-OP-TEE}
+
 set -e
 mkdir -p ${ROOT_DIR}
 cd ${ROOT_DIR}
-repo init -u https://github.com/OP-TEE/manifest.git -m ${PLAT}.xml
+repo init -u https://github.com/"${MANIFEST_OWNER}"/manifest.git -m ${PLAT}.xml
 repo sync -j20
 cd ${ROOT_DIR}/build
 make -j$(nproc) toolchains && rm -f ${ROOT_DIR}/toolchains/*.tar.xz
