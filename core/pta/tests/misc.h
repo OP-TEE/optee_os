@@ -31,6 +31,12 @@ static inline TEE_Result core_lockdep_tests(
 }
 #endif
 
+TEE_Result core_aslr_tests(uint32_t param_types,
+			   TEE_Param params[TEE_NUM_PARAMS]);
+
+TEE_Result core_stack_protector_tests(uint32_t param_types,
+				      TEE_Param params[TEE_NUM_PARAMS]);
+
 TEE_Result core_aes_perf_tests(uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS]);
 
