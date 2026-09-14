@@ -452,6 +452,7 @@ jobs:
           - name: 1
             make_commands: |
               make -j$(nproc) check CFG_LOCKDEP=y CFG_LOCKDEP_RECORD_STACK=n CFG_IN_TREE_EARLY_TAS=pkcs11/fd02c9da-306c-48c7-a49c-bbd827ae86ee CFG_PKCS11_TA=y CFG_CORE_UNSAFE_MODEXP=y XTEST_ARGS="-x pkcs11_1007"
+            cache: 'shared-fill'
           - name: 2
             make_commands: |
               make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_TA_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n XTEST_ARGS="n_1001 n_1003 n_1004 n_1042"
@@ -467,6 +468,7 @@ jobs:
           name: ${{ matrix.name }}
           type: qemuv7
           make_commands: "${{ matrix.make_commands }}"
+          cache: ${{ matrix.cache || 'shared-read' }}
   QEMUv8_checks_image_build:
     name: QEMUv8 image
     if: ${{ !github.event.pull_request.draft }}
@@ -487,6 +489,7 @@ jobs:
           - name: BTI+MTE+PAC
             make_commands: |
               make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y SEL0_SPS=y MEMTAG=y PAUTH=y check
+            cache: 'private'
           - name: CE82
             make_commands: |
               make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
@@ -537,6 +540,7 @@ jobs:
           - name: Xen + SPMC_AT_EL=1
             make_commands: |
               make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1
+            cache: 'shared-fill'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -546,6 +550,7 @@ jobs:
           name: ${{ matrix.name }}
           type: qemuv8
           make_commands: "${{ matrix.make_commands }}"
+          cache: ${{ matrix.cache || 'shared-read' }}
   QEMUv8_arm64_image_build:
     name: QEMUv8 arm64 image
     if: ${{ !github.event.pull_request.draft }}
@@ -567,6 +572,7 @@ jobs:
             make_commands: |
               # CFG_CORE_UNSAFE_MODEXP=y to speed up regression_4011
               make -j$(nproc) check CFG_CORE_UNSAFE_MODEXP=y
+            cache: 'shared-fill'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -576,3 +582,4 @@ jobs:
           name: ${{ matrix.name }}
           type: qemuv8_arm64
           make_commands: "${{ matrix.make_commands }}"
+          cache: ${{ matrix.cache || 'shared-read' }}
