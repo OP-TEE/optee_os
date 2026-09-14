@@ -211,9 +211,13 @@ TEE_Result sm2_ltc_pke_decrypt(struct ecc_keypair *key, const uint8_t *src,
 		goto out;
 	}
 
-	mp_to_unsigned_bin2(x2y2p->x, x2y2, SM2_INT_SIZE_BYTES);
-	mp_to_unsigned_bin2(x2y2p->y, x2y2 + SM2_INT_SIZE_BYTES,
+	res = mp_to_unsigned_bin2(x2y2p->x, x2y2, SM2_INT_SIZE_BYTES);
+	if (res)
+		goto out;
+	res = mp_to_unsigned_bin2(x2y2p->y, x2y2 + SM2_INT_SIZE_BYTES,
 			    SM2_INT_SIZE_BYTES);
+	if (res)
+		goto out;
 
 	/* Step B4: t = KDF(x2 || y2, klen) */
 
@@ -306,6 +310,7 @@ out:
 static TEE_Result sm2_point_to_bytes(uint8_t *buf, size_t *size,
 				     const ecc_point *p)
 {
+	TEE_Result res = TEE_SUCCESS;
 	size_t xsize = mp_unsigned_bin_size(p->x);
 	size_t ysize = mp_unsigned_bin_size(p->y);
 	size_t sz = 2 * SM2_INT_SIZE_BYTES + 1;
@@ -316,9 +321,13 @@ static TEE_Result sm2_point_to_bytes(uint8_t *buf, size_t *size,
 
 	memset(buf, 0, sz);
 	buf[0] = 0x04;  /* Uncompressed form indicator */
-	mp_to_unsigned_bin2(p->x, buf + 1, SM2_INT_SIZE_BYTES);
-	mp_to_unsigned_bin2(p->y, buf + 1 + SM2_INT_SIZE_BYTES,
-			    SM2_INT_SIZE_BYTES);
+	res = mp_to_unsigned_bin2(p->x, buf + 1, SM2_INT_SIZE_BYTES);
+	if (res)
+		return res;
+	res = mp_to_unsigned_bin2(p->y, buf + 1 + SM2_INT_SIZE_BYTES,
+			      SM2_INT_SIZE_BYTES);
+	if (res)
+		return res;
 
 	*size = sz;
 
@@ -437,9 +446,13 @@ TEE_Result sm2_ltc_pke_encrypt(struct ecc_public_key *key, const uint8_t *src,
 		goto out;
 	}
 
-	mp_to_unsigned_bin2(x2y2p->x, x2y2, SM2_INT_SIZE_BYTES);
-	mp_to_unsigned_bin2(x2y2p->y, x2y2 + SM2_INT_SIZE_BYTES,
+	res = mp_to_unsigned_bin2(x2y2p->x, x2y2, SM2_INT_SIZE_BYTES);
+	if (res)
+		goto out;
+	res = mp_to_unsigned_bin2(x2y2p->y, x2y2 + SM2_INT_SIZE_BYTES,
 			    SM2_INT_SIZE_BYTES);
+	if (res)
+		goto out;
 
 	/* Step A5: compute t = KDF(x2 || y2, klen) */
 
