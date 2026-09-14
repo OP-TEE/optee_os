@@ -13,6 +13,9 @@ inputs:
   make_commands:
     description: Make commands to run the checks
     required: true
+  cache:
+    description: Caching strategy (shared-read, shared-fill, private)
+    required: true
 
 runs:
   using: composite
@@ -38,19 +41,27 @@ runs:
       shell: bash
       run: |
         zstd -d ${{ inputs.type }}_image.tar.zst -c | docker load
-    - name: Generate cache key
-      shell: bash
-      run: |
-        HASH=$(echo -n "${{ inputs.name }}" | sha256sum | cut -c1-16)
-        echo "CACHE_KEY=${{ inputs.type }}_check-cache-${HASH}-${GITHUB_SHA}" >> $GITHUB_ENV
-        echo "CACHE_RESTORE_KEY=${{ inputs.type }}_check-cache-${HASH}" >> ${GITHUB_ENV}
-    - name: Restore build cache
+    - name: Restore shared build cache
+      if: ${{ inputs.cache == 'shared-read' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: /home/runner/work/ccache
+        key: ${{ inputs.type }}-checks-${{ github.sha }}
+        restore-keys: ${{ inputs.type }}-checks-
+    - name: Maintain shared build cache
+      if: ${{ inputs.cache == 'shared-fill' }}
       uses: actions/cache@v6
       with:
         path: /home/runner/work/ccache
-        key: ${{ env.CACHE_KEY }}
-        restore-keys: |
-          ${{ env.CACHE_RESTORE_KEY }}
+        key: ${{ inputs.type }}-checks-${{ github.sha }}
+        restore-keys: ${{ inputs.type }}-checks-
+    - name: Restore private build cache
+      if: ${{ inputs.cache == 'private' }}
+      uses: actions/cache@v6
+      with:
+        path: /home/runner/work/ccache
+        key: qemu-${{ inputs.name }}-checks-${{ github.sha }}
+        restore-keys: qemu-${{ inputs.name }}-checks-
     - name: Run 'make check' tasks in container
       shell: bash
       env:
