@@ -32,6 +32,9 @@ register_ddr(DRAM0_BASE, DRAM0_SIZE);
 #ifdef DRAM1_BASE
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
+#ifdef DRAM2_BASE
+register_ddr(DRAM2_BASE, DRAM2_SIZE);
+#endif
 
 static struct qcom_geni_uart_data console_data;
 
