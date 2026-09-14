@@ -60,9 +60,12 @@ TEE_Result pas_platform_mem_setup(uint32_t pas_id, uint32_t fw_size,
 	data->fw_base = fw_base_low;
 	data->fw_base |= SHIFT_U64(fw_base_high, 32);
 
-	/* Map the controller */
-	if (!data->base.va) {
-		data->base.va = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_NSEC,
+	/* Window-less images (e.g. a DTB blob) carry only fw_base/fw_size. */
+	if (data->size && !data->base.va) {
+		enum teecore_memtypes type = data->secure ? MEM_AREA_IO_SEC :
+							     MEM_AREA_IO_NSEC;
+
+		data->base.va = (vaddr_t)core_mmu_add_mapping(type,
 							      data->base.pa,
 							      data->size);
 		if (!data->base.va)
