@@ -45,6 +45,32 @@ static struct mpxy_core_local *mpxy_get_core_local(void)
 }
 
 /**
+ * sbi_mpxy_init - Set up the MPXY shared memory of the calling hart
+ *
+ * Must be called once on every hart, after the heap is usable. Registers
+ * the shared memory of the calling hart when the SBI implementation
+ * provides the MPXY extension. Safe to call again on a hart that already
+ * has shared memory registered.
+ *
+ * Return: SBI_SUCCESS on success, SBI_ERR_NOT_SUPPORTED if the extension is
+ * absent, other negative SBI error code on failure.
+ */
+int sbi_mpxy_init(void)
+{
+	int ret = SBI_SUCCESS;
+
+	if (!sbi_ext_available(SBI_EXT_MPXY))
+		return SBI_ERR_NOT_SUPPORTED;
+
+	ret = sbi_mpxy_set_shmem();
+	if (ret)
+		EMSG("MPXY shared memory setup failed on core %zu: %d",
+		     get_core_pos(), ret);
+
+	return ret;
+}
+
+/**
  * sbi_mpxy_get_shmem_size - Retrieve the MPXY shared memory size
  * @shmem_size: Pointer to store the shared memory size in bytes
  *
@@ -56,6 +82,9 @@ static struct mpxy_core_local *mpxy_get_core_local(void)
 int sbi_mpxy_get_shmem_size(unsigned long *shmem_size)
 {
 	struct sbiret sbiret = {};
+
+	if (!sbi_ext_available(SBI_EXT_MPXY))
+		return SBI_ERR_NOT_SUPPORTED;
 
 	sbiret = sbi_ecall(SBI_EXT_MPXY, SBI_EXT_MPXY_GET_SHMEM_SIZE, 0, 0, 0,
 			   0, 0, 0);
