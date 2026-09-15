@@ -402,7 +402,7 @@ jobs:
   QEMUv7_checks:
     name: Run (QEMUv7) (${{ matrix.name }})
     needs: QEMUv7_checks_image_build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -419,55 +419,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Update Git config
-        run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
-      - name: Download Docker image
-        uses: actions/download-artifact@v8
+      - name: QEMU checks
+        uses: ./.github/actions/qemu-checks
         with:
-          name: qemuv7_image
-          path: .
-      - name: Load Docker image
-        run: |
-          zstd -d qemuv7_image.tar.zst -c | docker load
-      - name: Generate cache key
-        run: |
-          HASH=$(echo -n "${{ matrix.name }}" | sha256sum | cut -c1-16)
-          echo "CACHE_KEY=qemuv7_check-cache-${HASH}-${GITHUB_SHA}" >> $GITHUB_ENV
-          echo "CACHE_RESTORE_KEY=qemuv7_check-cache-${HASH}" >> ${GITHUB_ENV}
-      - name: Restore build cache
-        uses: actions/cache@v6
-        with:
-          path: /home/runner/work/ccache
-          key: ${{ env.CACHE_KEY }}
-          restore-keys: |
-            ${{ env.CACHE_RESTORE_KEY }}
-      - name: Run 'make check' tasks in container
-        env:
-          MAKE_COMMANDS: "${{ matrix.make_commands }}"
-        run: |
-          docker run --rm \
-            -v /home/runner/work/optee_os/optee_os:/runner/optee_os \
-            -v /home/runner/work/ccache:/root/.cache/ccache \
-            -w /root \
-            -e MAKE_COMMANDS="$MAKE_COMMANDS" \
-            qemuv7_image \
-            bash -c '
-              set -e -v
-
-              export BR2_CCACHE_DIR=/root/.cache/ccache
-              export FORCE_UNSAFE_CONFIGURE=1
-              export CFG_TEE_CORE_LOG_LEVEL=2
-              export DUMP_LOGS_ON_ERROR=1
-
-              TOP=/root/optee_repo_qemu
-              mv $TOP/optee_os $TOP/optee_os_old
-              ln -s /runner/optee_os $TOP/optee_os
-              cd $TOP/build
-
-              ccache -s -v
-              eval "$MAKE_COMMANDS"
-              ccache -s -v
-            '
+          name: ${{ matrix.name }}
+          type: qemuv7
+          make_commands: "${{ matrix.make_commands }}"
   QEMUv8_checks_image_build:
     name: QEMUv8 image
     uses: ./.github/workflows/qemu-checks-image.yml
@@ -478,7 +435,7 @@ jobs:
   QEMUv8_checks:
     name: Run (QEMUv8) (${{ matrix.name }})
     needs: QEMUv8_checks_image_build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -539,57 +496,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Update Git config
-        run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
-      - name: Download Docker image
-        uses: actions/download-artifact@v8
+      - name: QEMU checks
+        uses: ./.github/actions/qemu-checks
         with:
-          name: qemuv8_image
-          path: .
-      - name: Load Docker image
-        run: |
-          zstd -d qemuv8_image.tar.zst -c | docker load
-      - name: Generate cache key
-        run: |
-          HASH=$(echo -n "${{ matrix.name }}" | sha256sum | cut -c1-16)
-          echo "CACHE_KEY=qemuv8_check-cache-${HASH}-${GITHUB_SHA}" >> $GITHUB_ENV
-          echo "CACHE_RESTORE_KEY=qemuv8_check-cache-${HASH}" >> ${GITHUB_ENV}
-      - name: Restore build cache
-        uses: actions/cache@v6
-        with:
-          path: /home/runner/work/ccache
-          key: ${{ env.CACHE_KEY }}
-          restore-keys: |
-            ${{ env.CACHE_RESTORE_KEY }}
-      - name: Run 'make check' tasks in container
-        env:
-          MAKE_COMMANDS: "${{ matrix.make_commands }}"
-        run: |
-          docker run --rm \
-            -v /home/runner/work/optee_os/optee_os:/runner/optee_os \
-            -v /home/runner/work/ccache:/root/.cache/ccache \
-            -w /root \
-            -e MAKE_COMMANDS="$MAKE_COMMANDS" \
-            qemuv8_image \
-            bash -c '
-              set -e -v
-
-              export BR2_CCACHE_DIR=/root/.cache/ccache
-              export FORCE_UNSAFE_CONFIGURE=1
-              export CFG_TEE_CORE_LOG_LEVEL=2
-              export CFG_ATTESTATION_PTA=y
-              export CFG_ATTESTATION_PTA_KEY_SIZE=1024
-              export DUMP_LOGS_ON_ERROR=1
-
-              TOP=/root/optee_repo_qemu
-              mv $TOP/optee_os $TOP/optee_os_old
-              ln -s /runner/optee_os $TOP/optee_os
-              cd $TOP/build
-
-              ccache -s -v
-              eval "$MAKE_COMMANDS"
-              ccache -s -v
-            '
+          name: ${{ matrix.name }}
+          type: qemuv8
+          make_commands: "${{ matrix.make_commands }}"
   QEMUv8_arm64_image_build:
     name: QEMUv8 arm64 image
     uses: ./.github/workflows/qemu-checks-image.yml
@@ -612,54 +524,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Update Git config
-        run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
-      - name: Download Docker image
-        uses: actions/download-artifact@v8
+      - name: QEMU checks
+        uses: ./.github/actions/qemu-checks
         with:
-          name: qemuv8_arm64_image
-          path: .
-      - name: Load Docker image
-        run: |
-          zstd -d qemuv8_arm64_image.tar.zst -c | docker load
-      - name: Generate cache key
-        run: |
-          HASH=$(echo -n "${{ matrix.name }}" | sha256sum | cut -c1-16)
-          echo "CACHE_KEY=qemuv8_arm64_check-cache-${HASH}-${GITHUB_SHA}" >> ${GITHUB_ENV}
-          echo "CACHE_RESTORE_KEY=qemuv8_arm64_check-cache-${HASH}" >> ${GITHUB_ENV}
-      - name: Restore build cache
-        uses: actions/cache@v6
-        with:
-          path: /home/runner/work/ccache
-          key: ${{ env.CACHE_KEY }}
-          restore-keys: |
-            ${{ env.CACHE_RESTORE_KEY }}
-      - name: Run 'make check' tasks in container
-        env:
-          MAKE_COMMANDS: "${{ matrix.make_commands }}"
-        run: |
-          docker run --rm \
-            -v /home/runner/work/optee_os/optee_os:/runner/optee_os \
-            -v /home/runner/work/ccache:/root/.cache/ccache \
-            -w /root \
-            -e MAKE_COMMANDS="$MAKE_COMMANDS" \
-            qemuv8_arm64_image \
-            bash -c '
-              set -e -v
-
-              export BR2_CCACHE_DIR=/root/.cache/ccache
-              export FORCE_UNSAFE_CONFIGURE=1
-              export CFG_TEE_CORE_LOG_LEVEL=2
-              export CFG_ATTESTATION_PTA=y
-              export CFG_ATTESTATION_PTA_KEY_SIZE=1024
-              export DUMP_LOGS_ON_ERROR=1
-
-              TOP=/root/optee_repo_qemu
-              mv $TOP/optee_os $TOP/optee_os_old
-              ln -s /runner/optee_os $TOP/optee_os
-              cd $TOP/build
-
-              ccache -s -v
-              eval "$MAKE_COMMANDS"
-              ccache -s -v
-            '
+          name: ${{ matrix.name }}
+          type: qemuv8_arm64
+          make_commands: "${{ matrix.make_commands }}"
