@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023 NXP
  * Copyright (c) 2015-2022, Linaro Limited
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #include <kernel/abort.h>
@@ -14,6 +15,7 @@
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <riscv.h>
+#include <riscv_fp.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
 #include <unw/unwind.h>
@@ -241,11 +243,20 @@ static void handle_user_mode_panic(struct abort_info *ai)
 }
 
 #ifdef CFG_WITH_VFP
-static void handle_user_mode_vfp(void)
+static void handle_user_mode_vfp(struct abort_info *ai)
 {
 	struct ts_session *s = ts_get_current_session();
 
 	thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
+
+	/*
+	 * xstatus is restored from the saved context on the way back to the
+	 * TA, so handing it the FP unit means updating FS there and not only
+	 * in the live CSR. Without this the TA would resume with FS still
+	 * Off and trap on the very same instruction again.
+	 */
+	ai->regs->status = riscv_fp_set_fs(ai->regs->status,
+					   riscv_fp_read_fs());
 }
 #endif /*CFG_WITH_VFP*/
 
@@ -265,10 +276,24 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 #endif /*CFG_WITH_USER_TA*/
 
 #if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
+/*
+ * An FP instruction executed with xstatus.FS == Off traps as an illegal
+ * instruction, and that is all that is checked, as on Arm32: an illegal
+ * instruction from a TA that had FP disabled is taken as its first FP use
+ * and the unit is enabled. A genuinely illegal instruction traps again on
+ * the retry, this time with FP enabled, and is then a panic like any other.
+ *
+ * The faulting instruction is deliberately not decoded. xtval is optional
+ * for illegal instruction, so it cannot be relied on, and the retry makes
+ * decoding unnecessary anyway.
+ */
 static bool is_vfp_fault(struct abort_info *ai)
 {
-	/* Implement */
-	return false;
+	if (ai->abort_type != ABORT_TYPE_UNDEF ||
+	    ai->regs->cause != CAUSE_ILLEGAL_INSTRUCTION)
+		return false;
+
+	return !riscv_fp_state_is_enabled(ai->regs->status);
 }
 #else /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
 static bool is_vfp_fault(struct abort_info *ai __unused)
@@ -364,7 +389,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		break;
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_MODE_VFP:
-		handle_user_mode_vfp();
+		handle_user_mode_vfp(&ai);
 		break;
 #endif
 	case FAULT_TYPE_PAGE_FAULT:

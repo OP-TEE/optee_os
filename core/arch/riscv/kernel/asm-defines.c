@@ -10,6 +10,7 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/core_mmu_arch.h>
+#include <riscv_fp.h>
 #include <types_ext.h>
 
 DEFINES
@@ -109,4 +110,9 @@ DEFINES
 	/* struct thread_abi_args */
 	DEFINE(THREAD_ABI_ARGS_A0, offsetof(struct thread_abi_args, a0));
 	DEFINE(THREAD_ABI_ARGS_SIZE, sizeof(struct thread_abi_args));
+
+#ifdef CFG_WITH_VFP
+	/* struct riscv_fp_state */
+	DEFINE(RISCV_FP_FCSR_OFF, offsetof(struct riscv_fp_state, fcsr));
+#endif
 }

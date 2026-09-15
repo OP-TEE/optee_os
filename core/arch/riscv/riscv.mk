@@ -99,9 +99,17 @@ $(call force,CFG_PAGED_USER_TA,n)
 $(call force,CFG_WITH_PAGER,n)
 $(call force,CFG_GIC,n)
 $(call force,CFG_ARM_GICV3,n)
-$(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
+
+# CFG_WITH_VFP switches the floating-point registers across the REE/TEE
+# boundary and gives TAs the FP unit on first use. It needs a hart with F or
+# D: CFG_RISCV_FPU describes the hart and is the platform's to set, so it is
+# checked here rather than forced.
+CFG_WITH_VFP ?= n
+ifeq ($(CFG_WITH_VFP)-$(CFG_RISCV_FPU),y-n)
+$(error CFG_WITH_VFP=y requires CFG_RISCV_FPU=y)
+endif
 
 # Enable generic timer
 $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
