@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023 NXP
  * Copyright (c) 2015-2022, Linaro Limited
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #include <kernel/abort.h>
@@ -14,6 +15,8 @@
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <riscv.h>
+#include <riscv_fp.h>
+#include <riscv_vector.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
 #include <unw/unwind.h>
@@ -21,6 +24,7 @@
 enum fault_type {
 	FAULT_TYPE_USER_MODE_PANIC,
 	FAULT_TYPE_USER_MODE_VFP,
+	FAULT_TYPE_USER_MODE_VECTOR,
 	FAULT_TYPE_PAGE_FAULT,
 	FAULT_TYPE_IGNORE,
 };
@@ -241,11 +245,20 @@ static void handle_user_mode_panic(struct abort_info *ai)
 }
 
 #ifdef CFG_WITH_VFP
-static void handle_user_mode_vfp(void)
+static void handle_user_mode_vfp(struct abort_info *ai)
 {
 	struct ts_session *s = ts_get_current_session();
 
 	thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
+
+	/*
+	 * xstatus is restored from the saved context on the way back to the
+	 * TA, so handing it the FP unit means updating FS there and not only
+	 * in the live CSR. Without this the TA would resume with FS still
+	 * Off and trap on the very same instruction again.
+	 */
+	ai->regs->status = riscv_fp_set_fs(ai->regs->status,
+					   riscv_fp_read_fs());
 }
 #endif /*CFG_WITH_VFP*/
 
@@ -264,11 +277,161 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 }
 #endif /*CFG_WITH_USER_TA*/
 
+#if defined(CFG_WITH_USER_TA) && \
+	(defined(CFG_WITH_VFP) || defined(CFG_RISCV_WITH_VECTOR))
+/*
+ * Instruction fields shared by the floating-point and the vector decoders.
+ * The two extensions share the load and store major opcodes, told apart by
+ * the width field, and both trap accesses to their own CSRs when their unit
+ * is disabled.
+ */
+#define OPCODE_MASK		0x7f
+#define OPCODE_LOAD_FP		0x07	/* FP and vector loads */
+#define OPCODE_STORE_FP		0x27	/* FP and vector stores */
+#define OPCODE_SYSTEM		0x73	/* csrrw and friends */
+
+#define INSN_FUNCT3_SHIFT	12
+#define INSN_FUNCT3_MASK	0x7
+#define INSN_CSR_SHIFT		20
+#define INSN_CSR_MASK		0xfff
+#endif
+
 #if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
+/* Major opcodes of the F/D/Q extensions, all instructions are 32-bit */
+#define OPCODE_MADD		0x43	/* fmadd */
+#define OPCODE_MSUB		0x47	/* fmsub */
+#define OPCODE_NMSUB		0x4b	/* fnmsub */
+#define OPCODE_NMADD		0x4f	/* fnmadd */
+#define OPCODE_OP_FP		0x53	/* fadd, fsub, fcvt, fmv, ... */
+
+/*
+ * With FS == Off a hart traps reads and writes of the floating-point CSRs
+ * exactly as it traps the floating-point instructions themselves, so a TA
+ * that looks at the rounding mode or the accrued exception flags before it
+ * does any arithmetic has to be given a context just the same.
+ */
+static bool is_fp_csr_insn(uint32_t insn)
+{
+	uint32_t csr = (insn >> INSN_CSR_SHIFT) & INSN_CSR_MASK;
+
+	/* funct3 zero is ecall, ebreak and friends, not a CSR access */
+	if (!((insn >> INSN_FUNCT3_SHIFT) & INSN_FUNCT3_MASK))
+		return false;
+
+	return csr == CSR_FFLAGS || csr == CSR_FRM || csr == CSR_FCSR;
+}
+
+/*
+ * The load and store major opcodes are shared with the vector extension,
+ * which uses the width encodings the floating-point widths leave free. Both
+ * decoders have to look at the width, otherwise whichever runs first claims
+ * the other's instructions and hands the TA the wrong unit.
+ */
+#define WIDTH_FP_16		1	/* flh, fsh */
+#define WIDTH_FP_32		2	/* flw, fsw */
+#define WIDTH_FP_64		3	/* fld, fsd */
+#define WIDTH_FP_128		4	/* flq, fsq */
+
+static bool is_fp_ldst_insn(uint32_t insn)
+{
+	uint32_t width = (insn >> INSN_FUNCT3_SHIFT) & INSN_FUNCT3_MASK;
+
+	switch (width) {
+	case WIDTH_FP_16:
+	case WIDTH_FP_32:
+	case WIDTH_FP_64:
+	case WIDTH_FP_128:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_fp_insn(uint32_t insn)
+{
+	switch (insn & OPCODE_MASK) {
+	case OPCODE_LOAD_FP:
+	case OPCODE_STORE_FP:
+		return is_fp_ldst_insn(insn);
+	case OPCODE_MADD:
+	case OPCODE_MSUB:
+	case OPCODE_NMSUB:
+	case OPCODE_NMADD:
+	case OPCODE_OP_FP:
+		return true;
+	case OPCODE_SYSTEM:
+		return is_fp_csr_insn(insn);
+	default:
+		return false;
+	}
+}
+
+/*
+ * The two low bits of an instruction are 0b11 for the 32-bit encodings and
+ * anything else for the 16-bit compressed ones, which are identified
+ * further by their quadrant and funct3 fields.
+ */
+#define INSN_LEN_MASK		0x3
+#define INSN_LEN_32BIT		0x3
+
+#define C_QUADRANT_MASK		0x3
+#define C_QUADRANT_0		0x0
+#define C_QUADRANT_2		0x2
+#define C_FUNCT3_SHIFT		13
+#define C_FUNCT3_MASK		0x7
+
+#define C_FUNCT3_FLD		1	/* c.fld, c.fldsp */
+#define C_FUNCT3_FLW		3	/* c.flw, c.flwsp, RV32 only. On RV64
+					 * this and C_FUNCT3_FSW are c.ld/c.sd
+					 * and c.ldsp/c.sdsp, which are integer
+					 * instructions.
+					 */
+#define C_FUNCT3_FSD		5	/* c.fsd, c.fsdsp */
+#define C_FUNCT3_FSW		7	/* c.fsw, c.fswsp, RV32 only */
+
+static bool is_compressed_fp_insn(uint16_t insn)
+{
+	uint16_t quadrant = insn & C_QUADRANT_MASK;
+	uint16_t funct3 = (insn >> C_FUNCT3_SHIFT) & C_FUNCT3_MASK;
+
+	if (quadrant != C_QUADRANT_0 && quadrant != C_QUADRANT_2)
+		return false;
+
+	if (funct3 == C_FUNCT3_FLD || funct3 == C_FUNCT3_FSD)
+		return true;
+
+#ifdef RV32
+	if (funct3 == C_FUNCT3_FLW || funct3 == C_FUNCT3_FSW)
+		return true;
+#endif
+
+	return false;
+}
+
+/*
+ * An FP instruction executed with xstatus.FS == Off traps as an illegal
+ * instruction. Recognising that case is what turns the first FP use by a
+ * TA into a request for an FP context instead of a panic.
+ *
+ * The decision is made on the faulting instruction, which the hart reports
+ * in xtval, so that a TA executing a genuinely illegal instruction still
+ * panics rather than being resumed on it forever.
+ */
 static bool is_vfp_fault(struct abort_info *ai)
 {
-	/* Implement */
-	return false;
+	unsigned long insn = ai->regs->tval;
+
+	if (ai->regs->cause != CAUSE_ILLEGAL_INSTRUCTION)
+		return false;
+
+	/* Only a context that had FP disabled can be asking for it */
+	if (riscv_fp_state_is_enabled(ai->regs->status))
+		return false;
+
+	if ((insn & INSN_LEN_MASK) != INSN_LEN_32BIT)
+		return is_compressed_fp_insn((uint16_t)insn);
+
+	return is_fp_insn((uint32_t)insn);
 }
 #else /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
 static bool is_vfp_fault(struct abort_info *ai __unused)
@@ -277,11 +440,132 @@ static bool is_vfp_fault(struct abort_info *ai __unused)
 }
 #endif  /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
 
+#if defined(CFG_RISCV_WITH_VECTOR) && defined(CFG_WITH_USER_TA)
+#define OPCODE_OP_V		0x57	/* vadd, vsetvli, vsetvl, ... */
+
+/*
+ * The vector loads and stores share their major opcodes with the
+ * floating-point ones and are told apart by the width field, which holds
+ * the three reserved-for-vector encodings rather than one of the
+ * floating-point widths.
+ */
+#define WIDTH_VECTOR_8		0
+#define WIDTH_VECTOR_16		5
+#define WIDTH_VECTOR_32		6
+#define WIDTH_VECTOR_64		7
+
+static bool is_vector_ldst_insn(uint32_t insn)
+{
+	uint32_t width = (insn >> INSN_FUNCT3_SHIFT) & INSN_FUNCT3_MASK;
+
+	switch (width) {
+	case WIDTH_VECTOR_8:
+	case WIDTH_VECTOR_16:
+	case WIDTH_VECTOR_32:
+	case WIDTH_VECTOR_64:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/*
+ * With VS == Off a hart traps reads and writes of the vector CSRs exactly
+ * as it traps the vector instructions themselves, so a TA that asks for
+ * vlenb or sets a rounding mode before it issues any vector instruction
+ * has to be given a context just the same.
+ */
+static bool is_vector_csr_insn(uint32_t insn)
+{
+	uint32_t csr = (insn >> INSN_CSR_SHIFT) & INSN_CSR_MASK;
+
+	/* funct3 zero is ecall, ebreak and friends, not a CSR access */
+	if (!((insn >> INSN_FUNCT3_SHIFT) & INSN_FUNCT3_MASK))
+		return false;
+
+	switch (csr) {
+	case CSR_VSTART:
+	case CSR_VXSAT:
+	case CSR_VXRM:
+	case CSR_VCSR:
+	case CSR_VL:
+	case CSR_VTYPE:
+	case CSR_VLENB:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_vector_insn(uint32_t insn)
+{
+	switch (insn & OPCODE_MASK) {
+	case OPCODE_OP_V:
+		return true;
+	case OPCODE_LOAD_FP:
+	case OPCODE_STORE_FP:
+		return is_vector_ldst_insn(insn);
+	case OPCODE_SYSTEM:
+		return is_vector_csr_insn(insn);
+	default:
+		return false;
+	}
+}
+
+/*
+ * A vector instruction executed with xstatus.VS == Off traps as an illegal
+ * instruction. Recognising that case is what turns the first vector use by
+ * a TA into a request for a context instead of a panic.
+ *
+ * The decision is made on the faulting instruction, which the hart reports
+ * in xtval, so that a TA executing a genuinely illegal instruction still
+ * panics rather than being resumed on it forever. Vector instructions are
+ * always 32 bits wide, there are no compressed forms.
+ */
+static bool is_vector_fault(struct abort_info *ai)
+{
+	if (ai->regs->cause != CAUSE_ILLEGAL_INSTRUCTION)
+		return false;
+
+	/* Only a context that had vector disabled can be asking for it */
+	if (riscv_vector_state_is_enabled(ai->regs->status))
+		return false;
+
+	return is_vector_insn(ai->regs->tval);
+}
+
+static bool handle_user_mode_vector(struct abort_info *ai)
+{
+	struct ts_session *s = ts_get_current_session();
+
+	if (!thread_user_enable_vector(&to_user_mode_ctx(s->ctx)->vector))
+		return false;
+
+	/*
+	 * xstatus is restored from the saved context on the way back to the
+	 * TA, so handing it the vector unit means updating VS there and not
+	 * only in the live CSR. Without this the TA would resume with VS
+	 * still Off and trap on the very same instruction again.
+	 */
+	ai->regs->status = riscv_vector_set_vs(ai->regs->status,
+					       riscv_vector_read_vs());
+
+	return true;
+}
+#else /*CFG_RISCV_WITH_VECTOR && CFG_WITH_USER_TA*/
+static bool is_vector_fault(struct abort_info *ai __unused)
+{
+	return false;
+}
+#endif /*CFG_RISCV_WITH_VECTOR && CFG_WITH_USER_TA*/
+
 static enum fault_type get_fault_type(struct abort_info *ai)
 {
 	if (abort_is_user_exception(ai)) {
 		if (is_vfp_fault(ai))
 			return FAULT_TYPE_USER_MODE_VFP;
+		if (is_vector_fault(ai))
+			return FAULT_TYPE_USER_MODE_VECTOR;
 		return FAULT_TYPE_USER_MODE_PANIC;
 	}
 
@@ -364,7 +648,16 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		break;
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_MODE_VFP:
-		handle_user_mode_vfp();
+		handle_user_mode_vfp(&ai);
+		break;
+#endif
+#if defined(CFG_RISCV_WITH_VECTOR) && defined(CFG_WITH_USER_TA)
+	case FAULT_TYPE_USER_MODE_VECTOR:
+		if (!handle_user_mode_vector(&ai)) {
+			EMSG("Out of memory for a TA vector context");
+			save_abort_info_in_tsd(&ai);
+			handle_user_mode_panic(&ai);
+		}
 		break;
 #endif
 	case FAULT_TYPE_PAGE_FAULT:

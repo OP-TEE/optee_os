@@ -9,6 +9,8 @@
 #ifndef __ASSEMBLER__
 
 #include <kernel/thread.h>
+#include <riscv_fp.h>
+#include <riscv_vector.h>
 
 #define STACK_TMP_OFFS		0
 
@@ -57,6 +59,79 @@ struct thread_user_mode_rec {
 	 */
 	unsigned long x[13];
 };
+
+#ifdef CFG_WITH_VFP
+/*
+ * Which context the f registers of this hart currently hold.
+ *
+ * OP-TEE owns xstatus.FS while it runs, so one owner per OP-TEE thread is
+ * enough to describe the hardware: the registers hold either nothing worth
+ * preserving, the normal world context, a secure kernel context, or the
+ * context of the TA the thread is running.
+ */
+enum riscv_fp_owner {
+	RISCV_FP_OWNER_NONE = 0,
+	RISCV_FP_OWNER_NS,
+	RISCV_FP_OWNER_KERNEL,
+	RISCV_FP_OWNER_USER,
+};
+
+/*
+ * struct thread_vfp_state - per OP-TEE thread FP bookkeeping
+ * @ns:		saved normal world FP context
+ * @sec:	saved secure kernel FP context
+ * @uvfp:	FP context of the TA this thread is running, if it has one
+ * @owner:	context the f registers currently hold
+ * @ns_fs:	xstatus.FS the normal world had on entry to OP-TEE
+ * @ns_valid:	@ns holds a saved normal world context
+ * @sec_valid:	@sec holds a saved secure kernel context
+ * @sec_used:	secure code has written the f registers since entry
+ */
+struct thread_vfp_state {
+	struct riscv_fp_state ns;
+	struct riscv_fp_state sec;
+	struct thread_user_vfp_state *uvfp;
+	enum riscv_fp_owner owner;
+	unsigned long ns_fs;
+	bool ns_valid;
+	bool sec_valid;
+	bool sec_used;
+};
+#endif /*CFG_WITH_VFP*/
+#ifdef CFG_RISCV_WITH_VECTOR
+/*
+ * Which context the vector registers of this hart currently hold.
+ *
+ * OP-TEE owns xstatus.VS while it runs, so one owner per OP-TEE thread is
+ * enough to describe the hardware: the registers hold either nothing worth
+ * preserving, the normal world context, a secure kernel section, or the
+ * context of the TA the thread is running.
+ */
+enum riscv_vector_owner {
+	RISCV_VECTOR_OWNER_NONE = 0,
+	RISCV_VECTOR_OWNER_NS,
+	RISCV_VECTOR_OWNER_KERNEL,
+	RISCV_VECTOR_OWNER_USER,
+};
+
+/*
+ * struct thread_vector_state - per OP-TEE thread vector bookkeeping
+ * @ns:		saved normal world vector context, allocated at boot
+ * @uvect:	vector context of the TA this thread is running, if it has one
+ * @owner:	context the vector registers currently hold
+ * @ns_vs:	xstatus.VS the normal world had on entry to OP-TEE
+ * @ns_valid:	@ns holds a saved normal world context
+ * @sec_used:	secure code has written the vector registers since entry
+ */
+struct thread_vector_state {
+	struct riscv_vector_state *ns;
+	struct thread_user_vector_state *uvect;
+	enum riscv_vector_owner owner;
+	unsigned long ns_vs;
+	bool ns_valid;
+	bool sec_used;
+};
+#endif /*CFG_RISCV_WITH_VECTOR*/
 
 extern long thread_user_kcode_offset;
 
@@ -128,6 +203,11 @@ static inline void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 }
 
 void thread_scall_handler(struct thread_scall_regs *regs);
+
+#ifdef CFG_WITH_VFP
+/* Releases the FP unit from a TA that is about to be killed */
+void vfp_disable(void);
+#endif
 
 #endif /*__ASSEMBLER__*/
 

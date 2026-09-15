@@ -29,7 +29,12 @@
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
 #include <mm/vm.h>
+#include <initcall.h>
+#include <malloc.h>
 #include <riscv.h>
+#include <riscv_fp.h>
+#include <riscv_vector.h>
+#include <string.h>
 #include <trace.h>
 #include <util.h>
 
@@ -86,14 +91,277 @@ void __nostackcheck thread_unmask_exceptions(uint32_t state)
 	thread_set_exceptions(state & THREAD_EXCP_ALL);
 }
 
-static void thread_lazy_save_ns_vfp(void)
+#ifdef CFG_WITH_VFP
+/*
+ * The normal world FP context is switched eagerly at the domain boundary:
+ * the f registers are saved on the way in and the FP unit is disabled, so
+ * nothing of the normal world is reachable from secure code, and whatever
+ * secure code puts in the registers is overwritten before the normal world
+ * resumes. Lazy switching cannot give that, since it leaves the peer's
+ * registers live and relies on a trap that only fires if the other side
+ * happens to touch FP.
+ */
+static void thread_fp_release(struct thread_ctx *thr)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+	switch (thr->vfp_state.owner) {
+	case RISCV_FP_OWNER_NONE:
+		return;
+	case RISCV_FP_OWNER_NS:
+		riscv_save_fp_state(&thr->vfp_state.ns);
+		thr->vfp_state.ns_valid = true;
+		break;
+	case RISCV_FP_OWNER_KERNEL:
+		riscv_save_fp_state(&thr->vfp_state.sec);
+		thr->vfp_state.sec_valid = true;
+		break;
+	case RISCV_FP_OWNER_USER:
+		assert(thr->vfp_state.uvfp);
+		riscv_save_fp_state(&thr->vfp_state.uvfp->fp);
+		thr->vfp_state.uvfp->valid = true;
+		break;
+	default:
+		panic();
+	}
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	riscv_fp_disable();
+}
+#endif /*CFG_WITH_VFP*/
+
+/*
+ * A TA runs with the FP unit disabled until it executes an FP instruction
+ * and traps, so whenever its FP context is saved and released the saved
+ * xstatus has to go back to FS == Off. Unlike the ARM FPEXC.EN, FS is part
+ * of the register frame restored on the way back to user mode, so it is
+ * the saved copy that decides whether the TA traps again.
+ */
+static unsigned long user_status_disable_fp(unsigned long status)
+{
+	if (IS_ENABLED(CFG_WITH_VFP))
+		return riscv_fp_set_fs(status, CSR_XSTATUS_FS_OFF);
+
+	return status;
 }
 
-static void thread_lazy_restore_ns_vfp(void)
+static void thread_save_ns_vfp(void)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+#ifdef CFG_WITH_VFP
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_NS);
+
+	/*
+	 * The save cannot be made conditional on the normal world FS. A
+	 * monitor that gives each domain its own S-mode CSRs, as OpenSBI
+	 * does for the domain it runs OP-TEE in, swaps xstatus across the
+	 * domain switch while leaving the f registers shared. The FS read
+	 * here is therefore OP-TEE's own and says nothing about whether the
+	 * normal world has a live FP context.
+	 *
+	 * FS is saved and put back all the same, so that a monitor which
+	 * does share xstatus between the domains gets the normal world FS
+	 * it had on entry rather than the Off that OP-TEE runs with.
+	 */
+	thr->vfp_state.ns_fs = riscv_fp_read_fs();
+	riscv_save_fp_state(&thr->vfp_state.ns);
+	thr->vfp_state.ns_valid = true;
+	thr->vfp_state.sec_used = false;
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	riscv_fp_disable();
+#endif /*CFG_WITH_VFP*/
+}
+
+static void thread_restore_ns_vfp(void)
+{
+#ifdef CFG_WITH_VFP
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vfp_state.owner != RISCV_FP_OWNER_KERNEL);
+
+	/* Release the f registers from whatever secure context holds them */
+	thread_fp_release(thr);
+
+	/*
+	 * This is where the FS tracking pays off. Secure code only reaches
+	 * the f registers by taking FS out of Off, so if that never happened
+	 * the registers still hold exactly what the normal world left in
+	 * them and the restore can be skipped. A thread running a TA that
+	 * never touches FP, which is most of them, costs one save per call
+	 * and no restore.
+	 */
+	if (thr->vfp_state.sec_used) {
+		assert(thr->vfp_state.ns_valid);
+		riscv_restore_fp_state(&thr->vfp_state.ns);
+	}
+
+	thr->vfp_state.ns_valid = false;
+	thr->vfp_state.sec_used = false;
+	riscv_fp_write_fs(thr->vfp_state.ns_fs);
+	thr->vfp_state.owner = RISCV_FP_OWNER_NS;
+#endif /*CFG_WITH_VFP*/
+}
+
+#ifdef CFG_RISCV_WITH_VECTOR
+/*
+ * The normal world vector context is switched eagerly at the domain
+ * boundary: the registers are saved on the way in and the unit is
+ * disabled, so nothing of the normal world is reachable from secure code,
+ * and whatever secure code puts in the registers is overwritten before the
+ * normal world resumes.
+ */
+static void thread_vector_release(struct thread_ctx *thr)
+{
+	switch (thr->vector_state.owner) {
+	case RISCV_VECTOR_OWNER_NONE:
+		return;
+	case RISCV_VECTOR_OWNER_NS:
+		riscv_vector_save_state(thr->vector_state.ns);
+		thr->vector_state.ns_valid = true;
+		break;
+	case RISCV_VECTOR_OWNER_KERNEL:
+		/*
+		 * A secure kernel section runs with foreign interrupts
+		 * masked from end to end, so it cannot be preempted and
+		 * its registers have no life beyond it. Nothing to save.
+		 */
+		break;
+	case RISCV_VECTOR_OWNER_USER:
+		assert(thr->vector_state.uvect &&
+		       thr->vector_state.uvect->state);
+		riscv_vector_save_state(thr->vector_state.uvect->state);
+		thr->vector_state.uvect->valid = true;
+		break;
+	default:
+		panic();
+	}
+
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_NONE;
+	riscv_vector_disable();
+}
+
+/*
+ * A context is sized from the vlenb of the hart it will run on, so the
+ * normal world contexts are allocated once here rather than in the domain
+ * switch, which then has no allocation and so no failure path in it.
+ */
+static TEE_Result riscv_vector_init(void)
+{
+	size_t size = riscv_vector_state_size();
+	size_t n = 0;
+
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		threads[n].vector_state.ns = memalign(__alignof__(long), size);
+		if (!threads[n].vector_state.ns) {
+			EMSG("Failed to allocate %zu bytes of vector context",
+			     size);
+			panic();
+		}
+		memset(threads[n].vector_state.ns, 0, size);
+	}
+
+	DMSG("Vector context switching enabled, vlenb %lu, %zu bytes a context",
+	     riscv_vector_vlenb(), size);
+
+	return TEE_SUCCESS;
+}
+service_init(riscv_vector_init);
+#endif /*CFG_RISCV_WITH_VECTOR*/
+
+static void init_vector_state(struct thread_ctx *thread __maybe_unused)
+{
+#ifdef CFG_RISCV_WITH_VECTOR
+	/*
+	 * The thread slot may have been used before, so start from a clean
+	 * state, keeping the buffer allocated for it at boot. The vector
+	 * registers hold the normal world context at this point, which
+	 * thread_save_ns_vector() takes care of below.
+	 */
+	struct riscv_vector_state *ns = thread->vector_state.ns;
+
+	memset(&thread->vector_state, 0, sizeof(thread->vector_state));
+	thread->vector_state.ns = ns;
+	thread->vector_state.owner = RISCV_VECTOR_OWNER_NS;
+#endif /*CFG_RISCV_WITH_VECTOR*/
+}
+
+/*
+ * A TA runs with the vector unit disabled until it executes a vector
+ * instruction and traps, so whenever its context is saved and released the
+ * saved xstatus has to go back to VS == Off. VS is part of the register
+ * frame restored on the way back to user mode, so it is the saved copy
+ * that decides whether the TA traps again.
+ */
+static unsigned long user_status_disable_vector(unsigned long status)
+{
+	if (IS_ENABLED(CFG_RISCV_WITH_VECTOR))
+		return riscv_vector_set_vs(status, CSR_XSTATUS_VS_OFF);
+
+	return status;
+}
+
+static void thread_save_ns_vector(void)
+{
+#ifdef CFG_RISCV_WITH_VECTOR
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vector_state.owner == RISCV_VECTOR_OWNER_NS);
+
+	/*
+	 * The save cannot be made conditional on the normal world VS. A
+	 * monitor that gives each domain its own S-mode CSRs, as OpenSBI
+	 * does for the domain it runs OP-TEE in, swaps xstatus across the
+	 * domain switch while leaving the vector registers shared. The VS
+	 * read here is therefore OP-TEE's own and says nothing about
+	 * whether the normal world has a live vector context.
+	 *
+	 * VS is saved and put back all the same, so that a monitor which
+	 * does share xstatus between the domains gets the normal world VS
+	 * it had on entry rather than the Off that OP-TEE runs with.
+	 */
+	assert(thr->vector_state.ns);
+	thr->vector_state.ns_vs = riscv_vector_read_vs();
+	riscv_vector_save_state(thr->vector_state.ns);
+	thr->vector_state.ns_valid = true;
+	thr->vector_state.sec_used = false;
+
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_NONE;
+	riscv_vector_disable();
+#endif /*CFG_RISCV_WITH_VECTOR*/
+}
+
+static void thread_restore_ns_vector(void)
+{
+#ifdef CFG_RISCV_WITH_VECTOR
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vector_state.owner != RISCV_VECTOR_OWNER_KERNEL);
+
+	/* Release the registers from whatever secure context holds them */
+	thread_vector_release(thr);
+
+	/*
+	 * This is where the VS tracking pays off. Secure code only reaches
+	 * the vector registers by taking VS out of Off, so if that never
+	 * happened they still hold exactly what the normal world left in
+	 * them and the restore can be skipped. A thread running a TA that
+	 * never touches vector, which is most of them, costs one save per
+	 * call and no restore.
+	 */
+	if (thr->vector_state.sec_used) {
+		assert(thr->vector_state.ns_valid);
+		riscv_vector_restore_state(thr->vector_state.ns);
+	}
+
+	thr->vector_state.ns_valid = false;
+	thr->vector_state.sec_used = false;
+	riscv_vector_write_vs(thr->vector_state.ns_vs);
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_NS;
+#endif /*CFG_RISCV_WITH_VECTOR*/
 }
 
 static void setup_unwind_user_mode(struct thread_scall_regs *regs)
@@ -128,6 +396,9 @@ void thread_scall_handler(struct thread_scall_regs *regs)
 	thread_unmask_exceptions(state & ~THREAD_EXCP_NATIVE_INTR);
 
 	thread_user_save_vfp();
+	thread_user_save_vector();
+	regs->status = user_status_disable_fp(regs->status);
+	regs->status = user_status_disable_vector(regs->status);
 
 	sess = ts_get_current_session();
 
@@ -225,6 +496,19 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 	thread->regs.a7 = a7;
 }
 
+static void init_vfp_state(struct thread_ctx *thread __maybe_unused)
+{
+#ifdef CFG_WITH_VFP
+	/*
+	 * The thread slot may have been used before, so start from a clean
+	 * state. The f registers hold the normal world context at this
+	 * point, which thread_save_ns_vfp() takes care of below.
+	 */
+	memset(&thread->vfp_state, 0, sizeof(thread->vfp_state));
+	thread->vfp_state.owner = RISCV_FP_OWNER_NS;
+#endif /*CFG_WITH_VFP*/
+}
+
 static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 				   uint32_t a3, uint32_t a4, uint32_t a5,
 				   uint32_t a6, uint32_t a7,
@@ -255,8 +539,11 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 
 	threads[n].flags = 0;
 	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
+	init_vfp_state(threads + n);
+	init_vector_state(threads + n);
 
-	thread_lazy_save_ns_vfp();
+	thread_save_ns_vfp();
+	thread_save_ns_vector();
 
 	l->flags &= ~THREAD_CLF_TMP;
 
@@ -381,7 +668,8 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
-	thread_lazy_save_ns_vfp();
+	thread_save_ns_vfp();
+	thread_save_ns_vector();
 
 	if (threads[n].have_user_map)
 		ftrace_resume();
@@ -399,7 +687,8 @@ void thread_state_free(void)
 
 	assert(ct != THREAD_ID_INVALID);
 
-	thread_lazy_restore_ns_vfp();
+	thread_restore_ns_vfp();
+	thread_restore_ns_vector();
 
 	thread_lock_global();
 
@@ -427,10 +716,14 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 
 	if (is_from_user(status)) {
 		thread_user_save_vfp();
+		thread_user_save_vector();
+		status = user_status_disable_fp(status);
+		status = user_status_disable_vector(status);
 		tee_ta_update_session_utime_suspend();
 		tee_ta_gprof_sample_pc(pc);
 	}
-	thread_lazy_restore_ns_vfp();
+	thread_restore_ns_vfp();
+	thread_restore_ns_vector();
 
 	thread_lock_global();
 
@@ -542,7 +835,13 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 	 */
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	regs = thread_get_ctx_regs();
+	/*
+	 * A TA starts with both the FP and the vector unit disabled and is
+	 * given each on its first use.
+	 */
 	status = xstatus_for_xret(true, PRV_U);
+	status = user_status_disable_fp(status);
+	status = user_status_disable_vector(status);
 	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, status, ie,
 		     NULL);
 	rc = __thread_enter_user_mode(regs, exit_status0, exit_status1);
@@ -555,3 +854,331 @@ void __thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
 {
 	thread_rpc_xstatus(rv, xstatus_for_xret(false, PRV_S));
 }
+
+#ifdef CFG_WITH_VFP
+uint32_t thread_kernel_enable_vfp(void)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	/*
+	 * The FP section runs to thread_kernel_disable_vfp(), which is also
+	 * where the foreign interrupt mask is restored. Nesting is not
+	 * supported.
+	 */
+	assert(thr->vfp_state.owner != RISCV_FP_OWNER_KERNEL);
+
+	/* Take the f registers away from whoever holds them */
+	thread_fp_release(thr);
+
+	if (thr->vfp_state.sec_valid) {
+		riscv_restore_fp_state(&thr->vfp_state.sec);
+		thr->vfp_state.sec_valid = false;
+		riscv_fp_write_fs(CSR_XSTATUS_FS_CLEAN);
+	} else {
+		riscv_fp_write_fs(CSR_XSTATUS_FS_INITIAL);
+	}
+
+	thr->vfp_state.owner = RISCV_FP_OWNER_KERNEL;
+	thr->vfp_state.sec_used = true;
+
+	return exceptions;
+}
+
+void thread_kernel_disable_vfp(uint32_t state)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = 0;
+
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_KERNEL);
+	assert(riscv_fp_is_enabled());
+
+	/*
+	 * The secure kernel FP context has no life beyond the section that
+	 * is ending here, so it is dropped rather than saved.
+	 */
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	thr->vfp_state.sec_valid = false;
+	riscv_fp_disable();
+
+	exceptions = thread_get_exceptions();
+	assert(exceptions & THREAD_EXCP_FOREIGN_INTR);
+	exceptions &= ~THREAD_EXCP_FOREIGN_INTR;
+	exceptions |= state & THREAD_EXCP_FOREIGN_INTR;
+	thread_set_exceptions(exceptions);
+}
+
+void thread_kernel_save_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+	if (thr->vfp_state.owner != RISCV_FP_OWNER_KERNEL)
+		return;
+
+	riscv_save_fp_state(&thr->vfp_state.sec);
+	thr->vfp_state.sec_valid = true;
+	thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+	riscv_fp_disable();
+}
+
+static void thread_fp_clear_regs(void)
+{
+	struct riscv_fp_state zero_state = { };
+
+	riscv_restore_fp_state(&zero_state);
+}
+
+/*
+ * A TA is given the FP unit the first time it executes an FP instruction,
+ * rather than on every entry to user mode. Within the TEE, OP-TEE owns FS
+ * and no other context can look at the f registers behind our back, so
+ * there is nothing to defend against here, and most TAs never touch FP.
+ * Enabling on first use keeps those TAs from paying for a context switch
+ * they have no use for.
+ */
+void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	assert(uvfp);
+
+	/* Take the f registers away from whoever holds them */
+	thread_fp_release(thr);
+
+	if (uvfp->valid) {
+		riscv_restore_fp_state(&uvfp->fp);
+		riscv_fp_write_fs(CSR_XSTATUS_FS_CLEAN);
+	} else {
+		/*
+		 * This TA has no FP context yet. Clear the registers before
+		 * handing them over: FS == Initial says the context is new,
+		 * but enabling the FP unit does not architecturally clear
+		 * the register file, so the TA would otherwise start out
+		 * seeing what the previous owner left there.
+		 */
+		thread_fp_clear_regs();
+		riscv_fp_write_fs(CSR_XSTATUS_FS_INITIAL);
+	}
+
+	thr->vfp_state.uvfp = uvfp;
+	thr->vfp_state.owner = RISCV_FP_OWNER_USER;
+	thr->vfp_state.sec_used = true;
+
+	thread_set_exceptions(exceptions);
+}
+
+void thread_user_save_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+	/* The TA either never used FP or has already been saved */
+	if (thr->vfp_state.owner != RISCV_FP_OWNER_USER)
+		return;
+
+	thread_fp_release(thr);
+}
+
+void thread_user_clear_vfp(struct user_mode_ctx *uctx)
+{
+	struct thread_user_vfp_state *uvfp = &uctx->vfp;
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	if (uvfp == thr->vfp_state.uvfp) {
+		if (thr->vfp_state.owner == RISCV_FP_OWNER_USER) {
+			thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+			riscv_fp_disable();
+		}
+		thr->vfp_state.uvfp = NULL;
+	}
+
+	memset(uvfp, 0, sizeof(*uvfp));
+
+	thread_set_exceptions(exceptions);
+}
+
+void vfp_disable(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	/*
+	 * The TA is about to be killed and its FP context dies with it, so
+	 * the registers are released rather than saved. What they hold is
+	 * overwritten by the normal world context before that world resumes,
+	 * see thread_restore_ns_vfp().
+	 */
+	if (thr->vfp_state.owner == RISCV_FP_OWNER_USER)
+		thr->vfp_state.owner = RISCV_FP_OWNER_NONE;
+
+	riscv_fp_disable();
+}
+
+void thread_kernel_restore_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(thr->vfp_state.owner == RISCV_FP_OWNER_NONE);
+
+	if (!thr->vfp_state.sec_valid)
+		return;
+
+	riscv_restore_fp_state(&thr->vfp_state.sec);
+	thr->vfp_state.sec_valid = false;
+	riscv_fp_write_fs(CSR_XSTATUS_FS_CLEAN);
+	thr->vfp_state.owner = RISCV_FP_OWNER_KERNEL;
+	thr->vfp_state.sec_used = true;
+}
+#endif /*CFG_WITH_VFP*/
+
+#ifdef CFG_RISCV_WITH_VECTOR
+static void thread_vector_clear_regs(struct riscv_vector_state *state)
+{
+	memset(state, 0, riscv_vector_state_size());
+	riscv_vector_restore_state(state);
+}
+
+/*
+ * A TA is given the vector unit the first time it executes a vector
+ * instruction, rather than on every entry to user mode. Within the TEE,
+ * OP-TEE alone owns VS and no other context can look at the vector
+ * registers behind our back, so there is nothing to defend against here,
+ * and most TAs never touch vector. Enabling on first use keeps those TAs
+ * from paying for a context switch they have no use for, which for vector
+ * is a good deal larger than it is for floating point.
+ */
+uint32_t thread_kernel_enable_vector(void)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	/*
+	 * The section runs to thread_kernel_disable_vector(), which is also
+	 * where the foreign interrupt mask is restored. Nesting is not
+	 * supported.
+	 */
+	assert(thr->vector_state.owner != RISCV_VECTOR_OWNER_KERNEL);
+
+	/* Take the vector registers away from whoever holds them */
+	thread_vector_release(thr);
+
+	/*
+	 * VS == Initial enables the unit and says the registers hold no
+	 * context worth preserving, which is what core code wants: it sets
+	 * up its own vtype and vl before touching them.
+	 */
+	riscv_vector_write_vs(CSR_XSTATUS_VS_INITIAL);
+
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_KERNEL;
+	thr->vector_state.sec_used = true;
+
+	return exceptions;
+}
+
+void thread_kernel_disable_vector(uint32_t state)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = 0;
+
+	assert(thr->vector_state.owner == RISCV_VECTOR_OWNER_KERNEL);
+	assert(riscv_vector_is_enabled());
+
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_NONE;
+	riscv_vector_disable();
+
+	exceptions = thread_get_exceptions();
+	assert(exceptions & THREAD_EXCP_FOREIGN_INTR);
+	exceptions &= ~THREAD_EXCP_FOREIGN_INTR;
+	exceptions |= state & THREAD_EXCP_FOREIGN_INTR;
+	thread_set_exceptions(exceptions);
+}
+
+bool thread_user_enable_vector(struct thread_user_vector_state *uvect)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = 0;
+
+	assert(uvect);
+
+	/*
+	 * The TA's context is allocated the first time it asks for the
+	 * vector unit, so a TA that never uses vector costs nothing beyond
+	 * the flag. Do it before masking, allocation may sleep on a mutex.
+	 */
+	if (!uvect->state) {
+		uvect->state = memalign(__alignof__(long),
+					riscv_vector_state_size());
+		if (!uvect->state)
+			return false;
+		uvect->valid = false;
+	}
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	/* Take the vector registers away from whoever holds them */
+	thread_vector_release(thr);
+
+	if (uvect->valid) {
+		riscv_vector_restore_state(uvect->state);
+		riscv_vector_write_vs(CSR_XSTATUS_VS_CLEAN);
+	} else {
+		/*
+		 * This TA has no vector context yet. Clear the registers
+		 * before handing them over: VS == Initial says the context
+		 * is new, but enabling the unit does not architecturally
+		 * clear the register file, so the TA would otherwise start
+		 * out seeing what the previous owner left there.
+		 */
+		thread_vector_clear_regs(uvect->state);
+		riscv_vector_write_vs(CSR_XSTATUS_VS_INITIAL);
+	}
+
+	thr->vector_state.uvect = uvect;
+	thr->vector_state.owner = RISCV_VECTOR_OWNER_USER;
+	thr->vector_state.sec_used = true;
+
+	thread_set_exceptions(exceptions);
+
+	return true;
+}
+
+void thread_user_save_vector(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+	/* The TA either never used vector or has already been saved */
+	if (thr->vector_state.owner != RISCV_VECTOR_OWNER_USER)
+		return;
+
+	thread_vector_release(thr);
+}
+
+void thread_user_clear_vector(struct user_mode_ctx *uctx)
+{
+	struct thread_user_vector_state *uvect = &uctx->vector;
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	if (uvect == thr->vector_state.uvect) {
+		if (thr->vector_state.owner == RISCV_VECTOR_OWNER_USER) {
+			thr->vector_state.owner = RISCV_VECTOR_OWNER_NONE;
+			riscv_vector_disable();
+		}
+		thr->vector_state.uvect = NULL;
+	}
+
+	uvect->valid = false;
+
+	thread_set_exceptions(exceptions);
+
+	free(uvect->state);
+	uvect->state = NULL;
+}
+#endif /*CFG_RISCV_WITH_VECTOR*/
