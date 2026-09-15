@@ -141,6 +141,7 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 
 	sess->handle_scall = sess->ctx->ops->handle_scall;
 	thread_user_clear_vfp(uctx);
+	thread_user_clear_vector(uctx);
 	ldelf_sess_cleanup(sess);
 
 	if (panicked) {
@@ -303,6 +304,7 @@ TEE_Result ldelf_dump_state(struct user_mode_ctx *uctx)
 
 	sess->handle_scall = sess->ctx->ops->handle_scall;
 	thread_user_clear_vfp(uctx);
+	thread_user_clear_vector(uctx);
 	ldelf_sess_cleanup(sess);
 
 	if (panicked) {
@@ -371,6 +373,7 @@ TEE_Result ldelf_dump_ftrace(struct user_mode_ctx *uctx,
 	sess->fbuf = saved_fbuf;
 	sess->handle_scall = sess->ctx->ops->handle_scall;
 	thread_user_clear_vfp(uctx);
+	thread_user_clear_vector(uctx);
 	ldelf_sess_cleanup(sess);
 
 	if (panicked) {
