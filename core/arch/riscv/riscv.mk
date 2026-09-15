@@ -99,7 +99,7 @@ $(call force,CFG_PAGED_USER_TA,n)
 $(call force,CFG_WITH_PAGER,n)
 $(call force,CFG_GIC,n)
 $(call force,CFG_ARM_GICV3,n)
-$(call force,CFG_WITH_VFP,n)
+#$(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 
@@ -108,10 +108,22 @@ $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
+	$(addprefix $(arch-dir)/, kernel mm tee crypto) $(platform-dir)
 
 # Default values for "-mcmodel" compiler flag
 riscv-platform-mcmodel ?= medany
+
+# These must be selected before constructing riscv-isa below. The generic
+# crypto configuration is included later in the build.
+ifneq (,$(filter y,$(CFG_CRYPTO_AES_RISCV_ZVKNED) \
+			 $(CFG_CRYPTO_AES_RISCV_ZVKNED_ZVKB)))
+$(call force,CFG_RISCV_ISA_V,y,required by CFG_CRYPTO_AES_RISCV_ZVKNED)
+$(call force,CFG_RISCV_ISA_ZVKNED,y,required by CFG_CRYPTO_AES_RISCV_ZVKNED)
+endif
+
+ifeq ($(CFG_CRYPTO_AES_RISCV_ZVKNED_ZVKB),y)
+$(call force,CFG_RISCV_ISA_ZVKB,y,required by CFG_CRYPTO_AES_RISCV_ZVKNED)
+endif
 
 ifeq ($(CFG_RV64_core),y)
 ISA_BASE = rv64ima
@@ -129,6 +141,17 @@ ISA_C = c
 endif
 ifeq ($(CFG_RISCV_ISA_ZBB),y)
 ISA_ZBB = _zbb
+endif
+
+# Cryptgnnrpahic functions
+ifeq ($(CFG_RISCV_ISA_V),y)
+ISA_V = v
+endif
+ifeq ($(CFG_RISCV_ISA_ZVKNED),y)
+ISA_ZVKNED = _zvkned
+endif
+ifeq ($(CFG_RISCV_ISA_ZVKB),y)
+ISA_ZVKB = _zvkb
 endif
 
 riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei
