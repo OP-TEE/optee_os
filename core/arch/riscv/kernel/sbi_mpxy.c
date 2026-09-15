@@ -207,12 +207,14 @@ int sbi_mpxy_get_channel_ids(uint32_t channel_count, uint32_t *channel_ids)
 {
 	struct mpxy_core_local *mpxy = NULL;
 	struct sbi_mpxy_channel_ids_data *data = NULL;
+	uint32_t max_returned = 0;
 	uint32_t remaining = 0;
 	uint32_t returned = 0;
 	uint32_t count = 0;
 	uint32_t start_index = 0;
 	struct sbiret sbiret = {};
 	uint32_t exceptions = 0;
+	int ret = SBI_ERR_FAILURE;
 
 	if (!channel_count || !channel_ids)
 		return SBI_ERR_INVALID_PARAM;
@@ -222,34 +224,46 @@ int sbi_mpxy_get_channel_ids(uint32_t channel_count, uint32_t *channel_ids)
 	mpxy = mpxy_get_core_local();
 
 	if (!mpxy->shmem_active) {
-		sbiret.error = SBI_ERR_NO_SHMEM;
+		ret = SBI_ERR_NO_SHMEM;
 		goto out;
 	}
 
 	data = mpxy->shmem;
+	max_returned = (mpxy->shmem_size - sizeof(*data)) /
+		       sizeof(data->channel_array[0]);
 
 	do {
 		sbiret = sbi_ecall(SBI_EXT_MPXY, SBI_EXT_MPXY_GET_CHANNEL_IDS,
 				   start_index, 0, 0, 0, 0, 0);
 		if (sbiret.error) {
 			EMSG("MPXY SBI call failed: error=%ld", sbiret.error);
+			ret = sbiret.error;
 			goto out;
 		}
 
 		remaining = data->remaining;
 		returned = data->returned;
 
-		count = returned < (channel_count - start_index) ?
-				returned :
-				(channel_count - start_index);
+		/*
+		 * The returned count must fit in the shared memory, and a
+		 * non-final chunk must return at least one ID.
+		 */
+		if (returned > max_returned || (!returned && remaining)) {
+			ret = SBI_ERR_FAILURE;
+			goto out;
+		}
+
+		count = MIN(returned, channel_count - start_index);
 		memcpy(&channel_ids[start_index], data->channel_array,
 		       count * sizeof(uint32_t));
 		start_index += count;
 	} while (remaining && start_index < channel_count);
 
+	ret = SBI_SUCCESS;
+
 out:
 	thread_unmask_exceptions(exceptions);
-	return sbiret.error;
+	return ret;
 }
 
 /**
@@ -281,6 +295,11 @@ int sbi_mpxy_read_attributes(uint32_t channel_id, uint32_t base_attribute_id,
 
 	if (!mpxy->shmem_active) {
 		ret = SBI_ERR_NO_SHMEM;
+		goto out;
+	}
+
+	if (attribute_count > mpxy->shmem_size / sizeof(uint32_t)) {
+		ret = SBI_ERR_INVALID_PARAM;
 		goto out;
 	}
 
@@ -331,6 +350,11 @@ int sbi_mpxy_write_attributes(uint32_t channel_id, uint32_t base_attribute_id,
 		goto out;
 	}
 
+	if (attribute_count > mpxy->shmem_size / sizeof(uint32_t)) {
+		ret = SBI_ERR_INVALID_PARAM;
+		goto out;
+	}
+
 	memcpy(mpxy->shmem, attributes_buf, attribute_count * sizeof(uint32_t));
 
 	sbiret = sbi_ecall(SBI_EXT_MPXY, SBI_EXT_MPXY_WRITE_ATTRS, channel_id,
@@ -377,6 +401,10 @@ int sbi_mpxy_send_message_with_response(uint32_t channel_id,
 
 	if (!message && message_len)
 		return SBI_ERR_INVALID_PARAM;
+	if (!response && max_response_len)
+		return SBI_ERR_INVALID_PARAM;
+	if (response_len)
+		*response_len = 0;
 
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
@@ -387,13 +415,30 @@ int sbi_mpxy_send_message_with_response(uint32_t channel_id,
 		goto out;
 	}
 
+	if (message_len > mpxy->shmem_size) {
+		ret = SBI_ERR_INVALID_PARAM;
+		goto out;
+	}
+
 	if (message_len)
 		memcpy(mpxy->shmem, message, message_len);
 
 	sbiret = sbi_ecall(SBI_EXT_MPXY, SBI_EXT_MPXY_SEND_MSG_WITH_RESP,
 			   channel_id, message_id, message_len, 0, 0, 0);
-	if (response && !sbiret.error) {
-		response_bytes = sbiret.value;
+	if (sbiret.error) {
+		EMSG("MPXY SBI call failed: error=%ld", sbiret.error);
+		ret = sbiret.error;
+		goto out;
+	}
+
+	/* Never trust a returned length larger than our own shared memory */
+	response_bytes = sbiret.value;
+	if (response_bytes > mpxy->shmem_size) {
+		ret = SBI_ERR_FAILURE;
+		goto out;
+	}
+
+	if (response) {
 		if (response_bytes > max_response_len) {
 			ret = SBI_ERR_INVALID_PARAM;
 			goto out;
@@ -404,10 +449,8 @@ int sbi_mpxy_send_message_with_response(uint32_t channel_id,
 			*response_len = response_bytes;
 	}
 
-	if (sbiret.error)
-		EMSG("MPXY SBI call failed: error=%ld", sbiret.error);
+	ret = SBI_SUCCESS;
 
-	ret = sbiret.error;
 out:
 	thread_unmask_exceptions(exceptions);
 	return ret;
@@ -444,6 +487,11 @@ int sbi_mpxy_send_message_without_response(uint32_t channel_id,
 
 	if (!mpxy->shmem_active) {
 		ret = SBI_ERR_NO_SHMEM;
+		goto out;
+	}
+
+	if (message_len > mpxy->shmem_size) {
+		ret = SBI_ERR_INVALID_PARAM;
 		goto out;
 	}
 
@@ -518,25 +566,32 @@ out:
  * MPXY channel
  * @channel_id: ID of the channel
  * @notif_data: Pointer to buffer to store notification data
+ * @max_events_data_len: Size in bytes of the events_data area of @notif_data
  * @events_data_len: Pointer to store length of events data in bytes
  *
  * Makes an SBI call to fetch notification events from the specified channel
- * and copies them from shared memory into the provided buffer.
+ * and copies the notification header and events data from shared memory
+ * into the provided buffer. @notif_data must have room for the header plus
+ * @max_events_data_len bytes.
  *
  * Return: SBI_SUCCESS on success, negative SBI error code on failure.
  */
 int
 sbi_mpxy_get_notification_events(uint32_t channel_id,
 				 struct sbi_mpxy_notification_data *notif_data,
+				 unsigned long max_events_data_len,
 				 unsigned long *events_data_len)
 {
 	struct mpxy_core_local *mpxy = NULL;
+	unsigned long events_bytes = 0;
 	struct sbiret sbiret = {};
 	uint32_t exceptions = 0;
 	int ret = SBI_ERR_FAILURE;
 
 	if (!notif_data || !events_data_len)
 		return SBI_ERR_INVALID_PARAM;
+
+	*events_data_len = 0;
 
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
@@ -555,10 +610,16 @@ sbi_mpxy_get_notification_events(uint32_t channel_id,
 		goto out;
 	}
 
-	memcpy(notif_data, mpxy->shmem, sbiret.value + 16);
-	*events_data_len = sbiret.value;
+	events_bytes = sbiret.value;
+	if (events_bytes > max_events_data_len ||
+	    events_bytes > mpxy->shmem_size - sizeof(*notif_data)) {
+		ret = SBI_ERR_INVALID_PARAM;
+		goto out;
+	}
 
-	ret = sbiret.error;
+	memcpy(notif_data, mpxy->shmem, sizeof(*notif_data) + events_bytes);
+	*events_data_len = events_bytes;
+	ret = SBI_SUCCESS;
 
 out:
 	thread_unmask_exceptions(exceptions);
