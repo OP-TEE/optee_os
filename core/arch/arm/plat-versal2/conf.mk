@@ -74,6 +74,8 @@ CFG_AMD_PS_GPIO ?= n
 
 # AMD ASU Specific configs
 CFG_AMD_ASU_SUPPORT ?= y
+
+ifeq ($(CFG_AMD_ASU_SUPPORT),y)
 CFG_AMD_APU_LCL_IPI_ID ?= 0x0004
 # Current HASH engine does not support partial state copy operation. Any
 # operation from REE involving state copy can crash the OS when driver
@@ -91,12 +93,20 @@ CFG_AMD_ASU_ECC ?= y
 
 # ASU TRNG driver configuration
 CFG_AMD_ASU_TRNG ?= y
-CFG_WITH_SOFTWARE_PRNG ?= n
 
-# HWRNG PTA configuration for Linux kernel integration
+# When ASU TRNG is enabled, use it as the RNG source and enable the HWRNG
+# PTA for Linux kernel integration. When it is disabled, leave
+# CFG_WITH_SOFTWARE_PRNG untouched so the generic default selects the
+# software PRNG automatically.
 ifeq ($(CFG_AMD_ASU_TRNG),y)
 CFG_HWRNG_PTA ?= y
 CFG_HWRNG_QUALITY ?= 1024
+
+# core/pta/hwrng.c only works with a hardware RNG; disable the software
+# PRNG whenever the HWRNG PTA is enabled.
+ifeq ($(CFG_HWRNG_PTA),y)
+$(call force,CFG_WITH_SOFTWARE_PRNG,n)
+endif
 endif
 
 ifeq ($(CFG_RPMB_FS),y)
@@ -119,6 +129,7 @@ $(warning WARNING: Any attempt by the REE to perform a state copy operation \
 # operations on the same underlying AES hardware engine, preventing
 # concurrent access.
 CFG_AMD_ASU_CMAC ?= n
+endif
 endif
 
 ifeq ($(CFG_AMD_PS_GPIO),y)
