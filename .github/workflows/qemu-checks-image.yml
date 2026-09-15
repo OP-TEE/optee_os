@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: BSD-2-Clause
+
+name: Reusable QEMU checks image build
+
+on:
+  workflow_call:
+    inputs:
+      builder:
+        required: true
+        type: string
+      target:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+
+jobs:
+  QEMU_checks_image_build:
+    name: Build
+    runs-on: ${{ inputs.builder }}
+    steps:
+      - name: Create Dockerfile
+        run: |
+          cat > Dockerfile <<'EOF'
+          FROM ghcr.io/${{ vars.CI_IMAGE_OWNER || 'OP-TEE' }}/optee_os/ci-image
+          ARG MANIFEST_OWNER
+          RUN /root/get_optee.sh ${{ inputs.target }} /root/optee_repo_qemu "$MANIFEST_OWNER"
+          EOF
+      - name: Build Docker image
+        run: |
+          docker build --build-arg MANIFEST_OWNER="${{ vars.MANIFEST_OWNER }}" -t ${{ inputs.tag }} .
+          docker save ${{ inputs.tag }} | zstd -T0 -o ${{ inputs.tag }}.tar.zst
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.tag }}
+          path: ${{ inputs.tag }}.tar.zst
+          retention-days: 5

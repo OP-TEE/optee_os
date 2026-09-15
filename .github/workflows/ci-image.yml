@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: BSD-2-Clause
+
+name: CI Image
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  build-ci-image:
+    name: Build CI Image
+    uses: docker/github-builder/.github/workflows/build.yml@58cb9f5b71b1836d6f690c1e95effdeb9b98cb8a  # v1.17.0
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    with:
+      output: image
+      push: ${{ github.event_name != 'pull_request' }}
+      platforms: linux/amd64,linux/arm64
+      file: scripts/ci-image/Dockerfile
+      meta-images: ghcr.io/${{ github.repository }}/ci-image
+      meta-tags: type=raw,value=latest
+    secrets:
+      registry-auths: |
+        - registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+  cleanup-ghcr-containers:
+    name: cleanup untagged containers
+    runs-on: ubuntu-26.04
+    needs: build-ci-image
+    permissions:
+      packages: write
+    steps:
+      - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f  # v1.2.2
+        with:
+          dry-run: false
+          validate: true
+          package: ${{ github.event.repository.name }}/ci-image
