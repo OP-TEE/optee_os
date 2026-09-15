@@ -169,6 +169,7 @@ int sbi_mpxy_get_channel_count(uint32_t *channel_count);
 int
 sbi_mpxy_get_notification_events(uint32_t channel_id,
 				 struct sbi_mpxy_notification_data *notif_data,
+				 unsigned long max_events_data_len,
 				 unsigned long *events_data_len);
 
 #endif /*__ASSEMBLER__*/
