@@ -26,22 +26,11 @@ register_phys_mem(MEM_AREA_RAM_NSEC, AOP_CMD_DB_BASE, AOP_CMD_DB_SIZE);
 #define CMD_DB_MAX_SLV_ID		(CMD_DB_SLV_ID_ACTUAL + \
 					 CMD_DB_SLV_ID_RESERVE)
 
-#define CMD_DB_ADDR_SLV_ID_SHIFT	16
-#define CMD_DB_ADDR_SLV_ID_MASK		0xf
+#define CMD_DB_SLV_ID_VALID_LOW		3
+#define CMD_DB_SLV_ID_VALID_HIGH	5
 
 #define CMD_DB_RES_ID_MAX_CHARS		8
 #define CMD_DB_CHAR_BITS		8
-
-#define CMD_DB_PRIORITY_LOW_DRV_MAX	15
-#define CMD_DB_PRIORITY_HIGH_DRV_MAX	31
-#define CMD_DB_PRIORITY_HIGH_DRV_OFFSET	16
-#define PRIORITY_BITS_PER_DRV		2
-#define PRIORITY_MASK			0x3
-#define MAX_DRV_ID			CMD_DB_PRIORITY_HIGH_DRV_MAX
-
-#define ADDR_SLV_ID(id) \
-	((enum cmd_db_slv_id_type)(((id) >> CMD_DB_ADDR_SLV_ID_SHIFT) & \
-				   CMD_DB_ADDR_SLV_ID_MASK))
 
 #define CMD_DB_GET_ENTRY_PTR(slv_info, idx) \
 	(query_db.data->data + (slv_info)->header_offset + \
@@ -50,34 +39,11 @@ register_phys_mem(MEM_AREA_RAM_NSEC, AOP_CMD_DB_BASE, AOP_CMD_DB_SIZE);
 #define CMD_DB_GET_DATA_PTR(slv_info, offset) \
 	(query_db.data->data + (slv_info)->data_offset + (offset))
 
-enum cmd_db_slv_id_type {
-	CMD_DB_SLV_ID_INVALID		= 0,
-	CMD_DB_SLV_ID_VALID_LOW		= 3,
-	CMD_DB_SLV_ID_ARC		= CMD_DB_SLV_ID_VALID_LOW,
-	CMD_DB_SLV_ID_VRM		= 4,
-	CMD_DB_SLV_ID_BCM		= 5,
-	CMD_DB_SLV_ID_VALID_HIGH	= CMD_DB_SLV_ID_BCM,
-};
-
-enum cmd_db_query_type {
-	CMD_DB_QUERY_RES_ID = 0,
-	CMD_DB_QUERY_ADDRESS,
-	CMD_DB_QUERY_INVALID,
-};
-
 struct cmd_db_query_result_type {
 	char res_id[CMD_DB_MAX_RES_ID_LEN + 1];
 	uint32_t addr;
-	uint32_t priority[CMD_DB_DRV_ID_PRIORITY_SZ];
 	uint32_t len;
 	uint16_t version;
-};
-
-struct cmd_db_query_info {
-	char res_id[CMD_DB_MAX_RES_ID_LEN + 1];
-	uint32_t addr;
-	enum cmd_db_query_type type;
-	enum cmd_db_slv_id_type slv_id;
 };
 
 struct entry_header {
@@ -130,12 +96,6 @@ static uint64_t conv_str_to_uint64(const char *res_id)
 		value |= SHIFT_U64((uint64_t)res_id[i], CMD_DB_CHAR_BITS * i);
 
 	return value;
-}
-
-static bool is_valid_slv_id(uint32_t slv_id)
-{
-	return (slv_id >= CMD_DB_SLV_ID_VALID_LOW &&
-		slv_id <= CMD_DB_SLV_ID_VALID_HIGH);
 }
 
 static bool is_valid_res_id(const char *res_id)
@@ -191,31 +151,26 @@ static TEE_Result validate_entry_bounds(struct slv_id_info *slv_info,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result search_entry(struct cmd_db_query_info *query_info,
-			       uint64_t res_id, uint16_t *slv_idx,
+static TEE_Result search_entry(uint64_t res_id, uint16_t *slv_idx,
 			       struct entry_header *entry)
 {
 	struct slv_id_info *slv_info = NULL;
 	TEE_Result res = TEE_SUCCESS;
-	bool valid = false;
 	uint16_t i = 0;
 	uint16_t j = 0;
 
 	if (!query_db.data)
 		return TEE_ERROR_BAD_STATE;
 
-	if (query_info->type == CMD_DB_QUERY_RES_ID && !res_id)
+	if (!res_id)
 		return TEE_ERROR_BAD_PARAMETERS;
-
-	valid = is_valid_slv_id(query_info->slv_id);
 
 	for (i = 0; i < CMD_DB_MAX_SLV_ID; i++) {
 		slv_info = &query_db.data->slv_id_info[i];
 
-		if (valid) {
-			if (slv_info->slv_id != query_info->slv_id)
-				continue;
-		}
+		if (slv_info->slv_id < CMD_DB_SLV_ID_VALID_LOW ||
+		    slv_info->slv_id > CMD_DB_SLV_ID_VALID_HIGH)
+			continue;
 
 		for (j = 0; j < slv_info->cnt; j++) {
 			res = validate_entry_bounds(slv_info, j);
@@ -225,12 +180,7 @@ static TEE_Result search_entry(struct cmd_db_query_info *query_info,
 			memcpy(entry, CMD_DB_GET_ENTRY_PTR(slv_info, j),
 			       sizeof(*entry));
 
-			if (query_info->type == CMD_DB_QUERY_RES_ID &&
-			    res_id == entry->res_id)
-				goto out_found;
-
-			if (query_info->type == CMD_DB_QUERY_ADDRESS &&
-			    query_info->addr == entry->addr)
+			if (res_id == entry->res_id)
 				goto out_found;
 		}
 	}
@@ -271,7 +221,6 @@ cmd_db_get_entry_by_res_id(const char *res_id,
 			   struct cmd_db_query_result_type *result,
 			   uint8_t *data)
 {
-	struct cmd_db_query_info query_info = { };
 	struct entry_header entry = { };
 	TEE_Result res = TEE_SUCCESS;
 	uint64_t res_id_val = 0;
@@ -284,58 +233,13 @@ cmd_db_get_entry_by_res_id(const char *res_id,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	res_id_val = conv_str_to_uint64(res_id);
-	query_info.type = CMD_DB_QUERY_RES_ID;
-	strlcpy(query_info.res_id, res_id, sizeof(query_info.res_id));
 
-	res = search_entry(&query_info, res_id_val, &slv_idx, &entry);
+	res = search_entry(res_id_val, &slv_idx, &entry);
 	if (res)
 		return res;
 
 	strlcpy(result->res_id, res_id, sizeof(result->res_id));
 	result->addr = entry.addr;
-	result->priority[0] = entry.priority[0];
-	result->priority[1] = entry.priority[1];
-	result->version = query_db.data->slv_id_info[slv_idx].version;
-
-	if (entry.len == 0)
-		return TEE_SUCCESS;
-
-	if (result->len == 0) {
-		result->len = entry.len;
-		return TEE_SUCCESS;
-	}
-
-	return copy_aux_data(slv_idx, &entry, result, data);
-}
-
-static TEE_Result
-cmd_db_get_entry_by_addr(uint32_t addr, struct cmd_db_query_result_type *result,
-			 uint8_t *data)
-{
-	struct cmd_db_query_info query_info = { };
-	struct entry_header entry = { };
-	TEE_Result res = TEE_SUCCESS;
-	uint16_t slv_idx = 0;
-	uint32_t slv_id = 0;
-
-	if (!result || (!data && result->len > 0))
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	slv_id = ADDR_SLV_ID(addr);
-	if (!is_valid_slv_id(slv_id))
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	query_info.type = CMD_DB_QUERY_ADDRESS;
-	query_info.addr = addr;
-	query_info.slv_id = slv_id;
-
-	res = search_entry(&query_info, 0, &slv_idx, &entry);
-	if (res)
-		return res;
-
-	result->addr = entry.addr;
-	result->priority[0] = entry.priority[0];
-	result->priority[1] = entry.priority[1];
 	result->version = query_db.data->slv_id_info[slv_idx].version;
 
 	if (entry.len == 0)
@@ -372,43 +276,4 @@ TEE_Result cmd_db_get_addr(const char *res_id, uint32_t *addr)
 	return res;
 }
 
-static uint32_t extract_priority(struct cmd_db_query_result_type *result,
-				 uint8_t drv_id)
-{
-	if (drv_id <= CMD_DB_PRIORITY_LOW_DRV_MAX)
-		return (result->priority[0] >>
-			(drv_id * PRIORITY_BITS_PER_DRV)) & PRIORITY_MASK;
-
-	if (drv_id <= CMD_DB_PRIORITY_HIGH_DRV_MAX)
-		return (result->priority[1] >>
-			((drv_id - CMD_DB_PRIORITY_HIGH_DRV_OFFSET) *
-			 PRIORITY_BITS_PER_DRV)) & PRIORITY_MASK;
-
-	return 0;
-}
-
-TEE_Result cmd_db_get_priority(uint32_t addr, uint8_t drv_id,
-			       uint32_t *priority)
-{
-	struct cmd_db_query_result_type result = { };
-	TEE_Result res = TEE_SUCCESS;
-
-	if (!priority || drv_id > MAX_DRV_ID)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	mutex_lock(&query_db.lock);
-
-	if (!query_db.data) {
-		mutex_unlock(&query_db.lock);
-		return TEE_ERROR_BAD_STATE;
-	}
-
-	res = cmd_db_get_entry_by_addr(addr, &result, NULL);
-	if (res == TEE_SUCCESS)
-		*priority = extract_priority(&result, drv_id);
-
-	mutex_unlock(&query_db.lock);
-	return res;
-}
-
-early_init(cmd_db_init);
+early_init_late(cmd_db_init);
