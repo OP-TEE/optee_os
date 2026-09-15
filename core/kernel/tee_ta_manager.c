@@ -248,7 +248,7 @@ struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 		s = tee_ta_find_session_nolock(id, open_sessions);
 		if (!s)
 			break;
-		if (s->unlink) {
+		if (!s->active) {
 			s = NULL;
 			break;
 		}
@@ -258,10 +258,10 @@ struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 
 		assert(s->lock_thread != thread_get_id());
 
-		while (s->lock_thread != THREAD_ID_INVALID && !s->unlink)
+		while (s->lock_thread != THREAD_ID_INVALID && s->active)
 			condvar_wait(&s->lock_cv, &tee_ta_mutex);
 
-		if (s->unlink) {
+		if (!s->active) {
 			dec_session_ref_count(s);
 			s = NULL;
 			break;
@@ -282,9 +282,9 @@ static void tee_ta_unlink_session(struct tee_ta_session *s,
 
 	assert(s->ref_count >= 1);
 	assert(s->lock_thread == thread_get_id());
-	assert(!s->unlink);
+	assert(s->active);
 
-	s->unlink = true;
+	s->active = false;
 	condvar_broadcast(&s->lock_cv);
 
 	while (s->ref_count != 1)
@@ -626,6 +626,11 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	condvar_init(&s->lock_cv);
 	s->lock_thread = thread_get_id();
 	s->ref_count = 1;
+	/*
+	 * Keep the session marked inactive so tee_ta_get_session() rejects
+	 * it until initialisation has completed.
+	 */
+	s->active = false;
 
 	mutex_lock(&tee_ta_mutex);
 	s->id = new_session_id(open_sessions);
@@ -668,6 +673,9 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 
 out:
 	if (!res) {
+		mutex_lock(&tee_ta_mutex);
+		s->active = true;
+		mutex_unlock(&tee_ta_mutex);
 		*sess = s;
 		return TEE_SUCCESS;
 	}
