@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: BSD-2-Clause
+
+name: QEMU checks action
+description: Steps to run QEMU checks, bundled as composite action
+
+inputs:
+  name:
+    description: Action name
+    required: true
+  type:
+    description: Type of checks (qemuv7, qemuv8, ...)
+    required: true
+  make_commands:
+    description: Make commands to run the checks
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Update Git config
+      shell: bash
+      run: |
+        git config --global --add safe.directory /home/runner/work/optee_os/optee_os
+    - name: Download Docker image
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.type }}_image
+        path: .
+    - name: Load Docker image
+      shell: bash
+      run: |
+        zstd -d ${{ inputs.type }}_image.tar.zst -c | docker load
+    - name: Generate cache key
+      shell: bash
+      run: |
+        HASH=$(echo -n "${{ inputs.name }}" | sha256sum | cut -c1-16)
+        echo "CACHE_KEY=${{ inputs.type }}_check-cache-${HASH}-${GITHUB_SHA}" >> $GITHUB_ENV
+        echo "CACHE_RESTORE_KEY=${{ inputs.type }}_check-cache-${HASH}" >> ${GITHUB_ENV}
+    - name: Restore build cache
+      uses: actions/cache@v6
+      with:
+        path: /home/runner/work/ccache
+        key: ${{ env.CACHE_KEY }}
+        restore-keys: |
+          ${{ env.CACHE_RESTORE_KEY }}
+    - name: Run 'make check' tasks in container
+      shell: bash
+      env:
+        MAKE_COMMANDS: "${{ inputs.make_commands }}"
+      run: |
+        docker run --rm \
+          -v /home/runner/work/optee_os/optee_os:/runner/optee_os \
+          -v /home/runner/work/ccache:/root/.cache/ccache \
+          -w /root \
+          -e MAKE_COMMANDS="$MAKE_COMMANDS" \
+          ${{ inputs.type }}_image \
+          bash -c '
+            set -e -v
+
+            export BR2_CCACHE_DIR=/root/.cache/ccache
+            export FORCE_UNSAFE_CONFIGURE=1
+            export CFG_TEE_CORE_LOG_LEVEL=2
+            export DUMP_LOGS_ON_ERROR=1
+
+            if [ ${{ inputs.type }} != qemuv7 ]; then
+              export CFG_ATTESTATION_PTA=y
+              export CFG_ATTESTATION_PTA_KEY_SIZE=1024
+            fi
+
+            TOP=/root/optee_repo_qemu
+            mv $TOP/optee_os $TOP/optee_os_old
+            ln -s /runner/optee_os $TOP/optee_os
+            cd $TOP/build
+
+            ccache -s -v
+            eval "$MAKE_COMMANDS"
+            ccache -s -v
+          '
