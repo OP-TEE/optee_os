@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  */
 
 #ifndef __SBI_MPXY_H
@@ -18,6 +18,11 @@
 #define SBI_EXT_MPXY_SEND_MSG_WITHOUT_RESP      0x6
 #define SBI_EXT_MPXY_GET_NOTIFICATION_EVENTS    0x7
 
+/* SET_SHMEM arguments */
+#define SBI_MPXY_SHMEM_DISABLE			ULONG_MAX
+#define SBI_MPXY_SHMEM_FLAG_OVERWRITE		0
+#define SBI_MPXY_SHMEM_FLAG_OVERWRITE_RETURN	1
+
 /* Capabilities available through CHANNEL_CAPABILITY attribute */
 #define SBI_MPXY_CHAN_CAP_MSI			BIT(0)
 #define SBI_MPXY_CHAN_CAP_SSE			BIT(1)
@@ -30,6 +35,7 @@
 
 #include <compiler.h>
 #include <encoding.h>
+#include <limits.h>
 #include <stdint.h>
 #include <sys/cdefs.h>
 #include <types_ext.h>
@@ -143,6 +149,7 @@ struct sbi_mpxy_notification_data {
 /* SBI MPXY */
 int sbi_mpxy_get_shmem_size(unsigned long *shmem_size);
 int sbi_mpxy_set_shmem(void);
+int sbi_mpxy_disable_shmem(void);
 int sbi_mpxy_get_channel_ids(uint32_t channel_count, uint32_t *channel_ids);
 int sbi_mpxy_read_attributes(uint32_t channel_id, uint32_t base_attribute_id,
 			     uint32_t attribute_count, void *attribute_buf);
