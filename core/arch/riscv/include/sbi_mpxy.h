@@ -147,6 +147,7 @@ struct sbi_mpxy_notification_data {
 };
 
 /* SBI MPXY */
+int sbi_mpxy_init(void);
 int sbi_mpxy_get_shmem_size(unsigned long *shmem_size);
 int sbi_mpxy_set_shmem(void);
 int sbi_mpxy_disable_shmem(void);
@@ -173,5 +174,17 @@ sbi_mpxy_get_notification_events(uint32_t channel_id,
 				 unsigned long *events_data_len);
 
 #endif /*__ASSEMBLER__*/
+
+#else /*!defined(CFG_RISCV_SBI_MPXY)*/
+
+#ifndef __ASSEMBLER__
+
+/* sbi.h may not be available without CFG_RISCV_SBI, use the raw value */
+static inline int sbi_mpxy_init(void)
+{
+	return -2; /* SBI_ERR_NOT_SUPPORTED */
+}
+#endif /*__ASSEMBLER__*/
+
 #endif /*defined(CFG_RISCV_SBI_MPXY)*/
 #endif /*__SBI_MPXY_H*/
