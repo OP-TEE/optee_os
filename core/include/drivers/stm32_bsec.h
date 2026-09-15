@@ -9,16 +9,50 @@
 #include <compiler.h>
 #include <stdint.h>
 #include <tee_api.h>
+#include <types_ext.h>
 
-/* BSEC_DEBUG */
-#define BSEC_HDPEN			BIT(4)
-#define BSEC_SPIDEN			BIT(5)
-#define BSEC_SPINDEN			BIT(6)
-#define BSEC_DBGSWGEN			BIT(10)
-#define BSEC_DEBUG_ALL			(BSEC_HDPEN | \
-					 BSEC_SPIDEN | \
-					 BSEC_SPINDEN | \
-					 BSEC_DBGSWGEN)
+/* Debug permission mask */
+/* Cortex A Non-Secure Trace-only */
+#define STM32_BSEC_DEBUG_CORTEX_A_NSTO		BIT(0)
+/* Cortex A Non-Secure Full-Debug */
+#define STM32_BSEC_DEBUG_CORTEX_A_NSFD		BIT(1)
+/* Cortex A Secure Trace-only */
+#define STM32_BSEC_DEBUG_CORTEX_A_STO		BIT(2)
+/* Cortex A Secure Full-Debug */
+#define STM32_BSEC_DEBUG_CORTEX_A_SFD		BIT(3)
+/* Cortex M Non-Secure Trace-only */
+#define STM32_BSEC_DEBUG_CORTEX_M_NSTO		BIT(4)
+/* Cortex M Non-Secure Full-Debug */
+#define STM32_BSEC_DEBUG_CORTEX_M_NSFD		BIT(5)
+/* Cortex M Secure Trace-only */
+#define STM32_BSEC_DEBUG_CORTEX_M_STO		BIT(6)
+/* Cortex M Secure Full-Debug */
+#define STM32_BSEC_DEBUG_CORTEX_M_SFD		BIT(7)
+/* Cortex A Minimal Debug HDP level */
+#define STM32_BSEC_DEBUG_CORTEX_A_HDPL		BIT(8)
+#define STM32_BSEC_DEBUG_CORTEX_A_HDP(lvl) \
+	(STM32_BSEC_DEBUG_CORTEX_A_HDPL << (lvl))
+/* Cortex M Minimal Debug HDP level */
+#define STM32_BSEC_DEBUG_CORTEX_M_HDPL		BIT(12)
+#define STM32_BSEC_DEBUG_CORTEX_M_HDP(lvl) \
+	(STM32_BSEC_DEBUG_CORTEX_M_HDPL << (lvl))
+/* Cortex A Secure Debug Disabled */
+#define STM32_BSEC_DEBUG_CORTEX_A_SDDIS		BIT(16)
+/* Cortex A Non-Sec Debug Disabled */
+#define STM32_BSEC_DEBUG_CORTEX_A_NSDDIS	BIT(17)
+/* Cortex M Secure Debug Disabled */
+#define STM32_BSEC_DEBUG_CORTEX_M_SDDIS		BIT(18)
+/* Cortex M Non-Sec Debug Disabled */
+#define STM32_BSEC_DEBUG_CORTEX_M_NSDDIS	BIT(19)
+/* Wait for attach at boot time */
+#define STM32_BSEC_DEBUG_WAITATTACH		BIT(31)
+
+#define STM32_BSEC_DEBUG_ALL (STM32_BSEC_DEBUG_CORTEX_A_NSFD | \
+			      STM32_BSEC_DEBUG_CORTEX_A_SFD | \
+			      STM32_BSEC_DEBUG_CORTEX_M_NSFD | \
+			      STM32_BSEC_DEBUG_CORTEX_M_SFD | \
+			      STM32_BSEC_DEBUG_CORTEX_A_HDP(0) | \
+			      STM32_BSEC_DEBUG_CORTEX_M_HDP(0))
 
 #define BSEC_BITS_PER_WORD		(8U * sizeof(uint32_t))
 #define BSEC_BYTES_PER_WORD		sizeof(uint32_t)
@@ -29,6 +63,23 @@ enum stm32_bsec_sec_state {
 	BSEC_STATE_SEC_OPEN,
 	BSEC_STATE_INVALID
 };
+
+/*
+ * Structure and API function for BSEC driver to get some platform data.
+ *
+ * @base: BSEC interface registers physical base address
+ * @mirror: BSEC mirror base address
+ * @upper_start: Base ID for the BSEC upper words in the platform
+ * @max_id: Max value for BSEC word ID for the platform
+ */
+struct stm32_bsec_static_cfg {
+	paddr_t base;
+	paddr_t mirror;
+	unsigned int upper_start;
+	unsigned int max_id;
+};
+
+void plat_bsec_get_static_cfg(struct stm32_bsec_static_cfg *cfg);
 
 /*
  * Load OTP from SAFMEM and provide its value
@@ -52,6 +103,15 @@ TEE_Result stm32_bsec_shadow_register(uint32_t otp_id);
  * Return a TEE_Result compliant return value
  */
 TEE_Result stm32_bsec_read_otp(uint32_t *value, uint32_t otp_id);
+
+/*
+ * Read a range of OTP data values thanks to the name of the cell
+ * @name: Name of the cell describing the OTP range
+ * @len : Size of the OTP range to read
+ * @values : Output read values
+ */
+TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
+					     size_t len, uint8_t **values);
 
 /*
  * Write value in BSEC data register
@@ -97,9 +157,6 @@ static inline TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id __unused)
  * Return a TEE_Result compliant return value
  */
 TEE_Result stm32_bsec_write_debug_conf(uint32_t value);
-
-/* Return debug configuration read from BSEC */
-uint32_t stm32_bsec_read_debug_conf(void);
 
 /*
  * Write shadow-read lock
@@ -167,6 +224,11 @@ bool stm32_bsec_can_access_otp(uint32_t otp_id);
 bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id);
 
 /*
+ * Return true if host-self debug is enabled.
+ */
+bool stm32_bsec_self_hosted_debug_is_enabled(void);
+
+/*
  * Return true if Hardware Debug Port (HDP) is enabled.
  */
 bool stm32_bsec_hdp_is_enabled(void);
@@ -175,6 +237,11 @@ bool stm32_bsec_hdp_is_enabled(void);
  * Return true if coresight peripheral can be used.
  */
 bool stm32_bsec_coresight_is_enabled(void);
+
+/*
+ * Program BSEC to open DBGMCU_APB_AP (AP0)
+ */
+void stm32_bsec_mp21_ap0_unlock(void);
 
 /*
  * Find and get OTP location from its name.
