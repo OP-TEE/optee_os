@@ -210,7 +210,7 @@ static struct bsec_dev bsec_dev = {
 
 static uint32_t bsec_lock(void)
 {
-	if (!bsec_dev.lock || !cpu_mmu_enabled())
+	if (!cpu_mmu_enabled())
 		return 0;
 
 	return cpu_spin_lock_xsave(&bsec_dev.lock);
@@ -218,7 +218,7 @@ static uint32_t bsec_lock(void)
 
 static void bsec_unlock(uint32_t exceptions)
 {
-	if (!bsec_dev.lock || !cpu_mmu_enabled())
+	if (!cpu_mmu_enabled())
 		return;
 
 	cpu_spin_unlock_xrestore(&bsec_dev.lock, exceptions);
