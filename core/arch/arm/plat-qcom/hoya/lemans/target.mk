@@ -52,3 +52,4 @@ $(call force,CFG_QCOM_RPMH_CLIENT,y)
 endif
 
 CFG_QCOM_STORAGE_UFS ?= y
+CFG_ICE_FS_ENC_PTA ?= y
