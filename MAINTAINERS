@@ -142,6 +142,7 @@ F:	core/drivers/versal_trng.c
 
 Core Drivers QCOM CMD_DB
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
+R:	Dinesh Choudhary <idinesh@qti.qualcomm.com> [@IDineshChoudhary]
 S:	Maintained
 F:	core/drivers/qcom/cmd_db/
 F:	core/include/drivers/qcom/cmd_db/
@@ -160,6 +161,7 @@ F:	core/include/drivers/qcom/qfprom/
 
 Core Drivers QCOM RPMH
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
+R:	Dinesh Choudhary <idinesh@qti.qualcomm.com> [@IDineshChoudhary]
 S:	Maintained
 F:	core/drivers/qcom/rpmh/
 F:	core/include/drivers/qcom/rpmh/
