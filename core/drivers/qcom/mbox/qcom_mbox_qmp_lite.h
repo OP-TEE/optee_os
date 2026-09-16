@@ -27,6 +27,9 @@
 /* The size field in the descriptor is 8 bits wide. */
 #define QMP_LITE_MAX_MSG_SIZE		255U
 
+/* Doorbell bit in the remote-signal register (APCS_*_TZ_IPC_INTERRUPT) */
+#define TME_QMP_LITE_IRQ_OUT_BIT_MASK	0x00200000U
+
 /*
  * struct qcom_mbox_signal_config - Doorbell used to notify the remote
  * @reg:   register to write; 0 = do not ring
