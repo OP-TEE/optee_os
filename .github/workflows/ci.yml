@@ -412,17 +412,8 @@ jobs:
           ccache -s -v
           eval "$MAKE_COMMANDS"
           ccache -s -v
-  QEMUv7_checks_image_build:
-    name: QEMUv7 image
-    uses: ./.github/workflows/qemu-checks-image.yml
-    with:
-      builder: ubuntu-24.04
-      target: default
-      tag: qemuv7_image
-      ci_image_tag: ${{ inputs.ci_image_tag || 'latest' }}
   QEMUv7_checks:
     name: Run (QEMUv7) (${{ matrix.name }})
-    needs: QEMUv7_checks_image_build
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
@@ -446,19 +437,12 @@ jobs:
         with:
           name: ${{ matrix.name }}
           type: qemuv7
+          image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
+          manifest_owner: ${{ vars.MANIFEST_OWNER || 'op-tee' }}
           make_commands: "${{ matrix.make_commands }}"
           cache: ${{ matrix.cache || 'shared-read' }}
-  QEMUv8_checks_image_build:
-    name: QEMUv8 image
-    uses: ./.github/workflows/qemu-checks-image.yml
-    with:
-      builder: ubuntu-24.04
-      target: qemu_v8
-      tag: qemuv8_image
-      ci_image_tag: ${{ inputs.ci_image_tag || 'latest' }}
   QEMUv8_checks:
     name: Run (QEMUv8) (${{ matrix.name }})
-    needs: QEMUv8_checks_image_build
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
@@ -527,19 +511,12 @@ jobs:
         with:
           name: ${{ matrix.name }}
           type: qemuv8
+          image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
+          manifest_owner: ${{ vars.MANIFEST_OWNER || 'op-tee' }}
           make_commands: "${{ matrix.make_commands }}"
           cache: ${{ matrix.cache || 'shared-read' }}
-  QEMUv8_arm64_image_build:
-    name: QEMUv8 arm64 image
-    uses: ./.github/workflows/qemu-checks-image.yml
-    with:
-      builder: ubuntu-24.04-arm
-      target: qemu_v8
-      tag: qemuv8_arm64_image
-      ci_image_tag: ${{ inputs.ci_image_tag || 'latest' }}
   QEMUv8_checks_arm64:
     name: Run (QEMUv8 on arm64) (${{ matrix.name }})
-    needs: QEMUv8_arm64_image_build
     runs-on: ubuntu-26.04-arm
     strategy:
       fail-fast: false
@@ -558,5 +535,7 @@ jobs:
         with:
           name: ${{ matrix.name }}
           type: qemuv8_arm64
+          image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
+          manifest_owner: ${{ vars.MANIFEST_OWNER || 'op-tee' }}
           make_commands: "${{ matrix.make_commands }}"
           cache: ${{ matrix.cache || 'shared-read' }}

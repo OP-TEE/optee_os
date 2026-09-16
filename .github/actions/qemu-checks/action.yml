@@ -10,6 +10,12 @@ inputs:
   type:
     description: Type of checks (qemuv7, qemuv8, ...)
     required: true
+  image:
+    description: Container image to use
+    required: true
+  manifest_owner:
+    description: Org of the manifest repo
+    required: true
   make_commands:
     description: Make commands to run the checks
     required: true
@@ -32,15 +38,6 @@ runs:
             /usr/share/swift /usr/local/.ghcup
           df -h /
         fi
-    - name: Download Docker image
-      uses: actions/download-artifact@v8
-      with:
-        name: ${{ inputs.type }}_image
-        path: .
-    - name: Load Docker image
-      shell: bash
-      run: |
-        zstd -d ${{ inputs.type }}_image.tar.zst -c | docker load
     - name: Restore shared build cache
       if: ${{ inputs.cache == 'shared-read' }}
       uses: actions/cache/restore@v6
@@ -72,7 +69,7 @@ runs:
           -v /home/runner/work/ccache:/root/.cache/ccache \
           -w /root \
           -e MAKE_COMMANDS="$MAKE_COMMANDS" \
-          ${{ inputs.type }}_image \
+          ${{ inputs.image }} \
           bash -c '
             set -e -v
 
@@ -81,13 +78,19 @@ runs:
             export CFG_TEE_CORE_LOG_LEVEL=2
             export DUMP_LOGS_ON_ERROR=1
 
-            if [ ${{ inputs.type }} != qemuv7 ]; then
+            if [ ${{ inputs.type }} = qemuv7 ]; then
+              export PLAT=default
+            else
+              export PLAT=qemu_v8
               export CFG_ATTESTATION_PTA=y
               export CFG_ATTESTATION_PTA_KEY_SIZE=1024
             fi
 
             TOP=/root/optee_repo_qemu
-            mv $TOP/optee_os $TOP/optee_os_old
+            cd $TOP
+            repo init -u "https://github.com/${{ inputs.manifest_owner }}/manifest.git" -m $PLAT.xml
+            repo sync --force-sync
+            rm -rf $TOP/optee_os
             ln -s /runner/optee_os $TOP/optee_os
             cd $TOP/build
 
