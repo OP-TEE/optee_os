@@ -123,11 +123,9 @@ static TEE_Result stmm_enter_user_mode(struct stmm_ctx *spc)
 	uint32_t exceptions = 0;
 	uint32_t panic_code = 0;
 	uint32_t panicked = 0;
-	uint64_t cntkctl = 0;
 
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
-	cntkctl = read_cntkctl();
-	write_cntkctl(cntkctl | CNTKCTL_PL0PCTEN);
+	thread_user_enable_cntpct();
 
 #ifdef ARM32
 	/* Handle usr_lr in place of __thread_enter_user_mode() */
@@ -140,7 +138,9 @@ static TEE_Result stmm_enter_user_mode(struct stmm_ctx *spc)
 	spc->regs.usr_lr = thread_get_usr_lr();
 #endif
 
-	write_cntkctl(cntkctl);
+	/* User-mode return may leave foreign interrupts enabled. */
+	thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	thread_user_disable_cntpct();
 	thread_unmask_exceptions(exceptions);
 
 	thread_user_clear_vfp(&spc->uctx);
