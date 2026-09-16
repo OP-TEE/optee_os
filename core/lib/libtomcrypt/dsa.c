@@ -60,6 +60,7 @@ err:
 
 TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 {
+	TEE_Result res = TEE_ERROR_OUT_OF_MEMORY;
 	dsa_key ltc_tmp_key = { };
 	int ltc_res = 0;
 
@@ -68,28 +69,53 @@ TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 
 	ltc_res = mp_init_multi(&ltc_tmp_key.g, &ltc_tmp_key.p, &ltc_tmp_key.q,
 				&ltc_tmp_key.x, &ltc_tmp_key.y, NULL);
-	if (ltc_res)
+	if (ltc_res != CRYPT_OK)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	/* Copy the key parameters */
-	mp_copy(key->g, ltc_tmp_key.g);
-	mp_copy(key->p, ltc_tmp_key.p);
-	mp_copy(key->q, ltc_tmp_key.q);
+	ltc_res = mp_copy(key->g, ltc_tmp_key.g);
+	if (ltc_res != CRYPT_OK)
+		goto out;
+
+	ltc_res = mp_copy(key->p, ltc_tmp_key.p);
+	if (ltc_res != CRYPT_OK)
+		goto out;
+
+	ltc_res = mp_copy(key->q, ltc_tmp_key.q);
+	if (ltc_res != CRYPT_OK)
+		goto out;
 
 	/* Generate the DSA key */
 	ltc_res = dsa_generate_key(NULL, find_prng("prng_crypto"),
 				   &ltc_tmp_key);
-	if (ltc_res)
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (ltc_res != CRYPT_OK) {
+		if (ltc_res == CRYPT_MEM)
+			res = TEE_ERROR_OUT_OF_MEMORY;
+		else
+			res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	/* Copy the key */
-	mp_copy(ltc_tmp_key.y, key->y);
-	mp_copy(ltc_tmp_key.x, key->x);
+	ltc_res = mp_copy(ltc_tmp_key.y, key->y);
+	if (ltc_res != CRYPT_OK)
+		goto out_clear_key;
 
+	ltc_res = mp_copy(ltc_tmp_key.x, key->x);
+	if (ltc_res != CRYPT_OK)
+		goto out_clear_key;
+
+	res = TEE_SUCCESS;
+	goto out;
+
+out_clear_key:
+	crypto_bignum_clear(key->y);
+	crypto_bignum_clear(key->x);
+out:
 	/* Free the temporary key */
 	dsa_free(&ltc_tmp_key);
 
-	return TEE_SUCCESS;
+	return res;
 }
 
 TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
