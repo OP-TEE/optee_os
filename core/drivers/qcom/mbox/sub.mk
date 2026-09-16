@@ -4,3 +4,4 @@
 global-incdirs-y += .
 
 srcs-y += qcom_mbox_qmp_lite.c
+srcs-y += $(QCOM_ARCH_FAMILY)/qcom_mbox_plat.c
