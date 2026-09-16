@@ -1457,6 +1457,9 @@ static TEE_Result tee_rpmb_read(uint32_t addr, uint8_t *data,
 	rawdata.msg_type = msg_type;
 	rawdata.nonce = nonce;
 	rawdata.blk_idx = &blk_idx;
+	/* UFS takes the read count from the frame, not an eMMC command. */
+	if (rpmb_ctx->dev_type == OPTEE_RPC_RPMB_UFS)
+		rawdata.block_count = &blkcnt;
 	res = tee_rpmb_req_pack(mem.req_hdr, mem.req_data, &rawdata, 1, NULL,
 				NULL);
 	if (res != TEE_SUCCESS)
