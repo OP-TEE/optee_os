@@ -47,20 +47,23 @@ static uint32_t oem_sysreg(uint32_t addr, uint32_t mask, uint32_t *pvalue)
 	if (mask) {
 		/* Write operation */
 		mask &= auth->wmask;
-		if (!reg || !mask)
+		if (!reg || !mask) {
 			DMSG("Blocking write of 0x%"PRIx32" to register 0x%"
 			     PRIx32" (0x%"PRIxVA")", *pvalue, addr, reg);
-		else if (mask == ~0UL)
+			return ~0UL;
+		}
+		if (mask == ~0UL)
 			io_write32(reg, *pvalue);
 		else
 			io_mask32(reg, *pvalue, mask);
 	} else {
 		/* Read operation */
-		if (!reg || !auth->rmask)
+		if (!reg || !auth->rmask) {
 			DMSG("Blocking read of register 0x%"PRIx32" (0x%"
 			     PRIxVA")", addr, reg);
-		else
-			*pvalue = io_read32(reg) & auth->rmask;
+			return ~0UL;
+		}
+		*pvalue = io_read32(reg) & auth->rmask;
 	}
 
 	return 0;
