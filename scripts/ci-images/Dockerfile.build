@@ -11,7 +11,7 @@ FROM debian:trixie
 ENV DEBIAN_FRONTEND=noninteractive
 RUN sed -i 's/Components: main/Components: main contrib/g' /etc/apt/sources.list.d/debian.sources \
  && apt-get update \
- && apt-get install -y \
+ && apt-get install --no-install-recommends -y \
   acpica-tools \
   android-tools-fastboot \
   autoconf \
