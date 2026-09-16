@@ -134,3 +134,6 @@ CFG_TZDRAM_SIZE ?=  0x04ff000
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
 CFG_SHMEM_SIZE ?= 0x00200000
 endif
+
+# Secure-world SiP HUK service; requires matching hardware-backed BL31.
+CFG_MTK_HUK_SIP ?= n
