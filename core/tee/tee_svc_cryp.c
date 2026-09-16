@@ -4728,17 +4728,39 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+	{
+		struct rsa_keypair *key = NULL;
+		size_t bbuf_size = 0;
+		uint8_t *bbuf = NULL;
+
 		if (cs->mode != TEE_MODE_SIGN) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 			break;
 		}
+
+		key = o->attr;
+		bbuf_size = crypto_bignum_num_bytes(key->n);
+
+		/* Keep the signing workspace out of shared memory. */
+		bbuf = bb_alloc(bbuf_size);
+		if (!bbuf) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			break;
+		}
+
+		dlen = MIN(dlen, bbuf_size);
 		salt_len = pkcs1_get_salt_len(params, num_params, src_len);
 		enter_user_access();
 		res = crypto_acipher_rsassa_sign(cs->algo, o->attr, salt_len,
-						 src_data, src_len, dst_data,
+						 src_data, src_len, bbuf,
 						 &dlen);
 		exit_user_access();
+		if (res == TEE_SUCCESS)
+			res = copy_to_user(dst_data, bbuf, dlen);
+
+		bb_free(bbuf, bbuf_size);
 		break;
+	}
 
 	case TEE_ALG_DSA_SHA1:
 	case TEE_ALG_DSA_SHA224:
