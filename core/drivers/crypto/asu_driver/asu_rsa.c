@@ -1079,34 +1079,6 @@ static TEE_Result asu_rsa_sw_rsanopad_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 }
 
 /*
- * asu_rsa_sw_rsassa_sign() - Software fallback for RSASSA sign
- * @ssa_data: RSASSA sign operation context
- *
- * Return: TEE result code from software crypto backend.
- */
-static TEE_Result asu_rsa_sw_rsassa_sign(struct drvcrypt_rsa_ssa *ssa_data)
-{
-	return sw_crypto_acipher_rsassa_sign(ssa_data->algo,
-			ssa_data->key.key, ssa_data->salt_len,
-			ssa_data->message.data, ssa_data->message.length,
-			ssa_data->signature.data, &ssa_data->signature.length);
-}
-
-/*
- * asu_rsa_sw_rsassa_verify() - Software fallback for RSASSA verify
- * @ssa_data: RSASSA verify operation context
- *
- * Return: TEE result code from software crypto backend.
- */
-static TEE_Result asu_rsa_sw_rsassa_verify(struct drvcrypt_rsa_ssa *ssa_data)
-{
-	return sw_crypto_acipher_rsassa_verify(ssa_data->algo,
-			ssa_data->key.key, ssa_data->salt_len,
-			ssa_data->message.data, ssa_data->message.length,
-			ssa_data->signature.data, ssa_data->signature.length);
-}
-
-/*
  * asu_rsa_prepare_input_buf() - Allocate and prepare input buffer for
  * ASU command
  * @src: Source input data
@@ -1239,6 +1211,7 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 	uint8_t *out_buf = NULL;
 	uint8_t *label_buf = NULL;
 	size_t label_len = 0;
+	size_t em_len = 0;
 	bool use_oaep = false;
 	uint8_t sha_type = 0;
 	uint8_t sha_mode = 0;
@@ -1301,7 +1274,24 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 			ret = TEE_ERROR_BAD_PARAMETERS;
 			goto out;
 		}
+
+		/*
+		 * The caller already built the EM, so this is a plain modexp.
+		 * rsanopad strips leading zeros from the result, but the SSA
+		 * path needs the EM at full width, so pad them back.
+		 */
+		em_len = rsa_data->cipher.length;
+
 		ret = asu_rsa_sw_rsanopad_encrypt(rsa_data);
+		if (!ret && rsa_data->cipher.length < em_len) {
+			size_t pad = em_len - rsa_data->cipher.length;
+
+			memmove(rsa_data->cipher.data + pad,
+				rsa_data->cipher.data,
+				rsa_data->cipher.length);
+			memset(rsa_data->cipher.data, 0, pad);
+			rsa_data->cipher.length = em_len;
+		}
 		goto out;
 	default:
 		DMSG("Unsupported rsa_id=%d", rsa_data->rsa_id);
@@ -1405,6 +1395,7 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 	uint8_t *label_buf = NULL;
 	uint32_t *fw_output_len_buf = NULL;
 	size_t label_len = 0;
+	size_t sig_len = 0;
 	bool use_oaep = false;
 	uint8_t sha_type = 0;
 	uint8_t sha_mode = 0;
@@ -1474,11 +1465,27 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 			ret = TEE_ERROR_BAD_PARAMETERS;
 			goto out;
 		}
+
+		/*
+		 * Same restoration as asu_rsa_encrypt(): callers require a
+		 * fixed-width signature.
+		 */
+		sig_len = rsa_data->message.length;
+
 		ret = asu_rsa_sw_rsanopad_decrypt(rsa_data);
+		if (!ret && rsa_data->message.length < sig_len) {
+			size_t pad = sig_len - rsa_data->message.length;
+
+			memmove(rsa_data->message.data + pad,
+				rsa_data->message.data,
+				rsa_data->message.length);
+			memset(rsa_data->message.data, 0, pad);
+			rsa_data->message.length = sig_len;
+		}
 		goto out;
 	default:
 		DMSG("Unsupported rsa_id=%d", rsa_data->rsa_id);
-		ret = TEE_ERROR_NOT_SUPPORTED;
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
 		goto out;
 	}
 
@@ -1668,17 +1675,18 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA3_224:
-		ret = asu_rsa_sw_rsassa_sign(ssa_data);
+		/* Let the framework fall back, so sign and verify agree */
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
 		goto out;
 	default:
 		DMSG("Unsupported algo=0x%"PRIx32, ssa_data->algo);
-		ret = TEE_ERROR_NOT_SUPPORTED;
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
 		goto out;
 	}
 
 	if (asu_rsa_validate_key_size(ssa_data->key.n_size) ||
 	    !asu_rsa_hw_supports_padding()) {
-		ret = asu_rsa_sw_rsassa_sign(ssa_data);
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
 		goto out;
 	}
 
@@ -1798,7 +1806,12 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA3_224:
-		ret = asu_rsa_sw_rsassa_verify(ssa_data);
+		/*
+		 * Let the framework fall back. Calling
+		 * sw_crypto_acipher_rsassa_verify() here would complete the
+		 * FTMN linked call twice and assert on every TA load.
+		 */
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
 		goto out;
 	default:
 		DMSG("Unsupported algo=0x%"PRIx32, ssa_data->algo);
@@ -1808,12 +1821,8 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 
 	if (asu_rsa_validate_key_size(ssa_data->key.n_size) ||
 	    !asu_rsa_hw_supports_padding()) {
-		/*
-		 * TODO: SW fallback here triggers an FTMN assertion under
-		 * CFG_FAULT_MITIGATION=y (nested FTMN completion corrupts
-		 * caller state). Fail closed until that shared bug is fixed.
-		 */
-		ret = TEE_ERROR_NOT_SUPPORTED;
+		/* Let the framework fall back, see the note above */
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
 		goto out;
 	}
 
@@ -1939,7 +1948,7 @@ static TEE_Result asu_rsa_gen_keypair(struct rsa_keypair *key,
 		/* Fall back to SW only when the key vault is empty */
 		if ((fw_status & ASU_RSA_FW_STATUS_CODE_MASK) ==
 		    ASU_RSA_KM_KEY_NOT_FOUND) {
-			EMSG("HW key vault empty status=0x%08"PRIx32
+			DMSG("HW key vault empty status=0x%08"PRIx32
 			     ", using SW fallback", fw_status);
 			ret = sw_crypto_acipher_gen_rsa_key(key, size_bits);
 			goto out;
