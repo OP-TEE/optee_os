@@ -18,6 +18,29 @@
 /* SM2 uses 256 bit unsigned integers in big endian format */
 #define SM2_INT_SIZE_BYTES 32
 
+static TEE_Result sm2_kep_validate_public_key(const ecc_key *key)
+{
+	const ecc_point *point = &key->pubkey;
+	int ltc_res = CRYPT_OK;
+
+	if (mp_unsigned_bin_size(point->x) > SM2_INT_SIZE_BYTES ||
+	    mp_unsigned_bin_size(point->y) > SM2_INT_SIZE_BYTES ||
+	    mp_cmp_d(point->x, 0) == LTC_MP_LT ||
+	    mp_cmp_d(point->y, 0) == LTC_MP_LT ||
+	    mp_cmp(point->x, key->dp.prime) != LTC_MP_LT ||
+	    mp_cmp(point->y, key->dp.prime) != LTC_MP_LT ||
+	    (mp_iszero(point->x) && mp_iszero(point->y)))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	ltc_res = ltc_ecc_is_point(&key->dp, point->x, point->y);
+	if (ltc_res == CRYPT_MEM)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+
 /*
  * Compute a hash of a user's identity and public key
  * For user A: ZA = SM3(ENTLA || IDA || a || b || xG || yG || xA || yA)
@@ -501,8 +524,16 @@ TEE_Result crypto_acipher_sm2_kep_derive(struct ecc_keypair *my_key,
 	if (res)
 		goto out;
 
+	res = sm2_kep_validate_public_key(&ltc_my_key);
+	if (res)
+		goto out;
+
 	res = ecc_populate_ltc_private_key(&ltc_my_eph_key, my_eph_key,
 					   TEE_ALG_SM2_KEP, NULL);
+	if (res)
+		goto out;
+
+	res = sm2_kep_validate_public_key(&ltc_my_eph_key);
 	if (res)
 		goto out;
 
@@ -511,8 +542,16 @@ TEE_Result crypto_acipher_sm2_kep_derive(struct ecc_keypair *my_key,
 	if (res)
 		goto out;
 
+	res = sm2_kep_validate_public_key(&ltc_peer_key);
+	if (res)
+		goto out;
+
 	res = ecc_populate_ltc_public_key(&ltc_peer_eph_key, peer_eph_key,
 					  TEE_ALG_SM2_KEP, NULL);
+	if (res)
+		goto out;
+
+	res = sm2_kep_validate_public_key(&ltc_peer_eph_key);
 	if (res)
 		goto out;
 
