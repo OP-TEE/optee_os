@@ -3,3 +3,4 @@
 
 srcs-$(CFG_QCOM_TLMM) += gpio.c
 srcs-$(CFG_QCOM_TLMM) += pinctrl.c
+srcs-$(CFG_QCOM_TLMM) += $(PLATFORM_FLAVOR)/tlmm_soc_data.c
