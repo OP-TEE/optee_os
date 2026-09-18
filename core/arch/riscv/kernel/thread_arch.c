@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright 2022-2023 NXP
+ * Copyright (c) 2026, RISCStar Solutions Limited
  * Copyright (c) 2016-2022, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020-2021, Arm Limited
@@ -24,6 +25,7 @@
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <kernel/user_mode_ctx_struct.h>
+#include <kernel/vfp.h>
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
@@ -88,12 +90,33 @@ void __nostackcheck thread_unmask_exceptions(uint32_t state)
 
 static void thread_lazy_save_ns_vfp(void)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+#ifdef CFG_WITH_VFP
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	thr->vfp_state.ns_saved = false;
+	vfp_lazy_save_state_init(&thr->vfp_state.ns);
+#endif /*CFG_WITH_VFP*/
 }
 
 static void thread_lazy_restore_ns_vfp(void)
 {
-	static_assert(!IS_ENABLED(CFG_WITH_VFP));
+#ifdef CFG_WITH_VFP
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+
+	/*
+	 * The REE FP context is only restored once the secure side has
+	 * released the unit, so it must be disabled here.
+	 */
+	assert(!vfp_is_enabled());
+
+	if (tuv && tuv->lazy_saved && !tuv->saved) {
+		vfp_lazy_save_state_final(&tuv->vfp, false /*!force_save*/);
+		tuv->saved = true;
+	}
+
+	vfp_lazy_restore_state(&thr->vfp_state.ns, thr->vfp_state.ns_saved);
+#endif /*CFG_WITH_VFP*/
 }
 
 static void setup_unwind_user_mode(struct thread_scall_regs *regs)
@@ -496,6 +519,14 @@ void thread_init_per_cpu(void)
 	 */
 	set_csr(CSR_XSTATUS, CSR_XSTATUS_SUM);
 #endif
+#ifdef CFG_WITH_VFP
+	/*
+	 * OpenSBI may leave xstatus.FS in any state on entry. Start with the
+	 * FP unit disabled: it is turned on only through vfp_enable(), i.e.
+	 * thread_kernel_enable_vfp() or a user FP trap.
+	 */
+	vfp_disable();
+#endif
 }
 
 static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
@@ -516,6 +547,48 @@ static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 		.ie = ie,
 	};
 }
+
+#ifdef CFG_WITH_VFP
+uint32_t thread_kernel_enable_vfp(void)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+
+	assert(!vfp_is_enabled());
+
+	if (!thr->vfp_state.ns_saved) {
+		vfp_lazy_save_state_final(&thr->vfp_state.ns,
+					  true /*force_save*/);
+		thr->vfp_state.ns_saved = true;
+	} else if (tuv && tuv->lazy_saved && !tuv->saved) {
+		/*
+		 * This can happen either during syscall or abort
+		 * processing (while processing a syscall).
+		 */
+		vfp_lazy_save_state_final(&tuv->vfp, false /*!force_save*/);
+		tuv->saved = true;
+	}
+
+	vfp_enable();
+	return exceptions;
+}
+
+void thread_kernel_disable_vfp(uint32_t state)
+{
+	uint32_t exceptions = 0;
+
+	assert(vfp_is_enabled());
+
+	vfp_disable();
+	exceptions = thread_get_exceptions();
+	assert(exceptions & THREAD_EXCP_FOREIGN_INTR);
+	exceptions &= ~THREAD_EXCP_FOREIGN_INTR;
+	exceptions |= state & THREAD_EXCP_FOREIGN_INTR;
+	thread_set_exceptions(exceptions);
+}
+
+#endif /*CFG_WITH_VFP*/
 
 uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 				unsigned long a2, unsigned long a3,

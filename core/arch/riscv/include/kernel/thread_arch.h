@@ -170,17 +170,7 @@ struct user_mode_ctx;
 #ifdef CFG_WITH_VFP
 uint32_t thread_kernel_enable_vfp(void);
 void thread_kernel_disable_vfp(uint32_t state);
-void thread_kernel_save_vfp(void);
-void thread_kernel_restore_vfp(void);
 void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp);
-#else /*CFG_WITH_VFP*/
-static inline void thread_kernel_save_vfp(void)
-{
-}
-
-static inline void thread_kernel_restore_vfp(void)
-{
-}
 #endif /*CFG_WITH_VFP*/
 #ifdef CFG_WITH_VFP
 void thread_user_save_vfp(void);
