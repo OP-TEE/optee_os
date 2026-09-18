@@ -10,6 +10,7 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/core_mmu_arch.h>
+#include <kernel/vector.h>
 #include <types_ext.h>
 
 DEFINES
@@ -109,4 +110,14 @@ DEFINES
 	/* struct thread_abi_args */
 	DEFINE(THREAD_ABI_ARGS_A0, offsetof(struct thread_abi_args, a0));
 	DEFINE(THREAD_ABI_ARGS_SIZE, sizeof(struct thread_abi_args));
+
+#ifdef CFG_RISCV_WITH_VECTOR
+	/* struct vector_regs */
+	DEFINE(VECTOR_REGS_VSTART_OFF, offsetof(struct vector_regs, vstart));
+	DEFINE(VECTOR_REGS_VTYPE_OFF, offsetof(struct vector_regs, vtype));
+	DEFINE(VECTOR_REGS_VL_OFF, offsetof(struct vector_regs, vl));
+	DEFINE(VECTOR_REGS_VCSR_OFF, offsetof(struct vector_regs, vcsr));
+	DEFINE(VECTOR_REGS_VREGS_OFF, offsetof(struct vector_regs, vregs));
+	DEFINE(VECTOR_REGS_NREGS, VECTOR_NUM_REGS);
+#endif
 }

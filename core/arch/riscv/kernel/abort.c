@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023 NXP
  * Copyright (c) 2015-2022, Linaro Limited
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #include <kernel/abort.h>
@@ -10,6 +11,7 @@
 #include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_private.h>
+#include <kernel/vector.h>
 #include <kernel/user_mode_ctx.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -21,6 +23,7 @@
 enum fault_type {
 	FAULT_TYPE_USER_MODE_PANIC,
 	FAULT_TYPE_USER_MODE_VFP,
+	FAULT_TYPE_USER_MODE_VECTOR,
 	FAULT_TYPE_PAGE_FAULT,
 	FAULT_TYPE_IGNORE,
 };
@@ -277,11 +280,46 @@ static bool is_vfp_fault(struct abort_info *ai __unused)
 }
 #endif  /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
 
+#if defined(CFG_RISCV_WITH_VECTOR) && defined(CFG_WITH_USER_TA)
+static bool handle_user_mode_vector(void)
+{
+	struct ts_session *s = ts_get_current_session();
+
+	return thread_user_enable_vector(&to_user_mode_ctx(s->ctx)->vector);
+}
+
+static bool is_vector_fault(struct abort_info *ai)
+{
+	if (ai->abort_type != ABORT_TYPE_UNDEF ||
+	    ai->regs->cause != CAUSE_ILLEGAL_INSTRUCTION ||
+	    vector_is_enabled())
+		return false;
+
+	/*
+	 * A vector instruction executed with the vector unit disabled traps
+	 * as an illegal instruction, and there is no need to decode it (xtval
+	 * is optional for this trap). A truly illegal instruction ends up here
+	 * again once vector_is_enabled() and is then a panic. is_vfp_fault()
+	 * is tried first, so a fault reaches here only with the FP unit
+	 * already enabled: a TA that uses vector but not FP therefore also
+	 * gets an FP context, which is cheap next to a vector one.
+	 */
+	return true;
+}
+#else /*CFG_RISCV_WITH_VECTOR && CFG_WITH_USER_TA*/
+static bool is_vector_fault(struct abort_info *ai __unused)
+{
+	return false;
+}
+#endif /*CFG_RISCV_WITH_VECTOR && CFG_WITH_USER_TA*/
+
 static enum fault_type get_fault_type(struct abort_info *ai)
 {
 	if (abort_is_user_exception(ai)) {
 		if (is_vfp_fault(ai))
 			return FAULT_TYPE_USER_MODE_VFP;
+		if (is_vector_fault(ai))
+			return FAULT_TYPE_USER_MODE_VECTOR;
 		return FAULT_TYPE_USER_MODE_PANIC;
 	}
 
@@ -365,6 +403,15 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_MODE_VFP:
 		handle_user_mode_vfp();
+		break;
+#endif
+#if defined(CFG_RISCV_WITH_VECTOR) && defined(CFG_WITH_USER_TA)
+	case FAULT_TYPE_USER_MODE_VECTOR:
+		if (!handle_user_mode_vector()) {
+			EMSG("Out of memory for a TA vector context");
+			save_abort_info_in_tsd(&ai);
+			handle_user_mode_panic(&ai);
+		}
 		break;
 #endif
 	case FAULT_TYPE_PAGE_FAULT:

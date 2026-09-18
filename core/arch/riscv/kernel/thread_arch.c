@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright 2022-2023 NXP
+ * Copyright (c) 2026, RISCStar Solutions Limited
  * Copyright (c) 2016-2022, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020-2021, Arm Limited
@@ -22,6 +23,10 @@
 #include <kernel/spinlock.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
+#include <string.h>
+#include <malloc.h>
+#include <kernel/vector.h>
+#include <initcall.h>
 #include <kernel/thread_private.h>
 #include <kernel/user_mode_ctx_struct.h>
 #include <kernel/virtualization.h>
@@ -32,6 +37,8 @@
 #include <riscv.h>
 #include <trace.h>
 #include <util.h>
+
+#include "vector_private.h"
 
 /*
  * This function is called as a guard after each ABI call which is not
@@ -96,6 +103,36 @@ static void thread_lazy_restore_ns_vfp(void)
 	static_assert(!IS_ENABLED(CFG_WITH_VFP));
 }
 
+static void thread_lazy_save_ns_vector(void)
+{
+#ifdef CFG_RISCV_WITH_VECTOR
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	thr->vector_state.ns_saved = false;
+	vector_lazy_save_state_init(&thr->vector_state.ns);
+#endif /*CFG_RISCV_WITH_VECTOR*/
+}
+
+static void thread_lazy_restore_ns_vector(void)
+{
+#ifdef CFG_RISCV_WITH_VECTOR
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vector_state *tuv = thr->vector_state.uvect;
+
+	assert(!thr->vector_state.sec_lazy_saved &&
+	       !thr->vector_state.sec_saved);
+
+	if (tuv && tuv->lazy_saved && !tuv->saved) {
+		vector_lazy_save_state_final(&tuv->vect, false /*!force_save*/);
+		tuv->saved = true;
+	}
+
+	vector_lazy_restore_state(&thr->vector_state.ns,
+				  thr->vector_state.ns_saved);
+#endif /*CFG_RISCV_WITH_VECTOR*/
+}
+
+
 static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 {
 	regs->epc = (uintptr_t)thread_unwind_user_mode;
@@ -128,6 +165,7 @@ void thread_scall_handler(struct thread_scall_regs *regs)
 	thread_unmask_exceptions(state & ~THREAD_EXCP_NATIVE_INTR);
 
 	thread_user_save_vfp();
+	thread_user_save_vector();
 
 	sess = ts_get_current_session();
 
@@ -257,6 +295,7 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
 
 	thread_lazy_save_ns_vfp();
+	thread_lazy_save_ns_vector();
 
 	l->flags &= ~THREAD_CLF_TMP;
 
@@ -382,6 +421,7 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 	}
 
 	thread_lazy_save_ns_vfp();
+	thread_lazy_save_ns_vector();
 
 	if (threads[n].have_user_map)
 		ftrace_resume();
@@ -400,6 +440,7 @@ void thread_state_free(void)
 	assert(ct != THREAD_ID_INVALID);
 
 	thread_lazy_restore_ns_vfp();
+	thread_lazy_restore_ns_vector();
 
 	thread_lock_global();
 
@@ -427,10 +468,12 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 
 	if (is_from_user(status)) {
 		thread_user_save_vfp();
+		thread_user_save_vector();
 		tee_ta_update_session_utime_suspend();
 		tee_ta_gprof_sample_pc(pc);
 	}
 	thread_lazy_restore_ns_vfp();
+	thread_lazy_restore_ns_vector();
 
 	thread_lock_global();
 
@@ -516,6 +559,206 @@ static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 		.ie = ie,
 	};
 }
+
+#ifdef CFG_RISCV_WITH_VECTOR
+/*
+ * A context is sized from the vlenb of the hart it will run on, so the REE
+ * and secure kernel contexts are allocated once here rather than in the
+ * domain switch, which then has no allocation and so no failure path in it.
+ */
+static TEE_Result riscv_vector_init(void)
+{
+	size_t size = vector_regs_size();
+	size_t n = 0;
+
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		threads[n].vector_state.ns.regs = memalign(__alignof__(long),
+							   size);
+		threads[n].vector_state.sec.regs = memalign(__alignof__(long),
+							    size);
+		if (!threads[n].vector_state.ns.regs ||
+		    !threads[n].vector_state.sec.regs) {
+			EMSG("Failed to allocate %zu bytes of vector context",
+			     size);
+			panic();
+		}
+		memset(threads[n].vector_state.ns.regs, 0, size);
+		memset(threads[n].vector_state.sec.regs, 0, size);
+	}
+
+	DMSG("Vector context switching enabled, %zu bytes a context", size);
+
+	return TEE_SUCCESS;
+}
+service_init(riscv_vector_init);
+
+uint32_t thread_kernel_enable_vector(void)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vector_state *tuv = thr->vector_state.uvect;
+
+	assert(!vector_is_enabled());
+
+	if (!thr->vector_state.ns_saved) {
+		vector_lazy_save_state_final(&thr->vector_state.ns,
+					     true /*force_save*/);
+		thr->vector_state.ns_saved = true;
+	} else if (thr->vector_state.sec_lazy_saved &&
+		   !thr->vector_state.sec_saved) {
+		/*
+		 * This happens when we're handling an abort while the
+		 * thread was using the vector state.
+		 */
+		vector_lazy_save_state_final(&thr->vector_state.sec,
+					     false /*!force_save*/);
+		thr->vector_state.sec_saved = true;
+	} else if (tuv && tuv->lazy_saved && !tuv->saved) {
+		/*
+		 * This can happen either during syscall or abort
+		 * processing (while processing a syscall).
+		 */
+		vector_lazy_save_state_final(&tuv->vect, false /*!force_save*/);
+		tuv->saved = true;
+	}
+
+	vector_enable();
+	return exceptions;
+}
+
+void thread_kernel_disable_vector(uint32_t state)
+{
+	uint32_t exceptions;
+
+	assert(vector_is_enabled());
+
+	vector_disable();
+	exceptions = thread_get_exceptions();
+	assert(exceptions & THREAD_EXCP_FOREIGN_INTR);
+	exceptions &= ~THREAD_EXCP_FOREIGN_INTR;
+	exceptions |= state & THREAD_EXCP_FOREIGN_INTR;
+	thread_set_exceptions(exceptions);
+}
+
+void thread_kernel_save_vector(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	if (vector_is_enabled()) {
+		vector_lazy_save_state_init(&thr->vector_state.sec);
+		thr->vector_state.sec_lazy_saved = true;
+	}
+}
+
+void thread_kernel_restore_vector(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(!vector_is_enabled());
+	if (thr->vector_state.sec_lazy_saved) {
+		vector_lazy_restore_state(&thr->vector_state.sec,
+					  thr->vector_state.sec_saved);
+		thr->vector_state.sec_saved = false;
+		thr->vector_state.sec_lazy_saved = false;
+	}
+}
+
+bool thread_user_enable_vector(struct thread_user_vector_state *uvect)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vector_state *tuv = thr->vector_state.uvect;
+	uint32_t exceptions = 0;
+
+	assert(uvect);
+
+	/*
+	 * The TA's context is allocated the first time it asks for the vector
+	 * unit, so a TA that never uses vector costs nothing beyond the flag.
+	 * Do it before masking, allocation may sleep on a mutex.
+	 */
+	if (!uvect->vect.regs) {
+		uvect->vect.regs = memalign(__alignof__(long),
+					    vector_regs_size());
+		if (!uvect->vect.regs)
+			return false;
+		uvect->lazy_saved = false;
+		uvect->saved = false;
+	}
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	assert(!vector_is_enabled());
+
+	if (!thr->vector_state.ns_saved) {
+		vector_lazy_save_state_final(&thr->vector_state.ns,
+					     true /*force_save*/);
+		thr->vector_state.ns_saved = true;
+	} else if (tuv && uvect != tuv) {
+		/*
+		 * Different user state saved last time, do a full save
+		 * of that state.
+		 */
+		if (tuv->lazy_saved && !tuv->saved) {
+			vector_lazy_save_state_final(&tuv->vect,
+						     false /*!force_save*/);
+			tuv->saved = true;
+		}
+	}
+
+	if (uvect->lazy_saved) {
+		vector_lazy_restore_state(&uvect->vect, uvect->saved);
+	} else {
+		/*
+		 * A new user context: do not hand it whatever the previous
+		 * owner left in the registers.
+		 */
+		memset(uvect->vect.regs, 0, vector_regs_size());
+		vector_enable();
+		vector_restore_regs(uvect->vect.regs);
+	}
+	uvect->lazy_saved = false;
+	uvect->saved = false;
+
+	thr->vector_state.uvect = uvect;
+	vector_enable();
+
+	thread_set_exceptions(exceptions);
+
+	return true;
+}
+
+void thread_user_save_vector(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vector_state *tuv = thr->vector_state.uvect;
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	if (!vector_is_enabled())
+		return;
+
+	assert(tuv && !tuv->lazy_saved && !tuv->saved);
+	vector_lazy_save_state_init(&tuv->vect);
+	tuv->lazy_saved = true;
+}
+
+void thread_user_clear_vector(struct user_mode_ctx *uctx)
+{
+	struct thread_user_vector_state *uvect = &uctx->vector;
+	struct thread_ctx *thr = threads + thread_get_id();
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	if (uvect == thr->vector_state.uvect)
+		thr->vector_state.uvect = NULL;
+	uvect->lazy_saved = false;
+	uvect->saved = false;
+
+	thread_set_exceptions(exceptions);
+
+	free(uvect->vect.regs);
+	uvect->vect.regs = NULL;
+}
+#endif /*CFG_RISCV_WITH_VECTOR*/
 
 uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 				unsigned long a2, unsigned long a3,
