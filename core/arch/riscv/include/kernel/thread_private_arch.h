@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright 2022-2023 NXP
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #ifndef __KERNEL_THREAD_PRIVATE_ARCH_H
@@ -9,6 +10,7 @@
 #ifndef __ASSEMBLER__
 
 #include <kernel/thread.h>
+#include <kernel/vfp.h>
 
 #define STACK_TMP_OFFS		0
 
@@ -57,6 +59,17 @@ struct thread_user_mode_rec {
 	 */
 	unsigned long x[13];
 };
+
+#ifdef CFG_WITH_VFP
+struct thread_vfp_state {
+	bool ns_saved;
+	bool sec_saved;
+	bool sec_lazy_saved;
+	struct vfp_state ns;
+	struct vfp_state sec;
+	struct thread_user_vfp_state *uvfp;
+};
+#endif /*CFG_WITH_VFP*/
 
 extern long thread_user_kcode_offset;
 
