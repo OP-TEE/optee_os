@@ -10,6 +10,9 @@
 #include <kernel/boot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
+#ifdef CFG_QCOM_EL3_INTR_DELEGATION
+#include <el3_intr_delegation.h>
+#endif
 
 #include "diag_log.h"
 
@@ -72,4 +75,7 @@ void boot_primary_init_intc(void)
 void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
+#ifdef CFG_QCOM_EL3_INTR_DELEGATION
+	el3_intr_delegation_init_per_cpu();
+#endif
 }
