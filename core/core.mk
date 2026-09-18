@@ -17,9 +17,9 @@ git-sha1-len := 16
 else
 git-sha1-len := 8
 endif
-TEE_IMPL_GIT_SHA1 := 0x$(shell git rev-parse --short=$(git-sha1-len) HEAD 2>/dev/null || echo 0 | cut -c -$(git-sha1-len))
+TEE_IMPL_GIT_SHA1 := 0x$(shell git rev-parse --short=$(git-sha1-len) HEAD 2>/dev/null || echo 0 | cut -c -$(git-sha1-len))ULL
 else
-TEE_IMPL_GIT_SHA1 := 0x0
+TEE_IMPL_GIT_SHA1 := 0x0ULL
 endif
 
 PLATFORM_$(PLATFORM) := y
