@@ -118,6 +118,24 @@
 		add	\reg_res, \reg_res, a0
 	.endm
 
+	/*
+	 * Write \reg to xstatus while preserving the live FS field. The FP
+	 * unit is enabled and disabled only through vfp_enable()/vfp_disable(),
+	 * so FS is not part of the saved context: returning from a trap or
+	 * resuming a thread must leave it untouched. \tmp is clobbered.
+	 */
+	.macro write_xstatus_keep_fs reg, tmp
+#ifdef CFG_WITH_VFP
+		csrr	\tmp, CSR_XSTATUS
+		xor	\tmp, \tmp, \reg
+		srli	\tmp, \tmp, CSR_XSTATUS_FS_SHIFT
+		andi	\tmp, \tmp, CSR_XSTATUS_FS_MASK >> CSR_XSTATUS_FS_SHIFT
+		slli	\tmp, \tmp, CSR_XSTATUS_FS_SHIFT
+		xor	\reg, \reg, \tmp
+#endif
+		csrw	CSR_XSTATUS, \reg
+	.endm
+
 	.macro panic_at_abi_return
 #if defined(CFG_TEE_CORE_DEBUG)
 		jal	__panic_at_abi_return
