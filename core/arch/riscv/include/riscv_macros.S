@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023,2026 NXP
  * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 	.altmacro
@@ -55,6 +56,46 @@
 	.macro load_xregs base_reg, base_offs, from_regnum, to_regnum
 		_do_regs LDR, x, RISCV_XLEN_BYTES, \base_reg, \base_offs, \
 			 \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * Save f registers from_regnum..to_regnum to memory at
+	 * [base_reg, #base_offs], RISCV_FLEN_BYTES apart
+	 */
+	.macro store_fregs base_reg, base_offs, from_regnum, to_regnum
+		_do_regs FSTR, f, RISCV_FLEN_BYTES, \base_reg, \base_offs, \
+			 \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * Load f registers from_regnum..to_regnum from memory at
+	 * [base_reg, #base_offs], RISCV_FLEN_BYTES apart
+	 */
+	.macro load_fregs base_reg, base_offs, from_regnum, to_regnum
+		_do_regs FLDR, f, RISCV_FLEN_BYTES, \base_reg, \base_offs, \
+			 \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * This helper macro zeroes one f register, f\reg.
+	 */
+	.macro __clear_freg reg
+#if RISCV_FLEN_BITS == 32
+		fmv.w.x	f\reg, zero
+#else
+		fmv.d.x	f\reg, zero
+#endif
+	.endm
+
+	/*
+	 * Zero f registers from_regnum..to_regnum.
+	 */
+	.macro clear_fregs from_regnum, to_regnum
+		.set .L_clear_fregs_num, \from_regnum
+		.rept (\to_regnum - \from_regnum + 1)
+			__clear_freg %.L_clear_fregs_num
+			.set .L_clear_fregs_num, .L_clear_fregs_num + 1
+		.endr
 	.endm
 
 	/*
