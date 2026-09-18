@@ -204,6 +204,16 @@ const char *plat_scmi_vendor_name(void);
 /* Get the name of the SCMI sub-vendor for the platform */
 const char *plat_scmi_sub_vendor_name(void);
 
+/* Get the number of SCMI agents, 0 when BASE_DISCOVER_AGENT is unsupported */
+size_t plat_scmi_agent_count(void);
+
+/* Get the name of an SCMI agent, agent IDs start at 1 */
+const char *plat_scmi_agent_name(unsigned int agent_id);
+
+/* Get the ID of the SCMI agent that owns a channel */
+int32_t plat_scmi_channel_id_to_agent_id(unsigned int channel_id,
+					 uint32_t *agent_id);
+
 /* Handlers for SCMI Clock protocol services */
 
 /*
