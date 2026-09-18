@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023 NXP
  * Copyright (c) 2015-2022, Linaro Limited
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #include <kernel/abort.h>
@@ -11,6 +12,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_private.h>
 #include <kernel/user_mode_ctx.h>
+#include <kernel/vfp.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <riscv.h>
@@ -267,8 +269,18 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 #if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
 static bool is_vfp_fault(struct abort_info *ai)
 {
-	/* Implement */
-	return false;
+	if (ai->abort_type != ABORT_TYPE_UNDEF ||
+	    ai->regs->cause != CAUSE_ILLEGAL_INSTRUCTION || vfp_is_enabled())
+		return false;
+
+	/*
+	 * An FP instruction executed with the FP unit disabled traps as an
+	 * illegal instruction, and there is no need to decode it (xtval is
+	 * optional for this trap). Not entirely accurate, but if it's a
+	 * truly illegal instruction we'll end up in this function again,
+	 * except this time vfp_is_enabled() so we'll return false.
+	 */
+	return true;
 }
 #else /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
 static bool is_vfp_fault(struct abort_info *ai __unused)
