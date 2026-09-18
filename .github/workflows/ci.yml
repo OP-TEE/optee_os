@@ -420,7 +420,6 @@ jobs:
           export CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
           export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
 
-
           function _make() { make -j$(nproc) -s O=out $*; }
 
           ccache -s -v
@@ -430,6 +429,11 @@ jobs:
     name: Run (QEMUv7) (${{ matrix.name }})
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-26.04
+    container:
+      image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
+      volumes:
+        - /usr:/host/usr
+        - /opt:/host/opt
     strategy:
       fail-fast: false
       matrix:
@@ -452,7 +456,6 @@ jobs:
         with:
           name: ${{ matrix.name }}
           type: qemuv7
-          image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
           manifest_owner: ${{ vars.MANIFEST_OWNER || 'op-tee' }}
           make_commands: "${{ matrix.make_commands }}"
           cache: ${{ matrix.cache || 'shared-read' }}
@@ -460,6 +463,11 @@ jobs:
     name: Run (QEMUv8) (${{ matrix.name }})
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-26.04
+    container:
+      image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
+      volumes:
+        - /usr:/host/usr
+        - /opt:/host/opt
     strategy:
       fail-fast: false
       matrix:
@@ -527,7 +535,6 @@ jobs:
         with:
           name: ${{ matrix.name }}
           type: qemuv8
-          image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
           manifest_owner: ${{ vars.MANIFEST_OWNER || 'op-tee' }}
           make_commands: "${{ matrix.make_commands }}"
           cache: ${{ matrix.cache || 'shared-read' }}
@@ -535,6 +542,11 @@ jobs:
     name: Run (QEMUv8 on arm64) (${{ matrix.name }})
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-26.04-arm
+    container:
+      image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
+      volumes:
+        - /usr:/host/usr
+        - /opt:/host/opt
     strategy:
       fail-fast: false
       matrix:
@@ -552,7 +564,6 @@ jobs:
         with:
           name: ${{ matrix.name }}
           type: qemuv8_arm64
-          image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
           manifest_owner: ${{ vars.MANIFEST_OWNER || 'op-tee' }}
           make_commands: "${{ matrix.make_commands }}"
           cache: ${{ matrix.cache || 'shared-read' }}
