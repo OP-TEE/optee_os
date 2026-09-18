@@ -16,6 +16,16 @@
 
 static bool message_id_is_supported(unsigned int message_id);
 
+size_t __weak plat_scmi_agent_count(void)
+{
+	return 0;
+}
+
+const char __weak *plat_scmi_agent_name(unsigned int agent_id __unused)
+{
+	return NULL;
+}
+
 static void report_version(struct scmi_msg *msg)
 {
 	struct scmi_protocol_version_p2a return_values = {
@@ -34,10 +44,11 @@ static void report_version(struct scmi_msg *msg)
 static void report_attributes(struct scmi_msg *msg)
 {
 	size_t protocol_count = plat_scmi_protocol_count();
+	size_t agent_count = plat_scmi_agent_count();
 	struct scmi_protocol_attributes_p2a return_values = {
 		.status = SCMI_SUCCESS,
-		/* Null agent count since agent discovery is not supported */
-		.attributes = SCMI_BASE_PROTOCOL_ATTRIBUTES(protocol_count, 0),
+		.attributes = SCMI_BASE_PROTOCOL_ATTRIBUTES(protocol_count,
+							    agent_count),
 	};
 
 	if (msg->in_size) {
@@ -119,6 +130,42 @@ static void discover_implementation_version(struct scmi_msg *msg)
 	scmi_write_response(msg, &return_values, sizeof(return_values));
 }
 
+static void discover_agent(struct scmi_msg *msg)
+{
+	const struct scmi_base_discover_agent_a2p *in_args = (void *)msg->in;
+	struct scmi_base_discover_agent_p2a return_values = {
+		.status = SCMI_SUCCESS,
+	};
+	uint32_t agent_id = 0;
+	const char *name = NULL;
+
+	if (msg->in_size != sizeof(*in_args)) {
+		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
+		return;
+	}
+
+	agent_id = in_args->agent_id;
+	if (agent_id == SCMI_BASE_AGENT_ID_OWN)
+		agent_id = msg->channel_id + 1;
+
+	if (agent_id > plat_scmi_agent_count()) {
+		scmi_status_response(msg, SCMI_NOT_FOUND);
+		return;
+	}
+
+	if (agent_id == SCMI_BASE_AGENT_ID_PLATFORM) {
+		name = "platform";
+	} else {
+		name = plat_scmi_agent_name(agent_id);
+		assert(name);
+	}
+
+	return_values.agent_id = agent_id;
+	COPY_NAME_IDENTIFIER(return_values.name, name);
+
+	scmi_write_response(msg, &return_values, sizeof(return_values));
+}
+
 static unsigned int count_protocols_in_list(const uint8_t *protocol_list)
 {
 	unsigned int count = 0;
@@ -169,10 +216,14 @@ static const scmi_msg_handler_t scmi_base_handler_table[] = {
 	[SCMI_BASE_DISCOVER_IMPLEMENTATION_VERSION] =
 					discover_implementation_version,
 	[SCMI_BASE_DISCOVER_LIST_PROTOCOLS] = discover_list_protocols,
+	[SCMI_BASE_DISCOVER_AGENT] = discover_agent,
 };
 
 static bool message_id_is_supported(unsigned int message_id)
 {
+	if (message_id == SCMI_BASE_DISCOVER_AGENT)
+		return plat_scmi_agent_count() != 0;
+
 	return message_id < ARRAY_SIZE(scmi_base_handler_table) &&
 	       scmi_base_handler_table[message_id];
 }
