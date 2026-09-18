@@ -1,34 +1,43 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 	.altmacro
 
 
 	/*
-	 * This helper macro concatenates instr_prefix, instr_suffix, to
-	 * create a l(w,d)/s(w,d) instruction.
+	 * This helper macro emits a single load/store of one register,
+	 * \reg_prefix\reg (x5, f5, ...), at \base_offs(\base_reg).
 	 */
-	.macro __do_reg instr_prefix, base_reg, base_offs, reg
-		\instr_prefix x\reg, \base_offs(\base_reg)
+	.macro __do_reg instr, reg_prefix, base_reg, base_offs, reg
+		\instr \reg_prefix\reg, \base_offs(\base_reg)
 	.endm
 
 	/*
-	 * This helper macro uses recursion to create a loop with a single
-	 * load/store.
+	 * This helper macro emits one load/store per register in
+	 * \reg_prefix[\from_regnum]..\reg_prefix[\to_regnum], mapped at
+	 * \base_offs(\base_reg) with \reg_bytes per register. Registers are
+	 * emitted from \to_regnum down to \from_regnum. A single register is
+	 * emitted when \to_regnum is omitted.
 	 */
-	.macro _do_regs instr_prefix, reg_bytes, base_reg, base_offs, \
+	.macro _do_regs instr, reg_prefix, reg_bytes, base_reg, base_offs, \
 			from_regnum, to_regnum
-
-		.if (\to_regnum - \from_regnum + 1) > 1
-			_do_regs \instr_prefix, \reg_bytes, \base_reg, \
-				%(\base_offs + 1 * \reg_bytes), \
-				%(\from_regnum + 1), \to_regnum
+		.set .L_do_regs_to, \from_regnum
+		.ifnb \to_regnum
+			.set .L_do_regs_to, \to_regnum
 		.endif
-
-		__do_reg \instr_prefix, \base_reg, \base_offs, \from_regnum
+		.set .L_do_regs_num, .L_do_regs_to
+		.set .L_do_regs_offs, \
+			\base_offs + (.L_do_regs_to - \from_regnum) * \reg_bytes
+		.rept (.L_do_regs_to - \from_regnum + 1)
+			__do_reg \instr, \reg_prefix, \base_reg, \
+				 %.L_do_regs_offs, %.L_do_regs_num
+			.set .L_do_regs_num, .L_do_regs_num - 1
+			.set .L_do_regs_offs, .L_do_regs_offs - \reg_bytes
+		.endr
 	.endm
 
 	/*
@@ -36,7 +45,7 @@
 	 * [base_reg, #base_offs]
 	 */
 	.macro store_xregs base_reg, base_offs, from_regnum, to_regnum
-		_do_regs STR, RISCV_XLEN_BYTES, \base_reg, \base_offs, \
+		_do_regs STR, x, RISCV_XLEN_BYTES, \base_reg, \base_offs, \
 			 \from_regnum, \to_regnum
 	.endm
 
@@ -45,7 +54,25 @@
 	 * [base_reg, #base_offs]
 	 */
 	.macro load_xregs base_reg, base_offs, from_regnum, to_regnum
-		_do_regs LDR, RISCV_XLEN_BYTES, \base_reg, \base_offs, \
+		_do_regs LDR, x, RISCV_XLEN_BYTES, \base_reg, \base_offs, \
+			 \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * Save f registers from_regnum..to_regnum to memory at
+	 * [base_reg, #base_offs], RISCV_FLEN_BYTES apart
+	 */
+	.macro store_fregs base_reg, base_offs, from_regnum, to_regnum
+		_do_regs FSTR, f, RISCV_FLEN_BYTES, \base_reg, \base_offs, \
+			 \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * Load f registers from_regnum..to_regnum from memory at
+	 * [base_reg, #base_offs], RISCV_FLEN_BYTES apart
+	 */
+	.macro load_fregs base_reg, base_offs, from_regnum, to_regnum
+		_do_regs FLDR, f, RISCV_FLEN_BYTES, \base_reg, \base_offs, \
 			 \from_regnum, \to_regnum
 	.endm
 
