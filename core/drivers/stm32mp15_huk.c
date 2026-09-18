@@ -56,7 +56,7 @@ static TEE_Result stm32mp15_read_uid(uint32_t *uid)
 static TEE_Result stm32mp15_read_otp(uint32_t otp, uint32_t *key, bool *locked)
 {
 	bool tmp = true;
-	uint32_t state = 0;
+	enum stm32_bsec_sec_state state = BSEC_STATE_INVALID;
 
 	if (stm32_bsec_get_state(&state))
 		panic();
