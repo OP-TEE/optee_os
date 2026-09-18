@@ -10,9 +10,6 @@ inputs:
   type:
     description: Type of checks (qemuv7, qemuv8, ...)
     required: true
-  image:
-    description: Container image to use
-    required: true
   manifest_owner:
     description: Org of the manifest repo
     required: true
@@ -34,29 +31,30 @@ runs:
         avail=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
         if [ "$avail" -lt 40 ]; then
           echo "::notice::Only ${avail} GB free, removing unused preinstalled tools"
-          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/hostedtoolcache \
-            /usr/share/swift /usr/local/.ghcup
+          sudo rm -rf /host/usr/local/lib/android /host/usr/share/dotnet \
+                      /host/opt/hostedtoolcache /host/usr/share/swift \
+                      /host/usr/local/.ghcup
           df -h /
         fi
     - name: Restore shared build cache
       if: ${{ inputs.cache == 'shared-read' }}
       uses: actions/cache/restore@v6
       with:
-        path: /home/runner/work/ccache
+        path: /github/home/.cache/ccache
         key: ${{ inputs.type }}-checks-${{ github.sha }}
         restore-keys: ${{ inputs.type }}-checks-
     - name: Maintain shared build cache
       if: ${{ inputs.cache == 'shared-fill' }}
       uses: actions/cache@v6
       with:
-        path: /home/runner/work/ccache
+        path: /github/home/.cache/ccache
         key: ${{ inputs.type }}-checks-${{ github.sha }}
         restore-keys: ${{ inputs.type }}-checks-
     - name: Restore private build cache
       if: ${{ inputs.cache == 'private' }}
       uses: actions/cache@v6
       with:
-        path: /home/runner/work/ccache
+        path: /github/home/.cache/ccache
         key: qemu-${{ inputs.name }}-checks-${{ github.sha }}
         restore-keys: qemu-${{ inputs.name }}-checks-
     - name: Run 'make check' tasks in container
@@ -64,37 +62,28 @@ runs:
       env:
         MAKE_COMMANDS: "${{ inputs.make_commands }}"
       run: |
-        docker run --rm \
-          -v /home/runner/work/optee_os/optee_os:/runner/optee_os \
-          -v /home/runner/work/ccache:/root/.cache/ccache \
-          -w /root \
-          -e MAKE_COMMANDS="$MAKE_COMMANDS" \
-          ${{ inputs.image }} \
-          bash -c '
-            set -e -v
+        export BR2_CCACHE_DIR=/github/home/.cache/ccache
+        export FORCE_UNSAFE_CONFIGURE=1
+        export CFG_TEE_CORE_LOG_LEVEL=2
+        export DUMP_LOGS_ON_ERROR=1
 
-            export BR2_CCACHE_DIR=/root/.cache/ccache
-            export FORCE_UNSAFE_CONFIGURE=1
-            export CFG_TEE_CORE_LOG_LEVEL=2
-            export DUMP_LOGS_ON_ERROR=1
+        if [ ${{ inputs.type }} = qemuv7 ]; then
+          export PLAT=default
+        else
+          export PLAT=qemu_v8
+          export CFG_ATTESTATION_PTA=y
+          export CFG_ATTESTATION_PTA_KEY_SIZE=1024
+        fi
 
-            if [ ${{ inputs.type }} = qemuv7 ]; then
-              export PLAT=default
-            else
-              export PLAT=qemu_v8
-              export CFG_ATTESTATION_PTA=y
-              export CFG_ATTESTATION_PTA_KEY_SIZE=1024
-            fi
+        CHECKOUT=$PWD
+        TOP=/optee_repo_qemu
+        cd $TOP
+        repo init -u "https://github.com/${{ inputs.manifest_owner }}/manifest.git" -m $PLAT.xml
+        repo sync --force-sync
+        rm -rf $TOP/optee_os
+        ln -s "$CHECKOUT" $TOP/optee_os
+        cd $TOP/build
 
-            TOP=/root/optee_repo_qemu
-            cd $TOP
-            repo init -u "https://github.com/${{ inputs.manifest_owner }}/manifest.git" -m $PLAT.xml
-            repo sync --force-sync
-            rm -rf $TOP/optee_os
-            ln -s /runner/optee_os $TOP/optee_os
-            cd $TOP/build
-
-            ccache -s -v
-            eval "$MAKE_COMMANDS"
-            ccache -s -v
-          '
+        ccache -s -v
+        eval "$MAKE_COMMANDS"
+        ccache -s -v
