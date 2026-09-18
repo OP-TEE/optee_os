@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright 2022-2023 NXP
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #ifndef __KERNEL_THREAD_ARCH_H
@@ -8,6 +9,7 @@
 
 #ifndef __ASSEMBLER__
 #include <compiler.h>
+#include <kernel/vfp.h>
 #include <types_ext.h>
 #endif
 
@@ -51,6 +53,9 @@ struct thread_core_local {
 } THREAD_CORE_LOCAL_ALIGNED;
 
 struct thread_user_vfp_state {
+	struct vfp_state vfp;
+	bool lazy_saved;
+	bool saved;
 };
 
 struct thread_abi_args {
