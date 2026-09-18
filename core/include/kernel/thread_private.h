@@ -48,6 +48,9 @@ struct thread_ctx {
 #ifdef CFG_WITH_VFP
 	struct thread_vfp_state vfp_state;
 #endif
+#ifdef CFG_RISCV_WITH_VECTOR
+	struct thread_vector_state vector_state;
+#endif
 	void *rpc_arg;
 	struct mobj *rpc_mobj;
 	struct thread_shm_cache shm_cache;

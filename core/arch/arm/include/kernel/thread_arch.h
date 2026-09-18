@@ -431,6 +431,19 @@ static inline void thread_user_save_vfp(void)
  */
 #ifdef CFG_WITH_VFP
 void thread_user_clear_vfp(struct user_mode_ctx *uctx);
+
+/*
+ * thread_user_clear_vector() - Releases a user context's vector state
+ * @uctx:	the user context being torn down
+ *
+ * Only RISC-V has a vector register file to release, and only there is it
+ * heap allocated. The generic teardown paths call this next to
+ * thread_user_clear_vfp(), so every other architecture needs the empty
+ * definition.
+ */
+static inline void thread_user_clear_vector(struct user_mode_ctx *uctx __unused)
+{
+}
 #else
 static inline void thread_user_clear_vfp(struct user_mode_ctx *uctx __unused)
 {

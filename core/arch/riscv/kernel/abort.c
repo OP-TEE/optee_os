@@ -281,6 +281,13 @@ static bool is_vfp_fault(struct abort_info *ai __unused)
 #endif  /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
 
 #if defined(CFG_RISCV_WITH_VECTOR) && defined(CFG_WITH_USER_TA)
+static bool handle_user_mode_vector(void)
+{
+	struct ts_session *s = ts_get_current_session();
+
+	return thread_user_enable_vector(&to_user_mode_ctx(s->ctx)->vector);
+}
+
 static bool is_vector_fault(struct abort_info *ai)
 {
 	if (ai->abort_type != ABORT_TYPE_UNDEF ||
@@ -396,6 +403,15 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_MODE_VFP:
 		handle_user_mode_vfp();
+		break;
+#endif
+#if defined(CFG_RISCV_WITH_VECTOR) && defined(CFG_WITH_USER_TA)
+	case FAULT_TYPE_USER_MODE_VECTOR:
+		if (!handle_user_mode_vector()) {
+			EMSG("Out of memory for a TA vector context");
+			save_abort_info_in_tsd(&ai);
+			handle_user_mode_panic(&ai);
+		}
 		break;
 #endif
 	case FAULT_TYPE_PAGE_FAULT:
