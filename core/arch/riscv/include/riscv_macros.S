@@ -2,6 +2,7 @@
 /*
  * Copyright 2022-2023,2026 NXP
  * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 	.altmacro
@@ -54,6 +55,24 @@
 	 */
 	.macro load_xregs base_reg, base_offs, from_regnum, to_regnum
 		_do_regs LDR, x, RISCV_XLEN_BYTES, \base_reg, \base_offs, \
+			 \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * Save f registers from_regnum..to_regnum to memory at
+	 * [base_reg, #base_offs], RISCV_FLEN_BYTES apart
+	 */
+	.macro store_fregs base_reg, base_offs, from_regnum, to_regnum
+		_do_regs FSTR, f, RISCV_FLEN_BYTES, \base_reg, \base_offs, \
+			 \from_regnum, \to_regnum
+	.endm
+
+	/*
+	 * Load f registers from_regnum..to_regnum from memory at
+	 * [base_reg, #base_offs], RISCV_FLEN_BYTES apart
+	 */
+	.macro load_fregs base_reg, base_offs, from_regnum, to_regnum
+		_do_regs FLDR, f, RISCV_FLEN_BYTES, \base_reg, \base_offs, \
 			 \from_regnum, \to_regnum
 	.endm
 
