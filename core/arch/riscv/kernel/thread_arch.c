@@ -35,6 +35,8 @@
 #include <trace.h>
 #include <util.h>
 
+#include "vfp_private.h"
+
 /*
  * This function is called as a guard after each ABI call which is not
  * supposed to return.
@@ -610,6 +612,72 @@ void thread_kernel_restore_vfp(void)
 	}
 }
 
+void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+
+	assert(uvfp);
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	assert(!vfp_is_enabled());
+
+	if (!thr->vfp_state.ns_saved) {
+		vfp_lazy_save_state_final(&thr->vfp_state.ns,
+					  true /*force_save*/);
+		thr->vfp_state.ns_saved = true;
+	} else if (tuv && uvfp != tuv) {
+		/*
+		 * Different user state saved last time, do a full save
+		 * of that state.
+		 */
+		if (tuv->lazy_saved && !tuv->saved) {
+			vfp_lazy_save_state_final(&tuv->vfp,
+						  false /*!force_save*/);
+			tuv->saved = true;
+		}
+	}
+
+	if (uvfp->lazy_saved) {
+		vfp_lazy_restore_state(&uvfp->vfp, uvfp->saved);
+	} else {
+		/*
+		 * A new user context: do not hand it whatever the previous
+		 * owner left in the registers.
+		 */
+		vfp_enable();
+		vfp_clear_extension_regs();
+	}
+	uvfp->lazy_saved = false;
+	uvfp->saved = false;
+
+	thr->vfp_state.uvfp = uvfp;
+	vfp_enable();
+}
+
+void thread_user_save_vfp(void)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+	if (!vfp_is_enabled())
+		return;
+
+	assert(tuv && !tuv->lazy_saved && !tuv->saved);
+	vfp_lazy_save_state_init(&tuv->vfp);
+	tuv->lazy_saved = true;
+}
+
+void thread_user_clear_vfp(struct user_mode_ctx *uctx)
+{
+	struct thread_user_vfp_state *uvfp = &uctx->vfp;
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	if (uvfp == thr->vfp_state.uvfp)
+		thr->vfp_state.uvfp = NULL;
+	uvfp->lazy_saved = false;
+	uvfp->saved = false;
+}
 #endif /*CFG_WITH_VFP*/
 
 uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
