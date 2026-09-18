@@ -138,6 +138,51 @@ CFG_AES_GCM_TABLE_BASED ?= y
 
 endif #!CFG_CRYPTO_WITH_CE
 
+# RISC-V vector AES acceleration
+CFG_CRYPTO_RISCV_WITH_ZVKNED_ZVKB ?= n
+CFG_CRYPTO_RISCV_WITH_ZVKNED ?= \
+	$(CFG_CRYPTO_RISCV_WITH_ZVKNED_ZVKB)
+
+# CTR requires the base Zvkned implementation.
+ifeq ($(CFG_CRYPTO_RISCV_WITH_ZVKNED_ZVKB),y)
+$(call force,CFG_CRYPTO_RISCV_WITH_ZVKNED,y,required by \
+	      CFG_CRYPTO_RISCV_WITH_ZVKNED_ZVKB)
+endif
+
+ifeq ($(CFG_CRYPTO_RISCV_WITH_ZVKNED),y)
+
+# The current assembly implementation is RV64-only.
+ifneq ($(CFG_RV64_core),y)
+$(error CFG_CRYPTO_RISCV_WITH_ZVKNED requires CFG_RV64_core=y)
+endif
+
+$(call force,CFG_CORE_CRYPTO_AES_ACCEL,y,required by \
+	      CFG_CRYPTO_RISCV_WITH_ZVKNED)
+$(call force,CFG_WITH_VFP,y,required by \
+	      CFG_CRYPTO_RISCV_WITH_ZVKNED)
+
+$(call force,CFG_CRYPTO_AES,y,required by \
+	      CFG_CRYPTO_RISCV_WITH_ZVKNED)
+$(call force,CFG_CRYPTO_ECB,y,required by \
+	      CFG_CRYPTO_RISCV_WITH_ZVKNED)
+$(call force,CFG_CRYPTO_CBC,y,required by \
+	      CFG_CRYPTO_RISCV_WITH_ZVKNED)
+
+# The accelerated API needs the Zvkb CTR implementation when CTR is enabled.
+ifeq ($(CFG_CRYPTO_CTR),y)
+ifneq ($(CFG_CRYPTO_RISCV_WITH_ZVKNED_ZVKB),y)
+$(error CFG_CRYPTO_CTR=y requires \
+	CFG_CRYPTO_RISCV_WITH_ZVKNED_ZVKB=y)
+endif
+endif
+
+endif # CFG_CRYPTO_RISCV_WITH_ZVKNED
+
+ifeq ($(CFG_CRYPTO_RISCV_WITH_ZVKNED_ZVKB),y)
+$(call force,CFG_CRYPTO_CTR,y,required by \
+	      CFG_CRYPTO_RISCV_WITH_ZVKNED_ZVKB)
+endif
+
 
 # Cryptographic extensions can only be used safely when OP-TEE knows how to
 # preserve the VFP context
