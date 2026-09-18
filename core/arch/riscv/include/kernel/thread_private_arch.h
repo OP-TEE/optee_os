@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright 2022-2023 NXP
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #ifndef __KERNEL_THREAD_PRIVATE_ARCH_H
@@ -9,6 +10,7 @@
 #ifndef __ASSEMBLER__
 
 #include <kernel/thread.h>
+#include <kernel/vector.h>
 
 #define STACK_TMP_OFFS		0
 
@@ -57,6 +59,17 @@ struct thread_user_mode_rec {
 	 */
 	unsigned long x[13];
 };
+
+#ifdef CFG_RISCV_WITH_VECTOR
+struct thread_vector_state {
+	bool ns_saved;
+	bool sec_saved;
+	bool sec_lazy_saved;
+	struct vector_state ns;
+	struct vector_state sec;
+	struct thread_user_vector_state *uvect;
+};
+#endif /*CFG_RISCV_WITH_VECTOR*/
 
 extern long thread_user_kcode_offset;
 

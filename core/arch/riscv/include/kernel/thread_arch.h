@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright 2022-2023 NXP
+ * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
 #ifndef __KERNEL_THREAD_ARCH_H
@@ -8,6 +9,7 @@
 
 #ifndef __ASSEMBLER__
 #include <compiler.h>
+#include <kernel/vector.h>
 #include <types_ext.h>
 #endif
 
@@ -49,6 +51,12 @@ struct thread_core_local {
 	struct ftmn_func_arg *ftmn_arg;
 #endif
 } THREAD_CORE_LOCAL_ALIGNED;
+
+struct thread_user_vector_state {
+	struct vector_state vect;
+	bool lazy_saved;
+	bool saved;
+};
 
 struct thread_user_vfp_state {
 };
@@ -196,6 +204,14 @@ static inline void thread_user_clear_vfp(struct user_mode_ctx *uctx __unused)
 {
 }
 #endif
+
+#ifdef CFG_RISCV_WITH_VECTOR
+uint32_t thread_kernel_enable_vector(void);
+void thread_kernel_disable_vector(uint32_t state);
+void thread_kernel_save_vector(void);
+void thread_kernel_restore_vector(void);
+/* Returns false if a context could not be allocated for the TA */
+#endif /*CFG_RISCV_WITH_VECTOR*/
 
 vaddr_t thread_get_saved_thread_sp(void);
 uint32_t thread_get_hartid(void);
