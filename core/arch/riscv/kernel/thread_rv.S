@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright 2022-2023 NXP
+ * Copyright (c) 2026, RISCStar Solutions Limited
  * Copyright 2024 Andes Technology Corporation
  */
 
@@ -34,6 +35,24 @@
 .macro b_if_prev_priv_is_u reg, label
 	andi	\reg, \reg, CSR_XSTATUS_SPP
 	beqz	\reg, \label
+.endm
+
+/*
+ * Write \reg to xstatus, keeping the live VS field. The vector unit is
+ * enabled and disabled through vector_enable() and vector_disable() only:
+ * VS is not part of the saved context, so returning from a trap or resuming
+ * a thread must not change it. \tmp is clobbered.
+ */
+.macro write_xstatus reg, tmp
+#ifdef CFG_RISCV_WITH_VECTOR
+	csrr	\tmp, CSR_XSTATUS
+	xor	\tmp, \tmp, \reg
+	srli	\tmp, \tmp, CSR_XSTATUS_VS_SHIFT
+	andi	\tmp, \tmp, CSR_XSTATUS_VS_MASK >> CSR_XSTATUS_VS_SHIFT
+	slli	\tmp, \tmp, CSR_XSTATUS_VS_SHIFT
+	xor	\reg, \reg, \tmp
+#endif
+	csrw	CSR_XSTATUS, \reg
 .endm
 
 /* size_t __get_core_pos(void); */
@@ -168,7 +187,7 @@ native_interrupt_from_kernel:
 	csrw	CSR_XEPC, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
-	csrw	CSR_XSTATUS, t0
+	write_xstatus t0, t1
 	/* Restore XIE */
 	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
@@ -266,7 +285,7 @@ set_sp:
 	csrw	CSR_XEPC, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
-	csrw	CSR_XSTATUS, t0
+	write_xstatus t0, t1
 	/* Restore XIE */
 	load_xregs sp, THREAD_ABT_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
@@ -405,7 +424,7 @@ native_interrupt_from_user:
 	csrw	CSR_XEPC, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
-	csrw	CSR_XSTATUS, t0
+	write_xstatus t0, t1
 	/* Restore XIE */
 	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
@@ -495,7 +514,7 @@ ecall_from_user:
 	csrw	CSR_XEPC, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_SCALL_REG_STATUS, REG_T0
-	csrw	CSR_XSTATUS, t0
+	write_xstatus t0, t1
 	/* Restore XIE */
 	load_xregs sp, THREAD_SCALL_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
@@ -609,7 +628,7 @@ abort_from_user:
 	csrw	CSR_XEPC, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
-	csrw	CSR_XSTATUS, t0
+	write_xstatus t0, t1
 	/* Restore XIE */
 	load_xregs sp, THREAD_ABT_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
@@ -713,7 +732,7 @@ FUNC __thread_enter_user_mode , :
 	csrw	CSR_XEPC, s0
 	/* Set user status */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_S0
-	csrw	CSR_XSTATUS, s0
+	write_xstatus s0, t1
 	/* Set user ie */
 	load_xregs sp, THREAD_CTX_REG_IE, REG_S0
 	csrw	CSR_XIE, s0
@@ -742,7 +761,7 @@ FUNC thread_resume , :
 	csrw	CSR_XEPC, t0
 	/* Restore status */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
-	csrw	CSR_XSTATUS, t0
+	write_xstatus t0, t1
 	/* Restore ie */
 	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
