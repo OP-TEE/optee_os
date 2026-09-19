@@ -82,6 +82,12 @@ int platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
 	uint32_t ed_mb = ed / SIZE_M(1);
 	uint32_t i = 0;
 
+	if (IS_ENABLED(CFG_RK3588_FIREWALL_BY_BL31)) {
+		MSG("Not protecting region %d: 0x%"PRIxPA"-0x%"PRIxPA", left to BL31",
+		    rgn, st, ed);
+		return 0;
+	}
+
 	if (!fw_ddr_base || !fw_dsu_base)
 		panic();
 
