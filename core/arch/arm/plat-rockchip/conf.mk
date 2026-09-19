@@ -199,6 +199,13 @@ $(call force,CFG_AUTO_MAX_PA_BITS,y)
 $(call force,CFG_CRYPTO_WITH_CE,y)
 $(call force,CFG_ROCKCHIP_OTP,y)
 
+# Leave the DDR/DSU firewall for TZDRAM to BL31, which already owns the block
+# on this SoC: it clears regions 1-15, takes region 0 for its own memory, and
+# carries the region registers through suspend. With a BL31 that also programs
+# region 1 for BL32 the write from S-EL1 here is redundant, and on some it
+# never returns.
+CFG_RK3588_FIREWALL_BY_BL31 ?= n
+
 CFG_RK_SECURE_BOOT ?= y
 # Disable CFG_RK_SECURE_BOOT_SIMULATION to actually fuse the hash into the OTP.
 # Enabling this option is necessary to actually enable secure boot, but may
