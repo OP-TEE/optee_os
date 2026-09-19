@@ -1411,3 +1411,14 @@ CFG_TA_LIBGCC ?= y
 # normal world.
 CFG_CORE_DYN_PROTMEM ?= n
 $(eval $(call cfg-depends-all,CFG_CORE_DYN_PROTMEM,CFG_CORE_DYN_SHM,CFG_SECURE_DATA_PATH))
+
+# Console into a ring buffer at physical address CFG_RAMCON_BASE, for boards
+# where the debug UART is not reachable; a normal-world reader dumps it. The
+# window must be RAM the normal world does not otherwise use.
+CFG_RAMCON ?= n
+ifeq ($(CFG_RAMCON),y)
+CFG_RAMCON_SIZE ?= 0x4000
+ifeq ($(CFG_RAMCON_BASE),)
+$(error CFG_RAMCON_BASE must be set when CFG_RAMCON=y)
+endif
+endif
