@@ -385,7 +385,7 @@ static const scmi_msg_handler_t scmi_perf_handler_table[] = {
 	[SCMI_PERF_LEVEL_GET] = scmi_perf_level_get,
 };
 
-static bool message_id_is_supported(size_t message_id)
+static bool message_id_is_supported(unsigned int message_id)
 {
 	return message_id < ARRAY_SIZE(scmi_perf_handler_table) &&
 	       scmi_perf_handler_table[message_id];
