@@ -36,6 +36,9 @@
 
 paddr_t start_addr;
 
+/* Physical address of the device tree passed by the firmware, if any */
+static unsigned long boot_arg_fdt __nex_bss;
+
 #ifdef CFG_BOOT_SYNC_CPU
 /*
  * Array used when booting, to synchronize harts.
@@ -340,6 +343,19 @@ void boot_init_secondary(unsigned long nsec_entry __unused)
 	init_secondary_helper();
 }
 
+/*
+ * Called from entry.S with the arguments the firmware passed to _start:
+ * a0 is the hart ID and a1 the device tree address, already replaced by
+ * CFG_DT_ADDR there when that is defined. The remaining arguments are
+ * unused.
+ */
+void __weak boot_save_args(unsigned long a0 __unused, unsigned long a1,
+			   unsigned long a2 __unused, unsigned long a3 __unused,
+			   unsigned long a4 __unused)
+{
+	boot_arg_fdt = a1;
+}
+
 #if defined(CFG_CORE_ASLR)
 /* May be overridden in plat-$(PLATFORM)/main.c */
 __weak unsigned long plat_get_aslr_seed(void)
@@ -347,22 +363,69 @@ __weak unsigned long plat_get_aslr_seed(void)
 	return 0;
 }
 
-__weak unsigned long get_aslr_seed(void)
+#if defined(CFG_DT)
+/*
+ * Read the seed the firmware left in /secure-chosen/kaslr-seed. The
+ * device tree is reached through the physical address the firmware
+ * passed, since the MMU is not enabled yet and the external device tree
+ * is not mapped.
+ */
+static unsigned long get_fdt_aslr_seed(void)
 {
-	TEE_Result res = TEE_SUCCESS;
-	unsigned long seed = 0;
+	void *fdt = (void *)boot_arg_fdt;
+	const uint64_t *seed = NULL;
+	int offs = 0;
+	int len = 0;
+	int rc = 0;
 
-	if (IS_ENABLED(CFG_RISCV_ZKR_RNG) && riscv_detect_csr_seed()) {
-		res = hw_get_random_bytes(&seed, sizeof(seed));
-		if (res) {
-			DMSG("Zkr: Failed to seed ASLR");
-			goto out;
-		}
-		return seed;
+	if (!fdt) {
+		DMSG("No fdt");
+		goto err;
 	}
 
-out:
+	rc = fdt_check_header(fdt);
+	if (rc) {
+		DMSG("Bad fdt: %d", rc);
+		goto err;
+	}
+
+	offs = fdt_path_offset(fdt, "/secure-chosen");
+	if (offs < 0) {
+		DMSG("Cannot find /secure-chosen");
+		goto err;
+	}
+
+	seed = fdt_getprop(fdt, offs, "kaslr-seed", &len);
+	if (!seed || len != sizeof(*seed)) {
+		DMSG("Cannot find valid kaslr-seed");
+		goto err;
+	}
+
+	return fdt64_to_cpu(fdt64_ld(seed));
+
+err:
 	/* Try platform implementation */
 	return plat_get_aslr_seed();
+}
+#else /*!CFG_DT*/
+static unsigned long get_fdt_aslr_seed(void)
+{
+	/* Try platform implementation */
+	return plat_get_aslr_seed();
+}
+#endif /*!CFG_DT*/
+
+__weak unsigned long get_aslr_seed(void)
+{
+	unsigned long seed = 0;
+
+	/* A hart with Zkr seeds itself, the device tree is the fallback */
+	if (IS_ENABLED(CFG_RISCV_ZKR_RNG) && riscv_detect_csr_seed()) {
+		if (!hw_get_random_bytes(&seed, sizeof(seed)))
+			return seed;
+		DMSG("Zkr: Failed to seed ASLR");
+	}
+
+	return get_fdt_aslr_seed();
 }
 #endif /*CFG_CORE_ASLR*/
