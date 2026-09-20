@@ -8,6 +8,7 @@ srcs-$(CFG_RISCV_SBI_CONSOLE) += sbi_console.c
 srcs-$(CFG_RISCV_SBI_MPXY) += sbi_mpxy.c
 srcs-$(CFG_RISCV_SBI_MPXY_RPMI) += sbi_mpxy_rpmi.c
 srcs-y += boot.c
+srcs-y += hart.c
 srcs-y += entry.S
 srcs-y += abort.c
 srcs-y += thread_rv.S

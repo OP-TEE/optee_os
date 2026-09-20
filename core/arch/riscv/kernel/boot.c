@@ -11,6 +11,7 @@
 #include <keep.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
+#include <kernel/hart.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -259,6 +260,7 @@ void __weak boot_init_primary_runtime(void)
 #endif
 	boot_primary_init_intc();
 	boot_primary_init_core_ids();
+	hart_features_init();
 	init_tee_runtime();
 	boot_mem_release_tmp_alloc();
 }
