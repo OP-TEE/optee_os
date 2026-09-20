@@ -216,6 +216,14 @@ UNWIND(	.cantunwind)
 	sw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
 #endif
 
+	/* Record the boot arguments, a0 = hart ID, a1 = device tree */
+	mv	a0, s0
+	mv	a1, s1
+	mv	a2, x0
+	mv	a3, x0
+	mv	a4, x0
+	jal	boot_save_args
+
 #ifdef CFG_RISCV_SBI
 	jal	sbi_init
 #endif
