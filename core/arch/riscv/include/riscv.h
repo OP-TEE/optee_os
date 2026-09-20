@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  */
 
 #ifndef __RISCV_H
@@ -432,9 +432,16 @@ static inline __noprof uint64_t barrier_read_counter_timer(void)
 	return read_time();
 }
 
+/*
+ * Frequency of the time counter, "timebase-frequency" of the /cpus node
+ * of the device tree. CFG_RISCV_MTIME_RATE until hart_features_init()
+ * reads it, and when the device tree does not describe it.
+ */
+extern uint32_t riscv_timebase_frequency;
+
 static inline __noprof uint32_t read_cntfrq(void)
 {
-	return CFG_RISCV_MTIME_RATE;
+	return riscv_timebase_frequency;
 }
 
 __noprof bool riscv_detect_csr_seed(void);
