@@ -13,6 +13,7 @@
 #include <kernel/misc_arch.h>
 #include <kernel/panic.h>
 #include <libfdt.h>
+#include <mm/core_mmu.h>
 #include <riscv.h>
 #include <stdio.h>
 #include <string.h>
@@ -100,6 +101,18 @@ static struct cache_block {
 
 /* Frequency of the time counter, until the device tree says otherwise */
 uint32_t riscv_timebase_frequency __nex_data = CFG_RISCV_MTIME_RATE;
+
+/*
+ * Largest paged virtual-memory scheme every hart of the TEE supports, as
+ * "mmu-type" gives it: 32, 39, 48 or 57, 0 until a hart gives one.
+ * @mmu_mode_unknown is set when a hart does not describe it or gives a
+ * type the port does not know. @no_mmu_hartid is the ID of a hart
+ * described with "riscv,none", valid when @hart_no_mmu is set.
+ */
+static unsigned int mmu_mode_min __nex_bss;
+static bool mmu_mode_unknown __nex_bss;
+static bool hart_no_mmu __nex_bss;
+static uint32_t no_mmu_hartid __nex_bss;
 
 static const char *isa_ext_name(enum riscv_isa_ext ext)
 {
@@ -296,6 +309,50 @@ static unsigned int cache_block_size(const struct cache_block *blk)
 	return blk->size;
 }
 
+static void read_mmu_type(const void *fdt, int node, uint32_t hartid)
+{
+	static const struct {
+		const char *type;
+		unsigned int mode;
+	} mmu_types[] = {
+		{ "riscv,sv32", 32 },
+		{ "riscv,sv39", 39 },
+		{ "riscv,sv48", 48 },
+		{ "riscv,sv57", 57 },
+	};
+	const char *type = NULL;
+	unsigned int mode = 0;
+	size_t n = 0;
+
+	type = fdt_getprop(fdt, node, "mmu-type", NULL);
+	if (!type) {
+		mmu_mode_unknown = true;
+		return;
+	}
+
+	/* The hart has no paged virtual memory at all */
+	if (!strcmp(type, "riscv,none")) {
+		if (!hart_no_mmu) {
+			hart_no_mmu = true;
+			no_mmu_hartid = hartid;
+		}
+		return;
+	}
+
+	for (n = 0; n < ARRAY_SIZE(mmu_types); n++)
+		if (!strcmp(type, mmu_types[n].type))
+			mode = mmu_types[n].mode;
+
+	if (!mode) {
+		mmu_mode_unknown = true;
+		return;
+	}
+
+	/* Sv57 implies Sv48 and Sv39, Sv48 implies Sv39: keep the smallest */
+	if (!mmu_mode_min || mode < mmu_mode_min)
+		mmu_mode_min = mode;
+}
+
 /* Read what the CPU node of every hart of the TEE describes */
 static void parse_cpu_nodes(const void *fdt)
 {
@@ -335,6 +392,7 @@ static void parse_cpu_nodes(const void *fdt)
 		    !is_tee_hart(hartid))
 			continue;
 
+		read_mmu_type(fdt, node, hartid);
 		read_cache_block(fdt, node, "riscv,cbom-block-size",
 				 &cbom_block);
 		read_cache_block(fdt, node, "riscv,cboz-block-size",
@@ -444,6 +502,33 @@ static void check_build_isa(void)
 }
 
 /*
+ * The paging scheme is fixed at build time by CFG_RISCV_MMU_MODE and the
+ * core always runs with paging, for itself or for the user mode TAs. A
+ * hart described with "riscv,none" has no MMU and cannot run this core.
+ * A hart that supports a larger scheme also supports the smaller ones,
+ * so otherwise only a hart whose largest scheme is smaller than the one
+ * built for cannot run it. A hart without the property, or with a type
+ * the port does not know, leaves that second check out.
+ */
+static void check_mmu_mode(void)
+{
+	if (hart_no_mmu) {
+		EMSG("Core built for Sv%u, hart%"PRIu32" has no MMU",
+		     RISCV_MMU_MODE, no_mmu_hartid);
+		panic();
+	}
+
+	if (mmu_mode_unknown || !mmu_mode_min)
+		return;
+
+	if (mmu_mode_min < RISCV_MMU_MODE) {
+		EMSG("Core built for Sv%u, a hart supports at most Sv%u",
+		     RISCV_MMU_MODE, mmu_mode_min);
+		panic();
+	}
+}
+
+/*
  * Generic code aligns the buffers it maintains in cache to
  * cache_get_max_line_size(). A cache block larger than that would make a
  * Zicbom operation reach into the neighbouring data.
@@ -494,5 +579,6 @@ void hart_features_init(void)
 
 	print_isa();
 	check_build_isa();
+	check_mmu_mode();
 	check_cache_block();
 }
