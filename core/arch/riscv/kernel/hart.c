@@ -98,6 +98,9 @@ static struct cache_block {
 	bool missing;
 } cbom_block __nex_bss, cboz_block __nex_bss;
 
+/* Frequency of the time counter, until the device tree says otherwise */
+uint32_t riscv_timebase_frequency __nex_data = CFG_RISCV_MTIME_RATE;
+
 static const char *isa_ext_name(enum riscv_isa_ext ext)
 {
 	size_t n = 0;
@@ -300,6 +303,7 @@ static void parse_cpu_nodes(const void *fdt)
 	bitstr_t bit_decl(map, RISCV_ISA_EXT_COUNT) = { };
 	const char *type = NULL;
 	uint32_t hartid = 0;
+	uint32_t freq = 0;
 	bool missing = false;
 	bool found = false;
 	int cpus = 0;
@@ -312,6 +316,15 @@ static void parse_cpu_nodes(const void *fdt)
 	cpus = fdt_path_offset(fdt, "/cpus");
 	if (cpus < 0)
 		return;
+
+	freq = fdt_read_uint32_default(fdt, cpus, "timebase-frequency", 0);
+	if (freq) {
+		riscv_timebase_frequency = freq;
+		IMSG("Timebase frequency: %"PRIu32" Hz", freq);
+	} else {
+		IMSG("No timebase-frequency, using %"PRIu32" Hz",
+		     riscv_timebase_frequency);
+	}
 
 	fdt_for_each_subnode(node, fdt, cpus) {
 		type = fdt_getprop(fdt, node, "device_type", NULL);
