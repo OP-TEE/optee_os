@@ -254,7 +254,7 @@ static bool is_tee_hart(uint32_t hartid)
 {
 	size_t n = 0;
 
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
+	for (n = 0; n < hartids_count; n++)
 		if (hartids[n] == hartid)
 			return true;
 
