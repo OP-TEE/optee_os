@@ -28,6 +28,7 @@
 #include <sbi.h>
 #include <stdalign.h>
 #include <stdio.h>
+#include <string.h>
 #include <trace.h>
 #include <util.h>
 
@@ -45,6 +46,12 @@ uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 #endif
 
 uint32_t hartids[CFG_TEE_CORE_NB_CORE];
+size_t hartids_count = CFG_TEE_CORE_NB_CORE;
+/*
+ * Number of harts taking part in the boot, primary included. Read by
+ * wait_secondary in entry.S when CFG_BOOT_SYNC_CPU=y.
+ */
+uint32_t boot_hart_count = CFG_TEE_CORE_NB_CORE;
 
 #if defined(CFG_DT)
 static int mark_tddram_as_reserved(struct dt_descriptor *dt)
@@ -79,19 +86,20 @@ void boot_start_secondary_cores(void)
 {
 	uint32_t curr_hartid = thread_get_core_local()->hart_id;
 	enum sbi_hsm_hart_state status = 0;
+	uint32_t started = 0;
 	uint32_t hartid = 0;
+	size_t i = 0;
 	int rc = 0;
-	int i = 0;
 
 	/* The primary CPU is always indexed by 0 */
 	assert(get_core_pos() == 0);
 
-	if (CFG_TEE_CORE_NB_CORE > 1 && !sbi_ext_available(SBI_EXT_HSM)) {
+	if (hartids_count > 1 && !sbi_ext_available(SBI_EXT_HSM)) {
 		EMSG("SBI HSM extension required to start secondary harts");
 		panic();
 	}
 
-	for (i = 0; i < CFG_TEE_CORE_NB_CORE; i++) {
+	for (i = 0; i < hartids_count; i++) {
 		hartid = hartids[i];
 
 		if (hartid == curr_hartid)
@@ -103,8 +111,11 @@ void boot_start_secondary_cores(void)
 		 * of the trusted domain, or its HSM state is
 		 * not stopped.
 		 */
-		if (rc || status != SBI_HSM_STATE_STOPPED)
+		if (rc || status != SBI_HSM_STATE_STOPPED) {
+			IMSG("Not starting hart%"PRIu32": HSM status %d, rc %d",
+			     hartid, status, rc);
 			continue;
+		}
 
 		DMSG("Bringing up secondary hart%"PRIu32, hartid);
 
@@ -113,7 +124,11 @@ void boot_start_secondary_cores(void)
 			EMSG("Error starting secondary hart%"PRIu32, hartid);
 			panic();
 		}
+		started++;
 	}
+
+	/* Only the harts actually started can reach the boot barrier */
+	boot_hart_count = started + 1;
 }
 #endif
 
@@ -181,16 +196,23 @@ __weak void boot_primary_init_intc(void)
 {
 }
 
-/* May be overridden in plat-$(PLATFORM)/main.c */
+/*
+ * May be overridden in plat-$(PLATFORM)/main.c. An override fills hartids[]
+ * and sets hartids_count to the number of valid entries.
+ *
+ * The default takes every enabled CPU node of the device tree, in order,
+ * up to CFG_TEE_CORE_NB_CORE. Which of those harts are ours is settled by
+ * the SBI HSM status when they are started.
+ */
 __weak void boot_primary_init_core_ids(void)
 {
 #ifdef CFG_DT
 	const void *fdt = get_external_dt();
-	const fdt32_t *reg = NULL;
+	const char *type = NULL;
+	uint32_t hartid = 0;
 	int cpu_offset = 0;
 	int offset = 0;
-	int len = 0;
-	int i = 0;
+	size_t n = 0;
 
 	offset = fdt_path_offset(fdt, "/cpus");
 	if (offset < 0)
@@ -198,23 +220,40 @@ __weak void boot_primary_init_core_ids(void)
 
 	fdt_for_each_subnode(cpu_offset, fdt, offset) {
 		/*
-		 * Assume all TEE cores are enabled. The "reg"
-		 * property in the CPU node indicates the hart ID.
+		 * Only "cpu" nodes describe harts, /cpus also holds
+		 * cpu-map and idle-states nodes.
 		 */
+		type = fdt_getprop(fdt, cpu_offset, "device_type", NULL);
+		if (!type || strcmp(type, "cpu"))
+			continue;
+
 		if (fdt_get_status(fdt, cpu_offset) == DT_STATUS_DISABLED)
 			continue;
 
-		reg = fdt_getprop(fdt, cpu_offset, "reg", &len);
-		if (!reg) {
-			EMSG("CPU node does not have 'reg' property");
+		/* The "reg" property is the hart ID, one cell */
+		if (fdt_read_uint32(fdt, cpu_offset, "reg", &hartid)) {
+			EMSG("CPU node %s: no valid \"reg\" property",
+			     fdt_get_name(fdt, cpu_offset, NULL));
 			continue;
 		}
 
-		assert(i < CFG_TEE_CORE_NB_CORE);
-		hartids[i++] = fdt32_to_cpu(*reg);
+		if (n == CFG_TEE_CORE_NB_CORE) {
+			IMSG("Ignoring hart%"PRIu32": CFG_TEE_CORE_NB_CORE=%u",
+			     hartid, CFG_TEE_CORE_NB_CORE);
+			continue;
+		}
+
+		hartids[n++] = hartid;
 	}
 
-	assert(i == CFG_TEE_CORE_NB_CORE);
+	if (!n)
+		panic("No enabled CPU node in the device tree");
+
+	if (n < CFG_TEE_CORE_NB_CORE)
+		IMSG("%zu hart(s) in device tree, CFG_TEE_CORE_NB_CORE=%u",
+		     n, CFG_TEE_CORE_NB_CORE);
+
+	hartids_count = n;
 #endif
 }
 

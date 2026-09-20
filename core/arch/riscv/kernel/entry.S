@@ -83,7 +83,8 @@
 .macro wait_secondary
 #ifdef CFG_BOOT_SYNC_CPU
 	lla	t0, sem_cpu_sync
-	li	t1, CFG_TEE_CORE_NB_CORE
+	lla	t1, boot_hart_count
+	lw	t1, 0(t1)
 	li	t2, SEM_CPU_READY
 1:
 	addi	t1, t1, -1
