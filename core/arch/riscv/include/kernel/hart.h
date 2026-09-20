@@ -93,4 +93,15 @@ void hart_features_init(void);
  */
 bool riscv_isa_ext_available(enum riscv_isa_ext ext);
 
+/*
+ * riscv_cbom_block_size() - Cache block size of the Zicbom operations
+ * riscv_cboz_block_size() - Cache block size of the Zicboz operation
+ *
+ * From "riscv,cbom-block-size" and "riscv,cboz-block-size" in the CPU
+ * nodes: the smallest size over the harts OP-TEE runs on, in bytes, or 0
+ * when a hart does not give it.
+ */
+unsigned int riscv_cbom_block_size(void);
+unsigned int riscv_cboz_block_size(void);
+
 #endif /*__KERNEL_HART_H*/

@@ -7,6 +7,7 @@
 #include <bitstring.h>
 #include <config.h>
 #include <ctype.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/dt.h>
 #include <kernel/hart.h>
 #include <kernel/misc_arch.h>
@@ -87,6 +88,15 @@ static const struct {
 static bitstr_t bit_decl(isa_common, RISCV_ISA_EXT_COUNT) __nex_bss;
 /* Set once every hart of the TEE has described its ISA */
 static bool __nex_bss isa_known;
+
+/*
+ * Cache block sizes of the Zicbom and Zicboz operations: the smallest one
+ * over the harts of the TEE, 0 when a hart does not give it.
+ */
+static struct cache_block {
+	unsigned int size;
+	bool missing;
+} cbom_block __nex_bss, cboz_block __nex_bss;
 
 static const char *isa_ext_name(enum riscv_isa_ext ext)
 {
@@ -261,7 +271,30 @@ static bool is_tee_hart(uint32_t hartid)
 	return false;
 }
 
-static void isa_from_dt(const void *fdt)
+static void read_cache_block(const void *fdt, int node, const char *prop,
+			     struct cache_block *blk)
+{
+	uint32_t size = 0;
+
+	if (fdt_read_uint32(fdt, node, prop, &size) || !size) {
+		blk->missing = true;
+		return;
+	}
+
+	if (!blk->size || size < blk->size)
+		blk->size = size;
+}
+
+static unsigned int cache_block_size(const struct cache_block *blk)
+{
+	if (blk->missing)
+		return 0;
+
+	return blk->size;
+}
+
+/* Read what the CPU node of every hart of the TEE describes */
+static void parse_cpu_nodes(const void *fdt)
 {
 	bitstr_t bit_decl(common, RISCV_ISA_EXT_COUNT) = { };
 	bitstr_t bit_decl(map, RISCV_ISA_EXT_COUNT) = { };
@@ -288,6 +321,11 @@ static void isa_from_dt(const void *fdt)
 		if (fdt_read_uint32(fdt, node, "reg", &hartid) ||
 		    !is_tee_hart(hartid))
 			continue;
+
+		read_cache_block(fdt, node, "riscv,cbom-block-size",
+				 &cbom_block);
+		read_cache_block(fdt, node, "riscv,cboz-block-size",
+				 &cboz_block);
 
 		memset(map, 0, sizeof(map));
 		if (!parse_isa_extensions(fdt, node, map) &&
@@ -392,6 +430,26 @@ static void check_build_isa(void)
 	}
 }
 
+/*
+ * Generic code aligns the buffers it maintains in cache to
+ * cache_get_max_line_size(). A cache block larger than that would make a
+ * Zicbom operation reach into the neighbouring data.
+ */
+static void check_cache_block(void)
+{
+	unsigned int cbom = riscv_cbom_block_size();
+	unsigned int cboz = riscv_cboz_block_size();
+
+	if (cbom || cboz)
+		IMSG("Cache block size: Zicbom %u, Zicboz %u", cbom, cboz);
+
+	if (cbom > cache_get_max_line_size()) {
+		EMSG("Zicbom block size %u above CFG_MAX_CACHE_LINE_SHIFT (%u)",
+		     cbom, cache_get_max_line_size());
+		panic();
+	}
+}
+
 bool riscv_isa_ext_available(enum riscv_isa_ext ext)
 {
 	assert(ext < RISCV_ISA_EXT_COUNT);
@@ -399,12 +457,22 @@ bool riscv_isa_ext_available(enum riscv_isa_ext ext)
 	return isa_known && bit_test(isa_common, ext);
 }
 
+unsigned int riscv_cbom_block_size(void)
+{
+	return cache_block_size(&cbom_block);
+}
+
+unsigned int riscv_cboz_block_size(void)
+{
+	return cache_block_size(&cboz_block);
+}
+
 void hart_features_init(void)
 {
 	const void *fdt = get_external_dt();
 
 	if (fdt) {
-		isa_from_dt(fdt);
+		parse_cpu_nodes(fdt);
 	} else {
 #ifdef CFG_RISCV_M_MODE
 		isa_from_misa();
@@ -413,4 +481,5 @@ void hart_features_init(void)
 
 	print_isa();
 	check_build_isa();
+	check_cache_block();
 }
