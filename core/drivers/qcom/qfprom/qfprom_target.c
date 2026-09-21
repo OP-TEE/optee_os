@@ -20,12 +20,18 @@
 
 TEE_Result qfprom_write_set_clock_settings(void)
 {
+	struct qfprom_context *ctx = qfprom_get_context();
 	struct io_pa_va base = { .pa = GCC_BASE };
 	vaddr_t gcc_base = io_pa_or_va(&base, GCC_SIZE);
 	vaddr_t cfg_rcgr = gcc_base + GCC_SEC_CTRL_CFG_RCGR;
 	vaddr_t cmd_rcgr = gcc_base + GCC_SEC_CTRL_CMD_RCGR;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t blow_timer_value = 0;
+
+	if (!ctx->clock_saved) {
+		ctx->saved_clock_cfg = io_read32(cfg_rcgr);
+		ctx->clock_saved = true;
+	}
 
 	res = qcom_clock_set_rate(cfg_rcgr, cmd_rcgr, QFPROM_CLOCK_DIVIDE);
 	if (res != TEE_SUCCESS)
@@ -42,21 +48,26 @@ TEE_Result qfprom_write_set_clock_settings(void)
 
 TEE_Result qfprom_write_reset_clock_settings(void)
 {
+	struct qfprom_context *ctx = qfprom_get_context();
 	struct io_pa_va base = { .pa = GCC_BASE };
 	vaddr_t gcc_base = io_pa_or_va(&base, GCC_SIZE);
 	vaddr_t cfg_rcgr = gcc_base + GCC_SEC_CTRL_CFG_RCGR;
 	vaddr_t cmd_rcgr = gcc_base + GCC_SEC_CTRL_CMD_RCGR;
-	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result res = TEE_SUCCESS;
 
-	res = qcom_clock_set_rate(cfg_rcgr, cmd_rcgr, 0);
-	if (res != TEE_SUCCESS)
-		return res;
+	if (ctx->clock_saved) {
+		res = qcom_clock_set_rate(cfg_rcgr, cmd_rcgr,
+					  ctx->saved_clock_cfg);
+		if (res == TEE_SUCCESS)
+			ctx->clock_saved = false;
+	}
 
+	/* Disarm programming even if the clock update timed out. */
 	hal_qfprom_set_blow_timer(0);
 
 	hal_qfprom_set_accel(QFPROM_ACCEL_RESET_VALUE);
 
-	return TEE_SUCCESS;
+	return res;
 }
 
 TEE_Result qfprom_acquire_hw_mutex(void)
