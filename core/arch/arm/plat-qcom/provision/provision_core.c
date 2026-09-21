@@ -89,12 +89,16 @@ TEE_Result provision_execute(const uint8_t *data, size_t len,
 	const struct fuse_entry *entries = NULL;
 	enum qfprom_error err = QFPROM_NO_ERR;
 	const struct secdat_hdr *hdr = NULL;
+	TEE_Result cleanup_res = TEE_SUCCESS;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const uint8_t *seg_data = NULL;
 	uint32_t perm_data[2] = {0};
 	bool any_blown = false;
 	uint32_t seg_size = 0;
 	uint32_t count = 0;
+
+	if (fuses_blown)
+		*fuses_blown = false;
 
 	if (!data || len == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -122,7 +126,7 @@ TEE_Result provision_execute(const uint8_t *data, size_t len,
 	}
 
 	if (perm_data[0] & OEM_SECURE_BOOT_PERM_MASK) {
-		res = TEE_ERROR_ACCESS_DENIED;
+		res = TEE_SUCCESS;
 		goto out;
 	}
 
@@ -183,14 +187,13 @@ TEE_Result provision_execute(const uint8_t *data, size_t len,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	if (fuses_blown)
-		*fuses_blown = any_blown;
-
 	res = TEE_SUCCESS;
 
 out:
-	qfprom_hw_deinit();
-	return res;
+	if (fuses_blown)
+		*fuses_blown = any_blown;
+	cleanup_res = qfprom_hw_deinit();
+	return res != TEE_SUCCESS ? res : cleanup_res;
 }
 
 void provision_reset_device(void)
