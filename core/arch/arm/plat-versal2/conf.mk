@@ -72,6 +72,9 @@ CFG_CONSOLE_UART ?= 0
 # PS GPIO Controller configuration.
 CFG_AMD_PS_GPIO ?= n
 
+# AMD PMC Specific config to check PMC FW version.
+CFG_AMD_PMC_SUPPORT ?= y
+
 # AMD ASU Specific configs
 CFG_AMD_ASU_SUPPORT ?= y
 
