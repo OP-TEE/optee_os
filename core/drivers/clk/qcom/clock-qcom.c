@@ -11,6 +11,8 @@
 
 register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
 
+#define QCOM_CLOCK_UPDATE_TIMEOUT_US	U(10000)
+
 #define CBCR_BRANCH_ENABLE_BIT		BIT(0)
 #define CBCR_HW_CTL_ENABLE_BIT		BIT(1)
 #define CBCR_BRANCH_OFF_BIT		BIT(31)
@@ -145,10 +147,10 @@ TEE_Result qcom_clock_set_rate(vaddr_t cfg_rcgr, vaddr_t cmd_rcgr,
 	uint32_t val = 0;
 
 	io_write32(cfg_rcgr, cfg_value);
-	io_write32(cmd_rcgr, CMD_RCGR_UPDATE_BIT);
+	io_setbits32(cmd_rcgr, CMD_RCGR_UPDATE_BIT);
 
 	if (IO_READ32_POLL_TIMEOUT(cmd_rcgr, val, !(val & CMD_RCGR_UPDATE_BIT),
-				   1, 10 * 1000))
+				   1, QCOM_CLOCK_UPDATE_TIMEOUT_US))
 		return TEE_ERROR_TIMEOUT;
 
 	return TEE_SUCCESS;
