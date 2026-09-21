@@ -48,6 +48,12 @@ enum plls_id {
 #define PLL_MODE_MSK(pll)		BIT(PLL_MODE_BIT(pll))
 #define PLL_SLOW_MODE(pll)		BITS_WITH_WMASK(0, 1, PLL_MODE_BIT(pll))
 #define PLL_NORM_MODE(pll)		BITS_WITH_WMASK(1, 1, PLL_MODE_BIT(pll))
+
+#elif defined(PLATFORM_FLAVOR_rk3506)
+
+#define CRU_GLB_SRST_FST		0xc08
+#define CRU_FSTRST_VAL			0xfdb9
+
 #endif
 
 #endif

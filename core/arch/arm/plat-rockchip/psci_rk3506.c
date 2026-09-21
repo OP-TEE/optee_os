@@ -28,6 +28,7 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <cru.h>
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/misc.h>
@@ -45,6 +46,7 @@
 #include "pen_rk3506.h"
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, IRAM_BASE, IRAM_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, CRU_BASE, CRU_SIZE);
 
 /*
  * Software online-core tracking for psci_affinity_info(). Mutated by
@@ -115,6 +117,8 @@ int psci_features(uint32_t psci_fid)
 	case PSCI_CPU_ON:
 	case PSCI_CPU_OFF:
 	case PSCI_AFFINITY_INFO:
+	case PSCI_SYSTEM_OFF:
+	case PSCI_SYSTEM_RESET:
 		return PSCI_RET_SUCCESS;
 	default:
 		return PSCI_RET_NOT_SUPPORTED;
@@ -227,4 +231,25 @@ int psci_affinity_info(uint32_t affinity,
 	cpu_spin_unlock(&online_cores_lock);
 
 	return on ? PSCI_AFFINITY_LEVEL_ON : PSCI_AFFINITY_LEVEL_OFF;
+}
+
+void psci_system_reset(void)
+{
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
+
+	if (!va_base)
+		panic("rk3506: CRU not mapped");
+
+	io_write32(va_base + CRU_GLB_SRST_FST, CRU_FSTRST_VAL);
+	dsb();
+}
+
+void __noreturn psci_system_off(void)
+{
+	thread_mask_exceptions(THREAD_EXCP_ALL);
+	dsb();
+
+	/* No PMIC power-off path on RK3506 boards, next best is WFI */
+	while (true)
+		wfi();
 }
