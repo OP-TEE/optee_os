@@ -60,6 +60,8 @@ struct qfprom_context {
 	vaddr_t raw_base_va;
 	vaddr_t corr_base_va;
 	vaddr_t mutex_reg_va;
+	uint32_t saved_clock_cfg;
+	bool clock_saved;
 	bool write_op_allowed;
 };
 
