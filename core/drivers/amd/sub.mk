@@ -5,6 +5,7 @@
 #
 
 subdirs-$(CFG_AMD_ASU_SUPPORT) += asu
+subdirs-$(CFG_AMD_PMC_SUPPORT) += pmc
 
 srcs-y += fw_compat.c
 

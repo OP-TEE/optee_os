@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2023-2024, Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2023-2026, Advanced Micro Devices, Inc. All rights reserved.
  */
 
 #include <arm.h>
@@ -31,7 +31,8 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE, GIC_DIST_REG_SIZE);
 
-#if defined(CFG_RPMB_FS)
+#if defined(CFS_AMD_PMC_SUPPORT) || defined(CFG_RPMB_FS)
+/* Same RTCA block backs both the PMC version check and RPMB.. */
 register_phys_mem(MEM_AREA_IO_SEC, PLAT_SST_BASE, PLAT_SST_LEN);
 #endif
 
