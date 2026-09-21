@@ -69,10 +69,7 @@ static TEE_Result execute_provisioning(void)
 		return res;
 
 	res = provision_execute(data, len, &fuses_blown);
-	if (res == TEE_ERROR_ACCESS_DENIED) {
-		IMSG("Fuse provisioning locked - write permission denied");
-		return TEE_SUCCESS;
-	} else if (res != TEE_SUCCESS) {
+	if (res != TEE_SUCCESS) {
 		EMSG("Fuse provisioning failed: 0x%"PRIx32, res);
 		return res;
 	}

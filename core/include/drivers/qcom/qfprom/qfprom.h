@@ -79,8 +79,11 @@ TEE_Result qfprom_row_has_fec_bits(uint32_t addr,
 /* Calculate FEC bits for 56-bit data */
 uint32_t qfprom_fec_63_56_bit(uint32_t lsb_data, uint32_t msb_data);
 
-/* Hardware init/deinit for batch fuse operations */
+/*
+ * Hardware init/deinit for batch fuse operations. A successful init holds
+ * the hardware mutex until deinit. Deinit releases it even on cleanup error.
+ */
 TEE_Result qfprom_hw_init(void);
-void qfprom_hw_deinit(void);
+TEE_Result qfprom_hw_deinit(void);
 
 #endif /* __QFPROM_H__ */
