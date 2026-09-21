@@ -14,6 +14,12 @@
 #define QFPROM_FEC_REGION_LSB_MAX	32
 #define QFPROM_FEC_REGION_MSB_MAX	64
 
+#define QFPROM_VREG_MODE_RET	U(3)
+#define QFPROM_VREG_MODE_LPM	U(5)
+#define QFPROM_VREG_MODE_NPM	U(7)
+
+struct rpmh_client;
+
 enum qfprom_fec_scheme {
 	QFPROM_FEC_NONE = 0,
 	QFPROM_FEC_15_10,
@@ -74,6 +80,10 @@ struct qfprom_context *qfprom_get_context(void);
 
 TEE_Result qfprom_write_set_clock_settings(void);
 TEE_Result qfprom_write_reset_clock_settings(void);
+
+TEE_Result qfprom_vote_supply(struct rpmh_client *handle, const char *name,
+			      uint32_t voltage_mv, uint32_t off_mode,
+			      bool enable);
 
 TEE_Result qfprom_acquire_hw_mutex(void);
 TEE_Result qfprom_release_hw_mutex(void);

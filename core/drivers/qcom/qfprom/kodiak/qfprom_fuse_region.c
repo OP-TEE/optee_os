@@ -80,8 +80,12 @@ const size_t region_count = ARRAY_SIZE(region_data);
 
 static struct rpmh_client *rpmh_handle;
 
-static TEE_Result qfprom_platform_init(void)
+static TEE_Result qfprom_platform_set_voltage(bool enable)
 {
+	TEE_Result res = TEE_SUCCESS;
+	TEE_Result ret = TEE_SUCCESS;
+	uint32_t mx_level = enable ? MX_QFPROM_ENABLE_VAL :
+				    MX_QFPROM_DISABLE_VAL;
 	uint32_t vrm_addr = 0;
 	uint32_t req_id = 0;
 
@@ -93,50 +97,38 @@ static TEE_Result qfprom_platform_init(void)
 		}
 	}
 
-	/* Enable MX voltage rail for QFPROM operations */
-	if (cmd_db_get_addr(PM_QFPROM_VREG_A, &vrm_addr) != TEE_SUCCESS) {
-		EMSG("QFPROM voltage rail '%s' not found in CMD_DB",
-		     PM_QFPROM_VREG_A);
-		return TEE_ERROR_GENERIC;
-	}
+	res = qfprom_vote_supply(rpmh_handle, "ldoc1", 1900,
+				 QFPROM_VREG_MODE_LPM, enable);
+	if (res != TEE_SUCCESS && enable)
+		return res;
 
-	if (rpmh_send_command(rpmh_handle, RPMH_SET_ACTIVE, true,
-			      vrm_addr, QFPROM_VOLTAGE_ON, &req_id) !=
-	    TEE_SUCCESS) {
-		EMSG("RPMH enable MX failed: addr 0x%"PRIx32" req_id %"PRIu32,
-		     vrm_addr, req_id);
-		return TEE_ERROR_GENERIC;
-	}
+	ret = qfprom_vote_supply(rpmh_handle, "smpb1", 1956,
+				 QFPROM_VREG_MODE_RET, enable);
+	if (ret != TEE_SUCCESS && enable)
+		return ret;
+	if (res == TEE_SUCCESS)
+		res = ret;
 
-	return TEE_SUCCESS;
+	ret = cmd_db_get_addr("mx.lvl", &vrm_addr);
+	if (ret == TEE_SUCCESS && !vrm_addr)
+		ret = TEE_ERROR_ITEM_NOT_FOUND;
+	if (ret == TEE_SUCCESS)
+		ret = rpmh_send_command(rpmh_handle, RPMH_SET_ACTIVE, true,
+					vrm_addr, mx_level, &req_id);
+	if (ret != TEE_SUCCESS)
+		EMSG("MX vote failed: %#"PRIx32, ret);
+
+	return res != TEE_SUCCESS ? res : ret;
+}
+
+static TEE_Result qfprom_platform_init(void)
+{
+	return qfprom_platform_set_voltage(true);
 }
 
 static TEE_Result qfprom_platform_deinit(void)
 {
-	uint32_t vrm_addr = 0;
-	uint32_t req_id = 0;
-
-	if (!rpmh_handle) {
-		EMSG("RPMH not initialized");
-		return TEE_ERROR_GENERIC;
-	}
-
-	/* Disable MX voltage rail after QFPROM operations */
-	if (cmd_db_get_addr(PM_QFPROM_VREG_A, &vrm_addr) != TEE_SUCCESS) {
-		EMSG("QFPROM voltage rail '%s' not found in CMD_DB",
-		     PM_QFPROM_VREG_A);
-		return TEE_ERROR_GENERIC;
-	}
-
-	if (rpmh_send_command(rpmh_handle, RPMH_SET_ACTIVE, true,
-			      vrm_addr, QFPROM_VOLTAGE_OFF, &req_id) !=
-	    TEE_SUCCESS) {
-		EMSG("RPMH disable MX failed: addr 0x%"PRIx32" req_id %"PRIu32,
-		     vrm_addr, req_id);
-		return TEE_ERROR_GENERIC;
-	}
-
-	return TEE_SUCCESS;
+	return qfprom_platform_set_voltage(false);
 }
 
 const struct qfprom_platform_config plat_config = {

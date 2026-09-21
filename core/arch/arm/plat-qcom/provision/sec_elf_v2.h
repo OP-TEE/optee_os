@@ -98,6 +98,10 @@ TEE_Result provision_oem_spare(const struct fuse_entry *entries,
 TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
 			 bool *fuses_blown);
 
+/*
+ * @fuses_blown reports confirmed row writes, including on error. A false
+ * value does not exclude partial programming by a failed row operation.
+ */
 TEE_Result provision_execute(const uint8_t *data, size_t len,
 			     bool *fuses_blown);
 

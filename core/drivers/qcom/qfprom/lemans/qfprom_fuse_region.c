@@ -3,6 +3,7 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <drivers/qcom/rpmh/rpmh_client.h>
 #include <qfprom_target.h>
 
 #include "qfprom_priv.h"
@@ -102,8 +103,34 @@ const struct qfprom_region_info region_data[] = {
 
 const size_t region_count = ARRAY_SIZE(region_data);
 
+static struct rpmh_client *rpmh_handle;
+
+static TEE_Result qfprom_platform_set_voltage(bool enable)
+{
+	if (!rpmh_handle) {
+		rpmh_handle = rpmh_create_handle(RSC_DRV_SECURE, "qfprom");
+		if (!rpmh_handle)
+			return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
+	return qfprom_vote_supply(rpmh_handle, "smpa4", 1800,
+				  QFPROM_VREG_MODE_LPM, enable);
+}
+
+static TEE_Result qfprom_platform_init(void)
+{
+	return qfprom_platform_set_voltage(true);
+}
+
+static TEE_Result qfprom_platform_deinit(void)
+{
+	return qfprom_platform_set_voltage(false);
+}
+
 const struct qfprom_platform_config plat_config = {
 	.name = "Lemans",
+	.init = qfprom_platform_init,
+	.deinit = qfprom_platform_deinit,
 	.qfprom_raw_base = QFPROM_RAW_BASE,
 	.qfprom_corr_base = QFPROM_CORR_BASE,
 	.qfprom_size = QFPROM_SIZE,

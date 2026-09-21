@@ -378,6 +378,27 @@ TEE_Result qfprom_read_row(uint32_t addr,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result qfprom_hw_cleanup(void)
+{
+	struct qfprom_context *drv = qfprom_get_context();
+	TEE_Result res = TEE_SUCCESS;
+	TEE_Result ret = TEE_SUCCESS;
+
+	drv->write_op_allowed = false;
+	if (drv->config->deinit)
+		res = drv->config->deinit();
+	if (res != TEE_SUCCESS)
+		EMSG("Failed to release QFPROM supplies: %#"PRIx32, res);
+
+	/* Let the programming voltage settle before restoring the clock. */
+	udelay(1000);
+	ret = qfprom_write_reset_clock_settings();
+	if (ret != TEE_SUCCESS)
+		EMSG("Failed to restore QFPROM clock: %#"PRIx32, ret);
+
+	return res != TEE_SUCCESS ? res : ret;
+}
+
 TEE_Result qfprom_hw_init(void)
 {
 	struct qfprom_context *drv = qfprom_get_context();
@@ -387,13 +408,16 @@ TEE_Result qfprom_hw_init(void)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (drv->config->init) {
-		res = drv->config->init();
-		if (res != TEE_SUCCESS)
-			goto err_unlock;
-	}
+	res = qfprom_hw_cleanup();
+	if (res != TEE_SUCCESS)
+		goto err_deinit;
 
 	res = qfprom_write_set_clock_settings();
+	if (res != TEE_SUCCESS)
+		goto err_deinit;
+
+	if (drv->config->init)
+		res = drv->config->init();
 	if (res != TEE_SUCCESS)
 		goto err_deinit;
 
@@ -401,22 +425,16 @@ TEE_Result qfprom_hw_init(void)
 	return TEE_SUCCESS;
 
 err_deinit:
-	if (drv->config->deinit && drv->config->deinit() != TEE_SUCCESS)
-		EMSG("Failed to deinit platform");
-err_unlock:
-	qfprom_release_hw_mutex();
+	qfprom_hw_deinit();
 	return res;
 }
 
-void qfprom_hw_deinit(void)
+TEE_Result qfprom_hw_deinit(void)
 {
-	struct qfprom_context *drv = qfprom_get_context();
+	TEE_Result res = qfprom_hw_cleanup();
 
-	drv->write_op_allowed = false;
-	qfprom_write_reset_clock_settings();
-	if (drv->config->deinit && drv->config->deinit() != TEE_SUCCESS)
-		EMSG("Failed to deinit platform");
 	qfprom_release_hw_mutex();
+	return res;
 }
 
 TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data)
