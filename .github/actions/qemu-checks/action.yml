@@ -40,21 +40,27 @@ runs:
       if: ${{ inputs.cache == 'shared-read' }}
       uses: actions/cache/restore@v6
       with:
-        path: /github/home/.cache/ccache
+        path: |
+          /github/home/br2-dl-dir
+          /github/home/.cache/ccache
         key: ${{ inputs.type }}-checks-${{ github.sha }}
         restore-keys: ${{ inputs.type }}-checks-
     - name: Maintain shared build cache
       if: ${{ inputs.cache == 'shared-fill' }}
       uses: actions/cache@v6
       with:
-        path: /github/home/.cache/ccache
+        path: |
+          /github/home/br2-dl-dir
+          /github/home/.cache/ccache
         key: ${{ inputs.type }}-checks-${{ github.sha }}
         restore-keys: ${{ inputs.type }}-checks-
     - name: Restore private build cache
       if: ${{ inputs.cache == 'private' }}
       uses: actions/cache@v6
       with:
-        path: /github/home/.cache/ccache
+        path: |
+          /github/home/br2-dl-dir
+          /github/home/.cache/ccache
         key: qemu-${{ inputs.name }}-checks-${{ github.sha }}
         restore-keys: qemu-${{ inputs.name }}-checks-
     - name: Run 'make check' tasks in container
@@ -62,6 +68,7 @@ runs:
       env:
         MAKE_COMMANDS: "${{ inputs.make_commands }}"
       run: |
+        export BR2_DL_DIR=/github/home/br2-dl-dir
         export BR2_CCACHE_DIR=/github/home/.cache/ccache
         export FORCE_UNSAFE_CONFIGURE=1
         export CFG_TEE_CORE_LOG_LEVEL=2
