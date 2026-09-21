@@ -149,6 +149,16 @@ static void init_primary(void)
 	IMSG_RAW("\n");
 #ifdef CFG_RISCV_SBI
 	sbi_print_info();
+	/*
+	 * tlbi_*() and cache_op_inner(ICACHE_*) reach the other harts of
+	 * the domain through the SBI RFENCE extension. Without it, a
+	 * multi-hart configuration would run with hart-local invalidation
+	 * only and leave stale translations behind.
+	 */
+	if (CFG_TEE_CORE_NB_CORE > 1 && !sbi_ext_available(SBI_EXT_RFENCE)) {
+		EMSG("SBI RFENCE extension required for multi-hart operation");
+		panic();
+	}
 #endif
 	if (IS_ENABLED(CFG_DYN_CONFIG)) {
 		size_t sz = sizeof(struct thread_core_local) *
