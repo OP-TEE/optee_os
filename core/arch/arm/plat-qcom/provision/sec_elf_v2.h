@@ -10,10 +10,15 @@
 #include <stdint.h>
 #include <tee_api_types.h>
 #include <utee_defines.h>
+#include <util.h>
 
 #define SECDAT_MAGIC1			0x3B7251CA
 #define SECDAT_MAGIC2			0x2A126F29
 #define SECDAT_VERSION_2		0x00000002
+
+#define SECDAT_FUSE_LIST_REVISION	U(1)
+#define SECDAT_MAX_FUSES		U(1024)
+#define SECDAT_MAX_SHK_ROWS		U(5)
 
 #define SECDAT_MAX_SUPPORTED_SEGMENT	32
 
@@ -79,6 +84,9 @@ struct qfuse_list_hdr {
 struct secdat_footer {
 	uint8_t hash[TEE_SHA256_HASH_SIZE];
 } __packed;
+
+/* Get the complete image length within the supplied buffer capacity. */
+TEE_Result sec_elf_get_size(const uint8_t *data, size_t capacity, size_t *size);
 
 TEE_Result sec_elf_parse(const uint8_t *data, size_t size,
 			 const struct secdat_hdr **hdr,

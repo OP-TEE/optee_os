@@ -14,8 +14,7 @@
 
 #include "sec_elf_v2.h"
 
-#define SHK_SIZE_BYTES	40
-#define SHK_NUM_ROWS	5
+#define SHK_SIZE_BYTES	(SECDAT_MAX_SHK_ROWS * 8)
 
 TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
 			 bool *fuses_blown)
@@ -56,9 +55,9 @@ TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
 		    entries[i].operation != FUSEPROV_OP_BLOW)
 			continue;
 
-		if (shk_row_idx >= SHK_NUM_ROWS) {
-			EMSG("Too many SHK entries in SEC-ELF (max %d)",
-			     SHK_NUM_ROWS);
+		if (shk_row_idx >= SECDAT_MAX_SHK_ROWS) {
+			EMSG("Too many SHK entries in SEC-ELF (max %u)",
+			     SECDAT_MAX_SHK_ROWS);
 			res = TEE_ERROR_GENERIC;
 			goto out;
 		}
