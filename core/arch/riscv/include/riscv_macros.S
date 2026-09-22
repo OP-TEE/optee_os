@@ -143,3 +143,27 @@
 		j	.
 #endif
 	.endm
+
+	/* Advance base_reg by 8 vector registers (8 * vlenb). t3 clobbered. */
+	.macro __vreg_advance base_reg, vlenb_reg
+		slli	t3, \vlenb_reg, 3
+		add	\base_reg, \base_reg, t3
+	.endm
+
+	/*
+	 * Move the whole vector register file with the whole-register form
+	 * \op (vs8r.v or vl8r.v), eight registers at a time. base_reg is left
+	 * past the end. The vector ISA is enabled for this block alone.
+	 */
+	.macro do_all_vreg_chunks op, base_reg, vlenb_reg
+		.option push
+		.option arch, +v
+		\op	v0, (\base_reg)
+		__vreg_advance \base_reg, \vlenb_reg
+		\op	v8, (\base_reg)
+		__vreg_advance \base_reg, \vlenb_reg
+		\op	v16, (\base_reg)
+		__vreg_advance \base_reg, \vlenb_reg
+		\op	v24, (\base_reg)
+		.option pop
+	.endm
