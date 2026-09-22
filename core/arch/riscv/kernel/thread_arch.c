@@ -24,6 +24,10 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#include <string.h>
+#include <malloc.h>
+#include <kernel/vfp.h>
+#include <initcall.h>
 #include <kernel/user_mode_ctx_struct.h>
 #include <kernel/vfp.h>
 #include <kernel/virtualization.h>
@@ -107,8 +111,8 @@ static void thread_lazy_restore_ns_vfp(void)
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
 	/*
-	 * The REE FP context is only restored once the secure side has
-	 * released the unit, so it must be disabled here.
+	 * The REE FP and vector context is only restored once the secure
+	 * side has released the unit, so it must be disabled here.
 	 */
 	assert(!vfp_is_enabled());
 
@@ -455,6 +459,26 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 		tee_ta_update_session_utime_suspend();
 		tee_ta_gprof_sample_pc(pc);
 	}
+#if defined(CFG_WITH_VFP) && defined(CFG_RISCV_VEC)
+	/*
+	 * The thread is about to yield the hart. Force any lazily disabled
+	 * user vector context out to memory so a concurrent thread using the
+	 * vector unit cannot clobber the registers otherwise left live in the
+	 * hardware. This is needed whether we were preempted in user mode or
+	 * in the middle of a syscall (kernel mode), where the pending context
+	 * was already lazily disabled by thread_user_save_vfp().
+	 */
+	{
+		struct thread_ctx *thr = threads + thread_get_id();
+		struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+
+		if (tuv && tuv->lazy_saved && !tuv->saved) {
+			vfp_lazy_save_state_final(&tuv->vfp,
+						  false /*!force_save*/);
+			tuv->saved = true;
+		}
+	}
+#endif
 	thread_lazy_restore_ns_vfp();
 
 	thread_lock_global();
@@ -523,9 +547,9 @@ void thread_init_per_cpu(void)
 #endif
 #ifdef CFG_WITH_VFP
 	/*
-	 * OpenSBI may leave xstatus.FS in any state on entry. Start with the
-	 * FP unit disabled: it is turned on only through vfp_enable(), i.e.
-	 * thread_kernel_enable_vfp() or a user FP trap.
+	 * OpenSBI may leave xstatus.FS/VS in any state on entry. Start with the
+	 * FP and vector unit disabled: they are turned on only through
+	 * vfp_enable(): thread_kernel_enable_vfp() or a user FP/vector trap.
 	 */
 	vfp_disable();
 #endif
@@ -551,6 +575,39 @@ static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 }
 
 #ifdef CFG_WITH_VFP
+#if defined(CFG_RISCV_VEC)
+/*
+ * A vector context is sized from the hart's vlenb, so the REE kernel buffer
+ * is allocated once at boot; the domain switch is then free of allocation and
+ * has no failure path.
+ */
+static TEE_Result riscv_vector_alloc(void)
+{
+	size_t size = riscv_vector_state_size();
+	size_t n = 0;
+
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		threads[n].vfp_state.ns.vregs = memalign(__alignof__(long),
+							 size);
+		if (!threads[n].vfp_state.ns.vregs)
+			panic("Failed to allocate vector context");
+		memset(threads[n].vfp_state.ns.vregs, 0, size);
+	}
+
+	DMSG("Vector context switching enabled, %zu bytes a context", size);
+
+	return TEE_SUCCESS;
+}
+service_init(riscv_vector_alloc);
+
+/* Zero the live vector registers before handing a fresh context to a TA. */
+static void vfp_clear_regs(struct riscv_vector_state *vregs)
+{
+	memset(vregs, 0, riscv_vector_state_size());
+	riscv_vector_restore(vregs);
+}
+#endif /* CFG_RISCV_VEC */
+
 uint32_t thread_kernel_enable_vfp(void)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
@@ -590,13 +647,24 @@ void thread_kernel_disable_vfp(uint32_t state)
 	thread_set_exceptions(exceptions);
 }
 
-void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
+bool thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
 	assert(uvfp);
 	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+#if defined(CFG_RISCV_VEC)
+	/* The TA's vector context is allocated the first time it asks for it */
+	if (!uvfp->vfp.vregs) {
+		uvfp->vfp.vregs = memalign(__alignof__(long),
+					   riscv_vector_state_size());
+		if (!uvfp->vfp.vregs)
+			return false;
+	}
+#endif
+
 	assert(!vfp_is_enabled());
 
 	if (!thr->vfp_state.ns_saved) {
@@ -624,12 +692,17 @@ void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 		 */
 		vfp_enable();
 		vfp_clear_extension_regs();
+#if defined(CFG_RISCV_VEC)
+		vfp_clear_regs(uvfp->vfp.vregs);
+#endif
 	}
 	uvfp->lazy_saved = false;
 	uvfp->saved = false;
 
 	thr->vfp_state.uvfp = uvfp;
 	vfp_enable();
+
+	return true;
 }
 
 void thread_user_save_vfp(void)
@@ -655,6 +728,10 @@ void thread_user_clear_vfp(struct user_mode_ctx *uctx)
 		thr->vfp_state.uvfp = NULL;
 	uvfp->lazy_saved = false;
 	uvfp->saved = false;
+#if defined(CFG_RISCV_VEC)
+	free(uvfp->vfp.vregs);
+	uvfp->vfp.vregs = NULL;
+#endif
 }
 #endif /*CFG_WITH_VFP*/
 
