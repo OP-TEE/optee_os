@@ -45,13 +45,8 @@ static TEE_Result discover_sec_elf(const uint8_t **data_out, size_t *size)
 		return TEE_ERROR_BAD_FORMAT;
 	}
 
-	*size = sizeof(*hdr) + hdr->size + TEE_SHA256_HASH_SIZE;
-
-	if (*size > CFG_SEC_ELF_DDR_SIZE) {
-		EMSG("sec.elf size %zu exceeds limit %zu",
-		     *size, (size_t)CFG_SEC_ELF_DDR_SIZE);
+	if (sec_elf_get_size(data, CFG_SEC_ELF_DDR_SIZE, size))
 		return TEE_ERROR_BAD_FORMAT;
-	}
 
 	*data_out = data;
 	return TEE_SUCCESS;
