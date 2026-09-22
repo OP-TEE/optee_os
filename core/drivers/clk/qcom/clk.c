@@ -11,10 +11,6 @@
 
 register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
 
-#define CBCR_BRANCH_ENABLE_BIT		BIT(0)
-#define CBCR_HW_CTL_ENABLE_BIT		BIT(1)
-#define CBCR_BRANCH_OFF_BIT		BIT(31)
-
 /* Lucid-EVO PLL register offsets, relative to the PLL register block base. */
 #define PLL_MODE			0x0
 #define PLL_OPMODE			0x4

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <drivers/clk.h>
@@ -13,11 +13,7 @@
 #include <stdint.h>
 #include <trace.h>
 
-#include "clock_group_qcom.h"
-
-#define CBCR_BRANCH_ENABLE_BIT		BIT(0)
-#define CBCR_HW_CTL_ENABLE_BIT		BIT(1)
-#define CBCR_BRANCH_OFF_BIT		BIT(31)
+#include "clock_group.h"
 
 register_phys_mem(MEM_AREA_IO_NSEC, AOSS_CC_BASE, AOSS_CC_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_GLOBAL_BASE, RPMH_PDC_GLOBAL_SIZE);
