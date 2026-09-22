@@ -111,6 +111,20 @@ TEE_Result provision_execute(const uint8_t *data, size_t len,
 	if (res != TEE_SUCCESS)
 		return res;
 
+	res = sec_elf_find_segment(data, len,
+				   SECDAT_SEGMENT_TYPE_EFUSE,
+				   &seg_data, &seg_size);
+
+	if (res == TEE_ERROR_ITEM_NOT_FOUND)
+		return TEE_SUCCESS;
+	if (res)
+		return res;
+
+	qfuse_hdr = (const struct qfuse_list_hdr *)seg_data;
+	count = qfuse_hdr->fuse_count;
+	entries = (const struct fuse_entry *)
+		  (seg_data + sizeof(struct qfuse_list_hdr));
+
 	res = qfprom_hw_init();
 	if (res != TEE_SUCCESS) {
 		EMSG("Failed to initialize QFPROM hardware: 0x%"PRIx32, res);
@@ -129,30 +143,6 @@ TEE_Result provision_execute(const uint8_t *data, size_t len,
 		res = TEE_SUCCESS;
 		goto out;
 	}
-
-	res = sec_elf_find_segment(data, len,
-				   SECDAT_SEGMENT_TYPE_EFUSE,
-				   &seg_data, &seg_size);
-
-	if (res != TEE_SUCCESS) {
-		res = TEE_ERROR_BAD_FORMAT;
-		goto out;
-	}
-
-	if (!seg_data) {
-		res = TEE_ERROR_BAD_FORMAT;
-		goto out;
-	}
-
-	if (seg_size < sizeof(struct qfuse_list_hdr)) {
-		res = TEE_ERROR_BAD_FORMAT;
-		goto out;
-	}
-
-	qfuse_hdr = (const struct qfuse_list_hdr *)seg_data;
-	count = qfuse_hdr->fuse_count;
-	entries = (const struct fuse_entry *)
-		  (seg_data + sizeof(struct qfuse_list_hdr));
 
 	res = blow_fuse_region(FUSEPROV_REGION_GENERAL, entries, count,
 			       &any_blown);
