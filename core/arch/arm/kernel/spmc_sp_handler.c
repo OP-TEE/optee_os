@@ -695,6 +695,10 @@ static void ffa_mem_retrieve(struct thread_smc_1_2_regs *args,
 	}
 
 	receiver = sp_mem_get_receiver(caller_sp->endpoint_id, smem);
+	if (!receiver) {
+		ret = FFA_DENIED;
+		goto err_unlock;
+	}
 
 	mem_acc = (void *)((vaddr_t)rxtx->rx + mem_trans.mem_access_offs);
 	address_offset = READ_ONCE(mem_acc->region_offs);
@@ -805,6 +809,11 @@ static void ffa_mem_relinquish(struct thread_smc_1_2_regs *args,
 	cpu_spin_unlock_xrestore(&rxtx->spinlock, exceptions);
 
 	receiver = sp_mem_get_receiver(caller_sp->endpoint_id, smem);
+	if (!receiver) {
+		sp_mem_read_unlock(smem);
+		ffa_set_error(args, FFA_DENIED);
+		return;
+	}
 
 	exceptions = cpu_spin_lock_xsave(&mem_ref_lock);
 	if (!receiver->ref_count) {
