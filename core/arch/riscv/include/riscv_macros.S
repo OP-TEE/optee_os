@@ -132,6 +132,19 @@
 		andi	\tmp, \tmp, CSR_XSTATUS_FS_MASK >> CSR_XSTATUS_FS_SHIFT
 		slli	\tmp, \tmp, CSR_XSTATUS_FS_SHIFT
 		xor	\reg, \reg, \tmp
+#if defined(CFG_RISCV_VEC)
+		/*
+		 * Keep the live VS field as well: the vector unit is owned the
+		 * same way as FP, through vfp_enable()/vfp_disable(), so VS is
+		 * not part of the saved context either.
+		 */
+		csrr	\tmp, CSR_XSTATUS
+		xor	\tmp, \tmp, \reg
+		srli	\tmp, \tmp, CSR_XSTATUS_VS_SHIFT
+		andi	\tmp, \tmp, CSR_XSTATUS_VS_MASK >> CSR_XSTATUS_VS_SHIFT
+		slli	\tmp, \tmp, CSR_XSTATUS_VS_SHIFT
+		xor	\reg, \reg, \tmp
+#endif
 #endif
 		csrw	CSR_XSTATUS, \reg
 	.endm
