@@ -11,21 +11,18 @@
 #include <string.h>
 #include <trace.h>
 
+#include "boot_mode.h"
 #include "diag_log.h"
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, DIAG_BASE, DIAG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			(DIAG_LOG_START_INFO & ~SMALL_PAGE_MASK),
 			SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC,
-			(TCSR_BOOT_MISC_DETECT & ~SMALL_PAGE_MASK),
-			SMALL_PAGE_SIZE);
 
 #define DIAG_VERSION_V1		1
 #define DIAG_MAGIC_INIT		0x47414944
 #define DIAG_MAGIC_FAILED	0xDEADBEEF
 #define DIAG_MAGIC_DLOAD	0xD15AB1ED
-#define DLOAD_MAGIC_COOKIE	0x10
 
 struct diag_hdr {
 	uint32_t version;
@@ -54,18 +51,20 @@ static struct diag *global_diag;
 static struct diag *get_diag_region(void)
 {
 	struct diag *diag = NULL;
-	uint32_t *tcsr_reg = NULL;
+	bool dload_mode = false;
 
-	tcsr_reg = phys_to_virt(TCSR_BOOT_MISC_DETECT, MEM_AREA_IO_SEC,
-				sizeof(uint32_t));
 	diag = phys_to_virt(DIAG_BASE, MEM_AREA_IO_SEC, DIAG_SIZE);
-
-	if (!tcsr_reg || !diag) {
+	if (!diag) {
 		EMSG("DIAG: Failed to map regions");
 		return NULL;
 	}
 
-	if (io_read32((vaddr_t)tcsr_reg) == DLOAD_MAGIC_COOKIE) {
+	if (qcom_is_dload_mode(&dload_mode) != TEE_SUCCESS) {
+		EMSG("DIAG: Failed to determine boot mode");
+		return NULL;
+	}
+
+	if (dload_mode) {
 		diag->hdr.magic = DIAG_MAGIC_DLOAD;
 		dsb();
 		return NULL;
