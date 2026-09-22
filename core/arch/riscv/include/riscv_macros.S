@@ -76,3 +76,44 @@
 		j	.
 #endif
 	.endm
+
+	/*
+	 * Write \reg to xstatus, keeping the live VS field. The vector unit is
+	 * enabled and disabled through vfp_enable()/vfp_disable() only, so VS is
+	 * not part of the saved context and must survive a context restore.
+	 */
+	.macro write_xstatus_keep_vs reg, tmp
+#if defined(CFG_WITH_VFP) && defined(CFG_RISCV_VEC)
+		csrr	\tmp, CSR_XSTATUS
+		xor	\tmp, \tmp, \reg
+		srli	\tmp, \tmp, CSR_XSTATUS_VS_SHIFT
+		andi	\tmp, \tmp, CSR_XSTATUS_VS_MASK >> CSR_XSTATUS_VS_SHIFT
+		slli	\tmp, \tmp, CSR_XSTATUS_VS_SHIFT
+		xor	\reg, \reg, \tmp
+#endif
+		csrw	CSR_XSTATUS, \reg
+	.endm
+
+	/* Advance base_reg by 8 vector registers (8 * vlenb). t3 clobbered. */
+	.macro __vreg_advance base_reg, vlenb_reg
+		slli	t3, \vlenb_reg, 3
+		add	\base_reg, \base_reg, t3
+	.endm
+
+	/*
+	 * Move the whole vector register file with the whole-register form
+	 * \op (vs8r.v or vl8r.v), eight registers at a time. base_reg is left
+	 * past the end. The vector ISA is enabled for this block alone.
+	 */
+	.macro do_all_vreg_chunks op, base_reg, vlenb_reg
+		.option push
+		.option arch, +v
+		\op	v0, (\base_reg)
+		__vreg_advance \base_reg, \vlenb_reg
+		\op	v8, (\base_reg)
+		__vreg_advance \base_reg, \vlenb_reg
+		\op	v16, (\base_reg)
+		__vreg_advance \base_reg, \vlenb_reg
+		\op	v24, (\base_reg)
+		.option pop
+	.endm
