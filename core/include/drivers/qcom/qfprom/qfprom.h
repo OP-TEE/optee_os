@@ -80,6 +80,13 @@ TEE_Result qfprom_row_has_fec_bits(uint32_t addr,
 uint32_t qfprom_fec_63_56_bit(uint32_t lsb_data, uint32_t msb_data);
 
 /*
+ * Check the global provisioning lock without enabling programming supplies.
+ * Acquires and releases the hardware mutex; call outside a programming batch.
+ * @locked is valid only on success.
+ */
+TEE_Result qfprom_is_provisioning_locked(bool *locked);
+
+/*
  * Hardware init/deinit for batch fuse operations. A successful init holds
  * the hardware mutex until deinit. Deinit releases it even on cleanup error.
  */
