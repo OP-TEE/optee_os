@@ -351,6 +351,7 @@ TEE_Result qfprom_read_row(uint32_t addr,
 {
 	enum qfprom_region_name region_name = QFPROM_LAST_REGION_DUMMY;
 	enum qfprom_error err = QFPROM_NO_ERR;
+	bool fec_enabled = false;
 
 	if (!data)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -371,24 +372,20 @@ TEE_Result qfprom_read_row(uint32_t addr,
 		return TEE_ERROR_GENERIC;
 	}
 
-	if (type == QFPROM_ADDR_SPACE_CORR) {
-		bool fec_enabled = false;
+	err = is_fec_enabled(region_name, &fec_enabled);
+	if (err != QFPROM_NO_ERR) {
+		EMSG("FEC status check failed, err: %d", err);
+		return TEE_ERROR_GENERIC;
+	}
 
-		err = is_fec_enabled(region_name, &fec_enabled);
-		if (err != QFPROM_NO_ERR) {
-			EMSG("FEC status check failed, err: %d", err);
-			return TEE_ERROR_GENERIC;
-		}
+	if (fec_enabled && hal_qfprom_is_fec_error_seen()) {
+		uint16_t err_addr = 0;
 
-		if (fec_enabled && hal_qfprom_is_fec_error_seen()) {
-			uint16_t err_addr = 0;
-
-			hal_qfprom_read_error_address(&err_addr);
-			EMSG("FEC error: 0x%04"PRIx16" req 0x%08"PRIx32,
-			     err_addr, addr);
-			hal_qfprom_clear_fec_error_status();
-			return TEE_ERROR_CORRUPT_OBJECT;
-		}
+		hal_qfprom_read_error_address(&err_addr);
+		EMSG("FEC error: 0x%04"PRIx16" req 0x%08"PRIx32,
+		     err_addr, addr);
+		hal_qfprom_clear_fec_error_status();
+		return TEE_ERROR_CORRUPT_OBJECT;
 	}
 
 	return TEE_SUCCESS;
