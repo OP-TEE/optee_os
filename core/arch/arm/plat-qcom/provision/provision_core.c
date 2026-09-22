@@ -14,6 +14,24 @@
 
 #include "sec_elf_v2.h"
 
+static bool region_matches(enum fuseprov_region_type region,
+			   enum fuseprov_region_type entry_region)
+{
+	if (region != FUSEPROV_REGION_GENERAL)
+		return entry_region == region;
+
+	switch (entry_region) {
+	case FUSEPROV_REGION_SECBOOT:
+	case FUSEPROV_REGION_SHK:
+	case FUSEPROV_REGION_OEM_CONFIG:
+	case FUSEPROV_REGION_RW_PERM:
+	case FUSEPROV_REGION_FEC_EN:
+		return false;
+	default:
+		return entry_region < FUSEPROV_REGION_MAX;
+	}
+}
+
 static TEE_Result blow_fuse_region(enum fuseprov_region_type region,
 				   const struct fuse_entry *entries,
 				   uint32_t count, bool *fuses_blown)
@@ -28,7 +46,7 @@ static TEE_Result blow_fuse_region(enum fuseprov_region_type region,
 	for (i = 0; i < count; i++) {
 		const struct fuse_entry *entry = &entries[i];
 
-		if (entry->region != region ||
+		if (!region_matches(region, entry->region) ||
 		    entry->operation != FUSEPROV_OP_BLOW ||
 		    (entry->lsb_val == 0 && entry->msb_val == 0))
 			continue;
