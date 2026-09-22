@@ -241,6 +241,9 @@
 #define FW_DDR_BASE		0xff900000
 #define FW_DDR_SIZE		SIZE_K(64)
 
+#define CRU_BASE		0xff3a0000
+#define CRU_SIZE		SIZE_K(128)
+
 #else
 #error "Unknown platform flavor"
 #endif
