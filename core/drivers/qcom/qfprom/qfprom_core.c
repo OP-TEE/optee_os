@@ -12,6 +12,7 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <string.h>
+#include <string_ext.h>
 #include <trace.h>
 #include <util.h>
 
@@ -114,6 +115,23 @@ static enum qfprom_error get_region_name(uint32_t addr,
 	return QFPROM_REGION_NOT_SUPPORTED_ERR;
 }
 
+static const struct qfprom_region_info *
+find_region_info(enum qfprom_region_name region_name)
+{
+	struct qfprom_context *drv = qfprom_get_context();
+	size_t i = 0;
+
+	if (!drv->config || !drv->config->region_data)
+		return NULL;
+
+	for (i = 0; i < drv->config->num_regions; i++) {
+		if (drv->config->region_data[i].region_name == region_name)
+			return &drv->config->region_data[i];
+	}
+
+	return NULL;
+}
+
 static int read_row(uint32_t addr,
 		    enum qfprom_addr_space type,
 		    uint32_t *data)
@@ -131,27 +149,16 @@ static int read_row(uint32_t addr,
 static enum qfprom_error is_fec_enabled(enum qfprom_region_name region_name,
 					bool *fec_status)
 {
-	struct qfprom_context *drv = qfprom_get_context();
 	const struct qfprom_region_info *info = NULL;
 	enum qfprom_error err = QFPROM_NO_ERR;
 	paddr_t reg_addr = 0;
 	uint32_t val = 0;
 	uint32_t bit = 0;
-	size_t i = 0;
 
 	if (!fec_status)
 		return QFPROM_DATA_PTR_NULL_ERR;
 
-	if (!drv->config || !drv->config->region_data)
-		return QFPROM_ERR_UNKNOWN;
-
-	for (i = 0; i < drv->config->num_regions; i++) {
-		if (drv->config->region_data[i].region_name == region_name) {
-			info = &drv->config->region_data[i];
-			break;
-		}
-	}
-
+	info = find_region_info(region_name);
 	if (!info)
 		return QFPROM_REGION_NOT_SUPPORTED_ERR;
 
@@ -192,18 +199,8 @@ static bool check_region_access(enum qfprom_region_name region_name,
 	paddr_t perm_addr = 0;
 	uint32_t offset = 0;
 	uint32_t perm = 0;
-	size_t i = 0;
 
-	if (!drv->config || !drv->config->region_data)
-		return false;
-
-	for (i = 0; i < drv->config->num_regions; i++) {
-		if (drv->config->region_data[i].region_name == region_name) {
-			info = &drv->config->region_data[i];
-			break;
-		}
-	}
-
+	info = find_region_info(region_name);
 	if (!info)
 		return false;
 
@@ -277,6 +274,7 @@ static enum qfprom_error raw_write(uint32_t addr,
 				   const uint32_t *data)
 {
 	enum qfprom_region_name region_name = QFPROM_LAST_REGION_DUMMY;
+	const struct qfprom_region_info *info = NULL;
 	enum qfprom_error err = QFPROM_NO_ERR;
 	bool fec_enabled = false;
 	uint32_t verify[2] = {0};
@@ -319,14 +317,23 @@ static enum qfprom_error raw_write(uint32_t addr,
 		return QFPROM_NO_ERR;
 
 	err = read_row(addr, QFPROM_ADDR_SPACE_RAW, verify);
-	if (err != QFPROM_NO_ERR)
-		return QFPROM_NO_ERR;
+	if (err != QFPROM_NO_ERR) {
+		err = QFPROM_NO_ERR;
+		goto out;
+	}
+
+	/* Private rows cannot be verified by reading back their contents. */
+	info = find_region_info(region_name);
+	if (info && !info->read_allowed)
+		goto out;
 
 	if ((verify[0] & data[0]) != data[0] ||
 	    (verify[1] & data[1]) != data[1])
-		return QFPROM_WRITE_ERR;
+		err = QFPROM_WRITE_ERR;
 
-	return QFPROM_NO_ERR;
+out:
+	memzero_explicit(verify, sizeof(verify));
+	return err;
 }
 
 TEE_Result qfprom_read_row(uint32_t addr,
@@ -452,6 +459,7 @@ TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data)
 	write_data[1] = data[1];
 
 	err = raw_write(addr, write_data);
+	memzero_explicit(write_data, sizeof(write_data));
 	if (err != QFPROM_NO_ERR) {
 		EMSG("QFPROM write failed for address 0x%08"PRIx32", error: %d",
 		     addr, err);
@@ -466,9 +474,8 @@ TEE_Result qfprom_row_has_fec_bits(uint32_t addr,
 				   uint8_t *has_fec)
 {
 	enum qfprom_region_name region_name = QFPROM_LAST_REGION_DUMMY;
-	struct qfprom_context *drv = qfprom_get_context();
+	const struct qfprom_region_info *info = NULL;
 	enum qfprom_error err = QFPROM_NO_ERR;
-	size_t i = 0;
 
 	if (!has_fec)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -479,23 +486,15 @@ TEE_Result qfprom_row_has_fec_bits(uint32_t addr,
 	else if (err != QFPROM_NO_ERR)
 		return TEE_ERROR_GENERIC;
 
-	if (!drv->config || !drv->config->region_data)
-		return TEE_ERROR_GENERIC;
+	info = find_region_info(region_name);
+	if (!info)
+		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	for (i = 0; i < drv->config->num_regions; i++) {
-		const struct qfprom_region_info *region =
-			&drv->config->region_data[i];
+	*has_fec = false;
+	if (check_region_access(region_name, REGION_PERM_READ))
+		*has_fec = info->fec_type != QFPROM_FEC_NONE;
 
-		if (region->region_name == region_name) {
-			*has_fec = false;
-			if (check_region_access(region_name, REGION_PERM_READ))
-				*has_fec = region->fec_type != QFPROM_FEC_NONE;
-
-			return TEE_SUCCESS;
-		}
-	}
-
-	return TEE_ERROR_ITEM_NOT_FOUND;
+	return TEE_SUCCESS;
 }
 
 uint32_t qfprom_fec_63_56_bit(uint32_t lsb_data, uint32_t msb_data)
