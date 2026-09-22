@@ -15,6 +15,7 @@ srcs-y += core_pos_a32.S
 endif
 
 srcs-$(PLATFORM_FLAVOR_rk322x) += psci_rk322x.c
+srcs-$(PLATFORM_FLAVOR_rv1106) += psci_rv1106.c
 
 ifeq ($(PLATFORM_FLAVOR),rk3506)
 # rk3506-specific plat_init programs CNTFRQ_EL0 (the RK3506 boot chain

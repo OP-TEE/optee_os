@@ -54,6 +54,12 @@ enum plls_id {
 #define CRU_GLB_SRST_FST		0xc08
 #define CRU_FSTRST_VAL			0xfdb9
 
+#elif defined(PLATFORM_FLAVOR_rv1106)
+
+/* GLB_SRST_FST is in TOPCRU, which sits at CRU_BASE + 0x10000 */
+#define CRU_GLB_SRST_FST		0x10c08
+#define CRU_FSTRST_VAL			0xfdb9
+
 #endif
 
 #endif
