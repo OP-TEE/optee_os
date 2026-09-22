@@ -148,9 +148,9 @@ FUNC thread_rpc_xstatus , :
 	sw	a2, 8(a4)
 	sw	a3, 12(a4)
 
-	/* Pop saved XSTATUS from stack */
+	/* Pop saved XSTATUS from stack, keeping the live VS field */
 	LDR	s0, REGOFF(4)(sp)
-	csrw	CSR_XSTATUS, s0
+	write_xstatus_keep_vs s0, t0
 
 	/* Pop s0 from stack */
 	LDR	s0, REGOFF(2)(sp)
