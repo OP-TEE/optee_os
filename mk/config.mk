@@ -309,6 +309,13 @@ CFG_WITH_USER_TA ?= y
 # Build user TAs included in this source tree
 CFG_BUILD_IN_TREE_TA ?= y
 
+# Add the com.microsoft.ta.endorsementSeed TEE property, derived from the
+# hardware unique key. Needed by the Microsoft fTPM TA (ms-tpm-20-ref) to
+# derive its Endorsement Primary Seed. The seed is only as secret as the
+# platform's HUK. Has no effect unless CFG_WITH_USER_TA is enabled, since the
+# TEE property set is only read from a TA.
+CFG_TEE_ENDORSEMENT_SEED ?= n
+
 # Choosing the architecture(s) of user-mode libraries (used by TAs)
 #
 # Platforms may define a list of supported architectures for user-mode code

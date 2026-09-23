@@ -10,6 +10,7 @@
 #include <user_ta_header.h>
 #include <util.h>
 
+#ifdef CFG_TEE_ENDORSEMENT_SEED
 #define TA_ENDORSEMENT_SEED_SIZE	32
 
 /*
@@ -44,13 +45,16 @@ static TEE_Result get_prop_endorsement(struct ts_session *sess,
 
 	return copy_to_user(buf, bin, sizeof(bin));
 }
+#endif /*CFG_TEE_ENDORSEMENT_SEED*/
 
 static const struct tee_props vendor_propset_array_tee[] = {
+#ifdef CFG_TEE_ENDORSEMENT_SEED
 	{
 		.name = "com.microsoft.ta.endorsementSeed",
 		.prop_type = USER_TA_PROP_TYPE_BINARY_BLOCK,
 		.get_prop_func = get_prop_endorsement
 	},
+#endif
 };
 
 const struct tee_vendor_props vendor_props_tee = {
