@@ -199,6 +199,7 @@ struct bsec_dev {
 	unsigned int max_id;
 	unsigned int lock;
 	struct bsec_mirror *mirror;
+	uint32_t otp_dt_status[OTP_MAX_SIZE];
 	struct nvmem_cell *cells;
 	size_t cell_count;
 };
@@ -1119,7 +1120,8 @@ static uint32_t init_state(uint32_t status)
 
 static void stm32_bsec_mirror_load(uint32_t status)
 {
-	unsigned int otp = 0U, bank = 0U;
+	unsigned int otp = 0U;
+	unsigned int bank = 0U;
 	uint32_t exceptions = 0U;
 	uint32_t srlock[OTP_ACCESS_SIZE] = { 0U };
 	uint32_t swlock[OTP_ACCESS_SIZE] = { 0U };
@@ -1153,6 +1155,8 @@ static void stm32_bsec_mirror_load(uint32_t status)
 		bank = otp_bank(otp);
 		mask = otp_bit(otp);
 
+		bsec_dev.mirror->otp[otp].status |= bsec_dev.otp_dt_status[otp];
+
 		if (srlock[bank] & mask)
 			bsec_dev.mirror->otp[otp].status |=
 				PTA_BSEC_LOCK_SHADOW_R;
@@ -1180,7 +1184,7 @@ static void stm32_bsec_mirror_load(uint32_t status)
 		shadow_otp(otp);
 
 		bsec_dev.mirror->otp[otp].value = io_read32(bsec_base() +
-					      BSEC_FVR(otp));
+							    BSEC_FVR(otp));
 	}
 
 	bsec_unlock(exceptions);
@@ -1268,10 +1272,11 @@ TEE_Result stm32_bsec_find_otp_by_phandle(const uint32_t phandle,
 
 static void initialize_nvmem_layout_from_dt(void *fdt, int bsec_node)
 {
+	unsigned int otp_nb = 0U;
+	unsigned int otp = 0U;
 	int cell_max = 0;
 	int cell_cnt = 0;
 	int node = 0;
-	unsigned int otp = 0U, otp_nb = 0U;
 
 	fdt_for_each_subnode(node, fdt, bsec_node)
 		cell_max++;
@@ -1338,7 +1343,7 @@ static void initialize_nvmem_layout_from_dt(void *fdt, int bsec_node)
 		if (fdt_getprop(fdt, node, "st,secure-otp", NULL)) {
 			for (otp = cell->otp_id;
 			     otp < cell->otp_id + otp_nb; otp++)
-				bsec_dev.mirror->otp[otp].status |=
+				bsec_dev.otp_dt_status[otp] |=
 					PTA_BSEC_STATUS_SECURE;
 		}
 		/* check if provisioning is allowed */
@@ -1346,7 +1351,7 @@ static void initialize_nvmem_layout_from_dt(void *fdt, int bsec_node)
 				     "st,non-secure-otp-provisioning", NULL)) {
 			for (otp = cell->otp_id;
 			     otp < cell->otp_id + otp_nb; otp++)
-				bsec_dev.mirror->otp[otp].status |=
+				bsec_dev.otp_dt_status[otp] |=
 					PTA_BSEC_STATUS_PROVISIONING;
 		}
 	}
