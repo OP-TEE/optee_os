@@ -79,11 +79,11 @@ out:
 
 TEE_Result tee_time_get_ta_time(const TEE_UUID *uuid, TEE_Time *time)
 {
-	TEE_Result res;
-	TEE_Time offs;
-	bool positive;
-	TEE_Time t;
-	TEE_Time t2;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Time offs = { };
+	bool positive = false;
+	TEE_Time t = { };
+	TEE_Time t2 = { };
 
 	res = tee_time_ta_get_offs(uuid, &offs, &positive);
 	if (res != TEE_SUCCESS)
