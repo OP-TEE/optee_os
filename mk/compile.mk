@@ -35,8 +35,9 @@ comp-cflags-warns-high = \
 	-Wmissing-prototypes -Wnested-externs -Wpointer-arith \
 	-Wshadow -Wstrict-prototypes -Wswitch-default \
 	-Wwrite-strings \
-	-Wno-missing-field-initializers -Wno-format-zero-length \
-	-Wno-c2x-extensions
+	-Wno-missing-field-initializers -Wno-format-zero-length
+comp-cflags-warns-high += $(if $(call cc-option,-Wc2x-extensions),\
+				-Wno-c2x-extensions)
 comp-cflags-warns-high += $(call cc-option,-Wpacked-not-aligned)
 comp-cflags-warns-high += $(call cc-option,-Waddress-of-packed-member)
 ifeq ($(CFG_WARN_DECL_AFTER_STATEMENT),y)
