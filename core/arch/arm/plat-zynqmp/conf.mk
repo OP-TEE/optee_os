@@ -103,3 +103,8 @@ endif
 ifneq (,$(filter y, $(CFG_ZYNQMP_CSU_PUF) $(CFG_ZYNQMP_CSUDMA) $(CFG_ZYNQMP_CSU_AES)))
 $(call force,CFG_ZYNQMP_CSU,y,Mandated by CFG_ZYNQMP_CSU* clients)
 endif
+
+# Add the TA endorsement seed property, which needs a HUK. Note the seed is not
+# secret when CSU authentication is disabled, since the HUK is then derived from
+# the Device DNA, which is unique but readable.
+CFG_TEE_ENDORSEMENT_SEED ?= $(CFG_ZYNQMP_HUK)
