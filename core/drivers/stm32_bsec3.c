@@ -199,6 +199,7 @@ struct bsec_dev {
 	unsigned int max_id;
 	unsigned int lock;
 	struct bsec_mirror *mirror;
+	struct bsec_mirror mirror_pm;
 	uint32_t otp_dt_status[OTP_MAX_SIZE];
 	struct nvmem_cell *cells;
 	size_t cell_count;
@@ -1390,6 +1391,17 @@ stm32_bsec_pm(enum pm_op op, unsigned int pm_hint,
 
 		/* re initialize the mirror */
 		stm32_bsec_mirror_init();
+
+		/* recopy value from the previous mirror into the new one */
+		for (unsigned int otp = 0; otp < bsec_dev.max_id; otp++) {
+			if (bsec_dev.mirror_pm.otp[otp].value) {
+				stm32_bsec_write_otp(
+					bsec_dev.mirror_pm.otp[otp].value, otp);
+			}
+		}
+	} else {
+		memcpy(&bsec_dev.mirror_pm, bsec_dev.mirror,
+		       sizeof(bsec_dev.mirror_pm));
 	}
 
 	return TEE_SUCCESS;
