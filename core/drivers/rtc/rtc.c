@@ -42,9 +42,16 @@ static unsigned long long rtc_time_to_ms(struct optee_rtc_time *time)
 	for (n = 0; n < time->tm_mon; n++)
 		days += rtc_get_month_days(n, time->tm_year);
 
-	/* Elapsed days pasted years */
+	/*
+	 * Elapsed days in past years. The leap day of the current year is
+	 * already counted above for dates after February.
+	 */
 	year = time->tm_year;
-	days += (year * 365) + (year / 4) - (year / 100) + (year / 400);
+	days += year * 365;
+	if (year) {
+		year--;
+		days += year / 4 - year / 100 + year / 400;
+	}
 
 	/* Accumulate the elapsed days */
 	time_ms += days * MS_PER_DAY;
