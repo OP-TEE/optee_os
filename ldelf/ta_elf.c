@@ -410,7 +410,15 @@ static void save_soname_from_segment(struct ta_elf *elf, unsigned int type,
 	for (n = 0; n < num_dyns; n++) {
 		read_dyn(elf, addr, n, &tag, &val);
 		if (tag == DT_SONAME) {
-			if (val >= str_tab_sz)
+			/*
+			 * Reject a DT_SONAME offset outside the string
+			 * table and make sure the string is NUL-terminated
+			 * within the table before it is stored and later
+			 * used by strcmp()/debug logging, otherwise an
+			 * out-of-bounds read could occur.
+			 */
+			if (val >= str_tab_sz ||
+			    !memchr(str_tab + val, '\0', str_tab_sz - val))
 				err(TEE_ERROR_BAD_FORMAT,
 				    "Offset into .dynstr/STRTAB out of range");
 			elf->soname = str_tab + val;
