@@ -33,6 +33,8 @@ static TEE_Result get_tee_result(int lmd_res)
 		return TEE_ERROR_BAD_PARAMETERS;
 	case MBEDTLS_ERR_RSA_OUTPUT_TOO_LARGE:
 		return TEE_ERROR_SHORT_BUFFER;
+	case MBEDTLS_ERR_PK_ALLOC_FAILED:
+		return TEE_ERROR_OUT_OF_MEMORY;
 	default:
 		return TEE_ERROR_BAD_STATE;
 	}
@@ -486,8 +488,9 @@ TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
 	}
 
 	mbedtls_pk_init(&ctx);
-	res = mbedtls_pk_setup(&ctx, pk_info);
-	if (res != 0) {
+	lmd_res = mbedtls_pk_setup(&ctx, pk_info);
+	if (lmd_res) {
+		res = get_tee_result(lmd_res);
 		goto out;
 	}
 
@@ -594,8 +597,9 @@ TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
 	}
 
 	mbedtls_pk_init(&ctx);
-	res = mbedtls_pk_setup(&ctx, pk_info);
-	if (res != 0) {
+	lmd_res = mbedtls_pk_setup(&ctx, pk_info);
+	if (lmd_res) {
+		res = get_tee_result(lmd_res);
 		goto out;
 	}
 
@@ -681,8 +685,9 @@ TEE_Result sw_crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	}
 
 	mbedtls_pk_init(&ctx);
-	res = mbedtls_pk_setup(&ctx, pk_info);
-	if (res != 0) {
+	lmd_res = mbedtls_pk_setup(&ctx, pk_info);
+	if (lmd_res) {
+		res = get_tee_result(lmd_res);
 		goto err;
 	}
 
@@ -794,8 +799,9 @@ TEE_Result sw_crypto_acipher_rsassa_verify(uint32_t algo,
 	}
 
 	mbedtls_pk_init(&ctx);
-	res = mbedtls_pk_setup(&ctx, pk_info);
-	if (res != 0) {
+	lmd_res = mbedtls_pk_setup(&ctx, pk_info);
+	if (lmd_res) {
+		res = get_tee_result(lmd_res);
 		goto err;
 	}
 
