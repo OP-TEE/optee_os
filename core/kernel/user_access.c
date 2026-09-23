@@ -16,6 +16,8 @@
 
 #define BB_ALIGNMENT	(sizeof(long) * 2)
 
+static vaddr_t uref_base;
+
 static struct user_mode_ctx *get_current_uctx(void)
 {
 	struct ts_session *s = ts_get_current_session();
@@ -295,6 +297,12 @@ TEE_Result bb_strndup_user(const char *src, size_t maxlen, char **dst,
 	return TEE_SUCCESS;
 }
 
+void uref_base_init(vaddr_t va)
+{
+	assert(!uref_base && va);
+	uref_base = va;
+}
+
 TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr)
 {
 	uint32_t ref = kaddr_to_uref(kaddr);
@@ -308,14 +316,14 @@ uint32_t kaddr_to_uref(void *kaddr)
 		unsigned int uref_tag_shift = 32 - MEMTAG_TAG_WIDTH;
 		vaddr_t uref = memtag_strip_tag_vaddr(kaddr);
 
-		uref -= VCORE_START_VA;
+		uref -= uref_base;
 		assert(uref < (UINT32_MAX >> MEMTAG_TAG_WIDTH));
 		uref |= (vaddr_t)memtag_get_tag(kaddr) << uref_tag_shift;
 		return uref;
 	}
 
-	assert(((vaddr_t)kaddr - VCORE_START_VA) < UINT32_MAX);
-	return (vaddr_t)kaddr - VCORE_START_VA;
+	assert(((vaddr_t)kaddr - uref_base) < UINT32_MAX);
+	return (vaddr_t)kaddr - uref_base;
 }
 
 vaddr_t uref_to_vaddr(uint32_t uref)
@@ -325,8 +333,8 @@ vaddr_t uref_to_vaddr(uint32_t uref)
 		unsigned int uref_tag_shift = 32 - MEMTAG_TAG_WIDTH;
 		uint8_t tag = uref >> uref_tag_shift;
 
-		return memtag_insert_tag_vaddr(VCORE_START_VA + u, tag);
+		return memtag_insert_tag_vaddr(uref_base + u, tag);
 	}
 
-	return VCORE_START_VA + uref;
+	return uref_base + uref;
 }

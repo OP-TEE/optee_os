@@ -157,6 +157,12 @@ TEE_Result bb_memdup_user_private(const void *src, size_t len, void **p);
 TEE_Result bb_strndup_user(const char *src, size_t maxlen, char **dst,
 			   size_t *dstlen);
 
+#ifdef CFG_WITH_USER_TA
+void uref_base_init(vaddr_t va);
+#else
+static inline void uref_base_init(vaddr_t va __unused) { }
+#endif
+
 TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr);
 
 uint32_t kaddr_to_uref(void *kaddr);
