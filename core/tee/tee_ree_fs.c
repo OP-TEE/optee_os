@@ -478,9 +478,12 @@ out:
 			tee_fs_rpc_close(OPTEE_RPC_CMD_FS, fdp->fd);
 		/*
 		 * Remove the file if hash is NULL and min_counter is 0,
-		 * as it is not yet rollback-protected
+		 * as it is not yet rollback-protected, but only when it is
+		 * found corrupt. A failed request says nothing about it.
 		 */
-		if (create || (!hash && !min_counter)) {
+		if (create || (!hash && !min_counter &&
+			       (res == TEE_ERROR_CORRUPT_OBJECT ||
+				res == TEE_ERROR_SECURITY))) {
 			DMSG("Remove corrupt file");
 			tee_fs_rpc_remove_dfh(OPTEE_RPC_CMD_FS, dfh);
 		}
