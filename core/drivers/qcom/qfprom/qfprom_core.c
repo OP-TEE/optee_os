@@ -12,6 +12,7 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <string.h>
+#include <string_ext.h>
 #include <trace.h>
 #include <util.h>
 
@@ -277,9 +278,11 @@ static enum qfprom_error raw_write(uint32_t addr,
 				   const uint32_t *data)
 {
 	enum qfprom_region_name region_name = QFPROM_LAST_REGION_DUMMY;
+	struct qfprom_context *drv = qfprom_get_context();
 	enum qfprom_error err = QFPROM_NO_ERR;
 	bool fec_enabled = false;
 	uint32_t verify[2] = {0};
+	size_t i = 0;
 
 	if (!data)
 		return QFPROM_DATA_PTR_NULL_ERR;
@@ -319,14 +322,27 @@ static enum qfprom_error raw_write(uint32_t addr,
 		return QFPROM_NO_ERR;
 
 	err = read_row(addr, QFPROM_ADDR_SPACE_RAW, verify);
-	if (err != QFPROM_NO_ERR)
-		return QFPROM_NO_ERR;
+	if (err != QFPROM_NO_ERR) {
+		err = QFPROM_NO_ERR;
+		goto out;
+	}
+
+	/* Private rows cannot be verified by reading back their contents. */
+	for (i = 0; i < drv->config->num_regions; i++) {
+		const struct qfprom_region_info *info =
+			&drv->config->region_data[i];
+
+		if (info->region_name == region_name && !info->read_allowed)
+			goto out;
+	}
 
 	if ((verify[0] & data[0]) != data[0] ||
 	    (verify[1] & data[1]) != data[1])
-		return QFPROM_WRITE_ERR;
+		err = QFPROM_WRITE_ERR;
 
-	return QFPROM_NO_ERR;
+out:
+	memzero_explicit(verify, sizeof(verify));
+	return err;
 }
 
 TEE_Result qfprom_read_row(uint32_t addr,
@@ -335,6 +351,7 @@ TEE_Result qfprom_read_row(uint32_t addr,
 {
 	enum qfprom_region_name region_name = QFPROM_LAST_REGION_DUMMY;
 	enum qfprom_error err = QFPROM_NO_ERR;
+	bool fec_enabled = false;
 
 	if (!data)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -355,27 +372,68 @@ TEE_Result qfprom_read_row(uint32_t addr,
 		return TEE_ERROR_GENERIC;
 	}
 
-	if (type == QFPROM_ADDR_SPACE_CORR) {
-		bool fec_enabled = false;
+	err = is_fec_enabled(region_name, &fec_enabled);
+	if (err != QFPROM_NO_ERR) {
+		EMSG("FEC status check failed, err: %d", err);
+		return TEE_ERROR_GENERIC;
+	}
 
-		err = is_fec_enabled(region_name, &fec_enabled);
-		if (err != QFPROM_NO_ERR) {
-			EMSG("FEC status check failed, err: %d", err);
-			return TEE_ERROR_GENERIC;
-		}
+	if (fec_enabled && hal_qfprom_is_fec_error_seen()) {
+		uint16_t err_addr = 0;
 
-		if (fec_enabled && hal_qfprom_is_fec_error_seen()) {
-			uint16_t err_addr = 0;
-
-			hal_qfprom_read_error_address(&err_addr);
-			EMSG("FEC error: 0x%04"PRIx16" req 0x%08"PRIx32,
-			     err_addr, addr);
-			hal_qfprom_clear_fec_error_status();
-			return TEE_ERROR_CORRUPT_OBJECT;
-		}
+		hal_qfprom_read_error_address(&err_addr);
+		EMSG("FEC error: 0x%04"PRIx16" req 0x%08"PRIx32,
+		     err_addr, addr);
+		hal_qfprom_clear_fec_error_status();
+		return TEE_ERROR_CORRUPT_OBJECT;
 	}
 
 	return TEE_SUCCESS;
+}
+
+TEE_Result qfprom_is_provisioning_locked(bool *locked)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result release_res = TEE_SUCCESS;
+	uint32_t data[2] = {0};
+
+	if (!locked)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*locked = false;
+	res = qfprom_acquire_hw_mutex();
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = qfprom_read_row(WRITE_PERMISSION_ADDR, QFPROM_ADDR_SPACE_CORR,
+			      data);
+	if (res == TEE_SUCCESS)
+		*locked = data[0] & OEM_SECURE_BOOT_PERM_MASK;
+
+	memzero_explicit(data, sizeof(data));
+	release_res = qfprom_release_hw_mutex();
+	return res != TEE_SUCCESS ? res : release_res;
+}
+
+static TEE_Result qfprom_hw_cleanup(void)
+{
+	struct qfprom_context *drv = qfprom_get_context();
+	TEE_Result res = TEE_SUCCESS;
+	TEE_Result ret = TEE_SUCCESS;
+
+	drv->write_op_allowed = false;
+	if (drv->config->deinit)
+		res = drv->config->deinit();
+	if (res != TEE_SUCCESS)
+		EMSG("Failed to release QFPROM supplies: %#"PRIx32, res);
+
+	/* Let the programming voltage settle before restoring the clock. */
+	udelay(1000);
+	ret = qfprom_write_reset_clock_settings();
+	if (ret != TEE_SUCCESS)
+		EMSG("Failed to restore QFPROM clock: %#"PRIx32, ret);
+
+	return res != TEE_SUCCESS ? res : ret;
 }
 
 TEE_Result qfprom_hw_init(void)
@@ -387,13 +445,16 @@ TEE_Result qfprom_hw_init(void)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (drv->config->init) {
-		res = drv->config->init();
-		if (res != TEE_SUCCESS)
-			goto err_unlock;
-	}
+	res = qfprom_hw_cleanup();
+	if (res != TEE_SUCCESS)
+		goto err_deinit;
 
 	res = qfprom_write_set_clock_settings();
+	if (res != TEE_SUCCESS)
+		goto err_deinit;
+
+	if (drv->config->init)
+		res = drv->config->init();
 	if (res != TEE_SUCCESS)
 		goto err_deinit;
 
@@ -401,22 +462,16 @@ TEE_Result qfprom_hw_init(void)
 	return TEE_SUCCESS;
 
 err_deinit:
-	if (drv->config->deinit && drv->config->deinit() != TEE_SUCCESS)
-		EMSG("Failed to deinit platform");
-err_unlock:
-	qfprom_release_hw_mutex();
+	qfprom_hw_deinit();
 	return res;
 }
 
-void qfprom_hw_deinit(void)
+TEE_Result qfprom_hw_deinit(void)
 {
-	struct qfprom_context *drv = qfprom_get_context();
+	TEE_Result res = qfprom_hw_cleanup();
 
-	drv->write_op_allowed = false;
-	qfprom_write_reset_clock_settings();
-	if (drv->config->deinit && drv->config->deinit() != TEE_SUCCESS)
-		EMSG("Failed to deinit platform");
 	qfprom_release_hw_mutex();
+	return res;
 }
 
 TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data)
@@ -434,6 +489,7 @@ TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data)
 	write_data[1] = data[1];
 
 	err = raw_write(addr, write_data);
+	memzero_explicit(write_data, sizeof(write_data));
 	if (err != QFPROM_NO_ERR) {
 		EMSG("QFPROM write failed for address 0x%08"PRIx32", error: %d",
 		     addr, err);

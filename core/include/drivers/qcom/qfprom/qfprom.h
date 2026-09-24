@@ -52,6 +52,12 @@ TEE_Result qcom_secboot_is_use_serial_num_enabled(bool *enabled);
 /* Read the OEM root-of-trust anchor hash (PK_HASH0). */
 TEE_Result qcom_secboot_get_root_of_trust(uint8_t *hash, size_t len);
 
+/* Read the PIL anti-rollback fuse version (set bits in the ARB row). */
+TEE_Result qcom_secboot_get_pil_rollback_version(uint32_t *version);
+
+/* Advance the PIL anti-rollback fuse, saturating at the counter capacity. */
+TEE_Result qcom_secboot_blow_pil_rollback_version(uint32_t version);
+
 /* Read the OEM/model/JTAG/serial device-identity fuses. */
 TEE_Result qcom_secboot_get_device_ids(struct qcom_secboot_device_ids *ids);
 
@@ -68,6 +74,21 @@ TEE_Result qcom_secboot_get_segment_hash_len(uint32_t root_cert_sel,
 /* Is code-signing EKU enforcement required for this device? */
 TEE_Result qcom_secboot_get_eku_enforcement_en(bool *enabled);
 
+/*
+ * Report whether the anchor is fuse-resident with more than one
+ * provisioned root, and if so, the root count and the per-index
+ * activation/revocation bitmaps.
+ */
+TEE_Result qcom_secboot_get_mrc_info(bool *root_sel_enabled,
+				     uint32_t *num_roots,
+				     uint32_t *activation_list,
+				     uint32_t *revocation_list);
+
+#ifdef CFG_QCOM_PAS_AUTH
+/* Apply configured MRC masks and the per-boot lock before sec.elf writes. */
+TEE_Result qcom_secboot_provision_mrc_fuses(void);
+#endif
+
 /* Write QFPROM row data */
 TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data);
 
@@ -79,8 +100,18 @@ TEE_Result qfprom_row_has_fec_bits(uint32_t addr,
 /* Calculate FEC bits for 56-bit data */
 uint32_t qfprom_fec_63_56_bit(uint32_t lsb_data, uint32_t msb_data);
 
-/* Hardware init/deinit for batch fuse operations */
+/*
+ * Check the global provisioning lock without enabling programming supplies.
+ * Acquires and releases the hardware mutex; call outside a programming batch.
+ * @locked is valid only on success.
+ */
+TEE_Result qfprom_is_provisioning_locked(bool *locked);
+
+/*
+ * Hardware init/deinit for batch fuse operations. A successful init holds
+ * the hardware mutex until deinit. Deinit releases it even on cleanup error.
+ */
 TEE_Result qfprom_hw_init(void);
-void qfprom_hw_deinit(void);
+TEE_Result qfprom_hw_deinit(void);
 
 #endif /* __QFPROM_H__ */

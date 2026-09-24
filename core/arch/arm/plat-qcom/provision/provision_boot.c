@@ -8,79 +8,88 @@
 #include <drivers/qcom/rpmh/rpmh_client.h>
 #include <initcall.h>
 #include <inttypes.h>
+#include <io.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
+#include <stdlib.h>
+#include <stdlib_ext.h>
+#include <string.h>
+#include <string_ext.h>
 #include <trace.h>
+#include <util.h>
 
 #include "sec_elf_v2.h"
 
+#define TCSR_BOOT_MISC_DLOAD	BIT(4)
+
 register_phys_mem(MEM_AREA_RAM_NSEC, CFG_SEC_ELF_DDR_ADDR,
 		  CFG_SEC_ELF_DDR_SIZE);
-
-static TEE_Result discover_sec_elf(const uint8_t **data_out, size_t *size)
-{
-	const struct secdat_hdr *hdr = NULL;
-	const uint8_t *data = NULL;
-
-	if (!data_out || !size)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	data = phys_to_virt(CFG_SEC_ELF_DDR_ADDR, MEM_AREA_RAM_NSEC,
-			    CFG_SEC_ELF_DDR_SIZE);
-	if (!data) {
-		EMSG("Failed to get VA for sec.elf at PA 0x%lx",
-		     (unsigned long)CFG_SEC_ELF_DDR_ADDR);
-		return TEE_ERROR_GENERIC;
-	}
-
-	hdr = (const struct secdat_hdr *)data;
-
-	if (hdr->magic1 != SECDAT_MAGIC1 ||
-	    hdr->magic2 != SECDAT_MAGIC2) {
-		EMSG("Invalid sec.elf magic: 0x%"PRIx32 "/0x%"PRIx32,
-		     hdr->magic1, hdr->magic2);
-		return TEE_ERROR_BAD_FORMAT;
-	}
-
-	*size = sizeof(*hdr) + hdr->size + TEE_SHA256_HASH_SIZE;
-
-	if (*size > CFG_SEC_ELF_DDR_SIZE) {
-		EMSG("sec.elf size %zu exceeds limit %zu",
-		     *size, (size_t)CFG_SEC_ELF_DDR_SIZE);
-		return TEE_ERROR_BAD_FORMAT;
-	}
-
-	*data_out = data;
-	return TEE_SUCCESS;
-}
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, TCSR_BOOT_MISC_DETECT,
+			sizeof(uint32_t));
 
 static TEE_Result execute_provisioning(void)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	const uint8_t *data = NULL;
+	uint8_t *snapshot = NULL;
+	uint8_t *source = NULL;
+	vaddr_t boot_misc_va = 0;
 	bool fuses_blown = false;
-	size_t len = 0;
 
-	res = discover_sec_elf(&data, &len);
-	if (res != TEE_SUCCESS)
-		return res;
+	COMPILE_TIME_ASSERT(sizeof(struct secdat_hdr) <= CFG_SEC_ELF_DDR_SIZE);
 
-	res = provision_execute(data, len, &fuses_blown);
-	if (res == TEE_ERROR_ACCESS_DENIED) {
-		IMSG("Fuse provisioning locked - write permission denied");
+#ifdef CFG_QCOM_PAS_AUTH
+	/* Configure MRC before the sec.elf path and its DLOAD gate. */
+	res = qcom_secboot_provision_mrc_fuses();
+	if (res)
+		EMSG("MRC provisioning failed: %#"PRIx32, res);
+	res = TEE_ERROR_GENERIC;
+#endif
+
+	boot_misc_va = (vaddr_t)phys_to_virt(TCSR_BOOT_MISC_DETECT,
+					  MEM_AREA_IO_SEC, sizeof(uint32_t));
+	if (!boot_misc_va) {
+		EMSG("Failed to map boot status");
+		goto out;
+	}
+	if (io_read32(boot_misc_va) & TCSR_BOOT_MISC_DLOAD) {
+		IMSG("Skipping fuse provisioning in download mode");
 		return TEE_SUCCESS;
-	} else if (res != TEE_SUCCESS) {
-		EMSG("Fuse provisioning failed: 0x%"PRIx32, res);
-		return res;
 	}
 
-	if (fuses_blown) {
-		IMSG("Fuse provisioning completed successfully");
-		provision_reset_device();
+	source = phys_to_virt(CFG_SEC_ELF_DDR_ADDR, MEM_AREA_RAM_NSEC,
+			      CFG_SEC_ELF_DDR_SIZE);
+	if (!source) {
+		EMSG("Failed to map fuse provisioning input");
+		goto out;
 	}
+
+	/* Capture the bounded input before inspecting any fields. */
+	snapshot = malloc(CFG_SEC_ELF_DDR_SIZE);
+	if (!snapshot) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+	memcpy(snapshot, source, CFG_SEC_ELF_DDR_SIZE);
+
+	res = provision_execute(snapshot, CFG_SEC_ELF_DDR_SIZE, &fuses_blown);
+
+out:
+	free_wipe(snapshot);
+	if (source)
+		memzero_explicit(source, CFG_SEC_ELF_DDR_SIZE);
+
+	if (res != TEE_SUCCESS) {
+		EMSG("Fuse provisioning failed: %#"PRIx32, res);
+		if (fuses_blown)
+			EMSG("Fuse rows were programmed before the failure");
+		panic("Fuse provisioning failed");
+	}
+
+	if (fuses_blown)
+		provision_reset_device();
 
 	return TEE_SUCCESS;
 }

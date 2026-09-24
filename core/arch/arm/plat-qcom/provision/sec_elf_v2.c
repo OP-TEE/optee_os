@@ -12,94 +12,124 @@
 
 #include "sec_elf_v2.h"
 
-TEE_Result sec_elf_parse(const uint8_t *data, size_t size,
-			 const struct secdat_hdr **hdr,
-			 const struct segment_hdr **segments)
+TEE_Result sec_elf_get_size(const uint8_t *data, size_t capacity, size_t *size)
 {
-	const struct secdat_hdr *header = NULL;
+	const struct secdat_hdr *hdr = NULL;
+	size_t table_size = 0;
+	size_t total = 0;
 
-	if (!data || !hdr || !segments)
+	if (!data || !size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (size < sizeof(struct secdat_hdr)) {
-		EMSG("sec.elf too small: %zu bytes", size);
+	*size = 0;
+	if (capacity < sizeof(*hdr))
 		return TEE_ERROR_BAD_FORMAT;
-	}
 
-	header = (const struct secdat_hdr *)data;
-
-	if (header->magic1 != SECDAT_MAGIC1) {
-		EMSG("Invalid magic1: 0x%08"PRIx32, header->magic1);
+	hdr = (const struct secdat_hdr *)data;
+	if (hdr->magic1 != SECDAT_MAGIC1 || hdr->magic2 != SECDAT_MAGIC2 ||
+	    hdr->revision != SECDAT_VERSION_2 ||
+	    hdr->seg_num > SECDAT_MAX_SUPPORTED_SEGMENT ||
+	    hdr->size < sizeof(struct secdat_footer))
 		return TEE_ERROR_BAD_FORMAT;
-	}
 
-	if (header->magic2 != SECDAT_MAGIC2) {
-		EMSG("Invalid magic2: 0x%08"PRIx32, header->magic2);
+	if (MUL_OVERFLOW((size_t)hdr->seg_num, sizeof(struct segment_hdr),
+			 &table_size) ||
+	    ADD_OVERFLOW(sizeof(*hdr), table_size, &total) ||
+	    ADD_OVERFLOW(total, (size_t)hdr->size, &total) || total > capacity)
 		return TEE_ERROR_BAD_FORMAT;
-	}
 
-	if (header->revision != SECDAT_VERSION_2) {
-		EMSG("Unsupported version: 0x%08"PRIx32, header->revision);
+	*size = total;
+	return TEE_SUCCESS;
+}
+
+static TEE_Result validate_fuse_list(const uint8_t *data, size_t size,
+				     bool check_shk_count)
+{
+	const struct qfuse_list_hdr *hdr = NULL;
+	const struct fuse_entry *entries = NULL;
+	size_t entry_size = 0;
+	uint32_t shk_count = 0;
+	uint32_t n = 0;
+
+	if (size < sizeof(*hdr))
 		return TEE_ERROR_BAD_FORMAT;
-	}
 
-	if (header->size + sizeof(*header) + sizeof(struct secdat_footer) !=
-	    size) {
-		EMSG("Size mismatch: header=%"PRIu32 ", file=%zu",
-		     header->size, size);
+	hdr = (const struct qfuse_list_hdr *)data;
+	if (hdr->revision != SECDAT_FUSE_LIST_REVISION || !hdr->fuse_count ||
+	    hdr->fuse_count > SECDAT_MAX_FUSES ||
+	    MUL_OVERFLOW((size_t)hdr->fuse_count, sizeof(*entries),
+			 &entry_size) ||
+	    hdr->size != entry_size || entry_size > size - sizeof(*hdr))
 		return TEE_ERROR_BAD_FORMAT;
-	}
 
-	if (header->seg_num > SECDAT_MAX_SUPPORTED_SEGMENT) {
-		EMSG("Too many segments: %"PRIu32, header->seg_num);
-		return TEE_ERROR_BAD_FORMAT;
-	}
+	entries = (const struct fuse_entry *)(data + sizeof(*hdr));
+	for (n = 0; n < hdr->fuse_count; n++) {
+		if (entries[n].region >= FUSEPROV_REGION_MAX ||
+		    (entries[n].operation != FUSEPROV_OP_BLOW &&
+		     entries[n].operation != FUSEPROV_OP_BLOW_RANDOM))
+			return TEE_ERROR_BAD_FORMAT;
 
-	*hdr = header;
-	*segments = (const struct segment_hdr *)(data + sizeof(*header));
+		if (check_shk_count &&
+		    entries[n].region == FUSEPROV_REGION_SHK &&
+		    entries[n].operation == FUSEPROV_OP_BLOW &&
+		    ++shk_count > SECDAT_MAX_SHK_ROWS)
+			return TEE_ERROR_BAD_FORMAT;
+	}
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sec_elf_validate_header(const uint8_t *data, size_t size,
-					  const struct secdat_hdr **hdr)
+TEE_Result sec_elf_parse(const uint8_t *data, size_t size,
+			 const struct secdat_hdr **hdr,
+			 const struct segment_hdr **segments)
 {
+	const struct segment_hdr *table = NULL;
 	const struct secdat_hdr *header = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t payload_start = 0;
+	size_t payload_end = 0;
+	size_t image_size = 0;
+	uint32_t n = 0;
 
-	if (!data || !hdr)
+	if (!hdr || !segments)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (size < sizeof(struct secdat_hdr)) {
-		EMSG("sec.elf too small: %zu bytes", size);
-		return TEE_ERROR_BAD_FORMAT;
-	}
+	*hdr = NULL;
+	*segments = NULL;
+	res = sec_elf_get_size(data, size, &image_size);
+	if (res)
+		return res;
 
 	header = (const struct secdat_hdr *)data;
+	table = (const struct segment_hdr *)(data + sizeof(*header));
+	payload_start = sizeof(*header) + header->seg_num * sizeof(*table);
+	payload_end = image_size - sizeof(struct secdat_footer);
 
-	if (header->magic1 != SECDAT_MAGIC1 ||
-	    header->magic2 != SECDAT_MAGIC2) {
-		EMSG("Invalid magic numbers");
-		return TEE_ERROR_BAD_FORMAT;
-	}
+	/* A footer-only payload is a valid no-fuse image. */
+	if (header->size != sizeof(struct secdat_footer)) {
+		for (n = 0; n < header->seg_num; n++) {
+			bool efuse = table[n].type == SECDAT_SEGMENT_TYPE_EFUSE;
+			size_t end = payload_end;
 
-	if (header->revision != SECDAT_VERSION_2) {
-		EMSG("Unsupported version: 0x%08"PRIx32, header->revision);
-		return TEE_ERROR_BAD_FORMAT;
-	}
+			if (n + 1 < header->seg_num)
+				end = table[n + 1].offset;
+			if (table[n].offset < payload_start ||
+			    table[n].offset >= end || end > payload_end)
+				return TEE_ERROR_BAD_FORMAT;
 
-	if (header->size + sizeof(*header) + sizeof(struct secdat_footer) !=
-	    size) {
-		EMSG("Size mismatch: header=%"PRIu32 ", file=%zu",
-		     header->size, size);
-		return TEE_ERROR_BAD_FORMAT;
-	}
-
-	if (header->seg_num > SECDAT_MAX_SUPPORTED_SEGMENT) {
-		EMSG("Too many segments: %"PRIu32, header->seg_num);
-		return TEE_ERROR_BAD_FORMAT;
+			if (efuse ||
+			    table[n].type == SECDAT_SEGMENT_TYPE_ENCKEY) {
+				res = validate_fuse_list(data + table[n].offset,
+							 end - table[n].offset,
+							 efuse);
+				if (res)
+					return res;
+			}
+		}
 	}
 
 	*hdr = header;
+	*segments = table;
 	return TEE_SUCCESS;
 }
 
@@ -115,19 +145,11 @@ TEE_Result sec_elf_validate_hash(const uint8_t *data, size_t size,
 	if (!data || !hdr)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	/*
-	 * Calculate hash over header, segments, and data payload.
-	 * The footer contains the stored hash for verification.
-	 */
-	hash_bytes = sizeof(struct secdat_hdr) +
-		     (hdr->seg_num * sizeof(struct segment_hdr)) +
-		     (hdr->size - sizeof(struct secdat_footer));
+	res = sec_elf_get_size(data, size, &hash_bytes);
+	if (res)
+		return res;
 
-	if (hash_bytes >= size) {
-		EMSG("Invalid hash size calculation: %zu >= %zu",
-		     hash_bytes, size);
-		return TEE_ERROR_BAD_FORMAT;
-	}
+	hash_bytes -= sizeof(struct secdat_footer);
 
 	stored_hash = data + hash_bytes;
 
@@ -166,6 +188,7 @@ TEE_Result sec_elf_validate_hash(const uint8_t *data, size_t size,
 	res = TEE_SUCCESS;
 
 out:
+	memzero_explicit(calc_hash, sizeof(calc_hash));
 	crypto_hash_free_ctx(ctx);
 	return res;
 }
@@ -178,49 +201,36 @@ TEE_Result sec_elf_find_segment(const uint8_t *data, size_t size,
 	const struct segment_hdr *segments = NULL;
 	const struct secdat_hdr *hdr = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	uint32_t i = 0;
+	size_t image_size = 0;
+	uint32_t n = 0;
 
-	if (!data || !seg_data || !seg_size)
+	if (!seg_data || !seg_size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = sec_elf_validate_header(data, size, &hdr);
-	if (res != TEE_SUCCESS)
+	*seg_data = NULL;
+	*seg_size = 0;
+	res = sec_elf_parse(data, size, &hdr, &segments);
+	if (res)
 		return res;
 
-	segments = (const struct segment_hdr *)(data + sizeof(*hdr));
+	res = sec_elf_get_size(data, size, &image_size);
+	if (res)
+		return res;
 
-	for (i = 0; i < hdr->seg_num; i++) {
-		if (segments[i].type == seg_type) {
-			if (segments[i].offset >= size) {
-				EMSG("Invalid segment offset: %"PRIu32,
-				     segments[i].offset);
-				return TEE_ERROR_BAD_FORMAT;
-			}
+	if (hdr->size == sizeof(struct secdat_footer))
+		return TEE_ERROR_ITEM_NOT_FOUND;
 
-			*seg_data = data + segments[i].offset;
+	for (n = 0; n < hdr->seg_num; n++) {
+		if (segments[n].type == seg_type) {
+			size_t end = image_size - sizeof(struct secdat_footer);
 
-			/*
-			 * Calculate segment size:
-			 * - If not the last segment, size is the difference
-			 *   between this segment's offset and the next
-			 * - If last segment, size extends to the footer
-			 */
-			if ((i + 1) < hdr->seg_num) {
-				/* Not the last segment */
-				*seg_size = segments[i + 1].offset -
-					    segments[i].offset;
-			} else {
-				/* Last segment */
-				*seg_size = size -
-					    sizeof(struct secdat_footer) -
-					    segments[i].offset;
-			}
-
+			if (n + 1 < hdr->seg_num)
+				end = segments[n + 1].offset;
+			*seg_data = data + segments[n].offset;
+			*seg_size = end - segments[n].offset;
 			return TEE_SUCCESS;
 		}
 	}
 
-	*seg_data = NULL;
-	*seg_size = 0;
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }

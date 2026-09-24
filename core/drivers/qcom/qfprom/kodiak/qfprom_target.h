@@ -50,12 +50,8 @@
 #define QFPROM_ACCEL_RESET_VALUE \
 	(0x1 << QFPROM_GATELAST_SHFT)
 
-#define MX_QFPROM_ENABLE_VAL                    15
-#define MX_QFPROM_DISABLE_VAL                   9
-
-#define PM_QFPROM_VREG_A                        "mx.lvl"
-#define QFPROM_VOLTAGE_ON                       15
-#define QFPROM_VOLTAGE_OFF                      9
+#define MX_QFPROM_ENABLE_VAL                    U(15)
+#define MX_QFPROM_DISABLE_VAL                   U(9)
 
 #define QFPROM_RAW_TO_CORR(raw_addr) \
 	((raw_addr) + (QFPROM_CORR_BASE - QFPROM_RAW_BASE))

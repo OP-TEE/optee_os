@@ -12,7 +12,7 @@ $(call force,CFG_QCOM_QFPROM,y)
 endif
 
 ifeq ($(CFG_QCOM_QFPROM),y)
-# Kodiak requires MX voltage rail workaround for QFPROM fuse blowing
+# Programming supplies and the MX workaround use RPMH votes.
 $(call force,CFG_QCOM_RPMH_CLIENT,y)
 endif
 

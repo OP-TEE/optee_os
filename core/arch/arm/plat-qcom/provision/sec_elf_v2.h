@@ -10,10 +10,15 @@
 #include <stdint.h>
 #include <tee_api_types.h>
 #include <utee_defines.h>
+#include <util.h>
 
 #define SECDAT_MAGIC1			0x3B7251CA
 #define SECDAT_MAGIC2			0x2A126F29
 #define SECDAT_VERSION_2		0x00000002
+
+#define SECDAT_FUSE_LIST_REVISION	U(1)
+#define SECDAT_MAX_FUSES		U(1024)
+#define SECDAT_MAX_SHK_ROWS		U(5)
 
 #define SECDAT_MAX_SUPPORTED_SEGMENT	32
 
@@ -80,6 +85,9 @@ struct secdat_footer {
 	uint8_t hash[TEE_SHA256_HASH_SIZE];
 } __packed;
 
+/* Get the complete image length within the supplied buffer capacity. */
+TEE_Result sec_elf_get_size(const uint8_t *data, size_t capacity, size_t *size);
+
 TEE_Result sec_elf_parse(const uint8_t *data, size_t size,
 			 const struct secdat_hdr **hdr,
 			 const struct segment_hdr **segments);
@@ -98,6 +106,10 @@ TEE_Result provision_oem_spare(const struct fuse_entry *entries,
 TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
 			 bool *fuses_blown);
 
+/*
+ * @fuses_blown reports confirmed row writes, including on error. A false
+ * value does not exclude partial programming by a failed row operation.
+ */
 TEE_Result provision_execute(const uint8_t *data, size_t len,
 			     bool *fuses_blown);
 

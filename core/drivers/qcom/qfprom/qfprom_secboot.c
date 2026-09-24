@@ -4,6 +4,7 @@
  */
 
 #include <config.h>
+#include <initcall.h>
 #include <inttypes.h>
 #include <io.h>
 #include <mm/core_memprot.h>
@@ -61,6 +62,185 @@ TEE_Result qcom_secboot_is_use_serial_num_enabled(bool *enabled)
 		return res;
 
 	*enabled = (val & SECURE_BOOT_USE_SERIAL_NUM_BMSK) != 0;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result read_corr_reg(uint32_t offset, uint32_t *out)
+{
+	struct qfprom_context *drv = qfprom_get_context();
+
+	if (!drv->corr_base_va)
+		return TEE_ERROR_BAD_STATE;
+
+	*out = io_read32(drv->corr_base_va + offset);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result write_sense_reg(uint32_t offset, uint32_t val)
+{
+	struct qfprom_context *drv = qfprom_get_context();
+
+	if (!drv->raw_base_va)
+		return TEE_ERROR_BAD_STATE;
+
+	io_write32(drv->raw_base_va + offset, val);
+
+	return TEE_SUCCESS;
+}
+
+/*
+ * Count set bits in @bitmask.
+ * Cannot use __builtin_popcount(): OP-TEE core builds AArch64 with
+ * -mgeneral-regs-only, so the compiler cannot inline the NEON sequence
+ * and falls back to a libgcc call core does not link against.
+ */
+static uint32_t popcount32(uint32_t bitmask)
+{
+	uint32_t nb = 0;
+
+	while (bitmask) {
+		if (bitmask & 1)
+			nb++;
+		bitmask >>= 1;
+	}
+
+	return nb;
+}
+
+TEE_Result qcom_secboot_get_pil_rollback_version(uint32_t *version)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	bool secboot = false;
+	uint32_t lsb = 0;
+	uint32_t msb = 0;
+	uint32_t en = 0;
+
+	if (!version)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*version = 0;
+
+	res = qcom_secboot_is_enabled(&secboot);
+	if (res)
+		return res;
+	if (!secboot)
+		return TEE_SUCCESS;
+
+	res = read_corr_reg(PIL_ARB_EN_OFFSET, &en);
+	if (res)
+		return res;
+	if (!(en & PIL_ARB_EN_BMSK))
+		return TEE_SUCCESS;
+
+	res = read_corr_reg(PIL_ARB_LSB_OFFSET, &lsb);
+	if (res)
+		return res;
+
+	*version = popcount32(lsb & PIL_ARB_LSB_BMSK);
+
+	if (PIL_ARB_MSB_ENABLED) {
+		res = read_corr_reg(PIL_ARB_MSB_OFFSET, &msb);
+		if (res)
+			return res;
+		*version += popcount32(msb & PIL_ARB_MSB_BMSK);
+	}
+
+	return TEE_SUCCESS;
+}
+
+static uint32_t unary_mask(uint32_t n)
+{
+	if (n >= 32)
+		return 0xffffffffu;
+	if (!n)
+		return 0;
+	return GENMASK_32(n - 1, 0);
+}
+
+static TEE_Result write_pil_rollback_word(size_t word, uint32_t version)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t row[2] = { };
+
+	res = qfprom_read_row(PIL_ARB_RAW_ADDR, QFPROM_ADDR_SPACE_CORR, row);
+	if (res)
+		return res;
+
+	/* Preserve the other word and all bits outside the counter field. */
+	row[word] |= unary_mask(version);
+	return qfprom_write_row(PIL_ARB_RAW_ADDR, row);
+}
+
+TEE_Result qcom_secboot_blow_pil_rollback_version(uint32_t version)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result cleanup_res = TEE_SUCCESS;
+	uint32_t cur_lsb = 0;
+	uint32_t cur_msb = 0;
+	bool secboot = false;
+	uint32_t lsb_n = 0;
+	uint32_t msb_n = 0;
+	uint32_t cur = 0;
+	uint32_t en = 0;
+
+	res = qcom_secboot_is_enabled(&secboot);
+	if (res)
+		return res;
+	if (!secboot)
+		return TEE_SUCCESS;
+
+	res = read_corr_reg(PIL_ARB_EN_OFFSET, &en);
+	if (res)
+		return res;
+	if (!(en & PIL_ARB_EN_BMSK))
+		return TEE_SUCCESS;
+
+	res = read_corr_reg(PIL_ARB_LSB_OFFSET, &cur_lsb);
+	if (res)
+		return res;
+	cur = popcount32(cur_lsb & PIL_ARB_LSB_BMSK);
+	if (PIL_ARB_MSB_ENABLED) {
+		res = read_corr_reg(PIL_ARB_MSB_OFFSET, &cur_msb);
+		if (res)
+			return res;
+		cur += popcount32(cur_msb & PIL_ARB_MSB_BMSK);
+	}
+
+	if (version <= cur)
+		return TEE_SUCCESS;
+
+	res = qfprom_hw_init();
+	if (res)
+		return res;
+
+	/* Saturate each word at its capacity, programming the LSB first. */
+	lsb_n = MIN(version, (uint32_t)PIL_ARB_LSB_MAX_VERSION);
+	res = write_pil_rollback_word(0, lsb_n);
+	if (res)
+		goto out;
+
+	if (PIL_ARB_MSB_ENABLED && version > PIL_ARB_LSB_MAX_VERSION) {
+		msb_n = MIN(version - PIL_ARB_LSB_MAX_VERSION,
+			    (uint32_t)PIL_ARB_MSB_MAX_VERSION);
+		res = write_pil_rollback_word(1, msb_n);
+	}
+
+out:
+	cleanup_res = qfprom_hw_deinit();
+	if (cleanup_res)
+		EMSG("PAS ARB: programming cleanup failed: %#"PRIx32,
+		     cleanup_res);
+	if (!res)
+		res = cleanup_res;
+	if (res) {
+		EMSG("PAS ARB: programming failed: %#"PRIx32, res);
+		EMSG("PAS ARB: fuses may be partially programmed");
+		return res;
+	}
+
+	DMSG("PAS ARB: fuse update completed");
 
 	return TEE_SUCCESS;
 }
@@ -166,6 +346,130 @@ TEE_Result qcom_secboot_get_eku_enforcement_en(bool *enabled)
 
 	return TEE_SUCCESS;
 }
+
+#define SECBOOT_MAX_NUM_ROOT_CERTS	4U
+
+TEE_Result qcom_secboot_get_mrc_info(bool *root_sel_enabled,
+				     uint32_t *num_roots,
+				     uint32_t *activation_list,
+				     uint32_t *revocation_list)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t total = 0;
+	uint32_t val = 0;
+
+	if (!root_sel_enabled || !num_roots || !activation_list ||
+	    !revocation_list)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*root_sel_enabled = false;
+	*num_roots = 1;
+	*activation_list = 0;
+	*revocation_list = 0;
+
+	res = read_sense_reg(SECURE_BOOT_APPS_OFFSET, &val);
+	if (res)
+		return res;
+	if (!(val & SECURE_BOOT_PK_HASH_IN_FUSE_BMSK))
+		return TEE_SUCCESS;
+
+	res = read_sense_reg(OEM_CONFIG0_OFFSET, &val);
+	if (res)
+		return res;
+
+	total = ((val & ROOT_CERT_TOTAL_NUM_BMSK) >> ROOT_CERT_TOTAL_NUM_SHFT) +
+		1;
+	if (total > SECBOOT_MAX_NUM_ROOT_CERTS)
+		return TEE_ERROR_BAD_STATE;
+	if (total <= 1)
+		return TEE_SUCCESS;
+
+	res = read_sense_reg(MRC_ACTIVATION_LIST_OFFSET, &val);
+	if (res)
+		return res;
+	*activation_list = val & MRC_ROOT_CERT_LIST_BMSK;
+
+	res = read_sense_reg(MRC_REVOCATION_LIST_OFFSET, &val);
+	if (res)
+		return res;
+	*revocation_list = val & MRC_ROOT_CERT_LIST_BMSK;
+
+	*num_roots = total;
+	*root_sel_enabled = true;
+
+	return TEE_SUCCESS;
+}
+
+#ifdef CFG_QCOM_PAS_AUTH
+static TEE_Result qcom_secboot_blow_mrc_fuses(uint32_t activation_list,
+					      uint32_t revocation_list)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result cleanup_res = TEE_SUCCESS;
+	uint32_t row[2] = { };
+
+	res = qfprom_read_row(MRC_ACTIVATION_LIST_RAW_ADDR,
+			      QFPROM_ADDR_SPACE_RAW, row);
+	if (res) {
+		EMSG("MRC: activation list read failed: %#"PRIx32, res);
+		return res;
+	}
+
+	/* Existing activation must be locked even without new requests. */
+	if (!activation_list && !revocation_list && !row[0])
+		return TEE_SUCCESS;
+
+	if (activation_list & ~MRC_ROOT_CERT_LIST_BMSK ||
+	    revocation_list & ~MRC_ROOT_CERT_LIST_BMSK) {
+		EMSG("MRC: activation/revocation list out of range: %#"PRIx32
+		     "/%#"PRIx32, activation_list, revocation_list);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	res = qfprom_hw_init();
+	if (res)
+		return res;
+
+	/* Antifuse writes only set bits; safe to write the bitmap directly. */
+	row[0] = activation_list;
+	row[1] = 0;
+	res = qfprom_write_row(MRC_ACTIVATION_LIST_RAW_ADDR, row);
+	if (res) {
+		EMSG("MRC: activation list fuse write failed: %#"PRIx32, res);
+		goto out;
+	}
+
+	row[0] = revocation_list;
+	res = qfprom_write_row(MRC_REVOCATION_LIST_RAW_ADDR, row);
+	if (res) {
+		EMSG("MRC: revocation list fuse write failed: %#"PRIx32, res);
+		goto out;
+	}
+
+	res = write_sense_reg(MRC_STICKY_BIT_OFFSET, MRC_STICKY_BIT_BMSK);
+	if (res)
+		EMSG("MRC: failed to set sticky bit: %#"PRIx32, res);
+
+out:
+	cleanup_res = qfprom_hw_deinit();
+	if (cleanup_res)
+		EMSG("MRC: programming cleanup failed: %#"PRIx32, cleanup_res);
+	if (res || cleanup_res)
+		EMSG("MRC: fuses may be partially programmed");
+	return res ? res : cleanup_res;
+}
+
+TEE_Result qcom_secboot_provision_mrc_fuses(void)
+{
+	return qcom_secboot_blow_mrc_fuses(CFG_QCOM_MRC_ACTIVATION_LIST,
+					    CFG_QCOM_MRC_REVOCATION_LIST);
+}
+
+/* Otherwise the boot provisioning hook invokes this before sec.elf. */
+#ifndef CFG_QCOM_QFPROM_FUSEPROV
+driver_init(qcom_secboot_provision_mrc_fuses);
+#endif
+#endif /* CFG_QCOM_PAS_AUTH */
 
 TEE_Result qcom_secboot_get_soc_hw_version(uint32_t *fam_dev)
 {
