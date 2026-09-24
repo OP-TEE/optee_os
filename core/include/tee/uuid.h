@@ -22,5 +22,6 @@ void tee_uuid_to_octets(uint8_t *dst, const TEE_UUID *src);
  * @src: pointer to octet string
  */
 void tee_uuid_from_octets(TEE_UUID *dst, const uint8_t *src);
+bool tee_uuid_is_nil(const TEE_UUID *uuid);
 
 #endif /*__TEE_UUID*/
