@@ -371,6 +371,10 @@ TEE_Result to_bounce_params(uint32_t param_types,
 			if (res)
 				return res;
 			break;
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+			if (size)
+				memset(kptr, 0, size);
+			break;
 		case TEE_PARAM_TYPE_VALUE_INPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
 			bparams[i].value.a = params[i].value.a;
@@ -405,11 +409,12 @@ TEE_Result from_bounce_params(uint32_t param_types,
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			uptr = params[i].memref.buffer;
 			kptr = bparams[i].memref.buffer;
-			size = bparams[i].memref.size;
+			size = MIN(params[i].memref.size,
+				   bparams[i].memref.size);
 			res = copy_to_user(uptr, kptr, size);
 			if (res)
 				return res;
-			params[i].memref.size = size;
+			params[i].memref.size = bparams[i].memref.size;
 			break;
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
