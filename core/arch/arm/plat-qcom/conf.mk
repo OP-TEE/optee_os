@@ -33,7 +33,7 @@ ta-targets = ta_arm64
 supported-ta-targets ?= ta_arm64
 
 # Architecture family mapping
-HOYA_ARCH_CHIPSETS := kodiak lemans
+HOYA_ARCH_CHIPSETS := kodiak lemans monaco
 BOBCAT_ARCH_CHIPSETS := ipq96xx ipq52xx
 WILDCAT_ARCH_CHIPSETS := nord
 
