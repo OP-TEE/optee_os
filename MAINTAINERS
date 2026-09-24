@@ -107,6 +107,12 @@ R:	Clement Leger <clement.leger@bootlin.com> [@clementleger]
 S:	Maintained
 F:	core/drivers/clk/
 
+Qualcomm Clock driver framework
+R:	Naresh Nunna <nnunna@qti.qualcomm.com> [@nnunna94]
+S:	Maintained
+F:	core/drivers/clk/qcom/
+F:	core/include/drivers/clk_qcom.h
+
 Core Drivers I2C
 R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
 R:	Sahil Malhotra <sahil.malhotra@nxp.com> [@sahilnxp]
