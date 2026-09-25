@@ -199,6 +199,45 @@ static unsigned long core_mmu_pgt_to_satp(unsigned long asid,
 	return satp;
 }
 
+/*
+ * Svpbmt: PBMT overrides the PMAs of a leaf PTE. Device and strongly
+ * ordered mappings get PBMT=IO (non-cacheable, non-idempotent, strongly
+ * ordered), cacheable ones keep PBMT=PMA. NC is not used.
+ *
+ * Needs menvcfg.PBMTE set by the M-mode firmware, otherwise the field is
+ * reserved and a non-zero value raises a page fault.
+ */
+/* TEE_MATTR_MEM_TYPE_* field of a mattr word */
+#define MATTR_MEM_TYPE_FIELD	SHIFT_U32(TEE_MATTR_MEM_TYPE_MASK, \
+					  TEE_MATTR_MEM_TYPE_SHIFT)
+
+static unsigned long mem_type_to_pbmt(uint32_t attr)
+{
+	unsigned long pbmt = PTE_PBMT_PMA;
+
+	switch (get_field_u32(attr, MATTR_MEM_TYPE_FIELD)) {
+	case TEE_MATTR_MEM_TYPE_DEV:
+	case TEE_MATTR_MEM_TYPE_STRONGLY_O:
+		pbmt = PTE_PBMT_IO;
+		break;
+	default:
+		break;
+	}
+
+	return set_field_u64(0, PTE_PBMT, pbmt);
+}
+
+static uint32_t pbmt_to_mem_type(unsigned long entry)
+{
+	switch (get_field_u64(entry, PTE_PBMT)) {
+	case PTE_PBMT_IO:
+	case PTE_PBMT_NC:
+		return TEE_MATTR_MEM_TYPE_DEV;
+	default:
+		return TEE_MATTR_MEM_TYPE_CACHED;
+	}
+}
+
 static unsigned long pte_to_mattr(unsigned level __maybe_unused,
 				  struct mmu_pte *pte)
 {
@@ -230,6 +269,10 @@ static unsigned long pte_to_mattr(unsigned level __maybe_unused,
 
 	if (entry & PTE_G)
 		mattr |= TEE_MATTR_GLOBAL;
+
+	if (IS_ENABLED(CFG_RISCV_ISA_SVPBMT))
+		mattr = set_field_u32(mattr, MATTR_MEM_TYPE_FIELD,
+				      pbmt_to_mem_type(entry));
 
 	return mattr;
 }
@@ -267,6 +310,9 @@ static unsigned long mattr_to_pte_bits(unsigned level __maybe_unused,
 
 	if (attr & TEE_MATTR_GLOBAL)
 		pte_bits |= PTE_G;
+
+	if (IS_ENABLED(CFG_RISCV_ISA_SVPBMT))
+		pte_bits |= mem_type_to_pbmt(attr);
 
 	return pte_bits;
 }
