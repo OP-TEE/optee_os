@@ -616,6 +616,9 @@ static TEE_Result asu_authenc_init(struct drvcrypt_authenc_init *dinit)
 
 	/* Reset fallback flag for context reuse */
 	ae_ctx->use_sw_fallback = false;
+	/* Store parameters */
+	ae_ctx->operation_type = dinit->encrypt ? ASU_AES_ENCRYPT_OPERATION :
+					      ASU_AES_DECRYPT_OPERATION;
 
 	/*
 	 * Software fallback for:
@@ -660,9 +663,6 @@ static TEE_Result asu_authenc_init(struct drvcrypt_authenc_init *dinit)
 	cache_operation(TEE_CACHEFLUSH, ae_ctx->key_obj,
 			sizeof(*ae_ctx->key_obj));
 
-	/* Store parameters */
-	ae_ctx->operation_type = dinit->encrypt ? ASU_AES_ENCRYPT_OPERATION :
-					      ASU_AES_DECRYPT_OPERATION;
 	ae_ctx->tag_len = dinit->tag_len;
 	ae_ctx->total_aad_len = dinit->aad_len;
 	ae_ctx->processed_aad_len = 0;
