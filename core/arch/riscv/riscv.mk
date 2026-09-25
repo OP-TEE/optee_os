@@ -147,6 +147,11 @@ endif
 CFG_RISCV_ISA_SVPBMT ?= n
 $(eval $(call cfg-depends-all,CFG_RISCV_ISA_SVPBMT,CFG_RV64_core))
 
+# Svinval: range TLB invalidation with SINVAL.VMA, see tlb_helpers_rv.S.
+# Enabled there with ".option arch", not via -march: GCC 13 rejects an
+# S-class extension after the Z-class ones in the ISA string.
+CFG_RISCV_ISA_SVINVAL ?= n
+
 riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
 riscv-abi = $(ABI_BASE)$(ABI_D)
 
