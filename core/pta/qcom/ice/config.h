@@ -1,0 +1,62 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+#ifndef __ICE_CONFIG_H
+#define __ICE_CONFIG_H
+
+#include <platform_config.h>
+#include <stdint.h>
+
+#define ICE_MAX_KEY_IDX				32
+#define ICE_CRYPTOCFG_DATA_REGS			16
+
+/* Key sizes in bytes */
+#define ICE_AES128_KEY_SIZE			16
+#define ICE_AES256_KEY_SIZE			32
+
+/*
+ * ICE key register layout within a slot: the DATA key starts at n = 0, and
+ * for XTS the SALT (tweak) key immediately follows it, at
+ * n = key_size_bytes / 4 -- n = 4 for XTS-128, n = 8 for XTS-256. There is no
+ * fixed register offset for the SALT key; it must be computed from the key
+ * size in use.
+ */
+#define ICE_KEY_REG_SIZE			32
+#define ICE_KEY_DATA_REG_START			0
+
+/*
+ * ICE LUT-keys register offsets from the LUT-keys base, common to eMMC/SDCC
+ * and UFS. The field masks are used with io_write32_off_field(), which derives
+ * the shift from the mask.
+ */
+#define ICE_CRYPTOCFG_r_n_OFF(r, n) \
+	(0x0 + (0x80 * (r)) + (0x4 * (n)))
+#define ICE_CRYPTOCFG_r_16_OFF(r) \
+	(0x40 + (0x80 * (r)))
+#define ICE_CRYPTOCFG_r_16_CFGE_BMSK		0x80000000
+#define ICE_CRYPTOCFG_r_16_CAPIDX_BMSK		0xff00
+#define ICE_CRYPTOCFG_r_16_DUSIZE_BMSK		0xff
+
+enum ice_capability_index_type {
+	ICE_CIPHER_MODE_XTS_128 = 0x0,
+	ICE_CIPHER_MODE_CBC_128 = 0x1,
+	ICE_CIPHER_MODE_ECB_128 = 0x2,
+	ICE_CIPHER_MODE_XTS_256 = 0x3,
+	ICE_CIPHER_MODE_CBC_256 = 0x4,
+	ICE_CIPHER_MODE_ECB_256 = 0x5
+};
+
+enum ice_data_unit_type {
+	ICE_DATA_UNIT_SIZE_512   = 0x1,
+	ICE_DATA_UNIT_SIZE_1024  = 0x2,
+	ICE_DATA_UNIT_SIZE_2048  = 0x4,
+	ICE_DATA_UNIT_SIZE_4096  = 0x8,
+	ICE_DATA_UNIT_SIZE_8192  = 0x10,
+	ICE_DATA_UNIT_SIZE_16384 = 0x20,
+	ICE_DATA_UNIT_SIZE_32768 = 0x40,
+	ICE_DATA_UNIT_SIZE_65536 = 0x80
+};
+
+#endif /* __ICE_CONFIG_H */
