@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <trace.h>
 
-#include "clock_group_qcom.h"
+#include "clock_group.h"
 
 #define CBCR_BRANCH_ENABLE_BIT		BIT(0)
 #define CBCR_HW_CTL_ENABLE_BIT		BIT(1)
