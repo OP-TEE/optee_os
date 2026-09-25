@@ -140,6 +140,13 @@ ISA_ZICBOM = _zicbom
 CFG_RISCV_CBOM_BLOCK_SIZE ?= 64
 endif
 
+# Svpbmt page-based memory types, used to map device memory as
+# non-cacheable and strongly ordered regardless of the platform PMAs. The
+# M-mode firmware must set menvcfg.PBMTE for the field to take effect.
+# RV64 only: Sv32 PTEs have no PBMT field.
+CFG_RISCV_ISA_SVPBMT ?= n
+$(eval $(call cfg-depends-all,CFG_RISCV_ISA_SVPBMT,CFG_RV64_core))
+
 riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
 riscv-abi = $(ABI_BASE)$(ABI_D)
 
