@@ -486,6 +486,8 @@ static void check_build_isa(void)
 		  "CFG_RISCV_ISA_C" },
 		{ RISCV_ISA_EXT_ZBB, IS_ENABLED(CFG_RISCV_ISA_ZBB),
 		  "CFG_RISCV_ISA_ZBB" },
+		{ RISCV_ISA_EXT_SVPBMT, IS_ENABLED(CFG_RISCV_ISA_SVPBMT),
+		  "CFG_RISCV_ISA_SVPBMT" },
 	};
 	size_t n = 0;
 
