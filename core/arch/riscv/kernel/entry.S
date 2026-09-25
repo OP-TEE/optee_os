@@ -83,7 +83,8 @@
 .macro wait_secondary
 #ifdef CFG_BOOT_SYNC_CPU
 	lla	t0, sem_cpu_sync
-	li	t1, CFG_TEE_CORE_NB_CORE
+	lla	t1, boot_hart_count
+	lw	t1, 0(t1)
 	li	t2, SEM_CPU_READY
 1:
 	addi	t1, t1, -1
@@ -214,6 +215,14 @@ UNWIND(	.cantunwind)
 	li	a0, THREAD_CLF_TMP
 	sw	a0, THREAD_CORE_LOCAL_FLAGS(tp)
 #endif
+
+	/* Record the boot arguments, a0 = hart ID, a1 = device tree */
+	mv	a0, s0
+	mv	a1, s1
+	mv	a2, x0
+	mv	a3, x0
+	mv	a4, x0
+	jal	boot_save_args
 
 #ifdef CFG_RISCV_SBI
 	jal	sbi_init

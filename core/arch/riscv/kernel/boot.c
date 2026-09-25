@@ -11,6 +11,7 @@
 #include <keep.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
+#include <kernel/hart.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -27,12 +28,16 @@
 #include <sbi.h>
 #include <stdalign.h>
 #include <stdio.h>
+#include <string.h>
 #include <trace.h>
 #include <util.h>
 
 #define PADDR_INVALID               ULONG_MAX
 
 paddr_t start_addr;
+
+/* Physical address of the device tree passed by the firmware, if any */
+static unsigned long boot_arg_fdt __nex_bss;
 
 #ifdef CFG_BOOT_SYNC_CPU
 /*
@@ -44,6 +49,12 @@ uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 #endif
 
 uint32_t hartids[CFG_TEE_CORE_NB_CORE];
+size_t hartids_count = CFG_TEE_CORE_NB_CORE;
+/*
+ * Number of harts taking part in the boot, primary included. Read by
+ * wait_secondary in entry.S when CFG_BOOT_SYNC_CPU=y.
+ */
+uint32_t boot_hart_count = CFG_TEE_CORE_NB_CORE;
 
 #if defined(CFG_DT)
 static int mark_tddram_as_reserved(struct dt_descriptor *dt)
@@ -78,19 +89,20 @@ void boot_start_secondary_cores(void)
 {
 	uint32_t curr_hartid = thread_get_core_local()->hart_id;
 	enum sbi_hsm_hart_state status = 0;
+	uint32_t started = 0;
 	uint32_t hartid = 0;
+	size_t i = 0;
 	int rc = 0;
-	int i = 0;
 
 	/* The primary CPU is always indexed by 0 */
 	assert(get_core_pos() == 0);
 
-	if (CFG_TEE_CORE_NB_CORE > 1 && !sbi_ext_available(SBI_EXT_HSM)) {
+	if (hartids_count > 1 && !sbi_ext_available(SBI_EXT_HSM)) {
 		EMSG("SBI HSM extension required to start secondary harts");
 		panic();
 	}
 
-	for (i = 0; i < CFG_TEE_CORE_NB_CORE; i++) {
+	for (i = 0; i < hartids_count; i++) {
 		hartid = hartids[i];
 
 		if (hartid == curr_hartid)
@@ -102,8 +114,11 @@ void boot_start_secondary_cores(void)
 		 * of the trusted domain, or its HSM state is
 		 * not stopped.
 		 */
-		if (rc || status != SBI_HSM_STATE_STOPPED)
+		if (rc || status != SBI_HSM_STATE_STOPPED) {
+			IMSG("Not starting hart%"PRIu32": HSM status %d, rc %d",
+			     hartid, status, rc);
 			continue;
+		}
 
 		DMSG("Bringing up secondary hart%"PRIu32, hartid);
 
@@ -112,7 +127,11 @@ void boot_start_secondary_cores(void)
 			EMSG("Error starting secondary hart%"PRIu32, hartid);
 			panic();
 		}
+		started++;
 	}
+
+	/* Only the harts actually started can reach the boot barrier */
+	boot_hart_count = started + 1;
 }
 #endif
 
@@ -180,16 +199,23 @@ __weak void boot_primary_init_intc(void)
 {
 }
 
-/* May be overridden in plat-$(PLATFORM)/main.c */
+/*
+ * May be overridden in plat-$(PLATFORM)/main.c. An override fills hartids[]
+ * and sets hartids_count to the number of valid entries.
+ *
+ * The default takes every enabled CPU node of the device tree, in order,
+ * up to CFG_TEE_CORE_NB_CORE. Which of those harts are ours is settled by
+ * the SBI HSM status when they are started.
+ */
 __weak void boot_primary_init_core_ids(void)
 {
 #ifdef CFG_DT
 	const void *fdt = get_external_dt();
-	const fdt32_t *reg = NULL;
+	const char *type = NULL;
+	uint32_t hartid = 0;
 	int cpu_offset = 0;
 	int offset = 0;
-	int len = 0;
-	int i = 0;
+	size_t n = 0;
 
 	offset = fdt_path_offset(fdt, "/cpus");
 	if (offset < 0)
@@ -197,23 +223,40 @@ __weak void boot_primary_init_core_ids(void)
 
 	fdt_for_each_subnode(cpu_offset, fdt, offset) {
 		/*
-		 * Assume all TEE cores are enabled. The "reg"
-		 * property in the CPU node indicates the hart ID.
+		 * Only "cpu" nodes describe harts, /cpus also holds
+		 * cpu-map and idle-states nodes.
 		 */
+		type = fdt_getprop(fdt, cpu_offset, "device_type", NULL);
+		if (!type || strcmp(type, "cpu"))
+			continue;
+
 		if (fdt_get_status(fdt, cpu_offset) == DT_STATUS_DISABLED)
 			continue;
 
-		reg = fdt_getprop(fdt, cpu_offset, "reg", &len);
-		if (!reg) {
-			EMSG("CPU node does not have 'reg' property");
+		/* The "reg" property is the hart ID, one cell */
+		if (fdt_read_uint32(fdt, cpu_offset, "reg", &hartid)) {
+			EMSG("CPU node %s: no valid \"reg\" property",
+			     fdt_get_name(fdt, cpu_offset, NULL));
 			continue;
 		}
 
-		assert(i < CFG_TEE_CORE_NB_CORE);
-		hartids[i++] = fdt32_to_cpu(*reg);
+		if (n == CFG_TEE_CORE_NB_CORE) {
+			IMSG("Ignoring hart%"PRIu32": CFG_TEE_CORE_NB_CORE=%u",
+			     hartid, CFG_TEE_CORE_NB_CORE);
+			continue;
+		}
+
+		hartids[n++] = hartid;
 	}
 
-	assert(i == CFG_TEE_CORE_NB_CORE);
+	if (!n)
+		panic("No enabled CPU node in the device tree");
+
+	if (n < CFG_TEE_CORE_NB_CORE)
+		IMSG("%zu hart(s) in device tree, CFG_TEE_CORE_NB_CORE=%u",
+		     n, CFG_TEE_CORE_NB_CORE);
+
+	hartids_count = n;
 #endif
 }
 
@@ -257,8 +300,13 @@ void __weak boot_init_primary_runtime(void)
 	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
 	     (unsigned long)boot_mmu_config.map_offset, VCORE_START_VA);
 #endif
-	boot_primary_init_intc();
+	/*
+	 * The interrupt controller resolves the context of each hart from
+	 * the device tree, so the hart list has to be known first.
+	 */
 	boot_primary_init_core_ids();
+	boot_primary_init_intc();
+	hart_features_init();
 	init_tee_runtime();
 	boot_mem_release_tmp_alloc();
 }
@@ -299,6 +347,19 @@ void boot_init_secondary(unsigned long nsec_entry __unused)
 	init_secondary_helper();
 }
 
+/*
+ * Called from entry.S with the arguments the firmware passed to _start:
+ * a0 is the hart ID and a1 the device tree address, already replaced by
+ * CFG_DT_ADDR there when that is defined. The remaining arguments are
+ * unused.
+ */
+void __weak boot_save_args(unsigned long a0 __unused, unsigned long a1,
+			   unsigned long a2 __unused, unsigned long a3 __unused,
+			   unsigned long a4 __unused)
+{
+	boot_arg_fdt = a1;
+}
+
 #if defined(CFG_CORE_ASLR)
 /* May be overridden in plat-$(PLATFORM)/main.c */
 __weak unsigned long plat_get_aslr_seed(void)
@@ -306,22 +367,69 @@ __weak unsigned long plat_get_aslr_seed(void)
 	return 0;
 }
 
-__weak unsigned long get_aslr_seed(void)
+#if defined(CFG_DT)
+/*
+ * Read the seed the firmware left in /secure-chosen/kaslr-seed. The
+ * device tree is reached through the physical address the firmware
+ * passed, since the MMU is not enabled yet and the external device tree
+ * is not mapped.
+ */
+static unsigned long get_fdt_aslr_seed(void)
 {
-	TEE_Result res = TEE_SUCCESS;
-	unsigned long seed = 0;
+	void *fdt = (void *)boot_arg_fdt;
+	const uint64_t *seed = NULL;
+	int offs = 0;
+	int len = 0;
+	int rc = 0;
 
-	if (IS_ENABLED(CFG_RISCV_ZKR_RNG) && riscv_detect_csr_seed()) {
-		res = hw_get_random_bytes(&seed, sizeof(seed));
-		if (res) {
-			DMSG("Zkr: Failed to seed ASLR");
-			goto out;
-		}
-		return seed;
+	if (!fdt) {
+		DMSG("No fdt");
+		goto err;
 	}
 
-out:
+	rc = fdt_check_header(fdt);
+	if (rc) {
+		DMSG("Bad fdt: %d", rc);
+		goto err;
+	}
+
+	offs = fdt_path_offset(fdt, "/secure-chosen");
+	if (offs < 0) {
+		DMSG("Cannot find /secure-chosen");
+		goto err;
+	}
+
+	seed = fdt_getprop(fdt, offs, "kaslr-seed", &len);
+	if (!seed || len != sizeof(*seed)) {
+		DMSG("Cannot find valid kaslr-seed");
+		goto err;
+	}
+
+	return fdt64_to_cpu(fdt64_ld(seed));
+
+err:
 	/* Try platform implementation */
 	return plat_get_aslr_seed();
+}
+#else /*!CFG_DT*/
+static unsigned long get_fdt_aslr_seed(void)
+{
+	/* Try platform implementation */
+	return plat_get_aslr_seed();
+}
+#endif /*!CFG_DT*/
+
+__weak unsigned long get_aslr_seed(void)
+{
+	unsigned long seed = 0;
+
+	/* A hart with Zkr seeds itself, the device tree is the fallback */
+	if (IS_ENABLED(CFG_RISCV_ZKR_RNG) && riscv_detect_csr_seed()) {
+		if (!hw_get_random_bytes(&seed, sizeof(seed)))
+			return seed;
+		DMSG("Zkr: Failed to seed ASLR");
+	}
+
+	return get_fdt_aslr_seed();
 }
 #endif /*CFG_CORE_ASLR*/

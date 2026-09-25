@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  */
 
 #include <assert.h>
 #include <config.h>
 #include <drivers/plic.h>
+#include <encoding.h>
 #include <io.h>
 #include <kernel/dt.h>
 #include <kernel/interrupt.h>
+#include <kernel/misc_arch.h>
 #include <kernel/panic.h>
+#include <kernel/thread.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <trace.h>
@@ -52,28 +56,27 @@
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, PLIC_BASE, PLIC_REG_SIZE);
 
+#define PLIC_CONTEXT_INVALID		UINT32_MAX
+
 struct plic_data {
 	vaddr_t plic_base;
 	size_t max_it;
+	/* Context of the hart at each entry of hartids[] */
+	uint32_t hart_context[CFG_TEE_CORE_NB_CORE];
+	/* Context of the hart at each core position, set at hart init */
+	uint32_t context[CFG_TEE_CORE_NB_CORE];
 	struct itr_chip chip;
 };
 
 static struct plic_data plic_data __nex_bss;
 
-/*
- * We assume that each hart has M-mode and S-mode, so the contexts look like:
- * PLIC context 0 is hart 0 M-mode
- * PLIC context 1 is hart 0 S-mode
- * PLIC context 2 is hart 1 M-mode
- * PLIC context 3 is hart 1 S-mode
- * ...
- */
 static uint32_t plic_get_context(void)
 {
-	size_t hartid = get_core_pos();
-	bool smode = IS_ENABLED(CFG_RISCV_S_MODE) ? true : false;
+	uint32_t context = plic_data.context[get_core_pos()];
 
-	return hartid * 2 + smode;
+	assert(context != PLIC_CONTEXT_INVALID);
+
+	return context;
 }
 
 static bool __maybe_unused
@@ -247,9 +250,152 @@ static void plic_init_base_addr(struct plic_data *pd, paddr_t plic_base_pa)
 		pd->chip.dt_get_irq = plic_dt_get_irq;
 }
 
+/*
+ * The PLIC node lists its contexts in "interrupts-extended", one
+ * <phandle irq> pair per context in context order, the phandle being the
+ * interrupt controller of a hart. The context of a hart is the index of
+ * the pair naming its interrupt controller with the external interrupt
+ * of the privilege mode OP-TEE runs in.
+ */
+static bool plic_dt_context(const void *fdt, int node, uint32_t hartid,
+			    uint32_t *context)
+{
+	uint32_t irq = IS_ENABLED(CFG_RISCV_M_MODE) ? IRQ_M_EXT : IRQ_S_EXT;
+	const fdt32_t *prop = NULL;
+	uint32_t phandle = 0;
+	uint32_t reg = 0;
+	int intc = 0;
+	int cpu = 0;
+	int len = 0;
+	int n = 0;
+
+	prop = fdt_getprop(fdt, node, "interrupts-extended", &len);
+	if (!prop)
+		return false;
+	len /= sizeof(*prop);
+
+	for (n = 0; n + 1 < len; n += 2) {
+		phandle = fdt32_to_cpu(prop[n]);
+		/* An absent context is <0xffffffff> */
+		if (phandle == UINT32_MAX || fdt32_to_cpu(prop[n + 1]) != irq)
+			continue;
+
+		intc = fdt_node_offset_by_phandle(fdt, phandle);
+		if (intc < 0)
+			continue;
+
+		cpu = fdt_parent_offset(fdt, intc);
+		if (cpu < 0 || fdt_read_uint32(fdt, cpu, "reg", &reg))
+			continue;
+
+		if (reg == hartid) {
+			*context = n / 2;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/* The PLIC node is the one whose "reg" is the base we were given */
+static int plic_dt_node(const void *fdt, paddr_t plic_base_pa)
+{
+	static const char * const compatible[] = {
+		"riscv,plic0",
+		"sifive,plic-1.0.0",
+		"thead,c900-plic",
+	};
+	paddr_t base = 0;
+	size_t size = 0;
+	size_t i = 0;
+	int node = 0;
+
+	for (i = 0; i < ARRAY_SIZE(compatible); i++) {
+		node = fdt_node_offset_by_compatible(fdt, -1, compatible[i]);
+		while (node >= 0) {
+			if (!fdt_reg_info(fdt, node, &base, &size) &&
+			    base == plic_base_pa)
+				return node;
+
+			node = fdt_node_offset_by_compatible(fdt, node,
+							     compatible[i]);
+		}
+	}
+
+	return -1;
+}
+
+/*
+ * Without a device tree, the contexts are assumed to be laid out with an
+ * M-mode and an S-mode context per hart, in hart ID order:
+ * PLIC context 0 is hart 0 M-mode
+ * PLIC context 1 is hart 0 S-mode
+ * PLIC context 2 is hart 1 M-mode
+ * PLIC context 3 is hart 1 S-mode
+ * ...
+ */
+static uint32_t plic_default_context(uint32_t hartid)
+{
+	return hartid * 2 + IS_ENABLED(CFG_RISCV_S_MODE);
+}
+
+static void plic_init_hart_contexts(struct plic_data *pd,
+				    paddr_t plic_base_pa)
+{
+	const void *fdt = NULL;
+	int node = -1;
+	size_t n = 0;
+
+	if (IS_ENABLED(CFG_DT))
+		fdt = get_dt();
+	if (fdt)
+		node = plic_dt_node(fdt, plic_base_pa);
+	if (node < 0)
+		DMSG("No PLIC node in device tree, assuming default contexts");
+
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+		pd->context[n] = PLIC_CONTEXT_INVALID;
+		pd->hart_context[n] = PLIC_CONTEXT_INVALID;
+		if (n >= hartids_count)
+			continue;
+
+		if (node < 0)
+			pd->hart_context[n] = plic_default_context(hartids[n]);
+		else if (!plic_dt_context(fdt, node, hartids[n],
+					  &pd->hart_context[n]))
+			EMSG("No PLIC context for hart%"PRIu32, hartids[n]);
+	}
+}
+
+/* Set the context of the calling hart, then quiesce it */
+static void plic_init_per_hart(struct plic_data *pd)
+{
+	uint32_t context = PLIC_CONTEXT_INVALID;
+	uint32_t hartid = thread_get_hartid();
+	size_t n = 0;
+
+	for (n = 0; n < hartids_count; n++) {
+		if (hartids[n] == hartid) {
+			context = pd->hart_context[n];
+			break;
+		}
+	}
+
+	if (context == PLIC_CONTEXT_INVALID) {
+		EMSG("hart%"PRIu32" has no PLIC context", hartid);
+		panic();
+	}
+	pd->context[get_core_pos()] = context;
+
+	for (n = 0; n <= pd->max_it; n++)
+		plic_disable_interrupt(pd, n);
+
+	plic_set_threshold(pd, 0);
+}
+
 void plic_hart_init(void)
 {
-	/* TODO: To be called by secondary harts */
+	plic_init_per_hart(&plic_data);
 }
 
 void plic_init(paddr_t plic_base_pa)
@@ -258,13 +404,11 @@ void plic_init(paddr_t plic_base_pa)
 	size_t n = 0;
 
 	plic_init_base_addr(pd, plic_base_pa);
+	plic_init_hart_contexts(pd, plic_base_pa);
+	plic_init_per_hart(pd);
 
-	for (n = 0; n <= pd->max_it; n++) {
-		plic_disable_interrupt(pd, n);
+	for (n = 0; n <= pd->max_it; n++)
 		plic_set_priority(pd, n, 1);
-	}
-
-	plic_set_threshold(pd, 0);
 
 	interrupt_main_init(&plic_data.chip);
 }
