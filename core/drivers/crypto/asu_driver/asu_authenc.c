@@ -127,6 +127,7 @@ struct asu_authenc_ctx {
 	size_t total_aad_len;
 	size_t total_plen;
 	size_t processed_plen;
+	bool initialized;
 	/* Software fallback for 192-bit keys or non-aligned GCM AAD */
 	bool use_sw_fallback;
 	struct crypto_authenc_ctx *sw_ctx;
@@ -431,6 +432,7 @@ static TEE_Result asu_authenc_alloc_ctx(void **ctx, uint32_t algo)
 	}
 
 	ae_ctx->mode = mode;
+	ae_ctx->initialized = false;
 	if (IS_ENABLED(CFG_AMD_ASU_SW_FALLBACK)) {
 		ret = asu_authenc_sw_alloc_ctx(ae_ctx);
 		if (ret) {
@@ -459,6 +461,31 @@ free_ctx:
 }
 
 /*
+ * asu_authenc_free_engine() - Sends FINAL with zero data to reset ASUFW
+ * engine state when client missed final.
+ */
+static void asu_authenc_free_engine(struct asu_authenc_ctx *ae_ctx)
+{
+	struct asu_aes_params params = {};
+	uint32_t fw_status = 0;
+
+	params.operation_type = ae_ctx->operation_type;
+	params.operation_flags = ASU_AES_FINAL;
+	params.mode = ae_ctx->mode;
+	params.data_len = 0;
+	params.is_last = ASU_AES_LAST;
+	params.input_data_addr = 0;
+	params.output_data_addr = 0;
+	params.tag_addr = virt_to_phys(ae_ctx->dst_dma_buf);
+	params.tag_len = ae_ctx->tag_len;
+	ae_ctx->cparam.priority = ASU_PRIORITY_HIGH;
+	ae_ctx->cparam.cbhandler = NULL;
+
+	asu_aes_send(ae_ctx, &params, &fw_status);
+	ae_ctx->initialized = false;
+}
+
+/**
  * asu_authenc_free_ctx() - Free context and release engine.
  * @ctx: Context to free
  */
@@ -468,6 +495,9 @@ static void asu_authenc_free_ctx(void *ctx)
 
 	if (!ae_ctx)
 		return;
+
+	if (ae_ctx->initialized)
+		asu_authenc_free_engine(ae_ctx);
 
 	/* Free software fallback context (always pre-allocated in alloc_ctx) */
 	if (IS_ENABLED(CFG_AMD_ASU_SW_FALLBACK))
@@ -626,6 +656,7 @@ static TEE_Result asu_authenc_init(struct drvcrypt_authenc_init *dinit)
 		ret = TEE_ERROR_GENERIC;
 		goto cleanup;
 	}
+	ae_ctx->initialized = true;
 
 	return ret;
 
@@ -700,6 +731,7 @@ asu_authenc_update_aad(struct drvcrypt_authenc_update_aad *dupdate)
 		if (ret || fw_status) {
 			EMSG("AAD update failed: ret=%d status=0x%x",
 			     ret, fw_status);
+			ae_ctx->initialized = false;
 			ret = TEE_ERROR_GENERIC;
 			goto out;
 		}
@@ -778,6 +810,7 @@ asu_authenc_update_payload(struct drvcrypt_authenc_update_payload *dupdate)
 		if (ret || fw_status) {
 			EMSG("Payload update failed: ret=%d status=0x%x",
 			     ret, fw_status);
+			ae_ctx->initialized = false;
 			ret = TEE_ERROR_GENERIC;
 			goto out;
 		}
@@ -853,6 +886,8 @@ static TEE_Result asu_authenc_enc_final(struct drvcrypt_authenc_final *dfinal)
 
 	ae_ctx->cparam.priority = ASU_PRIORITY_HIGH;
 	ae_ctx->cparam.cbhandler = NULL;
+	ae_ctx->initialized = false;
+
 	remaining = dfinal->src.length;
 	while (remaining) {
 		chunk_len = MIN(remaining, (size_t)ASU_AUTHENC_DATA_CHUNK_LEN);
@@ -972,6 +1007,7 @@ static TEE_Result asu_authenc_dec_final(struct drvcrypt_authenc_final *dfinal)
 
 	ae_ctx->cparam.priority = ASU_PRIORITY_HIGH;
 	ae_ctx->cparam.cbhandler = NULL;
+	ae_ctx->initialized = false;
 
 	remaining = dfinal->src.length;
 	while (remaining) {
@@ -1205,6 +1241,24 @@ static TEE_Result asu_cmac_send(struct asu_cmac_ctx *cmac_ctx,
 }
 
 /*
+ * asu_cmac_free_engine() - Send FINAL to reset ASU AES engine state.
+ */
+static void asu_cmac_free_engine(struct asu_cmac_ctx *cmac_ctx)
+{
+	struct asu_aes_params op = {};
+
+	op.operation_flags = ASU_AES_UPDATE | ASU_AES_FINAL;
+	op.mode = ASU_CMAC_MODE;
+	op.data_len = 0;
+	op.is_last = ASU_AES_LAST;
+	cmac_ctx->cparam.priority = ASU_PRIORITY_LOW;
+	cmac_ctx->cparam.cbhandler = NULL;
+
+	asu_cmac_send(cmac_ctx, &op);
+	cmac_ctx->cmac_started = false;
+}
+
+/*
  * asu_cmac_free_ctx() - Free ASU CMAC context and release the engine.
  * @ctx:	Crypto MAC context to free
  *
@@ -1215,6 +1269,9 @@ static void asu_cmac_free_ctx(struct crypto_mac_ctx *ctx)
 	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
 
 	if (cmac_ctx) {
+		if (cmac_ctx->cmac_started)
+			asu_cmac_free_engine(cmac_ctx);
+
 		if (IS_ENABLED(CFG_AMD_ASU_CMAC_SW_FALLBACK))
 			asu_cmac_sw_free_ctx(ctx);
 
@@ -1291,6 +1348,7 @@ static TEE_Result asu_cmac_final(struct crypto_mac_ctx *ctx,
 	op.operation_flags |= ASU_AES_UPDATE | ASU_AES_FINAL;
 
 	cache_operation(TEE_CACHEFLUSH, &op, sizeof(op));
+	cmac_ctx->cmac_started = false;
 
 	ret = asu_cmac_send(cmac_ctx, &op);
 	if (ret) {
