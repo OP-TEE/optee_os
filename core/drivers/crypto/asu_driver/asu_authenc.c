@@ -1055,13 +1055,16 @@ static TEE_Result asu_authenc_dec_final(struct drvcrypt_authenc_final *dfinal)
 
 		ret = asu_aes_send(ae_ctx, &params, &fw_status);
 		if (ret || fw_status) {
-			if (!ret && (fw_status & ASU_FW_STATUS_CODE_MASK) ==
-					ASU_FW_AES_TAG_COMPARE_FAILED)
+			if ((fw_status & ASU_FW_STATUS_CODE_MASK) ==
+					ASU_FW_AES_TAG_COMPARE_FAILED) {
 				ret = TEE_ERROR_MAC_INVALID;
-			else
+				EMSG("Dec update failed: tag mismatch 0x%x",
+				     fw_status);
+			} else {
 				ret = TEE_ERROR_GENERIC;
-			EMSG("Dec update failed: ret=%#x status=0x%x",
-			     ret, fw_status);
+				EMSG("Dec update failed: fw_status=0x%x",
+				     fw_status);
+			}
 			goto out;
 		}
 
@@ -1085,13 +1088,16 @@ static TEE_Result asu_authenc_dec_final(struct drvcrypt_authenc_final *dfinal)
 
 		ret = asu_aes_send(ae_ctx, &params, &fw_status);
 		if (ret || fw_status) {
-			if (!ret && (fw_status & ASU_FW_STATUS_CODE_MASK) ==
-					ASU_FW_AES_TAG_COMPARE_FAILED)
+			if ((fw_status & ASU_FW_STATUS_CODE_MASK) ==
+					ASU_FW_AES_TAG_COMPARE_FAILED) {
 				ret = TEE_ERROR_MAC_INVALID;
-			else
+				EMSG("Dec final failed: tag mismatch 0x%x",
+				     fw_status);
+			} else {
 				ret = TEE_ERROR_GENERIC;
-			EMSG("Dec final IPI failed: ret=%#x, fw_status=0x%x",
-			     ret, fw_status);
+				EMSG("Dec final failed: fw_status=0x%x",
+				     fw_status);
+			}
 			goto out;
 		}
 	}
