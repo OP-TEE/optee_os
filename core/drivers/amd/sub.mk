@@ -7,6 +7,6 @@
 subdirs-$(CFG_AMD_ASU_SUPPORT) += asu
 subdirs-$(CFG_AMD_PMC_SUPPORT) += pmc
 
-srcs-y += fw_compat.c
+srcs-$(CFG_AMD_ASU_SUPPORT) += fw_compat.c
 
 srcs-$(CFG_AMD_PS_GPIO) += gpio_common.c ps_gpio_driver.c
