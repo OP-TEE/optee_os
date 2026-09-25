@@ -708,12 +708,37 @@ void tlbi_va_asid(vaddr_t va, uint32_t asid)
 	tlbi_remote(va, SMALL_PAGE_SIZE, asid, true);
 }
 
-void tlbi_va_range(vaddr_t va, size_t len,
-		   size_t granule)
+#ifndef CFG_RISCV_ISA_SVINVAL
+/* One SFENCE.VMA per page, each a full fence and invalidation */
+void tlbi_va_range_local(vaddr_t va, size_t len, size_t granule)
 {
 	vaddr_t v = va;
 	size_t l = len;
 
+	while (l) {
+		tlbi_va_allasid_local(v);
+		l -= granule;
+		v += granule;
+	}
+}
+
+void tlbi_va_range_asid_local(vaddr_t va, size_t len, size_t granule,
+			      uint32_t asid)
+{
+	vaddr_t v = va;
+	size_t l = len;
+
+	while (l) {
+		tlbi_va_asid_local(v, asid);
+		l -= granule;
+		v += granule;
+	}
+}
+#endif /*!CFG_RISCV_ISA_SVINVAL*/
+
+void tlbi_va_range(vaddr_t va, size_t len,
+		   size_t granule)
+{
 	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
 	assert(!(va & (granule - 1)) && !(len & (granule - 1)));
 
@@ -722,11 +747,7 @@ void tlbi_va_range(vaddr_t va, size_t len,
 	 * with TLB invalidation.
 	 */
 	mb();
-	while (l) {
-		tlbi_va_allasid_local(v);
-		l -= granule;
-		v += granule;
-	}
+	tlbi_va_range_local(va, len, granule);
 	/* One remote fence covers the whole range */
 	tlbi_remote(va, len, 0, false);
 	/*
@@ -740,9 +761,6 @@ void tlbi_va_range(vaddr_t va, size_t len,
 void tlbi_va_range_asid(vaddr_t va, size_t len,
 			size_t granule, uint32_t asid)
 {
-	vaddr_t v = va;
-	size_t l = len;
-
 	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
 	assert(!(va & (granule - 1)) && !(len & (granule - 1)));
 
@@ -751,11 +769,7 @@ void tlbi_va_range_asid(vaddr_t va, size_t len,
 	 * and correctness of memory accesses.
 	 */
 	mb();
-	while (l) {
-		tlbi_va_asid_local(v, asid);
-		l -= granule;
-		v += granule;
-	}
+	tlbi_va_range_asid_local(va, len, granule, asid);
 	/* One remote fence covers the whole range */
 	tlbi_remote(va, len, asid, true);
 	/* Enforce ordering of memory operations and ensure that all
