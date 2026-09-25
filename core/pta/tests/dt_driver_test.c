@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2022, Linaro Limited
+ * Copyright (c) 2026, STMicroelectronics
  *
  * Tests introduce dummy test drivers and assiciated devices defined in
  * dt_driver_test.dtsi file with device resource dependencies.
@@ -12,6 +13,8 @@
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/gpio.h>
+#include <drivers/mailbox.h>
+#include <drivers/mailbox_device.h>
 #include <drivers/rstctrl.h>
 #include <initcall.h>
 #include <kernel/dt_driver.h>
@@ -35,6 +38,7 @@ struct dt_test_state {
 	enum dt_test_sid probe_clocks;
 	enum dt_test_sid probe_gpios;
 	enum dt_test_sid probe_resets;
+	enum dt_test_sid probe_mbox;
 	enum dt_test_sid crypto_dependencies;
 };
 
@@ -116,6 +120,8 @@ static TEE_Result dt_test_release(void)
 		    dt_test_str_sid[dt_test_state.probe_gpios]);
 	DT_TEST_MSG("Reset ctrl probe: %s",
 		    dt_test_str_sid[dt_test_state.probe_resets]);
+	DT_TEST_MSG("Mailbox probe: %s",
+		    dt_test_str_sid[dt_test_state.probe_mbox]);
 	DT_TEST_MSG("Crypto deps.: %s",
 		    dt_test_str_sid[dt_test_state.crypto_dependencies]);
 
@@ -145,6 +151,11 @@ TEE_Result dt_driver_test_status(void)
 	if (IS_ENABLED(CFG_DRIVERS_RSTCTRL) &&
 	    dt_test_state.probe_resets != SUCCESS) {
 		EMSG("Reset controllers probing test failed");
+		res = TEE_ERROR_GENERIC;
+	}
+	if (IS_ENABLED(CFG_DRIVERS_MAILBOX) &&
+	    dt_test_state.probe_mbox != SUCCESS) {
+		EMSG("Mailbox probing test failed");
 		res = TEE_ERROR_GENERIC;
 	}
 	if (dt_test_state.crypto_dependencies != SUCCESS) {
@@ -218,6 +229,93 @@ static TEE_Result probe_test_clocks(const void *fdt, int node)
 err:
 	if (res != TEE_ERROR_DEFER_DRIVER_INIT)
 		dt_test_state.probe_clocks = FAILED;
+
+	return res;
+}
+
+#define DT_TEST_MBOX_MTU		8
+
+/* Reception callback, registered to avoid any asynchronous notification */
+static void dt_test_mbox_rx_callback(void *cookie __unused)
+{
+}
+
+static TEE_Result probe_test_mbox(const void *fdt, int node)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct mbox_chan *chan0 = NULL;
+	struct mbox_chan *chan1 = NULL;
+	struct mbox_chan *chan = NULL;
+	size_t size = 0;
+
+	DT_TEST_MSG("Probe mailboxes");
+	dt_test_state.probe_mbox = IN_PROGRESS;
+
+	res = mbox_dt_register_chan_by_index(dt_test_mbox_rx_callback, NULL,
+					     NULL, fdt, node, 0, &chan0);
+	if (res)
+		goto err;
+
+	res = mbox_dt_register_chan_by_index(dt_test_mbox_rx_callback, NULL,
+					     NULL, fdt, node, 1, &chan1);
+	if (res)
+		goto err;
+
+	DT_TEST_MSG("Check valid mailbox references");
+
+	if (chan0 == chan1) {
+		DT_TEST_MSG("Expected distinct mailbox channels");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	res = mbox_data_max_size(chan0, &size);
+	if (res || size != DT_TEST_MBOX_MTU) {
+		DT_TEST_MSG("Unexpected mailbox mtu");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	res = mbox_dt_register_chan_by_name(dt_test_mbox_rx_callback, NULL,
+					    NULL, fdt, node, "mbox0", &chan);
+	if (res || chan != chan0) {
+		DT_TEST_MSG("Unexpected mailbox reference");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	res = mbox_dt_register_chan_by_name(dt_test_mbox_rx_callback, NULL,
+					    NULL, fdt, node, "mbox1", &chan);
+	if (res || chan != chan1) {
+		DT_TEST_MSG("Unexpected mailbox reference");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	DT_TEST_MSG("Bad mailbox reference");
+
+	res = mbox_dt_register_chan_by_index(dt_test_mbox_rx_callback, NULL,
+					     NULL, fdt, node, 2, &chan);
+	if (!res) {
+		DT_TEST_MSG("Unexpected mailbox found on invalid index");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	res = mbox_dt_register_chan_by_name(dt_test_mbox_rx_callback, NULL,
+					    NULL, fdt, node, "mbox2", &chan);
+	if (!res) {
+		DT_TEST_MSG("Unexpected mailbox found on invalid name");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	dt_test_state.probe_mbox = SUCCESS;
+	return TEE_SUCCESS;
+
+err:
+	if (res != TEE_ERROR_DEFER_DRIVER_INIT)
+		dt_test_state.probe_mbox = FAILED;
 
 	return res;
 }
@@ -354,6 +452,12 @@ static TEE_Result dt_test_consumer_probe(const void *fdt, int node,
 			goto err_probe;
 	}
 
+	if (IS_ENABLED(CFG_DRIVERS_MAILBOX)) {
+		res = probe_test_mbox(fdt, node);
+		if (res)
+			goto err_probe;
+	}
+
 	if (dt_test_state.probe_deferral != IN_PROGRESS) {
 		dt_test_state.probe_deferral = FAILED;
 		return TEE_ERROR_GENERIC;
@@ -428,9 +532,115 @@ DEFINE_DT_DRIVER(dt_test_consumer_driver) = {
 	.probe = dt_test_crypt_consumer_probe,
 };
 
+#ifdef CFG_DRIVERS_MAILBOX
+#define DT_TEST_MBOX_COUNT		2
+
+#define DT_TEST_MBOX0_BINDING_ID	4
+#define DT_TEST_MBOX1_BINDING_ID	9
+
+/*
+ * Emulated mailbox channels. The device reports no capability: it cannot
+ * notify the end of a transmission, which is a valid configuration.
+ */
+static TEE_Result dt_test_mbox_send(const struct mbox_chan *chan __unused,
+				    const void *data __unused,
+				    size_t len __unused)
+{
+	return TEE_SUCCESS;
+}
+
+static size_t dt_test_mbox_max_size(const struct mbox_chan *chan __unused)
+{
+	return DT_TEST_MBOX_MTU;
+}
+
+static TEE_Result dt_test_mbox_enable(const struct mbox_chan *chan __unused,
+				      bool enable __unused)
+{
+	return TEE_SUCCESS;
+}
+
+static TEE_Result dt_test_mbox_complete(struct mbox_chan *chan __unused)
+{
+	return TEE_SUCCESS;
+}
+
+static uint32_t dt_test_mbox_capabilities(const void *priv __unused)
+{
+	return 0;
+}
+
+static TEE_Result dt_test_get_mbox(void *priv, struct dt_pargs *args,
+				   struct mbox_chan **out_device)
+{
+	struct mbox_chan *chan_ref = priv;
+
+	if (args->args_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	switch (args->args[0]) {
+	case DT_TEST_MBOX0_BINDING_ID:
+		*out_device = chan_ref;
+		break;
+	case DT_TEST_MBOX1_BINDING_ID:
+		*out_device = chan_ref + 1;
+		break;
+	default:
+		EMSG("Unexpected binding ID %"PRIu32, args->args[0]);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	DT_TEST_MSG("Providing mailbox channel %"PRIu32, args->args[0]);
+
+	return TEE_SUCCESS;
+}
+
+static const struct mbox_ops dt_test_mbox_provider_ops = {
+	.send = dt_test_mbox_send,
+	.max_data_size = dt_test_mbox_max_size,
+	.channel_interrupt = dt_test_mbox_enable,
+	.complete = dt_test_mbox_complete,
+	.capabilities = dt_test_mbox_capabilities,
+	.get_channel = dt_test_get_mbox,
+};
+
+static TEE_Result dt_test_mbox_provider_probe(const void *fdt, int node,
+					      const void *compat_data __unused)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct mbox_chan *chan = NULL;
+	struct mbox_desc *desc = NULL;
+
+	DT_TEST_MSG("Register mailbox channels");
+
+	chan = dt_test_alloc(DT_TEST_MBOX_COUNT * sizeof(*chan));
+	if (!chan)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	desc = dt_test_alloc(sizeof(*desc));
+	if (!desc) {
+		dt_test_free(chan);
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
+	desc->ops = &dt_test_mbox_provider_ops;
+	desc->priv = chan;
+
+	res = mbox_dt_register(fdt, node, desc);
+	if (res) {
+		dt_test_free(desc);
+		dt_test_free(chan);
+	}
+
+	return res;
+}
+
+MAILBOX_DT_DECLARE(dt_test_mbox_provider, "linaro,dt-test-provider",
+		   dt_test_mbox_provider_probe);
+#endif /* CFG_DRIVERS_MAILBOX */
+
 #ifdef CFG_DRIVERS_CLK
 #define DT_TEST_CLK_COUNT		2
-
 #define DT_TEST_CLK0_BINDING_ID		3
 #define DT_TEST_CLK1_BINDING_ID		7
 
