@@ -514,7 +514,7 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	ret
 END_FUNC enable_mmu
 
-	.section .identity_map.data
+	.section .identity_map_data, "aw", %progbits
 	.balign	8
 LOCAL_DATA hart_lottery , :
 	/* The hart who first increments this variable will be primary hart. */
@@ -529,7 +529,7 @@ LOCAL_DATA stack_tmp_rel , :
 END_DATA stack_tmp_rel
 #endif
 
-	.section .identity_map.data
+	.section .identity_map_data, "aw", %progbits
 	.balign	8
 DATA boot_mmu_config , : /* struct core_mmu_config */
 	.skip	CORE_MMU_CONFIG_SIZE

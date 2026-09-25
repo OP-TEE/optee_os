@@ -64,6 +64,13 @@
  */
 #define LD_ROUNDDOWN(x, y) ((x) - ((x) % (y)))
 
+#ifdef CFG_RISCV_CORE_NAPOT_REGIONS
+/* Padding a region out to its size also aligns the one that follows it */
+#define CORE_TEXT_REGION_SIZE	(1 << CFG_RISCV_CORE_TEXT_ORDER)
+#define CORE_RODATA_REGION_SIZE	(1 << CFG_RISCV_CORE_RODATA_ORDER)
+#define CORE_RWDATA_REGION_SIZE	(1 << CFG_RISCV_CORE_RWDATA_ORDER)
+#endif
+
 OUTPUT_FORMAT(CFG_KERN_LINKER_FORMAT)
 OUTPUT_ARCH(CFG_KERN_LINKER_ARCH)
 
@@ -87,9 +94,11 @@ SECTIONS
 	.text : {
 		KEEP(*(.text._start))
 		__identity_map_init_start = .;
+#ifndef CFG_RISCV_CORE_NAPOT_REGIONS
 		__text_data_start = .;
-		*(.identity_map.data)
+		*(.identity_map_data)
 		__text_data_end = .;
+#endif
 		*(.identity_map .identity_map.*)
 		__identity_map_init_end = .;
 		*(.text .text.*)
@@ -98,7 +107,15 @@ SECTIONS
 	}
 	__text_end = .;
 
-#ifdef CFG_CORE_RODATA_NOEXEC
+#if defined(CFG_RISCV_CORE_NAPOT_REGIONS)
+	/* The writable boot data is in the read-write region, so no hole */
+	__text_data_start = __text_end;
+	__text_data_end = __text_end;
+
+	ASSERT(__text_end - __flatmap_rx_start <= CORE_TEXT_REGION_SIZE,
+	       "Core .text does not fit in CFG_RISCV_CORE_TEXT_ORDER")
+	. = __flatmap_rx_start + CORE_TEXT_REGION_SIZE;
+#elif defined(CFG_CORE_RODATA_NOEXEC)
 	. = ALIGN(SMALL_PAGE_SIZE);
 #endif
 	__flatmap_rx_size = . - __flatmap_rx_start;
@@ -115,6 +132,28 @@ SECTIONS
 		. = ALIGN(8);
 		__rodata_end = .;
 	}
+
+#ifdef CFG_RISCV_CORE_NAPOT_REGIONS
+	/*
+	 * PMP already enforces the read-only region when the relocation code
+	 * runs, so .got and .data.rel.ro have to land in the read-write
+	 * region, which therefore starts here and not after .dtors below.
+	 */
+	ASSERT(. - __flatmap_ro_start <= CORE_RODATA_REGION_SIZE,
+	       "Core .rodata does not fit in CFG_RISCV_CORE_RODATA_ORDER")
+	. = __flatmap_ro_start + CORE_RODATA_REGION_SIZE;
+	__flatmap_ro_size = . - __flatmap_ro_start;
+	__flatmap_rw_start = .;
+
+	/*
+	 * hart_lottery and boot_mmu_config are written before the MMU is
+	 * enabled, while PMP is already enforcing the read-execute region
+	 * .text would otherwise place them in.
+	 */
+	.identity_map_data : ALIGN(8) {
+		*(.identity_map_data)
+	}
+#endif
 
 	.dynsym : {
 		__dyn_sym_start = .;
@@ -155,12 +194,14 @@ SECTIONS
 		__dtor_end = .;
 	}
 
+#ifndef CFG_RISCV_CORE_NAPOT_REGIONS
 	/* Start page aligned read-write memory */
 #ifdef CFG_CORE_RWDATA_NOEXEC
 	. = ALIGN(SMALL_PAGE_SIZE);
 #endif
 	__flatmap_ro_size = . - __flatmap_ro_start;
 	__flatmap_rw_start = .;
+#endif
 
 	.data : ALIGN(8) {
 		/* writable data  */
@@ -235,6 +276,16 @@ SECTIONS
 
 	__end = .;
 	__init_size = __data_end - TEE_LOAD_ADDR;
+
+#ifdef CFG_RISCV_CORE_NAPOT_REGIONS
+	/* The free area shares the read-write region's PMP entry */
+	ASSERT(__flatmap_free_start - __flatmap_rw_start <=
+	       CORE_RWDATA_REGION_SIZE,
+	       "Core .data does not fit in CFG_RISCV_CORE_RWDATA_ORDER")
+	ASSERT(__flatmap_rw_start + CORE_RWDATA_REGION_SIZE ==
+	       TEE_RAM_START + TEE_RAM_VA_SIZE,
+	       "CFG_RISCV_CORE_*_ORDER do not add up to TEE_RAM_VA_SIZE")
+#endif
 
 	/*
 	 * Guard against moving the location counter backwards in the assignment
