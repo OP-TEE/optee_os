@@ -30,7 +30,13 @@ struct ta_elf {
 	bool is_main;
 	bool is_32bit;	/* Initialized from Elf32_Ehdr/Elf64_Ehdr */
 	bool is_legacy;
+	/*
+	 * The ELF marks its indirect branch targets: Arm BTI, or RISC-V
+	 * Zicfilp landing pads. Its executable segments are mapped guarded.
+	 */
 	bool bti_enabled;
+	/* The ELF pushes return addresses on a shadow stack (Zicfiss) */
+	bool shadow_stack;
 
 	vaddr_t load_addr;
 	vaddr_t max_addr;
@@ -121,7 +127,7 @@ extern struct ta_elf_queue main_elf_queue;
 struct ta_elf *ta_elf_find_elf(const TEE_UUID *uuid);
 
 void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
-		      uint32_t *ta_flags);
+		      uint64_t *ssp, uint32_t *ta_flags);
 void ta_elf_finalize_load_main(uint64_t *entry, uint64_t *load_addr);
 void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit);
 void ta_elf_relocate(struct ta_elf *elf);
