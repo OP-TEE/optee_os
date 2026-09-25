@@ -31,3 +31,11 @@ endif
 ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_FUSE_PTA)),)
 $(call force,CFG_QCOM_QFPROM,y)
 endif
+
+# QUPv3 serial-engine clock set-rate/DFS support. Set-rate votes CX/MX via
+# RPMh, so pull cmd_db/RPMh client in whenever the clock config path is built.
+CFG_QCOM_CLK_CFG ?= y
+ifeq ($(CFG_QCOM_CLK_CFG),y)
+$(call force,CFG_QCOM_CMD_DB,y)
+$(call force,CFG_QCOM_RPMH_CLIENT,y)
+endif
