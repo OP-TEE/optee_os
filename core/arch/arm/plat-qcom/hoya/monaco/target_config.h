@@ -32,6 +32,10 @@
 #define LPASS_BASE			UL(0x02c00000)
 #define LPASS_SIZE			ULL(0x01080000)
 
+/* CDSP content-protection shared channel, in TZ_STAT (secure DDR) */
+#define CDSP_SECCHANNEL_BASE		UL(0xdb1dc000)
+#define CDSP_SECCHANNEL_SIZE		UL(0x2000)
+
 #define AOSS_CC_BASE			UL(0x0c2a8000)
 #define AOSS_CC_SIZE			UL(0x00050000)
 
