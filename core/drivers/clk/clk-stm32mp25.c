@@ -2397,6 +2397,69 @@ static unsigned long clk_stm32_flexgen_get_round_rate(unsigned long rate,
 	return (prate / (*prediv + 1)) / (*findiv + 1);
 }
 
+/*
+ * Distinct prediv * findiv products: 1..64, 66..128 by 2, 132..256 by 4,
+ * 1024..65536 by 1024
+ */
+#define FLEXGEN_NB_RATES	U(192)
+
+static unsigned long clk_stm32_flexgen_divider(size_t index)
+{
+	if (index < 64)
+		return index + 1;
+	if (index < 96)
+		return 66 + 2 * (index - 64);
+	if (index < 128)
+		return 132 + 4 * (index - 96);
+
+	return 1024 * (index - 127);
+}
+
+static size_t clk_stm32_flexgen_nb_rates(unsigned long prate)
+{
+	size_t n = FLEXGEN_NB_RATES;
+
+	/* Keep the undivided rate even when the parent rate is 0 */
+	while (n > 1 && clk_stm32_flexgen_divider(n - 1) > prate)
+		n--;
+
+	return n;
+}
+
+static TEE_Result clk_stm32_flexgen_get_rates_array(struct clk *clk,
+						    size_t start_index,
+						    unsigned long *rates,
+						    size_t *nb_elts)
+{
+	unsigned long prate = 0;
+	size_t nb_rates = 0;
+	size_t n = 0;
+
+	if (!clk->parent)
+		return TEE_ERROR_GENERIC;
+
+	prate = clk_get_rate(clk->parent);
+	nb_rates = clk_stm32_flexgen_nb_rates(prate);
+
+	if (!rates) {
+		*nb_elts = nb_rates;
+		return TEE_SUCCESS;
+	}
+
+	if (start_index >= nb_rates)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*nb_elts = MIN(*nb_elts, nb_rates - start_index);
+
+	for (n = 0; n < *nb_elts; n++) {
+		size_t idx = nb_rates - 1 - start_index - n;
+
+		rates[n] = prate / clk_stm32_flexgen_divider(idx);
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result clk_stm32_flexgen_set_rate(struct clk *clk,
 					     unsigned long rate,
 					     unsigned long parent_rate)
@@ -2480,6 +2543,7 @@ static void clk_stm32_flexgen_disable(struct clk *clk)
 static const struct clk_ops clk_stm32_flexgen_ops = {
 	.get_rate = clk_stm32_flexgen_get_rate,
 	.set_rate = clk_stm32_flexgen_set_rate,
+	.get_rates_array = clk_stm32_flexgen_get_rates_array,
 	.get_parent = clk_stm32_flexgen_get_parent,
 	.set_parent = clk_stm32_flexgen_set_parent,
 	.enable = clk_stm32_flexgen_enable,
