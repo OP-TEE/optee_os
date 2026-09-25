@@ -118,8 +118,8 @@ struct asu_authenc_dev {
 /* Per-operation context */
 struct asu_authenc_ctx {
 	struct asu_client_params cparam;
-	/* Inline key object and buffers (same model as asu_cipher_ctx) */
-	struct asu_aes_key_object key_obj;
+	/* Cacheline-aligned DMA buffers for ASUFW */
+	struct asu_aes_key_object *key_obj;
 	size_t key_len;
 	size_t nonce_len;
 	size_t tag_len;
@@ -154,7 +154,7 @@ struct asu_cmac_ctx {
 	struct crypto_mac_ctx mac_ctx;
 	struct crypto_mac_ctx *sw_ctx;
 	struct asu_client_params cparam;
-	struct asu_aes_key_object key_obj;
+	struct asu_aes_key_object *key_obj;
 	uint32_t algo;
 	uint32_t keysize;
 	uint32_t hw_keysize;
@@ -163,12 +163,36 @@ struct asu_cmac_ctx {
 	bool cmac_started;
 	bool use_sw_fallback;
 	uint8_t pending[ASU_CMAC_PENDING_SIZE];
-	uint8_t key[ASU_AES_KEY_SIZE_256_BYTES];
+	uint8_t *key;
 };
 
 #endif /* CFG_AMD_ASU_CMAC */
 
 static struct asu_authenc_dev *asu_ae_dev;
+
+/*
+ * asu_authenc_alloc_align_buf() - Allocate zeroed cacheline-aligned memory.
+ * @len: Requested payload length
+ *
+ * Size is rounded up to the cache line so cache maintenance and ASUFW DMA
+ * never touch memory outside this allocation.
+ */
+static void *asu_authenc_alloc_align_buf(size_t len)
+{
+	size_t cacheline_len = dcache_get_line_size();
+	size_t aligned_len = ROUNDUP(len, cacheline_len);
+	void *buf = NULL;
+
+	if (!len)
+		return NULL;
+
+	buf = memalign(cacheline_len, aligned_len);
+	if (!buf)
+		return NULL;
+
+	memset(buf, 0, aligned_len);
+	return buf;
+}
 
 /* Validate the ASU AES module version used by the GCM/CCM driver */
 static bool asu_authenc_check_fw_compat(void)
@@ -253,7 +277,7 @@ static void asu_authenc_set_init_params(struct asu_authenc_ctx *ae_ctx,
 {
 	params->iv_obj.iv_addr = virt_to_phys(ae_ctx->nonce_buf);
 	params->iv_obj.iv_len = ae_ctx->nonce_len;
-	params->key_object_addr = virt_to_phys(&ae_ctx->key_obj);
+	params->key_object_addr = virt_to_phys(ae_ctx->key_obj);
 	params->mode = ae_ctx->mode;
 	params->operation_flags |= ASU_AES_INIT;
 }
@@ -366,7 +390,6 @@ static TEE_Result asu_authenc_alloc_ctx(void **ctx, uint32_t algo)
 	struct asu_authenc_ctx *ae_ctx = NULL;
 	uint8_t mode = 0;
 	TEE_Result ret = TEE_SUCCESS;
-	size_t cacheline_len = dcache_get_line_size();
 
 	ret = asu_authenc_get_mode(algo, &mode);
 	if (ret)
@@ -391,33 +414,38 @@ static TEE_Result asu_authenc_alloc_ctx(void **ctx, uint32_t algo)
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto free_ctx;
 	}
-	/* Allocate DMA-aligned key buffer to avoid cache line conflicts */
-	ae_ctx->key_buf = memalign(cacheline_len, ASU_AES_MAX_KEY_SIZE);
+
+	ae_ctx->key_obj = asu_authenc_alloc_align_buf(sizeof(*ae_ctx->key_obj));
+	if (!ae_ctx->key_obj) {
+		EMSG("Failed to allocate key object");
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto free_ctx;
+	}
+
+	ae_ctx->key_buf = asu_authenc_alloc_align_buf(ASU_AES_MAX_KEY_SIZE);
 	if (!ae_ctx->key_buf) {
 		EMSG("Failed to allocate key buffer");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto free_ctx;
 	}
 
-	/* Allocate DMA-aligned nonce buffer to avoid cache line conflicts */
-	ae_ctx->nonce_buf = memalign(cacheline_len, ASU_AES_MAX_NONCE_LEN);
+	ae_ctx->nonce_buf = asu_authenc_alloc_align_buf(ASU_AES_MAX_NONCE_LEN);
 	if (!ae_ctx->nonce_buf) {
 		EMSG("Failed to allocate nonce buffer");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto free_ctx;
 	}
 
-	/* Allocate reusable DMA-aligned data buffers */
-	ae_ctx->src_dma_buf = memalign(cacheline_len,
-				       ASU_AUTHENC_DATA_CHUNK_LEN);
+	ae_ctx->src_dma_buf =
+		asu_authenc_alloc_align_buf(ASU_AUTHENC_DATA_CHUNK_LEN);
 	if (!ae_ctx->src_dma_buf) {
 		EMSG("Failed to allocate source DMA buffer");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto free_ctx;
 	}
 
-	ae_ctx->dst_dma_buf = memalign(cacheline_len,
-				       ASU_AUTHENC_DATA_CHUNK_LEN);
+	ae_ctx->dst_dma_buf =
+		asu_authenc_alloc_align_buf(ASU_AUTHENC_DATA_CHUNK_LEN);
 	if (!ae_ctx->dst_dma_buf) {
 		EMSG("Failed to allocate destination DMA buffer");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
@@ -448,8 +476,9 @@ free_ctx:
 	if (ae_ctx) {
 		if (IS_ENABLED(CFG_AMD_ASU_SW_FALLBACK))
 			asu_authenc_sw_free_ctx(ae_ctx);
-		free(ae_ctx->key_buf);
-		free(ae_ctx->nonce_buf);
+		free_wipe(ae_ctx->key_obj);
+		free_wipe(ae_ctx->key_buf);
+		free_wipe(ae_ctx->nonce_buf);
 		free(ae_ctx->src_dma_buf);
 		free(ae_ctx->dst_dma_buf);
 	}
@@ -511,8 +540,9 @@ static void asu_authenc_free_ctx(void *ctx)
 	mutex_unlock(&asu_ae_dev->engine_lock);
 
 	/* Free DMA-aligned buffers */
-	free(ae_ctx->key_buf);
-	free(ae_ctx->nonce_buf);
+	free_wipe(ae_ctx->key_obj);
+	free_wipe(ae_ctx->key_buf);
+	free_wipe(ae_ctx->nonce_buf);
 	free(ae_ctx->src_dma_buf);
 	free(ae_ctx->dst_dma_buf);
 	free(ae_ctx);
@@ -621,14 +651,14 @@ static TEE_Result asu_authenc_init(struct drvcrypt_authenc_init *dinit)
 	cache_operation(TEE_CACHEFLUSH, ae_ctx->nonce_buf, ae_ctx->nonce_len);
 
 	/* Set up key object */
-	ae_ctx->key_obj.key_address = virt_to_phys(ae_ctx->key_buf);
-	ae_ctx->key_obj.key_size = (key_len == ASU_AES_KEY_SIZE_128_BYTES) ?
-				   ASU_AES_KEY_PARAM_128 :
-				   ASU_AES_KEY_PARAM_256;
-	ae_ctx->key_obj.key_src = ASU_AES_USER_KEY_0;
-	ae_ctx->key_obj.key_id = ASU_AES_KEY_ID_0;
-	cache_operation(TEE_CACHEFLUSH, &ae_ctx->key_obj,
-			sizeof(ae_ctx->key_obj));
+	ae_ctx->key_obj->key_address = virt_to_phys(ae_ctx->key_buf);
+	ae_ctx->key_obj->key_size = (key_len == ASU_AES_KEY_SIZE_128_BYTES) ?
+				    ASU_AES_KEY_PARAM_128 :
+				    ASU_AES_KEY_PARAM_256;
+	ae_ctx->key_obj->key_src = ASU_AES_USER_KEY_0;
+	ae_ctx->key_obj->key_id = ASU_AES_KEY_ID_0;
+	cache_operation(TEE_CACHEFLUSH, ae_ctx->key_obj,
+			sizeof(*ae_ctx->key_obj));
 
 	/* Store parameters */
 	ae_ctx->operation_type = dinit->encrypt ? ASU_AES_ENCRYPT_OPERATION :
@@ -666,7 +696,7 @@ cleanup:
 		memzero_explicit(ae_ctx->key_buf, ae_ctx->key_len);
 	if (ae_ctx->nonce_len)
 		memzero_explicit(ae_ctx->nonce_buf, ae_ctx->nonce_len);
-	memzero_explicit(&ae_ctx->key_obj, sizeof(ae_ctx->key_obj));
+	memzero_explicit(ae_ctx->key_obj, sizeof(*ae_ctx->key_obj));
 	return ret;
 }
 
@@ -845,7 +875,6 @@ static TEE_Result asu_authenc_enc_final(struct drvcrypt_authenc_final *dfinal)
 	size_t remaining = 0;
 	size_t offset = 0;
 	size_t chunk_len = 0;
-	size_t cacheline_len = dcache_get_line_size();
 
 	if (!ae_ctx)
 		return TEE_ERROR_BAD_STATE;
@@ -862,12 +891,11 @@ static TEE_Result asu_authenc_enc_final(struct drvcrypt_authenc_final *dfinal)
 					       dfinal->tag.data,
 					       &dfinal->tag.length);
 
-	tag_dma = memalign(cacheline_len, ASU_AES_MAX_TAG_LEN);
+	tag_dma = asu_authenc_alloc_align_buf(ASU_AES_MAX_TAG_LEN);
 	if (!tag_dma) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
-	memset(tag_dma, 0, ASU_AES_MAX_TAG_LEN);
 	cache_operation(TEE_CACHEFLUSH, tag_dma, ASU_AES_MAX_TAG_LEN);
 
 	if (dfinal->src.length > 0) {
@@ -965,7 +993,6 @@ static TEE_Result asu_authenc_dec_final(struct drvcrypt_authenc_final *dfinal)
 	size_t remaining = 0;
 	size_t offset = 0;
 	size_t chunk_len = 0;
-	size_t cacheline_len = dcache_get_line_size();
 
 	if (!ae_ctx)
 		return TEE_ERROR_BAD_STATE;
@@ -982,7 +1009,7 @@ static TEE_Result asu_authenc_dec_final(struct drvcrypt_authenc_final *dfinal)
 					       dfinal->tag.data,
 					       dfinal->tag.length);
 
-	tag_dma = memalign(cacheline_len, ASU_AES_MAX_TAG_LEN);
+	tag_dma = asu_authenc_alloc_align_buf(ASU_AES_MAX_TAG_LEN);
 	if (!tag_dma) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
@@ -1099,7 +1126,7 @@ static void asu_authenc_final(void *ctx)
 		memzero_explicit(ae_ctx->key_buf, ae_ctx->key_len);
 	if (ae_ctx->nonce_len)
 		memzero_explicit(ae_ctx->nonce_buf, ae_ctx->nonce_len);
-	memzero_explicit(&ae_ctx->key_obj, sizeof(ae_ctx->key_obj));
+	memzero_explicit(ae_ctx->key_obj, sizeof(*ae_ctx->key_obj));
 }
 
 static struct drvcrypt_authenc asu_authenc_ops = {
@@ -1277,8 +1304,9 @@ static void asu_cmac_free_ctx(struct crypto_mac_ctx *ctx)
 
 		asu_free_unique_id(cmac_ctx->uniqueid);
 
-		memzero_explicit(cmac_ctx->key, ASU_AES_KEY_SIZE_256_BYTES);
 		memzero_explicit(cmac_ctx->pending, ASU_CMAC_PENDING_SIZE);
+		free_wipe(cmac_ctx->key);
+		free_wipe(cmac_ctx->key_obj);
 
 		mutex_lock(&asu_ae_dev->engine_lock);
 		assert(!asu_ae_dev->aes_available);
@@ -1300,9 +1328,7 @@ static TEE_Result asu_cmac_final(struct crypto_mac_ctx *ctx,
 				 uint8_t *digest, size_t len)
 {
 	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
-	size_t cacheline_len = dcache_get_line_size();
 	struct asu_aes_params op = { };
-	struct asu_aes_key_object *kobj = NULL;
 	uint8_t *dma_data = NULL;
 	uint8_t *tag_dma = NULL;
 	TEE_Result ret = TEE_SUCCESS;
@@ -1314,19 +1340,17 @@ static TEE_Result asu_cmac_final(struct crypto_mac_ctx *ctx,
 	if (cmac_ctx->use_sw_fallback)
 		return asu_cmac_sw_final(ctx, digest, len);
 
-	kobj = &cmac_ctx->key_obj;
-
 	/* For empty message fallback to software */
 	if (cmac_ctx->pending_len == 0 && !cmac_ctx->cmac_started)
 		return asu_cmac_sw_compute_empty(ctx, digest, len);
 
-	/* DMA-safe bounce buffers for data and tag */
-	dma_data = memalign(cacheline_len, cacheline_len * 2);
-	if (!dma_data) {
+	dma_data = asu_authenc_alloc_align_buf(ASU_CMAC_PENDING_SIZE);
+	tag_dma = asu_authenc_alloc_align_buf(ASU_CMAC_TAG_SIZE);
+	if (!dma_data || !tag_dma) {
 		EMSG("Failed to allocate CMAC DMA buffer");
-		return TEE_ERROR_OUT_OF_MEMORY;
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
 	}
-	tag_dma = dma_data + cacheline_len;
 
 	memcpy(dma_data, cmac_ctx->pending, cmac_ctx->pending_len);
 
@@ -1342,12 +1366,11 @@ static TEE_Result asu_cmac_final(struct crypto_mac_ctx *ctx,
 	op.is_last = 1;
 
 	if (!cmac_ctx->cmac_started) {
-		op.key_object_addr = virt_to_phys(kobj);
+		op.key_object_addr = virt_to_phys(cmac_ctx->key_obj);
 		op.operation_flags |= ASU_AES_INIT;
 	}
 	op.operation_flags |= ASU_AES_UPDATE | ASU_AES_FINAL;
 
-	cache_operation(TEE_CACHEFLUSH, &op, sizeof(op));
 	cmac_ctx->cmac_started = false;
 
 	ret = asu_cmac_send(cmac_ctx, &op);
@@ -1360,6 +1383,7 @@ static TEE_Result asu_cmac_final(struct crypto_mac_ctx *ctx,
 	memcpy(digest, tag_dma, len);
 
 out:
+	free_wipe(tag_dma);
 	free(dma_data);
 	return ret;
 }
@@ -1377,8 +1401,6 @@ static TEE_Result asu_cmac_update(struct crypto_mac_ctx *ctx,
 {
 	struct asu_cmac_ctx *cmac_ctx = to_cmac_ctx(ctx);
 	struct asu_aes_params op = { };
-	struct asu_aes_key_object *kobj = NULL;
-	size_t cacheline_len = dcache_get_line_size();
 	size_t full_size = 0;
 	size_t size_topost = 0;
 	size_t size_todo = 0;
@@ -1397,7 +1419,6 @@ static TEE_Result asu_cmac_update(struct crypto_mac_ctx *ctx,
 	else if (!data)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	kobj = &cmac_ctx->key_obj;
 	full_size = cmac_ctx->pending_len + len;
 
 	/* Buffer less than or equal to 1 block of data */
@@ -1407,7 +1428,7 @@ static TEE_Result asu_cmac_update(struct crypto_mac_ctx *ctx,
 		return TEE_SUCCESS;
 	}
 
-	dma_data = memalign(cacheline_len, ASU_AUTHENC_DATA_CHUNK_LEN);
+	dma_data = asu_authenc_alloc_align_buf(ASU_AUTHENC_DATA_CHUNK_LEN);
 	if (!dma_data) {
 		EMSG("Failed to allocate CMAC DMA buffer");
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -1450,12 +1471,11 @@ static TEE_Result asu_cmac_update(struct crypto_mac_ctx *ctx,
 		op.mode = ASU_CMAC_MODE;
 
 		if (!cmac_ctx->cmac_started) {
-			op.key_object_addr = virt_to_phys(kobj);
+			op.key_object_addr = virt_to_phys(cmac_ctx->key_obj);
 			op.operation_flags |= ASU_AES_INIT;
 		}
 		op.operation_flags |= ASU_AES_UPDATE;
 
-		cache_operation(TEE_CACHEFLUSH, &op, sizeof(op));
 		ret = asu_cmac_send(cmac_ctx, &op);
 		if (ret) {
 			EMSG("Update FW send failed ret=%#" PRIx32, ret);
@@ -1527,14 +1547,14 @@ static TEE_Result asu_cmac_init(struct crypto_mac_ctx *ctx,
 	cmac_ctx->cparam.priority = ASU_PRIORITY_HIGH;
 
 	/* Setup key object */
-	cmac_ctx->key_obj.key_address = virt_to_phys(cmac_ctx->key);
-	cmac_ctx->key_obj.key_size = cmac_ctx->hw_keysize;
-	cmac_ctx->key_obj.key_src = ASU_AES_USER_KEY_0;
+	cmac_ctx->key_obj->key_address = virt_to_phys(cmac_ctx->key);
+	cmac_ctx->key_obj->key_size = cmac_ctx->hw_keysize;
+	cmac_ctx->key_obj->key_src = ASU_AES_USER_KEY_0;
 
 	/* Flush key and key object */
 	cache_operation(TEE_CACHEFLUSH, cmac_ctx->key, cmac_ctx->keysize);
-	cache_operation(TEE_CACHEFLUSH, &cmac_ctx->key_obj,
-			sizeof(cmac_ctx->key_obj));
+	cache_operation(TEE_CACHEFLUSH, cmac_ctx->key_obj,
+			sizeof(*cmac_ctx->key_obj));
 
 	cmac_ctx->pending_len = 0;
 	cmac_ctx->cmac_started = false;
@@ -1596,6 +1616,16 @@ static TEE_Result asu_cmac_allocate(struct crypto_mac_ctx **ctx, uint32_t algo)
 		goto release_engine;
 	}
 
+	cmac_ctx->key = asu_authenc_alloc_align_buf(ASU_AES_MAX_KEY_SIZE);
+	cmac_ctx->key_obj =
+		asu_authenc_alloc_align_buf(sizeof(*cmac_ctx->key_obj));
+	if (!cmac_ctx->key || !cmac_ctx->key_obj) {
+		EMSG("Failed to allocate CMAC DMA buffers");
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		asu_free_unique_id(cmac_ctx->uniqueid);
+		goto release_engine;
+	}
+
 	cmac_ctx->algo = algo;
 	cmac_ctx->mac_ctx.ops = &asu_cmac_ops;
 
@@ -1612,7 +1642,11 @@ static TEE_Result asu_cmac_allocate(struct crypto_mac_ctx **ctx, uint32_t algo)
 	return TEE_SUCCESS;
 
 release_engine:
-	free(cmac_ctx);
+	if (cmac_ctx) {
+		free_wipe(cmac_ctx->key);
+		free_wipe(cmac_ctx->key_obj);
+		free(cmac_ctx);
+	}
 	mutex_lock(&asu_ae_dev->engine_lock);
 	asu_ae_dev->aes_available = true;
 	mutex_unlock(&asu_ae_dev->engine_lock);
