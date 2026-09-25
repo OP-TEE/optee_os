@@ -28,3 +28,10 @@ void tee_uuid_from_octets(TEE_UUID *d, const uint8_t *s)
 	d->timeHiAndVersion = SHIFT_U32(s[6], 8) | s[7];
 	memcpy(d->clockSeqAndNode, s + 8, sizeof(d->clockSeqAndNode));
 }
+
+bool tee_uuid_is_nil(const TEE_UUID *uuid)
+{
+	const TEE_UUID nil_uuid = { };
+
+	return !memcmp(uuid, &nil_uuid, sizeof(*uuid));
+}

@@ -39,6 +39,7 @@
 #include <tee/tee_obj.h>
 #include <tee/tee_svc_cryp.h>
 #include <tee/tee_svc_storage.h>
+#include <tee/uuid.h>
 #include <trace.h>
 #include <types_ext.h>
 #include <utee_defines.h>
@@ -477,6 +478,9 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	 * in @s and registering of the context in tee_ctxes list.
 	 */
 	assert(mutex_is_locked(&tee_ta_mutex));
+
+	if (tee_uuid_is_nil(uuid))
+		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	utc = calloc(1, sizeof(struct user_ta_ctx));
 	if (!utc)

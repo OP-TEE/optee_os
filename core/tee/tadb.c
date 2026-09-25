@@ -18,6 +18,7 @@
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_rpc.h>
 #include <tee/tee_pobj.h>
+#include <tee/uuid.h>
 #include <utee_defines.h>
 
 #define TADB_MAX_BUFFER_SIZE	(64U * 1024)
@@ -84,13 +85,6 @@ static void file_num_to_str(char *buf, size_t blen, uint32_t file_number)
 
 	rc = snprintf(buf, blen, "%" PRIu32 ".ta", file_number);
 	assert(rc >= 0);
-}
-
-static bool is_null_uuid(const TEE_UUID *uuid)
-{
-	const TEE_UUID null_uuid = { 0 };
-
-	return !memcmp(uuid, &null_uuid, sizeof(*uuid));
 }
 
 static TEE_Result ta_operation_open(unsigned int cmd, uint32_t file_number,
@@ -343,7 +337,7 @@ static TEE_Result populate_files(struct tee_tadb_dir *db)
 			goto err;
 		}
 
-		if (is_null_uuid(&entry.prop.uuid))
+		if (tee_uuid_is_nil(&entry.prop.uuid))
 			continue;
 
 		if (test_file(db, entry.file_number)) {
@@ -376,7 +370,7 @@ TEE_Result tee_tadb_ta_create(const struct tee_tadb_property *property,
 	struct tee_tadb_ta_write *ta;
 	int i = 0;
 
-	if (is_null_uuid(&property->uuid))
+	if (tee_uuid_is_nil(&property->uuid))
 		return TEE_ERROR_GENERIC;
 
 	ta = calloc(1, sizeof(*ta));
@@ -602,7 +596,7 @@ TEE_Result tee_tadb_ta_delete(const TEE_UUID *uuid)
 	size_t idx;
 	TEE_Result res;
 
-	if (is_null_uuid(uuid))
+	if (tee_uuid_is_nil(uuid))
 		return TEE_ERROR_GENERIC;
 
 	res = tee_tadb_open(&db);
@@ -636,7 +630,7 @@ TEE_Result tee_tadb_ta_open(const TEE_UUID *uuid,
 	size_t idx = 0;
 	struct tee_tadb_ta_read *ta = NULL;
 
-	if (is_null_uuid(uuid))
+	if (tee_uuid_is_nil(uuid))
 		return TEE_ERROR_GENERIC;
 
 	ta = calloc(1, sizeof(*ta));
