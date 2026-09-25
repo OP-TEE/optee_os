@@ -149,7 +149,8 @@ static bool __maybe_unused core_mmu_entry_is_branch(struct mmu_pte *pte)
 	return core_mmu_entry_is_valid(pte) && !core_mmu_entry_is_leaf(pte);
 }
 
-static unsigned long core_mmu_pte_create(unsigned long ppn, uint8_t pte_bits)
+static unsigned long core_mmu_pte_create(unsigned long ppn,
+					 unsigned long pte_bits)
 {
 	/*
 	 * This function may be called from core_mmu_set_entry(). There is a
@@ -233,7 +234,8 @@ static unsigned long pte_to_mattr(unsigned level __maybe_unused,
 	return mattr;
 }
 
-static uint8_t mattr_to_pte_bits(unsigned level __maybe_unused, uint32_t attr)
+static unsigned long mattr_to_pte_bits(unsigned level __maybe_unused,
+				       uint32_t attr)
 {
 	unsigned long pte_bits = 0;
 
@@ -981,7 +983,7 @@ void core_mmu_set_entry_primitive(void *table, size_t level, size_t idx,
 {
 	struct mmu_pgt *pgt = (struct mmu_pgt *)table;
 	struct mmu_pte *pte = core_mmu_table_get_entry(pgt, idx);
-	uint8_t pte_bits = mattr_to_pte_bits(level, attr);
+	unsigned long pte_bits = mattr_to_pte_bits(level, attr);
 
 	core_mmu_entry_set(pte, core_mmu_pte_create(pa_to_ppn(pa), pte_bits));
 }
