@@ -121,13 +121,16 @@ TEE_Result sm2_mbedtls_pke_decrypt(struct ecc_keypair *key, const uint8_t *src,
 	int mres = 0;
 	uint8_t *t = NULL;
 	size_t C2_len = 0;
+	size_t C2_offset = 0;
+	size_t C3_offset = 0;
 	size_t i = 0;
 	size_t out_len = 0;
 	uint8_t *eom = NULL;
 	uint8_t u[TEE_SM3_HASH_SIZE] = { };
 
 	/*
-	 * Input buffer src is (C1 || C2 || C3)
+	 * Input buffer src is (C1 || C2 || C3) with the legacy algorithm,
+	 * otherwise (C1 || C3 || C2)
 	 * - C1 represents a point (should be on the curve)
 	 * - C2 is the encrypted message
 	 * - C3 is a SM3 hash
@@ -184,13 +187,19 @@ TEE_Result sm2_mbedtls_pke_decrypt(struct ecc_keypair *key, const uint8_t *src,
 
 	/* Step B4: t = KDF(x2 || y2, klen) */
 
-	/* C = C1 || C2 || C3 */
 	if (src_len <= C1_len + TEE_SM3_HASH_SIZE) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 
 	C2_len = src_len - C1_len - TEE_SM3_HASH_SIZE;
+	if (IS_ENABLED(CFG_SM2_PKE_LEGACY)) {
+		C2_offset = C1_len;
+		C3_offset = C1_len + C2_len;
+	} else {
+		C2_offset = C1_len + TEE_SM3_HASH_SIZE;
+		C3_offset = C1_len;
+	}
 
 	t = calloc(1, C2_len);
 	if (!t) {
@@ -211,7 +220,7 @@ TEE_Result sm2_mbedtls_pke_decrypt(struct ecc_keypair *key, const uint8_t *src,
 
 	out_len = MIN(*dst_len, C2_len);
 	for (i = 0; i < out_len; i++)
-		dst[i] = src[C1_len + i] ^ t[i];
+		dst[i] = src[C2_offset + i] ^ t[i];
 	*dst_len = out_len;
 	if (out_len < C2_len) {
 		eom = calloc(1, C2_len - out_len);
@@ -220,7 +229,7 @@ TEE_Result sm2_mbedtls_pke_decrypt(struct ecc_keypair *key, const uint8_t *src,
 			goto out;
 		}
 		for (i = out_len; i < C2_len; i++)
-		       eom[i - out_len] = src[C1_len + i] ^ t[i];
+			eom[i - out_len] = src[C2_offset + i] ^ t[i];
 	}
 
 	/* Step B6: compute u = Hash(x2 || M' || y2) and compare with C3 */
@@ -250,7 +259,7 @@ TEE_Result sm2_mbedtls_pke_decrypt(struct ecc_keypair *key, const uint8_t *src,
 	if (res)
 		goto out;
 
-	if (consttime_memcmp(u, src + C1_len + C2_len, TEE_SM3_HASH_SIZE)) {
+	if (consttime_memcmp(u, src + C3_offset, TEE_SM3_HASH_SIZE)) {
 		res = TEE_ERROR_CIPHERTEXT_INVALID;
 		goto out;
 	}
@@ -313,6 +322,8 @@ TEE_Result sm2_mbedtls_pke_encrypt(struct ecc_public_key *key,
 	int mres = 0;
 	mbedtls_mpi k = { };
 	size_t C1_len = 0;
+	size_t C2_offset = 0;
+	size_t C3_offset = 0;
 	void *ctx = NULL;
 	size_t i = 0;
 
@@ -399,7 +410,8 @@ TEE_Result sm2_mbedtls_pke_encrypt(struct ecc_public_key *key,
 	 * Steps A6, A7, A8:
 	 * Compute C2 = M (+) t
 	 * Compute C3 = Hash(x2 || M || y2)
-	 * Output C = C1 || C2 || C3
+	 * Output C = C1 || C2 || C3 with the legacy algorithm,
+	 * otherwise C1 || C3 || C2
 	 */
 
 	/* C1 */
@@ -413,10 +425,17 @@ TEE_Result sm2_mbedtls_pke_encrypt(struct ecc_public_key *key,
 		res = TEE_ERROR_SHORT_BUFFER;
 		goto out;
 	}
+	if (IS_ENABLED(CFG_SM2_PKE_LEGACY)) {
+		C2_offset = C1_len;
+		C3_offset = C1_len + src_len;
+	} else {
+		C2_offset = C1_len + TEE_SM3_HASH_SIZE;
+		C3_offset = C1_len;
+	}
 
 	/* C2 */
 	for (i = 0; i < src_len; i++)
-		dst[i + C1_len] = src[i] ^ t[i];
+		dst[i + C2_offset] = src[i] ^ t[i];
 
 	/* C3 */
         res = crypto_hash_alloc_ctx(&ctx, TEE_ALG_SM3);
@@ -435,7 +454,7 @@ TEE_Result sm2_mbedtls_pke_encrypt(struct ecc_public_key *key,
 				 SM2_INT_SIZE_BYTES);
         if (res)
                 goto out;
-        res = crypto_hash_final(ctx, dst + C1_len + src_len, TEE_SM3_HASH_SIZE);
+        res = crypto_hash_final(ctx, dst + C3_offset, TEE_SM3_HASH_SIZE);
         if (res)
                 goto out;
 
