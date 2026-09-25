@@ -213,6 +213,9 @@ static unsigned long pte_to_mattr(unsigned level __maybe_unused,
 	}
 
 	if (entry & PTE_U) {
+		/* Zicfiss: W without R encodes a shadow stack page */
+		if ((entry & (PTE_R | PTE_W)) == PTE_W)
+			return mattr | TEE_MATTR_SHADOW_STACK;
 		if (entry & PTE_R)
 			mattr |= TEE_MATTR_UR | TEE_MATTR_PR;
 		if (entry & PTE_W)
@@ -243,6 +246,17 @@ static uint8_t mattr_to_pte_bits(unsigned level __maybe_unused, uint32_t attr)
 
 	if (attr & TEE_MATTR_VALID_BLOCK)
 		pte_bits |= PTE_V;
+
+	/*
+	 * Zicfiss: a shadow stack page is encoded as W without R, an
+	 * encoding otherwise reserved. It carries no other permission,
+	 * ordinary loads are allowed by the extension and ordinary stores
+	 * fault. A and D are set, the page is written by SSPUSH.
+	 */
+	if (attr & TEE_MATTR_SHADOW_STACK) {
+		assert(!(attr & (TEE_MATTR_PRWX | TEE_MATTR_URWX)));
+		return pte_bits | PTE_U | PTE_W | PTE_A | PTE_D;
+	}
 
 	if (attr & TEE_MATTR_UR)
 		pte_bits |= PTE_R | PTE_U;

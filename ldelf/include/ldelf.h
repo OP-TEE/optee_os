@@ -113,6 +113,8 @@ struct dl_entry_arg {
 #define LDELF_MAP_FLAG_WRITEABLE	BIT32(1)
 #define LDELF_MAP_FLAG_EXECUTABLE	BIT32(2)
 #define LDELF_MAP_FLAG_BTI		BIT32(3)
+/* Map as a shadow stack (RISC-V Zicfiss), sys_map_zi() only */
+#define LDELF_MAP_FLAG_SHADOW_STACK	BIT32(4)
 
 #endif /*!__ASSEMBLER__*/
 
