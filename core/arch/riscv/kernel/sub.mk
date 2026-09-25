@@ -18,6 +18,9 @@ srcs-$(CFG_UNWIND) += unwind_rv.c
 srcs-$(CFG_SEMIHOSTING) += semihosting_rv.S
 srcs-y += thread_optee_abi.c
 srcs-y += thread_optee_abi_rv.S
+srcs-$(CFG_WITH_VFP) += vfp.c
+srcs-$(CFG_WITH_VFP) += vfp_rv.S
+aflags-vfp_rv.S-y += $(vector-march)
 asm-defines-y += asm-defines.c
 
 ifeq ($(CFG_SYSCALL_FTRACE),y)
@@ -31,4 +34,11 @@ cflags-remove-abort.c-y += -pg
 ifeq ($(CFG_UNWIND),y)
 cflags-remove-unwind_rv.c-y += -pg
 endif
+endif
+
+cflags-vfp.c-y += $(vector-march)
+ifeq ($(COMPILER),clang)
+cflags-vfp.c-y += -fno-vectorize -fno-slp-vectorize
+else
+cflags-vfp.c-y += -fno-tree-vectorize
 endif
