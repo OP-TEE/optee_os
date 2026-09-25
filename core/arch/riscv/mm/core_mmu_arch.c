@@ -7,6 +7,7 @@
 #include <bitstring.h>
 #include <config.h>
 #include <kernel/boot.h>
+#include <kernel/cfi.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -1191,6 +1192,12 @@ void core_mmu_create_user_map(struct user_mode_ctx *uctx,
 	map->user_map = virt_to_phys(tbl_info.table);
 	map->asid = uctx->vm_info.asid;
 	map->senvcfg = user_map_senvcfg_lpe(uctx);
+	/*
+	 * Shadow stack instructions are no-ops in a context built without
+	 * them, so SSE is set for every context once the hart supports it.
+	 */
+	if (cfi_shadow_stack_enabled())
+		map->senvcfg |= CSR_SENVCFG_SSE;
 }
 
 void core_mmu_get_user_map(struct core_mmu_user_map *map)

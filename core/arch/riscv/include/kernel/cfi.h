@@ -19,4 +19,14 @@ void cfi_init_hart(void);
 static inline void cfi_init_hart(void) { }
 #endif
 
+#ifdef CFG_TA_ZICFISS
+/*
+ * True once menvcfg.SSE is set on every hart: senvcfg.SSE can then be
+ * set for user mode and the ssp CSR is accessible from S-mode.
+ */
+bool cfi_shadow_stack_enabled(void);
+#else
+static inline bool cfi_shadow_stack_enabled(void) { return false; }
+#endif
+
 #endif /*__KERNEL_CFI_H*/

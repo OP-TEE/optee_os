@@ -146,6 +146,14 @@ endif
 CFG_TA_ZICFILP ?= n
 $(eval $(call cfg-depends-all,CFG_TA_ZICFILP,CFG_WITH_USER_TA CFG_RISCV_S_MODE))
 
+# Zicfiss backward-edge CFI for user mode: return addresses are pushed
+# on a shadow stack by SSPUSH and checked by SSPOPCHK. Each user stack
+# (TA and ldelf) gets a shadow stack mapped as TEE_MATTR_SHADOW_STACK
+# and the ssp CSR follows the user context. The M-mode firmware must
+# set menvcfg.SSE, requested through the SBI FWFT extension (SBI v3.0).
+CFG_TA_ZICFISS ?= n
+$(eval $(call cfg-depends-all,CFG_TA_ZICFISS,CFG_WITH_USER_TA CFG_RISCV_S_MODE CFG_RISCV_SBI))
+
 riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
 riscv-abi = $(ABI_BASE)$(ABI_D)
 

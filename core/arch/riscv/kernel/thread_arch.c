@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  * Copyright (c) 2026, RISCStar Solutions Limited
  * Copyright (c) 2016-2022, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
@@ -15,6 +15,7 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/boot.h>
+#include <kernel/cfi.h>
 #include <kernel/interrupt.h>
 #include <kernel/linker.h>
 #include <kernel/lockdep.h>
@@ -24,9 +25,12 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#include <kernel/ts_manager.h>
+#include <kernel/user_mode_ctx.h>
 #include <kernel/user_mode_ctx_struct.h>
 #include <kernel/vfp.h>
 #include <kernel/virtualization.h>
+#include <ldelf.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
@@ -121,6 +125,58 @@ static void thread_lazy_restore_ns_vfp(void)
 #endif /*CFG_WITH_VFP*/
 }
 
+/*
+ * Zicfiss: the ssp CSR is user state. S-mode never pushes or pops, but
+ * another thread may run a TA on this hart while this one is suspended,
+ * so the value is saved with the user registers on the way in and
+ * written back on the way out. The CSR is only reachable once
+ * cfi_shadow_stack_enabled(), before that every access from S-mode
+ * traps.
+ */
+static void user_ssp_save(unsigned long *ssp)
+{
+	if (cfi_shadow_stack_enabled())
+		*ssp = read_csr(CSR_SSP);
+}
+
+static void user_ssp_restore(unsigned long ssp)
+{
+	if (cfi_shadow_stack_enabled())
+		write_csr(CSR_SSP, ssp);
+}
+
+#ifdef CFG_TA_ZICFISS
+/*
+ * Every entry into user mode starts a fresh activation at the top of
+ * one of the two user stacks of the context: the TA stack for a TA
+ * entry, the ldelf stack for ldelf (initial load, dlopen, dump). The
+ * shadow stack is paired with the stack, so the one to start from is
+ * chosen by which stack @user_sp points into. A context without a
+ * shadow stack (an ELF that does not use Zicfiss) gets 0: it never
+ * executes a shadow stack instruction.
+ */
+static unsigned long user_ssp_for_entry(vaddr_t user_sp)
+{
+	struct ts_session *s = ts_get_current_session();
+	struct user_mode_ctx *uctx = to_user_mode_ctx(s->ctx);
+	vaddr_t ldelf_stack_end = uctx->ldelf_stack_ptr;
+	vaddr_t ldelf_stack_start = ldelf_stack_end - LDELF_STACK_SIZE;
+
+	if (!cfi_shadow_stack_enabled())
+		return 0;
+
+	if (user_sp >= ldelf_stack_start && user_sp <= ldelf_stack_end)
+		return uctx->ldelf_shadow_stack_ptr;
+
+	return uctx->shadow_stack_ptr;
+}
+#else
+static unsigned long user_ssp_for_entry(vaddr_t user_sp __unused)
+{
+	return 0;
+}
+#endif
+
 static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 {
 	regs->epc = (uintptr_t)thread_unwind_user_mode;
@@ -153,6 +209,7 @@ void thread_scall_handler(struct thread_scall_regs *regs)
 	thread_unmask_exceptions(state & ~THREAD_EXCP_NATIVE_INTR);
 
 	thread_user_save_vfp();
+	user_ssp_save(&regs->ssp);
 
 	sess = ts_get_current_session();
 
@@ -171,6 +228,13 @@ void thread_scall_handler(struct thread_scall_regs *regs)
 		/* We're returning from __thread_enter_user_mode() */
 		setup_unwind_user_mode(regs);
 	}
+
+	/*
+	 * The thread may have been suspended and resumed on any hart
+	 * while the syscall ran, put the user shadow stack pointer back
+	 * before returning to user mode.
+	 */
+	user_ssp_restore(regs->ssp);
 }
 
 static void thread_irq_handler(void)
@@ -387,8 +451,10 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 			tee_ta_ftrace_update_times_resume();
 	}
 
-	if (is_user_mode(&threads[n].regs))
+	if (is_user_mode(&threads[n].regs)) {
 		tee_ta_update_session_utime_resume();
+		user_ssp_restore(threads[n].regs.ssp);
+	}
 
 	/*
 	 * We may resume thread at another hart, so we need to re-assign value
@@ -452,6 +518,7 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 
 	if (is_from_user(status)) {
 		thread_user_save_vfp();
+		user_ssp_save(&threads[ct].regs.ssp);
 		tee_ta_update_session_utime_suspend();
 		tee_ta_gprof_sample_pc(pc);
 	}
@@ -686,6 +753,8 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 	status = xstatus_for_xret(true, PRV_U);
 	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, status, ie,
 		     NULL);
+	regs->ssp = user_ssp_for_entry(user_sp);
+	user_ssp_restore(regs->ssp);
 	rc = __thread_enter_user_mode(regs, exit_status0, exit_status1);
 	thread_unmask_exceptions(exceptions);
 
