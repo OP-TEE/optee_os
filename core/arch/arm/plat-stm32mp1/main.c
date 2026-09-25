@@ -170,7 +170,7 @@ TEE_Result stm32mp1_dbgmcu_get_chip_dev_id(uint32_t *chip_dev_id)
 
 	assert(chip_dev_id);
 
-	if (stm32_bsec_read_debug_conf() & BSEC_DBGSWGEN)
+	if (stm32_bsec_self_hosted_debug_is_enabled())
 		id = io_read32(stm32_dbgmcu_base() + DBGMCU_IDC) &
 		     DBGMCU_IDC_DEV_ID_MASK;
 
@@ -458,7 +458,7 @@ vaddr_t get_gicd_base(void)
 	return io_pa_or_va_secure(&base, 1);
 }
 
-void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg)
+void plat_bsec_get_static_cfg(struct stm32_bsec_static_cfg *cfg)
 {
 	cfg->base = BSEC_BASE;
 	cfg->upper_start = STM32MP1_UPPER_OTP_START;
@@ -518,7 +518,6 @@ static bool __maybe_unused bank_is_valid(unsigned int bank)
 static TEE_Result init_debug(void)
 {
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t conf = stm32_bsec_read_debug_conf();
 	struct clk *dbg_clk = stm32mp_rcc_clock_id_to_clk(CK_DBG);
 	uint32_t state = 0;
 
@@ -526,11 +525,11 @@ static TEE_Result init_debug(void)
 	if (res)
 		return res;
 
-	if (state != BSEC_STATE_SEC_CLOSED && conf) {
+	if (state != BSEC_STATE_SEC_CLOSED) {
 		if (IS_ENABLED(CFG_INSECURE))
 			IMSG("WARNING: All debug accesses are allowed");
 
-		res = stm32_bsec_write_debug_conf(conf | BSEC_DEBUG_ALL);
+		res = stm32_bsec_write_debug_conf(STM32_BSEC_DEBUG_ALL);
 		if (res)
 			return res;
 
