@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
+ * Copyright 2022-2023,2026 NXP
  * Copyright (c) 2023 Andes Technology Corporation
- * Copyright 2022-2023 NXP
  */
 #include <asm.S>
 
@@ -21,6 +21,11 @@ FUNC setjmp , :
 	STR	s11, REGOFF(11)(a0)
 	STR	ra, REGOFF(12)(a0)
 	STR	sp, REGOFF(13)(a0)
+#if defined(CFG_TA_ZICFISS) && !defined(__KERNEL__)
+	/* Zicfiss: record the shadow stack pointer, 0 if inactive */
+	ssrdp	t0
+	STR	t0, REGOFF(15)(a0)
+#endif
 #ifdef CFG_FTRACE_SUPPORT
 	addi	sp, sp, -16
 #ifdef RV32
@@ -79,9 +84,36 @@ FUNC longjmp , :
 	LDR	s9, REGOFF(9)(a0)
 	LDR	s10, REGOFF(10)(a0)
 	LDR	s11, REGOFF(11)(a0)
+#if defined(CFG_TA_ZICFISS) && !defined(__KERNEL__)
+	/*
+	 * Zicfiss: unwind the shadow stack to where setjmp() recorded it,
+	 * the frames in between are abandoned. Walk up by at most a page
+	 * at a time and touch the shadow stack at each step (SSPUSH then
+	 * SSPOPCHK of the same value) so that unwinding past the end of
+	 * the shadow stack faults on the guard page instead of pointing
+	 * ssp at arbitrary memory. Nothing to do when the shadow stack is
+	 * inactive (SSRDP reads 0).
+	 */
+	ssrdp	t0
+	beqz	t0, 2f
+	LDR	t1, REGOFF(15)(a0)
+1:	bgeu	t0, t1, 2f
+	sub	t2, t1, t0
+	li	t3, 4096
+	bltu	t2, t3, 3f
+	mv	t2, t3
+3:	add	t0, t0, t2
+	csrw	ssp, t0
+	sspush	t0
+	sspopchk t0
+	j	1b
+2:
+#endif
 	LDR	ra, REGOFF(12)(a0)
 	LDR	sp, REGOFF(13)(a0)
 	seqz	a0, a1
 	add	a0, a0, a1
 	ret
 END_FUNC longjmp
+
+RISCV_CFI(emit_riscv_feature_1_and RISCV_TA_FEATURE_1_AND)

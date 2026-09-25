@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020, Linaro Limited
+ * Copyright 2026 NXP
  */
 
 #if defined(__aarch64__)
@@ -16,6 +17,17 @@
 #define BTI(...) __VA_ARGS__
 #else
 #define BTI(...)
+#endif
+
+/*
+ * Emit the RISC-V CFI property note in user mode objects (TA libraries
+ * and ldelf), see riscv.S. The core is never built with CFI.
+ */
+#if defined(__riscv) && !defined(__KERNEL__) && \
+    (defined(CFG_TA_ZICFILP) || defined(CFG_TA_ZICFISS))
+#define RISCV_CFI(...) __VA_ARGS__
+#else
+#define RISCV_CFI(...)
 #endif
 
 #if defined(CFG_UNWIND) && defined(__arm__)

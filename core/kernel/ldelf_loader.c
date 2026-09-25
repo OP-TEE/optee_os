@@ -148,7 +148,8 @@ TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx)
 		return res;
 
 	prot = TEE_MATTR_URX;
-	if (IS_ENABLED(CFG_CORE_BTI))
+	/* ldelf is built with BTI (Arm) or landing pads (RISC-V) */
+	if (IS_ENABLED(CFG_CORE_BTI) || IS_ENABLED(CFG_TA_ZICFILP))
 		prot |= TEE_MATTR_GUARDED;
 
 	res = vm_set_prot(uctx, code_addr,

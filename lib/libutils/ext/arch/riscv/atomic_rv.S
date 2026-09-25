@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  */
 
 #include <asm.S>
@@ -20,3 +20,5 @@ FUNC atomic_dec32 , :
 	add	a0, a1, a2
 	ret
 END_FUNC atomic_dec32
+
+RISCV_CFI(emit_riscv_feature_1_and RISCV_TA_FEATURE_1_AND)

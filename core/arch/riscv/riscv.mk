@@ -154,8 +154,45 @@ $(eval $(call cfg-depends-all,CFG_TA_ZICFILP,CFG_WITH_USER_TA CFG_RISCV_S_MODE))
 CFG_TA_ZICFISS ?= n
 $(eval $(call cfg-depends-all,CFG_TA_ZICFISS,CFG_WITH_USER_TA CFG_RISCV_S_MODE CFG_RISCV_SBI))
 
-riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
+# The CFI extensions are added to the ISA string of every build stage:
+# the core does not use them but ldelf is built with the core compiler
+# and needs them for -fcf-protection, and a compiler that lacks them is
+# too old for the option anyway.
+ifeq ($(CFG_TA_ZICFILP),y)
+ISA_ZICFILP = _zicfilp
+cfi-ta-protection += branch
+endif
+ifeq ($(CFG_TA_ZICFISS),y)
+ISA_ZICFISS = _zicfiss
+cfi-ta-protection += return
+endif
+
+riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)$(ISA_ZICFILP)$(ISA_ZICFISS)
 riscv-abi = $(ABI_BASE)$(ABI_D)
+
+# -fcf-protection=branch emits an LPAD at every indirect branch target,
+# =return wraps prologues and epilogues in SSPUSH/SSPOPCHK, =full does
+# both. The compiler also emits the GNU_PROPERTY_RISCV_FEATURE_1_AND
+# note ldelf reads. GCC 15 is the first release with the option for
+# RISC-V; refuse to silently build unprotected TAs with an older one.
+ifneq ($(cfi-ta-protection),)
+ifeq ($(cfi-ta-protection),branch return)
+cfi-ta-cflags := -fcf-protection=full
+else
+cfi-ta-cflags := -fcf-protection=$(cfi-ta-protection)
+endif
+# Probed with the ISA string: the option is rejected without the
+# matching extension in -march, so cc-option alone would not do.
+cfi-ta-cc-check := $(shell $(CC$(sm)) -Werror -march=$(riscv-isa) \
+			-mabi=$(riscv-abi) $(cfi-ta-cflags) -c -x c /dev/null \
+			-o /dev/null 2>/dev/null || echo unsupported)
+ifeq ($(cfi-ta-cc-check),unsupported)
+$(error $(cfi-ta-cflags) with -march=$(riscv-isa) not supported by $(CC$(sm)))
+endif
+# ldelf runs in user mode next to the TAs and is built with the same
+# protection, see ldelf/ldelf.mk
+ldelf-platform-cflags += $(cfi-ta-cflags)
+endif
 
 CFG_WITH_VFP ?= $(CFG_RISCV_FPU)
 $(eval $(call cfg-depends-all,CFG_WITH_VFP,CFG_RISCV_FPU))
@@ -240,6 +277,7 @@ ta_rv32-platform-cflags += $(rv32-platform-cflags)
 ta_rv32-platform-cflags += $(platform-cflags-optimization)
 ta_rv32-platform-cflags += $(platform-cflags-debug-info)
 ta_rv32-platform-cflags += -fpic
+ta_rv32-platform-cflags += $(cfi-ta-cflags)
 
 ifeq ($(CFG_UNWIND),y)
 ta_rv32-platform-cflags += -fno-omit-frame-pointer
@@ -250,6 +288,7 @@ ta_rv32-platform-aflags += $(platform-aflags-debug-info)
 ta_rv32-platform-aflags += $(rv32-platform-aflags)
 
 ta_rv32-platform-cxxflags += -fpic
+ta_rv32-platform-cxxflags += $(cfi-ta-cflags)
 ta_rv32-platform-cxxflags += $(rv32-platform-cxxflags)
 ta_rv32-platform-cxxflags += $(platform-cflags-optimization)
 ta_rv32-platform-cxxflags += $(platform-cflags-debug-info)
@@ -277,6 +316,7 @@ ta_rv64-platform-cflags += $(rv64-platform-cflags)
 ta_rv64-platform-cflags += $(platform-cflags-optimization)
 ta_rv64-platform-cflags += $(platform-cflags-debug-info)
 ta_rv64-platform-cflags += -fpic
+ta_rv64-platform-cflags += $(cfi-ta-cflags)
 ta_rv64-platform-cflags += $(rv64-platform-cflags-generic)
 ifeq ($(CFG_UNWIND),y)
 ta_rv64-platform-cflags += -fno-omit-frame-pointer
@@ -291,6 +331,7 @@ ta_rv64-platform-aflags += $(platform-aflags-debug-info)
 ta_rv64-platform-aflags += $(rv64-platform-aflags)
 
 ta_rv64-platform-cxxflags += -fpic
+ta_rv64-platform-cxxflags += $(cfi-ta-cflags)
 ta_rv64-platform-cxxflags += $(platform-cflags-optimization)
 ta_rv64-platform-cxxflags += $(platform-cflags-debug-info)
 
