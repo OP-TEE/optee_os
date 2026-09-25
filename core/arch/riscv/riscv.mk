@@ -140,6 +140,12 @@ ISA_ZICBOM = _zicbom
 CFG_RISCV_CBOM_BLOCK_SIZE ?= 64
 endif
 
+# Zicfilp forward-edge CFI for TAs and ldelf: senvcfg.LPE is set per user
+# context when all its executable mappings are TEE_MATTR_GUARDED. The core
+# is not built with landing pads, menvcfg.LPE belongs to the M-mode firmware.
+CFG_TA_ZICFILP ?= n
+$(eval $(call cfg-depends-all,CFG_TA_ZICFILP,CFG_WITH_USER_TA CFG_RISCV_S_MODE))
+
 riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
 riscv-abi = $(ABI_BASE)$(ABI_D)
 
