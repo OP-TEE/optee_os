@@ -102,6 +102,9 @@
 #define UART0_BASE		0xff0a0000
 #define UART0_SIZE		SIZE_K(64)
 
+#define CRU_BASE		0xff9a0000
+#define CRU_SIZE		SIZE_K(128)
+
 /*
  * Internal SRAM (48 KB) at 0xfff80000.
  *
