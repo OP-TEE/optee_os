@@ -9,16 +9,36 @@
 #include <kernel/panic.h>
 #include <qfprom_target.h>
 #include <string.h>
+#include <string_ext.h>
 #include <trace.h>
 #include <util.h>
 
 #include "sec_elf_v2.h"
+
+static bool region_matches(enum fuseprov_region_type region,
+			   enum fuseprov_region_type entry_region)
+{
+	if (region != FUSEPROV_REGION_GENERAL)
+		return entry_region == region;
+
+	switch (entry_region) {
+	case FUSEPROV_REGION_SECBOOT:
+	case FUSEPROV_REGION_SHK:
+	case FUSEPROV_REGION_OEM_CONFIG:
+	case FUSEPROV_REGION_RW_PERM:
+	case FUSEPROV_REGION_FEC_EN:
+		return false;
+	default:
+		return entry_region < FUSEPROV_REGION_MAX;
+	}
+}
 
 static TEE_Result blow_fuse_region(enum fuseprov_region_type region,
 				   const struct fuse_entry *entries,
 				   uint32_t count, bool *fuses_blown)
 {
 	enum qfprom_error err = QFPROM_NO_ERR;
+	TEE_Result res = TEE_SUCCESS;
 	uint32_t mask_fec_msb_bits = 0;
 	uint32_t current_data[2] = {0};
 	uint32_t fuse_data[2] = {0};
@@ -28,7 +48,7 @@ static TEE_Result blow_fuse_region(enum fuseprov_region_type region,
 	for (i = 0; i < count; i++) {
 		const struct fuse_entry *entry = &entries[i];
 
-		if (entry->region != region ||
+		if (!region_matches(region, entry->region) ||
 		    entry->operation != FUSEPROV_OP_BLOW ||
 		    (entry->lsb_val == 0 && entry->msb_val == 0))
 			continue;
@@ -39,7 +59,8 @@ static TEE_Result blow_fuse_region(enum fuseprov_region_type region,
 		if (err != QFPROM_NO_ERR) {
 			EMSG("Failed to check FEC for addr 0x%08"PRIx32
 			     ": error=%d", entry->addr, err);
-			return TEE_ERROR_GENERIC;
+			res = TEE_ERROR_GENERIC;
+			goto out;
 		}
 
 		if (has_fec)
@@ -52,7 +73,8 @@ static TEE_Result blow_fuse_region(enum fuseprov_region_type region,
 		if (err != QFPROM_NO_ERR) {
 			EMSG("Failed to read fuse at 0x%08"PRIx32 ": error=%d",
 			     entry->addr, err);
-			return TEE_ERROR_GENERIC;
+			res = TEE_ERROR_GENERIC;
+			goto out;
 		}
 
 		/* Check if fuse bits are already blown */
@@ -71,14 +93,18 @@ static TEE_Result blow_fuse_region(enum fuseprov_region_type region,
 		if (err != QFPROM_NO_ERR) {
 			EMSG("Failed to write fuse at 0x%08"PRIx32 ": error=%d",
 			     entry->addr, err);
-			return TEE_ERROR_GENERIC;
+			res = TEE_ERROR_GENERIC;
+			goto out;
 		}
 
 		if (fuses_blown)
 			*fuses_blown = true;
 	}
 
-	return TEE_SUCCESS;
+out:
+	memzero_explicit(current_data, sizeof(current_data));
+	memzero_explicit(fuse_data, sizeof(fuse_data));
+	return res;
 }
 
 TEE_Result provision_execute(const uint8_t *data, size_t len,
@@ -87,17 +113,34 @@ TEE_Result provision_execute(const uint8_t *data, size_t len,
 	const struct qfuse_list_hdr *qfuse_hdr = NULL;
 	const struct segment_hdr *segments = NULL;
 	const struct fuse_entry *entries = NULL;
-	enum qfprom_error err = QFPROM_NO_ERR;
 	const struct secdat_hdr *hdr = NULL;
+	TEE_Result cleanup_res = TEE_SUCCESS;
+	bool secboot_write_disabled = false;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const uint8_t *seg_data = NULL;
-	uint32_t perm_data[2] = {0};
 	bool any_blown = false;
 	uint32_t seg_size = 0;
 	uint32_t count = 0;
 
-	if (!data || len == 0)
+	if (fuses_blown)
+		*fuses_blown = false;
+
+	if (!data || len < sizeof(*hdr))
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = qfprom_is_secboot_write_disabled(&secboot_write_disabled);
+	if (res != TEE_SUCCESS)
+		return res;
+	if (secboot_write_disabled) {
+		IMSG("Fuse provisioning already locked");
+		return TEE_SUCCESS;
+	}
+
+	hdr = (const struct secdat_hdr *)data;
+	if (hdr->magic1 != SECDAT_MAGIC1 || hdr->magic2 != SECDAT_MAGIC2) {
+		DMSG("No fuse provisioning image present");
+		return TEE_SUCCESS;
+	}
 
 	res = sec_elf_parse(data, len, &hdr, &segments);
 	if (res != TEE_SUCCESS)
@@ -107,48 +150,25 @@ TEE_Result provision_execute(const uint8_t *data, size_t len,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = qfprom_hw_init();
-	if (res != TEE_SUCCESS) {
-		EMSG("Failed to initialize QFPROM hardware: 0x%"PRIx32, res);
-		return res;
-	}
-
-	err = qfprom_read_row(WRITE_PERMISSION_ADDR, QFPROM_ADDR_SPACE_CORR,
-			      perm_data);
-	if (err != QFPROM_NO_ERR) {
-		EMSG("Failed to read WRITE_PERMISSION fuse: error=%d", err);
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	}
-
-	if (perm_data[0] & OEM_SECURE_BOOT_PERM_MASK) {
-		res = TEE_ERROR_ACCESS_DENIED;
-		goto out;
-	}
-
 	res = sec_elf_find_segment(data, len,
 				   SECDAT_SEGMENT_TYPE_EFUSE,
 				   &seg_data, &seg_size);
 
-	if (res != TEE_SUCCESS) {
-		res = TEE_ERROR_BAD_FORMAT;
-		goto out;
-	}
-
-	if (!seg_data) {
-		res = TEE_ERROR_BAD_FORMAT;
-		goto out;
-	}
-
-	if (seg_size < sizeof(struct qfuse_list_hdr)) {
-		res = TEE_ERROR_BAD_FORMAT;
-		goto out;
-	}
+	if (res == TEE_ERROR_ITEM_NOT_FOUND)
+		return TEE_SUCCESS;
+	if (res)
+		return res;
 
 	qfuse_hdr = (const struct qfuse_list_hdr *)seg_data;
 	count = qfuse_hdr->fuse_count;
 	entries = (const struct fuse_entry *)
 		  (seg_data + sizeof(struct qfuse_list_hdr));
+
+	res = qfprom_hw_init();
+	if (res != TEE_SUCCESS) {
+		EMSG("Failed to initialize QFPROM hardware: 0x%"PRIx32, res);
+		return res;
+	}
 
 	res = blow_fuse_region(FUSEPROV_REGION_GENERAL, entries, count,
 			       &any_blown);
@@ -183,14 +203,13 @@ TEE_Result provision_execute(const uint8_t *data, size_t len,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	if (fuses_blown)
-		*fuses_blown = any_blown;
-
 	res = TEE_SUCCESS;
 
 out:
-	qfprom_hw_deinit();
-	return res;
+	if (fuses_blown)
+		*fuses_blown = any_blown;
+	cleanup_res = qfprom_hw_deinit();
+	return res != TEE_SUCCESS ? res : cleanup_res;
 }
 
 void provision_reset_device(void)

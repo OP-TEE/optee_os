@@ -317,6 +317,8 @@ TEE_Result rpmh_send_command(struct rpmh_client *handle,
 	}
 
 	if (!wait_for_cmd(id)) {
+		EMSG("AMC completion timeout for drv %"PRIu32" addr %#"PRIx32,
+		     client->drv_id, address);
 		res = TEE_ERROR_BUSY;
 		goto out;
 	}

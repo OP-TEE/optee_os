@@ -14,8 +14,7 @@
 
 #include "sec_elf_v2.h"
 
-#define SHK_SIZE_BYTES	40
-#define SHK_NUM_ROWS	5
+#define SHK_SIZE_BYTES	(SECDAT_MAX_SHK_ROWS * 8)
 
 TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
 			 bool *fuses_blown)
@@ -23,10 +22,35 @@ TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
 	enum qfprom_error err = QFPROM_NO_ERR;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint8_t shk[SHK_SIZE_BYTES] = {0};
+	bool write_disabled = false;
+	bool read_disabled = false;
 	uint32_t shk_row_idx = 0;
 	uint32_t data[2] = {0};
 	uint8_t has_fec = 0;
 	uint32_t i = 0;
+
+	err = qfprom_read_row(WRITE_PERMISSION_ADDR, QFPROM_ADDR_SPACE_CORR,
+			      data);
+	if (err != QFPROM_NO_ERR)
+		goto out;
+
+	write_disabled = data[0] & SEC_KEY_DERIVATION_KEY_PERM_MASK;
+	err = qfprom_read_row(READ_PERMISSION_ADDR, QFPROM_ADDR_SPACE_CORR,
+			      data);
+	if (err != QFPROM_NO_ERR)
+		goto out;
+
+	read_disabled = data[0] & SEC_KEY_DERIVATION_KEY_PERM_MASK;
+	if (write_disabled && read_disabled) {
+		IMSG("SHK read and write permissions already locked");
+		res = TEE_SUCCESS;
+		goto out;
+	}
+	if (write_disabled || read_disabled) {
+		EMSG("SHK read and write permissions do not match");
+		res = TEE_ERROR_SECURITY;
+		goto out;
+	}
 
 	for (i = 0; i < count; i++) {
 		if (entries[i].region != FUSEPROV_REGION_SHK ||
@@ -36,17 +60,18 @@ TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
 		err = qfprom_read_row(entries[i].addr, QFPROM_ADDR_SPACE_CORR,
 				      data);
 		if (err != QFPROM_NO_ERR)
-			return TEE_ERROR_GENERIC;
+			goto out;
 
 		if (data[0] != 0 || data[1] != 0) {
 			IMSG("SHK fuse already provisioned");
-			return TEE_SUCCESS;
+			res = TEE_SUCCESS;
+			goto out;
 		}
 	}
 
 	res = crypto_rng_read(shk, sizeof(shk));
 	if (res != TEE_SUCCESS)
-		return res;
+		goto out;
 
 	shk_row_idx = 0;
 	for (i = 0; i < count; i++) {
@@ -56,9 +81,9 @@ TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
 		    entries[i].operation != FUSEPROV_OP_BLOW)
 			continue;
 
-		if (shk_row_idx >= SHK_NUM_ROWS) {
-			EMSG("Too many SHK entries in SEC-ELF (max %d)",
-			     SHK_NUM_ROWS);
+		if (shk_row_idx >= SECDAT_MAX_SHK_ROWS) {
+			EMSG("Too many SHK entries in SEC-ELF (max %u)",
+			     SECDAT_MAX_SHK_ROWS);
 			res = TEE_ERROR_GENERIC;
 			goto out;
 		}
@@ -129,10 +154,18 @@ TEE_Result provision_oem_spare(const struct fuse_entry *entries,
 		}
 
 		if (data[0] != 0 || data[1] != 0) {
-			IMSG("OEM spare fuse at 0x%08"PRIx32
-			     " already provisioned, skipping", entry->addr);
-			continue;
+			IMSG("OEM spare fuses already provisioned");
+			goto out;
 		}
+	}
+
+	for (i = 0; i < count; i++) {
+		const struct fuse_entry *entry = &entries[i];
+
+		if (entry->region != FUSEPROV_REGION_OEM_SPARE ||
+		    (entry->operation != FUSEPROV_OP_BLOW &&
+		     entry->operation != FUSEPROV_OP_BLOW_RANDOM))
+			continue;
 
 		has_fec = 0;
 

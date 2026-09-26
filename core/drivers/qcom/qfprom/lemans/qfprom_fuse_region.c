@@ -102,8 +102,22 @@ const struct qfprom_region_info region_data[] = {
 
 const size_t region_count = ARRAY_SIZE(region_data);
 
+static TEE_Result qfprom_platform_init(void)
+{
+	return qfprom_vote_supply(qfprom_get_context()->rpmh_handle, "smpa4",
+				  1800, QFPROM_VREG_MODE_LPM, true);
+}
+
+static TEE_Result qfprom_platform_deinit(void)
+{
+	return qfprom_vote_supply(qfprom_get_context()->rpmh_handle, "smpa4",
+				  1800, QFPROM_VREG_MODE_LPM, false);
+}
+
 const struct qfprom_platform_config plat_config = {
 	.name = "Lemans",
+	.init = qfprom_platform_init,
+	.deinit = qfprom_platform_deinit,
 	.qfprom_raw_base = QFPROM_RAW_BASE,
 	.qfprom_corr_base = QFPROM_CORR_BASE,
 	.qfprom_size = QFPROM_SIZE,
