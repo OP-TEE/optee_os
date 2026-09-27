@@ -21,6 +21,8 @@
 
 #define SPMC_CORE_SEL1_MAX_SHM_COUNT	64
 
+struct user_mode_ctx;
+
 struct ffa_rxtx {
 	void *rx;
 	void *tx;
@@ -32,7 +34,8 @@ struct ffa_rxtx {
 
 void spmc_handle_spm_id_get(struct thread_smc_1_2_regs *args);
 void spmc_handle_rxtx_map(struct thread_smc_1_2_regs *args,
-			  struct ffa_rxtx *buf);
+			  struct ffa_rxtx *buf,
+			  const struct user_mode_ctx *uctx);
 void spmc_handle_rxtx_unmap(struct thread_smc_1_2_regs *args,
 			    struct ffa_rxtx *buf);
 void spmc_handle_rx_release(struct thread_smc_1_2_regs *args,
