@@ -23,6 +23,7 @@
 #include <libfdt.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
+#include <mm/vm.h>
 #include <optee_ffa.h>
 #include <optee_msg.h>
 #include <optee_rpc_cmd.h>
@@ -372,7 +373,8 @@ static void unmap_buf(void *va, size_t sz)
 }
 
 void spmc_handle_rxtx_map(struct thread_smc_1_2_regs *args,
-			  struct ffa_rxtx *rxtx)
+			  struct ffa_rxtx *rxtx,
+			  const struct user_mode_ctx *uctx)
 {
 	int rc = 0;
 	unsigned int sz = 0;
@@ -463,9 +465,9 @@ void spmc_handle_rxtx_map(struct thread_smc_1_2_regs *args,
 			rc = FFA_INVALID_PARAMETERS;
 			goto out;
 		}
-
-		if (!virt_to_phys((void *)tx_pa) ||
-		    !virt_to_phys((void *)rx_pa)) {
+		if (!uctx ||
+		    vm_check_access_rights(uctx, 0, rx_pa, sz) ||
+		    vm_check_access_rights(uctx, 0, tx_pa, sz)) {
 			rc = FFA_INVALID_PARAMETERS;
 			goto out;
 		}
@@ -2000,7 +2002,7 @@ void thread_spmc_msg_recv(struct thread_smc_1_2_regs *args)
 	case FFA_RXTX_MAP_64:
 #endif
 	case FFA_RXTX_MAP_32:
-		spmc_handle_rxtx_map(args, &my_rxtx);
+		spmc_handle_rxtx_map(args, &my_rxtx, NULL);
 		break;
 	case FFA_RXTX_UNMAP:
 		spmc_handle_rxtx_unmap(args, &my_rxtx);

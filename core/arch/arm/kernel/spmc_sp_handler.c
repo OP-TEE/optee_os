@@ -1434,6 +1434,8 @@ out:
 void spmc_sp_msg_handler(struct thread_smc_1_2_regs *args,
 			 struct sp_session *caller_sp)
 {
+	struct sp_ctx *ctx = NULL;
+
 	thread_check_canaries();
 	do {
 		switch (args->a0) {
@@ -1465,8 +1467,10 @@ void spmc_sp_msg_handler(struct thread_smc_1_2_regs *args,
 		case FFA_RXTX_MAP_64:
 #endif
 		case FFA_RXTX_MAP_32:
+			ctx = to_sp_ctx(caller_sp->ts_sess.ctx);
 			ts_push_current_session(&caller_sp->ts_sess);
-			spmc_handle_rxtx_map(args, &caller_sp->rxtx);
+			spmc_handle_rxtx_map(args, &caller_sp->rxtx,
+					     &ctx->uctx);
 			ts_pop_current_session();
 			sp_enter(args, caller_sp);
 			break;
