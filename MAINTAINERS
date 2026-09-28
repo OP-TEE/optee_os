@@ -166,6 +166,13 @@ S:	Maintained
 F:	core/drivers/qcom/rpmh/
 F:	core/include/drivers/qcom/rpmh/
 
+Core Drivers QCOM TLMM
+R:	Siva Rama Krishna Potu <spotu@qti.qualcomm.com> [@siva-potu]
+R:	Vinod Kumar Amanaganti <vinoda@qti.qualcomm.com> [@vinod-amanaganti]
+S:	Maintained
+F:	core/drivers/qcom/tlmm/
+F:	core/include/drivers/qcom/tlmm/
+
 Core Drivers QCOM WDT
 R:	Harikrishna <hart@qti.qualcomm.com> [@thariaruchamy-bit]
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
