@@ -361,8 +361,10 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 		sz = ROUNDUP(sz, SMALL_PAGE_SIZE);
 		va = virt_page_alloc(sz / SMALL_PAGE_SIZE,
 				     MAF_CORE_MEM | MAF_ZERO_INIT);
-		if (!va)
+		if (!va) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err_unset_prtn;
+		}
 		malloc_add_pool((void *)va, sz);
 	}
 	/* Initialize threads */
