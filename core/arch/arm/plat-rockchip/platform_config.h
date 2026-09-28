@@ -175,6 +175,17 @@
 #define OTP_S_BASE		0xfe3a0000
 #define OTP_S_SIZE		SIZE_K(64)
 
+#define CRU_BASE		0xfd7c0000
+#define CRU_SIZE		SIZE_K(64)
+#define SCRU_BASE		0xfd7d0000
+#define SCRU_SIZE		SIZE_K(64)
+
+/* Clock gates of the secure OTP controller (write-masked, 1 = gated) */
+#define OTP_S_CLKGATE_CRU	(CRU_BASE + 0x848)	/* CRU_CLKGATE_CON18 */
+#define OTP_S_CLKGATE_CRU_BITS	(BIT32(11) | BIT32(12) | BIT32(13))	/* otpc_arb, otpc_auto_rd, otp_phy */
+#define OTP_S_CLKGATE_SCRU	(SCRU_BASE + 0x804)	/* SECURECRU_CLKGATE_CON1 */
+#define OTP_S_CLKGATE_SCRU_BITS	(BIT32(13) | BIT32(14))	/* pclk_otpc_s, clk_otpc_s */
+
 #define ROCKCHIP_OTP_SECURE_BOOT_STATUS_INDEX	0x8
 #define ROCKCHIP_OTP_SECURE_BOOT_STATUS_SIZE	0x1
 #define ROCKCHIP_OTP_SECURE_BOOT_STATUS_ENABLE	0x00ff
