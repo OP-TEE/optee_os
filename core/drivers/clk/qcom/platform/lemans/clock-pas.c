@@ -358,8 +358,7 @@ static const struct cdsp_reset_regs cdsp1_reset_regs = {
 
 /*
  * Put the QDSP6/NSP through a full subsystem reset (AOSS_CC_COMPUTESS_RESTART
- * and PDC sync reset) before bring-up, so the Q6 does not come out of reset
- * from a stale state left by an earlier boot stage.
+ * and PDC sync reset) when it is shut down, so that it boots again from reset.
  */
 static TEE_Result cdsp_reset_processor(const struct cdsp_reset_regs *r)
 {
@@ -496,7 +495,7 @@ static const struct gpdsp_reset_regs gpdsp1_reset_regs = {
 
 /*
  * Put a GP-DSP QDSP6 through a full subsystem reset (AOSS_CC_GPDSP_RESTART and
- * PDC sync reset) before bring-up. Unlike the Turing NSP there is no
+ * PDC sync reset) when it is shut down. Unlike the Turing NSP there is no
  * NSPAUX/ALT_RESET retention handling and the idle check covers two ports.
  */
 static TEE_Result gpdsp_reset_processor(const struct gpdsp_reset_regs *r)

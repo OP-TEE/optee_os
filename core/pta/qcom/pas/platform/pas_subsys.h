@@ -40,8 +40,7 @@ struct qcom_pas_ops {
  *
  * @QCOM_PAS_RESET_NONE:       fw_start only; no clock management here.
  * @QCOM_PAS_RESET_CLK_ENABLE: qcom_clock_enable() then fw_start().
- * @QCOM_PAS_RESET_CLK_FULL:   qcom_clock_pas_reset(), qcom_clock_enable(),
- *                             fw_start(), then
+ * @QCOM_PAS_RESET_CLK_FULL:   qcom_clock_enable(), fw_start(), then
  *                             qcom_clock_enable_pas_processor().
  */
 enum qcom_pas_reset_seq {
