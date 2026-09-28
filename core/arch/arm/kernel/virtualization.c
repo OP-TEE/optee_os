@@ -386,6 +386,16 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 err_unset_prtn:
 	set_current_prtn(NULL);
 	core_mmu_set_default_prtn();
+	tee_mm_free(prtn->tee_ram);
+	prtn->tee_ram = NULL;
+	tee_mm_free(prtn->ta_ram);
+	prtn->ta_ram = NULL;
+	tee_mm_free(prtn->tables);
+	prtn->tables = NULL;
+	core_free_mmu_prtn(prtn->mmu_prtn);
+	prtn->mmu_prtn = NULL;
+	nex_free(prtn->mem_map.map);
+	prtn->mem_map.map = NULL;
 err_free_gsd:
 	destroy_gsd(prtn, true /*free_only*/);
 err_free_prtn:
