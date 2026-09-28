@@ -109,10 +109,6 @@ TEE_Result pas_platform_auth_and_reset(uint32_t pas_id)
 
 	switch (subsys->reset_seq) {
 	case QCOM_PAS_RESET_CLK_FULL:
-		res = qcom_clock_pas_reset(data->clk_group);
-		if (res != TEE_SUCCESS)
-			return res;
-
 		res = qcom_clock_enable(data->clk_group);
 		if (res != TEE_SUCCESS)
 			return res;
