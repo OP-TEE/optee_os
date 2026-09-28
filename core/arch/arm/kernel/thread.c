@@ -1160,6 +1160,7 @@ void thread_get_user_kdata(struct mobj **mobj, size_t *offset,
 
 	core_mmu_get_user_va_range(&v, NULL);
 	*va = v + thread_user_kcode_size;
+	*sz = thread_user_kdata_page_size;
 #ifdef CFG_DYN_CONFIG
 	*mobj = thread_user_kdata_page_mobj;
 	*offset = 0;
@@ -1168,7 +1169,6 @@ void thread_get_user_kdata(struct mobj **mobj, size_t *offset,
 	*offset = (vaddr_t)thread_user_kdata_page -
 		  (vaddr_t)mobj_get_va(*mobj, 0, *sz);
 #endif
-	*sz = thread_user_kdata_page_size;
 }
 #endif
 
