@@ -1533,6 +1533,11 @@ static vaddr_t get_uref_base(struct memory_map *mem_map)
 	return va;
 }
 
+void core_mmu_init_uref_base(struct memory_map *mem_map)
+{
+	uref_base_init(get_uref_base(mem_map));
+}
+
 static struct memory_map *init_mem_map(struct memory_map *mem_map,
 				       unsigned long seed,
 				       unsigned long *ret_offs)
@@ -1591,7 +1596,7 @@ out:
 	      cmp_mmap_by_lower_va);
 
 	dump_mmap_table(mem_map);
-	uref_base_init(get_uref_base(mem_map));
+	core_mmu_init_uref_base(mem_map);
 
 	*ret_offs = offs;
 	return mem_map;

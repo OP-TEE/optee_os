@@ -250,6 +250,7 @@ static TEE_Result configure_guest_prtn_mem(struct guest_partition *prtn)
 	       phys_to_virt(original_data_pa, MEM_AREA_SEC_RAM_OVERALL,
 			    __data_end - __data_start),
 	       __data_end - __data_start);
+	core_mmu_init_uref_base(&prtn->mem_map);
 
 	return TEE_SUCCESS;
 

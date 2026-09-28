@@ -303,6 +303,7 @@ extern const unsigned long core_mmu_tee_load_pa;
 
 void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg);
 void core_init_mmu_regs(struct core_mmu_config *cfg);
+void core_mmu_init_uref_base(struct memory_map *mem_map);
 /* Copy static memory map from temporary boot_mem to heap */
 void core_mmu_save_mem_map(void);
 
