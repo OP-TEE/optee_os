@@ -40,6 +40,22 @@ static TEE_Result mrvl_ae_initialize(struct drvcrypt_authenc_init *dinit)
 
 	mrvl_ehsm_cryp_lock();
 
+	/* if already initialized free the previous content and context */
+	if (ctx->initialized) {
+		mrvl_ehsm_mem_free(ctx->iv_data);
+		mrvl_ehsm_mem_free(ctx->key);
+		mrvl_ehsm_mem_free(ctx->aad_data);
+		ctx->iv_data = NULL;
+		ctx->key = NULL;
+		ctx->aad_data = NULL;
+
+		if (ctx->context_id != 0) {
+			ret = mrvl_ehsm_aes_context_release(ctx->context_id);
+			if (ret != TEE_SUCCESS)
+				goto out;
+		}
+	}
+
 	ctx->iv_len = dinit->nonce.length;
 	ctx->iv_data = mrvl_ehsm_mem_alloc(ctx->iv_len);
 	if (!ctx->iv_data) {
@@ -79,6 +95,7 @@ static TEE_Result mrvl_ae_initialize(struct drvcrypt_authenc_init *dinit)
 		goto out;
 
 	ctx->is_new = true;
+	ctx->initialized = true;
 
 out:
 	if (ret != TEE_SUCCESS) {
@@ -126,10 +143,9 @@ mrvl_ae_update_payload(struct drvcrypt_authenc_update_payload *dupdate)
 	uint32_t context_id = 0;
 	size_t iv = 0;
 
-#if defined(PLATFORM_FLAVOR_cn10ka) || defined(PLATFORM_FLAVOR_cn10kb) || \
-	defined(PLATFORM_FLAVOR_cnf10ka) || defined(PLATFORM_FLAVOR_cnf10kb)
-	return TEE_ERROR_NOT_IMPLEMENTED;
-#endif
+	if (IS_ENABLED(CFG_MARVELL_EHSM_CN10K))
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
 	mrvl_ehsm_cryp_lock();
 
 	ret = mrvl_ehsm_aes_context_load(ctx->context_id);
@@ -459,7 +475,7 @@ static TEE_Result mrvl_ae_allocate(void **ctx, uint32_t algo)
 		return TEE_ERROR_NOT_IMPLEMENTED;
 
 	if (!mrvl_ehsm_aes_cryp_get()) {
-		DMSG("%s ehsm aes busy, algo: %x\n", __func__, algo);
+		DMSG("ehsm aes busy, algo: %x", algo);
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 
