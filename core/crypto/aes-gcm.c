@@ -55,7 +55,7 @@ static void ghash_update_pad_zero(struct internal_aes_gcm_state *state,
 }
 
 static void ghash_update_lengths(struct internal_aes_gcm_state *state,
-				 uint32_t l1, uint32_t l2)
+				 uint64_t l1, uint64_t l2)
 {
 	uint64_t len_fields[2] = {
 		TEE_U64_TO_BIG_ENDIAN(l1 * 8),
@@ -143,12 +143,16 @@ static TEE_Result __gcm_update_aad(struct internal_aes_gcm_state *state,
 	const uint8_t *d = data;
 	size_t l = len;
 	const uint8_t *head = NULL;
-	size_t n;
+	uint64_t nab = 0;
+	size_t n = 0;
 
 	if (state->payload_bytes)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	state->aad_bytes += len;
+	/* We can process at most 2^61 - 1 bytes, see ghash_update_lengths() */
+	if (ADD_OVERFLOW(state->aad_bytes, len, &nab) || nab > UINT64_MAX / 8)
+		return TEE_ERROR_BAD_PARAMETERS;
+	state->aad_bytes = nab;
 
 	while (l) {
 		if (state->buf_pos ||
@@ -192,10 +196,11 @@ __gcm_update_payload(struct internal_aes_gcm_state *state,
 		     TEE_OperationMode mode, const void *src,
 		     size_t len, void *dst)
 {
-	size_t n;
 	const uint8_t *s = src;
 	uint8_t *d = dst;
+	uint64_t npb = 0;
 	size_t l = len;
+	size_t n = 0;
 
 	if (!state->payload_bytes && state->buf_pos) {
 		/* AAD part done, finish up the last bits. */
@@ -205,7 +210,15 @@ __gcm_update_payload(struct internal_aes_gcm_state *state,
 		state->buf_pos = 0;
 	}
 
-	state->payload_bytes += len;
+	/*
+	 * We can process at most 2^32 - 2 blocks (64 GiB - 32 bytes)
+	 * to guarantee the 32-bit counter never exhausts its state
+	 * space and reuses a previous counter block.
+	 */
+	if (ADD_OVERFLOW(state->payload_bytes, len, &npb) ||
+	    npb > (uint64_t)(UINT32_MAX - 1) * TEE_AES_BLOCK_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+	state->payload_bytes = npb;
 
 	while (l) {
 		if (state->buf_pos || l < TEE_AES_BLOCK_SIZE) {

@@ -38,6 +38,10 @@
 #if defined(CFG_CRYPTO_PBKDF2)
 #include <tee/tee_cryp_pbkdf2.h>
 #endif
+#if IS_ENABLED(CFG_CRYPTO_DRIVER)
+#include <drvcrypt.h>
+#include <drvcrypt_acipher.h>
+#endif
 
 enum cryp_state {
 	CRYP_STATE_INITIALIZED = 0,
@@ -75,6 +79,7 @@ struct tee_cryp_obj_secret {
 #define TEE_TYPE_ATTR_GEN_KEY_OPT	BIT(4)
 #define TEE_TYPE_ATTR_GEN_KEY_REQ	BIT(5)
 #define TEE_TYPE_ATTR_BIGNUM_MAXBITS	BIT(6)
+#define TEE_TYPE_ATTR_BIGNUM_SECRET	BIT(7)
 
     /* Handle storing of generic secret keys of varying lengths */
 #define ATTR_OPS_INDEX_SECRET     0
@@ -124,7 +129,7 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_rsa_pub_key_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_RSA_PUBLIC_EXPONENT,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_public_key, e)
 	},
@@ -140,49 +145,56 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_rsa_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_RSA_PUBLIC_EXPONENT,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_OPT,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_OPT |
+		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, e)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIVATE_EXPONENT,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, d)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIME1,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, p)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIME2,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, q)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_EXPONENT1,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, dp)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_EXPONENT2,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, dq)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_COEFFICIENT,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, qp)
 	},
@@ -199,7 +211,7 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_pub_key_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_DSA_SUBPRIME,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_public_key, q)
 	},
@@ -230,7 +242,8 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_DSA_SUBPRIME,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ |
+		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_keypair, q)
 	},
@@ -245,7 +258,8 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_DSA_PRIVATE_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_keypair, x)
 	},
@@ -269,28 +283,31 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dh_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_DH_BASE,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ |
+		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dh_keypair, g)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DH_PUBLIC_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dh_keypair, y)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DH_PRIVATE_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dh_keypair, x)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DH_SUBPRIME,
-	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP |	 TEE_TYPE_ATTR_GEN_KEY_OPT,
+	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP |	 TEE_TYPE_ATTR_GEN_KEY_OPT |
+		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dh_keypair, q)
 	},
@@ -345,14 +362,14 @@ static const struct tee_cryp_obj_type_attrs
 static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_pub_key_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct ecc_public_key, x)
 	},
 
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct ecc_public_key, y)
 	},
@@ -368,21 +385,22 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_pub_key_attrs[] = {
 static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_keypair_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_ECC_PRIVATE_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS |
+		 TEE_TYPE_ATTR_BIGNUM_SECRET,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct ecc_keypair, d)
 	},
 
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct ecc_keypair, x)
 	},
 
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct ecc_keypair, y)
 	},
@@ -1890,6 +1908,71 @@ static TEE_Result get_ec_key_size(uint32_t curve, size_t *key_size)
 	return TEE_SUCCESS;
 }
 
+/*
+ * Returns the extra bits a secret key of @obj_type may need in the active
+ * crypto driver's key container, 0 if none.
+ */
+static size_t get_secret_key_overhead(uint32_t obj_type __maybe_unused)
+{
+#ifdef CFG_CRYPTO_DRIVER
+#define GET_BITS(algo_id, ops_struct) (__extension__({			    \
+		const struct ops_struct *ops = drvcrypt_get_ops(algo_id);   \
+		ops ? ops->secret_extra_bits : 0; }))
+
+	switch (obj_type) {
+	case TEE_TYPE_RSA_KEYPAIR:
+		return GET_BITS(CRYPTO_RSA, drvcrypt_rsa);
+	case TEE_TYPE_DSA_KEYPAIR:
+		return GET_BITS(CRYPTO_DSA, drvcrypt_dsa);
+	case TEE_TYPE_DH_KEYPAIR:
+		return GET_BITS(CRYPTO_DH, drvcrypt_dh);
+	case TEE_TYPE_ECDSA_KEYPAIR:
+	case TEE_TYPE_ECDH_KEYPAIR:
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
+	case TEE_TYPE_SM2_KEP_KEYPAIR:
+		return GET_BITS(CRYPTO_ECC, drvcrypt_ecc);
+	default:
+		return 0;
+	}
+#undef GET_BITS
+#else
+	return 0;
+#endif
+}
+
+static TEE_Result check_dsa_key_pair(struct bignum *g,
+				     struct bignum *p,
+				     struct bignum *q,
+				     struct bignum *y,
+				     struct bignum *x)
+{
+	/*
+	 * All public key parameters are ATTR_REQUIRED. This is enforced by
+	 * tee_svc_cryp_check_attr(). x (private key) can be NULL.
+	 */
+	assert(g && p && q && y);
+
+	/* Expected: q < p, g < p, y < p */
+	if (crypto_bignum_compare(q, p) >= 0 ||
+	    crypto_bignum_compare(g, p) >= 0 ||
+	    crypto_bignum_compare(y, p) >= 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * x may be an opaque key container (e.g. a CAAM black key blob)
+	 * rather than a plain scalar whenever the active crypto driver
+	 * declares a secret key overhead for DSA keypairs -- its bytes
+	 * aren't a number in that case, so x < q can't be checked here.
+	 * The driver validates x at first use instead.
+	 */
+	if (x && !get_secret_key_overhead(TEE_TYPE_DSA_KEYPAIR) &&
+	    crypto_bignum_compare(x, q) >= 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result tee_svc_cryp_obj_populate_type(
 		struct tee_obj *o,
 		const struct tee_cryp_obj_type_props *type_props,
@@ -1959,17 +2042,43 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 			if (res != TEE_SUCCESS)
 				return TEE_ERROR_BAD_PARAMETERS;
 		}
+	}
 
+	if (obj_size) {
 		/*
-		 * Bignum attributes limited by the number of bits in
-		 * o->info.objectSize are flagged with
-		 * TEE_TYPE_ATTR_BIGNUM_MAXBITS.
+		 * If obj_size was set there is a SIZE_INDICATOR parameter that
+		 * limits the size of attributes with BIGNUM_MAXBITS.
 		 */
-		if (type_props->type_attrs[idx].flags &
-		    TEE_TYPE_ATTR_BIGNUM_MAXBITS) {
+
+		for (n = 0; n < type_props->num_type_attrs; n++) {
+			uint32_t flags = type_props->type_attrs[n].flags;
+			uint32_t obj_type = o->info.objectType;
+			size_t max_bits = obj_size;
+
+			if (!(have_attrs & BIT32(n)))
+				continue;
+			if (!(flags & TEE_TYPE_ATTR_BIGNUM_MAXBITS))
+				continue;
+
+			/*
+			 * A secret attribute may additionally carry the
+			 * driver specific overhead of an opaque key
+			 * container, e.g. a serialized black key blob.
+			 * The container is built on the byte-aligned key
+			 * material, so round the key size up to a byte
+			 * boundary before adding the byte-based overhead.
+			 * Otherwise curves whose bit size is not a multiple
+			 * of 8 (e.g. NIST P-521) would be under-counted.
+			 */
+			if (flags & TEE_TYPE_ATTR_BIGNUM_SECRET)
+				max_bits = ROUNDUP(max_bits, 8) +
+					   get_secret_key_overhead(obj_type);
+
+			attr = (uint8_t *)o->attr +
+			       type_props->type_attrs[n].raw_offs;
 			if (crypto_bignum_num_bits(*(struct bignum **)attr) >
-			    o->info.maxObjectSize)
-				return TEE_ERROR_BAD_STATE;
+			    max_bits)
+				return TEE_ERROR_BAD_PARAMETERS;
 		}
 	}
 
@@ -1984,7 +2093,20 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 				      o->info.maxObjectSize))
 		o->info.objectSize -= o->info.objectSize / 8;
 
-	return TEE_SUCCESS;
+	switch (o->info.objectType) {
+	case TEE_TYPE_DSA_PUBLIC_KEY: {
+		struct dsa_public_key *key = o->attr;
+
+		return check_dsa_key_pair(key->g, key->p, key->q, key->y, NULL);
+	}
+	case TEE_TYPE_DSA_KEYPAIR: {
+		struct dsa_keypair *key = o->attr;
+
+		return check_dsa_key_pair(key->g, key->p, key->q, key->y, key->x);
+	}
+	default:
+		return TEE_SUCCESS;
+	}
 }
 
 TEE_Result syscall_cryp_obj_populate(unsigned long obj,
@@ -2072,10 +2194,10 @@ TEE_Result syscall_cryp_obj_copy(unsigned long dst, unsigned long src)
 	dst_o->info.objectSize = src_o->info.objectSize;
 	if (src_o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) {
 		tee_pobj_lock_usage(src_o->pobj);
-		dst_o->info.objectUsage = src_o->pobj->obj_info_usage;
+		dst_o->info.objectUsage &= src_o->pobj->obj_info_usage;
 		tee_pobj_unlock_usage(src_o->pobj);
 	} else {
-		dst_o->info.objectUsage = src_o->info.objectUsage;
+		dst_o->info.objectUsage &= src_o->info.objectUsage;
 	}
 	return TEE_SUCCESS;
 }
@@ -3844,6 +3966,10 @@ dh_out:
 		crypto_bignum_bin2bn(y_bbuf, params[1].content.ref.length,
 				     key_public.y);
 
+		res = crypto_acipher_verify_ecc_public_key(&key_public);
+		if (res != TEE_SUCCESS)
+			goto ecdh_out;
+
 		pt_secret = (uint8_t *)(sk + 1);
 		pt_secret_len = sk->alloc_size;
 		res = crypto_acipher_ecc_shared_secret(ko->attr, &key_public,
@@ -3856,6 +3982,7 @@ dh_out:
 			set_attribute(so, type_props, TEE_ATTR_SECRET_VALUE);
 		}
 
+ecdh_out:
 		/* free the public key */
 		crypto_acipher_free_ecc_public_key(&key_public);
 	}
@@ -3956,6 +4083,11 @@ dh_out:
 			.out_len = so->info.maxObjectSize,
 		};
 		struct tee_obj *ko2 = NULL;
+
+		if (kep_parms.out_len > sk->alloc_size) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
 
 		res = tee_obj_get(utc, cs->key2, &ko2);
 		if (res != TEE_SUCCESS)

@@ -8,7 +8,6 @@
  * https://github.com/FirmwareHandoff/firmware_handoff
  ******************************************************************************/
 
-#include <kernel/cache_helpers.h>
 #include <kernel/panic.h>
 #include <kernel/transfer_list.h>
 #include <mm/core_memprot.h>
@@ -76,7 +75,13 @@ void transfer_list_unmap_sync(struct transfer_list_header *tl)
 	size_t sz = tl->max_size;
 
 	transfer_list_update_checksum(tl);
-	dcache_cleaninv_range(tl, sz);
+
+	if (cache_op_inner(DCACHE_AREA_CLEAN, tl, sz))
+		panic("Failed to clean transfer list from inner cache");
+
+	if (cache_op_outer(DCACHE_AREA_CLEAN, virt_to_phys(tl), sz))
+		panic("Failed to clean transfer list from outer cache");
+
 	unmap_list(tl, sz);
 }
 

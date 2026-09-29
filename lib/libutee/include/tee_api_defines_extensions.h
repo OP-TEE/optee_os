@@ -76,9 +76,19 @@
  * PKCS #5 v2.0 Key Derivation Function 2 (PBKDF2)
  * RFC 2898 section 5.2
  * https://www.ietf.org/rfc/rfc2898.txt
+ *
+ * The identifiers below are OP-TEE extensions encoded according
+ * to the algorithm identifier bit fields defined in table 6-12 of
+ * the GP TEE Internal Core API Specification v1.1.2.
+ * The SM3 algorithm is an OP-TEE extension.
  */
 
-#define TEE_ALG_PBKDF2_HMAC_SHA1_DERIVE_KEY 0x800020C2
+#define TEE_ALG_PBKDF2_HMAC_SHA1_DERIVE_KEY     0x800020C2
+#define TEE_ALG_PBKDF2_HMAC_SHA224_DERIVE_KEY   0x800030C2
+#define TEE_ALG_PBKDF2_HMAC_SHA256_DERIVE_KEY   0x800040C2
+#define TEE_ALG_PBKDF2_HMAC_SHA384_DERIVE_KEY   0x800050C2
+#define TEE_ALG_PBKDF2_HMAC_SHA512_DERIVE_KEY   0x800060C2
+#define TEE_ALG_PBKDF2_HMAC_SM3_DERIVE_KEY      0x800070C2
 
 #define TEE_TYPE_PBKDF2_PASSWORD            0xA10000C2
 

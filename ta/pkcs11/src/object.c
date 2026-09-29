@@ -159,9 +159,9 @@ void destroy_object(struct pkcs11_session *session, struct pkcs11_object *obj,
 
 		handle_put(get_object_handle_db(session),
 			   pkcs11_object2handle(obj, session));
-		cleanup_persistent_object(obj, session->token);
-
 		token_invalidate_object_handles(obj);
+
+		cleanup_persistent_object(obj, session->token);
 	} else {
 		handle_put(get_object_handle_db(session),
 			   pkcs11_object2handle(obj, session));
@@ -542,7 +542,8 @@ enum pkcs11_rc entry_find_objects_init(struct pkcs11_client *client,
 
 	rc = sanitize_client_object(&req_attrs, template,
 				    sizeof(*template) + template->attrs_size,
-				    PKCS11_UNDEFINED_ID, PKCS11_UNDEFINED_ID);
+				    PKCS11_UNDEFINED_ID, PKCS11_UNDEFINED_ID,
+				    0);
 	if (rc)
 		goto out;
 
@@ -800,6 +801,15 @@ enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
 		goto out;
 	}
 
+	/*
+	 * We will update the template with relevant data, without resizing it.
+	 * Upon completion, it will be copied to client output buffer.
+	 */
+	if (out->memref.size < sizeof(*template) + template->attrs_size) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
 	/* Iterate over attributes and set their values */
 	/*
 	 * 1. If the specified attribute (i.e., the attribute specified by the
@@ -831,12 +841,23 @@ enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
 	for (; cur < end; cur += len) {
 		struct pkcs11_attribute_head *cli_ref = (void *)cur;
 		struct pkcs11_attribute_head cli_head = { };
+		uintptr_t cli_end = 0;
 		void *data_ptr = NULL;
+
+		if ((char *)(cli_ref + 1) > end) {
+			rc = PKCS11_CKR_ARGUMENTS_BAD;
+			goto out;
+		}
 
 		/* Make copy of header so that is aligned properly. */
 		TEE_MemMove(&cli_head, cli_ref, sizeof(cli_head));
 
-		len = sizeof(*cli_ref) + cli_head.size;
+		if (ADD_OVERFLOW(sizeof(*cli_ref), cli_head.size, &len) ||
+		    ADD_OVERFLOW((uintptr_t)cur, len, &cli_end) ||
+		    (char *)cli_end > end) {
+			rc = PKCS11_CKR_ARGUMENTS_BAD;
+			goto out;
+		}
 
 		/* Treat hidden attributes as missing attributes */
 		if (attribute_is_hidden(&cli_head)) {
@@ -880,8 +901,11 @@ enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
 			attr_type_invalid = 1;
 			break;
 		case PKCS11_CKR_BUFFER_TOO_SMALL:
-			if (data_ptr)
+			if (data_ptr) {
+				cli_head.size =
+					PKCS11_CK_UNAVAILABLE_INFORMATION;
 				buffer_too_small = 1;
+			}
 			break;
 		default:
 			rc = PKCS11_CKR_GENERAL_ERROR;
@@ -912,6 +936,7 @@ enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
 		rc = PKCS11_CKR_BUFFER_TOO_SMALL;
 
 	/* Move updated template to out buffer */
+	out->memref.size = sizeof(*template) + template->attrs_size;
 	TEE_MemMove(out->memref.buffer, template, out->memref.size);
 
 	DMSG("PKCS11 session %"PRIu32": get attributes %#"PRIx32,

@@ -125,6 +125,8 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 	rsa_data.key.key = key;
 	rsa_data.key.isprivate = true;
 	rsa_data.key.n_size = crypto_bignum_num_bytes(key->n);
+	if (cipher_len > rsa_data.key.n_size)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	rsa = drvcrypt_get_ops(CRYPTO_RSA);
 	if (rsa) {
@@ -164,6 +166,8 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 	rsa_data.key.key = key;
 	rsa_data.key.isprivate = false;
 	rsa_data.key.n_size = crypto_bignum_num_bytes(key->n);
+	if (msg_len > rsa_data.key.n_size)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (rsa_data.key.n_size > *cipher_len) {
 		CRYPTO_TRACE("Cipher length (%zu) too short expected %zu bytes",
@@ -244,6 +248,8 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 		rsa_data.key.key = key;
 		rsa_data.key.isprivate = true;
 		rsa_data.key.n_size = crypto_bignum_num_bytes(key->n);
+		if (cipher_len > rsa_data.key.n_size)
+			return TEE_ERROR_BAD_PARAMETERS;
 
 		rsa_data.message.data = msg;
 		rsa_data.message.length = *msg_len;
@@ -310,7 +316,8 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 			rsa_data.rsa_id = DRVCRYPT_RSA_PKCS_V1_5;
 
 			/* Message length <= (modulus_size - 11) */
-			if (msg_len > rsa_data.key.n_size - 11)
+			if (rsa_data.key.n_size < 11 ||
+			    msg_len > rsa_data.key.n_size - 11)
 				return TEE_ERROR_BAD_PARAMETERS;
 
 		} else {
@@ -323,7 +330,8 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 			if (ret != TEE_SUCCESS)
 				return ret;
 
-			if (2 * rsa_data.digest_size >= rsa_data.key.n_size - 2)
+			if (rsa_data.key.n_size <=
+			    2 * rsa_data.digest_size + 2)
 				return TEE_ERROR_BAD_PARAMETERS;
 
 			if (msg_len >

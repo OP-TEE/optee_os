@@ -4,7 +4,8 @@ permissions:
   contents: read
 concurrency:
   group: ci-${{ github.ref }}  # unique per branch
-  cancel-in-progress: true     # cancel previous runs on the same branch
+  # cancel previous runs on the same branch, except for master
+  cancel-in-progress: ${{ github.ref != 'master' }}
 jobs:
   code_style:
     name: Code style
@@ -12,7 +13,7 @@ jobs:
     container: jforissier/optee_os_ci
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history so checkpatch can check commit IDs in commit messages
       - name: Update Git config
@@ -127,6 +128,7 @@ jobs:
               _make PLATFORM=imx-mx93evk
               _make PLATFORM=imx-mx95evk
               _make PLATFORM=imx-mx943evk
+              _make PLATFORM=imx-mx952evk
           - name: arm k3
             make_commands: |
               _make PLATFORM=k3-j721e
@@ -180,6 +182,7 @@ jobs:
               _make PLATFORM=rzg CFG_ARM64_core=y
               _make PLATFORM=rpi3
               _make PLATFORM=rpi3 CFG_ARM64_core=y
+              _make PLATFORM=rpi4
               _make PLATFORM=rpi5
               _make PLATFORM=zynq7k-zc702
               _make PLATFORM=marvell-cnf20ka
@@ -213,11 +216,20 @@ jobs:
             make_commands: |
               _make PLATFORM=qcom-kodiak
               _make PLATFORM=qcom-lemans
+              _make PLATFORM=qcom-lemans CFG_QCOM_DIAG_LOG=y CFG_QFPROM_PROGRAMMING=y CFG_QCOM_QFPROM_FUSEPROV=y
+              _make PLATFORM=qcom-ipq96xx
+              _make PLATFORM=qcom-ipq52xx
+              _make PLATFORM=qcom-nord
+              _make PLATFORM=qcom-shikra
           - name: arm rockchip
             make_commands: |
+              _make PLATFORM=rockchip-px30
               _make PLATFORM=rockchip-rk322x
               _make PLATFORM=rockchip-rk3399
+              _make PLATFORM=rockchip-rk3506
+              _make PLATFORM=rockchip-rk3576
               _make PLATFORM=rockchip-rk3588
+              _make PLATFORM=rockchip-rv1106
           - name: arm sam
             make_commands: |
               _make PLATFORM=sam
@@ -245,6 +257,10 @@ jobs:
               _make PLATFORM=stm32mp1-135F_DK CFG_DRIVERS_CLK_PRINT_TREE=y CFG_DRIVERS_REGULATOR_PRINT_TREE=y
               _make PLATFORM=stm32mp1-135F_DK COMPILER=clang
               _make PLATFORM=stm32mp1 CFG_STM32MP1_OPTEE_IN_SYSRAM=y CFG_STM32MP_REMOTEPROC=y
+          - name: arm tegra
+            make_commands: |
+              _make PLATFORM=tegra-t234
+              _make PLATFORM=tegra-t264
           - name: arm ti
             make_commands: |
               _make PLATFORM=ti-dra7xx out/core/tee{,-pager,-pageable}.bin
@@ -337,10 +353,12 @@ jobs:
               _make PLATFORM=virt
               _make PLATFORM=virt CFG_RISCV_PLIC=n CFG_RISCV_APLIC=y
               _make PLATFORM=virt CFG_RISCV_PLIC=n CFG_RISCV_APLIC_MSI=y CFG_RISCV_IMSIC=y
+              _make PLATFORM=virt CFG_RISCV_ISA_ZICBOM=y
               _make PLATFORM=sifive
+              _make PLATFORM=cva6
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Update Git config
         run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
       - name: Generate cache key
@@ -349,7 +367,7 @@ jobs:
           echo "CACHE_KEY=builds-cache-${HASH}-${GITHUB_SHA}" >> ${GITHUB_ENV}
           echo "CACHE_RESTORE_KEY=builds-cache-${HASH}" >> ${GITHUB_ENV}
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /github/home/.cache/ccache
           key: ${{ env.CACHE_KEY }}
@@ -380,10 +398,6 @@ jobs:
     name: Build QEMUv7 image
     runs-on: ubuntu-latest
     steps:
-      - name: Host cleanup
-        run: |
-          wget https://raw.githubusercontent.com/OP-TEE/optee_os/refs/heads/master/scripts/ci-host-cleanup.sh
-          bash ci-host-cleanup.sh
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
@@ -395,7 +409,7 @@ jobs:
           docker build -t qemuv7_image .
           docker save qemuv7_image | zstd -T0 -o qemuv7_image.tar.zst
       - name: Upload Docker image
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: qemuv7_image
           path: qemuv7_image.tar.zst
@@ -413,19 +427,17 @@ jobs:
               make -j$(nproc) check CFG_LOCKDEP=y CFG_LOCKDEP_RECORD_STACK=n CFG_IN_TREE_EARLY_TAS=pkcs11/fd02c9da-306c-48c7-a49c-bbd827ae86ee CFG_PKCS11_TA=y CFG_CORE_UNSAFE_MODEXP=y XTEST_ARGS="-x pkcs11_1007"
           - name: 2
             make_commands: |
-              make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n XTEST_ARGS="n_1001 n_1003 n_1004"
+              make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_TA_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n XTEST_ARGS="n_1001 n_1003 n_1004 n_1042"
           - name: 3
             make_commands: |
-              make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n CFG_DYN_CONFIG=n XTEST_ARGS="n_1001 n_1003 n_1004"
+              make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_TA_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n CFG_DYN_CONFIG=n XTEST_ARGS="n_1001 n_1003 n_1004 n_1042"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
-      - name: Host cleanup
-        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Download Docker image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: qemuv7_image
           path: .
@@ -438,7 +450,7 @@ jobs:
           echo "CACHE_KEY=qemuv7_check-cache-${HASH}-${GITHUB_SHA}" >> $GITHUB_ENV
           echo "CACHE_RESTORE_KEY=qemuv7_check-cache-${HASH}" >> ${GITHUB_ENV}
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /home/runner/work/ccache
           key: ${{ env.CACHE_KEY }}
@@ -460,6 +472,7 @@ jobs:
               export BR2_CCACHE_DIR=/root/.cache/ccache
               export FORCE_UNSAFE_CONFIGURE=1
               export CFG_TEE_CORE_LOG_LEVEL=2
+              export DUMP_LOGS_ON_ERROR=1
 
               TOP=/root/optee_repo_qemu
               mv $TOP/optee_os $TOP/optee_os_old
@@ -474,10 +487,6 @@ jobs:
     name: Build QEMUv8 image
     runs-on: ubuntu-latest
     steps:
-      - name: Host cleanup
-        run: |
-          wget https://raw.githubusercontent.com/OP-TEE/optee_os/refs/heads/master/scripts/ci-host-cleanup.sh
-          bash ci-host-cleanup.sh
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
@@ -489,7 +498,7 @@ jobs:
           docker build -t qemuv8_image .
           docker save qemuv8_image | zstd -T0 -o qemuv8_image.tar.zst
       - name: Upload Docker image
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: qemuv8_image
           path: qemuv8_image.tar.zst
@@ -536,7 +545,7 @@ jobs:
               make -j$(nproc) check ARM_FIRMWARE_HANDOFF=y
           - name: KASAN
             make_commands: |
-              make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n RUST_ENABLE=n MEASURED_BOOT_FTPM=n XTEST_ARGS="n_1001 n_1003 n_1004"
+              make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_TA_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n RUST_ENABLE=n MEASURED_BOOT_FTPM=n XTEST_ARGS="n_1001 n_1003 n_1004 n_1042"
           - name: pager
             make_commands: |
               make -j$(nproc) check CFG_WITH_PAGER=y MEASURED_BOOT_FTPM=n
@@ -563,13 +572,11 @@ jobs:
               make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
-      - name: Host cleanup
-        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Download Docker image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: qemuv8_image
           path: .
@@ -582,7 +589,7 @@ jobs:
           echo "CACHE_KEY=qemuv8_check-cache-${HASH}-${GITHUB_SHA}" >> $GITHUB_ENV
           echo "CACHE_RESTORE_KEY=qemuv8_check-cache-${HASH}" >> ${GITHUB_ENV}
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /home/runner/work/ccache
           key: ${{ env.CACHE_KEY }}
@@ -606,6 +613,7 @@ jobs:
               export CFG_TEE_CORE_LOG_LEVEL=2
               export CFG_ATTESTATION_PTA=y
               export CFG_ATTESTATION_PTA_KEY_SIZE=1024
+              export DUMP_LOGS_ON_ERROR=1
 
               TOP=/root/optee_repo_qemu_v8
               mv $TOP/optee_os $TOP/optee_os_old
@@ -620,10 +628,6 @@ jobs:
     name: Build QEMUv8 arm64 image
     runs-on: ubuntu-24.04-arm
     steps:
-      - name: Host cleanup
-        run: |
-          wget https://raw.githubusercontent.com/OP-TEE/optee_os/refs/heads/master/scripts/ci-host-cleanup.sh
-          bash ci-host-cleanup.sh
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
@@ -635,7 +639,7 @@ jobs:
           docker build -t qemuv8_arm64_image .
           docker save qemuv8_arm64_image | zstd -T0 -o qemuv8_arm64_image.tar.zst
       - name: Upload Docker image
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: qemuv8_arm64_image
           path: qemuv8_arm64_image.tar.zst
@@ -654,13 +658,11 @@ jobs:
               make -j$(nproc) check CFG_CORE_UNSAFE_MODEXP=y
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Update Git config
         run: git config --global --add safe.directory /home/runner/work/optee_os/optee_os
-      - name: Host setup
-        run: bash /home/runner/work/optee_os/optee_os/scripts/ci-host-cleanup.sh
       - name: Download Docker image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: qemuv8_arm64_image
           path: .
@@ -673,7 +675,7 @@ jobs:
           echo "CACHE_KEY=qemuv8_arm64_check-cache-${HASH}-${GITHUB_SHA}" >> ${GITHUB_ENV}
           echo "CACHE_RESTORE_KEY=qemuv8_arm64_check-cache-${HASH}" >> ${GITHUB_ENV}
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /home/runner/work/ccache
           key: ${{ env.CACHE_KEY }}
@@ -697,6 +699,7 @@ jobs:
               export CFG_TEE_CORE_LOG_LEVEL=2
               export CFG_ATTESTATION_PTA=y
               export CFG_ATTESTATION_PTA_KEY_SIZE=1024
+              export DUMP_LOGS_ON_ERROR=1
 
               TOP=/root/optee_repo_qemu_v8
               mv $TOP/optee_os $TOP/optee_os_old

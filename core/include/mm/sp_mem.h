@@ -19,10 +19,13 @@ struct sp_mem;
  * @ref_count: Count retrieve requests from endpoint
  * @smem: Shared memory reference
  * @link: Link in related list
+ *
+ * With the exception of @ref_count, this struct is not modified while the
+ * struct sp_mem, which it's stored in, remains in the mem_shares list.
  */
 struct sp_mem_receiver {
 	struct ffa_mem_access_perm perm;
-	uint8_t ref_count;
+	uint8_t ref_count; /* Protected by mem_ref_lock */
 	struct sp_mem *smem;
 
 	SLIST_ENTRY(sp_mem_receiver) link;
@@ -55,6 +58,9 @@ SLIST_HEAD(sp_mem_regions_head, sp_mem_map_region);
  * The receivers field is used to store all receiver specific information.
  * The regions field is used to store all data needed for retrieving the
  * shared addresses.
+ *
+ * This struct remains unchanged while it remains reachable through the
+ * mem_shares list.
  */
 struct sp_mem {
 	struct sp_mem_regions_head regions;
@@ -66,18 +72,23 @@ struct sp_mem {
 	uint64_t global_handle;
 	uint64_t tag;
 
+	size_t read_lock_count;
+	bool write_locked;
 	SLIST_ENTRY(sp_mem) link;
 };
 
-struct sp_mem *sp_mem_new(void);
+struct sp_mem *sp_mem_new_write_locked(void);
 struct sp_mem_receiver *sp_mem_get_receiver(uint32_t s_id, struct sp_mem *smem);
-struct sp_mem *sp_mem_get(uint64_t handle);
+struct sp_mem *sp_mem_lookup_and_read_lock(uint64_t handle);
+struct sp_mem *sp_mem_lookup_and_write_lock(uint64_t handle);
+void sp_mem_read_unlock(struct sp_mem *smem);
+void sp_mem_write_unlock(struct sp_mem *smem);
 
 bool sp_mem_is_shared(struct sp_mem_map_region *new_reg);
 void *sp_mem_get_va(const struct user_mode_ctx *uctx, size_t offset,
 		    struct mobj *mobj);
-void sp_mem_remove(struct sp_mem *s_mem);
-void sp_mem_add(struct sp_mem *smem);
+void sp_mem_remove_and_write_unlock(struct sp_mem *s_mem);
+void sp_mem_add_and_write_unlock(struct sp_mem *smem);
 struct mobj *sp_mem_new_mobj(uint64_t pages, uint32_t mem_type, bool is_secure);
 int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
 		     paddr_t pa, unsigned int num_pages);

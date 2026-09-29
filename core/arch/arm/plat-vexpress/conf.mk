@@ -1,5 +1,7 @@
 PLATFORM_FLAVOR ?= qemu_virt
 
+CFG_CORE_WORKAROUND_ARM_TLBI ?= n
+
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
 include core/arch/arm/cpu/cortex-a15.mk
 endif
@@ -198,3 +200,6 @@ endif
 
 CFG_PKCS11_TA ?= y
 CFG_PKCS11_TA_RSA_X_509 ?= y
+
+# Add the TA endorsement seed property (see core/tee/vendor_props.c).
+CFG_TEE_ENDORSEMENT_SEED ?= y

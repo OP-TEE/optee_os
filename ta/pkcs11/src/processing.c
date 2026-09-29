@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2017-2020, Linaro Limited
+ * Copyright 2026 NXP
  */
 
 #include <assert.h>
@@ -352,6 +353,9 @@ enum pkcs11_rc alloc_get_tee_attribute_data(TEE_ObjectHandle tee_obj,
 	size_t sz = 0;
 
 	res = TEE_GetObjectBufferAttribute(tee_obj, attribute, NULL, &sz);
+	if (res == TEE_SUCCESS && sz == 0)
+		return PKCS11_RV_NOT_FOUND;
+
 	if (res != TEE_ERROR_SHORT_BUFFER)
 		return PKCS11_CKR_FUNCTION_FAILED;
 

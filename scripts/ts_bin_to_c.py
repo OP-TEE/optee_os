@@ -147,16 +147,19 @@ def main():
     f = open(args.out, 'w')
     f.write('/* Generated from ' + ts + ' by ' +
             os.path.basename(__file__) + ' */\n\n')
+    f.write('#include <compiler.h>\n')
     f.write('#include <kernel/embedded_ts.h>\n\n')
     f.write('#include <scattered_array.h>\n\n')
-    f.write('const uint8_t ts_bin_' + ts_uuid.hex + '[] = {\n')
+    f.write('const uint8_t ts_bin_' + ts_uuid.hex + '[] ' +
+            '__aligned(__alignof__(uint64_t)) = {\n')
     ts_size, ts_uncompressed_size = dump_bin(f, ts, args.compress)
     f.write('};\n')
 
     if is_sp:
 
         f.write('#include <kernel/secure_partition.h>\n\n')
-        f.write('const uint8_t fdt_bin_' + ts_uuid.hex + '[] = {\n')
+        f.write('const uint8_t fdt_bin_' + ts_uuid.hex + '[] ' +
+                '__aligned(__alignof__(uint64_t)) = {\n')
         dump_bin(f, args.manifest, False)
         f.write('};\n')
         f.write('SCATTERED_ARRAY_DEFINE_PG_ITEM(sp_images, struct \

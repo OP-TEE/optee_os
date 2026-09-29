@@ -44,7 +44,7 @@ struct tee_fs_dir {
 	const TEE_UUID *uuid;
 };
 
-static int pos_to_block_num(int position)
+static size_t pos_to_block_num(size_t position)
 {
 	return position >> BLOCK_SHIFT;
 }
@@ -142,12 +142,13 @@ exit:
 }
 
 static TEE_Result get_offs_size(enum tee_fs_htree_type type, size_t idx,
-				uint8_t vers, size_t *offs, size_t *size)
+				uint8_t vers, tee_fs_off_t *offs, size_t *size)
 {
 	const size_t node_size = sizeof(struct tee_fs_htree_node_image);
 	const size_t block_nodes = BLOCK_SIZE / (node_size * 2);
-	size_t pbn;
-	size_t bidx;
+	const uint64_t idx64 = idx;
+	uint64_t pbn = 0;
+	uint64_t bidx = 0;
 
 	assert(vers == 0 || vers == 1);
 
@@ -207,14 +208,14 @@ static TEE_Result get_offs_size(enum tee_fs_htree_type type, size_t idx,
 		*size = sizeof(struct tee_fs_htree_image);
 		return TEE_SUCCESS;
 	case TEE_FS_HTREE_TYPE_NODE:
-		pbn = 1 + ((idx / block_nodes) * block_nodes * 2);
+		pbn = 1 + (idx64 / block_nodes) * block_nodes * 2;
 		*offs = pbn * BLOCK_SIZE +
-			2 * node_size * (idx % block_nodes) +
+			2 * node_size * (idx64 % block_nodes) +
 			node_size * vers;
 		*size = node_size;
 		return TEE_SUCCESS;
 	case TEE_FS_HTREE_TYPE_BLOCK:
-		bidx = 2 * idx + vers;
+		bidx = 2 * idx64 + vers;
 		pbn = 2 + bidx + bidx / (block_nodes * 2 - 1);
 		*offs = pbn * BLOCK_SIZE;
 		*size = BLOCK_SIZE;
@@ -231,7 +232,7 @@ static TEE_Result ree_fs_rpc_read_init(void *aux,
 {
 	struct tee_fs_fd *fdp = aux;
 	TEE_Result res;
-	size_t offs;
+	tee_fs_off_t offs = 0;
 	size_t size;
 
 	res = get_offs_size(type, idx, vers, &offs, &size);
@@ -249,7 +250,7 @@ static TEE_Result ree_fs_rpc_write_init(void *aux,
 {
 	struct tee_fs_fd *fdp = aux;
 	TEE_Result res;
-	size_t offs;
+	tee_fs_off_t offs = 0;
 	size_t size;
 
 	res = get_offs_size(type, idx, vers, &offs, &size);
@@ -287,7 +288,7 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 		if (res != TEE_SUCCESS)
 			return res;
 	} else {
-		size_t offs;
+		tee_fs_off_t offs = 0;
 		size_t sz;
 
 		res = get_offs_size(TEE_FS_HTREE_TYPE_BLOCK,
@@ -302,7 +303,7 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 			return res;
 
 		res = tee_fs_rpc_truncate(OPTEE_RPC_CMD_FS, fdp->fd,
-					  offs + sz);
+					  offs + (tee_fs_off_t)sz);
 		if (res != TEE_SUCCESS)
 			return res;
 
@@ -318,8 +319,8 @@ static TEE_Result ree_fs_read_primitive(struct tee_file_handle *fh, size_t pos,
 					size_t *len)
 {
 	TEE_Result res;
-	int start_block_num;
-	int end_block_num;
+	size_t start_block_num = 0;
+	size_t end_block_num = 0;
 	size_t remain_bytes;
 	uint8_t *data_core_ptr = buf_core;
 	uint8_t *data_user_ptr = buf_user;
@@ -472,14 +473,17 @@ out:
 		*fh = (struct tee_file_handle *)fdp;
 	} else {
 		if (res == TEE_ERROR_SECURITY)
-			DMSG("Secure storage corruption detected");
+			EMSG("Secure storage corruption detected");
 		if (fdp->fd != -1)
 			tee_fs_rpc_close(OPTEE_RPC_CMD_FS, fdp->fd);
 		/*
 		 * Remove the file if hash is NULL and min_counter is 0,
-		 * as it is not yet rollback-protected
+		 * as it is not yet rollback-protected, but only when it is
+		 * found corrupt. A failed request says nothing about it.
 		 */
-		if (create || (!hash && !min_counter)) {
+		if (create || (!hash && !min_counter &&
+			       (res == TEE_ERROR_CORRUPT_OBJECT ||
+				res == TEE_ERROR_SECURITY))) {
 			DMSG("Remove corrupt file");
 			tee_fs_rpc_remove_dfh(OPTEE_RPC_CMD_FS, dfh);
 		}
@@ -570,27 +574,50 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 	if (res)
 		return res;
 
-	res = tee_fs_dirfile_open(false, hashp, 0, &ree_dirf_ops, dirh);
+	if (hashp) {
+		res = tee_fs_dirfile_open(false, hashp, 0, &ree_dirf_ops, dirh);
+		if (res != TEE_ERROR_ITEM_NOT_FOUND)
+			goto out;
 
-	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		if (hashp) {
-			if (IS_ENABLED(CFG_REE_FS_ALLOW_RESET)) {
-				DMSG("dirf.db not found, clear hash in RPMB");
-				res = rpmb_fs_ops.truncate(ree_fs_rpmb_fh, 0);
-				if (res) {
-					DMSG("Can't clear hash: %#"PRIx32, res);
-					res = TEE_ERROR_SECURITY;
-					goto out;
-				}
-			} else {
-				DMSG("dirf.db file not found");
-				res = TEE_ERROR_SECURITY;
-				goto out;
-			}
+		if (!IS_ENABLED(CFG_REE_FS_ALLOW_RESET)) {
+			EMSG("dirf.db file not found");
+			res = TEE_ERROR_SECURITY;
+			goto out;
 		}
 
-		DMSG("Create dirf.db");
-		res = tee_fs_dirfile_open(true, NULL, 0, &ree_dirf_ops, dirh);
+		/*
+		 * Drop the anchor before creating the new dirf.db.
+		 * An interruption from here on leaves the anchor empty, which
+		 * is handled as uninitialized below and comes back to this
+		 * path on the next boot.
+		 */
+		IMSG("dirf.db not found, resetting secure storage");
+		res = rpmb_fs_ops.truncate(ree_fs_rpmb_fh, 0);
+		if (res) {
+			EMSG("Can't clear hash: %#"PRIx32, res);
+			res = TEE_ERROR_SECURITY;
+			goto out;
+		}
+	}
+
+	/*
+	 * Without an anchor no dirf.db can be authenticated, so secure
+	 * storage is uninitialized.
+	 * Create an empty dirf.db, overwriting anything left behind, and
+	 * anchor it before use so that this is the only state which can
+	 * be opened later.
+	 */
+	IMSG("Create dirf.db");
+	res = tee_fs_dirfile_open(true, hash, 0, &ree_dirf_ops, dirh);
+	if (res)
+		goto out;
+
+	res = rpmb_fs_ops.write(ree_fs_rpmb_fh, 0, hash, NULL, sizeof(hash));
+	if (res) {
+		EMSG("Can't anchor dirf.db: %#"PRIx32, res);
+		tee_fs_dirfile_close(*dirh);
+		*dirh = NULL;
+		res = TEE_ERROR_SECURITY;
 	}
 
 out:
@@ -643,7 +670,7 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
 		if (min_counter) {
 			if (!IS_ENABLED(CFG_REE_FS_ALLOW_RESET)) {
-				DMSG("dirf.db file not found");
+				EMSG("dirf.db file not found");
 				return TEE_ERROR_SECURITY;
 			}
 			DMSG("dirf.db not found, initializing with a non-zero monotonic counter");
@@ -710,10 +737,11 @@ static void put_dirh_primitive(bool close)
 	 * another thread may get an error or something causing that fop
 	 * to do a put with close=1.
 	 *
-	 * For all fops but ree_fs_close() there's a call to get_dirh() to
-	 * get a new dirh which will open it again if it was closed before.
-	 * But in the ree_fs_close() case there's no call to get_dirh()
-	 * only to this function, put_dirh_primitive(), and in this case
+	 * For all fops but ree_fs_close() and ree_fs_closedir_rpc() there's a
+	 * call to get_dirh() to get a new dirh which will open it again if it
+	 * was closed before. But in the ree_fs_close() and
+	 * ree_fs_closedir_rpc() cases there's no call to get_dirh() only to
+	 * this function, put_dirh_primitive(), and in this case
 	 * ree_fs_dirh may actually be NULL.
 	 */
 	ree_fs_dirh_refcount--;
@@ -1089,7 +1117,7 @@ static void ree_fs_closedir_rpc(struct tee_fs_dir *d)
 	if (d) {
 		mutex_lock(&ree_fs_mutex);
 
-		put_dirh(ree_fs_dirh, false);
+		put_dirh_primitive(false);
 		free(d);
 
 		mutex_unlock(&ree_fs_mutex);
@@ -1101,6 +1129,7 @@ static TEE_Result ree_fs_readdir_rpc(struct tee_fs_dir *d,
 {
 	struct tee_fs_dirfile_dirh *dirh = NULL;
 	TEE_Result res = TEE_SUCCESS;
+	bool close = false;
 
 	mutex_lock(&ree_fs_mutex);
 
@@ -1114,7 +1143,9 @@ static TEE_Result ree_fs_readdir_rpc(struct tee_fs_dir *d,
 	if (res == TEE_SUCCESS)
 		*ent = &d->d;
 
-	put_dirh(dirh, res);
+	close = (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND);
+
+	put_dirh(dirh, close);
 out:
 	mutex_unlock(&ree_fs_mutex);
 

@@ -110,7 +110,8 @@ TEE_Result e32_parser_find_rsc_table(uint8_t *fw, size_t fw_size,
 	uint8_t *elf_data = fw;
 	size_t shdr_array_sz = 0;
 
-	if (fw + fw_size <= fw || fw + ehdr->e_shoff < fw)
+	if ((uintptr_t)fw + fw_size <= (uintptr_t)fw ||
+	    (uintptr_t)fw + ehdr->e_shoff < (uintptr_t)fw)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	shdr = (void *)(fw + ehdr->e_shoff);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2020-2025, Linaro Limited.
- * Copyright (c) 2019-2024, Arm Limited. All rights reserved.
+ * Copyright (c) 2019-2026, Arm Limited. All rights reserved.
  */
 
 #include <assert.h>
@@ -274,6 +274,15 @@ static void handle_features(struct thread_smc_1_2_regs *args)
 		ret_fid = FFA_SUCCESS_32;
 		ret_w2 = 0; /* 4kB Minimum buffer size and alignment boundary */
 		break;
+#ifdef ARM64
+	case FFA_MSG_SEND_DIRECT_REQ2:
+	case FFA_MSG_SEND_DIRECT_RESP2:
+		if (my_rxtx.ffa_vers >= FFA_VERSION_1_2) {
+			ret_fid = FFA_SUCCESS_32;
+			ret_w2 = FFA_PARAM_MBZ;
+		}
+		break;
+#endif
 #ifdef ARM64
 	case FFA_MEM_SHARE_64:
 #endif
@@ -548,11 +557,25 @@ TEE_Result spmc_fill_partition_entry(uint32_t ffa_vers, void *buf, size_t blen,
 
 	fpi->partition_properties = part_props;
 
-	/* In FF-A 1.0 only bits [2:0] are defined, let's mask others */
+	/* Mask out bits introduced with FF-A version 1.1 */
 	if (ffa_vers < FFA_VERSION_1_1)
 		fpi->partition_properties &= FFA_PART_PROP_DIRECT_REQ_RECV |
 					     FFA_PART_PROP_DIRECT_REQ_SEND |
 					     FFA_PART_PROP_INDIRECT_MSGS;
+
+	/* Mask out bits introduced with FF-A version 1.2 */
+	if (ffa_vers < FFA_VERSION_1_2)
+		fpi->partition_properties &= FFA_PART_PROP_DIRECT_REQ_RECV |
+					     FFA_PART_PROP_DIRECT_REQ_SEND |
+					     FFA_PART_PROP_INDIRECT_MSGS |
+					     FFA_PART_PROP_RECV_NOTIF |
+					     FFA_PART_PROP_IS_PE_ID |
+					     FFA_PART_PROP_IS_SEPID_INDEP |
+					     FFA_PART_PROP_IS_SEPID_DEP |
+					     FFA_PART_PROP_IS_AUX_ID |
+					     FFA_PART_PROP_NOTIF_CREATED |
+					     FFA_PART_PROP_NOTIF_DESTROYED |
+					     FFA_PART_PROP_AARCH64_STATE;
 
 	if (ffa_vers >= FFA_VERSION_1_1) {
 		if (uuid_words)
@@ -658,8 +681,8 @@ out:
 
 static void spmc_handle_run(struct thread_smc_1_2_regs *args)
 {
-	uint16_t endpoint = FFA_TARGET_INFO_GET_SP_ID(args->a1);
-	uint16_t thread_id = FFA_TARGET_INFO_GET_VCPU_ID(args->a1);
+	uint16_t endpoint = ffa_target_info_get_sp_id(args->a1);
+	uint16_t thread_id = ffa_target_info_get_vcpu_id(args->a1);
 	uint32_t rc = FFA_INVALID_PARAMETERS;
 
 	/*
@@ -739,7 +762,11 @@ out:
 static uint32_t get_direct_resp_fid(uint32_t fid)
 {
 	assert(fid == FFA_MSG_SEND_DIRECT_REQ_64 ||
-	       fid == FFA_MSG_SEND_DIRECT_REQ_32);
+	       fid == FFA_MSG_SEND_DIRECT_REQ_32 ||
+	       fid == FFA_MSG_SEND_DIRECT_REQ2);
+
+	if (fid == FFA_MSG_SEND_DIRECT_REQ2)
+		return FFA_MSG_SEND_DIRECT_RESP2;
 
 	if (OPTEE_SMC_IS_64(fid))
 		return FFA_MSG_SEND_DIRECT_RESP_64;
@@ -896,8 +923,20 @@ static void handle_framework_direct_request(struct thread_smc_1_2_regs *args)
 	spmc_set_args(args, w0, w1, w2, w3, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void optee_lsp_handle_direct_request(struct thread_smc_1_2_regs *args)
+static void
+optee_lsp_handle_direct_request(struct thread_smc_1_2_regs *args,
+				struct sp_session *caller_sp)
 {
+	if (caller_sp) {
+		set_simple_ret_val(args, FFA_INVALID_PARAMETERS);
+		return;
+	}
+
+	if (args->a0 == FFA_MSG_SEND_DIRECT_REQ2) {
+		set_simple_ret_val(args, FFA_NOT_SUPPORTED);
+		return;
+	}
+
 	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
 		handle_framework_direct_request(args);
 		return;
@@ -926,8 +965,19 @@ static void optee_lsp_handle_direct_request(struct thread_smc_1_2_regs *args)
 }
 
 static void __maybe_unused
-optee_spmc_lsp_handle_direct_request(struct thread_smc_1_2_regs *args)
+optee_spmc_lsp_handle_direct_request(struct thread_smc_1_2_regs *args,
+				     struct sp_session *caller_sp)
 {
+	if (caller_sp) {
+		set_simple_ret_val(args, FFA_INVALID_PARAMETERS);
+		return;
+	}
+
+	if (args->a0 == FFA_MSG_SEND_DIRECT_REQ2) {
+		set_simple_ret_val(args, FFA_NOT_SUPPORTED);
+		return;
+	}
+
 	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK)
 		handle_framework_direct_request(args);
 	else
@@ -939,7 +989,7 @@ static void handle_direct_request(struct thread_smc_1_2_regs *args)
 	struct spmc_lsp_desc *lsp = spmc_find_lsp_by_sp_id(FFA_DST(args->a1));
 
 	if (lsp) {
-		lsp->direct_req(args);
+		lsp->direct_req(args, NULL);
 	} else {
 		int rc = spmc_sp_start_thread(args);
 
@@ -1027,6 +1077,9 @@ static int get_acc_perms(vaddr_t mem_acc_base, unsigned int mem_access_size,
 	struct ffa_mem_access_common *mem_acc = NULL;
 	struct ffa_mem_access_perm *descr = NULL;
 	unsigned int n = 0;
+
+	if (mem_access_size < sizeof(struct ffa_mem_access_common))
+		return FFA_INVALID_PARAMETERS;
 
 	for (n = 0; n < mem_access_count; n++) {
 		mem_acc = (void *)(mem_acc_base + mem_access_size * n);
@@ -1157,6 +1210,9 @@ static bool is_sp_op(struct ffa_mem_transaction_x *mem_trans, void *buf)
 	if (mem_trans->mem_access_count < 1)
 		return false;
 
+	if (mem_trans->mem_access_size < sizeof(struct ffa_mem_access_common))
+		return false;
+
 	mem_acc = (void *)((vaddr_t)buf + mem_trans->mem_access_offs);
 	perm = &mem_acc->access_perm;
 
@@ -1285,12 +1341,7 @@ static int handle_mem_op_tmem(bool share_mem, paddr_t pbuf, size_t tot_len,
 		goto unlock;
 
 	if (is_sp_op(&mem_trans, buf)) {
-		if (!share_mem) {
-			rc = FFA_DENIED;
-			goto unlock;
-		}
-		rc = spmc_sp_add_share(&mem_trans, buf, tot_len, frag_len,
-				       global_handle, NULL);
+		rc = FFA_INVALID_PARAMETERS;
 		goto unlock;
 	}
 
@@ -1565,7 +1616,7 @@ static void handle_notification_bitmap_create(struct thread_smc_1_2_regs *args)
 	uint32_t ret_fid = FFA_ERROR;
 	uint32_t old_itr_status = 0;
 
-	if (!FFA_TARGET_INFO_GET_SP_ID(args->a1) && !args->a3 && !args->a4 &&
+	if (!ffa_target_info_get_sp_id(args->a1) && !args->a3 && !args->a4 &&
 	    !args->a5 && !args->a6 && !args->a7) {
 		struct guest_partition *prtn = NULL;
 		struct notif_vm_bitmap *nvb = NULL;
@@ -1604,7 +1655,7 @@ static void handle_notification_bitmap_destroy(struct thread_smc_1_2_regs *args)
 	uint32_t ret_fid = FFA_ERROR;
 	uint32_t old_itr_status = 0;
 
-	if (!FFA_TARGET_INFO_GET_SP_ID(args->a1) && !args->a3 && !args->a4 &&
+	if (!ffa_target_info_get_sp_id(args->a1) && !args->a3 && !args->a4 &&
 	    !args->a5 && !args->a6 && !args->a7) {
 		struct guest_partition *prtn = NULL;
 		struct notif_vm_bitmap *nvb = NULL;
@@ -1977,6 +2028,14 @@ void thread_spmc_msg_recv(struct thread_smc_1_2_regs *args)
 	case FFA_MSG_SEND_DIRECT_REQ_32:
 		handle_direct_request(args);
 		break;
+#ifdef ARM64
+	case FFA_MSG_SEND_DIRECT_REQ2:
+		if (my_rxtx.ffa_vers < FFA_VERSION_1_2)
+			set_simple_ret_val(args, FFA_NOT_SUPPORTED);
+		else
+			handle_direct_request(args);
+		break;
+#endif
 #if defined(CFG_CORE_SEL1_SPMC)
 #ifdef ARM64
 	case FFA_MEM_SHARE_64:
@@ -2813,6 +2872,10 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie,
 	 */
 	if (!IS_ALIGNED_WITH_TYPE(frag_len, struct ffa_address_range) ||
 	    !IS_ALIGNED_WITH_TYPE(tot_len, struct ffa_address_range))
+		goto out;
+	if (retrieve_desc.mem_access_size <
+	    sizeof(struct ffa_mem_access_common) ||
+	    retrieve_desc.mem_access_count < 1)
 		goto out;
 	mem_acc = (void *)((vaddr_t)buf + retrieve_desc.mem_access_offs);
 	/*

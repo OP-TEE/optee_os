@@ -791,6 +791,7 @@ static struct drvcrypt_dsa driver_dsa = {
 	.gen_keypair = do_gen_keypair,
 	.sign = do_sign,
 	.verify = do_verify,
+	.secret_extra_bits = CAAM_KEY_EXTRA_BITS,
 };
 
 enum caam_status caam_dsa_init(struct caam_jrcfg *caam_jrcfg)

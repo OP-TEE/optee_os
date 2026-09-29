@@ -92,6 +92,21 @@ endif
 # FIQ is enabled in critical places.
 CFG_CORE_WORKAROUND_ARM_NMFI ?= n
 
+# Adds mitigation against the CVE-2025-10263 CPU vulnerability
+# A broadcast TLBI on another PE may complete before affected memory accesses
+# are globally observed. This may permit bypass of Stage-1 translation, Stage-2
+# translation, or GPT protection.
+# Affected CPUs are:
+# - Canyon
+# - Arm C1-Ultra, C1-Premium
+# - Neoverse V3 & V3AE, Neoverse V2, Neoverse V1, Neoverse N2, Neoverse N1
+# - Cortex-X925, Cortex-X4, Cortex-X3, Cortex-X2, Cortex-X1 & X1C, Cortex-A710,
+#   Cortex-A78, A78AE & A78C, Cortex-A77, Cortex-A76 & A76AE
+# This is enabled by default for all Aarch64 CPUs but if your Aarch64 platform
+# is not affected, you may set CFG_CORE_WORKAROUND_ARM_TLBI ?= n in
+# core/arch/arm/plat-$(PLATFORM)/conf.mk.
+CFG_CORE_WORKAROUND_ARM_TLBI ?= $(CFG_ARM64_core)
+
 CFG_CORE_RWDATA_NOEXEC ?= y
 CFG_CORE_RODATA_NOEXEC ?= n
 ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
@@ -142,19 +157,19 @@ endif
 ifeq ($(CFG_CORE_PHYS_RELOCATABLE)-$(CFG_WITH_PAGER),y-y)
 $(error CFG_CORE_PHYS_RELOCATABLE and CFG_WITH_PAGER are not compatible)
 endif
-ifeq ($(CFG_CORE_PHYS_RELOCATABLE),y)
+ifeq ($(CFG_CORE_PHYS_RELOCATABLE)-$(CFG_CORE_FFA),y-y)
 ifneq ($(CFG_CORE_SEL2_SPMC),y)
-$(error CFG_CORE_PHYS_RELOCATABLE depends on CFG_CORE_SEL2_SPMC)
+$(error CFG_CORE_PHYS_RELOCATABLE with CFG_CORE_FFA depends on CFG_CORE_SEL2_SPMC)
 endif
 endif
 
 ifeq ($(CFG_CORE_FFA)-$(CFG_WITH_PAGER),y-y)
 $(error CFG_CORE_FFA and CFG_WITH_PAGER are not compatible)
 endif
-_CFG_ARM_V3_OR_V4 := $(call cfg-one-enabled, CFG_ARM_GICV3 CFG_ARM_GICV4)
+_CFG_ARM_GIC_V3_OR_V4 := $(call cfg-one-enabled, CFG_ARM_GICV3 CFG_ARM_GICV4)
 
 ifeq ($(CFG_GIC),y)
-ifeq ($(_CFG_ARM_V3_OR_V4),y)
+ifeq ($(_CFG_ARM_GIC_V3_OR_V4),y)
 $(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,y)
 else
 $(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,n)
@@ -221,6 +236,10 @@ endif
 
 ifneq ($(CFG_TEE_CORE_EMBED_INTERNAL_TESTS),y)
 core-platform-subdirs += $(arch-dir)/tests
+endif
+
+ifeq ($(CFG_CORE_SEL1_SPMC),y)
+core-platform-subdirs += $(arch-dir)/lsp
 endif
 
 arm64-platform-cppflags += -DARM64=1 -D__LP64__=1
@@ -453,7 +472,7 @@ arm32-sysregs-$(arm32-sysreg-txt)-h := arm32_sysreg.h
 arm32-sysregs-$(arm32-sysreg-txt)-s := arm32_sysreg.S
 arm32-sysregs += $(arm32-sysreg-txt)
 
-ifeq ($(_CFG_ARM_V3_OR_V4),y)
+ifeq ($(_CFG_ARM_GIC_V3_OR_V4),y)
 arm32-gicv3-sysreg-txt = core/arch/arm/kernel/arm32_gicv3_sysreg.txt
 arm32-sysregs-$(arm32-gicv3-sysreg-txt)-h := arm32_gicv3_sysreg.h
 arm32-sysregs-$(arm32-gicv3-sysreg-txt)-s := arm32_gicv3_sysreg.S

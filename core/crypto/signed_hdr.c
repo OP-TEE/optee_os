@@ -10,6 +10,7 @@
 #include <signed_hdr.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 #include <ta_pub_key.h>
 #include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
@@ -155,6 +156,9 @@ static TEE_Result load_rsa_key(const struct shdr_subkey *subkey,
 	if (!modulus)
 		return TEE_ERROR_SECURITY;
 
+	if (is_weak_key_size(subkey->algo, modulus->size * 8))
+		return TEE_ERROR_SECURITY;
+
 	key = calloc(1, sizeof(*key));
 	if (!key)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -295,7 +299,7 @@ TEE_Result shdr_load_pub_key(const struct shdr *shdr, size_t offs,
 	    crypto_hash_update(ctx, (const void *)shdr, sizeof(*shdr)) ||
 	    crypto_hash_update(ctx, (const void *)subkey, shdr->img_size) ||
 	    crypto_hash_final(ctx, digest, shdr->hash_size) ||
-	    memcmp(digest, SHDR_GET_HASH(shdr), shdr->hash_size)) {
+	    consttime_memcmp(digest, SHDR_GET_HASH(shdr), shdr->hash_size)) {
 		res = TEE_ERROR_SECURITY;
 		goto out_ctx;
 	}
@@ -308,13 +312,15 @@ TEE_Result shdr_load_pub_key(const struct shdr *shdr, size_t offs,
 		res = TEE_ERROR_SECURITY;
 		goto out_ctx;
 	}
-	if (next_uuid && memcmp(next_uuid, subkey->uuid, sizeof(TEE_UUID))) {
+	if (next_uuid &&
+	    consttime_memcmp(next_uuid, subkey->uuid, sizeof(TEE_UUID))) {
 		res = TEE_ERROR_SECURITY;
 		goto out_ctx;
 	}
 
 	key->max_depth = subkey->max_depth;
 	key->name_size = subkey->name_size;
+	key->version = subkey->subkey_version;
 	memcpy(key->uuid, subkey->uuid, sizeof(TEE_UUID));
 	if (ADD_OVERFLOW(key->name_size, offs + shdr->img_size, &end) ||
 	    end > ns_img_size) {
@@ -376,21 +382,24 @@ TEE_Result shdr_verify_signature2(struct shdr_pub_key *key,
 	if (is_weak_hash_algo(hash_algo))
 		goto err;
 
-	if (is_weak_key_size(shdr->algo, ta_pub_key_modulus_size * 8))
-		goto err;
-
 	if (tee_alg_get_digest_size(hash_algo, &hash_size) ||
 	    hash_size != shdr->hash_size)
 		goto err;
 
 	switch (key->main_algo) {
-	case TEE_MAIN_ALGO_RSA:
+	case TEE_MAIN_ALGO_RSA: {
+		size_t n_bits = crypto_bignum_num_bits(key->pub_key.rsa->n);
+
+		if (is_weak_key_size(shdr->algo, n_bits))
+			goto err;
+
 		FTMN_CALL_FUNC(res, &ftmn, FTMN_INCR0,
 			       crypto_acipher_rsassa_verify, shdr->algo,
 			       key->pub_key.rsa, shdr->hash_size,
 			       SHDR_GET_HASH(shdr), shdr->hash_size,
 			       SHDR_GET_SIG(shdr), shdr->sig_size);
 		break;
+	}
 	default:
 		panic();
 	}

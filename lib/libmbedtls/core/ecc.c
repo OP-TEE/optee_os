@@ -35,6 +35,26 @@ static TEE_Result get_tee_result(int lmd_res)
 	}
 }
 
+static mbedtls_ecp_group_id curve_to_group_id(uint32_t curve)
+{
+	switch (curve) {
+	case TEE_ECC_CURVE_NIST_P192:
+		return MBEDTLS_ECP_DP_SECP192R1;
+	case TEE_ECC_CURVE_NIST_P224:
+		return MBEDTLS_ECP_DP_SECP224R1;
+	case TEE_ECC_CURVE_NIST_P256:
+		return MBEDTLS_ECP_DP_SECP256R1;
+	case TEE_ECC_CURVE_NIST_P384:
+		return MBEDTLS_ECP_DP_SECP384R1;
+	case TEE_ECC_CURVE_NIST_P521:
+		return MBEDTLS_ECP_DP_SECP521R1;
+	case TEE_ECC_CURVE_SM2:
+		return MBEDTLS_ECP_DP_SM2;
+	default:
+		return MBEDTLS_ECP_DP_NONE;
+	}
+}
+
 static void ecc_free_public_key(struct ecc_public_key *s)
 {
 	if (!s)
@@ -42,6 +62,49 @@ static void ecc_free_public_key(struct ecc_public_key *s)
 
 	crypto_bignum_free(&s->x);
 	crypto_bignum_free(&s->y);
+}
+
+static TEE_Result ecc_verify_public_key(struct ecc_public_key *key)
+{
+	mbedtls_ecp_group_id gid = MBEDTLS_ECP_DP_NONE;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	mbedtls_ecp_point point = { };
+	mbedtls_ecp_group grp = { };
+	uint8_t one[1] = { 1 };
+	int lmd_res = 0;
+
+	mbedtls_ecp_group_init(&grp);
+	mbedtls_ecp_point_init(&point);
+
+	gid = curve_to_group_id(key->curve);
+	lmd_res = mbedtls_ecp_group_load(&grp, gid);
+	if (lmd_res != 0) {
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto out;
+	}
+
+	point.X = *(mbedtls_mpi *)key->x;
+	point.Y = *(mbedtls_mpi *)key->y;
+	if (mbedtls_mpi_read_binary(&point.Z, one, sizeof(one))) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	lmd_res = mbedtls_ecp_check_pubkey(&grp, &point);
+	if (lmd_res != 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	res = TEE_SUCCESS;
+
+out:
+	/* Reset X and Y since they are shallow copies of the input key */
+	mbedtls_mpi_init(&point.X);
+	mbedtls_mpi_init(&point.Y);
+	mbedtls_ecp_point_free(&point);
+	mbedtls_ecp_group_free(&grp);
+	return res;
 }
 
 static TEE_Result ecc_get_keysize(uint32_t curve, uint32_t algo,
@@ -82,26 +145,6 @@ static TEE_Result ecc_get_keysize(uint32_t curve, uint32_t algo,
 	}
 
 	return TEE_SUCCESS;
-}
-
-static mbedtls_ecp_group_id curve_to_group_id(uint32_t curve)
-{
-	switch (curve) {
-	case TEE_ECC_CURVE_NIST_P192:
-		return MBEDTLS_ECP_DP_SECP192R1;
-	case TEE_ECC_CURVE_NIST_P224:
-		return MBEDTLS_ECP_DP_SECP224R1;
-	case TEE_ECC_CURVE_NIST_P256:
-		return MBEDTLS_ECP_DP_SECP256R1;
-	case TEE_ECC_CURVE_NIST_P384:
-		return MBEDTLS_ECP_DP_SECP384R1;
-	case TEE_ECC_CURVE_NIST_P521:
-		return MBEDTLS_ECP_DP_SECP521R1;
-	case TEE_ECC_CURVE_SM2:
-		return MBEDTLS_ECP_DP_SM2;
-	default:
-		return MBEDTLS_ECP_DP_NONE;
-	}
 }
 
 static TEE_Result ecc_generate_keypair(struct ecc_keypair *key, size_t key_size)
@@ -453,6 +496,7 @@ err:
 
 static const struct crypto_ecc_public_ops ecc_public_key_ops = {
 	.free = ecc_free_public_key,
+	.validate = ecc_verify_public_key,
 	.verify = ecc_verify,
 };
 

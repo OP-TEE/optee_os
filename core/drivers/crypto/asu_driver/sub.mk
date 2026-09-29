@@ -6,3 +6,9 @@
 
 
 srcs-$(CFG_AMD_ASU_HASH) += asu_hash.c
+srcs-$(CFG_AMD_ASU_TRNG) += asu_trng.c
+srcs-$(CFG_AMD_ASU_HUK) += asu_huk.c
+srcs-$(CFG_AMD_ASU_ECC) += asu_ecc.c
+srcs-$(CFG_AMD_ASU_CIPHER) += asu_cipher.c
+srcs-$(CFG_AMD_ASU_RSA) += asu_rsa.c
+srcs-$(CFG_AMD_ASU_AUTHENC) += asu_authenc.c

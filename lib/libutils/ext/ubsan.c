@@ -5,6 +5,7 @@
 
 #include <atomic.h>
 #include <compiler.h>
+#include <config.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
@@ -135,7 +136,7 @@ void __ubsan_handle_nonnull_arg(void *data_
 			       );
 void __ubsan_handle_invalid_builtin(void *data_);
 
-static bool should_panic = true;
+static bool should_panic = IS_ENABLED(CFG_SANITIZE_UNDEFINED_PANIC);
 
 static void ubsan_handle_error(const char *func, struct source_location *loc,
 			       bool panic_flag)

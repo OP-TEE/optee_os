@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2023 Andes Technology Corporation
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  */
 
 #include <assert.h>
@@ -34,7 +34,15 @@
 
 paddr_t start_addr;
 
+#ifdef CFG_BOOT_SYNC_CPU
+/*
+ * Array used when booting, to synchronize harts.
+ * When 0, the hart has not started.
+ * When 1, it has completed boot initialization.
+ */
 uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
+#endif
+
 uint32_t hartids[CFG_TEE_CORE_NB_CORE];
 
 #if defined(CFG_DT)
@@ -66,7 +74,7 @@ static void update_external_dt(void)
 #endif /*!CFG_DT*/
 
 #ifdef CFG_RISCV_S_MODE
-static void start_secondary_cores(void)
+void boot_start_secondary_cores(void)
 {
 	uint32_t curr_hartid = thread_get_core_local()->hart_id;
 	enum sbi_hsm_hart_state status = 0;
@@ -76,6 +84,11 @@ static void start_secondary_cores(void)
 
 	/* The primary CPU is always indexed by 0 */
 	assert(get_core_pos() == 0);
+
+	if (CFG_TEE_CORE_NB_CORE > 1 && !sbi_ext_available(SBI_EXT_HSM)) {
+		EMSG("SBI HSM extension required to start secondary harts");
+		panic();
+	}
 
 	for (i = 0; i < CFG_TEE_CORE_NB_CORE; i++) {
 		hartid = hartids[i];
@@ -134,6 +147,19 @@ static void init_primary(void)
 
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 	IMSG_RAW("\n");
+#ifdef CFG_RISCV_SBI
+	sbi_print_info();
+	/*
+	 * tlbi_*() and cache_op_inner(ICACHE_*) reach the other harts of
+	 * the domain through the SBI RFENCE extension. Without it, a
+	 * multi-hart configuration would run with hart-local invalidation
+	 * only and leave stale translations behind.
+	 */
+	if (CFG_TEE_CORE_NB_CORE > 1 && !sbi_ext_available(SBI_EXT_RFENCE)) {
+		EMSG("SBI RFENCE extension required for multi-hart operation");
+		panic();
+	}
+#endif
 	if (IS_ENABLED(CFG_DYN_CONFIG)) {
 		size_t sz = sizeof(struct thread_core_local) *
 			    CFG_TEE_CORE_NB_CORE;
@@ -253,10 +279,6 @@ void __weak boot_init_primary_final(void)
 	call_finalcalls();
 	IMSG("Primary CPU0 (hart%"PRIu32") initialized",
 	     thread_get_hartid());
-
-#ifdef CFG_RISCV_S_MODE
-	start_secondary_cores();
-#endif
 }
 
 static void init_secondary_helper(void)

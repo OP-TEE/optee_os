@@ -52,7 +52,7 @@ static bool sym_compare(struct ta_elf *elf, unsigned int st_bind,
 
 	if (!st_name)
 		return false;
-	if (st_name > elf->dynstr_size)
+	if (st_name >= elf->dynstr_size)
 		err(TEE_ERROR_BAD_FORMAT, "Symbol name out of range");
 	if (strcmp(name, elf->dynstr + st_name))
 		return false;
@@ -529,7 +529,7 @@ static void e64_process_tls_tprel_rela(const Elf64_Sym *sym_tab,
 				       size_t str_tab_size, Elf64_Rela *rela,
 				       Elf64_Addr *where, struct ta_elf *elf)
 {
-	struct ta_elf *mod = NULL;
+	struct ta_elf *mod = elf;
 	bool weak_undef = false;
 	const char *name = NULL;
 	size_t sym_idx = 0;
@@ -540,8 +540,6 @@ static void e64_process_tls_tprel_rela(const Elf64_Sym *sym_tab,
 		e64_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rela,
 				 &name, &weak_undef);
 		resolve_sym(name, &symval, &mod, !weak_undef);
-	} else {
-		mod = elf;
 	}
 	*where = symval + mod->tls_tcb_offs + rela->r_addend;
 }

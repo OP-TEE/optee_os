@@ -41,7 +41,10 @@ void tee_pobj_create_final(struct tee_pobj *obj);
 
 TEE_Result tee_pobj_release(struct tee_pobj *obj);
 
-TEE_Result tee_pobj_rename(struct tee_pobj *obj, void *obj_id,
+/*
+ * Changes obj's ID and takes ownership of obj_id on success.
+ */
+TEE_Result tee_pobj_rename(struct tee_pobj *obj, void **obj_id,
 			   uint32_t obj_id_len);
 
 /*

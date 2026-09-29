@@ -34,10 +34,15 @@ TEE_Result tee_time_get_ree_time(TEE_Time *time)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = thread_rpc_cmd(OPTEE_RPC_CMD_GET_TIME, 1, &params);
-	if (res == TEE_SUCCESS) {
-		time->seconds = params.u.value.a;
-		time->millis = params.u.value.b / 1000000;
-	}
+	if (res)
+		return res;
 
-	return res;
+	/* The reply comes from the normal world, keep millis below 1000 */
+	if (params.u.value.b >= 1000000000)
+		return TEE_ERROR_GENERIC;
+
+	time->seconds = params.u.value.a;
+	time->millis = params.u.value.b / 1000000;
+
+	return TEE_SUCCESS;
 }

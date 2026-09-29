@@ -43,6 +43,7 @@ void tlbi_va_range(vaddr_t va, size_t len, size_t granule)
 		va += granule;
 	}
 	dsb_ish();
+	workaround_arm_tlbi_ish();
 	isb();
 }
 
@@ -58,6 +59,7 @@ void tlbi_va_range_asid(vaddr_t va, size_t len, size_t granule, uint32_t asid)
 		va += granule;
 	}
 	dsb_ish();
+	workaround_arm_tlbi_ish();
 	isb();
 }
 

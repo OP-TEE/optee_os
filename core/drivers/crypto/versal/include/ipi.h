@@ -7,13 +7,42 @@
 #ifndef IPI_H
 #define IPI_H
 
-#include <drivers/versal_mbox.h>
+#include <drivers/versal_pmc.h>
 
 struct versal_rsa_input_param {
 	uint64_t key_addr;
 	uint64_t data_addr;
 	uint32_t key_len;
 };
+
+#if defined(PLATFORM_FLAVOR_net)
+enum versal_rsa_opmode {
+	VERSAL_RSA_OPMODE_EXPQ = 0,
+	VERSAL_RSA_OPMODE_CRT,
+	VERSAL_RSA_OPMODE_EXPORT,
+};
+
+struct versal_rsa_key_param {
+	uint64_t exp_addr;
+	uint64_t mod_addr;
+	uint64_t p_addr;
+	uint64_t q_addr;
+	uint64_t dp_addr;
+	uint64_t dq_addr;
+	uint64_t qinv_addr;
+	uint64_t tot_addr;
+	uint64_t rn_addr;
+	uint64_t rrn_addr;
+	uint32_t p_size;
+	uint32_t q_size;
+	uint32_t pubexp;
+	uint32_t is_prime_avail;
+	uint32_t is_privexp_avail;
+	uint32_t is_tot_avail;
+	uint32_t is_pubexp_avail;
+	enum versal_rsa_opmode opmode;
+};
+#endif
 
 struct versal_rsa_sign_param {
 	uint64_t sign_addr;
@@ -57,15 +86,12 @@ enum versal_crypto_api {
 	VERSAL_RSA_SIGN_VERIFY,
 	VERSAL_RSA_PUBLIC_ENCRYPT,
 	VERSAL_RSA_PRIVATE_DECRYPT,
-	VERSAL_RSA_KAT,
-	VERSAL_SHA3_UPDATE = 32U,
-	VERSAL_SHA3_KAT,
-	VERSAL_ELLIPTIC_GENERATE_PUBLIC_KEY = 64U,
+	VERSAL_SHA3_UPDATE,
+	VERSAL_ELLIPTIC_GENERATE_PUBLIC_KEY,
 	VERSAL_ELLIPTIC_GENERATE_SIGN,
 	VERSAL_ELLIPTIC_VALIDATE_PUBLIC_KEY,
 	VERSAL_ELLIPTIC_VERIFY_SIGN,
-	VERSAL_ELLIPTIC_KAT,
-	VERSAL_AES_INIT = 96U,
+	VERSAL_AES_INIT,
 	VERSAL_AES_OP_INIT,
 	VERSAL_AES_UPDATE_AAD,
 	VERSAL_AES_ENCRYPT_UPDATE,
@@ -77,9 +103,23 @@ enum versal_crypto_api {
 	VERSAL_AES_LOCK_USER_KEY,
 	VERSAL_AES_KEK_DECRYPT,
 	VERSAL_AES_SET_DPA_CM,
-	VERSAL_AES_DECRYPT_KAT,
-	VERSAL_AES_DECRYPT_CM_KAT,
+	VERSAL_KAT,
+	VERSAL_TRNG_GENERATE,
+	VERSAL_AES_PERFORM_OPERATION,
 	VERSAL_CRYPTO_API_MAX
+};
+
+enum versal_crypto_kat {
+	VERSAL_AES_DECRYPT_KAT = 0U,
+	VERSAL_AES_DECRYPT_CM_KAT,
+	VERSAL_RSA_PUB_ENC_KAT,
+	VERSAL_ELLIPTIC_SIGN_VERIFY_KAT,
+	VERSAL_SHA3_KAT,
+	VERSAL_AES_ENCRYPT_KAT,
+	VERSAL_RSA_PRIVATE_DEC_KAT,
+	VERSAL_ELLIPTIC_SIGN_GEN_KAT,
+	VERSAL_TRNG_KAT,
+	VERSAL_UPDATE_KAT_STATUS,
 };
 
 #define VERSAL_MAX_IPI_REGS 6

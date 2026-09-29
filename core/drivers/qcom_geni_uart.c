@@ -16,7 +16,7 @@
 #define GENI_M_CMD0_REG			0x600
 
 #define GENI_M_CMD_TX			0x8000000
-#define GENI_TIMEOUT_US			1000000
+#define GENI_TIMEOUT_US			CFG_QCOM_GENI_UART_RDY_WAIT_USEC
 
 static void qcom_geni_uart_putc(struct serial_chip *chip, int ch)
 {

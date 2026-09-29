@@ -99,7 +99,6 @@ $(call force,CFG_PAGED_USER_TA,n)
 $(call force,CFG_WITH_PAGER,n)
 $(call force,CFG_GIC,n)
 $(call force,CFG_ARM_GICV3,n)
-$(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 
@@ -130,9 +129,22 @@ endif
 ifeq ($(CFG_RISCV_ISA_ZBB),y)
 ISA_ZBB = _zbb
 endif
+# Zicbom cache-block management operations, used for the data cache range
+# maintenance in cache_helpers_rv.S. The M-mode firmware must allow them
+# from S-mode (menvcfg.CBCFE and menvcfg.CBIE), which OpenSBI does when
+# the hart advertises the extension.
+CFG_RISCV_ISA_ZICBOM ?= n
+ifeq ($(CFG_RISCV_ISA_ZICBOM),y)
+ISA_ZICBOM = _zicbom
+# Cache block size in bytes ("riscv,cbom-block-size" in the device tree)
+CFG_RISCV_CBOM_BLOCK_SIZE ?= 64
+endif
 
-riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei
+riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
 riscv-abi = $(ABI_BASE)$(ABI_D)
+
+CFG_WITH_VFP ?= $(CFG_RISCV_FPU)
+$(eval $(call cfg-depends-all,CFG_WITH_VFP,CFG_RISCV_FPU))
 
 rv64-platform-cflags += -mcmodel=$(riscv-platform-mcmodel)
 rv64-platform-cflags += -march=$(riscv-isa) -mabi=$(riscv-abi)

@@ -21,8 +21,15 @@ link-out-dir$(sm) := $(out-dir)/$(patsubst %/,%, $(dir $(ta-mk-file)))
 
 # Default if ta-mk-file defines none
 user-ta-version := 0
+# Clean eventual previous instance
+user-ta-uuid :=
+user-ta-skip :=
 
 include $(ta-mk-file)
+ifeq ($(user-ta-skip),y)
+sm-$(sm) :=
+else
+
 ifeq ($(user-ta-uuid),)
 $(error user-ta-uuid missing in $(ta-mk-file))
 endif
@@ -74,3 +81,5 @@ $(out-dir)/export-$(ta-target)/ta/$(user-ta-uuid).ta: $(link-out-dir$(sm))/$(use
 	$(q)cp -P $< $@
 
 cleanfiles += $(out-dir)/export-$(ta-target)/ta/$(user-ta-uuid).ta
+
+endif # user-ta-skip

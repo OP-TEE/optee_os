@@ -17,3 +17,5 @@ subdirs-$(CFG_AMD_ASU_SUPPORT) += asu_driver
 subdirs-$(CFG_HISILICON_CRYPTO_DRIVER) += hisilicon
 
 subdirs-$(CFG_IMX_ELE) += ele
+
+subdirs-$(CFG_QCOM_HWKM) += qcom

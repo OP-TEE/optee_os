@@ -198,6 +198,27 @@ static TEE_Result e64_parse_ehdr(struct ta_elf *elf, Elf64_Ehdr *ehdr)
 }
 #endif /* RV64 */
 
+/*
+ * Checks that [addr, addr + sz) (relative to 0, i.e., not yet offset by
+ * elf->load_addr) is fully covered by a single PT_LOAD segment. There can
+ * be unmapped gaps between PT_LOAD segments, so being within
+ * elf->load_addr..elf->max_addr is not sufficient.
+ */
+static bool range_is_in_segment(struct ta_elf *elf, vaddr_t addr, size_t sz)
+{
+	struct segment *seg = NULL;
+	vaddr_t end_addr = 0;
+
+	if (ADD_OVERFLOW(addr, sz, &end_addr))
+		return false;
+
+	TAILQ_FOREACH(seg, &elf->segs, link)
+		if (addr >= seg->vaddr && end_addr <= seg->vaddr + seg->memsz)
+			return true;
+
+	return false;
+}
+
 static void check_phdr_in_range(struct ta_elf *elf, unsigned int type,
 				vaddr_t addr, size_t memsz)
 {
@@ -213,6 +234,11 @@ static void check_phdr_in_range(struct ta_elf *elf, unsigned int type,
 	 */
 	if (max_addr > elf->max_addr - elf->load_addr)
 		err(TEE_ERROR_BAD_FORMAT, "Program header %#x out of bounds",
+		    type);
+
+	if (!range_is_in_segment(elf, addr, memsz))
+		err(TEE_ERROR_BAD_FORMAT,
+		    "Program header %#x not covered by a PT_LOAD segment",
 		    type);
 }
 
@@ -246,6 +272,11 @@ static void check_range(struct ta_elf *elf, const char *name, const void *ptr,
 	if (max_addr > elf->max_addr)
 		err(TEE_ERROR_BAD_FORMAT,
 		    "%s %p..%#zx out of range", name, ptr, max_addr);
+
+	if (!range_is_in_segment(elf, (vaddr_t)ptr - elf->load_addr, sz))
+		err(TEE_ERROR_BAD_FORMAT,
+		    "%s %p..%#zx not covered by a PT_LOAD segment",
+		    name, ptr, max_addr);
 }
 
 static void check_hashtab(struct ta_elf *elf, void *ptr, size_t num_buckets,
@@ -352,9 +383,12 @@ static void save_soname_from_segment(struct ta_elf *elf, unsigned int type,
 	unsigned int tag = 0;
 	size_t val = 0;
 	char *str_tab = NULL;
+	size_t str_tab_sz = 0;
 
 	if (type != PT_DYNAMIC)
 		return;
+
+	check_phdr_in_range(elf, type, addr, memsz);
 
 	if (elf->is_32bit)
 		dyn_entsize = sizeof(Elf32_Dyn);
@@ -364,16 +398,21 @@ static void save_soname_from_segment(struct ta_elf *elf, unsigned int type,
 	assert(!(memsz % dyn_entsize));
 	num_dyns = memsz / dyn_entsize;
 
-	for (n = 0; n < num_dyns; n++) {
+	for (n = 0; n < num_dyns && !(str_tab && str_tab_sz); n++) {
 		read_dyn(elf, addr, n, &tag, &val);
-		if (tag == DT_STRTAB) {
+		if (tag == DT_STRTAB)
 			str_tab = (char *)(val + elf->load_addr);
-			break;
-		}
+		else if (tag == DT_STRSZ)
+			str_tab_sz = val;
 	}
+	check_range(elf, ".dynstr/STRTAB", str_tab, str_tab_sz);
+
 	for (n = 0; n < num_dyns; n++) {
 		read_dyn(elf, addr, n, &tag, &val);
 		if (tag == DT_SONAME) {
+			if (val >= str_tab_sz)
+				err(TEE_ERROR_BAD_FORMAT,
+				    "Offset into .dynstr/STRTAB out of range");
 			elf->soname = str_tab + val;
 			break;
 		}
@@ -974,16 +1013,17 @@ static void parse_property_segment(struct ta_elf *elf)
 	do {
 		Elf_Prop *prop = (void *)(desc + prop_offset);
 		size_t data_offset = prop_offset + sizeof(*prop);
+		size_t cdo = 0;
 
 		if (note->n_descsz < data_offset)
 			return;
 
-		data_offset = confine_array_index(data_offset, note->n_descsz);
+		cdo = confine_array_index(data_offset, note->n_descsz);
 
 		if (prop->pr_type == GNU_PROPERTY_AARCH64_FEATURE_1_AND) {
-			uint32_t *pr_data = (void *)(desc + data_offset);
+			uint32_t *pr_data = (void *)(desc + cdo);
 
-			if (note->n_descsz < (data_offset + sizeof(*pr_data)) &&
+			if (note->n_descsz < (data_offset + sizeof(*pr_data)) ||
 			    prop->pr_datasz != sizeof(*pr_data))
 				return;
 
@@ -1002,6 +1042,9 @@ static void map_segments(struct ta_elf *elf)
 	TEE_Result res = TEE_SUCCESS;
 
 	parse_load_segments(elf);
+	if (TAILQ_EMPTY(&elf->segs))
+		err(TEE_ERROR_BAD_FORMAT, "No loadable segments");
+
 	adjust_segments(elf);
 	if (TAILQ_FIRST(&elf->segs)->offset < SMALL_PAGE_SIZE) {
 		vaddr_t va = 0;
@@ -1269,6 +1312,9 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 {
 	struct ta_elf *elf = queue_elf(uuid);
 	vaddr_t va = 0;
+	size_t stack_size = 0;
+	size_t stack_alignment = 0;
+	size_t rounded_stack_size = 0;
 	TEE_Result res = TEE_SUCCESS;
 
 	assert(elf);
@@ -1277,7 +1323,18 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 	load_main(elf);
 
 	*is_32bit = elf->is_32bit;
-	res = sys_map_zi(elf->head->stack_size, 0, &va, 0, 0);
+	stack_size = elf->head->stack_size;
+
+	/*
+	 * AArch32 is the only supported 32-bit format and requires 8-byte
+	 * stack alignment. AArch64 and RV64 require 16 bytes.
+	 */
+	stack_alignment = elf->is_32bit ? 8 : 16;
+	if (!stack_size || !IS_ALIGNED(stack_size, stack_alignment) ||
+	    ROUNDUP_OVERFLOW(stack_size, SMALL_PAGE_SIZE, &rounded_stack_size))
+		err(TEE_ERROR_BAD_FORMAT, "Invalid stack size");
+
+	res = sys_map_zi(stack_size, 0, &va, 0, 0);
 	if (res)
 		err(res, "sys_map_zi stack");
 
@@ -1285,15 +1342,19 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 		err(TEE_ERROR_BAD_FORMAT, "Invalid TA flags(s) %#"PRIx32,
 		    elf->head->flags & ~TA_FLAGS_MASK);
 
+	if (elf->head->flags & TA_FLAG_CONCURRENT)
+		err(TEE_ERROR_BAD_FORMAT, "Invalid TA flags(s) %#"PRIx32,
+		    elf->head->flags & TA_FLAG_CONCURRENT);
+
 	*ta_flags = elf->head->flags;
-	*sp = va + elf->head->stack_size;
+	*sp = va + stack_size;
 	ta_stack = va;
-	ta_stack_size = elf->head->stack_size;
+	ta_stack_size = stack_size;
 
 	if (IS_ENABLED(CFG_TA_SANITIZE_KADDRESS)) {
 		res = asan_user_map_shadow((void *)ta_stack,
 					   (void *)(ta_stack +
-					   roundup(ta_stack_size)),
+						    rounded_stack_size),
 					   ASAN_REG_STACK);
 		if (res) {
 			EMSG("Failed to map shadow stack for ELF (%pUl)",

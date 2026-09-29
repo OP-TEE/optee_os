@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 2020, Linaro Limited
- * Copyright (c) 2018-2024, Arm Limited. All rights reserved.
+ * Copyright (c) 2018-2026, Arm Limited. All rights reserved.
  */
 
 #ifndef __FFA_H
@@ -41,6 +41,9 @@
 #define FFA_VERSION_1_0			MAKE_FFA_VERSION(1, 0)
 #define FFA_VERSION_1_1			MAKE_FFA_VERSION(1, 1)
 #define FFA_VERSION_1_2			MAKE_FFA_VERSION(1, 2)
+
+#define FFA_DST(x)				((x) & UINT16_MAX)
+#define FFA_SRC(x)				(((x) >> 16) & UINT16_MAX)
 
 /* Function IDs */
 #define FFA_ERROR			U(0x84000060)
@@ -185,9 +188,22 @@
  * identifies the SP to resume and the vCPU ID identifies the vCPU or execution
  * context to resume (FF-A v1.1 section 4.8).
  */
-#define FFA_TARGET_INFO_SET(sp_id, vcpu_id)	(((sp_id) << 16) | (vcpu_id))
-#define FFA_TARGET_INFO_GET_SP_ID(info)		(((info) >> 16) & 0xffff)
-#define FFA_TARGET_INFO_GET_VCPU_ID(info)	((info) & 0xffff)
+#ifndef __ASSEMBLER__
+static inline uint32_t ffa_target_info_set(uint16_t sp_id, uint16_t vcpu_id)
+{
+	return SHIFT_U32(sp_id, 16) | vcpu_id;
+}
+
+static inline uint16_t ffa_target_info_get_sp_id(uint32_t target_info)
+{
+	return (target_info >> 16) & UINT16_MAX;
+}
+
+static inline uint16_t ffa_target_info_get_vcpu_id(uint32_t target_info)
+{
+	return target_info & UINT16_MAX;
+}
+#endif /* __ASSEMBLER__ */
 
 /*
  * Flags used for the FFA_PARTITION_INFO_GET return message:
@@ -208,6 +224,8 @@
 #define FFA_PART_PROP_NOTIF_CREATED	BIT(6)
 #define FFA_PART_PROP_NOTIF_DESTROYED	BIT(7)
 #define FFA_PART_PROP_AARCH64_STATE	BIT(8)
+#define FFA_PART_PROP_DIRECT_REQ2_RECV	BIT(9)
+#define FFA_PART_PROP_DIRECT_REQ2_SEND	BIT(10)
 
 #define FFA_MEMORY_HANDLE_HYPERVISOR_BIT	BIT64(63)
 #define FFA_MEMORY_HANDLE_SECURE_BIT		BIT64(45)

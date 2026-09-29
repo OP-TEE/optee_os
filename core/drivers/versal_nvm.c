@@ -6,7 +6,7 @@
 
 #include <arm.h>
 #include <drivers/versal_nvm.h>
-#include <drivers/versal_mbox.h>
+#include <drivers/versal_pmc.h>
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
@@ -14,14 +14,12 @@
 #include <string.h>
 #include <tee/cache.h>
 
-#include "drivers/versal_nvm.h"
-
 #define NVM_WORD_LEN 4
 
 /* Protocol API with the remote processor */
 #define NVM_MODULE_SHIFT		8
 #define NVM_MODULE			11
-#define NVM_API_ID(_id) ((NVM_MODULE << NVM_MODULE_SHIFT) | (_id))
+#define NVM_API_ID(_id) (SHIFT_U32(NVM_MODULE, NVM_MODULE_SHIFT) | (_id))
 
 #define __aligned_efuse			__aligned(CACHELINE_LEN)
 
@@ -151,7 +149,7 @@ static TEE_Result efuse_req(enum versal_nvm_api_id efuse,
 	if (ret)
 		return ret;
 
-	ret = versal_mbox_notify(&cmd, NULL, NULL);
+	ret = versal_pmc_notify(&cmd, NULL, NULL);
 	if (ret)
 		EMSG("Mailbox error");
 
@@ -235,6 +233,8 @@ static TEE_Result versal_nvm_write(struct versal_nvm_write_req *req)
 	case BBRAM_WRITE_AES_KEY:
 		val = req->bbram.aes_key_len;
 		arg = &val;
+		break;
+	case BBRAM_ZEROIZE:
 		break;
 	case BBRAM_WRITE_USER_DATA:
 		val = req->bbram.user_data;
@@ -762,7 +762,8 @@ TEE_Result versal_efuse_read_offchip_revoke_id(uint32_t *buf, size_t len,
 		return TEE_ERROR_GENERIC;
 	}
 
-	memcpy(buf, versal_get_read_buffer(&req), EFUSE_REVOCATION_ID_LEN);
+	memcpy(buf, versal_get_read_buffer(&req),
+	       EFUSE_OFFCHIP_REVOCATION_ID_LEN);
 	versal_free_read_buffer(&req);
 
 	return TEE_SUCCESS;

@@ -740,6 +740,10 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	 * the TLB invalidation is complete.
 	 */
 	dsb	sy
+#ifdef CFG_CORE_WORKAROUND_ARM_TLBI
+	tlbi	vale1, xzr
+	dsb 	sy
+#endif
 	isb
 
 	/* Enable the MMU */

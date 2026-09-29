@@ -23,6 +23,8 @@
 #define PKCS11_BOOLPROPS_BASE		0
 #define PKCS11_BOOLPROPS_MAX_COUNT	64
 
+#define PKCS11_MAX_INDIRECT_DEPTH 5
+
 enum boolprop_attr {
 	BPA_TOKEN = 0,
 	BPA_PRIVATE,
@@ -216,8 +218,8 @@ static inline enum pkcs11_rc get_u32_attribute(struct obj_attrs *head,
  * Return true if all attributes from the reference are found and match value
  * in the candidate attribute list.
  */
-bool attributes_match_reference(struct obj_attrs *ref,
-				struct obj_attrs *candidate);
+bool attributes_match_reference(struct obj_attrs *candidate,
+				struct obj_attrs *ref);
 
 /*
  * Check attributes from @ref are all found or added in @head
@@ -312,10 +314,11 @@ bool get_bool(struct obj_attrs *head, uint32_t attribute);
 
 #if CFG_TEE_TA_LOG_LEVEL > 0
 /* Debug: dump object attributes to IMSG() trace console */
-void trace_attributes(const char *prefix, void *ref);
+void trace_attributes(const char *prefix, void *ref, unsigned int depth);
 #else
 static inline void trace_attributes(const char *prefix __unused,
-				    void *ref __unused)
+				    void *ref __unused,
+				    unsigned int depth __unused)
 {
 }
 #endif /*CFG_TEE_TA_LOG_LEVEL*/

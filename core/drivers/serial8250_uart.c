@@ -8,6 +8,7 @@
 #include <drivers/serial8250_uart.h>
 #include <io.h>
 #include <keep.h>
+#include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <util.h>
@@ -41,13 +42,22 @@ static vaddr_t chip_to_base(struct serial_chip *chip)
 static void serial8250_uart_flush(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
+#ifdef CFG_8250_UART_FLUSH_TIMEOUT
+	uint64_t expire = timeout_init_us(CFG_8250_UART_FLUSH_TIMEOUT_US);
+#endif
 
 	while (1) {
 		uint32_t state = io_read32(base + UART_LSR);
 
-		/* Wait until transmit FIFO is empty */
+		/* Wait until the transmit FIFO is empty */
 		if ((state & LSR_EMPTY) == LSR_EMPTY)
 			break;
+
+#ifdef CFG_8250_UART_FLUSH_TIMEOUT
+		/* Prevent blocking a CPU indefinitely if the UART is shared */
+		if (timeout_elapsed(expire))
+			break;
+#endif
 	}
 }
 

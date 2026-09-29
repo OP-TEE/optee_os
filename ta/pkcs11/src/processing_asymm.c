@@ -1233,7 +1233,7 @@ static enum pkcs11_rc unwrap_rsa_aes_key(struct active_processing *proc,
 
 	*out_sz = target_key_size;
 out:
-	TEE_MemFill(aes_key_value, 0, aes_key_size);
+	TEE_MemFill(aes_key_value, 0, sizeof(aes_key_value));
 	mbedtls_nist_kw_free(&kw_ctx);
 	return rc;
 }

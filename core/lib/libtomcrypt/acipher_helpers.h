@@ -6,6 +6,7 @@
 #ifndef ACIPHER_HELPERS_H
 #define ACIPHER_HELPERS_H
 
+#include <compiler.h>
 #include <crypto/crypto.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
@@ -44,12 +45,11 @@ TEE_Result ecc_populate_ltc_public_key(ecc_key *ltc_key,
 				       uint32_t algo, size_t *key_size_bytes);
 #endif
 
-/* Write bignum to fixed size buffer in big endian order */
-#define mp_to_unsigned_bin2(a, b, c) \
-        do { \
-                void *_a = (a); \
-                mp_to_unsigned_bin(_a, (b) + (c) - mp_unsigned_bin_size(_a)); \
-        } while(0)
+/*
+ * Write a bignum right-aligned in a fixed-size big-endian buffer.
+ */
+TEE_Result __must_check
+mp_to_unsigned_bin2(void *mp, uint8_t *buf, size_t size);
 
 #ifdef _CFG_CORE_LTC_SM2_DSA
 TEE_Result sm2_ltc_dsa_sign(uint32_t algo, struct ecc_keypair *key,

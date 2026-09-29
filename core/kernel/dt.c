@@ -892,6 +892,15 @@ static TEE_Result release_external_dt(void)
 		panic();
 	}
 
+	if (IS_ENABLED(CFG_EXT_DT_CACHED)) {
+		if (cache_op_inner(DCACHE_AREA_CLEAN, external_dt.blob,
+				   CFG_DTB_MAX_SIZE))
+			panic("Failed to clean external DT from inner cache");
+
+		if (cache_op_outer(DCACHE_AREA_CLEAN, pa_dt, CFG_DTB_MAX_SIZE))
+			panic("Failed to clean external DT from outer cache");
+	}
+
 	if (core_mmu_remove_mapping(MEM_AREA_EXT_DT, external_dt.blob,
 				    CFG_DTB_MAX_SIZE))
 		panic("Failed to remove temporary Device Tree mapping");

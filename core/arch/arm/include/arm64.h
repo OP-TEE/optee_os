@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015, Linaro Limited
- * Copyright (c) 2023, Arm Limited
+ * Copyright (c) 2023-2026, Arm Limited
  */
 #ifndef __ARM64_H
 #define __ARM64_H
@@ -526,6 +526,7 @@ DEFINE_U64_REG_READ_FUNC(par_el1)
 
 DEFINE_U64_REG_WRITE_FUNC(mair_el1)
 
+DEFINE_U64_REG_READ_FUNC(id_aa64pfr0_el1)
 DEFINE_U64_REG_READ_FUNC(id_aa64mmfr0_el1)
 DEFINE_U64_REG_READ_FUNC(id_aa64mmfr1_el1)
 DEFINE_U64_REG_READ_FUNC(id_aa64pfr1_el1)
@@ -575,7 +576,27 @@ static inline void write_pan_disable(void)
 	asm volatile("msr	S0_0_c4_c0_4, xzr" ::: "memory" );
 }
 
+/* ERXPFGCTL_EL1 field definitions */
+#define ERXPFGCTL_CDNEN_BIT	BIT64(31)
+#define ERXPFGCTL_R_BIT		BIT64(30)
+#define ERXPFGCTL_CE_BIT	BIT64(6)
+#define ERXPFGCTL_DE_BIT	BIT64(5)
+#define ERXPFGCTL_UC_BIT	BIT64(1)
+
+/* ID_AA64PFR0_EL1 RAS field definitions */
+#define ID_AA64PFR0_EL1_RAS_SHIFT	U(28)
+#define ID_AA64PFR0_EL1_RAS_MASK	U(0xf)
+
+/* Register read/write functions for RAS Error Record and PFG (Processor Fault Generation) registers */
+DEFINE_REG_WRITE_FUNC_(errselr_el1, uint64_t, S3_0_C5_C3_1)
+DEFINE_REG_READ_FUNC_(erxstatus_el1, uint64_t, S3_0_C5_C4_2)
+DEFINE_REG_WRITE_FUNC_(erxstatus_el1, uint64_t, S3_0_C5_C4_2)
+DEFINE_REG_READ_FUNC_(erxpfgctl_el1, uint64_t, S3_0_C5_C4_5)
+DEFINE_REG_WRITE_FUNC_(erxpfgctl_el1, uint64_t, S3_0_C5_C4_5)
+DEFINE_REG_WRITE_FUNC_(erxpfgcdn_el1, uint64_t, S3_0_C5_C4_6)
+DEFINE_REG_READ_FUNC_(erxmisc0_el1, uint64_t, S3_0_C5_C5_0)
+DEFINE_REG_WRITE_FUNC_(erxmisc0_el1, uint64_t, S3_0_C5_C5_0)
+
 #endif /*__ASSEMBLER__*/
 
 #endif /*__ARM64_H*/
-

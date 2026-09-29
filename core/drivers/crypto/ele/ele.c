@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2022-2023, 2025 NXP
+ * Copyright 2022-2023, 2025-2026 NXP
  */
+#include <crypto/crypto.h>
 #include <drivers/imx_mu.h>
 #include <ele.h>
 #include <initcall.h>
@@ -16,10 +17,12 @@
 #include <stdint.h>
 #include <string_ext.h>
 #include <tee/cache.h>
+#include <tee/tee_cryp_utl.h>
 #include <tee_api_defines.h>
 #include <trace.h>
 #include <types_ext.h>
 #include <utee_types.h>
+#include <ecc.h>
 #include <util.h>
 
 #define ELE_BASE_ADDR MU_BASE
@@ -42,6 +45,10 @@
 
 #define ELE_MU_IRQ 0x0
 
+#define ELE_RNG_FLAGS_NO_RESEED 0x0000
+#define ELE_RNG_FLAGS_BLOCK_RESEED 0x0001
+#define ELE_RNG_FLAGS_NON_BLOCK_RESEED 0x0002
+
 #define CACHELINE_SIZE 64
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, MU_BASE, MU_SIZE);
@@ -59,7 +66,7 @@ struct get_info_rsp {
 	uint32_t oem_srkh[16];
 	uint8_t trng_state;
 	uint8_t csal_state;
-#if defined(CFG_MX95) || defined(CFG_MX943)
+#if defined(CFG_MX95) || defined(CFG_MX943) || defined(CFG_MX952)
 	uint8_t reserved[2];
 	uint32_t oem_pqc_srkh[16];
 	uint32_t rsvd[8];
@@ -372,8 +379,21 @@ int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 	return 0;
 }
 
+static TEE_Result imx_ele_global_init(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = imx_ele_ecc_init();
+	if (res)
+		EMSG("ELE ECC driver registration failed");
+
+	return res;
+}
+
+driver_init(imx_ele_global_init);
+
 #if defined(CFG_MX93) || defined(CFG_MX91) || defined(CFG_MX95) || \
-	defined(CFG_MX943)
+	defined(CFG_MX943) || defined(CFG_MX952)
 static TEE_Result imx_ele_derive_key(const uint8_t *ctx, size_t ctx_size,
 				     uint8_t *key, size_t key_size)
 {
@@ -493,13 +513,15 @@ static TEE_Result imx_ele_rng_get_trng_state(void)
  * @buffer: data output
  * @size: RNG data size
  */
-static TEE_Result imx_ele_rng_get_random(uint8_t *buffer, size_t size)
+static TEE_Result imx_ele_rng_get_random(uint8_t *buffer, size_t size,
+					 uint16_t flags)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct imx_ele_buf rng = { };
 	struct rng_get_random_cmd {
-		uint32_t addr_msb;
-		uint32_t addr_lsb;
+		uint16_t rsvd;
+		uint16_t flags;
+		uint32_t addr;
 		uint32_t size;
 	} cmd = { };
 	struct imx_mu_msg msg = {
@@ -512,20 +534,21 @@ static TEE_Result imx_ele_rng_get_random(uint8_t *buffer, size_t size)
 	if (!buffer || !size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	cmd.flags = flags;
+
 	if (cpu_mmu_enabled()) {
 		res = imx_ele_buf_alloc(&rng, NULL, size);
 		if (res != TEE_SUCCESS)
 			return res;
 
-		cmd.addr_msb = rng.paddr_msb;
-		cmd.addr_lsb = rng.paddr_lsb;
+		cmd.addr = rng.paddr;
 	} else {
 		paddr_t pa = (paddr_t)buffer;
 
 		if (!IS_ALIGNED_WITH_TYPE(pa, uint32_t))
 			return TEE_ERROR_BAD_PARAMETERS;
 
-		reg_pair_from_64((uint64_t)pa, &cmd.addr_msb, &cmd.addr_lsb);
+		cmd.addr = pa;
 	}
 
 	cmd.size = (uint32_t)size;
@@ -558,7 +581,8 @@ unsigned long plat_get_aslr_seed(void)
 		if (timeout_elapsed(timeout))
 			panic("ELE RNG is busy");
 
-	if (imx_ele_rng_get_random((uint8_t *)&aslr, sizeof(aslr)))
+	if (imx_ele_rng_get_random((uint8_t *)&aslr, sizeof(aslr),
+				   ELE_RNG_FLAGS_BLOCK_RESEED))
 		panic("Cannot retrieve random data from ELE");
 
 	return aslr;
@@ -567,7 +591,34 @@ unsigned long plat_get_aslr_seed(void)
 #ifndef CFG_WITH_SOFTWARE_PRNG
 TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
-	return imx_ele_rng_get_random((uint8_t *)buf, len);
+	return imx_ele_rng_get_random((uint8_t *)buf, len,
+				      ELE_RNG_FLAGS_NO_RESEED);
+}
+#else /* CFG_WITH_SOFTWARE_PRNG */
+/*
+ * Seed the software PRNG from the ELE true random number generator. This
+ * overrides the weak default plat_init_soft_prng() so that the software PRNG
+ * is seeded with hardware entropy on ELE based platforms. Without this,
+ * linking with CFG_WITH_SOFTWARE_PRNG=y (and CFG_INSECURE=n) fails because no
+ * platform provides plat_init_soft_prng().
+ */
+void plat_init_soft_prng(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint8_t seed[64] = { };
+
+	res = imx_ele_rng_get_random(seed, sizeof(seed),
+				     ELE_RNG_FLAGS_NO_RESEED);
+	if (res) {
+		EMSG("Failed to read ELE RNG: %#" PRIx32, res);
+		panic();
+	}
+
+	res = crypto_rng_init(seed, sizeof(seed));
+	if (res) {
+		EMSG("Failed to initialize RNG: %#" PRIx32, res);
+		panic();
+	}
 }
 #endif /* CFG_WITH_SOFTWARE_PRNG */
 #endif /* CFG_MX93 || CFG_MX91 */

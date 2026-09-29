@@ -51,23 +51,23 @@
  * The entropy data is fed to the DF to produce seed. This seed is loaded to the
  * external seed registers which provide seed to the DRBG.
  */
-#include <arm.h>
-#include <crypto/crypto.h>
+
+#include <config.h>
+#include <drivers/versal_pmc.h>
+#include <drivers/versal_trng.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/panic.h>
 #include <mm/core_mmu.h>
-#include <platform_config.h>
+#include <mm/core_memprot.h>
 #include <rng_support.h>
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
-#include <trace.h>
+#include <util.h>
 
-#define TRNG_BASE            0xF1230000
-#define TRNG_SIZE            0x10000
-
+#ifdef CFG_VERSAL_RNG_IO
 #define TRNG_STATUS			0x04
 #define TRNG_STATUS_QCNT_SHIFT		9
 #define TRNG_STATUS_QCNT_MASK		(BIT(9) | BIT(10) | BIT(11))
@@ -77,10 +77,37 @@
 #define TRNG_CTRL			0x08
 #define TRNG_CTRL_EUMODE_MASK		BIT(8)
 #define TRNG_CTRL_PRNGMODE_MASK		BIT(7)
+#define TRNG_CTRL_TSTMODE_MASK		BIT(6)
 #define TRNG_CTRL_PRNGSTART_MASK	BIT(5)
 #define TRNG_CTRL_PRNGXS_MASK		BIT(3)
 #define TRNG_CTRL_TRSSEN_MASK		BIT(2)
 #define TRNG_CTRL_PRNGSRST_MASK		BIT(0)
+
+#define TRNG_CTRL_PERSODISABLE_MASK	BIT(10)
+#define TRNG_CTRL_SINGLEGENMODE_MASK	BIT(9)
+
+#ifdef CFG_VERSAL_RNG_V2
+/* register CTRL_2 is also called CONF_0 */
+#define TRNG_CTRL_2			0x0C
+#define TRNG_CTRL_2_RCTCUTOFF_SHIFT	8
+#define TRNG_CTRL_2_RCTCUTOFF_MASK	GENMASK_32(16, 8)
+#define TRNG_CTRL_2_RCTCUTOFF_DEFVAL	0x21
+#define TRNG_CTRL_2_DIT_SHIFT		0
+#define TRNG_CTRL_2_DIT_MASK		GENMASK_32(4, 0)
+#define TRNG_CTRL_2_DIT_DEFVAL		0xC
+/* register CTRL_3 is also called CONF_1 */
+#define TRNG_CTRL_3			0x10
+#define TRNG_CTRL_3_APTCUTOFF_SHIFT	8
+#define TRNG_CTRL_3_APTCUTOFF_MASK	GENMASK_32(17, 8)
+#define TRNG_CTRL_3_APTCUTOFF_DEFVAL	0x264
+#define TRNG_CTRL_3_DLEN_SHIFT		0
+#define TRNG_CTRL_3_DLEN_MASK		GENMASK_32(7, 0)
+#define TRNG_CTRL_3_DLEN_DEFVAL		0x9
+/* register CTRL_4 is also called TEST */
+#define TRNG_CTRL_4			0x14
+#define TRNG_CTRL_4_SINGLEBITRAW_MASK	BIT(0)
+#endif
+
 #define TRNG_EXT_SEED_0			0x40
 /*
  * Below registers are not directly referenced in driver but are accessed
@@ -128,92 +155,36 @@
 #define TRNG_MAX_QCNT		4
 #define TRNG_RESEED_TIMEOUT	15000
 #define TRNG_GENERATE_TIMEOUT	8000
-#define TRNG_MIN_DFLENMULT	2
-#define TRNG_MAX_DFLENMULT	9
+#define TRNG_V2_RESEED_TIMEOUT	1500000
+#define TRNG_V2_GENERATE_TIMEOUT 1500000
+#define TRNG_V2_MIN_SEEDLIFE	1
+#define TRNG_V2_MAX_SEEDLIFE	0x80000
 #define PRNGMODE_RESEED		0
 #define PRNGMODE_GEN		TRNG_CTRL_PRNGMODE_MASK
 #define RESET_DELAY		10
+#define TRNG_ENTROPY_SEED_LEN	64
 #define TRNG_SEC_STRENGTH_LEN	32
-#define TRNG_PERS_STR_REGS	12
-#define TRNG_PERS_STR_LEN	48
 #define TRNG_SEED_REGS		12
-#define TRNG_SEED_LEN		48
 #define TRNG_GEN_LEN		32
-#define RAND_BUF_LEN		4
 #define BYTES_PER_BLOCK		16
 #define ALL_A_PATTERN_32	0xAAAAAAAA
 #define ALL_5_PATTERN_32	0x55555555
 
+#ifdef CFG_VERSAL_RNG_V2
+#define TRNG_DF_2CLKS_WAIT	2
+#define TRNG_DF_700CLKS_WAIT	10
+#define TRNG_DF_NUM_OF_BYTES_BEFORE_MIN_700CLKS_WAIT 8
+#endif
+
 /* Derivative function helper macros */
 #define DF_SEED			0
 #define DF_RAND			1
-#define DF_IP_IV_LEN		4
-#define DF_PAD_DATA_LEN		8
-#define MAX_PRE_DF_LEN		160
-#define MAX_PRE_DF_LEN_WORDS	40
-#define DF_PERS_STR_LEN		TRNG_PERS_STR_LEN
+
+#ifdef CFG_VERSAL_RNG_V1
 #define DF_PAD_VAL		0x80
 #define DF_KEY_LEN		32
 #define BLK_SIZE		16
 #define MAX_ROUNDS		14
-
-enum trng_status {
-	TRNG_UNINITIALIZED = 0,
-	TRNG_HEALTHY,
-	TRNG_ERROR,
-	TRNG_CATASTROPHIC
-};
-
-enum trng_mode {
-	TRNG_HRNG = 0,
-	TRNG_DRNG,
-	TRNG_PTRNG
-};
-
-struct trng_cfg {
-	paddr_t base;
-	vaddr_t addr;
-	size_t len;
-};
-
-struct trng_usr_cfg {
-	enum trng_mode mode;
-	uint64_t seed_life;      /* number of TRNG requests per seed */
-	bool predict_en;         /* enable prediction resistance     */
-	bool pstr_en;            /* enable personalization string    */
-	uint32_t pstr[TRNG_PERS_STR_REGS];
-	bool iseed_en;           /* enable an initial seed           */
-	uint32_t init_seed[MAX_PRE_DF_LEN_WORDS];
-	uint32_t df_disable;     /* disable the derivative function  */
-	uint32_t dfmul;          /* derivative function multiplier   */
-};
-
-struct trng_stats {
-	uint64_t bytes;
-	uint64_t bytes_reseed;
-	uint64_t elapsed_seed_life;
-};
-
-/* block cipher derivative function algorithm */
-struct trng_dfin {
-	uint32_t ivc[DF_IP_IV_LEN];
-	uint32_t val1;
-	uint32_t val2;
-	uint8_t entropy[MAX_PRE_DF_LEN];    /* input entropy                */
-	uint8_t pstr[DF_PERS_STR_LEN];      /* personalization string       */
-	uint8_t pad_data[DF_PAD_DATA_LEN];  /* pad to multiples of 16 bytes*/
-};
-
-struct versal_trng {
-	struct trng_cfg cfg;
-	struct trng_usr_cfg usr_cfg;
-	struct trng_stats stats;
-	enum trng_status status;
-	uint32_t buf[RAND_BUF_LEN];   /* buffer of random bits      */
-	size_t len;
-	struct trng_dfin dfin;
-	uint8_t dfout[TRNG_SEED_LEN]; /* output of the DF operation */
-};
 
 /* Derivative function variables */
 static unsigned char sbx1[256];
@@ -483,6 +454,7 @@ static void trng_df_algorithm(struct versal_trng *trng, uint8_t *dfout,
 		encrypt(inp_blk, out_blk);
 	}
 }
+#endif
 
 static uint32_t trng_read32(vaddr_t addr, size_t off)
 {
@@ -564,6 +536,43 @@ static void trng_hold_reset(const struct versal_trng *trng)
 	udelay(RESET_DELAY);
 }
 
+#ifdef CFG_VERSAL_RNG_V2
+static int trng_v2_write_seed(const struct versal_trng *trng,
+			      const uint8_t *seed, uint8_t dlen)
+{
+	int status = TEE_ERROR_GENERIC;
+	uint32_t seed_len = (dlen + 1) * BYTES_PER_BLOCK;
+	uint32_t idx = 0;
+	uint8_t cnt = 0;
+
+	while (idx < seed_len) {
+		uint8_t seed_construct = 0;
+
+		for (cnt = 0; cnt < 8; cnt++) {
+			uint32_t bit = (seed[idx] >> (8 - 1 - cnt)) & 0x01;
+
+			trng_write32(trng->cfg.addr, TRNG_CTRL_4, bit);
+			seed_construct = (seed_construct << 1) | bit;
+		}
+
+		if (seed_construct != seed[idx])
+			goto END;
+
+		udelay(TRNG_DF_2CLKS_WAIT);
+		if (!(idx % TRNG_DF_NUM_OF_BYTES_BEFORE_MIN_700CLKS_WAIT))
+			udelay(TRNG_DF_700CLKS_WAIT);
+
+		idx++;
+	}
+	if (idx == seed_len)
+		status = TEE_SUCCESS;
+
+END:
+	return status;
+}
+#endif
+
+#ifdef CFG_VERSAL_RNG_V1
 static TEE_Result trng_check_seed(uint8_t *entropy, uint32_t len)
 {
 	uint32_t *p = (void *)entropy;
@@ -579,6 +588,7 @@ static TEE_Result trng_check_seed(uint8_t *entropy, uint32_t len)
 
 	return TEE_SUCCESS;
 }
+#endif
 
 static TEE_Result trng_collect_random(struct versal_trng *trng, uint8_t *dst,
 				      size_t len)
@@ -591,9 +601,33 @@ static TEE_Result trng_collect_random(struct versal_trng *trng, uint8_t *dst,
 	size_t index = 0;
 	uint32_t val = 0;
 	bool match = false;
+	uint32_t timeout = TRNG_GENERATE_TIMEOUT;
+	bool do_start = true;
 
-	trng_clrset32(trng->cfg.addr, TRNG_CTRL,
-		      TRNG_CTRL_PRNGSTART_MASK, TRNG_CTRL_PRNGSTART_MASK);
+	if (IS_ENABLED(CFG_VERSAL_RNG_V2) && trng->cfg.version == TRNG_V2) {
+		if (trng->usr_cfg.predict_en ||
+		    !trng->stats.elapsed_seed_life) {
+			uint32_t singlegen = 0;
+
+			if (trng->usr_cfg.predict_en)
+				singlegen = TRNG_CTRL_SINGLEGENMODE_MASK;
+
+			trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+				      TRNG_CTRL_PRNGMODE_MASK |
+				      TRNG_CTRL_SINGLEGENMODE_MASK |
+				      TRNG_CTRL_PRNGSTART_MASK,
+				      PRNGMODE_GEN | singlegen);
+		} else {
+			do_start = false;
+		}
+
+		timeout = TRNG_V2_GENERATE_TIMEOUT;
+	}
+
+	if (do_start)
+		trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+			      TRNG_CTRL_PRNGSTART_MASK,
+			      TRNG_CTRL_PRNGSTART_MASK);
 
 	/*
 	 * Loop as many times based on len requested. In each burst 128 bits
@@ -603,7 +637,7 @@ static TEE_Result trng_collect_random(struct versal_trng *trng, uint8_t *dst,
 		if (trng_wait_for_event(trng->cfg.addr,
 					TRNG_STATUS, TRNG_STATUS_QCNT_MASK,
 					TRNG_MAX_QCNT << TRNG_STATUS_QCNT_SHIFT,
-					TRNG_GENERATE_TIMEOUT)) {
+					timeout)) {
 			EMSG("Timeout waiting for randomness");
 			return TEE_ERROR_GENERIC;
 		}
@@ -651,23 +685,132 @@ static TEE_Result trng_collect_random(struct versal_trng *trng, uint8_t *dst,
 	return TEE_SUCCESS;
 }
 
+#ifdef CFG_VERSAL_RNG_V2
+static TEE_Result trng_v2_reseed_internal(struct versal_trng *trng,
+					  uint8_t *eseed, uint8_t *str,
+					  uint32_t mul)
+{
+	uint32_t ret = TEE_ERROR_GENERIC;
+	uint32_t persmask = TRNG_CTRL_PERSODISABLE_MASK;
+	uint32_t val = 0;
+
+	trng->stats.bytes_reseed = 0;
+	trng->stats.elapsed_seed_life = 0;
+
+	/* Configure DF Len */
+	trng_clrset32(trng->cfg.addr, TRNG_CTRL_3, TRNG_CTRL_3_DLEN_MASK,
+		      (mul << TRNG_CTRL_3_DLEN_SHIFT));
+
+	if (str) {
+		trng_write32_range(trng, TRNG_PER_STRING_0, TRNG_PERS_STR_REGS,
+				   str);
+		persmask = 0;
+	}
+
+	trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+		      TRNG_CTRL_PERSODISABLE_MASK | TRNG_CTRL_PRNGSTART_MASK,
+		      persmask);
+
+	switch (trng->usr_cfg.mode) {
+	case TRNG_HRNG:
+		/* Enable ring oscillators for random seed source */
+		trng_clrset32(trng->cfg.addr, TRNG_OSC_EN, TRNG_OSC_EN_VAL_MASK,
+			      TRNG_OSC_EN_VAL_MASK);
+
+		/* Enable TRSSEN and set PRNG mode for reseed operation */
+		trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+			      TRNG_CTRL_PRNGMODE_MASK |
+			      TRNG_CTRL_TRSSEN_MASK | TRNG_CTRL_PRNGXS_MASK,
+			      PRNGMODE_RESEED |
+			      TRNG_CTRL_TRSSEN_MASK);
+
+		/* Start reseed operation */
+		trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+			      TRNG_CTRL_PRNGSTART_MASK,
+			      TRNG_CTRL_PRNGSTART_MASK);
+		break;
+	case TRNG_DRNG:
+		/* Enable TST mode and set PRNG mode for reseed operation */
+		trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+			      TRNG_CTRL_PRNGMODE_MASK |
+			      TRNG_CTRL_TSTMODE_MASK | TRNG_CTRL_TRSSEN_MASK,
+			      PRNGMODE_RESEED |
+			      TRNG_CTRL_TSTMODE_MASK | TRNG_CTRL_TRSSEN_MASK);
+
+		/* Start reseed operation */
+		trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+			      TRNG_CTRL_PRNGSTART_MASK,
+			      TRNG_CTRL_PRNGSTART_MASK);
+
+		ret = trng_v2_write_seed(trng, eseed, mul);
+		if (ret)
+			return ret;
+		break;
+	default:
+		/* shall not be reached */
+		panic();
+	}
+
+	/* Wait for reseed operation */
+	if (trng_wait_for_event(trng->cfg.addr, TRNG_STATUS,
+				TRNG_STATUS_DONE_MASK,
+				TRNG_STATUS_DONE_MASK,
+				TRNG_V2_RESEED_TIMEOUT))
+		goto error;
+
+	/* Check SP800 - 90B (entropy health test error) */
+	val = trng_read32(trng->cfg.addr, TRNG_STATUS) & TRNG_STATUS_CERTF_MASK;
+	if (val == TRNG_STATUS_CERTF_MASK)
+		goto error;
+
+	/* Stop reseed operation */
+	trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+		      TRNG_CTRL_PRNGSTART_MASK | TRNG_CTRL_TRSSEN_MASK, 0);
+	return TEE_SUCCESS;
+
+error:
+	trng->status = TRNG_ERROR;
+	return TEE_ERROR_GENERIC;
+}
+#else
+static TEE_Result trng_v2_reseed_internal(struct versal_trng *trng __unused,
+					  uint8_t *eseed __unused,
+					  uint8_t *str __unused,
+					  uint32_t mul __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
+
+#ifdef CFG_VERSAL_RNG_V1
 static TEE_Result trng_reseed_internal_nodf(struct versal_trng *trng,
 					    uint8_t *eseed, uint8_t *str)
 {
-	uint8_t entropy[TRNG_SEED_LEN] = { 0 };
+	uint8_t entropy[TRNG_ENTROPY_SEED_LEN] = { 0 };
 	uint8_t *seed = NULL;
 
 	switch (trng->usr_cfg.mode) {
 	case TRNG_HRNG:
+		/*
+		 * Versal TRNG IP doesn't recognize alternate 1 and 0 pattern,
+		 * hence the entropy output need to be monitored before using it
+		 * as seed. This means, TRNG couldn't be configured for entropy
+		 * source as seed source. Instead, entropy data is collected as
+		 * random data, and after inspecting for pattern, is fed again
+		 * to the external seed registers. This is essentially similar
+		 * to HRNG + DF case except that there is no DF involved. This
+		 * actually is configuration for PTRNG mode (not for reseed) to
+		 * collect random output data from entropy source.
+		 */
 		trng_write32(trng->cfg.addr, TRNG_OSC_EN, TRNG_OSC_EN_VAL_MASK);
 		trng_soft_reset(trng);
 		trng_write32(trng->cfg.addr, TRNG_CTRL,
 			     TRNG_CTRL_EUMODE_MASK | TRNG_CTRL_TRSSEN_MASK);
 
-		if (trng_collect_random(trng, entropy, TRNG_SEED_LEN))
+		if (trng_collect_random(trng, entropy, TRNG_ENTROPY_SEED_LEN))
 			return TEE_ERROR_GENERIC;
 
-		if (trng_check_seed(entropy, TRNG_SEED_LEN))
+		if (trng_check_seed(entropy, TRNG_ENTROPY_SEED_LEN))
 			return TEE_ERROR_GENERIC;
 
 		seed = entropy;
@@ -695,6 +838,7 @@ static TEE_Result trng_reseed_internal_df(struct versal_trng *trng,
 
 	switch (trng->usr_cfg.mode) {
 	case TRNG_HRNG:
+		/* see comment in _nodf() */
 		trng_write32(trng->cfg.addr, TRNG_OSC_EN, TRNG_OSC_EN_VAL_MASK);
 		trng_soft_reset(trng);
 		trng_write32(trng->cfg.addr, TRNG_CTRL,
@@ -719,9 +863,9 @@ static TEE_Result trng_reseed_internal_df(struct versal_trng *trng,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result trng_reseed_internal(struct versal_trng *trng,
-				       uint8_t *eseed, uint8_t *str,
-				       uint32_t mul)
+static TEE_Result trng_v1_reseed_internal(struct versal_trng *trng,
+					  uint8_t *eseed, uint8_t *str,
+					  uint32_t mul)
 {
 	uint32_t val = 0;
 
@@ -741,15 +885,23 @@ static TEE_Result trng_reseed_internal(struct versal_trng *trng,
 			goto error;
 	}
 
+	/*
+	 * Set PRNGMODE to reseed and seed source (PRNGXS) to
+	 * TRNG_EXT_SEED_*; the latter especially also for HRNG due to
+	 * not being able to selected entropy source as seed source.
+	 */
 	trng_write32(trng->cfg.addr, TRNG_CTRL,
 		     PRNGMODE_RESEED | TRNG_CTRL_PRNGXS_MASK);
 
 	/* Start the reseed operation */
-	trng_clrset32(trng->cfg.addr, TRNG_CTRL, TRNG_CTRL_PRNGSTART_MASK,
+	trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+		      TRNG_CTRL_PRNGSTART_MASK,
 		      TRNG_CTRL_PRNGSTART_MASK);
 
+	/* Wait for reseed operation */
 	if (trng_wait_for_event(trng->cfg.addr, TRNG_STATUS,
-				TRNG_STATUS_DONE_MASK, TRNG_STATUS_DONE_MASK,
+				TRNG_STATUS_DONE_MASK,
+				TRNG_STATUS_DONE_MASK,
 				TRNG_RESEED_TIMEOUT))
 		goto error;
 
@@ -758,10 +910,41 @@ static TEE_Result trng_reseed_internal(struct versal_trng *trng,
 	if (val == TRNG_STATUS_CERTF_MASK)
 		goto error;
 
+	/* Stop reseed operation */
 	trng_clrset32(trng->cfg.addr, TRNG_CTRL, TRNG_CTRL_PRNGSTART_MASK, 0);
 	return TEE_SUCCESS;
 error:
 	trng->status = TRNG_ERROR;
+	return TEE_ERROR_GENERIC;
+}
+#else
+static void trng_df_algorithm(struct versal_trng *trng __unused,
+			      uint8_t *dfout __unused,
+			      uint32_t flag __unused,
+			      const uint8_t *pstr __unused)
+
+{
+	panic();
+}
+
+static TEE_Result trng_v1_reseed_internal(struct versal_trng *trng __unused,
+					  uint8_t *eseed __unused,
+					  uint8_t *str __unused,
+					  uint32_t mul __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
+
+static TEE_Result trng_reseed_internal(struct versal_trng *trng,
+				       uint8_t *eseed, uint8_t *str,
+				       uint32_t mul)
+{
+	if (IS_ENABLED(CFG_VERSAL_RNG_V1) && trng->cfg.version == TRNG_V1)
+		return trng_v1_reseed_internal(trng, eseed, str, mul);
+	if (IS_ENABLED(CFG_VERSAL_RNG_V2) && trng->cfg.version == TRNG_V2)
+		return trng_v2_reseed_internal(trng, eseed, str, mul);
+
 	return TEE_ERROR_GENERIC;
 }
 
@@ -787,15 +970,27 @@ static TEE_Result trng_instantiate(struct versal_trng *trng,
 	if (usr_cfg->mode != TRNG_PTRNG && !usr_cfg->seed_life)
 		goto error;
 
+	if (IS_ENABLED(CFG_VERSAL_RNG_V2) && trng->cfg.version == TRNG_V2 &&
+	    usr_cfg->mode != TRNG_PTRNG)
+		if (usr_cfg->seed_life < TRNG_V2_MIN_SEEDLIFE ||
+		    usr_cfg->seed_life > TRNG_V2_MAX_SEEDLIFE)
+			goto error;
+
 	if (!usr_cfg->iseed_en && usr_cfg->mode == TRNG_DRNG)
 		goto error;
 
 	if (usr_cfg->iseed_en && usr_cfg->mode == TRNG_HRNG)
 		goto error;
 
-	if (!usr_cfg->df_disable &&
+	if (IS_ENABLED(CFG_VERSAL_RNG_V1) && trng->cfg.version == TRNG_V1 &&
+	    !usr_cfg->df_disable &&
 	    (usr_cfg->dfmul < TRNG_MIN_DFLENMULT ||
 	     usr_cfg->dfmul > TRNG_MAX_DFLENMULT))
+		goto error;
+	if (IS_ENABLED(CFG_VERSAL_RNG_V2) && trng->cfg.version == TRNG_V2 &&
+	    (usr_cfg->df_disable ||
+	     (usr_cfg->dfmul < TRNG_V2_MIN_DFLENMULT ||
+	      usr_cfg->dfmul > TRNG_V2_MAX_DFLENMULT)))
 		goto error;
 
 	if (usr_cfg->df_disable && usr_cfg->dfmul)
@@ -845,15 +1040,22 @@ static TEE_Result trng_reseed(struct versal_trng *trng, uint8_t *eseed,
 	if (trng->usr_cfg.mode != TRNG_DRNG && eseed)
 		goto error;
 
-	if (!trng->usr_cfg.df_disable) {
+	if (IS_ENABLED(CFG_VERSAL_RNG_V1) && trng->cfg.version == TRNG_V1 &&
+	    !trng->usr_cfg.df_disable) {
 		if (mul < TRNG_MIN_DFLENMULT || mul > TRNG_MAX_DFLENMULT)
 			goto error;
 	}
+	if (IS_ENABLED(CFG_VERSAL_RNG_V2) && trng->cfg.version == TRNG_V2 &&
+	    (trng->usr_cfg.df_disable ||
+	     (mul < TRNG_V2_MIN_DFLENMULT || mul > TRNG_V2_MAX_DFLENMULT)))
+		goto error;
 
 	if (trng->usr_cfg.df_disable && mul)
 		goto error;
 
-	if (eseed && !memcmp(eseed, trng->usr_cfg.init_seed, trng->len))
+	if (IS_ENABLED(CFG_VERSAL_RNG_V1) && trng->cfg.version == TRNG_V1 &&
+	    eseed && (trng->len > TRNG_SEED_LEN ||
+		      !memcmp(eseed, trng->usr_cfg.init_seed, trng->len)))
 		goto error;
 
 	if (trng_reseed_internal(trng, eseed, NULL, mul))
@@ -870,6 +1072,7 @@ static TEE_Result trng_generate(struct versal_trng *trng, uint8_t *buf,
 {
 	uint32_t len = TRNG_SEC_STRENGTH_LEN;
 	uint8_t *p = buf;
+	uint32_t mul = 0;
 
 	if (!trng)
 		return TEE_ERROR_GENERIC;
@@ -891,29 +1094,45 @@ static TEE_Result trng_generate(struct versal_trng *trng, uint8_t *buf,
 
 	switch (trng->usr_cfg.mode) {
 	case TRNG_HRNG:
+		if (IS_ENABLED(CFG_VERSAL_RNG_V2) &&
+		    trng->cfg.version == TRNG_V2)
+			mul = trng->usr_cfg.dfmul;
+
 		if (trng->stats.elapsed_seed_life >= trng->usr_cfg.seed_life) {
-			if (trng_reseed_internal(trng, NULL, NULL, 0))
+			if (trng_reseed_internal(trng, NULL, NULL, mul))
 				goto error;
 		}
 
 		if (predict && trng->stats.elapsed_seed_life > 0) {
-			if (trng_reseed_internal(trng, NULL, NULL, 0))
+			if (trng_reseed_internal(trng, NULL, NULL, mul))
 				goto error;
 		}
 
-		trng_write32(trng->cfg.addr, TRNG_CTRL, PRNGMODE_GEN);
+		if (IS_ENABLED(CFG_VERSAL_RNG_V1) &&
+		    trng->cfg.version == TRNG_V1)
+			trng_write32(trng->cfg.addr, TRNG_CTRL,
+				     PRNGMODE_GEN | TRNG_CTRL_PRNGXS_MASK);
 		break;
 	case TRNG_DRNG:
-		if (trng->stats.elapsed_seed_life > trng->usr_cfg.seed_life)
+		if (trng->stats.elapsed_seed_life >= trng->usr_cfg.seed_life) {
+			EMSG("Reseeding required");
 			goto error;
+		}
 
-		if (predict && trng->stats.elapsed_seed_life > 0)
+		if (predict && trng->stats.elapsed_seed_life > 0) {
+			EMSG("Reseeding required");
 			goto error;
+		}
 
-		trng_write32(trng->cfg.addr, TRNG_CTRL, PRNGMODE_GEN);
+		if (IS_ENABLED(CFG_VERSAL_RNG_V1) &&
+		    trng->cfg.version == TRNG_V1)
+			trng_write32(trng->cfg.addr, TRNG_CTRL,
+				     PRNGMODE_GEN | TRNG_CTRL_PRNGXS_MASK);
 		break;
 	default:
-		if (!trng->usr_cfg.df_disable) {
+		if (IS_ENABLED(CFG_VERSAL_RNG_V1) &&
+		    trng->cfg.version == TRNG_V1 &&
+		    !trng->usr_cfg.df_disable) {
 			memset(&trng->dfin, 0, sizeof(trng->dfin));
 			len = (trng->usr_cfg.dfmul + 1) * BYTES_PER_BLOCK;
 			trng->len = len;
@@ -921,9 +1140,22 @@ static TEE_Result trng_generate(struct versal_trng *trng, uint8_t *buf,
 		}
 		/* Enable the 8 ring oscillators used for entropy source */
 		trng_write32(trng->cfg.addr, TRNG_OSC_EN, TRNG_OSC_EN_VAL_MASK);
-		trng_soft_reset(trng);
-		trng_write32(trng->cfg.addr, TRNG_CTRL,
-			     TRNG_CTRL_EUMODE_MASK | TRNG_CTRL_TRSSEN_MASK);
+		if (IS_ENABLED(CFG_VERSAL_RNG_V1) &&
+		    trng->cfg.version == TRNG_V1) {
+			trng_soft_reset(trng);
+			trng_write32(trng->cfg.addr, TRNG_CTRL,
+				     TRNG_CTRL_EUMODE_MASK |
+				     TRNG_CTRL_TRSSEN_MASK);
+		}
+
+		if (IS_ENABLED(CFG_VERSAL_RNG_V2) &&
+		    trng->cfg.version == TRNG_V2)
+			trng_clrset32(trng->cfg.addr, TRNG_CTRL,
+				      TRNG_CTRL_TRSSEN_MASK |
+				      TRNG_CTRL_EUMODE_MASK |
+				      TRNG_CTRL_PRNGXS_MASK,
+				      TRNG_CTRL_TRSSEN_MASK |
+				      TRNG_CTRL_EUMODE_MASK);
 		break;
 	}
 
@@ -934,7 +1166,8 @@ static TEE_Result trng_generate(struct versal_trng *trng, uint8_t *buf,
 	trng->stats.bytes += len;
 	trng->stats.elapsed_seed_life++;
 
-	if (!trng->usr_cfg.df_disable && trng->usr_cfg.mode == TRNG_PTRNG)
+	if (IS_ENABLED(CFG_VERSAL_RNG_V1) && trng->cfg.version == TRNG_V1 &&
+	    !trng->usr_cfg.df_disable && trng->usr_cfg.mode == TRNG_PTRNG)
 		trng_df_algorithm(trng, buf, DF_RAND, NULL);
 
 	return TEE_SUCCESS;
@@ -996,10 +1229,93 @@ error:
 	return TEE_ERROR_GENERIC;
 }
 
-/*
- * The KAT test should be run when the TRNG is configured in DRNG or HRNG mode.
- * If KAT fails, the driver has to be put in error state.
- */
+const uint8_t trng_pers_str[TRNG_PERS_STR_LEN] = {
+	0xB2U, 0x80U, 0x7EU, 0x4CU, 0xD0U, 0xE4U, 0xE2U, 0xA9U,
+	0x2FU, 0x1FU, 0x5DU, 0xC1U, 0xA2U, 0x1FU, 0x40U, 0xFCU,
+	0x1FU, 0x24U, 0x5DU, 0x42U, 0x61U, 0x80U, 0xE6U, 0xE9U,
+	0x71U, 0x05U, 0x17U, 0x5BU, 0xAFU, 0x70U, 0x30U, 0x18U,
+	0xBCU, 0x23U, 0x18U, 0x15U, 0xCBU, 0xB8U, 0xA6U, 0x3EU,
+	0x83U, 0xB8U, 0x4AU, 0xFEU, 0x38U, 0xFCU, 0x25U, 0x87U,
+};
+
+#ifdef CFG_VERSAL_RNG_V1
+static const uint8_t trng_ext_seed[TRNG_SEED_LEN] = {
+	0x3BU, 0xC3U, 0xEDU, 0x64U, 0xF4U, 0x80U, 0x1CU, 0xC7U,
+	0x14U, 0xCCU, 0x35U, 0xEDU, 0x57U, 0x01U, 0x2AU, 0xE4U,
+	0xBCU, 0xEFU, 0xDEU, 0xF6U, 0x7CU, 0x46U, 0xA6U, 0x34U,
+	0xC6U, 0x79U, 0xE8U, 0x91U, 0x5DU, 0xB1U, 0xDBU, 0xA7U,
+	0x49U, 0xA5U, 0xBBU, 0x4FU, 0xEDU, 0x30U, 0xB3U, 0x7BU,
+	0xA9U, 0x8BU, 0xF5U, 0x56U, 0x4DU, 0x40U, 0x18U, 0x9FU,
+};
+
+static const uint8_t trng_ext_reseed[TRNG_SEED_LEN] = {
+	0xFDU, 0x85U, 0xA8U, 0x36U, 0xBBU, 0xA8U, 0x50U, 0x19U,
+	0x88U, 0x1EU, 0x8CU, 0x6BU, 0xADU, 0x23U, 0xC9U, 0x06U,
+	0x1AU, 0xDCU, 0x75U, 0x47U, 0x76U, 0x59U, 0xACU, 0xAEU,
+	0xA8U, 0xE4U, 0xA0U, 0x1DU, 0xFEU, 0x07U, 0xA1U, 0x83U,
+	0x2DU, 0xADU, 0x1CU, 0x13U, 0x6FU, 0x59U, 0xD7U, 0x0FU,
+	0x86U, 0x53U, 0xA5U, 0xDCU, 0x11U, 0x86U, 0x63U, 0xD6U,
+};
+
+static const uint8_t trng_expected_out[TRNG_GEN_LEN] = {
+	0xEBU, 0xF6U, 0x97U, 0x6EU, 0x7EU, 0xF0U, 0x4AU, 0x34U,
+	0xEEU, 0xF6U, 0xA8U, 0x1AU, 0x67U, 0x33U, 0xF2U, 0x3CU,
+	0x27U, 0x24U, 0x7AU, 0x6DU, 0x0EU, 0x12U, 0xD7U, 0x42U,
+	0x73U, 0xEDU, 0xDDU, 0x3FU, 0x07U, 0x23U, 0xD8U, 0x52U,
+};
+#endif
+
+#ifdef CFG_VERSAL_RNG_V2
+#define TRNG_V2_KAT_SEED_LIFE 2
+#define TRNG_V2_KAT_DF_LEN 7
+#define TRNG_V2_KAT_SEED_LEN ((TRNG_V2_KAT_DF_LEN + 1) * BYTES_PER_BLOCK)
+
+static const uint8_t trng_v2_ext_seed[TRNG_V2_KAT_SEED_LEN] = {
+	0x3BU, 0xC3U, 0xEDU, 0x64U, 0xF4U, 0x80U, 0x1CU, 0xC7U,
+	0x14U, 0xCCU, 0x35U, 0xEDU, 0x57U, 0x01U, 0x2AU, 0xE4U,
+	0xBCU, 0xEFU, 0xDEU, 0xF6U, 0x7CU, 0x46U, 0xA6U, 0x34U,
+	0xC6U, 0x79U, 0xE8U, 0x91U, 0x5DU, 0xB1U, 0xDBU, 0xA7U,
+	0x49U, 0xA5U, 0xBBU, 0x4FU, 0xEDU, 0x30U, 0xB3U, 0x7BU,
+	0xA9U, 0x8BU, 0xF5U, 0x56U, 0x4DU, 0x40U, 0x18U, 0x9FU,
+	0x66U, 0x4EU, 0x39U, 0xC0U, 0x60U, 0xC8U, 0x8EU, 0xF4U,
+	0x1CU, 0xB9U, 0x9DU, 0x7BU, 0x97U, 0x8BU, 0x69U, 0x62U,
+	0x45U, 0x0CU, 0xD4U, 0x85U, 0xFCU, 0xDCU, 0x5AU, 0x2BU,
+	0xFDU, 0xABU, 0x92U, 0x4AU, 0x12U, 0x52U, 0x7DU, 0x45U,
+	0xD2U, 0x61U, 0x0AU, 0x06U, 0x74U, 0xA7U, 0x88U, 0x36U,
+	0x4BU, 0xA2U, 0x65U, 0xEEU, 0x71U, 0x0BU, 0x5AU, 0x4EU,
+	0x33U, 0xB2U, 0x7AU, 0x2EU, 0xC0U, 0xA6U, 0xF2U, 0x7DU,
+	0xBDU, 0x7DU, 0xDFU, 0x07U, 0xBBU, 0xE2U, 0x86U, 0xFFU,
+	0xF0U, 0x8EU, 0xA4U, 0xB1U, 0x46U, 0xDBU, 0xF7U, 0x8CU,
+	0x3CU, 0x62U, 0x4DU, 0xF0U, 0x51U, 0x50U, 0xE7U, 0x85U
+};
+
+static const uint8_t trng_v2_ext_reseed[TRNG_V2_KAT_SEED_LEN] = {
+	0xDFU, 0x5EU, 0x4DU, 0x4FU, 0x38U, 0x9EU, 0x2AU, 0x3EU,
+	0xF2U, 0xABU, 0x46U, 0xE3U, 0xA0U, 0x26U, 0x77U, 0x84U,
+	0x0BU, 0x9DU, 0x29U, 0xB0U, 0x5DU, 0xCEU, 0xC8U, 0xC3U,
+	0xF9U, 0x4DU, 0x32U, 0xF7U, 0xBAU, 0x6FU, 0xA3U, 0xB5U,
+	0x35U, 0xCBU, 0xC7U, 0x5CU, 0x62U, 0x48U, 0x01U, 0x65U,
+	0x3AU, 0xAAU, 0x34U, 0x2DU, 0x89U, 0x6EU, 0xEFU, 0x6FU,
+	0x69U, 0x96U, 0xE7U, 0x84U, 0xDAU, 0xEFU, 0x4EU, 0xBEU,
+	0x27U, 0x4EU, 0x9FU, 0x88U, 0xB1U, 0xA0U, 0x7FU, 0x83U,
+	0xDBU, 0x4AU, 0xA9U, 0x42U, 0x01U, 0xF1U, 0x84U, 0x71U,
+	0xA9U, 0xEFU, 0xB9U, 0xE8U, 0x7FU, 0x81U, 0xC7U, 0xC1U,
+	0x6CU, 0x5EU, 0xACU, 0x00U, 0x47U, 0x34U, 0xA1U, 0x75U,
+	0xC0U, 0xE8U, 0x7FU, 0x48U, 0x00U, 0x45U, 0xC9U, 0xE9U,
+	0x41U, 0xE3U, 0x8DU, 0xD8U, 0x4AU, 0x63U, 0xC4U, 0x94U,
+	0x77U, 0x59U, 0xD9U, 0x50U, 0x2AU, 0x1DU, 0x4CU, 0x47U,
+	0x64U, 0xA6U, 0x66U, 0x60U, 0x16U, 0xE7U, 0x29U, 0xC0U,
+	0xB1U, 0xCFU, 0x3BU, 0x3FU, 0x54U, 0x49U, 0x31U, 0xD4U
+};
+
+static const uint8_t trng_v2_expected_out[TRNG_SEC_STRENGTH_LEN] = {
+	0xEEU, 0xA7U, 0x5BU, 0xB6U, 0x2BU, 0x97U, 0xF0U, 0xC0U,
+	0x0FU, 0xD6U, 0xABU, 0x13U, 0x00U, 0x87U, 0x7EU, 0xF4U,
+	0x00U, 0x7FU, 0xD7U, 0x56U, 0xFEU, 0xE5U, 0xDFU, 0xA6U,
+	0x55U, 0x5BU, 0xB2U, 0x86U, 0xDDU, 0x81U, 0x73U, 0xB2U
+};
+#endif
+
 static TEE_Result trng_kat_test(struct versal_trng *trng)
 {
 	struct trng_usr_cfg tests = {
@@ -1011,37 +1327,42 @@ static TEE_Result trng_kat_test(struct versal_trng *trng)
 		.pstr_en = true,
 		.df_disable = false,
 	};
-	const uint8_t ext_seed[TRNG_SEED_LEN] = {
-		0x3BU, 0xC3U, 0xEDU, 0x64U, 0xF4U, 0x80U, 0x1CU, 0xC7U,
-		0x14U, 0xCCU, 0x35U, 0xEDU, 0x57U, 0x01U, 0x2AU, 0xE4U,
-		0xBCU, 0xEFU, 0xDEU, 0xF6U, 0x7CU, 0x46U, 0xA6U, 0x34U,
-		0xC6U, 0x79U, 0xE8U, 0x91U, 0x5DU, 0xB1U, 0xDBU, 0xA7U,
-		0x49U, 0xA5U, 0xBBU, 0x4FU, 0xEDU, 0x30U, 0xB3U, 0x7BU,
-		0xA9U, 0x8BU, 0xF5U, 0x56U, 0x4DU, 0x40U, 0x18U, 0x9FU,
-	};
-	const uint8_t pers_str[TRNG_PERS_STR_LEN] = {
-		0xB2U, 0x80U, 0x7EU, 0x4CU, 0xD0U, 0xE4U, 0xE2U, 0xA9U,
-		0x2FU, 0x1FU, 0x5DU, 0xC1U, 0xA2U, 0x1FU, 0x40U, 0xFCU,
-		0x1FU, 0x24U, 0x5DU, 0x42U, 0x61U, 0x80U, 0xE6U, 0xE9U,
-		0x71U, 0x05U, 0x17U, 0x5BU, 0xAFU, 0x70U, 0x30U, 0x18U,
-		0xBCU, 0x23U, 0x18U, 0x15U, 0xCBU, 0xB8U, 0xA6U, 0x3EU,
-		0x83U, 0xB8U, 0x4AU, 0xFEU, 0x38U, 0xFCU, 0x25U, 0x87U,
-	};
-	const uint8_t expected_out[TRNG_GEN_LEN] = {
-		0x91U, 0x9AU, 0x6BU, 0x99U, 0xD5U, 0xBCU, 0x2CU, 0x11U,
-		0x5FU, 0x3AU, 0xFCU, 0x0BU, 0x0EU, 0x7BU, 0xC7U, 0x69U,
-		0x4DU, 0xE1U, 0xE5U, 0xFEU, 0x59U, 0x9EU, 0xAAU, 0x41U,
-		0xD3U, 0x48U, 0xFDU, 0x3DU, 0xD2U, 0xC4U, 0x50U, 0x1EU,
-	};
+	uint32_t seed_len = TRNG_SEED_LEN;
+	const uint8_t *ext_seed = NULL;
+	const uint8_t *ext_reseed = NULL;
+	const uint8_t *expected_out = NULL;
 	uint8_t out[TRNG_GEN_LEN] = { 0 };
 
 	if (!trng)
 		return TEE_ERROR_GENERIC;
 
-	memcpy(&tests.init_seed, ext_seed, sizeof(ext_seed));
-	memcpy(tests.pstr, pers_str, sizeof(pers_str));
+#ifdef CFG_VERSAL_RNG_V1
+	if (trng->cfg.version == TRNG_V1) {
+		ext_seed = trng_ext_seed;
+		ext_reseed = trng_ext_reseed;
+		expected_out = trng_expected_out;
+	}
+#endif
+
+#ifdef CFG_VERSAL_RNG_V2
+	if (trng->cfg.version == TRNG_V2) {
+		tests.seed_life = TRNG_V2_KAT_SEED_LIFE;
+		tests.dfmul = TRNG_V2_KAT_DF_LEN;
+
+		seed_len = TRNG_V2_KAT_SEED_LEN;
+		ext_seed = trng_v2_ext_seed;
+		ext_reseed = trng_v2_ext_reseed;
+		expected_out = trng_v2_expected_out;
+	}
+#endif
+
+	memcpy(&tests.init_seed, ext_seed, seed_len);
+	memcpy(tests.pstr, trng_pers_str, sizeof(trng_pers_str));
 
 	if (trng_instantiate(trng, &tests))
+		goto error;
+
+	if (trng_reseed(trng, (uint8_t *)ext_reseed, tests.dfmul))
 		goto error;
 
 	if (trng_generate(trng, out, sizeof(out), false))
@@ -1061,25 +1382,21 @@ error:
 	return TEE_ERROR_GENERIC;
 }
 
-static struct versal_trng versal_trng = {
-	.cfg.base = TRNG_BASE,
-	.cfg.len = TRNG_SIZE,
-};
-
-TEE_Result hw_get_random_bytes(void *buf, size_t len)
+TEE_Result versal_trng_get_random_bytes(struct versal_trng *trng,
+					void *buf, size_t len)
 {
 	uint8_t random[TRNG_SEC_STRENGTH_LEN] = { 0 };
 	uint8_t *p = buf;
 	size_t i = 0;
 
 	for (i = 0; i < len / TRNG_SEC_STRENGTH_LEN; i++) {
-		if (trng_generate(&versal_trng, p + i * TRNG_SEC_STRENGTH_LEN,
+		if (trng_generate(trng, p + i * TRNG_SEC_STRENGTH_LEN,
 				  TRNG_SEC_STRENGTH_LEN, false))
 			panic();
 	}
 
 	if (len % TRNG_SEC_STRENGTH_LEN) {
-		if (trng_generate(&versal_trng, random, TRNG_SEC_STRENGTH_LEN,
+		if (trng_generate(trng, random, TRNG_SEC_STRENGTH_LEN,
 				  false))
 			panic();
 		memcpy(p + i * TRNG_SEC_STRENGTH_LEN, random,
@@ -1089,20 +1406,114 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	return TEE_SUCCESS;
 }
 
-void plat_rng_init(void)
+TEE_Result versal_trng_hw_init(struct versal_trng *trng,
+			       struct trng_usr_cfg *usr_cfg)
 {
+	trng->cfg.addr = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
+						       trng->cfg.base,
+						       trng->cfg.len);
+	if (!trng->cfg.addr) {
+		EMSG("Failed to map TRNG");
+		panic();
+	}
+
+	if (trng_kat_test(trng)) {
+		EMSG("KAT Failed");
+		panic();
+	}
+
+	if (trng_health_test(trng)) {
+		EMSG("RunHealthTest Failed");
+		panic();
+	}
+
+	if (trng_instantiate(trng, usr_cfg)) {
+		EMSG("Driver instantiation Failed");
+		panic();
+	}
+
+	if (trng->usr_cfg.mode == TRNG_HRNG &&
+	    trng_reseed(trng, NULL, trng->usr_cfg.dfmul)) {
+		EMSG("Reseed Failed");
+		panic();
+	}
+
+	return TEE_SUCCESS;
+}
+#endif
+
+#ifdef CFG_VERSAL_RNG_PLM
+#define SEC_MODULE_SHIFT 8
+#define SEC_MODULE_ID 5
+
+#define CRYPTO_API_ID(__x) ((SEC_MODULE_ID << SEC_MODULE_SHIFT) | (__x))
+
+#define VERSAL_TRNG_GENERATE 22
+
+#define TRNG_SEC_STRENGTH_LEN 32
+
+static TEE_Result versal_plm_get_random_bytes(void *buf, size_t len)
+{
+	uint32_t low = 0;
+	uint32_t hi = 0;
+	struct versal_ipi_cmd cmd = { };
+	struct versal_mbox_mem p = { };
+	TEE_Result ret = TEE_SUCCESS;
+	uint32_t status = 0;
+	uint32_t offset = 0;
+
+	ret = versal_mbox_alloc(TRNG_SEC_STRENGTH_LEN, NULL, &p);
+	if (ret)
+		return ret;
+
+	cmd.data[0] = CRYPTO_API_ID(VERSAL_TRNG_GENERATE);
+	cmd.ibuf[0].mem = p;
+
+	reg_pair_from_64(virt_to_phys(p.buf), &hi, &low);
+	cmd.data[1] = low;
+	cmd.data[2] = hi;
+
+	while (len) {
+		uint32_t _len = (uint32_t)TRNG_SEC_STRENGTH_LEN;
+
+		if (len < TRNG_SEC_STRENGTH_LEN)
+			_len = (uint32_t)len;
+
+		cmd.data[3] = _len;
+
+		ret = versal_pmc_notify(&cmd, NULL, &status);
+		if (ret)
+			panic();
+
+		memcpy((uint8_t *)buf + offset, p.buf, _len);
+
+		offset += TRNG_SEC_STRENGTH_LEN;
+		len -= _len;
+	}
+
+	versal_mbox_free(&p);
+	return ret;
+}
+#endif
+
+#if !defined(PLATFORM_FLAVOR_net)
+
+#define TRNG_BASE            0xF1230000
+#define TRNG_SIZE            0x10000
+
+static struct versal_trng versal_trng = {
+	.cfg.base = TRNG_BASE,
+	.cfg.len = TRNG_SIZE,
+	.cfg.version = TRNG_V1,
+};
+
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
+{
+	return versal_trng_get_random_bytes(&versal_trng, buf, len);
 }
 
 static TEE_Result trng_hrng_mode_init(void)
 {
-	const uint8_t pers_str[TRNG_PERS_STR_LEN] = {
-		0xB2, 0x80, 0x7E, 0x4C, 0xD0, 0xE4, 0xE2, 0xA9,
-		0x2F, 0x1F, 0x5D, 0xC1, 0xA2, 0x1F, 0x40, 0xFC,
-		0x1F, 0x24, 0x5D, 0x42, 0x61, 0x80, 0xE6, 0xE9,
-		0x71, 0x05, 0x17, 0x5B, 0xAF, 0x70, 0x30, 0x18,
-		0xBC, 0x23, 0x18, 0x15, 0xCB, 0xB8, 0xA6, 0x3E,
-		0x83, 0xB8, 0x4A, 0xFE, 0x38, 0xFC, 0x25, 0x87,
-	};
 	/* configure in hybrid mode with derivative function enabled */
 	struct trng_usr_cfg usr_cfg = {
 		.mode = TRNG_HRNG,
@@ -1114,36 +1525,17 @@ static TEE_Result trng_hrng_mode_init(void)
 		.pstr_en = true,
 	};
 
-	memcpy(usr_cfg.pstr, pers_str, TRNG_PERS_STR_LEN);
-	versal_trng.cfg.addr = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
-						     versal_trng.cfg.base,
-						     versal_trng.cfg.len);
-	if (!versal_trng.cfg.addr) {
-		EMSG("Failed to map TRNG");
-		panic();
-	}
-
-	if (trng_kat_test(&versal_trng)) {
-		EMSG("KAT Failed");
-		panic();
-	}
-
-	if (trng_health_test(&versal_trng)) {
-		EMSG("RunHealthTest Failed");
-		panic();
-	}
-
-	if (trng_instantiate(&versal_trng, &usr_cfg)) {
-		EMSG("Driver instantiation Failed");
-		panic();
-	}
-
-	if (trng_reseed(&versal_trng, NULL, usr_cfg.dfmul)) {
-		EMSG("Reseed Failed");
-		panic();
-	}
-
-	return TEE_SUCCESS;
+	memcpy(usr_cfg.pstr, trng_pers_str, sizeof(trng_pers_str));
+	return versal_trng_hw_init(&versal_trng, &usr_cfg);
 }
 
-driver_init(trng_hrng_mode_init);
+early_init(trng_hrng_mode_init);
+
+#else
+
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
+{
+	return versal_plm_get_random_bytes(buf, len);
+}
+
+#endif

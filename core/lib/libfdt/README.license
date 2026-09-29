@@ -28,7 +28,7 @@ tools.  Allowing libfdt to be used under the terms of the BSD license
 makes that it easier for vendors or authors of such software to do so.
 
 This does mean that libfdt code could be "stolen" - say, included in a
-proprietary fimware and extended without contributing those extensions
+proprietary firmware and extended without contributing those extensions
 back to the libfdt mainline.  While I hope that doesn't happen, I
 believe the goal of allowing libfdt to be widely used is more
 important than avoiding that.  libfdt is quite small, and hardly

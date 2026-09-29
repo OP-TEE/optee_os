@@ -74,15 +74,25 @@ static TEE_Result do_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 		assert(0);
 	}
 
-	versal_mbox_alloc(RSA_MAX_MOD_LEN + RSA_MAX_PUB_EXP_LEN, NULL, &key);
-	crypto_bignum_bn2bin_pad(rsa_data->key.n_size, p->n, key.buf);
-	crypto_bignum_bn2bin_pad(RSA_MAX_PUB_EXP_LEN,
-				 p->e, (uint8_t *)key.buf + RSA_MAX_MOD_LEN);
+	ret = versal_mbox_alloc(RSA_MAX_MOD_LEN + RSA_MAX_PUB_EXP_LEN, NULL,
+				&key);
+	if (ret)
+		return ret;
 
-	versal_mbox_alloc(rsa_data->message.length, rsa_data->message.data,
-			  &msg);
-	versal_mbox_alloc(rsa_data->cipher.length, NULL, &cipher);
-	versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
+	crypto_bignum_bn2bin_pad(rsa_data->key.n_size, p->n, key.buf);
+	crypto_bignum_bn2bin_pad(RSA_MAX_PUB_EXP_LEN, p->e,
+				 (uint8_t *)key.buf + rsa_data->key.n_size);
+
+	ret = versal_mbox_alloc(rsa_data->message.length,
+				rsa_data->message.data, &msg);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(rsa_data->cipher.length, NULL, &cipher);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
+	if (ret)
+		goto out;
 
 	cmd = cmd_buf.buf;
 	cmd->key_len = rsa_data->key.n_size;
@@ -109,10 +119,11 @@ static TEE_Result do_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 		memcpy(rsa_data->cipher.data, cipher.buf, rsa_data->key.n_size);
 	}
 
-	free(cipher.buf);
-	free(cmd);
-	free(msg.buf);
-	free(key.buf);
+out:
+	versal_mbox_free(&cmd_buf);
+	versal_mbox_free(&cipher);
+	versal_mbox_free(&msg);
+	versal_mbox_free(&key);
 
 	return ret;
 }
@@ -128,6 +139,10 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 	struct versal_cmd_args arg = { };
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t err = 0;
+#if defined(PLATFORM_FLAVOR_net)
+	struct versal_rsa_key_param *keyp = NULL;
+	struct versal_mbox_mem keyp_buf = { };
+#endif
 
 	switch (rsa_data->rsa_id) {
 	case DRVCRYPT_RSA_PKCS_V1_5:
@@ -165,25 +180,54 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 		assert(0);
 	}
 
-	versal_mbox_alloc(RSA_MAX_MOD_LEN + RSA_MAX_PRIV_EXP_LEN, NULL, &key);
+	ret = versal_mbox_alloc(RSA_MAX_MOD_LEN + RSA_MAX_PRIV_EXP_LEN, NULL,
+				&key);
+	if (ret)
+		return ret;
+
 	crypto_bignum_bn2bin_pad(rsa_data->key.n_size, p->n, key.buf);
 	crypto_bignum_bn2bin_pad(rsa_data->key.n_size, p->d,
-				 (uint8_t *)key.buf + RSA_MAX_MOD_LEN);
+				 (uint8_t *)key.buf + rsa_data->key.n_size);
 
-	versal_mbox_alloc(rsa_data->cipher.length, rsa_data->cipher.data,
-			  &cipher);
-	versal_mbox_alloc(rsa_data->message.length, NULL, &msg);
-	versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
+#if defined(PLATFORM_FLAVOR_net)
+	ret = versal_mbox_alloc(sizeof(*keyp), NULL, &keyp_buf);
+	if (ret)
+		goto out;
+#endif
+
+	ret = versal_mbox_alloc(rsa_data->cipher.length, rsa_data->cipher.data,
+				&cipher);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(rsa_data->message.length, NULL, &msg);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(*cmd), NULL, &cmd_buf);
+	if (ret)
+		goto out;
 
 	cmd = cmd_buf.buf;
 	cmd->key_len = rsa_data->key.n_size;
 	cmd->data_addr = virt_to_phys(cipher.buf);
+#if !defined(PLATFORM_FLAVOR_net)
 	cmd->key_addr = virt_to_phys(key.buf);
+#else
+	keyp = keyp_buf.buf;
+	memset(keyp, 0, sizeof(*keyp));
+	keyp->exp_addr = virt_to_phys((uint8_t *)key.buf +
+				      rsa_data->key.n_size);
+	keyp->mod_addr = virt_to_phys(key.buf);
+	keyp->opmode = VERSAL_RSA_OPMODE_EXPQ;
+	cmd->key_addr = virt_to_phys(keyp_buf.buf);
+#endif
 
 	arg.ibuf[0].mem = cmd_buf;
 	arg.ibuf[1].mem = msg;
 	arg.ibuf[2].mem = cipher;
 	arg.ibuf[3].mem = key;
+#if defined(PLATFORM_FLAVOR_net)
+	arg.ibuf[4].mem = keyp_buf;
+#endif
 
 	if (versal_crypto_request(VERSAL_RSA_PRIVATE_DECRYPT, &arg, &err)) {
 		EMSG("Versal RSA: decrypt: error 0x%x [id:0x%x, len:%zu]",
@@ -196,10 +240,14 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 		memcpy(rsa_data->message.data, msg.buf, rsa_data->key.n_size);
 	}
 
-	free(cipher.buf);
-	free(cmd);
-	free(key.buf);
-	free(msg.buf);
+out:
+	versal_mbox_free(&cmd_buf);
+	versal_mbox_free(&msg);
+	versal_mbox_free(&cipher);
+#if defined(PLATFORM_FLAVOR_net)
+	versal_mbox_free(&keyp_buf);
+#endif
+	versal_mbox_free(&key);
 
 	return ret;
 }
@@ -337,10 +385,31 @@ static struct drvcrypt_rsa driver_rsa = {
 
 static TEE_Result rsa_init(void)
 {
+	uint32_t err = 0;
 	struct versal_cmd_args arg = { };
 
-	if (versal_crypto_request(VERSAL_RSA_KAT, &arg, NULL))
+	arg.data[arg.dlen++] = VERSAL_RSA_PUB_ENC_KAT;
+
+	if (versal_crypto_request(VERSAL_KAT, &arg, &err))
 		return TEE_ERROR_GENERIC;
+
+	if (err) {
+		DMSG("RSA_PUB_ENC_KAT returned 0x%" PRIx32, err);
+		return TEE_ERROR_GENERIC;
+	}
+
+	/* Clear previous request */
+	arg.dlen = 0;
+
+	arg.data[arg.dlen++] = VERSAL_RSA_PRIVATE_DEC_KAT;
+
+	if (versal_crypto_request(VERSAL_KAT, &arg, &err))
+		return TEE_ERROR_GENERIC;
+
+	if (err) {
+		DMSG("RSA_PRIVATE_DEC_KAT returned 0x%" PRIx32, err);
+		return TEE_ERROR_GENERIC;
+	}
 
 	return drvcrypt_register_rsa(&driver_rsa);
 }

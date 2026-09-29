@@ -292,15 +292,11 @@ static TEE_Result initialize_window(int window, size_t size, uintptr_t vault)
  */
 static TEE_Result qti_ramblur_pimem_init(void)
 {
-	if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, RAMBLUR_PIMEM_REG_BASE,
-				  RAMBLUR_PIMEM_REG_SIZE))
-		panic("Can't add Ramblur pIMEM");
-
-	ramblur_va = (vaddr_t)phys_to_virt(RAMBLUR_PIMEM_REG_BASE,
-					   MEM_AREA_IO_SEC,
-					   RAMBLUR_PIMEM_REG_SIZE);
+	ramblur_va = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
+						   RAMBLUR_PIMEM_REG_BASE,
+						   RAMBLUR_PIMEM_REG_SIZE);
 	if (!ramblur_va)
-		panic("Can't get Ramblur virtual");
+		panic("Can't map Ramblur pIMEM");
 
 	get_hardware_version(&ramblur_version.major,
 			     &ramblur_version.minor,

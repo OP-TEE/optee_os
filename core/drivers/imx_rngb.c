@@ -215,10 +215,6 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	return TEE_SUCCESS;
 }
 
-void plat_rng_init(void)
-{
-}
-
 static TEE_Result rngb_init(void)
 {
 	uint32_t type = 0;

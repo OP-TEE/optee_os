@@ -231,6 +231,12 @@ CFG_RPMB_TESTKEY ?= n
 # - RPMB key provisioning in a controlled environment (factory setup)
 CFG_RPMB_WRITE_KEY ?= n
 
+# Restricts RPMB key provisioning to the device whose CID matches this
+# upper-case hex string (2 * RPMB_CID_SIZE chars). Empty: provision the first.
+# Set as a quoted string, e.g.
+# CFG_RPMB_WRITE_KEY_CID='"112233445566778899AABBCCDDEEFF00"'
+CFG_RPMB_WRITE_KEY_CID ?= ""
+
 # For the kernel driver to enable in-kernel RPMB routing it must know in
 # advance that OP-TEE supports it. Setting CFG_RPMB_ANNOUNCE_PROBE_CAP=y
 # will announce OP-TEE's capability for RPMB probing to the kernel and it
@@ -302,6 +308,13 @@ CFG_WITH_USER_TA ?= y
 
 # Build user TAs included in this source tree
 CFG_BUILD_IN_TREE_TA ?= y
+
+# Add the com.microsoft.ta.endorsementSeed TEE property, derived from the
+# hardware unique key. Needed by the Microsoft fTPM TA (ms-tpm-20-ref) to
+# derive its Endorsement Primary Seed. The seed is only as secret as the
+# platform's HUK. Has no effect unless CFG_WITH_USER_TA is enabled, since the
+# TEE property set is only read from a TA.
+CFG_TEE_ENDORSEMENT_SEED ?= n
 
 # Choosing the architecture(s) of user-mode libraries (used by TAs)
 #
@@ -389,14 +402,19 @@ CFG_REE_FS_TA ?= y
 CFG_REE_FS_TA_BUFFERED ?= n
 $(eval $(call cfg-depends-all,CFG_REE_FS_TA_BUFFERED,CFG_REE_FS_TA))
 
+# Keep ta_ver.db and subkey_ver.db, holding the TA and subkey anti-rollback
+# version floor, in RPMB rather than in the REE FS where the normal world
+# can delete them and drop the floor to zero.
+CFG_TA_VERSION_DB_RPMB ?= n
+$(eval $(call cfg-depends-all,CFG_TA_VERSION_DB_RPMB,CFG_RPMB_FS))
+
 # When CFG_REE_FS=y:
 # Allow secure storage in the REE FS to be entirely deleted without causing
 # anti-rollback errors. That is, rm /data/tee/dirf.db or rm -rf /data/tee (or
 # whatever path is configured in tee-supplicant as CFG_TEE_FS_PARENT_PATH)
 # can be used to reset the secure storage to a clean, empty state.
-# Intended to be used for testing only since it weakens storage security.
-# Warning: If enabled for release build then it will break rollback protection
-# of TAs and the entire REE FS secure storage.
+# Warning: the TA and subkey version floor kept in the REE FS is lost on
+# such a reset, unless CFG_TA_VERSION_DB_RPMB is enabled.
 CFG_REE_FS_ALLOW_RESET ?= n
 
 # Support for loading user TAs from a special section in the TEE binary.
@@ -476,6 +494,7 @@ CFG_CORE_BGET_BESTFIT ?= $(call cfg-one-enabled, CFG_WITH_PAGER CFG_LOCKDEP)
 # Uses a lot of memory, can't be enabled by default
 CFG_CORE_SANITIZE_UNDEFINED ?= n
 CFG_TA_SANITIZE_UNDEFINED ?= n
+CFG_SANITIZE_UNDEFINED_PANIC ?= n
 
 # Enable Kernel Address sanitizer, has a huge performance impact, uses a
 # lot of memory and need platform specific adaptations, can't be enabled by
@@ -522,6 +541,11 @@ CFG_STACK_TMP_EXTRA ?= 0
 # When CFG_MAP_EXT_DT_SECURE is enabled the external device tree is expected to
 # be in the secure memory.
 #
+# When CFG_EXT_DT_CACHED is enabled the external device tree is mapped as
+# cached memory instead of non-cached memory, which speeds up parsing of the
+# device tree considerably. Platforms can enable it once it is known that the
+# external device tree resides in memory that can be mapped cached.
+#
 # When CFG_EMBED_DTB is enabled, CFG_EMBED_DTB_SOURCE_FILE shall define the
 # relative path of a DTS file located in core/arch/$(ARCH)/dts.
 # The DTS file is compiled into a DTB file which content is embedded in a
@@ -540,6 +564,7 @@ CFG_MAP_EXT_DT_SECURE ?= n
 ifeq ($(CFG_MAP_EXT_DT_SECURE),y)
 $(call force,CFG_DT,y)
 endif
+CFG_EXT_DT_CACHED ?= n
 
 # This option enables OP-TEE to support boot arguments handover via Transfer
 # List defined in Firmware Handoff specification.
@@ -740,6 +765,14 @@ CFG_ATTESTATION_PTA_KEY_SIZE ?= 3072
 # Default is 2**(2) = 4 cores per cluster.
 CFG_CORE_CLUSTER_SHIFT ?= 2
 
+# Detect the cluster shift (log2 of cores per cluster) at runtime from the
+# DTB instead of solely trusting the compile-time CFG_CORE_CLUSTER_SHIFT.
+# Falls back to CFG_CORE_CLUSTER_SHIFT if detection fails or no DT is
+# available. Platforms that support multiple core/cluster variants from a
+# single binary should set this to y.
+CFG_DYN_CLUSTER_SHIFT ?= n
+$(eval $(call cfg-depends-all,CFG_DYN_CLUSTER_SHIFT,CFG_ARM64_core))
+
 # Define the number of threads per core used in calculating processing
 # element's position. The core number is shifted by this value and added to
 # the thread ID, so its value represents log2(threads/core).
@@ -811,6 +844,10 @@ $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 # Default number of virtual guests
 CFG_VIRT_GUEST_COUNT ?= 2
 endif
+
+# Default length of hardware unique key, platforms can override it based on
+# their capabilities.
+CFG_HW_UNIQUE_KEY_LENGTH ?= 16
 
 # Enables backwards compatible derivation of RPMB and SSK keys
 CFG_CORE_HUK_SUBKEY_COMPAT ?= y
@@ -902,14 +939,27 @@ _CFG_SCMI_PTA_SMT_HEADER ?= n
 _CFG_SCMI_PTA_MSG_HEADER ?= n
 endif
 
+# FF-A ABI used between OP-TEE and StandaloneMm: 11 for v1.1, 12 for v1.2.
+CFG_STMM_FFA_VERSION ?= 12
+$(call cfg-check-value,STMM_FFA_VERSION,11 12)
+
 ifneq ($(CFG_STMM_PATH),)
 $(call force,CFG_WITH_STMM_SP,y)
-$(call force,CFG_EFILIB,y)
 else
 CFG_WITH_STMM_SP ?= n
 endif
 ifeq ($(CFG_WITH_STMM_SP),y)
+ifeq ($(CFG_STMM_FFA_VERSION),12)
+$(call force,CFG_EFILIB,y)
+endif
 $(call force,CFG_ZLIB,y)
+# Number of 4KiB pages reserved for the StandaloneMm SP heap. The default
+# of 402 pages (~1.6MiB) is sufficient for minimal configurations, but
+# builds that include UEFI Secure Boot (AuthVariableLib + VarCheckPolicyLib
+# pulling in OpenSSL) typically require ~800 pages to avoid heap exhaustion
+# during StMM initialization. Values smaller than 402 are rejected at build
+# time as they are known to break existing configurations.
+CFG_STMM_HEAP_PAGE_COUNT ?= 402
 endif
 
 # When enabled checks that buffers passed to the GP Internal Core API
@@ -1161,6 +1211,21 @@ CFG_WDT_SM_HANDLER_ID ?= 0x82003D06
 # extension. When set to 'n', the plat_get_freq() function must be defined by
 # the platform code
 CFG_CORE_HAS_GENERIC_TIMER ?= y
+
+# When enabled, serial8250_uart_flush() limits its wait for the TX FIFO to
+# drain with a generic-timer timeout instead of spinning forever. This avoids
+# blocking a CPU when the UART is shared with (and contended by) the non-secure
+# world, at the cost of possibly dropping output if the timeout cuts short. Left
+# disabled by default so the flush keeps its guarantee that a log point was
+# emitted, which is relied on when debugging. Requires CFG_CORE_HAS_GENERIC_TIMER.
+CFG_8250_UART_FLUSH_TIMEOUT ?= n
+$(eval $(call cfg-depends-all,CFG_8250_UART_FLUSH_TIMEOUT,CFG_CORE_HAS_GENERIC_TIMER))
+
+# Upper limit (in microseconds) on how long serial8250_uart_flush() waits for the
+# TX FIFO to drain when CFG_8250_UART_FLUSH_TIMEOUT=y. The default suits a 16-byte
+# FIFO at common baud rates; raise it for slow consoles where a full FIFO takes
+# longer to drain than this bound, otherwise output may be cut short.
+CFG_8250_UART_FLUSH_TIMEOUT_US ?= 10000
 
 # Enable RTC API
 CFG_DRIVERS_RTC ?= n

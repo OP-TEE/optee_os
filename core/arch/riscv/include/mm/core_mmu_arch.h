@@ -189,6 +189,14 @@ static inline void core_mmu_table_write_barrier(void)
 
 TEE_Result cache_op_inner(enum cache_op op, void *va, size_t len);
 
+static inline TEE_Result cache_op_outer(enum cache_op op __unused,
+					paddr_t pa __unused,
+					size_t len __unused)
+{
+	/* No outer cache to maintain */
+	return TEE_SUCCESS;
+}
+
 static inline bool core_mmu_check_max_pa(paddr_t pa)
 {
 	return pa <= (BIT64(RISCV_MMU_PA_WIDTH) - 1);
@@ -221,6 +229,19 @@ static inline bool core_mmu_va_is_valid(vaddr_t va)
 
 	return (va & mask) == 0;
 #endif
+}
+
+static inline bool
+arch_mem_map_allows_user_va(const struct memory_map *mem_map __unused,
+			    vaddr_t id_map_start __unused,
+			    vaddr_t id_map_end __unused)
+{
+	/*
+	 * RV32 TAs on an RV64 core aren't currently supported, so the user VA
+	 * isn't restricted to the 32-bit VA range. The final selector may use
+	 * any unused VPN[2] entry without an additional layout constraint.
+	 */
+	return true;
 }
 
 static inline bool core_mmu_level_in_range(unsigned int level)

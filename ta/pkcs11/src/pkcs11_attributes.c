@@ -1263,7 +1263,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	 * template
 	 */
 	rc = sanitize_client_object(&temp, template, template_size, class,
-				    type);
+				    type, 0);
 	if (rc)
 		goto out;
 
@@ -1528,6 +1528,14 @@ static enum pkcs11_rc check_attrs_misc_integrity(struct obj_attrs *head)
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 	}
 
+	if ((get_bool(head, PKCS11_CKA_WRAP) ||
+	     get_bool(head, PKCS11_CKA_UNWRAP)) &&
+	    (get_bool(head, PKCS11_CKA_DECRYPT) ||
+	     get_bool(head, PKCS11_CKA_ENCRYPT))) {
+		DMSG("A key must not be used for both Key and Data encryption");
+		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+	}
+
 	return PKCS11_CKR_OK;
 }
 
@@ -1656,6 +1664,7 @@ check_created_attrs_against_processing(uint32_t proc_id,
 	case PKCS11_CKM_ECDH1_DERIVE:
 	case PKCS11_CKM_AES_ECB:
 	case PKCS11_CKM_AES_CBC:
+	case PKCS11_CKM_AES_GCM:
 	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
 	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
 	case PKCS11_CKM_RSA_AES_KEY_WRAP:
@@ -2113,6 +2122,16 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 	if (!parent_key_complies_allowed_processings(proc_id, head)) {
 		DMSG("Allowed mechanism failed");
 		return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+	}
+
+	if (function == PKCS11_FUNCTION_WRAP ||
+	    function == PKCS11_FUNCTION_UNWRAP) {
+		/* Enforce separation of Data and Key encryption */
+		if (get_bool(head, PKCS11_CKA_DECRYPT) ||
+		    get_bool(head, PKCS11_CKA_ENCRYPT)) {
+			DMSG("Must not use data encryption keys for wrap/unwrap");
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		}
 	}
 
 	return PKCS11_CKR_OK;

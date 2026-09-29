@@ -44,6 +44,10 @@ else
 HOST_MAKE := $(MAKE)
 endif
 
+# The configuration below is generated while the makefiles are parsed, with
+# no jobserver to talk to, so keep the -jN out of that invocation.
+HOST_MAKE_CONF := $(firstword $(HOST_MAKE))
+
 
 # OPTEE_OUT_DIR could be exported explicitly
 # if PRODUCT_OUT is not the default out directory in aosp workspace
@@ -70,6 +74,17 @@ CROSS_COMPILE32 ?= $(TOP_ROOT_ABS)/$($(combo_2nd_arch_prefix)TARGET_TOOLS_PREFIX
 CROSS_COMPILE_LINE += CROSS_COMPILE32="$(CROSS_COMPILE32)"
 endif
 
+# Command line shared by every optee_os invocation below; the TA target
+# differs between them, so callers pass it. Deferred assignment, as
+# OPTEE_EXTRA_FLAGS may reference variables set while Android.mk is parsed.
+OPTEE_MAKE_LINE = -C $(TOP_ROOT_ABS)/$(OPTEE_OS_DIR) \
+	O=$(ABS_OPTEE_OS_OUT_DIR) \
+	CFG_ARM64_core=$(OPTEE_CFG_ARM64_CORE) \
+	PLATFORM=$(OPTEE_PLATFORM) \
+	PLATFORM_FLAVOR=$(OPTEE_PLATFORM_FLAVOR) \
+	$(CROSS_COMPILE_LINE) \
+	$(OPTEE_EXTRA_FLAGS)
+
 OPTEE_BIN := $(OPTEE_OS_OUT_DIR)/core/tee.bin
 
 $(OPTEE_BIN) : $(sort $(shell find -L $(OPTEE_OS_DIR)))
@@ -77,6 +92,28 @@ $(OPTEE_BIN) : $(sort $(shell find -L $(OPTEE_OS_DIR)))
 OPTEE_TA_DEV_KIT_MK := $(TA_DEV_KIT_DIR)/mk/ta_dev_kit.mk
 
 $(OPTEE_TA_DEV_KIT_MK) : $(sort $(shell find -L $(OPTEE_OS_DIR)))
+
+# Android.mk files test the CFG_ flags of the dev kit to decide what to
+# build, so the configuration must exist before they are parsed. A rule
+# cannot provide it, as rules only run once parsing is over. Generate it
+# here instead, while the makefiles are parsed; building the dev kit itself
+# is left to the rule below. The MD5 ties the variable to the configuration,
+# so that a change of configuration triggers a new parse.
+ifeq ($(filter $(TA_TARGET),$(BUILD_TA_DEV_KIT_CONF_DEFINED)),)
+BUILD_TA_DEV_KIT_CONF_DEFINED := $(TA_TARGET) $(BUILD_TA_DEV_KIT_CONF_DEFINED)
+TA_DEV_KIT_CONF_$(TA_TARGET) := $(shell \
+	mkdir -p $(ABS_OPTEE_OS_OUT_DIR) && \
+	env -u MAKEFLAGS -u MAKELEVEL -u MFLAGS \
+		$(HOST_MAKE_CONF) -s $(OPTEE_MAKE_LINE) \
+		CFG_USER_TA_TARGETS=$(TA_TARGET) \
+		ta_dev_kit_conf >/dev/null && \
+	md5sum $(TA_DEV_KIT_DIR)/host_include/conf.mk || \
+	printf 'ERROR')
+ifeq ($(TA_DEV_KIT_CONF_$(TA_TARGET)),ERROR)
+$(error Failed to generate the OP-TEE TA dev kit configuration \
+	for $(TA_TARGET))
+endif
+endif
 
 ###########################################################
 ## define making rules for $(OPTEE_BIN) target, and add  ##
@@ -92,14 +129,8 @@ ifneq (true,$(BUILD_OPTEE_OS_DEFINED))
 BUILD_OPTEE_OS_DEFINED := true
 $(OPTEE_BIN):
 	@echo "Start building optee_os..."
-	+$(HOST_MAKE) -C $(TOP_ROOT_ABS)/$(OPTEE_OS_DIR) \
-		O=$(ABS_OPTEE_OS_OUT_DIR) \
-		CFG_USER_TA_TARGETS=$(OPTEE_TA_TARGETS) \
-		CFG_ARM64_core=$(OPTEE_CFG_ARM64_CORE) \
-		PLATFORM=$(OPTEE_PLATFORM) \
-		PLATFORM_FLAVOR=$(OPTEE_PLATFORM_FLAVOR) \
-		$(CROSS_COMPILE_LINE) \
-		$(OPTEE_EXTRA_FLAGS)
+	+$(HOST_MAKE) $(OPTEE_MAKE_LINE) \
+		CFG_USER_TA_TARGETS=$(OPTEE_TA_TARGETS)
 	@echo "Finished building optee_os..."
 
 endif
@@ -114,15 +145,18 @@ BUILD_TA_DEV_KIT_DEFINED := $(TA_TARGET) $(BUILD_TA_DEV_KIT_DEFINED)
 $(OPTEE_TA_DEV_KIT_MK): PRIVATE_TA_TARGET := $(TA_TARGET)
 $(OPTEE_TA_DEV_KIT_MK):
 	@echo "Start building ta_dev_kit ($(PRIVATE_TA_TARGET))..."
-	+$(HOST_MAKE) -C $(TOP_ROOT_ABS)/$(OPTEE_OS_DIR) \
-		O=$(ABS_OPTEE_OS_OUT_DIR) \
-		CFG_USER_TA_TARGETS=$(PRIVATE_TA_TARGET) \
-		CFG_ARM64_core=$(OPTEE_CFG_ARM64_CORE) \
-		PLATFORM=$(OPTEE_PLATFORM) \
-		PLATFORM_FLAVOR=$(OPTEE_PLATFORM_FLAVOR) \
-		$(CROSS_COMPILE_LINE) \
-		$(OPTEE_EXTRA_FLAGS) ta_dev_kit
+	+$(HOST_MAKE) $(OPTEE_MAKE_LINE) \
+		CFG_USER_TA_TARGETS=$(PRIVATE_TA_TARGET) ta_dev_kit
 	@echo "Finished building ta_dev_kit ($(PRIVATE_TA_TARGET))..."
+
+# Every rule here runs make over the same output directory, each with its own
+# CFG_USER_TA_TARGETS, so let them run one at a time: chain every dev kit onto
+# the one declared before it, and the core onto them all. The dev kits go
+# first, as the TAs are built against them and an early TA setup feeds a built
+# TA back into the core build
+$(OPTEE_TA_DEV_KIT_MK): $(BUILD_TA_DEV_KIT_PREV)
+BUILD_TA_DEV_KIT_PREV := $(OPTEE_TA_DEV_KIT_MK)
+$(OPTEE_BIN): $(OPTEE_TA_DEV_KIT_MK)
 endif
 
 ##########################################################
@@ -144,6 +178,12 @@ LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/lib/optee_armtz
 LOCAL_MODULE_CLASS := $(call ta_class,$(local_module))
 LOCAL_MODULE_TAGS := optional
 LOCAL_REQUIRED_MODULES := $(local_module_deps)
+# A signed TA is an ELF binary wrapped in a signed header, so it does not start
+# with the ELF magic. Disable the AOSP prebuilt ELF check for the .ta module to
+# avoid a "must have a valid ELF magic word" build failure.
+ifeq ($(call ta_class,$(local_module)),EXECUTABLES)
+LOCAL_CHECK_ELF_FILES := false
+endif
 
 TA_TMP_DIR := $(addsuffix _$(TA_TARGET), $(subst /,_,$(LOCAL_PATH)))
 TA_TMP_FILE := $(OPTEE_TA_OUT_DIR)/$(TA_TMP_DIR)/$(LOCAL_MODULE)

@@ -124,8 +124,11 @@ A3:
 
 	*sig_len = 2 * SM2_INT_SIZE_BYTES;
 	memset(sig, 0, *sig_len);
-	mp_to_unsigned_bin2(r, sig, SM2_INT_SIZE_BYTES);
-	mp_to_unsigned_bin2(s, sig + SM2_INT_SIZE_BYTES, SM2_INT_SIZE_BYTES);
+	res = mp_to_unsigned_bin2(r, sig, SM2_INT_SIZE_BYTES);
+	if (res)
+		goto out;
+	res = mp_to_unsigned_bin2(s, sig + SM2_INT_SIZE_BYTES,
+			      SM2_INT_SIZE_BYTES);
 out:
 	ecc_free(&ltc_key);
 	ltc_ecc_del_point(x1y1p);

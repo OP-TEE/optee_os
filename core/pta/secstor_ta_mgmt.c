@@ -4,6 +4,7 @@
  */
 
 #include <kernel/pseudo_ta.h>
+#include <kernel/ree_fs_ta.h>
 #include <tee/tadb.h>
 #include <pta_secstor_ta_mgmt.h>
 #include <signed_hdr.h>
@@ -122,6 +123,15 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 		res = TEE_ERROR_SECURITY;
 		goto err_ta_finalize;
 	}
+
+	/*
+	 * This might increase the recorded version, do it only after we've
+	 * verified that the signature and hash are OK to make sure it's a
+	 * valid version.
+	 */
+	res = ree_fs_check_update_ta_version(bs_ta.uuid, bs_ta.ta_version);
+	if (res)
+		goto err_ta_finalize;
 
 	crypto_hash_free_ctx(hash_ctx);
 	free(buf);

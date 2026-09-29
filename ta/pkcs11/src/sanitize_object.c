@@ -159,7 +159,7 @@ static enum pkcs11_rc sanitize_class_and_type(struct obj_attrs **dst, void *src,
 	return PKCS11_CKR_OK;
 
 err:
-	trace_attributes_from_api_head("bad-template", src, src_size);
+	trace_attributes_from_api_head("bad-template", src, src_size, 0);
 
 	return rc;
 }
@@ -224,17 +224,20 @@ static enum pkcs11_rc sanitize_boolprops(struct obj_attrs **dst, void *src,
 
 static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 				       struct pkcs11_attribute_head *cli_ref,
-				       char *data)
+				       char *data, unsigned int depth)
 {
 	struct obj_attrs *obj2 = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
+
+	if (depth >= PKCS11_MAX_INDIRECT_DEPTH)
+		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 
 	assert(pkcs11_attr_has_indirect_attributes(cli_ref->id));
 
 	/* Build a new serial object while sanitizing the attributes list */
 	rc = sanitize_client_object(&obj2, data, cli_ref->size,
 				    PKCS11_CKO_UNDEFINED_ID,
-				    PKCS11_UNDEFINED_ID);
+				    PKCS11_UNDEFINED_ID, depth + 1);
 	if (rc)
 		goto out;
 
@@ -247,7 +250,7 @@ out:
 
 enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *src,
 				      size_t size, uint32_t class_hint,
-				      uint32_t type_hint)
+				      uint32_t type_hint, unsigned int depth)
 {
 	struct pkcs11_attribute_head cli_ref = { };
 	struct pkcs11_object_head head = { };
@@ -289,7 +292,7 @@ enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *src,
 			continue;
 
 		if (pkcs11_attr_has_indirect_attributes(cli_ref.id)) {
-			rc = sanitize_indirect_attr(dst, &cli_ref, data);
+			rc = sanitize_indirect_attr(dst, &cli_ref, data, depth);
 			if (rc)
 				return rc;
 
@@ -313,12 +316,18 @@ enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *src,
  * Debug: dump object attribute array to output trace
  */
 
-static void __trace_attributes(char *prefix, void *src, void *end)
+static void __trace_attributes(char *prefix, void *src, void *end,
+			       unsigned int depth)
 {
 	size_t next = 0;
 	char *prefix2 = NULL;
 	size_t prefix_len = strlen(prefix);
 	char *cur = src;
+
+	if (depth >= PKCS11_MAX_INDIRECT_DEPTH) {
+		EMSG("Too deep indirection");
+		return;
+	}
 
 	/* append 4 spaces to the prefix plus terminal '\0' */
 	prefix2 = TEE_Malloc(prefix_len + 1 + 4, TEE_MALLOC_FILL_ZERO);
@@ -334,19 +343,38 @@ static void __trace_attributes(char *prefix, void *src, void *end)
 		uint8_t data[4] = { 0 };
 		uint32_t data_u32 = 0;
 		char *start = NULL;
+		size_t avail = 0;
+
+		/*
+		 * A malformed template (this helper is also called to dump a
+		 * rejected "bad-template") can leave @cur short of a full
+		 * attribute header before @end. Stop rather than read past the
+		 * client buffer.
+		 */
+		if ((size_t)((char *)end - cur) < sizeof(pkcs11_ref))
+			break;
 
 		TEE_MemMove(&pkcs11_ref, cur, sizeof(pkcs11_ref));
+
+		/*
+		 * Clamp every value read to the bytes actually present before
+		 * @end: pkcs11_ref.size is client-supplied and may point past
+		 * the buffer. data_u32 stays zero-padded when fewer than 4
+		 * bytes remain and is reused below as a bounded value source.
+		 */
+		avail = (size_t)((char *)end - (cur + sizeof(pkcs11_ref)));
 		TEE_MemMove(&data[0], cur + sizeof(pkcs11_ref),
-			    MIN(pkcs11_ref.size, sizeof(data)));
+			    MIN(MIN(pkcs11_ref.size, sizeof(data)), avail));
 		TEE_MemMove(&data_u32, cur + sizeof(pkcs11_ref),
-			    sizeof(data_u32));
+			    MIN(avail, sizeof(data_u32)));
 
 		next = sizeof(pkcs11_ref) + pkcs11_ref.size;
 
 		DMSG_RAW("%s Attr %s / %s (%#04"PRIx32" %"PRIu32"-byte)",
 			 prefix, id2str_attr(pkcs11_ref.id),
-			 id2str_attr_value(pkcs11_ref.id, pkcs11_ref.size,
-					   cur + sizeof(pkcs11_ref)),
+			 id2str_attr_value(pkcs11_ref.id,
+					   MIN(pkcs11_ref.size, avail),
+					   &data_u32),
 			 pkcs11_ref.id, pkcs11_ref.size);
 
 		switch (pkcs11_ref.size) {
@@ -378,8 +406,12 @@ static void __trace_attributes(char *prefix, void *src, void *end)
 		case PKCS11_CKA_UNWRAP_TEMPLATE:
 		case PKCS11_CKA_DERIVE_TEMPLATE:
 			start = cur + sizeof(pkcs11_ref);
-			trace_attributes_from_api_head(prefix2, start,
-						       (char *)end - start);
+			/* nested head must fit in the remaining window */
+			if (avail >= sizeof(struct pkcs11_object_head))
+				trace_attributes_from_api_head(prefix2, start,
+							       (char *)end -
+							       start,
+							       depth + 1);
 			break;
 		default:
 			break;
@@ -393,7 +425,8 @@ static void __trace_attributes(char *prefix, void *src, void *end)
 	TEE_Free(prefix2);
 }
 
-void trace_attributes_from_api_head(const char *prefix, void *ref, size_t size)
+void trace_attributes_from_api_head(const char *prefix, void *ref, size_t size,
+				    unsigned int depth)
 {
 	struct pkcs11_object_head head = { };
 	char *pre = NULL;
@@ -422,7 +455,7 @@ void trace_attributes_from_api_head(const char *prefix, void *ref, size_t size)
 	offset = sizeof(head);
 	pre[prefix ? strlen(prefix) : 0] = '|';
 	__trace_attributes(pre, (char *)ref + offset,
-			   (char *)ref + offset + head.attrs_size);
+			   (char *)ref + offset + head.attrs_size, depth);
 
 	DMSG_RAW("%s`-----------------------", prefix ? prefix : "");
 

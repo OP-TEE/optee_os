@@ -18,6 +18,7 @@
  * @HUK_SUBKEY_UNIQUE_TA: TA unique key
  * @HUK_SUBKEY_TA_ENC:    TA encryption key
  * @HUK_SUBKEY_SE050:     SCP03 set of encryption keys
+ * @HUK_SUBKEY_TA_ENDORSEMENT: TA endorsement seed
  *
  * Add more identifiers as needed, be careful to not change the already
  * assigned numbers as that will affect the derived subkey.
@@ -33,6 +34,7 @@ enum huk_subkey_usage {
 	HUK_SUBKEY_UNIQUE_TA = 3,
 	HUK_SUBKEY_TA_ENC = 4,
 	HUK_SUBKEY_SE050 = 5,
+	HUK_SUBKEY_TA_ENDORSEMENT = 6,
 };
 
 #define HUK_SUBKEY_MAX_LEN	TEE_SHA256_HASH_SIZE

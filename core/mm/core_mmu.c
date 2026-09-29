@@ -891,15 +891,10 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_TRANSFER_LIST:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_EXT_DT:
-		/*
-		 * If CFG_MAP_EXT_DT_SECURE is enabled map the external device
-		 * tree as secure non-cached memory, otherwise, fall back to
-		 * non-secure mapping.
-		 */
-		if (IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
-			return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW |
-			       noncache;
-		fallthrough;
+		return attr | TEE_MATTR_PRW |
+		       (IS_ENABLED(CFG_EXT_DT_CACHED) ? cached : noncache) |
+		       (IS_ENABLED(CFG_MAP_EXT_DT_SECURE) ?
+			TEE_MATTR_SECURE : 0);
 	case MEM_AREA_IO_NSEC:
 		return attr | TEE_MATTR_PRW | noncache;
 	case MEM_AREA_IO_SEC:
@@ -1540,6 +1535,9 @@ static struct memory_map *init_mem_map(struct memory_map *mem_map,
 		for (n = 0; n < 3; n++) {
 			ba = arch_aslr_base_addr(start_addr, seed, n);
 			if (assign_mem_va(ba, mem_map) &&
+			    arch_mem_map_allows_user_va(mem_map,
+							id_map_start,
+							id_map_end) &&
 			    mem_map_add_id_map(mem_map, id_map_start,
 					       id_map_end)) {
 				offs = ba - start_addr;
@@ -1829,7 +1827,9 @@ enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa)
 
 	/* VA spaces have no valid PAs in the memory map */
 	if (!map || map->type == MEM_AREA_RES_VASPACE ||
-	    map->type == MEM_AREA_SHM_VASPACE)
+	    map->type == MEM_AREA_SHM_VASPACE ||
+	    map->type == MEM_AREA_TEE_DYN_VASPACE ||
+	    map->type == MEM_AREA_NEX_DYN_VASPACE)
 		return MEM_AREA_MAXTYPE;
 	return map->type;
 }
@@ -2059,11 +2059,27 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 	}
 }
 
+/*
+ * The leaf translation table covering a virtual address only changes every
+ * CORE_MMU_PGDIR_SIZE. A loop mapping one small page at a time can therefore
+ * reuse the table found for the previous page instead of walking the
+ * translation tables from the base table again for every page.
+ *
+ * Returns true if @ti still describes the table covering @va. Note that @va
+ * below @ti->va_base wraps the unsigned subtraction into a large value and
+ * thus correctly reports the table as not covering @va.
+ */
+static bool tbl_info_covers_va(struct core_mmu_table_info *ti, vaddr_t va)
+{
+	return ti->table &&
+	       va - ti->va_base < BIT64(ti->shift) * ti->num_entries;
+}
+
 TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 			      enum teecore_memtypes memtype)
 {
 	TEE_Result ret;
-	struct core_mmu_table_info tbl_info;
+	struct core_mmu_table_info tbl_info = { };
 	struct tee_mmap_region *mm;
 	unsigned int idx;
 	uint32_t old_attr;
@@ -2094,21 +2110,25 @@ TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 			goto err;
 		}
 
-		while (true) {
+		while (!tbl_info_covers_va(&tbl_info, vaddr)) {
 			if (!core_mmu_find_table(NULL, vaddr, UINT_MAX,
 						 &tbl_info))
 				panic("Can't find pagetable for vaddr ");
 
-			idx = core_mmu_va2idx(&tbl_info, vaddr);
 			if (tbl_info.shift == SMALL_PAGE_SHIFT)
 				break;
 
 			/* This is supertable. Need to divide it. */
+			idx = core_mmu_va2idx(&tbl_info, vaddr);
 			if (!core_mmu_entry_to_finer_grained(&tbl_info, idx,
 							     secure))
 				panic("Failed to spread pgdir on small tables");
+
+			/* Force a new walk to reach the divided table */
+			tbl_info.table = NULL;
 		}
 
+		idx = core_mmu_va2idx(&tbl_info, vaddr);
 		core_mmu_get_entry(&tbl_info, idx, NULL, &old_attr);
 		if (old_attr)
 			panic("Page is already mapped");
@@ -2167,21 +2187,25 @@ TEE_Result core_mmu_map_contiguous_pages(vaddr_t vstart, paddr_t pstart,
 		panic("Trying to map into static region");
 
 	for (i = 0; i < num_pages; i++) {
-		while (true) {
+		while (!tbl_info_covers_va(&tbl_info, vaddr)) {
 			if (!core_mmu_find_table(NULL, vaddr, UINT_MAX,
 						 &tbl_info))
 				panic("Can't find pagetable for vaddr ");
 
-			idx = core_mmu_va2idx(&tbl_info, vaddr);
 			if (tbl_info.shift == SMALL_PAGE_SHIFT)
 				break;
 
 			/* This is supertable. Need to divide it. */
+			idx = core_mmu_va2idx(&tbl_info, vaddr);
 			if (!core_mmu_entry_to_finer_grained(&tbl_info, idx,
 							     secure))
 				panic("Failed to spread pgdir on small tables");
+
+			/* Force a new walk to reach the divided table */
+			tbl_info.table = NULL;
 		}
 
+		idx = core_mmu_va2idx(&tbl_info, vaddr);
 		core_mmu_get_entry(&tbl_info, idx, NULL, &old_attr);
 		if (old_attr)
 			panic("Page is already mapped");
@@ -2269,7 +2293,7 @@ static void maybe_remove_from_mem_map(vaddr_t vstart, size_t num_pages)
 
 void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 {
-	struct core_mmu_table_info tbl_info;
+	struct core_mmu_table_info tbl_info = { };
 	size_t i;
 	unsigned int idx;
 	uint32_t exceptions;
@@ -2279,11 +2303,14 @@ void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 	maybe_remove_from_mem_map(vstart, num_pages);
 
 	for (i = 0; i < num_pages; i++, vstart += SMALL_PAGE_SIZE) {
-		if (!core_mmu_find_table(NULL, vstart, UINT_MAX, &tbl_info))
-			panic("Can't find pagetable");
+		if (!tbl_info_covers_va(&tbl_info, vstart)) {
+			if (!core_mmu_find_table(NULL, vstart, UINT_MAX,
+						 &tbl_info))
+				panic("Can't find pagetable");
 
-		if (tbl_info.shift != SMALL_PAGE_SHIFT)
-			panic("Invalid pagetable level");
+			if (tbl_info.shift != SMALL_PAGE_SHIFT)
+				panic("Invalid pagetable level");
+		}
 
 		idx = core_mmu_va2idx(&tbl_info, vstart);
 		core_mmu_set_entry(&tbl_info, idx, 0, 0);
@@ -2330,8 +2357,11 @@ TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,
 	struct core_mmu_table_info tbl_info = { };
 	struct tee_mmap_region *res_map = NULL;
 	struct tee_mmap_region *map = NULL;
+	struct tee_mmap_region r = { };
 	paddr_t pa = virt_to_phys(addr);
 	size_t granule = 0;
+	vaddr_t tbl_span = 0;
+	vaddr_t end = 0;
 	ptrdiff_t i = 0;
 	paddr_t p = 0;
 	size_t l = 0;
@@ -2343,7 +2373,7 @@ TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,
 	res_map = find_map_by_type(MEM_AREA_RES_VASPACE);
 	if (!res_map)
 		return TEE_ERROR_GENERIC;
-	if (!core_mmu_find_table(NULL, res_map->va, UINT_MAX, &tbl_info))
+	if (!core_mmu_find_table(NULL, map->va, UINT_MAX, &tbl_info))
 		return TEE_ERROR_GENERIC;
 	granule = BIT(tbl_info.shift);
 
@@ -2358,7 +2388,17 @@ TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,
 	if (map->pa != p || map->size != l)
 		return TEE_ERROR_GENERIC;
 
-	clear_region(&tbl_info, map);
+	if (ADD_OVERFLOW(map->va, map->size, &end))
+		return TEE_ERROR_GENERIC;
+	for (r = *map; r.va < end; r.pa += r.size, r.va += r.size) {
+		if (!core_mmu_find_table(NULL, r.va, UINT_MAX, &tbl_info))
+			panic("can't find table for unmapping");
+
+		tbl_span = BIT64(tbl_info.shift) * tbl_info.num_entries;
+		r.size = MIN(tbl_span - (r.va - tbl_info.va_base),
+			     end - r.va);
+		clear_region(&tbl_info, &r);
+	}
 	tlbi_all();
 
 	/* If possible remove the va range from res_map */
@@ -2406,7 +2446,10 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	struct memory_map *mem_map = &static_memory_map;
 	struct core_mmu_table_info tbl_info = { };
 	struct tee_mmap_region *map = NULL;
+	struct tee_mmap_region r = { };
 	size_t granule = 0;
+	vaddr_t tbl_span = 0;
+	vaddr_t end = 0;
 	paddr_t p = 0;
 	size_t l = 0;
 
@@ -2437,16 +2480,24 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	if (map->size < l)
 		return NULL;
 
-	/*
-	 * Something is wrong, we can't fit the va range into the selected
-	 * table. The reserved va range is possibly missaligned with
-	 * granule.
-	 */
-	if (core_mmu_va2idx(&tbl_info, map->va + len) >= tbl_info.num_entries)
-		return NULL;
+	if (static_memory_map.count >= static_memory_map.alloc_count) {
+		/*
+		 * Out of pre-allocated entries (the map is frozen at count + 5
+		 * after boot), so grow it through the registered realloc hook,
+		 * as grow_mem_map() does for every other add path.
+		 */
+		if (!memory_map_realloc_func)
+			return NULL;
+		memory_map_realloc_func(mem_map);
 
-	if (static_memory_map.count >= static_memory_map.alloc_count)
-		return NULL;
+		/*
+		 * The realloc may have moved the map array, so the RES_VASPACE
+		 * entry resolved above is now stale - look it up again.
+		 */
+		map = find_map_by_type(MEM_AREA_RES_VASPACE);
+		if (!map)
+			return NULL;
+	}
 
 	mem_map->map[mem_map->count] = (struct tee_mmap_region){
 		.va = map->va,
@@ -2461,7 +2512,17 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	map = mem_map->map + mem_map->count;
 	mem_map->count++;
 
-	set_region(&tbl_info, map);
+	if (ADD_OVERFLOW(map->va, map->size, &end))
+		panic("VA overflow in add_mapping");
+	for (r = *map; r.va < end; r.pa += r.size, r.va += r.size) {
+		if (!core_mmu_find_table(NULL, r.va, UINT_MAX, &tbl_info))
+			panic("can't find table for mapping");
+
+		tbl_span = BIT64(tbl_info.shift) * tbl_info.num_entries;
+		r.size = MIN(tbl_span - (r.va - tbl_info.va_base),
+			     end - r.va);
+		set_region(&tbl_info, &r);
+	}
 
 	/* Make sure the new entry is visible before continuing. */
 	core_mmu_table_write_barrier();

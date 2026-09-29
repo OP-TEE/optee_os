@@ -5,8 +5,8 @@
  */
 
 #include <assert.h>
-#include <drivers/versal_mbox.h>
 #include <drivers/versal_nvm.h>
+#include <drivers/versal_pmc.h>
 #include <drivers/versal_puf.h>
 #include <drivers/versal_sha3_384.h>
 #include <io.h>
@@ -52,11 +52,12 @@ enum versal_aes_key_src {
 	VERSAL_AES_USER_KEY_6,
 	VERSAL_AES_USER_KEY_7,
 	VERSAL_AES_EXPANDED_KEYS,
-	VERSAL_AES_ALL_KEYS,
 };
 
+#define VERSAL_AES_MAX_KEY_SOURCES VERSAL_AES_USER_KEY_7
+
 enum versal_crypto_api {
-	VERSAL_AES_INIT = 96U,
+	VERSAL_AES_INIT = 9U,
 	VERSAL_AES_OP_INIT,
 	VERSAL_AES_UPDATE_AAD,
 	VERSAL_AES_ENCRYPT_UPDATE,
@@ -68,8 +69,6 @@ enum versal_crypto_api {
 	VERSAL_AES_LOCK_USER_KEY,
 	VERSAL_AES_KEK_DECRYPT,
 	VERSAL_AES_SET_DPA_CM,
-	VERSAL_AES_DECRYPT_KAT,
-	VERSAL_AES_DECRYPT_CM_KAT,
 };
 
 struct versal_aes_input_param {
@@ -120,7 +119,10 @@ static bool versal_persistent_key(enum versal_aes_key_src src, bool *secure)
 		.read_option = VERSAL_PUF_READ_FROM_EFUSE_CACHE,
 		.puf_operation = VERSAL_PUF_REGEN_ON_DEMAND,
 		.shutter_value = VERSAL_PUF_SHUTTER_VALUE,
-		.reg_mode = VERSAL_PUF_SYNDROME_MODE_4K,
+#if defined(PLATFORM_FLAVOR_net)
+		.ro_swap_value = VERSAL_PUF_RO_SWAP_VALUE,
+#endif
+
 	};
 
 	switch (src) {
@@ -182,11 +184,11 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 	size_t i = 0;
 	uint32_t key_id = CFG_VERSAL_HUK_KEY;
 
-	if (key_id > VERSAL_AES_ALL_KEYS)
+	if (key_id > VERSAL_AES_MAX_KEY_SOURCES)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	cmd.data[0] = API_ID(VERSAL_AES_INIT);
-	if (versal_mbox_notify(&cmd, NULL, NULL)) {
+	if (versal_pmc_notify(&cmd, NULL, NULL)) {
 		EMSG("AES_INIT error");
 		return TEE_ERROR_GENERIC;
 	}
@@ -195,18 +197,21 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 		for (i = 0; i < ARRAY_SIZE(key_data); i++)
 			key_data[i] = TEE_U32_BSWAP(key_data[i]);
 
-		versal_mbox_alloc(key_len, key_data, &p);
+		ret = versal_mbox_alloc(key_len, key_data, &p);
+		if (ret)
+			return ret;
+
 		cmd.data[0] = API_ID(VERSAL_AES_WRITE_KEY);
 		cmd.data[1] = VERSAL_AES_KEY_SIZE_256;
 		cmd.data[2] = key_id;
 		reg_pair_from_64(virt_to_phys(p.buf),
 				 &cmd.data[4], &cmd.data[3]);
 		cmd.ibuf[0].mem = p;
-		if (versal_mbox_notify(&cmd, NULL, NULL)) {
+		if (versal_pmc_notify(&cmd, NULL, NULL)) {
 			EMSG("AES_WRITE_KEY error");
 			ret = TEE_ERROR_GENERIC;
 		}
-		free(p.buf);
+		versal_mbox_free(&p);
 		memset(&cmd, 0, sizeof(cmd));
 		if (ret)
 			return ret;
@@ -215,8 +220,15 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 	/* Trace indication that it is safe to generate a RPMB key */
 	IMSG("Using %s HUK", secure ? "Production" : "Development");
 
-	versal_mbox_alloc(sizeof(*init), NULL, &init_buf);
-	versal_mbox_alloc(nce_len, nce_data, &p);
+	ret = versal_mbox_alloc(sizeof(*init), NULL, &init_buf);
+	if (ret)
+		return ret;
+	ret = versal_mbox_alloc(nce_len, nce_data, &p);
+	if (ret) {
+		versal_mbox_free(&init_buf);
+		return ret;
+	}
+
 	init = init_buf.buf;
 	init->operation = VERSAL_AES_GCM_ENCRYPT;
 	init->key_len = VERSAL_AES_KEY_SIZE_256;
@@ -226,17 +238,20 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 	reg_pair_from_64(virt_to_phys(init), &cmd.data[2], &cmd.data[1]);
 	cmd.ibuf[0].mem = init_buf;
 	cmd.ibuf[1].mem = p;
-	if (versal_mbox_notify(&cmd, NULL, NULL)) {
+	if (versal_pmc_notify(&cmd, NULL, NULL)) {
 		EMSG("AES_OP_INIT error");
 		ret = TEE_ERROR_GENERIC;
 	}
-	free(init);
-	free(p.buf);
+	versal_mbox_free(&init_buf);
+	versal_mbox_free(&p);
 	memset(&cmd, 0, sizeof(cmd));
 	if (ret)
 		return ret;
 
-	versal_mbox_alloc(aad_len, aad_data, &p);
+	ret = versal_mbox_alloc(aad_len, aad_data, &p);
+	if (ret)
+		return ret;
+
 	cmd.data[0] = API_ID(VERSAL_AES_UPDATE_AAD);
 	reg_pair_from_64(virt_to_phys(p.buf), &cmd.data[2], &cmd.data[1]);
 	if (p.len % 16)
@@ -244,18 +259,31 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 	else
 		cmd.data[3] = p.len;
 	cmd.ibuf[0].mem = p;
-	if (versal_mbox_notify(&cmd, NULL, NULL)) {
+	if (versal_pmc_notify(&cmd, NULL, NULL)) {
 		EMSG("AES_UPDATE_AAD error");
 		ret = TEE_ERROR_GENERIC;
 	}
-	free(p.buf);
+	versal_mbox_free(&p);
 	memset(&cmd, 0, sizeof(cmd));
 	if (ret)
 		return ret;
 
-	versal_mbox_alloc(sizeof(*input), NULL, &input_cmd);
-	versal_mbox_alloc(src_len, src, &p);
-	versal_mbox_alloc(dst_len, NULL, &q);
+	ret = versal_mbox_alloc(sizeof(*input), NULL, &input_cmd);
+	if (ret)
+		return ret;
+
+	ret = versal_mbox_alloc(src_len, src, &p);
+	if (ret) {
+		versal_mbox_free(&input_cmd);
+		return ret;
+	}
+	ret = versal_mbox_alloc(dst_len, NULL, &q);
+	if (ret) {
+		versal_mbox_free(&p);
+		versal_mbox_free(&input_cmd);
+		return ret;
+	}
+
 	input = input_cmd.buf;
 	input->input_addr = virt_to_phys(p.buf);
 	input->input_len = p.len;
@@ -266,26 +294,29 @@ static TEE_Result aes_gcm_encrypt(uint8_t *src, size_t src_len,
 	cmd.ibuf[0].mem = input_cmd;
 	cmd.ibuf[1].mem = p;
 	cmd.ibuf[2].mem = q;
-	if (versal_mbox_notify(&cmd, NULL, NULL)) {
+	if (versal_pmc_notify(&cmd, NULL, NULL)) {
 		EMSG("AES_UPDATE_PAYLOAD error");
 		ret = TEE_ERROR_GENERIC;
 	}
 	memcpy(dst, q.buf, dst_len);
-	free(input);
-	free(p.buf);
-	free(q.buf);
+	versal_mbox_free(&q);
+	versal_mbox_free(&p);
+	versal_mbox_free(&input_cmd);
 	memset(&cmd, 0, sizeof(cmd));
 	if (ret)
 		return ret;
 
-	versal_mbox_alloc(16, NULL, &p);
+	ret = versal_mbox_alloc(16, NULL, &p);
+	if (ret)
+		return ret;
+
 	cmd.data[0] = API_ID(VERSAL_AES_ENCRYPT_FINAL);
 	reg_pair_from_64(virt_to_phys(p.buf), &cmd.data[2], &cmd.data[1]);
-	if (versal_mbox_notify(&cmd, NULL, NULL)) {
+	if (versal_pmc_notify(&cmd, NULL, NULL)) {
 		EMSG("AES_ENCRYPT_FINAL error");
 		ret = TEE_ERROR_GENERIC;
 	}
-	free(p.buf);
+	versal_mbox_free(&p);
 	memzero_explicit(&cmd, sizeof(cmd));
 
 	return ret;

@@ -773,35 +773,51 @@ static TEE_Result rsaes_pkcs_v1_5_decode(struct drvcrypt_rsa_ed *rsa_data,
 {
 	size_t em_len = rsa_data->message.length;
 	uint8_t *em = rsa_data->message.data;
+	size_t sep_idx = PKCS_V1_5_PS_POS;
+	bool found_sep = false;
 	size_t ps_len = 0;
+	bool bad = false;
 	size_t i = 0;
 
-	/* PKCS_V1.5 EM format 0x00 || 0x02 || PS non-zero || 0x00 || M */
-	if (em_len < PKCS_V1_5_MSG_MIN_LEN || em[0] != 0 ||
-	    em[1] != ENCRYPT_PAD) {
-		EMSG("Invalid pkcs_v1.5 decode parameter");
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
+	/*
+	 * PKCS#1 v1.5 EM format: 0x00 || 0x02 || PS (non-zero) || 0x00 || M
+	 *
+	 * Validate in constant time to prevent a Bleichenbacher-style padding
+	 * oracle.  Accumulate all errors into 'bad' and perform a single
+	 * conditional return after the full buffer has been examined.
+	 */
 
+	/* Check minimum length and fixed header bytes without early return */
+	bad = em_len < PKCS_V1_5_MSG_MIN_LEN;
+	bad |= em[0] != 0x00;
+	bad |= em[1] != ENCRYPT_PAD;
+
+	/*
+	 * Scan the entire EM buffer for the 0x00 separator.  Always iterate
+	 * to em_len so that runtime does not depend on separator position.
+	 */
 	for (i = PKCS_V1_5_PS_POS; i < em_len; i++) {
-		if (em[i] == 0)
-			break;
+		if (em[i] == 0 && !found_sep) {
+			found_sep = true;
+			sep_idx = i;
+		}
 	}
 
-	if (i >= em_len) {
-		EMSG("Fail to find zero pos");
+	bad |= !found_sep;
+
+	/*
+	 * sep_idx is only meaningful when found_sep is true, but we still
+	 * compute ps_len unconditionally to avoid data-dependent branching.
+	 */
+	ps_len = sep_idx - PKCS_V1_5_PS_POS;
+	bad |= ps_len < PKCS_V1_5_PS_MIN_LEN;
+	bad |= em_len - sep_idx - 1 > *out_len;
+
+	if (bad)
 		return TEE_ERROR_BAD_PARAMETERS;
-	}
 
-	ps_len = i - PKCS_V1_5_PS_POS;
-	if (em_len - ps_len - PKCS_V1_5_FIXED_LEN > *out_len ||
-	    ps_len < PKCS_V1_5_PS_MIN_LEN) {
-		EMSG("Invalid pkcs_v1.5 decode ps_len");
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	*out_len = em_len - ps_len - PKCS_V1_5_FIXED_LEN;
-	memcpy(out, em + ps_len + PKCS_V1_5_FIXED_LEN, *out_len);
+	*out_len = em_len - sep_idx - 1;
+	memcpy(out, em + sep_idx + 1, *out_len);
 
 	return TEE_SUCCESS;
 }
@@ -880,9 +896,11 @@ static TEE_Result rsa_oaep_get_msg(struct drvcrypt_rsa_ed *rsa_data,
 	size_t db_len = rsa_data->key.n_size - rsa_data->digest_size - 1;
 	size_t lhash_len = rsa_data->digest_size;
 	uint8_t hash[OAEP_MAX_HASH_LEN] = { };
+	size_t lp_len = lhash_len;
 	size_t msg_len = 0;
-	size_t lp_len = 0;
+	bool bad = false;
 	TEE_Result ret = TEE_SUCCESS;
+	size_t i = 0;
 
 	/* oaep db format lhash || ps zero || 01 || M */
 	ret = tee_hash_createdigest(rsa_data->hash_algo, rsa_data->label.data,
@@ -892,20 +910,27 @@ static TEE_Result rsa_oaep_get_msg(struct drvcrypt_rsa_ed *rsa_data,
 		return ret;
 	}
 
-	if (memcmp(hash, db, lhash_len)) {
-		EMSG("Hash is not equal");
-		return TEE_ERROR_BAD_PARAMETERS;
+	/*
+	 * Use constant-time comparison to prevent timing oracles on the label
+	 * hash (Manger attack, CRYPTO 2001).
+	 */
+	bad = consttime_memcmp(hash, db, lhash_len) != 0;
+
+	/*
+	 * Locate the 0x01 separator by scanning the entire db buffer
+	 * unconditionally so that execution time does not reveal the separator
+	 * position or whether one exists at all.
+	 */
+	for (i = lhash_len; i < db_len; i++) {
+		if (db[i] != 0 && lp_len == lhash_len)
+			lp_len = i;
 	}
 
-	for (lp_len = lhash_len; lp_len < db_len; lp_len++) {
-		if (db[lp_len] != 0)
-			break;
-	}
+	if (lp_len >= db_len || db[lp_len] != 0x01)
+		bad = true;
 
-	if (lp_len == db_len) {
-		EMSG("Fail to find fixed 01 in db");
+	if (bad)
 		return TEE_ERROR_BAD_PARAMETERS;
-	}
 
 	msg_len = db_len - lp_len - 1;
 	if (msg_len > rsa_data->message.length) {

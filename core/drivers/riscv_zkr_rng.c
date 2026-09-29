@@ -5,6 +5,7 @@
 
 #include <crypto/crypto.h>
 #include <encoding.h>
+#include <initcall.h>
 #include <kernel/delay.h>
 #include <kernel/panic.h>
 #include <riscv.h>
@@ -74,8 +75,11 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	return TEE_SUCCESS;
 }
 
-void plat_rng_init(void)
+static TEE_Result riscv_zkr_rng_init(void)
 {
 	if (!riscv_detect_csr_seed())
 		panic("RISC-V Zkr is not supported or unavailable in S-mode");
+
+	return TEE_SUCCESS;
 }
+early_init(riscv_zkr_rng_init);

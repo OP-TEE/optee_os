@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2015-2023, Linaro Limited
  * Copyright (c) 2023, Arm Limited
- * Copyright (c) 2025, NVIDIA Corporation & AFFILIATES.
+ * Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES.
  */
 
 #include <arm.h>
@@ -21,6 +21,7 @@
 #include <keep.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
+#include <kernel/dyn_cluster_shift.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -291,7 +292,7 @@ static void init_run_constructors(void)
 {
 	const vaddr_t *ctor;
 
-	for (ctor = &__ctor_list; ctor < &__ctor_end; ctor++)
+	for (ctor = __ctor_list; ctor < __ctor_end; ctor++)
 		((void (*)(void))(*ctor))();
 }
 
@@ -1070,6 +1071,9 @@ void __weak boot_init_primary_runtime(void)
 			IMSG("WARNING: This ARM core does not have NMFI enabled, no need for workaround");
 	}
 
+#ifdef CFG_DYN_CLUSTER_SHIFT
+	init_dyn_cluster_shift(get_external_dt());
+#endif
 	boot_primary_init_intc();
 	init_vfp_nsec();
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
@@ -1450,8 +1454,8 @@ void __weak boot_save_args(unsigned long a0, unsigned long a1,
 			}
 			assert((unsigned long)fdt >= base);
 			assert((unsigned long)fdt <= base + size);
-			assert((unsigned long)fdt < VCORE_START_VA);
-			fdt_max_size = VCORE_START_VA - (unsigned long)fdt;
+			fdt_max_size = fdt_totalsize(fdt);
+			assert(fdt_max_size < CFG_DTB_MAX_SIZE);
 		}
 		init_manifest_dt(fdt, fdt_max_size);
 	} else {
@@ -1469,6 +1473,12 @@ void __weak boot_save_args(unsigned long a0, unsigned long a1,
 			boot_arg_nsec_entry = a4;
 #endif
 		}
+
+#if defined(CFG_TZDRAM_SIZE)
+		if (IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE))
+			core_mmu_set_secure_memory(core_mmu_tee_load_pa,
+						   CFG_TZDRAM_SIZE);
+#endif
 	}
 }
 

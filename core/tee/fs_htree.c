@@ -697,10 +697,15 @@ TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, uint32_t min_counter,
 		/*
 		 * If a power loss occurred during hash tree creation, the
 		 * head may not have been written and counter is still 0.
-		 * Re-initialze the hash tree.
+		 * Re-initialize the hash tree.
+		 *
+		 * If hash is non-NULL, the head must have been written
+		 * properly at least once before. This prevents reset of
+		 * the hash tree only by overwriting selected parts of the
+		 * head.
 		 */
-		if (ht_head_is_partially_done(&ht->head)) {
-			res = create_and_sync(&ht, hash, min_counter);
+		if (!hash && ht_head_is_partially_done(&ht->head)) {
+			res = create_and_sync(&ht, NULL, min_counter);
 			if (res != TEE_SUCCESS)
 				goto out;
 		}

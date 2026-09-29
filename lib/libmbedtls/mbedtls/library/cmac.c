@@ -199,10 +199,10 @@ int mbedtls_cipher_cmac_starts(mbedtls_cipher_context_t *ctx,
     }
 
     /* Check if cmac ctx had been allocated by mbedtls_cipher_cmac_setup() */
-    if( ctx->cmac_ctx != NULL )
+    if (ctx->cmac_ctx != NULL)
         return 0;
 
-    return mbedtls_cipher_cmac_setup( ctx );
+    return mbedtls_cipher_cmac_setup(ctx);
 }
 
 int mbedtls_cipher_cmac_update(mbedtls_cipher_context_t *ctx,

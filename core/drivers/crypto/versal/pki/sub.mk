@@ -1,0 +1,6 @@
+incdirs-y += include
+incdirs-y += ../include
+
+srcs-y += ecc_pki_common.c
+srcs-y += ecc_pki_engine.c
+srcs-y += ecc_pki_kat.c

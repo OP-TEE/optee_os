@@ -39,11 +39,20 @@ static inline void tlbi_va_asid_nosync(vaddr_t va, uint32_t asid)
 #endif
 }
 
+static inline void workaround_arm_tlbi_ish(void)
+{
+#if defined(ARM64) && defined(CFG_CORE_WORKAROUND_ARM_TLBI)
+	tlbi_vale1is(0);
+	dsb_ish();
+#endif
+}
+
 static inline void tlbi_va_asid(vaddr_t va, uint32_t asid)
 {
 	dsb_ishst();
 	tlbi_va_asid_nosync(va, asid);
 	dsb_ish();
+	workaround_arm_tlbi_ish();
 	isb();
 }
 #endif /*!__ASSEMBLER__*/

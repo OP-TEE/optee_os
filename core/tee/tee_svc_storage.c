@@ -73,11 +73,19 @@ static TEE_Result tee_svc_close_enum(struct user_ta_ctx *utc,
 	return TEE_SUCCESS;
 }
 
-static void remove_corrupt_obj(struct user_ta_ctx *utc, struct tee_obj *o)
+static TEE_Result remove_corrupt_obj(struct user_ta_ctx *utc,
+				     struct tee_obj *o)
 {
-	o->pobj->fops->remove(o->pobj);
+	TEE_Result remove_res = o->pobj->fops->remove(o->pobj);
+
 	if (!(utc->ta_ctx.flags & TA_FLAG_DONT_CLOSE_HANDLE_ON_CORRUPT_OBJECT))
 		tee_obj_close(utc, o);
+
+	if (remove_res == TEE_SUCCESS ||
+	    remove_res == TEE_ERROR_ITEM_NOT_FOUND)
+		return TEE_ERROR_CORRUPT_OBJECT;
+
+	return TEE_ERROR_STORAGE_NOT_AVAILABLE;
 }
 
 static TEE_Result tee_svc_storage_read_head(struct tee_obj *o)
@@ -217,7 +225,9 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 	res = tee_svc_storage_read_head(o);
 	tee_pobj_unlock_usage(o->pobj);
 	if (res != TEE_SUCCESS) {
-		if (res == TEE_ERROR_CORRUPT_OBJECT) {
+		if (res == TEE_ERROR_CORRUPT_OBJECT ||
+		    res == TEE_ERROR_NO_DATA ||
+		    res == TEE_ERROR_BAD_FORMAT) {
 			EMSG("Object corrupt");
 			goto err;
 		}
@@ -238,7 +248,7 @@ err:
 	if (res == TEE_ERROR_NO_DATA || res == TEE_ERROR_BAD_FORMAT)
 		res = TEE_ERROR_CORRUPT_OBJECT;
 	if (res == TEE_ERROR_CORRUPT_OBJECT && o)
-		remove_corrupt_obj(utc, o);
+		res = remove_corrupt_obj(utc, o);
 
 exit:
 	return res;
@@ -430,8 +440,13 @@ oclose:
 err:
 	if (res == TEE_ERROR_NO_DATA || res == TEE_ERROR_BAD_FORMAT)
 		res = TEE_ERROR_CORRUPT_OBJECT;
-	if (res == TEE_ERROR_CORRUPT_OBJECT && po)
-		fops->remove(po);
+	if (res == TEE_ERROR_CORRUPT_OBJECT && po) {
+		TEE_Result remove_res = fops->remove(po);
+
+		if (remove_res != TEE_SUCCESS &&
+		    remove_res != TEE_ERROR_ITEM_NOT_FOUND)
+			res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
+	}
 	if (o) {
 		fops->close(&o->fh);
 		tee_obj_free(o);
@@ -483,6 +498,7 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 	struct tee_obj *o = NULL;
 	char *new_file = NULL;
 	char *old_file = NULL;
+	void *new_obj_id = NULL;
 	void *oid_bbuf = NULL;
 
 	if (object_id_len > TEE_OBJECT_ID_MAX_LEN)
@@ -520,16 +536,25 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
+	/* Allocate everything needed before committing the backend rename */
+	new_obj_id = malloc(po->obj_id_len);
+	if (!new_obj_id) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto exit;
+	}
+	memcpy(new_obj_id, po->obj_id, po->obj_id_len);
+
 	/* move */
 	res = fops->rename(o->pobj, po, false /* no overwrite */);
 	if (res)
 		goto exit;
 
-	res = tee_pobj_rename(o->pobj, po->obj_id, po->obj_id_len);
+	res = tee_pobj_rename(o->pobj, &new_obj_id, po->obj_id_len);
 
 exit:
 	tee_pobj_release(po);
 
+	free(new_obj_id);
 	free(new_file);
 	free(old_file);
 
@@ -606,17 +631,20 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (e->dir) {
+	if (e->dir)
 		e->fops->closedir(e->dir);
-		e->dir = NULL;
-	}
+
+	e->dir = NULL;
+	e->fops = NULL;
 
 	if (!fops)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	e->fops = fops;
+	res = fops->opendir(&sess->ctx->uuid, &e->dir);
+	if (!res)
+		e->fops = fops;
 
-	return fops->opendir(&sess->ctx->uuid, &e->dir);
+	return res;
 }
 
 TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
@@ -753,7 +781,7 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 	if (res != TEE_SUCCESS) {
 		if (res == TEE_ERROR_CORRUPT_OBJECT) {
 			EMSG("Object corrupt");
-			remove_corrupt_obj(utc, o);
+			res = remove_corrupt_obj(utc, o);
 		}
 		goto exit;
 	}
@@ -789,7 +817,8 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 	}
 
 	/* Guard o->info.dataPosition += bytes below from overflowing */
-	if (ADD_OVERFLOW(o->info.dataPosition, len, &pos_tmp)) {
+	if (ADD_OVERFLOW(o->info.dataPosition, len, &pos_tmp) ||
+	    pos_tmp > TEE_DATA_MAX_POSITION) {
 		res = TEE_ERROR_OVERFLOW;
 		goto exit;
 	}
@@ -804,7 +833,7 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 	if (res != TEE_SUCCESS) {
 		if (res == TEE_ERROR_CORRUPT_OBJECT) {
 			EMSG("Object corrupt");
-			remove_corrupt_obj(utc, o);
+			res = remove_corrupt_obj(utc, o);
 		}
 		goto exit;
 	}
@@ -866,7 +895,10 @@ TEE_Result syscall_storage_obj_trunc(unsigned long obj, size_t len)
 		break;
 	case TEE_ERROR_CORRUPT_OBJECT:
 		EMSG("Object corruption");
-		remove_corrupt_obj(to_user_ta_ctx(sess->ctx), o);
+		res = remove_corrupt_obj(to_user_ta_ctx(sess->ctx), o);
+		break;
+	case TEE_ERROR_STORAGE_NO_SPACE:
+	case TEE_ERROR_STORAGE_NOT_AVAILABLE:
 		break;
 	default:
 		res = TEE_ERROR_GENERIC;

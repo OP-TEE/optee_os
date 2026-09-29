@@ -328,12 +328,18 @@ enum pkcs11_rc attributes_match_add_reference(struct obj_attrs **head,
 #define ATTR_FMT_4BYTE	ATTR_TRACE_FMT ": %02x %02x %02x %02x)"
 #define ATTR_FMT_ARRAY	ATTR_TRACE_FMT ": %02x %02x %02x %02x ...)"
 
-static void __trace_attributes(char *prefix, void *src, void *end)
+static void __trace_attributes(char *prefix, void *src, void *end,
+			       unsigned int depth)
 {
 	size_t next_off = 0;
 	char *prefix2 = NULL;
 	size_t prefix_len = strlen(prefix);
 	char *cur = src;
+
+	if (depth >= PKCS11_MAX_INDIRECT_DEPTH) {
+		EMSG("Too deep indirection");
+		return;
+	}
 
 	/* append 4 spaces to the prefix plus terminal '\0' */
 	prefix2 = TEE_Malloc(prefix_len + 1 + 4, TEE_MALLOC_FILL_ZERO);
@@ -412,7 +418,8 @@ static void __trace_attributes(char *prefix, void *src, void *end)
 		case PKCS11_CKA_DERIVE_TEMPLATE:
 			if (pkcs11_ref.size)
 				trace_attributes(prefix2,
-						 cur + sizeof(pkcs11_ref));
+						 cur + sizeof(pkcs11_ref),
+						 depth + 1);
 			break;
 		default:
 			break;
@@ -426,7 +433,7 @@ static void __trace_attributes(char *prefix, void *src, void *end)
 	TEE_Free(prefix2);
 }
 
-void trace_attributes(const char *prefix, void *ref)
+void trace_attributes(const char *prefix, void *ref, unsigned int depth)
 {
 	struct obj_attrs head = { };
 	char *pre = NULL;
@@ -451,7 +458,7 @@ void trace_attributes(const char *prefix, void *ref)
 
 	pre[prefix ? strlen(prefix) : 0] = '|';
 	__trace_attributes(pre, (char *)ref + sizeof(head),
-			   (char *)ref + sizeof(head) + head.attrs_size);
+			   (char *)ref + sizeof(head) + head.attrs_size, depth);
 
 	IMSG_RAW("%s`-----------------------", prefix ? prefix : "");
 

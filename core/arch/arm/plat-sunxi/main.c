@@ -75,6 +75,10 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, SUNXI_CPUCFG_BASE,
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SUNXI_PRCM_BASE, SUNXI_PRCM_REG_SIZE);
 #endif
 
+#ifdef SUNXI_DRAM_NS_BASE
+register_ddr(SUNXI_DRAM_NS_BASE, SUNXI_DRAM_NS_SIZE);
+#endif
+
 #ifdef CFG_TZC380
 vaddr_t smc_base(void);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SUNXI_SMC_BASE, TZC400_REG_SIZE);

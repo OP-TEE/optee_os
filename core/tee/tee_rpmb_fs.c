@@ -151,6 +151,15 @@ static struct rpmb_fs_parameters *fs_par;
 static struct rpmb_fat_entry_dir *fat_entry_dir;
 
 /*
+ * One-shot request to re-initialize the on-disk RPMB FS on the next
+ * rpmb_fs_setup() call. Defaults to CFG_RPMB_RESET_FAT so existing builds
+ * that opt into a compile-time reformat continue to do so. Callers can
+ * latch a runtime reformat request via rpmb_fs_request_reset(); the flag is
+ * cleared once rpmb_fs_setup() has successfully populated fs_par.
+ */
+static bool rpmb_fs_reset = IS_ENABLED(CFG_RPMB_RESET_FAT);
+
+/*
  * Lower interface to RPMB device
  */
 
@@ -233,11 +242,16 @@ struct rpmb_raw_data {
 };
 
 #define RPMB_EMMC_CID_SIZE 16
+#define RPMB_CID_SIZE RPMB_EMMC_CID_SIZE
 struct rpmb_dev_info {
-	uint8_t cid[RPMB_EMMC_CID_SIZE];
-	/* EXT CSD-slice 168 "RPMB Size" */
+	uint8_t cid[RPMB_CID_SIZE];
+
+	/* RPMB size in units of 128 kB (eMMC: EXT CSD-slice 168 "RPMB Size") */
 	uint8_t rpmb_size_mult;
-	/* EXT CSD-slice 222 "Reliable Write Sector Count" */
+	/*
+	 * Reliable write count. eMMC: EXT CSD-slice 222 "Reliable Write Sector
+	 * Count" in 512-byte sectors. UFS: number of 256-byte RPMB frames.
+	 */
 	uint8_t rel_wr_sec_c;
 	/* Check the ret code and accept the data only if it is OK. */
 	uint8_t ret_code;
@@ -251,6 +265,7 @@ struct rpmb_dev_info {
  * @wr_cnt           Current write counter.
  * @max_blk_idx      The highest block index supported by current device.
  * @rel_wr_blkcnt    Max number of data blocks for each reliable write.
+ * @dev_type         Kind of RPMB device in use (OPTEE_RPC_RPMB_*).
  * @dev_id           Device ID of the eMMC device.
  * @wr_cnt_synced    Flag indicating if write counter is synced to RPMB.
  * @key_derived      Flag indicating if key has been generated.
@@ -262,10 +277,11 @@ struct rpmb_dev_info {
  */
 struct tee_rpmb_ctx {
 	uint8_t key[RPMB_KEY_MAC_SIZE];
-	uint8_t cid[RPMB_EMMC_CID_SIZE];
+	uint8_t cid[RPMB_CID_SIZE];
 	uint32_t wr_cnt;
 	uint16_t max_blk_idx;
 	uint16_t rel_wr_blkcnt;
+	uint8_t dev_type;
 	uint16_t dev_id;
 	bool wr_cnt_synced;
 	bool key_derived;
@@ -317,24 +333,29 @@ out:
 
 static TEE_Result tee_rpmb_key_gen(uint8_t *key, uint32_t len)
 {
-	uint8_t message[RPMB_EMMC_CID_SIZE];
+	uint8_t message[RPMB_CID_SIZE];
 
 	if (!key || RPMB_KEY_MAC_SIZE != len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	IMSG("RPMB: Using generated key");
 
+	memcpy(message, rpmb_ctx->cid, RPMB_CID_SIZE);
+
 	/*
-	 * PRV/CRC would be changed when doing eMMC FFU
-	 * The following fields should be masked off when deriving RPMB key
+	 * PRV/CRC would be changed when doing eMMC FFU, so those fields must be
+	 * masked off before deriving the RPMB key. UFS has no equivalent
+	 * mutable fields in its CID, so its raw identifier is used as-is.
 	 *
 	 * CID [55: 48]: PRV (Product revision)
 	 * CID [07: 01]: CRC (CRC7 checksum)
 	 * CID [00]: not used
 	 */
-	memcpy(message, rpmb_ctx->cid, RPMB_EMMC_CID_SIZE);
-	memset(message + RPMB_CID_PRV_OFFSET, 0, 1);
-	memset(message + RPMB_CID_CRC_OFFSET, 0, 1);
+	if (rpmb_ctx->dev_type == OPTEE_RPC_RPMB_EMMC) {
+		memset(message + RPMB_CID_PRV_OFFSET, 0, 1);
+		memset(message + RPMB_CID_CRC_OFFSET, 0, 1);
+	}
+
 	return huk_subkey_derive(HUK_SUBKEY_RPMB, message, sizeof(message),
 				 key, len);
 }
@@ -533,8 +554,14 @@ static TEE_Result rpmb_probe_next(struct rpmb_dev_info *dev_info)
 	if (res)
 		return res;
 
-	if (params[0].u.value.a != OPTEE_RPC_RPMB_EMMC)
+	switch (params[0].u.value.a) {
+	case OPTEE_RPC_RPMB_EMMC:
+	case OPTEE_RPC_RPMB_UFS:
+		break;
+	default:
 		return TEE_ERROR_NOT_SUPPORTED;
+	}
+	rpmb_ctx->dev_type = params[0].u.value.a;
 
 	*dev_info = (struct rpmb_dev_info){
 		.rpmb_size_mult = params[0].u.value.b,
@@ -544,6 +571,22 @@ static TEE_Result rpmb_probe_next(struct rpmb_dev_info *dev_info)
 	memcpy(dev_info->cid, va, sizeof(dev_info->cid));
 
 	return TEE_SUCCESS;
+}
+
+static TEE_Result rpmb_probe_select_cid(const struct tee_rpmb_ctx *ctx)
+{
+	struct rpmb_dev_info dev_info = { };
+	TEE_Result res = TEE_SUCCESS;
+
+	while (true) {
+		res = rpmb_probe_next(&dev_info);
+		if (res) {
+			EMSG("rpmb_probe_next error %#"PRIx32, res);
+			return res;
+		}
+		if (!memcmp(ctx->cid, dev_info.cid, RPMB_CID_SIZE))
+			return TEE_SUCCESS;
+	}
 }
 
 static bool is_zero(const uint8_t *buf, size_t size)
@@ -1125,14 +1168,47 @@ static TEE_Result rpmb_set_dev_info(const struct rpmb_dev_info *dev_info)
 	    SUB_OVERFLOW(nblocks, 1, &rpmb_ctx->max_blk_idx))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	memcpy(rpmb_ctx->cid, dev_info->cid, RPMB_EMMC_CID_SIZE);
+	memcpy(rpmb_ctx->cid, dev_info->cid, RPMB_CID_SIZE);
 
-	if (IS_ENABLED(RPMB_DRIVER_MULTIPLE_WRITE_FIXED))
-		rpmb_ctx->rel_wr_blkcnt = dev_info->rel_wr_sec_c * 2;
-	else
+	if (IS_ENABLED(CFG_RPMB_DRIVER_MULTIPLE_WRITE_FIXED)) {
+		/*
+		 * eMMC reports the count in 512-byte sectors (two 256-byte RPMB
+		 * blocks each), so it is doubled; UFS already reports the block
+		 * count.
+		 */
+		if (rpmb_ctx->dev_type == OPTEE_RPC_RPMB_EMMC)
+			rpmb_ctx->rel_wr_blkcnt = dev_info->rel_wr_sec_c * 2;
+		else
+			rpmb_ctx->rel_wr_blkcnt = dev_info->rel_wr_sec_c;
+		if (!rpmb_ctx->rel_wr_blkcnt) {
+			/* Not fatal: fall back to single-block writes rather */
+			/* than reject a device that is otherwise usable. */
+			DMSG("RPMB: rel_wr_sec_c 0, using 1 block");
+			rpmb_ctx->rel_wr_blkcnt = 1;
+		}
+	} else {
 		rpmb_ctx->rel_wr_blkcnt = 1;
+	}
 
 	return TEE_SUCCESS;
+}
+
+static bool rpmb_cid_match(const uint8_t *cid)
+{
+	const char *hs = CFG_RPMB_WRITE_KEY_CID;
+	uint8_t want[RPMB_CID_SIZE] = { };
+	uint32_t n = 0;
+
+	if (!hs[0])
+		return true;
+
+	n = tee_hs2b((uint8_t *)hs, want, strlen(hs), sizeof(want));
+	if (n != RPMB_CID_SIZE) {
+		EMSG("Invalid CFG_RPMB_WRITE_KEY_CID");
+		return false;
+	}
+
+	return !memcmp(cid, want, RPMB_CID_SIZE);
 }
 
 static TEE_Result legacy_rpmb_init(void)
@@ -1142,6 +1218,8 @@ static TEE_Result legacy_rpmb_init(void)
 
 	DMSG("Trying legacy RPMB init");
 	rpmb_ctx->legacy_operation = true;
+	/* The legacy interface only ever describes eMMC devices. */
+	rpmb_ctx->dev_type = OPTEE_RPC_RPMB_EMMC;
 	rpmb_ctx->dev_id = CFG_RPMB_FS_DEV_ID;
 	rpmb_ctx->shm_type = THREAD_SHM_TYPE_APPLICATION;
 
@@ -1187,7 +1265,10 @@ static TEE_Result legacy_rpmb_init(void)
 			 * Need to write the key here and verify it.
 			 */
 			DMSG("RPMB INIT: Auth key not yet written");
-			res = tee_rpmb_write_and_verify_key();
+			if (rpmb_cid_match(rpmb_ctx->cid))
+				res = tee_rpmb_write_and_verify_key();
+			else
+				EMSG("CID mismatch, CFG_RPMB_WRITE_KEY_CID");
 		} else {
 			EMSG("Verify key failed! %#"PRIx32, res);
 			EMSG("Make sure key here matches device key");
@@ -1202,6 +1283,8 @@ static TEE_Result tee_rpmb_init(void)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct rpmb_dev_info dev_info = { };
+	struct tee_rpmb_ctx cand = { };
+	bool have_cand = false;
 
 	if (rpmb_dead)
 		return TEE_ERROR_COMMUNICATION;
@@ -1227,27 +1310,16 @@ static TEE_Result tee_rpmb_init(void)
 				return res;
 			return legacy_rpmb_init();
 		}
-		while (true) {
-			res = rpmb_probe_next(&dev_info);
-			if (res) {
-				DMSG("rpmb_probe_next error %#"PRIx32, res);
-				return res;
-			}
-			if (!memcmp(rpmb_ctx->cid, dev_info.cid,
-				    RPMB_EMMC_CID_SIZE)) {
-				rpmb_ctx->reinit = false;
-				return TEE_SUCCESS;
-			}
-		}
+		res = rpmb_probe_select_cid(rpmb_ctx);
+		if (res == TEE_SUCCESS)
+			rpmb_ctx->reinit = false;
+		return res;
 	}
 
 	if (rpmb_ctx->key_verified)
 		return TEE_SUCCESS;
 
 next:
-	if (IS_ENABLED(CFG_RPMB_WRITE_KEY))
-		return legacy_rpmb_init();
-
 	res = rpmb_probe_reset();
 	if (res) {
 		if (res != TEE_ERROR_NOT_SUPPORTED &&
@@ -1259,9 +1331,31 @@ next:
 	while (true) {
 		res = rpmb_probe_next(&dev_info);
 		if (res) {
-			DMSG("rpmb_probe_next error %#"PRIx32, res);
+			if (!have_cand) {
+				DMSG("rpmb_probe_next error %#"PRIx32, res);
+				return res;
+			}
+
+			memcpy(rpmb_ctx, &cand, sizeof(*rpmb_ctx));
+
+			res = rpmb_probe_reset();
+			if (res)
+				return res;
+
+			res = rpmb_probe_select_cid(rpmb_ctx);
+			if (res) {
+				EMSG("Failed to reselect matched CID");
+				return res;
+			}
+
+			DMSG("RPMB INIT: Auth key not yet written");
+			res = tee_rpmb_write_and_verify_key();
+			if (res == TEE_SUCCESS)
+				goto done;
+
 			return res;
 		}
+
 		res = rpmb_set_dev_info(&dev_info);
 		if (res) {
 			DMSG("Invalid device info, looking for another device");
@@ -1273,12 +1367,26 @@ next:
 			return res;
 
 		res = tee_rpmb_init_read_wr_cnt(&rpmb_ctx->wr_cnt);
-		if (res)
-			continue;
-		break;
-	}
+		if (res == TEE_SUCCESS) {
+			DMSG("Found working RPMB device");
+			goto done;
+		}
 
-	DMSG("Found working RPMB device");
+		if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+			/* Remember the first candidate to be provisioned */
+			if (!IS_ENABLED(CFG_RPMB_WRITE_KEY))
+				continue;
+
+			if (!have_cand) {
+				if (!rpmb_cid_match(rpmb_ctx->cid))
+					continue;
+
+				memcpy(&cand, rpmb_ctx, sizeof(cand));
+				have_cand = true;
+			}
+		}
+	}
+done:
 	rpmb_ctx->key_verified = true;
 	rpmb_ctx->wr_cnt_synced = true;
 
@@ -1287,9 +1395,15 @@ next:
 
 TEE_Result tee_rpmb_reinit(void)
 {
+	TEE_Result res = TEE_SUCCESS;
+
+	mutex_lock(&rpmb_mutex);
 	if (rpmb_ctx)
 		rpmb_ctx->reinit = true;
-	return tee_rpmb_init();
+	res = tee_rpmb_init();
+	mutex_unlock(&rpmb_mutex);
+
+	return res;
 }
 
 /*
@@ -2118,8 +2232,7 @@ static TEE_Result rpmb_fs_setup(void)
 	if (res != TEE_SUCCESS)
 		goto out;
 
-#ifndef CFG_RPMB_RESET_FAT
-	if (partition_data->rpmb_fs_magic == RPMB_FS_MAGIC) {
+	if (!rpmb_fs_reset && partition_data->rpmb_fs_magic == RPMB_FS_MAGIC) {
 		if (partition_data->fs_version == FS_VERSION) {
 			res = TEE_SUCCESS;
 			goto store_fs_par;
@@ -2129,9 +2242,7 @@ static TEE_Result rpmb_fs_setup(void)
 			goto out;
 		}
 	}
-#else
 	EMSG("**** Clearing Storage ****");
-#endif
 
 	/* Setup new partition data. */
 	partition_data->rpmb_fs_magic = RPMB_FS_MAGIC;
@@ -2156,10 +2267,17 @@ static TEE_Result rpmb_fs_setup(void)
 			     (uint8_t *)partition_data,
 			     sizeof(struct rpmb_fs_partition), NULL, NULL);
 
-#ifndef CFG_RPMB_RESET_FAT
-store_fs_par:
-#endif
+	/*
+	 * Bail out before populating fs_par if the partition header write
+	 * failed: leaving fs_par non-NULL would cause subsequent
+	 * rpmb_fs_setup() calls to short-circuit with a stale TEE_SUCCESS
+	 * even though the on-disk state is invalid, suppressing retries.
+	 * The rpmb_fs_reset flag stays set so the next lazy setup retries.
+	 */
+	if (res != TEE_SUCCESS)
+		goto out;
 
+store_fs_par:
 	/* Store FAT start address. */
 	fs_par = calloc(1, sizeof(struct rpmb_fs_parameters));
 	if (!fs_par) {
@@ -2169,6 +2287,12 @@ store_fs_par:
 
 	fs_par->fat_start_address = partition_data->fat_start_address;
 	fs_par->max_rpmb_address = max_rpmb_block << RPMB_BLOCK_SIZE_SHIFT;
+
+	/*
+	 * fs_par is populated and on-disk state is valid; consume the
+	 * one-shot reset request so subsequent setup calls don't reformat.
+	 */
+	rpmb_fs_reset = false;
 
 	dump_fat();
 
@@ -2648,7 +2772,8 @@ static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, size_t pos,
 		res = rpmb_fs_write_primitive((struct rpmb_file_handle *)tfh,
 					      pos, buf_core, size);
 	} else if (buf_user) {
-		uint32_t f = TEE_MEMORY_ACCESS_READ;
+		uint32_t f = TEE_MEMORY_ACCESS_READ |
+			     TEE_MEMORY_ACCESS_ANY_OWNER;
 
 		res = check_user_access(f, buf_user, size);
 		if (res)
@@ -2811,8 +2936,13 @@ static TEE_Result rpmb_fs_truncate(struct tee_file_handle *tfh, size_t length)
 			goto out;
 
 		mm = tee_mm_alloc(&p, newsize);
+		if (!mm) {
+			res = TEE_ERROR_STORAGE_NO_SPACE;
+			goto out;
+		}
+
 		newbuf = calloc(1, newsize);
-		if (!mm || !newbuf) {
+		if (!newbuf) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
 		}
@@ -3050,7 +3180,8 @@ static TEE_Result rpmb_fs_create(struct tee_pobj *po, bool overwrite,
 {
 	TEE_Result res;
 	size_t pos = 0;
-	struct rpmb_file_handle *fh = alloc_file_handle(po, po->temporary);
+	bool temporary = po->temporary || overwrite;
+	struct rpmb_file_handle *fh = alloc_file_handle(po, temporary);
 
 	/* One of data_core and data_user must be NULL */
 	assert(!data_core || !data_user);
@@ -3099,18 +3230,16 @@ static TEE_Result rpmb_fs_create(struct tee_pobj *po, bool overwrite,
 		}
 	}
 
-	if (po->temporary) {
+	if (temporary) {
 		/*
-		 * If it's a temporary filename (which it normally is)
-		 * rename into the final filename now that the file is
-		 * fully initialized.
+		 * Rename the fully initialized temporary file into place.
+		 * Always use a temporary file for overwrite, including when
+		 * another handle keeps the persistent object alive.
 		 */
-		po->temporary = false;
 		res = rpmb_fs_rename_internal(po, NULL, overwrite);
-		if (res) {
-			po->temporary = true;
+		if (res)
 			goto out;
-		}
+		po->temporary = false;
 		/* Update file handle after rename. */
 		create_filename(fh->filename, sizeof(fh->filename), po, false);
 	}
@@ -3173,6 +3302,24 @@ TEE_Result tee_rpmb_fs_raw_open(const char *fname, bool create,
 bool __weak plat_rpmb_key_is_ready(void)
 {
 	return true;
+}
+
+void rpmb_fs_request_reset(void)
+{
+	mutex_lock(&rpmb_mutex);
+
+	rpmb_fs_reset = true;
+
+	/*
+	 * Invalidate cached state so the next rpmb_fs_setup() call re-runs
+	 * the full setup (and observes the flag), rather than short-circuiting
+	 * on fs_par.
+	 */
+	free(fs_par);
+	fs_par = NULL;
+	fat_entry_dir_free();
+
+	mutex_unlock(&rpmb_mutex);
 }
 
 #ifdef CFG_WITH_STATS

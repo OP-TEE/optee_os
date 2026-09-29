@@ -41,7 +41,9 @@ srcs-$(CFG_ARM64_core) += vfp_a64.S
 endif
 srcs-$(CFG_ARM32_core) += misc_a32.S
 srcs-$(CFG_ARM64_core) += misc_a64.S
+srcs-$(CFG_DYN_CLUSTER_SHIFT) += dyn_cluster_shift.c
 srcs-$(CFG_WITH_STMM_SP) += stmm_sp.c
+srcs-$(CFG_WITH_STMM_SP) += stmm_sp_ffa.c
 srcs-$(CFG_SECURE_PARTITION) += secure_partition.c
 srcs-$(CFG_SECURE_PARTITION) += spmc_sp_handler.c
 
@@ -69,7 +71,7 @@ asm-defines-y += asm-defines.c
 #     <asm.h> includes <generated/arm32_sysreg.h>
 #                  and <generated/arm32_gicv3_sysreg.h> (optional)
 asm-defines-asm-defines.c-deps += $(out-dir)/core/include/generated/arm32_sysreg.h
-ifeq ($(_CFG_ARM_V3_OR_V4),y)
+ifeq ($(_CFG_ARM_GIC_V3_OR_V4),y)
 asm-defines-asm-defines.c-deps += $(out-dir)/core/include/generated/arm32_gicv3_sysreg.h
 endif
 

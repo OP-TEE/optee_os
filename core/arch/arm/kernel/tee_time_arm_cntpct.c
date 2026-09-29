@@ -19,7 +19,7 @@ TEE_Result tee_time_get_sys_time(TEE_Time *time)
 	uint32_t cntfrq = read_cntfrq();
 
 	time->seconds = cntpct / cntfrq;
-	time->millis = (cntpct % cntfrq) / (cntfrq / TEE_TIME_MILLIS_BASE);
+	time->millis = (cntpct % cntfrq) * TEE_TIME_MILLIS_BASE / cntfrq;
 
 	return TEE_SUCCESS;
 }

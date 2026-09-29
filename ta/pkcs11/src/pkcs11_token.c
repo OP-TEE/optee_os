@@ -1364,7 +1364,7 @@ static void session_logout(struct pkcs11_session *session)
 		if (sess->token != session->token)
 			continue;
 
-		release_active_processing(session);
+		release_active_processing(sess);
 
 		/* Destroy private session objects */
 		LIST_FOREACH_SAFE(obj, &sess->object_list, link, tobj) {
@@ -1377,13 +1377,13 @@ static void session_logout(struct pkcs11_session *session)
 		 * sessions object_handle_db
 		 */
 		LIST_FOREACH(obj, &session->token->object_list, link) {
-			handle = pkcs11_object2handle(obj, session);
+			handle = pkcs11_object2handle(obj, sess);
 
 			if (handle && object_is_private(obj->attributes))
 				handle_put(get_object_handle_db(sess), handle);
 		}
 
-		release_session_find_obj_context(session);
+		release_session_find_obj_context(sess);
 
 		if (pkcs11_session_is_read_write(sess))
 			sess->state = PKCS11_CKS_RW_PUBLIC_SESSION;

@@ -7,11 +7,19 @@
 #include <asm.S>
 #include <util.h>
 
+	.macro workaround_arm_tlbi_is
+#ifdef CFG_CORE_WORKAROUND_ARM_TLBI
+	tlbi	vale1is, xzr
+	dsb	ish
+#endif
+	.endm
+
 /* void tlbi_all(void); */
 FUNC tlbi_all , :
 	dsb	ishst		/* Sync with table update */
 	tlbi	vmalle1is	/* All tlb in inner shareable */
 	dsb	ish		/* Sync with tlb invalidation completion */
+	workaround_arm_tlbi_is
 	isb			/* Sync execution on tlb update */
 	ret
 END_FUNC tlbi_all
@@ -22,6 +30,7 @@ FUNC tlbi_va_allasid , :
 	dsb	ishst		/* Sync with table update */
 	tlbi	vaae1is, x0	/* Invalidate tlb by va in inner shareable */
 	dsb	ish		/* Sync with tlb invalidation completion */
+	workaround_arm_tlbi_is
 	isb			/* Sync execution on tlb update */
 	ret
 END_FUNC tlbi_va_allasid
@@ -34,6 +43,7 @@ FUNC tlbi_asid , :
 	orr	x0, x0, #BIT(TLBI_ASID_SHIFT) /* Select the kernel ASID */
 	tlbi	aside1is, x0	/* Invalidate tlb by asid in inner shareable */
 	dsb	ish		/* Sync with tlb invalidation completion */
+	workaround_arm_tlbi_is
 	isb			/* Sync execution on tlb update */
 	ret
 END_FUNC tlbi_asid

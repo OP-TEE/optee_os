@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022, 2025 NXP
+ * Copyright 2022, 2025-2026 NXP
  */
 
 #ifndef __SBI_H
@@ -30,10 +30,27 @@
 /* SBI Extension IDs */
 #define SBI_EXT_0_1_CONSOLE_PUTCHAR	0x01
 #define SBI_EXT_BASE			0x10
+#define SBI_EXT_TIME			0x54494D45
+#define SBI_EXT_IPI			0x735049
+#define SBI_EXT_RFENCE			0x52464E43
 #define SBI_EXT_HSM			0x48534D
+#define SBI_EXT_SRST			0x53525354
+#define SBI_EXT_PMU			0x504D55
 #define SBI_EXT_DBCN			0x4442434E
-#define SBI_EXT_TEE			0x544545
+#define SBI_EXT_SUSP			0x53555350
+#define SBI_EXT_CPPC			0x43505043
+#define SBI_EXT_NACL			0x4E41434C
+#define SBI_EXT_STA			0x535441
+#define SBI_EXT_SSE			0x535345
+#define SBI_EXT_FWFT			0x46574654
+#define SBI_EXT_DBTR			0x44425452
 #define SBI_EXT_MPXY                    0x4D505859
+#define SBI_EXT_TEE			0x544545
+
+/* sbi_get_spec_version() encoding: major in bits [30:24], minor in [23:0] */
+#define SBI_SPEC_VERSION_MAJOR_SHIFT	U(24)
+#define SBI_SPEC_VERSION_MAJOR_MASK	U(0x7f)
+#define SBI_SPEC_VERSION_MINOR_MASK	U(0xffffff)
 
 #ifndef __ASSEMBLER__
 
@@ -71,6 +88,24 @@ enum sbi_ext_base_fid {
 	SBI_EXT_BASE_GET_MIMPID,
 };
 
+/* SBI function IDs for RFENCE extension */
+enum sbi_ext_rfence_fid {
+	SBI_EXT_RFENCE_REMOTE_FENCE_I = 0,
+	SBI_EXT_RFENCE_REMOTE_SFENCE_VMA,
+	SBI_EXT_RFENCE_REMOTE_SFENCE_VMA_ASID,
+	SBI_EXT_RFENCE_REMOTE_HFENCE_GVMA_VMID,
+	SBI_EXT_RFENCE_REMOTE_HFENCE_GVMA,
+	SBI_EXT_RFENCE_REMOTE_HFENCE_VVMA_ASID,
+	SBI_EXT_RFENCE_REMOTE_HFENCE_VVMA,
+};
+
+/*
+ * hart_mask_base value for which hart_mask is ignored and every hart
+ * available to the supervisor is targeted (SBI spec, "Binary Encoding",
+ * hart mask parameters).
+ */
+#define SBI_HART_MASK_BASE_ALL		(-1UL)
+
 /* SBI function IDs for HSM extension */
 enum sbi_ext_hsm_fid {
 	SBI_EXT_HSM_HART_START = 0,
@@ -98,16 +133,27 @@ enum sbi_hsm_hart_state {
 
 #include <compiler.h>
 #include <encoding.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/cdefs.h>
 #include <types_ext.h>
 #include <util.h>
 
+void sbi_init(void);
+void sbi_print_info(void);
+bool sbi_ext_available(unsigned long extid);
 int sbi_probe_extension(int extid);
 void sbi_console_putchar(int ch);
 int sbi_dbcn_write_byte(unsigned char ch);
 int sbi_hsm_hart_start(uint32_t hartid, paddr_t start_addr, unsigned long arg);
 int sbi_hsm_hart_get_status(uint32_t hartid, enum sbi_hsm_hart_state *status);
+int sbi_remote_fence_i(unsigned long hart_mask, unsigned long hart_mask_base);
+int sbi_remote_sfence_vma(unsigned long hart_mask, unsigned long hart_mask_base,
+			  unsigned long start_addr, unsigned long size);
+int sbi_remote_sfence_vma_asid(unsigned long hart_mask,
+			       unsigned long hart_mask_base,
+			       unsigned long start_addr, unsigned long size,
+			       unsigned long asid);
 
 #endif /*__ASSEMBLER__*/
 #endif /*defined(CFG_RISCV_SBI)*/

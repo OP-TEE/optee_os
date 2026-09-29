@@ -41,9 +41,9 @@ struct internal_aes_gcm_state {
 	uint8_t buf_hash[TEE_AES_BLOCK_SIZE];
 	uint8_t buf_cryp[TEE_AES_BLOCK_SIZE];
 
+	uint64_t aad_bytes;
+	uint64_t payload_bytes;
 	unsigned int tag_len;
-	unsigned int aad_bytes;
-	unsigned int payload_bytes;
 	unsigned int buf_pos;
 };
 

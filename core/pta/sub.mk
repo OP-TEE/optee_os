@@ -19,8 +19,10 @@ subdirs-y += bcm
 subdirs-y += stm32mp
 subdirs-y += imx
 subdirs-y += k3
+subdirs-y += qcom
 subdirs-y += rockchip
 subdirs-y += veraison_attestation
+subdirs-y += versal
 
 ifeq ($(CFG_REMOTEPROC_PTA),y)
 gensrcs-y += rproc_pub_key

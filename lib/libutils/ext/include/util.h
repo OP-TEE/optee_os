@@ -22,20 +22,27 @@
 
 #ifndef MAX
 #ifndef __ASSEMBLER__
-#define MAX(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a > _b ? _a : _b; }))
+#define __MAX(a, b, ua, ub) \
+	(__extension__({ __typeof__(a) ua = (a); \
+	   __typeof__(b) ub = (b); \
+	 ua > ub ? ua : ub; }))
 
-#define MIN(a, b) \
-	(__extension__({ __typeof__(a) _a = (a); \
-	   __typeof__(b) _b = (b); \
-	 _a < _b ? _a : _b; }))
+#define __MIN(a, b, ua, ub) \
+	(__extension__({ __typeof__(a) ua = (a); \
+	   __typeof__(b) ub = (b); \
+	 ua < ub ? ua : ub; }))
+
+#define MAX(a, b)	__MAX((a), (b), \
+			      CONCAT(__max_a, __COUNTER__), \
+			      CONCAT(__max_b, __COUNTER__))
+#define MIN(a, b)	__MIN((a), (b), \
+			      CONCAT(__min_a, __COUNTER__), \
+			      CONCAT(__min_b, __COUNTER__))
 #else
 #define MAX(a, b)	(((a) > (b)) ? (a) : (b))
 #define MIN(a, b)	(((a) < (b)) ? (a) : (b))
-#endif
-#endif
+#endif	/* __ASSEMBLER__ */
+#endif	/* MAX */
 
 /*
  * In some particular conditions MAX and MIN macros fail to

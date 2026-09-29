@@ -405,12 +405,14 @@ drvcrypt_authenc_alloc_ctx(struct crypto_authenc_ctx **ctx __unused,
  * crypto_acipher_free_ecc_*() functions.
  * Reference set in ecc_public_key when key allocated.
  *
- * @free    is mandatory
- * @verify  is optional
- * @encrypt is optional
+ * @free     is mandatory
+ * @validate is optional
+ * @verify   is optional
+ * @encrypt  is optional
  */
 struct crypto_ecc_public_ops {
 	void (*free)(struct ecc_public_key *key);
+	TEE_Result (*validate)(struct ecc_public_key *key);
 	TEE_Result (*verify)(uint32_t algo, struct ecc_public_key *key,
 			     const uint8_t *msg, size_t msg_len,
 			     const uint8_t *sig, size_t sig_len);

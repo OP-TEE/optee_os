@@ -19,6 +19,9 @@ enum caam_key_type {
 	CAAM_KEY_MAX_VALUE, /* Max value - not valid */
 };
 
+/* Extra bits a serialized CAAM key may have over the plain key size */
+#define CAAM_KEY_EXTRA_BITS	(480)
+
 /*
  * CAAM key structure
  */

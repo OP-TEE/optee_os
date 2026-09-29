@@ -33,6 +33,8 @@ static TEE_Result get_tee_result(int lmd_res)
 		return TEE_ERROR_BAD_PARAMETERS;
 	case MBEDTLS_ERR_RSA_OUTPUT_TOO_LARGE:
 		return TEE_ERROR_SHORT_BUFFER;
+	case MBEDTLS_ERR_PK_ALLOC_FAILED:
+		return TEE_ERROR_OUT_OF_MEMORY;
 	default:
 		return TEE_ERROR_BAD_STATE;
 	}
@@ -185,7 +187,8 @@ static void mbd_pk_free(mbedtls_pk_context *ctx, struct rsa_keypair *key)
 	 * Executing mbedtls_rsa_free twice is fine, as it does nothing if its
 	 * argument is NULL.
 	 */
-	mbd_rsa_free(rsa, key);
+	if (rsa)
+		mbd_rsa_free(rsa, key);
 	mbedtls_pk_free(ctx);
 }
 
@@ -485,15 +488,16 @@ TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
 	}
 
 	mbedtls_pk_init(&ctx);
-	res = mbedtls_pk_setup(&ctx, pk_info);
-	if (res != 0) {
+	lmd_res = mbedtls_pk_setup(&ctx, pk_info);
+	if (lmd_res) {
+		res = get_tee_result(lmd_res);
 		goto out;
 	}
 
 	rsa = ctx.pk_ctx;
 	res = rsa_complete_from_key_pair(rsa, key);
 	if (res)
-		return res;
+		goto out;
 
 	/*
 	 * Use a temporary buffer since we don't know exactly how large
@@ -593,8 +597,9 @@ TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
 	}
 
 	mbedtls_pk_init(&ctx);
-	res = mbedtls_pk_setup(&ctx, pk_info);
-	if (res != 0) {
+	lmd_res = mbedtls_pk_setup(&ctx, pk_info);
+	if (lmd_res) {
+		res = get_tee_result(lmd_res);
 		goto out;
 	}
 
@@ -643,8 +648,10 @@ TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
 	res = TEE_SUCCESS;
 out:
 	/* Reset mpi to skip freeing here, those mpis will be freed with key */
-	mbedtls_mpi_init(&rsa->E);
-	mbedtls_mpi_init(&rsa->N);
+	if (rsa) {
+		mbedtls_mpi_init(&rsa->E);
+		mbedtls_mpi_init(&rsa->N);
+	}
 	mbedtls_pk_free(&ctx);
 	return res;
 }
@@ -678,15 +685,16 @@ TEE_Result sw_crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	}
 
 	mbedtls_pk_init(&ctx);
-	res = mbedtls_pk_setup(&ctx, pk_info);
-	if (res != 0) {
+	lmd_res = mbedtls_pk_setup(&ctx, pk_info);
+	if (lmd_res) {
+		res = get_tee_result(lmd_res);
 		goto err;
 	}
 
 	rsa = ctx.pk_ctx;
 	res = rsa_complete_from_key_pair(rsa, key);
 	if (res)
-		return res;
+		goto err;
 
 	switch (algo) {
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
@@ -791,8 +799,9 @@ TEE_Result sw_crypto_acipher_rsassa_verify(uint32_t algo,
 	}
 
 	mbedtls_pk_init(&ctx);
-	res = mbedtls_pk_setup(&ctx, pk_info);
-	if (res != 0) {
+	lmd_res = mbedtls_pk_setup(&ctx, pk_info);
+	if (lmd_res) {
+		res = get_tee_result(lmd_res);
 		goto err;
 	}
 
@@ -870,8 +879,10 @@ err:
 out:
 	FTMN_CALLEE_DONE_CHECK(&ftmn, FTMN_INCR0, FTMN_STEP_COUNT(1), res);
 	/* Reset mpi to skip freeing here, those mpis will be freed with key */
-	mbedtls_mpi_init(&rsa->E);
-	mbedtls_mpi_init(&rsa->N);
+	if (rsa) {
+		mbedtls_mpi_init(&rsa->E);
+		mbedtls_mpi_init(&rsa->N);
+	}
 	mbedtls_pk_free(&ctx);
 	return res;
 }

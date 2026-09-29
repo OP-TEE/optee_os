@@ -68,6 +68,7 @@
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <kernel/tee_misc.h>
 #include <kernel/thread.h>
 #include <kernel/tlb_helpers.h>
 #include <memtag.h>
@@ -223,7 +224,8 @@
 				 XLAT_TABLE_ASLR_EXTRA + \
 				 XLAT_TABLE_USER_EXTRA + \
 				 IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS) + \
-				 IS_ENABLED(CFG_DYN_CONFIG))
+				 IS_ENABLED(CFG_DYN_CONFIG) + \
+				 (3 * IS_ENABLED(CFG_CORE_SANITIZE_UNDEFINED)))
 #endif /*!MAX_XLAT_TABLES*/
 
 #if (CORE_MMU_BASE_TABLE_LEVEL == 0)
@@ -290,6 +292,13 @@ static uint64_t xlat_tables_ul1[XLAT_TABLE_SIZE * CFG_NUM_THREADS /
 static l1_idx_t user_l1_table_idx[NUM_BASE_TABLES * CFG_TEE_CORE_NB_CORE];
 #endif
 #endif
+
+/*
+ * Level 1 entries at this index and above start outside the 32-bit VA space.
+ * Use it as the exclusive upper bound when selecting a slot for 32-bit TAs.
+ */
+#define ARM32_USER_VA_SLOT_LIMIT \
+	((UINT32_MAX >> L1_XLAT_ADDRESS_SHIFT) + 1)
 
 /*
  * TAs page table entry inside a level 1 page table.
@@ -887,6 +896,37 @@ static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 	}
 }
 
+bool arch_mem_map_allows_user_va(const struct memory_map *mem_map,
+				 vaddr_t id_map_start, vaddr_t id_map_end)
+{
+	const size_t slot_size = BIT64(L1_XLAT_ADDRESS_SHIFT);
+	vaddr_t id_start = ROUNDDOWN(id_map_start, SMALL_PAGE_SIZE);
+	size_t id_size = ROUNDUP(id_map_end, SMALL_PAGE_SIZE) - id_start;
+	unsigned int slot = 0;
+	size_t n = 0;
+
+	/*
+	 * The user mapping must occupy an unused level 1 entry in the 32-bit
+	 * VA range [1GB, 4GB[. Account for the identity mapping too, since it
+	 * has not yet been added to @mem_map.
+	 */
+	for (slot = 1; slot < ARM32_USER_VA_SLOT_LIMIT; slot++) {
+		vaddr_t slot_base = (vaddr_t)slot * slot_size;
+		bool used = core_is_buffer_intersect(slot_base, slot_size,
+						     id_start, id_size);
+
+		for (n = 0; !used && n < mem_map->count; n++)
+			used = core_is_buffer_intersect(slot_base, slot_size,
+							mem_map->map[n].va,
+							mem_map->map[n].size);
+
+		if (!used)
+			return true;
+	}
+
+	return false;
+}
+
 /*
  * In order to support 32-bit TAs we will have to find
  * a user VA base in the region [1GB, 4GB[.
@@ -944,7 +984,7 @@ static void set_user_va_idx(struct mmu_partition *prtn)
 	 * Search level 1 table (i.e. 1GB mapping per entry) for
 	 * an empty entry in the range [1GB, 4GB[.
 	 */
-	for (n = 1; n < 4; n++) {
+	for (n = 1; n < ARM32_USER_VA_SLOT_LIMIT; n++) {
 		if ((tbl[n] & DESC_ENTRY_TYPE_MASK) == INVALID_DESC) {
 			user_va_idx = n;
 			break;

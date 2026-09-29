@@ -439,11 +439,12 @@ struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie)
 	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
 	rs = reg_shm_find_unlocked(cookie);
 	if (rs) {
-		m = mobj_get(&rs->mobj);
+		if (!rs->releasing)
+			m = mobj_get(&rs->mobj);
 		goto out;
 	}
 	rm = protmem_find_unlocked(cookie);
-	if (rm)
+	if (rm && !rm->releasing)
 		m = mobj_get(&rm->mobj);
 
 out:

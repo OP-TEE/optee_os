@@ -901,6 +901,7 @@ TEE_Result TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
+	__utee_check_out_annotation(buffer, size);
 	__utee_check_out_annotation(count, sizeof(*count));
 
 	cnt64 = *count;

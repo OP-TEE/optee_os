@@ -9,9 +9,10 @@
 #include <mempool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tomcrypt_private.h>
 #include <tomcrypt_mp.h>
 #include <util.h>
+
+#include "acipher_helpers.h"
 
 #if defined(_CFG_CORE_LTC_PAGER)
 #include <mm/core_mmu.h>
@@ -250,6 +251,23 @@ static int unsigned_write(void *a, unsigned char *b)
 		return CRYPT_ERROR;
 
 	return CRYPT_OK;
+}
+
+TEE_Result mp_to_unsigned_bin2(void *mp, uint8_t *buf, size_t size)
+{
+	size_t mp_size = mp_unsigned_bin_size(mp);
+	int ltc_res = CRYPT_OK;
+
+	if (mp_size > size)
+		return TEE_ERROR_BAD_STATE;
+
+	ltc_res = mp_to_unsigned_bin(mp, buf + size - mp_size);
+	if (ltc_res == CRYPT_MEM)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
 }
 
 /* read */

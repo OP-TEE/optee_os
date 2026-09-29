@@ -64,11 +64,6 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	return TEE_SUCCESS;
 }
 
-/* This is a true RNG, no need for seeding */
-void plat_rng_init(void)
-{
-}
-
 static void atmel_trng_reset(void)
 {
 	uint32_t ctrl_val = TRNG_CTRL_WAKEY_VALUE << TRNG_CTRL_WAKEY_OFFSET;

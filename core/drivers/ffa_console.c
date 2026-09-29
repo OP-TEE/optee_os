@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION & AFFILIATES
  */
 
 #include <compiler.h>

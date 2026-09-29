@@ -86,6 +86,63 @@
 #define FIREWALL_DDR_BASE 0xff534000
 #define FIREWALL_DDR_SIZE SIZE_K(16)
 
+#elif defined(PLATFORM_FLAVOR_rk3506)
+
+/*
+ * RK3506B: Cortex-A7 x3, ARMv7-A, GICv2 (gic-400). DRAM at 0x0; the
+ * U-Boot FIT loads tee.bin at CFG_TZDRAM_START (0x18000000 default,
+ * 0x1000 with CFG_RK3506_TEE_HW_ISOLATE).
+ */
+
+#define GIC_BASE		0xff580000
+#define GIC_SIZE		SIZE_K(64)
+#define GICD_BASE		(GIC_BASE + 0x1000)
+#define GICC_BASE		(GIC_BASE + 0x2000)
+
+#define UART0_BASE		0xff0a0000
+#define UART0_SIZE		SIZE_K(64)
+
+/*
+ * Internal SRAM (48 KB) at 0xfff80000.
+ *
+ * The BootROM parks the secondary cores in a WFE spin on a shared SRAM
+ * mailbox at IRAM_BASE (flag word +0x04 polled for 0xdeadbeaf, entry
+ * word +0x08). To release a core, write the pen PA to the entry word,
+ * the magic to the flag word, then SEV. The pen and the per-core gate
+ * slots sit clear of the mailbox stub (IRAM_BASE..+0x0f) and of each
+ * other. See psci_rk3506.c / pen_rk3506.S.
+ */
+#define IRAM_BASE		0xfff80000
+#define IRAM_SIZE		SIZE_K(48)
+/* BootROM mailbox words (BootROM-defined; do not relocate). */
+#define RK3506_BROM_FLAG_PA	(IRAM_BASE + 0x04)	/* poll word */
+#define RK3506_BROM_ENTRY_PA	(IRAM_BASE + 0x08)	/* entry PA  */
+#define RK3506_BROM_MAGIC	0xdeadbeafu		/* release   */
+#define RK3506_PEN_PA		(IRAM_BASE + 0x0800)
+#define RK3506_SLOTS_PA		(IRAM_BASE + 0x0d00)
+
+/*
+ * System firewall / SGRF "slave-security" block at 0xff210000.
+ * Programmed by platform_secure_init() with the rk322x SLAVE_ALL_NS
+ * masked-write idiom to make peripherals (notably the UART0 console)
+ * non-secure-accessible; without it the NS world's first UART0 access
+ * external-aborts.
+ */
+#define FIREWALL_SYS_BASE	0xff210000
+#define FIREWALL_SYS_SIZE	SIZE_K(64)
+
+/*
+ * DDR firewall (FW_DDR) at 0xff5f0000. Register layout:
+ *   +0x00.. : region-map regs (128 KB granule, 0x7fff field encoding)
+ *   +0x20.. : per-master access regs (0xffffffff = NS-allow)
+ *   +0x30   : access reg (low byte significant)
+ *   +0x40   : control/enable reg, bit N = region N enable
+ * Field encodings follow the BSD-2 OP-TEE px30/rk3588 ports. See
+ * platform_rk3506.c.
+ */
+#define FIREWALL_DDR_BASE	0xff5f0000
+#define FIREWALL_DDR_SIZE	SIZE_K(64)
+
 #elif defined(PLATFORM_FLAVOR_rk3588)
 
 #define GIC_BASE 0xfe600000
@@ -183,6 +240,60 @@
 #define CFG_TZDRAM_SIZE 0x02000000
 
 /* Using dynamic SHM via shared-dma-pool in the kernel DTS */
+
+#elif defined(PLATFORM_FLAVOR_rk3576)
+
+#define GIC_BASE		0x2a700000
+#define GIC_SIZE		SIZE_K(64)
+#define GICD_BASE		(GIC_BASE + 0x1000)
+#define GICC_BASE		(GIC_BASE + 0x2000)
+
+#define UART0_BASE		0x2ad40000
+#define UART0_SIZE		SIZE_K(64)
+
+#define SYS_SGRF_BASE		0x26004000
+#define SYS_SGRF_SIZE		SIZE_K(4)
+
+#define SYS_SGRF_FW_BASE	0x26005000
+#define SYS_SGRF_FW_SIZE	SIZE_K(4)
+
+#define PMU0SGRF_BASE		0x26000000
+#define PMU0SGRF_SIZE		SIZE_K(4)
+
+#define PMU1SGRF_BASE		0x26002000
+#define PMU1SGRF_SIZE		SIZE_K(4)
+
+#define PMU1SGRF_FW_BASE	0x26003000
+#define PMU1SGRF_FW_SIZE	SIZE_K(4)
+
+#elif defined(PLATFORM_FLAVOR_rv1106)
+
+/* GIC-400 (GICv2) */
+#define GIC_BASE		0xff1f0000
+#define GIC_SIZE		SIZE_K(64)
+#define GICD_BASE		(GIC_BASE + 0x1000)
+#define GICC_BASE		(GIC_BASE + 0x2000)
+
+/* UART2 debug console */
+#define UART2_BASE		0xff4c0000
+#define UART2_SIZE		SIZE_K(64)
+
+/*
+ * System-firewall (SGRF) bases. PERI_SGRF gates the peripherals the NS world
+ * owns (including the UART2 console); CORE_SGRF gates the core/HPMCU domain.
+ * A 4 KiB page each covers the register offsets used here.
+ */
+#define PERI_SGRF_BASE		0xff070000
+#define PERI_SGRF_SIZE		SIZE_K(4)
+#define CORE_SGRF_BASE		0xff076000
+#define CORE_SGRF_SIZE		SIZE_K(4)
+
+/*
+ * DDR-firewall base. The FW_DDR region (RGN) and enable (CON) layout is the
+ * same IP as the upstream plat-rk3588 FW_DDR block; see platform_rv1106.c.
+ */
+#define FW_DDR_BASE		0xff900000
+#define FW_DDR_SIZE		SIZE_K(64)
 
 #else
 #error "Unknown platform flavor"

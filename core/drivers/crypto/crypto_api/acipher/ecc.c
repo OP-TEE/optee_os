@@ -118,6 +118,36 @@ static void ecc_free_public_key(struct ecc_public_key *key)
 }
 
 /*
+ * Check that an ECC public key is valid for use in ECDH
+ *
+ * @key   Public Key
+ */
+static TEE_Result ecc_validate_public_key(struct ecc_public_key *key)
+{
+	const struct crypto_ecc_public_ops *fallback = NULL;
+	const struct drvcrypt_ecc *driver_impl = NULL;
+
+	if (!key) {
+		CRYPTO_TRACE("Parameters error key is NULL");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	driver_impl = drvcrypt_get_ops(CRYPTO_ECC);
+	if (driver_impl && driver_impl->validate_publickey) {
+		CRYPTO_TRACE("ECC Public Key validate");
+		return driver_impl->validate_publickey(key);
+	}
+
+	fallback = crypto_asym_get_ecc_public_ops(TEE_TYPE_ECDH_PUBLIC_KEY);
+	if (fallback && fallback->validate) {
+		CRYPTO_TRACE("ECC Public Key validate (fallback)");
+		return fallback->validate(key);
+	}
+
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+/*
  * Generates an ECC keypair
  *
  * @key        Keypair
@@ -556,6 +586,7 @@ TEE_Result drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key,
 
 static const struct crypto_ecc_public_ops ecc_public_key_ops = {
 	.free = ecc_free_public_key,
+	.validate = ecc_validate_public_key,
 	.verify = ecc_verify,
 	.encrypt = ecc_encrypt,
 };

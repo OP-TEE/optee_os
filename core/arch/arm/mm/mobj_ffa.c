@@ -230,7 +230,7 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
 		m = ffa_shm_new(num_pages);
 		break;
 	case MOBJ_USE_CASE_SEC_VIDEO_PLAY:
-	case MOBJ_USE_CASE_TRUSED_UI:
+	case MOBJ_USE_CASE_TRUSTED_UI:
 		m = ffa_prm_new(num_pages, use_case);
 		break;
 	default:
