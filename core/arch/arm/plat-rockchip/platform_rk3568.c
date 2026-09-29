@@ -23,7 +23,7 @@
 #define FIREWALL_DDR_FW_DDR_RGN_NUM 8
 #define FIREWALL_DDR_FW_DDR_MST_NUM 6
 
-#define RG_MAP_SECURE(top, base) ((((top)-1) << 16) | (base))
+#define RG_MAP_SECURE(top, base) (((((top)-1) & 0xffff) << 16) | ((base) & 0xffff))
 
 #define HW_UNIQUE_KEY_INDEX 0x2B0
 
