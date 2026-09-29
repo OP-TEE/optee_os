@@ -99,4 +99,11 @@
  */
 #define PTA_CMD_ICE_GET_RAW_SECRET    5
 
+/*
+ * Does ICE support wrapped keys via Key Manager?
+ *
+ * [out]  params[0].value.a          Wrapped key supported
+ */
+#define PTA_CMD_ICE_HAS_WRAPPED_KEY_SUPPORT    6
+
 #endif /* __PTA_QCOM_ICE_H */
