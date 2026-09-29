@@ -10,7 +10,7 @@ TEE_Result rk_otp_s_read(uint32_t offset, uint32_t len, uint8_t *data);
 
 TEE_Result rk_otp_s_write(uint32_t offset, uint32_t len, const uint8_t *data);
 
-#if defined(PLATFORM_FLAVOR_rk3568)
+#if defined(PLATFORM_FLAVOR_rk356x)
 
 /*
 * These constants have been taken from the rk3568's TRM, reverse engineering the publicly available

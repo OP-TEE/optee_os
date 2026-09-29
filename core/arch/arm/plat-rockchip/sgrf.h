@@ -1,7 +1,7 @@
 #ifndef PLAT_ROCKCHIP_SGRF_H
 #define PLAT_ROCKCHIP_SGRF_H
 
-#if defined(PLATFORM_FLAVOR_rk3568)
+#if defined(PLATFORM_FLAVOR_rk356x)
 
 /* SGRF controller register */
 #define SGRF_CON_OTP_CKE (1 << 2)
@@ -20,6 +20,6 @@
 
 #define SGRF_OTPC_CKE_SET BIT_WITH_WMSK(2)
 
-#endif /* PLATFORM_FLAVOR_rk3568 */
+#endif /* PLATFORM_FLAVOR_rk356x */
 
 #endif /* PLAT_ROCKCHIP_SGRF_H */

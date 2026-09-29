@@ -184,7 +184,7 @@
 #define ROCKCHIP_OTP_RSA_HASH_INDEX		0x270
 #define ROCKCHIP_OTP_RSA_HASH_SIZE		0x8
 
-#elif defined(PLATFORM_FLAVOR_rk3568)
+#elif defined(PLATFORM_FLAVOR_rk356x)
 
 #define GIC_BASE		0xfd400000
 #define GIC_SIZE		SIZE_K(64)

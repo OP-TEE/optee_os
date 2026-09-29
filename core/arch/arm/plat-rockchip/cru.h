@@ -49,7 +49,7 @@ enum plls_id {
 #define PLL_SLOW_MODE(pll)		BITS_WITH_WMASK(0, 1, PLL_MODE_BIT(pll))
 #define PLL_NORM_MODE(pll)		BITS_WITH_WMASK(1, 1, PLL_MODE_BIT(pll))
 
-#elif defined(PLATFORM_FLAVOR_rk3568)
+#elif defined(PLATFORM_FLAVOR_rk356x)
 
 #define CRU_GATE_CON(n)			(0x0300u + (n * 4))
 
