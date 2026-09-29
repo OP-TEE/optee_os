@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <util.h>
 
 #ifdef CFG_MARVELL_EHSM_CN20K
 /* Number of mailboxes available in eHSM */
@@ -16,18 +17,23 @@
 
 /* Maximum number of context slots allowed in eHSM */
 #define EHSM_AES_MAX_CONTEXT_SLOTS	9
-#endif
-
-#ifdef CFG_MARVELL_EHSM_CN10K
-/* Number of mailboxes available in eHSM */
-#define EHSM_NUM_MAILBOXES		2
-#endif
 
 enum ehsm_mailboxes {
 	EHSM_MAILBOX0 = 0,
 	EHSM_MAILBOX1 = 1,
 	EHSM_MAILBOX2 = 2,
 };
+#endif
+
+#ifdef CFG_MARVELL_EHSM_CN10K
+/* Number of mailboxes available in eHSM */
+#define EHSM_NUM_MAILBOXES		2
+
+enum ehsm_mailboxes {
+	EHSM_MAILBOX0 = 0,
+	EHSM_MAILBOX1 = 1,
+};
+#endif
 
 #define EHSM_NUM_ARGS			16
 #define EHSM_ALIGNMENT			32UL
@@ -677,10 +683,10 @@ struct ehsm_dtd {
 
 struct ehsm_handle {
 	/* Base register address for EHSM */
-	uint32_t	    *ehsm_base;
+	vaddr_t             ehsm_base;
 	uint32_t            last_ehsm_status;
 	uint32_t            mbox;        /* Mailbox number */
-	uintptr_t           mbox_offset;
+	vaddr_t             mbox_offset;
 	struct ehsm_command *ehsm_cmd;
 	uintptr_t           host_int_reg;
 	uintptr_t           cmd_status_reg;
@@ -691,11 +697,11 @@ struct ehsm_handle {
 
 /*
  * @param[in]   addr
- * @return      1 if aligned, 0 if not aligned
+ * @return      true if aligned, false if not aligned
  */
-static inline int ehsm_is_aligned(uint32_t addr)
+static inline bool ehsm_is_aligned(uint32_t addr)
 {
-	return !(addr % EHSM_ALIGNMENT);
+	return IS_ALIGNED(addr, EHSM_ALIGNMENT);
 }
 
 /*
@@ -710,11 +716,11 @@ static inline uint32_t ehsm_get_last_status(const struct ehsm_handle *handle)
 
 /*
  * @param[in]   ptr
- * @return      1 if aligned, 0 if not aligned
+ * @return      true if aligned, false if not aligned
  */
-static inline int ehsm_ptr_is_aligned(const void *ptr)
+static inline bool ehsm_ptr_is_aligned(const void *ptr)
 {
-	return !((unsigned long)ptr % EHSM_ALIGNMENT);
+	return IS_ALIGNED((vaddr_t)ptr, EHSM_ALIGNMENT);
 }
 
 /*
@@ -723,9 +729,9 @@ static inline int ehsm_ptr_is_aligned(const void *ptr)
  * @param[out]  handle  pointer to handle
  * @param       mbox    number to use
  *
- * @return      status
+ * @return      enum sec_return
  */
-int ehsm_initialize(struct ehsm_handle *handle, unsigned int mbox);
+enum sec_return ehsm_initialize(struct ehsm_handle *handle, unsigned int mbox);
 
 /*
  * Returns if the handle has been initialized or not.
@@ -738,13 +744,6 @@ static inline int ehsm_is_initialized(const struct ehsm_handle *handle)
 {
 	return handle->initialized;
 }
-
-/*
- * clear a command to the eHSM
- *
- * @param	cmd	pointer to command data structure
- */
-void ehsm_clear_command(struct ehsm_command *cmd);
 
 /*
  * Send a command to the eHSM and wait for a response

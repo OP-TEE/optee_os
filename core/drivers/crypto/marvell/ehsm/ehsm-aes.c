@@ -5,12 +5,32 @@
 
 #include <stdint.h>
 
-#include "ehsm.h"
-#include "ehsm-aes.h"
-#include "ehsm-hal.h"
-#include "ehsm-security.h"
-/* hw_status sentinel: hardware was not invoked */
-#define EHSM_STATUS_NOT_CALLED  ((enum ehsm_status)-1)
+#include <ehsm.h>
+#include <ehsm-aes.h>
+#include <ehsm-hal.h>
+#include <ehsm-security.h>
+
+static inline struct ehsm_result ehsm_hw_result(enum ehsm_status estat)
+{
+	struct ehsm_result res = {
+		.sec_ret = SEC_HW_FAILURE,
+		.hw_status = estat,
+	};
+
+	if (estat == STATUS_SUCCESS)
+		res.sec_ret = SEC_NO_ERROR;
+
+	return res;
+}
+
+static inline struct ehsm_result ehsm_err_result(enum sec_return sec_ret)
+{
+	return (struct ehsm_result){
+		.sec_ret   = sec_ret,
+		/* Hardware was not invoked */
+		.hw_status = STATUS_LAST_ONE,
+	};
+}
 
 struct ehsm_result ehsm_aes_zeroize(struct ehsm_handle *handle)
 {
@@ -19,9 +39,7 @@ struct ehsm_result ehsm_aes_zeroize(struct ehsm_handle *handle)
 
 	cmd.opcode = BCM_AES_ZEROIZE;
 	estat = ehsm_command(handle, &cmd);
-	return (struct ehsm_result){ .sec_ret = (estat == STATUS_SUCCESS) ?
-				     SEC_NO_ERROR : SEC_HW_FAILURE,
-				     .hw_status = estat };
+	return ehsm_hw_result(estat);
 }
 
 struct ehsm_result ehsm_aes_init(struct ehsm_handle *handle,
@@ -34,22 +52,23 @@ struct ehsm_result ehsm_aes_init(struct ehsm_handle *handle,
 	struct ehsm_command cmd = { };
 	enum ehsm_status estat = STATUS_SUCCESS;
 
-	if (aes_mode == EHSM_AES_MODE_CTR) {
+	switch (aes_mode) {
+	case EHSM_AES_MODE_CTR:
 		if (ctr_modular >= 128)
-			return (struct ehsm_result){
-				.sec_ret   = SEC_INVALID_PARAMETER,
-				.hw_status = EHSM_STATUS_NOT_CALLED,
-			};
-	} else if (aes_mode == EHSM_AES_MODE_GCM) {
-		return (struct ehsm_result){
-			.sec_ret   = SEC_INVALID_PARAMETER,
-			.hw_status = EHSM_STATUS_NOT_CALLED,
-		};
-	} else if (ctr_modular != 0) {
-		return (struct ehsm_result){
-			.sec_ret   = SEC_INVALID_PARAMETER,
-			.hw_status = EHSM_STATUS_NOT_CALLED,
-		};
+			return ehsm_err_result(SEC_INVALID_PARAMETER);
+		break;
+	case EHSM_AES_MODE_ECB:
+	case EHSM_AES_MODE_CBC:
+	case EHSM_AES_MODE_XTS:
+	case EHSM_AES_MODE_KEY_WRAP:
+	case EHSM_AES_MODE_CFB:
+	case EHSM_AES_MODE_OFB:
+		if (ctr_modular)
+			return ehsm_err_result(SEC_INVALID_PARAMETER);
+		break;
+	case EHSM_AES_MODE_GCM:
+	default:
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
 	}
 
 	switch (key_size) {
@@ -58,10 +77,7 @@ struct ehsm_result ehsm_aes_init(struct ehsm_handle *handle,
 	case EHSM_AES_KEY_256:
 		break;
 	default:
-		return (struct ehsm_result){
-			.sec_ret   = SEC_INVALID_PARAMETER,
-			.hw_status = EHSM_STATUS_NOT_CALLED,
-		};
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
 	}
 
 	cmd.args[0] = decrypt;
@@ -71,9 +87,7 @@ struct ehsm_result ehsm_aes_init(struct ehsm_handle *handle,
 	cmd.args[8] = endian_swap;
 	cmd.opcode = BCM_AES_INIT;
 	estat = ehsm_command(handle, &cmd);
-	return (struct ehsm_result){ .sec_ret = (estat == STATUS_SUCCESS) ?
-				     SEC_NO_ERROR : SEC_HW_FAILURE,
-				     .hw_status = estat };
+	return ehsm_hw_result(estat);
 }
 
 struct ehsm_result ehsm_aes_gcm_init(struct ehsm_handle *handle,
@@ -87,32 +101,25 @@ struct ehsm_result ehsm_aes_gcm_init(struct ehsm_handle *handle,
 	struct ehsm_command cmd = { };
 	enum ehsm_status estat = STATUS_SUCCESS;
 
+	if (tag_size < 1 || tag_size > 16)
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
+
+	if (iv_size == 0 && (!iv || !ehsm_ptr_is_aligned(iv)))
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
+
 	cmd.args[0] = decrypt;
 	cmd.args[1] = aad_size;
-	if (tag_size < 1 || tag_size > 16)
-		return (struct ehsm_result){
-			.sec_ret   = SEC_INVALID_PARAMETER,
-			.hw_status = EHSM_STATUS_NOT_CALLED,
-		};
 	cmd.args[2] = tag_size;
 	cmd.args[3] = iv_size;
 	if (iv_size == 0) {
-#ifdef CFG_MARVELL_EHSM_CN10K
 		cmd.args[4] = iv[0];
 		cmd.args[5] = iv[1];
 		cmd.args[6] = iv[2];
-#else
-		cmd.args[4] = iv[2];
-		cmd.args[5] = iv[1];
-		cmd.args[6] = iv[0];
-#endif
 	}
 	cmd.args[7] = endian_swap;
 	cmd.opcode = BCM_AES_GCM_INIT;
 	estat = ehsm_command(handle, &cmd);
-	return (struct ehsm_result){ .sec_ret = (estat == STATUS_SUCCESS) ?
-				     SEC_NO_ERROR : SEC_HW_FAILURE,
-				     .hw_status = estat };
+	return ehsm_hw_result(estat);
 }
 
 struct ehsm_result ehsm_aes_load_key(struct ehsm_handle *handle,
@@ -124,6 +131,18 @@ struct ehsm_result ehsm_aes_load_key(struct ehsm_handle *handle,
 	struct ehsm_command cmd = { };
 	enum ehsm_status estat = STATUS_SUCCESS;
 
+	if (!key || !ehsm_ptr_is_aligned(key))
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
+
+	switch (key_size) {
+	case EHSM_AES_KEY_128:
+	case EHSM_AES_KEY_192:
+	case EHSM_AES_KEY_256:
+		break;
+	default:
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
+	}
+
 	cmd.args[0] = key_size;
 	cmd.args[1] = ehsm_addr_low(key);
 	cmd.args[2] = ehsm_addr_hi(key);
@@ -131,9 +150,7 @@ struct ehsm_result ehsm_aes_load_key(struct ehsm_handle *handle,
 	cmd.args[5] = endian_swap;
 	cmd.opcode = BCM_AES_LOAD_KEY;
 	estat = ehsm_command(handle, &cmd);
-	return (struct ehsm_result){ .sec_ret = (estat == STATUS_SUCCESS) ?
-				     SEC_NO_ERROR : SEC_HW_FAILURE,
-				     .hw_status = estat };
+	return ehsm_hw_result(estat);
 }
 
 struct ehsm_result ehsm_aes_load_iv(struct ehsm_handle *handle,
@@ -143,14 +160,15 @@ struct ehsm_result ehsm_aes_load_iv(struct ehsm_handle *handle,
 	struct ehsm_command cmd = { };
 	enum ehsm_status estat = STATUS_SUCCESS;
 
+	if (!iv || !ehsm_ptr_is_aligned(iv))
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
+
 	cmd.args[0] = ehsm_addr_low(iv);
 	cmd.args[1] = ehsm_addr_hi(iv);
 	cmd.args[3] = endian_swap;
 	cmd.opcode = BCM_AES_LOAD_IV;
 	estat = ehsm_command(handle, &cmd);
-	return (struct ehsm_result){ .sec_ret = (estat == STATUS_SUCCESS) ?
-				     SEC_NO_ERROR : SEC_HW_FAILURE,
-				     .hw_status = estat };
+	return ehsm_hw_result(estat);
 }
 
 struct ehsm_result ehsm_aes_process(struct ehsm_handle *handle,
@@ -160,12 +178,18 @@ struct ehsm_result ehsm_aes_process(struct ehsm_handle *handle,
 				    uint32_t timeout,
 				    bool is_new,
 				    bool is_final,
-				    bool block_tag_gen __maybe_unused,
+				    bool block_tag_gen,
 				    struct ehsm_dtd *src_list,
 				    struct ehsm_dtd *dest_list)
 {
 	struct ehsm_command cmd = { };
 	enum ehsm_status estat = STATUS_SUCCESS;
+
+	if ((src && !ehsm_ptr_is_aligned(src)) ||
+	    (dest && !ehsm_ptr_is_aligned(dest)) ||
+	    (src_list && !ehsm_ptr_is_aligned(src_list)) ||
+	    (dest_list && !ehsm_ptr_is_aligned(dest_list)))
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
 
 	if (src) {
 		cmd.args[0] = ehsm_addr_low(src);
@@ -180,9 +204,8 @@ struct ehsm_result ehsm_aes_process(struct ehsm_handle *handle,
 	cmd.args[6] = is_new;
 	cmd.args[8] = timeout;
 	cmd.args[10] = is_final;
-#ifdef CFG_MARVELL_EHSM_CN20K
-	cmd.args[11] = block_tag_gen;
-#endif
+	if (IS_ENABLED(CFG_MARVELL_EHSM_CN20K))
+		cmd.args[11] = block_tag_gen;
 	if (src_list) {
 		cmd.args[12] = ehsm_addr_low(src_list);
 		cmd.args[13] = ehsm_addr_hi(src_list);
@@ -193,9 +216,7 @@ struct ehsm_result ehsm_aes_process(struct ehsm_handle *handle,
 	}
 	cmd.opcode = BCM_AES_PROCESS;
 	estat = ehsm_command(handle, &cmd);
-	return (struct ehsm_result){ .sec_ret = (estat == STATUS_SUCCESS) ?
-				     SEC_NO_ERROR : SEC_HW_FAILURE,
-				     .hw_status = estat };
+	return ehsm_hw_result(estat);
 }
 
 #ifdef CFG_EHSM_CONTEXT_STORE_SUPPORT
@@ -206,6 +227,13 @@ struct ehsm_result ehsm_context_store(struct ehsm_handle *handle,
 {
 	struct ehsm_command cmd = { };
 	enum ehsm_status estat = STATUS_SUCCESS;
+
+	if (engine_id > CONTEXT_HMAC)
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
+
+	if ((pcontextid && !ehsm_ptr_is_aligned(pcontextid)) ||
+	    (ptoken && !ehsm_ptr_is_aligned(ptoken)))
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
 
 	cmd.args[0] = engine_id;
 
@@ -219,9 +247,7 @@ struct ehsm_result ehsm_context_store(struct ehsm_handle *handle,
 	}
 	cmd.opcode = EHSM_CONTEXT_STORE;
 	estat = ehsm_command(handle, &cmd);
-	return (struct ehsm_result){ .sec_ret = (estat == STATUS_SUCCESS) ?
-				     SEC_NO_ERROR : SEC_HW_FAILURE,
-				     .hw_status = estat };
+	return ehsm_hw_result(estat);
 }
 
 struct ehsm_result ehsm_context_load(struct ehsm_handle *handle,
@@ -232,6 +258,12 @@ struct ehsm_result ehsm_context_load(struct ehsm_handle *handle,
 	struct ehsm_command cmd = { };
 	enum ehsm_status estat = STATUS_SUCCESS;
 
+	if (engine_id > CONTEXT_HMAC)
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
+
+	if (ptoken && !ehsm_ptr_is_aligned(ptoken))
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
+
 	cmd.args[0] = engine_id;
 	cmd.args[1] = context_id;
 
@@ -241,9 +273,7 @@ struct ehsm_result ehsm_context_load(struct ehsm_handle *handle,
 	}
 	cmd.opcode = EHSM_CONTEXT_LOAD;
 	estat = ehsm_command(handle, &cmd);
-	return (struct ehsm_result){ .sec_ret = (estat == STATUS_SUCCESS) ?
-				     SEC_NO_ERROR : SEC_HW_FAILURE,
-				     .hw_status = estat };
+	return ehsm_hw_result(estat);
 }
 
 struct ehsm_result ehsm_context_release(struct ehsm_handle *handle,
@@ -254,6 +284,12 @@ struct ehsm_result ehsm_context_release(struct ehsm_handle *handle,
 	struct ehsm_command cmd = { };
 	enum ehsm_status estat = STATUS_SUCCESS;
 
+	if (engine_id > CONTEXT_HMAC)
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
+
+	if (ptoken && !ehsm_ptr_is_aligned(ptoken))
+		return ehsm_err_result(SEC_INVALID_PARAMETER);
+
 	cmd.args[0] = engine_id;
 	cmd.args[1] = context_id;
 
@@ -263,8 +299,6 @@ struct ehsm_result ehsm_context_release(struct ehsm_handle *handle,
 	}
 	cmd.opcode = EHSM_CONTEXT_RELEASE;
 	estat = ehsm_command(handle, &cmd);
-	return (struct ehsm_result){ .sec_ret = (estat == STATUS_SUCCESS) ?
-				     SEC_NO_ERROR : SEC_HW_FAILURE,
-				     .hw_status = estat };
+	return ehsm_hw_result(estat);
 }
 #endif

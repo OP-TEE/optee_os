@@ -8,8 +8,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "ehsm.h"
-#include "ehsm-security.h"
+#include <ehsm.h>
+#include <ehsm-security.h>
 
 struct ehsm_result {
 	enum sec_return  sec_ret;

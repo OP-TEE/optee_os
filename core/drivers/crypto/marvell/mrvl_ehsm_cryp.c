@@ -7,8 +7,8 @@
 #include <string.h>
 #include <trace.h>
 
-#include "ehsm.h"
-#include "ehsm-aes.h"
+#include <ehsm.h>
+#include <ehsm-aes.h>
 #include "mrvl_ehsm_cryp.h"
 
 static struct mutex ehsm_lock = MUTEX_INITIALIZER;
@@ -143,17 +143,17 @@ void mrvl_ehsm_aes_cryp_put(void)
 	mutex_unlock(engine.lock);
 }
 
-TEE_Result  mrvl_ehsm_aes_context_store(uint32_t *pcontext_id __maybe_unused)
+TEE_Result  mrvl_ehsm_aes_context_store(uint32_t *pcontext_id __unused)
 {
 	return TEE_SUCCESS;
 }
 
-TEE_Result  mrvl_ehsm_aes_context_load(uint32_t context_id __maybe_unused)
+TEE_Result  mrvl_ehsm_aes_context_load(uint32_t context_id __unused)
 {
 	return TEE_SUCCESS;
 }
 
-TEE_Result  mrvl_ehsm_aes_context_release(uint32_t context_id __maybe_unused)
+TEE_Result  mrvl_ehsm_aes_context_release(uint32_t context_id __unused)
 {
 	return TEE_SUCCESS;
 }
@@ -207,29 +207,25 @@ TEE_Result mrvl_ehsm_aes_gcm_init(bool is_dec, void *key_data, size_t key_size,
 
 	res = mrvl_ehsm_cryp_initialize();
 	if (res)
-		goto out;
+		return res;
 
 	r = ehsm_aes_zeroize(&engine.ehandle);
 	if (r.sec_ret != SEC_NO_ERROR) {
 		EMSG("eHSM aes zeroize failed, sec_ret: %u hw_status: %u",
 		     r.sec_ret, r.hw_status);
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	} else {
-		FMSG("eHSM aes zeroize passed, sec_ret: %u hw_status: %u",
-		     r.sec_ret, r.hw_status);
+		return TEE_ERROR_GENERIC;
 	}
+	FMSG("eHSM aes zeroize passed, sec_ret: %u hw_status: %u",
+	     r.sec_ret, r.hw_status);
 
 	r = ehsm_aes_load_key(&engine.ehandle, key_size * 8, key_data, 0, 0);
 	if (r.sec_ret != SEC_NO_ERROR) {
 		EMSG("eHSM load key failed, sec_ret: %u hw_status: %u",
 		     r.sec_ret, r.hw_status);
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	} else {
-		FMSG("eHSM load key passed, sec_ret: %u hw_status: %u",
-		     r.sec_ret, r.hw_status);
+		return TEE_ERROR_GENERIC;
 	}
+	FMSG("eHSM load key passed, sec_ret: %u hw_status: %u",
+	     r.sec_ret, r.hw_status);
 
 	/* Special case (iv_size = 0) to capture a 12-bytes input IV. */
 	if (iv_size == 12)
@@ -240,14 +236,11 @@ TEE_Result mrvl_ehsm_aes_gcm_init(bool is_dec, void *key_data, size_t key_size,
 	if (r.sec_ret != SEC_NO_ERROR) {
 		EMSG("eHSM aes gcm init failed, sec_ret: %u hw_status: %u",
 		     r.sec_ret, r.hw_status);
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	} else {
-		FMSG("eHSM aes gcm init passed, sec_ret: %u hw_status: %u",
-		     r.sec_ret, r.hw_status);
+		return TEE_ERROR_GENERIC;
 	}
+	FMSG("eHSM aes gcm init passed, sec_ret: %u hw_status: %u",
+	     r.sec_ret, r.hw_status);
 
-out:
 	return res;
 }
 
@@ -304,30 +297,26 @@ TEE_Result mrvl_ehsm_aes_init(uint8_t aes_mode, bool is_dec,
 
 	res = mrvl_ehsm_cryp_initialize();
 	if (res)
-		goto out;
+		return res;
 
 	r = ehsm_aes_zeroize(&engine.ehandle);
 	if (r.sec_ret != SEC_NO_ERROR) {
 		EMSG("eHSM aes zeroize failed, sec_ret: %u hw_status: %u",
 		     r.sec_ret, r.hw_status);
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	} else {
-		FMSG("eHSM aes zeroize passed, sec_ret: %u hw_status: %u",
-		     r.sec_ret, r.hw_status);
+		return TEE_ERROR_GENERIC;
 	}
+	FMSG("eHSM aes zeroize passed, sec_ret: %u hw_status: %u",
+	     r.sec_ret, r.hw_status);
 
 	r = ehsm_aes_load_key(&engine.ehandle, key_size * 8, key_data, 0,
 			      endian_swap);
 	if (r.sec_ret != SEC_NO_ERROR) {
 		EMSG("eHSM load key failed, sec_ret: %u hw_status: %u",
 		     r.sec_ret, r.hw_status);
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	} else {
-		FMSG("eHSM load key passed, sec_ret: %u hw_status: %u",
-		     r.sec_ret, r.hw_status);
+		return TEE_ERROR_GENERIC;
 	}
+	FMSG("eHSM load key passed, sec_ret: %u hw_status: %u",
+	     r.sec_ret, r.hw_status);
 
 	if (key2_size) {
 		r = ehsm_aes_load_key(&engine.ehandle, key2_size * 8,
@@ -335,12 +324,10 @@ TEE_Result mrvl_ehsm_aes_init(uint8_t aes_mode, bool is_dec,
 		if (r.sec_ret != SEC_NO_ERROR) {
 			EMSG("eHSM load key2 failed, sec_ret: %u hw_status: %u",
 			     r.sec_ret, r.hw_status);
-			res = TEE_ERROR_GENERIC;
-			goto out;
-		} else {
-			FMSG("eHSM load key2 passed, sec_ret: %u hw_status: %u",
-			     r.sec_ret, r.hw_status);
+			return TEE_ERROR_GENERIC;
 		}
+		FMSG("eHSM load key2 passed, sec_ret: %u hw_status: %u",
+		     r.sec_ret, r.hw_status);
 	}
 
 	r = ehsm_aes_init(&engine.ehandle, !is_dec, key_size * 8, aes_mode, 0,
@@ -348,37 +335,31 @@ TEE_Result mrvl_ehsm_aes_init(uint8_t aes_mode, bool is_dec,
 	if (r.sec_ret != SEC_NO_ERROR) {
 		EMSG("eHSM aes init failed, sec_ret: %u hw_status: %u",
 		     r.sec_ret, r.hw_status);
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	} else {
-		FMSG("eHSM aes init passed, sec_ret: %u hw_status: %u",
-		     r.sec_ret, r.hw_status);
+		return TEE_ERROR_GENERIC;
 	}
+	FMSG("eHSM aes init passed, sec_ret: %u hw_status: %u",
+	     r.sec_ret, r.hw_status);
 
 	r = ehsm_aes_load_iv(&engine.ehandle, iv_data, endian_swap);
 	if (r.sec_ret != SEC_NO_ERROR) {
 		EMSG("eHSM aes load iv failed, sec_ret: %u hw_status: %u",
 		     r.sec_ret, r.hw_status);
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	} else {
-		FMSG("eHSM aes load iv passed, sec_ret: %u hw_status: %u",
-		     r.sec_ret, r.hw_status);
+		return TEE_ERROR_GENERIC;
 	}
+	FMSG("eHSM aes load iv passed, sec_ret: %u hw_status: %u",
+	     r.sec_ret, r.hw_status);
 
-out:
 	return res;
 }
 
 TEE_Result mrvl_ehsm_aes_update_payload(const void *src, uint32_t src_len,
-					void *dst, uint32_t dst_len,
-					bool new, bool final)
+					void *dst, uint32_t dst_len, bool new)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct ehsm_result r = {};
 	uint32_t len = MIN(src_len, dst_len);
 
-	r = ehsm_aes_process(&engine.ehandle, src, dst, len, 0, new, final, 0,
+	r = ehsm_aes_process(&engine.ehandle, src, dst, len, 0, new, 0, 0,
 			     NULL, NULL);
 	if (r.sec_ret != SEC_NO_ERROR) {
 		EMSG("eHSM aes update failed, sec_ret: %u hw_status: %u",
@@ -386,6 +367,27 @@ TEE_Result mrvl_ehsm_aes_update_payload(const void *src, uint32_t src_len,
 		res = TEE_ERROR_GENERIC;
 	} else {
 		FMSG("eHSM aes update passed, sec_ret: %u hw_status: %u",
+		     r.sec_ret, r.hw_status);
+	}
+
+	return res;
+}
+
+TEE_Result mrvl_ehsm_aes_final(const void *src, uint32_t src_len,
+			       void *dst, uint32_t dst_len, bool new)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct ehsm_result r = {};
+	uint32_t len = MIN(src_len, dst_len);
+
+	r = ehsm_aes_process(&engine.ehandle, src, dst, len, 0, new, 1, 0,
+			     NULL, NULL);
+	if (r.sec_ret != SEC_NO_ERROR) {
+		EMSG("eHSM aes final failed, sec_ret: %u hw_status: %u",
+		     r.sec_ret, r.hw_status);
+		res = TEE_ERROR_GENERIC;
+	} else {
+		FMSG("eHSM aes final passed, sec_ret: %u hw_status: %u",
 		     r.sec_ret, r.hw_status);
 	}
 

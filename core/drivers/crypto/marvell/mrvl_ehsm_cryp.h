@@ -8,17 +8,14 @@
 #include <mempool.h>
 #include <tee_api_types.h>
 
-#include "ehsm.h"
-#include "ehsm-hal.h"
+#include <ehsm.h>
+#include <ehsm-hal.h>
 
 enum mrvl_cryp_algo_mode {
 	MRVL_CRYP_MODE_AES_ECB,
 	MRVL_CRYP_MODE_AES_CBC,
 	MRVL_CRYP_MODE_AES_CTR,
-	MRVL_CRYP_MODE_AES_XTS,
-	MRVL_CRYP_MODE_AES_KEY_WRAP,
-	MRVL_CRYP_MODE_AES_CFB,
-	MRVL_CRYP_MODE_AES_OFB
+	MRVL_CRYP_MODE_AES_XTS
 };
 
 /*
@@ -63,9 +60,9 @@ void mrvl_ehsm_cryp_unlock(void);
 bool mrvl_ehsm_aes_cryp_get(void);
 void mrvl_ehsm_aes_cryp_put(void);
 
-TEE_Result  mrvl_ehsm_aes_context_store(uint32_t *pcontext_id __maybe_unused);
-TEE_Result  mrvl_ehsm_aes_context_load(uint32_t context_id __maybe_unused);
-TEE_Result  mrvl_ehsm_aes_context_release(uint32_t context_id __maybe_unused);
+TEE_Result  mrvl_ehsm_aes_context_store(uint32_t *pcontext_id);
+TEE_Result  mrvl_ehsm_aes_context_load(uint32_t context_id);
+TEE_Result  mrvl_ehsm_aes_context_release(uint32_t context_id);
 
 void *mrvl_ehsm_mem_alloc(size_t size);
 void mrvl_ehsm_mem_free(void *ptr);
@@ -85,6 +82,7 @@ TEE_Result mrvl_ehsm_aes_init(uint8_t aes_mode, bool is_dec,
 			      void *key2_data, size_t key2_size,
 			      uint8_t *iv_data, bool endian_swap);
 TEE_Result mrvl_ehsm_aes_update_payload(const void *src, uint32_t src_len,
-					void *dst, uint32_t dst_len,
-					bool new, bool final);
+					void *dst, uint32_t dst_len, bool new);
+TEE_Result mrvl_ehsm_aes_final(const void *src, uint32_t src_len,
+			       void *dst, uint32_t dst_len, bool new);
 #endif /*__MRVL_EHSM_CRYP_H__*/
