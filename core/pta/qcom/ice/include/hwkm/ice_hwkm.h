@@ -6,6 +6,7 @@
 #ifndef __ICE_HWKM_H
 #define __ICE_HWKM_H
 
+#include <stdbool.h>
 #include <tee_api_types.h>
 
 #define ICE_HWKM_TZ_REGS_OFFSET		0x9000U
@@ -15,6 +16,12 @@
 #define ICE_RAW_SECRET_SIZE_BYTES       32U
 
 #ifdef CFG_QCOM_HWKM
+static inline
+bool has_wrapped_key_support(void)
+{
+	return true;
+}
+
 TEE_Result get_raw_secret_from_wrapped_key(const uint8_t *wrapped_blob,
 					   size_t wrapped_blob_len,
 					   uint8_t *raw_secret,
@@ -34,6 +41,12 @@ TEE_Result import_and_wrap_with_hw_key(const uint8_t *in_key, size_t in_key_len,
 
 TEE_Result generate_hw_wrapped_key(uint8_t *out_blob, size_t *out_blob_len);
 #else
+static inline
+bool has_wrapped_key_support(void)
+{
+	return false;
+}
+
 static inline TEE_Result
 get_raw_secret_from_wrapped_key(const uint8_t *wrapped_blob __unused,
 				size_t wrapped_blob_len __unused,
