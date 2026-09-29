@@ -25,6 +25,13 @@ struct bin_handle {
 	struct file *f;
 	size_t offs_bytes;
 	size_t size_bytes;
+	bool read_failed;
+	/*
+	 * Set once file_begin_load() registers this handle as @f's
+	 * loader, so later map_bin() calls for the same binary don't
+	 * wait on their own load. Cleared by end_load().
+	 */
+	bool is_loader;
 };
 
 static void unmap_or_panic(struct user_mode_ctx *uctx, vaddr_t va,
@@ -107,6 +114,33 @@ TEE_Result ldelf_syscall_unmap(vaddr_t va, size_t num_bytes)
 	return vm_unmap(uctx, va, sz);
 }
 
+/*
+ * No-op unless this handle is @f's registered loader; otherwise ends
+ * the load, promoting or dropping unverified slices per @verified.
+ *
+ * @uctx is NULL during session cleanup after ldelf has stopped
+ * running; only used to restore the vm context after a potential
+ * block below.
+ */
+static void end_load(struct bin_handle *binh, struct user_mode_ctx *uctx,
+		     bool verified)
+{
+	if (!binh->is_loader)
+		return;
+
+	if (!file_trylock(binh->f)) {
+		vm_set_ctx(NULL);
+		file_lock(binh->f);
+		if (uctx)
+			vm_set_ctx(uctx->ts_ctx);
+	}
+
+	file_end_load(binh->f, verified);
+	file_unlock(binh->f);
+
+	binh->is_loader = false;
+}
+
 static void bin_close(void *ptr)
 {
 	struct bin_handle *binh = ptr;
@@ -114,6 +148,12 @@ static void bin_close(void *ptr)
 	if (binh) {
 		if (binh->op && binh->h)
 			binh->op->close(binh->h);
+		/*
+		 * Still the loader here means teardown without going
+		 * through ldelf_syscall_close_bin() (e.g. ldelf
+		 * panicked mid-load); treat as failed.
+		 */
+		end_load(binh, NULL, false);
 		file_put(binh->f);
 	}
 	free(binh);
@@ -220,6 +260,7 @@ TEE_Result ldelf_syscall_close_bin(unsigned long handle)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = to_user_mode_ctx(sess->ctx);
 	struct system_ctx *sys_ctx = sess->user_ctx;
 	struct bin_handle *binh = NULL;
 
@@ -230,9 +271,15 @@ TEE_Result ldelf_syscall_close_bin(unsigned long handle)
 	if (!binh)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (binh->offs_bytes < binh->size_bytes)
+	if (binh->offs_bytes < binh->size_bytes) {
 		res = binh->op->read(binh->h, NULL, NULL,
 				     binh->size_bytes - binh->offs_bytes);
+		if (res)
+			binh->read_failed = true;
+	}
+
+	/* Binary fully consumed: promote or drop this load's slices. */
+	end_load(binh, uctx, !res && !binh->read_failed);
 
 	bin_close(binh);
 	if (handle_db_is_empty(&sys_ctx->db)) {
@@ -260,8 +307,10 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va_core,
 	if (offs_bytes > binh->offs_bytes) {
 		res = binh->op->read(binh->h, NULL, NULL,
 				     offs_bytes - binh->offs_bytes);
-		if (res)
+		if (res) {
+			binh->read_failed = true;
 			return res;
+		}
 		binh->offs_bytes = offs_bytes;
 	}
 
@@ -270,8 +319,10 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va_core,
 
 		res = binh->op->read(binh->h, (void *)va_core,
 				     (void *)va_user, rb);
-		if (res)
+		if (res) {
+			binh->read_failed = true;
 			return res;
+		}
 		if (va_core)
 			memset((uint8_t *)va_core + rb, 0, num_bytes - rb);
 		if (va_user) {
@@ -284,8 +335,10 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va_core,
 	} else {
 		res = binh->op->read(binh->h, (void *)va_core,
 				     (void *)va_user, num_bytes);
-		if (res)
+		if (res) {
+			binh->read_failed = true;
 			return res;
+		}
 		binh->offs_bytes = next_offs;
 	}
 
@@ -365,7 +418,37 @@ TEE_Result ldelf_syscall_map_bin(vaddr_t *va, size_t num_bytes,
 		vm_set_ctx(uctx->ts_ctx);
 	}
 	file_is_locked = true;
-	fs = file_find_slice(binh->f, offs_pages);
+
+	/*
+	 * Find a slice, or failing that for read-only shared data, prepare
+	 * so we have exclusive load rights to load the slice.
+	 */
+	while (true) {
+		fs = file_find_slice(binh->f, offs_pages);
+		if (fs || (flags & LDELF_MAP_FLAG_WRITEABLE) || binh->is_loader)
+			break;
+		if (file_begin_load(binh->f)) {
+			/*
+			 * file_begin_load() returned true.
+			 * Set now, before any failure below, so
+			 * end_load() still clears @f->loading and
+			 * unblocks eventual waiters even on failure.
+			 */
+			binh->is_loader = true;
+			break;
+		}
+		/*
+		 * Another thread is loading this file; wait and
+		 * retry (its slices become visible on success, or
+		 * we become the loader on failure).
+		 * !binh->is_loader keeps a handle from waiting on
+		 * its own load.
+		 */
+		vm_set_ctx(NULL);
+		file_wait_load(binh->f);
+		vm_set_ctx(uctx->ts_ctx);
+	}
+
 	if (fs) {
 		/* If there's registered slice it has to match */
 		if (fs->page_offset != offs_pages ||
@@ -433,6 +516,7 @@ TEE_Result ldelf_syscall_map_bin(vaddr_t *va, size_t num_bytes,
 		vm_set_ctx(uctx->ts_ctx);
 
 		if (!(flags & LDELF_MAP_FLAG_WRITEABLE)) {
+			/* Unverified until close_bin(), invisible till then. */
 			res = file_add_slice(binh->f, f, offs_pages);
 			if (res)
 				goto err_unmap_va;

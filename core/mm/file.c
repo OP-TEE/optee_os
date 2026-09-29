@@ -3,6 +3,7 @@
  * Copyright (c) 2019, Linaro Limited
  */
 
+#include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/refcount.h>
 #include <mm/file.h>
@@ -15,6 +16,7 @@
 
 struct file_slice_elem {
 	struct file_slice slice;
+	bool verified;
 	SLIST_ENTRY(file_slice_elem) link;
 };
 
@@ -24,6 +26,8 @@ struct file_slice_elem {
  * @taglen:	Byte length of @tag
  * @refc:	Reference counter
  * @link:	Linked list element
+ * @loading:	True while a thread is actively loading the file
+ * @load_cv:	Condvar used to wait for @loading to become false
  * @num_slices:	Number of elements in the @slices array below
  * @slices:	Array of file slices holding the fobjs of this file
  *
@@ -37,6 +41,8 @@ struct file {
 	struct refcount refc;
 	TAILQ_ENTRY(file) link;
 	struct mutex mu;
+	bool loading;
+	struct condvar load_cv;
 	SLIST_HEAD(, file_slice_elem) slice_head;
 };
 
@@ -66,6 +72,7 @@ static struct file *file_find_tag_unlocked(const uint8_t *tag,
 static void file_free(struct file *f)
 {
 	mutex_destroy(&f->mu);
+	condvar_destroy(&f->load_cv);
 
 	while (!SLIST_EMPTY(&f->slice_head)) {
 		struct file_slice_elem *fse = SLIST_FIRST(&f->slice_head);
@@ -78,14 +85,35 @@ static void file_free(struct file *f)
 	free(f);
 }
 
+/* Matches a slice regardless of verified state */
+static struct file_slice_elem *file_find_slice_elem(struct file *f,
+						    unsigned int page_offset)
+{
+	struct file_slice_elem *fse = NULL;
+
+	assert(mutex_is_locked(&f->mu));
+
+	SLIST_FOREACH(fse, &f->slice_head, link) {
+		struct file_slice *fs = &fse->slice;
+
+		if (page_offset >= fs->page_offset &&
+		    page_offset < fs->page_offset + fs->fobj->num_pages)
+			return fse;
+	}
+
+	return NULL;
+}
+
 TEE_Result file_add_slice(struct file *f, struct fobj *fobj,
 			  unsigned int page_offset)
 {
 	struct file_slice_elem *fse = NULL;
 	unsigned int s = 0;
 
-	/* Check for conflicts */
-	if (file_find_slice(f, page_offset))
+	assert(mutex_is_locked(&f->mu) && f->loading);
+
+	/* Check for conflicts against all slices, verified or not */
+	if (file_find_slice_elem(f, page_offset))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	fse = calloc(1, sizeof(*fse));
@@ -101,6 +129,7 @@ TEE_Result file_add_slice(struct file *f, struct fobj *fobj,
 	}
 
 	fse->slice.page_offset = page_offset;
+	fse->verified = false;
 	SLIST_INSERT_HEAD(&f->slice_head, fse, link);
 
 	return TEE_SUCCESS;
@@ -155,6 +184,7 @@ struct file *file_get_by_tag(const uint8_t *tag, unsigned int taglen)
 	f->taglen = taglen;
 	refcount_set(&f->refc, 1);
 	mutex_init(&f->mu);
+	condvar_init(&f->load_cv);
 	SLIST_INIT(&f->slice_head);
 	TAILQ_INSERT_HEAD(&file_head, f, link);
 
@@ -178,19 +208,57 @@ void file_put(struct file *f)
 
 struct file_slice *file_find_slice(struct file *f, unsigned int page_offset)
 {
-	struct file_slice_elem *fse = NULL;
+	struct file_slice_elem *fse = file_find_slice_elem(f, page_offset);
 
-	assert(f->mu.state);
-
-	SLIST_FOREACH(fse, &f->slice_head, link) {
-		struct file_slice *fs = &fse->slice;
-
-		if (page_offset >= fs->page_offset &&
-		    page_offset < fs->page_offset + fs->fobj->num_pages)
-			return fs;
-	}
+	if (fse && fse->verified)
+		return &fse->slice;
 
 	return NULL;
+}
+
+bool file_begin_load(struct file *f)
+{
+	assert(mutex_is_locked(&f->mu));
+
+	if (f->loading)
+		return false;
+
+	f->loading = true;
+	return true;
+}
+
+void file_wait_load(struct file *f)
+{
+	assert(mutex_is_locked(&f->mu));
+	assert(f->loading);
+
+	while (f->loading)
+		condvar_wait(&f->load_cv, &f->mu);
+}
+
+void file_end_load(struct file *f, bool verified)
+{
+	struct file_slice_elem *fse = NULL;
+	struct file_slice_elem *next = NULL;
+
+	assert(mutex_is_locked(&f->mu));
+	assert(f->loading);
+
+	SLIST_FOREACH_SAFE(fse, &f->slice_head, link, next) {
+		if (fse->verified)
+			continue;
+		if (verified) {
+			fse->verified = true;
+		} else {
+			SLIST_REMOVE(&f->slice_head, fse, file_slice_elem,
+				     link);
+			fobj_put(fse->slice.fobj);
+			free(fse);
+		}
+	}
+
+	f->loading = false;
+	condvar_broadcast(&f->load_cv);
 }
 
 void file_lock(struct file *f)
