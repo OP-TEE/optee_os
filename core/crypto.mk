@@ -60,6 +60,10 @@ CFG_CRYPTO_DH ?= y
 # ECC includes ECDSA and ECDH
 CFG_CRYPTO_ECC ?= y
 CFG_CRYPTO_SM2_PKE ?= y
+# The original OP-TEE C1 || C2 || C3 format matches the expired Internet-Draft
+# draft-shen-sm2-ecdsa-02, section 7.2.1 (it was never published as an RFC).
+# CFG_SM2_PKE_LEGACY=y for compatibility with older OP-TEE versions.
+$(call force, CFG_SM2_PKE_LEGACY,y)
 CFG_CRYPTO_SM2_DSA ?= y
 CFG_CRYPTO_SM2_KEP ?= y
 CFG_CRYPTO_ED25519 ?= y
