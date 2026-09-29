@@ -143,9 +143,14 @@ static TEE_Result mrvl_cipher_update(struct drvcrypt_cipher_update *dupdate)
 
 	memcpy(payload_buf, dupdate->src.data, payload_len);
 
-	ret = mrvl_ehsm_aes_update_payload(payload_buf, payload_len,
-					   dstdata_buf, dstdata_len,
-					   ctx->is_new, dupdate->last);
+	if (dupdate->last)
+		ret = mrvl_ehsm_aes_final(payload_buf, payload_len,
+					  dstdata_buf, dstdata_len,
+					  ctx->is_new);
+	else
+		ret = mrvl_ehsm_aes_update_payload(payload_buf, payload_len,
+						   dstdata_buf, dstdata_len,
+						   ctx->is_new);
 
 	if (ret != TEE_SUCCESS)
 		goto out;
@@ -198,7 +203,7 @@ static TEE_Result alloc_ctx(void **ctx, enum mrvl_cryp_algo_mode algo)
 	struct mrvl_cipher_ctx *c = NULL;
 
 	if (!mrvl_ehsm_aes_cryp_get()) {
-		DMSG("%s ehsm aes is busy, algo: %x\n", __func__, algo);
+		DMSG("ehsm aes is busy, algo: %x", algo);
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 
