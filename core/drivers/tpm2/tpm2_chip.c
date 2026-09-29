@@ -200,6 +200,7 @@ static void tpm2_dump_capability(struct tpm2_chip *chip)
 enum tpm2_result tpm2_chip_register(struct tpm2_chip *chip)
 {
 	enum tpm2_result ret = TPM2_OK;
+	TEE_Result res = TEE_SUCCESS;
 	uint8_t full = 1;
 
 	/* Only 1 tpm2 device is supported */
@@ -231,8 +232,14 @@ enum tpm2_result tpm2_chip_register(struct tpm2_chip *chip)
 	if (!ret)
 		tpm2_dump_capability(chip);
 
-	/* Register TPM2 as TCG provider */
-	if (tpm2_tcg_register())
+	/*
+	 * Register TPM2 as a TCG PCR provider when that framework is built
+	 * in. If it is not (tpm2_tcg_register() is the inline stub returning
+	 * TEE_ERROR_NOT_IMPLEMENTED), the chip is still usable directly, so
+	 * treat only a real registration failure as fatal.
+	 */
+	res = tpm2_tcg_register();
+	if (res && res != TEE_ERROR_NOT_IMPLEMENTED)
 		return TPM2_ERR_GENERIC;
 
 	return ret;
