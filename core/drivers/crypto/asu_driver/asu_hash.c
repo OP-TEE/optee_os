@@ -85,6 +85,7 @@ struct asu_hash_ctx {
 	uint32_t shastart;
 	uint8_t uniqueid;
 	uint8_t module;
+	bool initialized;
 };
 
 #if defined(CFG_AMD_ASU_HMAC)
@@ -121,6 +122,7 @@ struct asu_hmac_ctx {
 	uint8_t cmdid;
 	uint8_t hmacstart;
 	uint8_t uniqueid;
+	bool initialized;
 };
 #endif /* CFG_AMD_ASU_HMAC */
 
@@ -283,9 +285,12 @@ static TEE_Result asu_hash_update(struct asu_hash_ctx *asu_hashctx,
 		cache_operation(TEE_CACHEFLUSH, dma_buf, op.datasize);
 
 		ret = asu_sha_op(asu_hashctx, &op, asu_hashctx->module);
-		if (ret)
+		if (ret) {
+			asu_hashctx->initialized = false;
 			break;
+		}
 
+		asu_hashctx->initialized = true;
 		asu_hashctx->shastart = 0;
 		data += op.datasize;
 		remaining -= op.datasize;
@@ -385,8 +390,15 @@ static TEE_Result asu_hash_final(struct asu_hash_ctx *asu_hashctx,
 			op.xofenableflag = ASU_SHA_NEXT_XOF_DISABLE;
 
 		cache_operation(TEE_CACHEFLUSH, dma_digest, block_len);
+		/*
+		 * FINISH (or IPI failure) releases the SHA resource in
+		 * ASUFW, except SHAKE256 XOF continuation.
+		 */
+		if (op.xofenableflag == ASU_SHA_NEXT_XOF_DISABLE)
+			asu_hashctx->initialized = false;
 		ret = asu_sha_op(asu_hashctx, &op, asu_hashctx->module);
 		if (ret) {
+			asu_hashctx->initialized = false;
 			EMSG("SHA final operation failed");
 			goto out;
 		}
@@ -415,6 +427,55 @@ static TEE_Result asu_hash_do_final(struct crypto_hash_ctx *ctx,
 }
 
 /*
+ * asu_hash_free_engine() - Send FINISH with zero data to reset ASUFW SHA
+ * engine state when the client missed final.
+ */
+static void asu_hash_free_engine(struct asu_hash_ctx *asu_hashctx)
+{
+	struct asu_sha_op_cmd op = {};
+	uint8_t *dma_digest = NULL;
+	size_t cacheline_len = dcache_get_line_size();
+	TEE_Result ret = TEE_SUCCESS;
+
+	if (asu_hashctx->shamode == ASU_SHA_MODE_SHAKE256)
+		op.hashbufsize = ASU_SHAKE_256_MAX_HASH_LEN;
+	else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA256)
+		op.hashbufsize = ASU_SHA_256_HASH_LEN;
+	else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA384)
+		op.hashbufsize = ASU_SHA_384_HASH_LEN;
+	else if (asu_hashctx->shamode == ASU_SHA_MODE_SHA512)
+		op.hashbufsize = ASU_SHA_512_HASH_LEN;
+
+	dma_digest = memalign(cacheline_len,
+			      ROUNDUP(op.hashbufsize, cacheline_len));
+
+	asu_hashctx->cparam.priority = ASU_PRIORITY_HIGH;
+	asu_hashctx->cparam.cbhandler = NULL;
+	op.shamode = asu_hashctx->shamode;
+	op.islast = 1;
+	op.opflags = ASU_SHA_FINISH;
+	op.xofenableflag = ASU_SHA_NEXT_XOF_DISABLE;
+	if (dma_digest) {
+		op.hashaddr = virt_to_phys(dma_digest);
+		cache_operation(TEE_CACHEFLUSH, dma_digest, op.hashbufsize);
+	}
+
+	/*
+	 * ASUFW releases the SHA resource on FINISH or any IPI failure,
+	 * so still send even if the digest bounce buffer could not be
+	 * allocated.
+	 */
+	ret = asu_sha_op(asu_hashctx, &op, asu_hashctx->module);
+	asu_hashctx->initialized = false;
+	free(dma_digest);
+
+	if (ret) {
+		DMSG("fw had reset the engine on IPI failure as required.");
+		DMSG("Still we should not reach here.");
+	}
+}
+
+/*
  * asu_hash_ctx_free() - Free Private context.
  * @crypto_hash_ctx: crypto context used by the crypto_hash_*() functions
  * Release crypto engine and free private context memory.
@@ -425,6 +486,9 @@ static TEE_Result asu_hash_do_final(struct crypto_hash_ctx *ctx,
 static void asu_hash_ctx_free(struct crypto_hash_ctx *ctx)
 {
 	struct asu_hash_ctx *asu_hashctx = to_hash_ctx(ctx);
+
+	if (asu_hashctx->initialized)
+		asu_hash_free_engine(asu_hashctx);
 
 	asu_free_unique_id(asu_hashctx->uniqueid);
 	asu_hashctx->uniqueid = ASU_UNIQUE_ID_MAX;
@@ -489,6 +553,7 @@ static TEE_Result asu_hash_ctx_allocate(struct crypto_hash_ctx **ctx,
 
 	asu_hashctx->module = module;
 	asu_hashctx->shamode = shamode;
+	asu_hashctx->initialized = false;
 	asu_hashctx->uniqueid = asu_alloc_unique_id();
 
 	if (asu_hashctx->uniqueid == ASU_UNIQUE_ID_MAX) {
@@ -714,9 +779,12 @@ static TEE_Result asu_hmac_do_update(struct crypto_mac_ctx *ctx,
 		cache_operation(TEE_CACHEFLUSH, dma_buf, op.msglen);
 
 		ret = asu_hmac_send_cmd(hmac_ctx, &op);
-		if (ret)
+		if (ret) {
+			hmac_ctx->initialized = false;
 			break;
+		}
 
+		hmac_ctx->initialized = true;
 		hmac_ctx->hmacstart = 0;
 		data += op.msglen;
 		remaining -= op.msglen;
@@ -774,6 +842,7 @@ static TEE_Result asu_hmac_do_final(struct crypto_mac_ctx *ctx,
 
 	hmac_ctx->cparam.cbhandler = asu_hmac_result_cb;
 	hmac_ctx->cparam.cbptr = &hmac_ctx->result;
+	hmac_ctx->initialized = false;
 
 	ret = asu_hmac_send_cmd(hmac_ctx, &op);
 	hmac_ctx->cparam.cbhandler = NULL;
@@ -790,6 +859,33 @@ static TEE_Result asu_hmac_do_final(struct crypto_mac_ctx *ctx,
 }
 
 /*
+ * asu_hmac_free_engine() - Send FINISH to reset ASUFW HMAC/SHA engine state
+ * when the client missed final.
+ */
+static void asu_hmac_free_engine(struct asu_hmac_ctx *hmac_ctx)
+{
+	struct asu_hmac_op_cmd op = {};
+	TEE_Result ret = TEE_SUCCESS;
+
+	op.hmaclen = hmac_ctx->hmaclen;
+	op.shatype = hmac_ctx->shatype;
+	op.shamode = hmac_ctx->shamode;
+	op.islast = 1;
+	op.opflags = ASU_HMAC_OP_FINISH;
+	hmac_ctx->cparam.priority = ASU_PRIORITY_HIGH;
+	hmac_ctx->cparam.cbhandler = NULL;
+	hmac_ctx->cparam.cbptr = NULL;
+
+	ret = asu_hmac_send_cmd(hmac_ctx, &op);
+	hmac_ctx->initialized = false;
+
+	if (ret) {
+		DMSG("fw had reset the engine on IPI failure as required.");
+		DMSG("Still we should not reach here.");
+	}
+}
+
+/*
  * asu_hmac_do_free_ctx() - Zeroize key and release private context.
  * @ctx: Crypto MAC context
  */
@@ -798,6 +894,9 @@ static void asu_hmac_do_free_ctx(struct crypto_mac_ctx *ctx)
 	struct asu_hmac_ctx *hmac_ctx = to_hmac_ctx(ctx);
 	uint8_t sha_module = (hmac_ctx->cmdid == ASU_HMAC_CMD_SHA2) ?
 			     ASU_MODULE_SHA2_ID : ASU_MODULE_SHA3_ID;
+
+	if (hmac_ctx->initialized)
+		asu_hmac_free_engine(hmac_ctx);
 
 	if (hmac_ctx->key_buf) {
 		free_wipe(hmac_ctx->key_buf);
@@ -865,6 +964,7 @@ static TEE_Result asu_hmac_ctx_allocate(struct crypto_mac_ctx **ctx,
 	hmac_ctx->shamode = shamode;
 	hmac_ctx->cmdid = cmdid;
 	hmac_ctx->hmaclen = hmaclen;
+	hmac_ctx->initialized = false;
 	hmac_ctx->cparam.priority = ASU_PRIORITY_HIGH;
 	hmac_ctx->uniqueid = asu_alloc_unique_id();
 
