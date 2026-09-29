@@ -1243,6 +1243,8 @@ CFG_RTC_PTA ?= n
 
 # Enable TPM2
 CFG_DRIVERS_TPM2 ?= n
+# Enable the SPI-TIS transport backend for the in-core TPM2 driver
+CFG_DRIVERS_TPM2_SPI ?= n
 ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
 CFG_CORE_TCG_PROVIDER ?= $(CFG_DRIVERS_TPM2)
 endif
