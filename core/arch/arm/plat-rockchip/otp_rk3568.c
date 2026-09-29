@@ -672,8 +672,9 @@ TEE_Result rk_otp_s_write(uint32_t byte_addr, uint32_t byte_length,
 		ret = rk_otp_write(byte_addr, byte_length, buf);
 		return ret;
 	}
-	EMSG("%s:%d param error! address=0x%x size=0x%x ", byte_addr,
-	     byte_length);
+	EMSG("%s:%d param error! address=0x%x size=0x%x ",
+		__func__, __LINE__,
+		byte_addr, byte_length);
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
