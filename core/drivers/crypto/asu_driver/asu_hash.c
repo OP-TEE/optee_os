@@ -827,7 +827,7 @@ static TEE_Result asu_hmac_do_final(struct crypto_mac_ctx *ctx,
 	struct asu_hmac_op_cmd op = {};
 	TEE_Result ret = TEE_SUCCESS;
 
-	if (!digest || !len || len > hmac_ctx->hmaclen) {
+	if (!digest || !len) {
 		EMSG("Invalid HMAC output parameters");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -853,7 +853,7 @@ static TEE_Result asu_hmac_do_final(struct crypto_mac_ctx *ctx,
 		return ret;
 	}
 
-	memcpy(digest, hmac_ctx->result.buf, len);
+	memcpy(digest, hmac_ctx->result.buf, MIN(len, hmac_ctx->hmaclen));
 
 	return ret;
 }
