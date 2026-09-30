@@ -359,6 +359,8 @@ jobs:
               _make PLATFORM=virt COMPILER=clang
               _make PLATFORM=virt CFG_CORE_ASLR=n CFG_TA_ASLR=n
               _make PLATFORM=virt CFG_CORE_ASLR=n CFG_TA_ASLR=n COMPILER=clang
+              _make PLATFORM=virt CFG_CORE_STACK_PROTECTOR_ALL=y CFG_TA_STACK_PROTECTOR_ALL=y
+              _make PLATFORM=virt CFG_CORE_STACK_PROTECTOR_STRONG=n CFG_TA_STACK_PROTECTOR_STRONG=n
               _make PLATFORM=sifive
               _make PLATFORM=cva6
     steps:
