@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2021-2026, Arm Limited
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #include <assert.h>
 #include <io.h>
@@ -1201,6 +1202,21 @@ ffa_handle_sp_direct_resp(struct thread_smc_1_2_regs *args,
 	cpu_spin_unlock(&caller_sp->spinlock);
 
 	if (!dst) {
+#ifdef ARM64
+		/* x8-x17 are SBZ, but not for FFA_MSG_SEND_DIRECT_RESP2 */
+		if (args->a0 != FFA_MSG_SEND_DIRECT_RESP2) {
+			args->a8 = FFA_PARAM_MBZ;
+			args->a9 = FFA_PARAM_MBZ;
+			args->a10 = FFA_PARAM_MBZ;
+			args->a11 = FFA_PARAM_MBZ;
+			args->a12 = FFA_PARAM_MBZ;
+			args->a13 = FFA_PARAM_MBZ;
+			args->a14 = FFA_PARAM_MBZ;
+			args->a15 = FFA_PARAM_MBZ;
+			args->a16 = FFA_PARAM_MBZ;
+			args->a17 = FFA_PARAM_MBZ;
+		}
+#endif
 		/* Send message back to the NW */
 		return NULL;
 	}
