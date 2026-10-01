@@ -30,10 +30,15 @@ CFG_PAS_MD_SLOTS = 8
 # This chip's OEM_CONFIG2 fuse row has a per-root-cert hash function
 # select bit; targets without it always use SHA-384.
 $(call force,CFG_QCOM_SEGMENT_HASH_SELECT,y)
+# OEM-provisioned multi-root-certificate bitmasks (bit N = root cert N).
+# Zero masks still require the per-boot activation lock to be reasserted.
+CFG_QCOM_MRC_ACTIVATION_LIST ?= 0
+CFG_QCOM_MRC_REVOCATION_LIST ?= 0
 endif
 
 ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_FUSE_PTA)),)
 $(call force,CFG_QCOM_QFPROM,y)
+$(call force,CFG_QCOM_QFPROM_SECBOOT,y)
 endif
 
 ifeq ($(CFG_QCOM_QFPROM),y)
