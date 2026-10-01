@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/asu_crypto_common.h>
 #include <drivers/amd/asu_fw_info.h>
 #include <drivers/amd/fw_compat.h>
 #include <drvcrypt_hash.h>
@@ -13,7 +14,6 @@
 #include <initcall.h>
 #include <io.h>
 #include <kernel/cache_helpers.h>
-#include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/unwind.h>
 #include <malloc.h>
@@ -66,13 +66,6 @@
 
 #define ASU_HMAC_MAX_KEY_LEN			1024U
 #endif /* CFG_AMD_ASU_HMAC */
-
-struct asu_shadev {
-	bool sha2_available;
-	bool sha3_available;
-	/* Control access to engine*/
-	struct mutex engine_lock;
-};
 
 struct asu_sha_op_cmd {
 	uint64_t dataaddr;
@@ -131,8 +124,6 @@ struct asu_hmac_ctx {
 };
 #endif /* CFG_AMD_ASU_HMAC */
 
-static struct asu_shadev *asu_shadev;
-
 static const struct crypto_hash_ops asu_hash_ops;
 static struct asu_hash_ctx *to_hash_ctx(struct crypto_hash_ctx *ctx);
 
@@ -140,48 +131,6 @@ static struct asu_hash_ctx *to_hash_ctx(struct crypto_hash_ctx *ctx);
 static const struct crypto_mac_ops asu_hmac_ops;
 static struct asu_hmac_ctx *to_hmac_ctx(struct crypto_mac_ctx *ctx);
 #endif /* CFG_AMD_ASU_HMAC */
-
-/*
- * asu_shadev_acquire() - Claim a SHA engine slot by module ID.
- * @module: ASU_MODULE_SHA2_ID or ASU_MODULE_SHA3_ID
- *
- * Return: TEE_SUCCESS if the slot was free and is now claimed,
- *         TEE_ERROR_NOT_IMPLEMENTED if the slot is already in use.
- */
-static TEE_Result asu_shadev_acquire(uint8_t module)
-{
-	TEE_Result ret = TEE_SUCCESS;
-
-	mutex_lock(&asu_shadev->engine_lock);
-	if (module == ASU_MODULE_SHA2_ID && asu_shadev->sha2_available) {
-		asu_shadev->sha2_available = false;
-	} else if (module == ASU_MODULE_SHA3_ID && asu_shadev->sha3_available) {
-		asu_shadev->sha3_available = false;
-	} else {
-		/* Engine busy; fallback to sw */
-		ret = TEE_ERROR_NOT_IMPLEMENTED;
-	}
-	mutex_unlock(&asu_shadev->engine_lock);
-
-	return ret;
-}
-
-/*
- * asu_shadev_release() - Release a previously claimed SHA engine slot.
- * @module: ASU_MODULE_SHA2_ID or ASU_MODULE_SHA3_ID
- */
-static void asu_shadev_release(uint8_t module)
-{
-	mutex_lock(&asu_shadev->engine_lock);
-	if (module == ASU_MODULE_SHA2_ID) {
-		assert(!asu_shadev->sha2_available);
-		asu_shadev->sha2_available = true;
-	} else if (module == ASU_MODULE_SHA3_ID) {
-		assert(!asu_shadev->sha3_available);
-		asu_shadev->sha3_available = true;
-	}
-	mutex_unlock(&asu_shadev->engine_lock);
-}
 
 /* ---- SHA hash functions ---- */
 
@@ -877,8 +826,8 @@ static const struct crypto_mac_ops asu_hmac_ops = {
  * @ctx:  Output crypto MAC context
  * @algo: TEE HMAC algorithm identifier
  *
- * Acquires the shared SHA engine slot from asu_shadev so that HMAC and
- * hash operations are serialised on the same underlying hardware.
+ * Acquires the shared SHA engine slot so that HMAC, hash, and RSA
+ * padding operations are serialised on the same underlying hardware.
  *
  * Return: TEE_SUCCESS or error code
  */
@@ -958,15 +907,6 @@ static bool asu_module_fw_compatible(const char *name, uint32_t module_id,
 static TEE_Result asu_hash_init(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
-	bool hash_registered = false;
-	bool hmac_registered = false;
-
-	asu_shadev = calloc(1, sizeof(*asu_shadev));
-	if (!asu_shadev)
-		return TEE_ERROR_OUT_OF_MEMORY;
-	mutex_init(&asu_shadev->engine_lock);
-	asu_shadev->sha2_available = true;
-	asu_shadev->sha3_available = true;
 
 	if (!asu_module_fw_compatible("SHA2", ASU_MODULE_SHA2_ID,
 				      CFG_AMD_ASU_SHA2_MINVER_MAJ,
@@ -980,8 +920,6 @@ static TEE_Result asu_hash_init(void)
 		if (ret)
 			EMSG("ASU hash register to crypto fail ret=%#"PRIx32,
 			     ret);
-		else
-			hash_registered = true;
 	}
 
 #if defined(CFG_AMD_ASU_HMAC)
@@ -990,18 +928,15 @@ static TEE_Result asu_hash_init(void)
 				      CFG_AMD_ASU_HMAC_MINVER_MNR)) {
 		IMSG("ASU HMAC driver not registered, using SW fallback");
 	} else {
-		ret = drvcrypt_register_hmac(asu_hmac_ctx_allocate);
-		if (ret)
-			EMSG("ASU HMAC register failed ret=%#"PRIx32, ret);
-		else
-			hmac_registered = true;
+		TEE_Result hmac_ret =
+			drvcrypt_register_hmac(asu_hmac_ctx_allocate);
+
+		if (hmac_ret)
+			EMSG("ASU HMAC register failed ret=%#"PRIx32, hmac_ret);
+		if (!ret)
+			ret = hmac_ret;
 	}
 #endif
-
-	if (!hash_registered && !hmac_registered) {
-		free(asu_shadev);
-		asu_shadev = NULL;
-	}
 
 	return ret;
 }
