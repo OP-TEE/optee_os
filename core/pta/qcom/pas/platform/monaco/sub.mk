@@ -1,3 +1,3 @@
-srcs-y += subsys.c cdsp0.c gpdsp0.c lpass.c
+srcs-y += subsys.c cdsp0.c gpdsp0.c iris.c lpass.c
 incdirs-y += .
 incdirs-y += ../
