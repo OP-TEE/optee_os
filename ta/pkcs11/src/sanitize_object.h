@@ -41,8 +41,17 @@ enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *head,
 				      size_t size, uint32_t class_hint,
 				      uint32_t type_hint, unsigned int depth);
 
-/* Debug: dump attribute content as debug traces */
+#if defined(DEBUG) && (CFG_TEE_TA_LOG_LEVEL > 0)
+/* Debug: dump un-sanitized client attributes content as debug traces */
 void trace_attributes_from_api_head(const char *prefix, void *ref, size_t size,
 				    unsigned int depth);
+#else
+static inline void trace_attributes_from_api_head(const char *prefix __unused,
+						  void *ref __unused,
+						  size_t size __unused,
+						  unsigned int depth __unused)
+{
+}
+#endif /* DEBUG && CFG_TEE_TA_LOG_LEVEL > 0 */
 
 #endif /*PKCS11_TA_SANITIZE_OBJECT_H*/

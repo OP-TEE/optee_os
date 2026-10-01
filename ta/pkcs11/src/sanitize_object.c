@@ -312,6 +312,7 @@ enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *src,
 	return rc;
 }
 
+#if defined(DEBUG) && (CFG_TEE_TA_LOG_LEVEL > 0)
 /*
  * Debug: dump object attribute array to output trace
  */
@@ -434,7 +435,7 @@ void trace_attributes_from_api_head(const char *prefix, void *ref, size_t size,
 
 	TEE_MemMove(&head, ref, sizeof(head));
 
-	if (size > sizeof(head) + head.attrs_size) {
+	if (size < sizeof(head) + head.attrs_size) {
 		EMSG("template overflows client buffer (%zu/%zu)",
 		     size, sizeof(head) + head.attrs_size);
 		return;
@@ -461,3 +462,4 @@ void trace_attributes_from_api_head(const char *prefix, void *ref, size_t size,
 
 	TEE_Free(pre);
 }
+#endif /* DEBUG && CFG_TEE_TA_LOG_LEVEL > 0 */
