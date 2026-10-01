@@ -1990,6 +1990,22 @@ static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
 }
 
 /*
+ * A translation table covers a contiguous range of virtual addresses. A loop
+ * mapping consecutive entries can therefore reuse the table found for the
+ * previous entry instead of walking the translation tables from the base
+ * table again for every entry.
+ *
+ * Returns true if @ti still describes the table covering @va. Note that @va
+ * below @ti->va_base wraps the unsigned subtraction into a large value and
+ * thus correctly reports the table as not covering @va.
+ */
+static bool tbl_info_covers_va(struct core_mmu_table_info *ti, vaddr_t va)
+{
+	return ti->table &&
+	       va - ti->va_base < BIT64(ti->shift) * ti->num_entries;
+}
+
+/*
  * Find the table in which @vaddr can be mapped with a single entry, splitting
  * coarser grained entries on the way down as needed.
  */
@@ -2035,7 +2051,11 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 		attr = 0;
 
 	while (size_left > 0) {
-		find_map_table(prtn, mm, vaddr, paddr, size_left, &tbl_info);
+		if (!tbl_info_covers_va(&tbl_info, vaddr) ||
+		    !can_map_at_level(paddr, vaddr, size_left,
+				      BIT64(tbl_info.shift), mm))
+			find_map_table(prtn, mm, vaddr, paddr, size_left,
+				       &tbl_info);
 		block_size = BIT64(tbl_info.shift);
 		idx = core_mmu_va2idx(&tbl_info, vaddr);
 
@@ -2055,22 +2075,6 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 		vaddr += block_size;
 		size_left -= block_size;
 	}
-}
-
-/*
- * The leaf translation table covering a virtual address only changes every
- * CORE_MMU_PGDIR_SIZE. A loop mapping one small page at a time can therefore
- * reuse the table found for the previous page instead of walking the
- * translation tables from the base table again for every page.
- *
- * Returns true if @ti still describes the table covering @va. Note that @va
- * below @ti->va_base wraps the unsigned subtraction into a large value and
- * thus correctly reports the table as not covering @va.
- */
-static bool tbl_info_covers_va(struct core_mmu_table_info *ti, vaddr_t va)
-{
-	return ti->table &&
-	       va - ti->va_base < BIT64(ti->shift) * ti->num_entries;
 }
 
 TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
