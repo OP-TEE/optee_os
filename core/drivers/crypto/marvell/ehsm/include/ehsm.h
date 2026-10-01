@@ -130,7 +130,7 @@ enum ehsm_regs {
 #define EHSM_MEASURED_BOOT_LOCK                 12
 #define EHSM_SCHEME_ID_MASK                     0x0000F0000
 #define EHSM_SCHEME_ID_SHIFT                    16
-#define EHSM_SCHEME_ID(X)       (((X) << EHSM_SCHEME_ID_SHIFT) & \
+#define EHSM_SCHEME_ID(X)       (SHIFT_U32(X, EHSM_SCHEME_ID_SHIFT) & \
 						EHSM_SCHEME_ID_MASK)
 #define EHSM_SCHEME_ID_SET(X, V) (((X) & ~EHSM_SCHEME_ID_MASK) | \
 						EHSM_SCHEME_ID(V))
@@ -138,7 +138,7 @@ enum ehsm_regs {
 	EHSM_ROOT_TRUST_STATUS              = 0x11c,
 #define EHSM_KEY_REV_CONTROL_SHIFT              16
 #define EHSM_KEY_REV_CONTROL_MASK               0x00070000
-#define EHSM_KEY_REV_CONTROL(X) (((X) << EHSM_KEY_REV_CONTROL_SHIFT) & \
+#define EHSM_KEY_REV_CONTROL(X) (SHIFT_U32(X, EHSM_KEY_REV_CONTROL_SHIFT) & \
 						EHSM_KEY_REV_CONTROL_MASK)
 	EHSM_KEY_REVOC_STATUS               = 0x120,
 #define EHSM_LOADER_FW_MASK                     0x0000000F
