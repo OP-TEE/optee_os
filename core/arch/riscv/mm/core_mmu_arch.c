@@ -1080,12 +1080,10 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	if (map && map->user_map) {
 		ptp = core_mmu_ptp_create(pa_to_ppn((paddr_t)map->user_map));
 		core_mmu_entry_set(pte, ptp);
-		core_mmu_table_write_barrier();
 		satp |= SHIFT_U64(map->asid, RISCV_SATP_ASID_SHIFT);
 		write_satp(satp);
 	} else {
 		core_mmu_entry_set(pte, 0);
-		core_mmu_table_write_barrier();
 	}
 
 	/* The user mapping is per hart, no need to reach the other harts */
