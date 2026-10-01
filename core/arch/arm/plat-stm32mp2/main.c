@@ -12,7 +12,6 @@
 #include <drivers/stm32_serc.h>
 #include <drivers/stm32_uart.h>
 #include <drivers/stm32mp_dt_bindings.h>
-#include <drivers/stm32mp_dt_bindings.h>
 #include <initcall.h>
 #include <kernel/abort.h>
 #include <kernel/boot.h>
@@ -255,6 +254,7 @@ static TEE_Result init_debug(void)
 	return res;
 }
 early_init_late(init_debug);
+
 #endif /* !CFG_STM32_CM33TDCID */
 #endif /* CFG_STM32_BSEC3 */
 
