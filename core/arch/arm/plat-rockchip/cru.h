@@ -48,6 +48,28 @@ enum plls_id {
 #define PLL_MODE_MSK(pll)		BIT(PLL_MODE_BIT(pll))
 #define PLL_SLOW_MODE(pll)		BITS_WITH_WMASK(0, 1, PLL_MODE_BIT(pll))
 #define PLL_NORM_MODE(pll)		BITS_WITH_WMASK(1, 1, PLL_MODE_BIT(pll))
+
+#elif defined(PLATFORM_FLAVOR_rk356x)
+
+#define CRU_GATE_CON(n)			(0x0300u + (n * 4))
+
+#define CRU_S_CON(n)			(0x180 + (n * 4))
+
+/* CRU controller register */
+#define CLK_NS_OTP_USER_EN BIT		(11)
+#define CLK_NS_OTP_SBPI_EN BIT		(10)
+#define PCLK_NS_OTP_EN BIT		(9)
+#define PCLK_PHY_OTP_EN BIT		(13)
+
+#define OTP_PHY_SRSTN			15
+#define OTP_PHY_SRSTN_SET BIT_WITH_WMSK	(15)
+#define OTP_PHY_SRSTN_CLR WMSK_BIT	(15)
+
+/* SCRU controller register */
+#define CLK_S_OTP_USER_EN BIT		(7)
+#define CLK_S_OTP_SBPI_EN BIT		(6)
+#define PCLK_S_OTP_EN BIT		(5)
+
 #endif
 
 #endif

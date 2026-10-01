@@ -184,6 +184,63 @@
 #define ROCKCHIP_OTP_RSA_HASH_INDEX		0x270
 #define ROCKCHIP_OTP_RSA_HASH_SIZE		0x8
 
+#elif defined(PLATFORM_FLAVOR_rk356x)
+
+#define GIC_BASE		0xfd400000
+#define GIC_SIZE		SIZE_K(64)
+#define GICC_BASE		0
+#define GICD_BASE		(GIC_BASE)
+#define GICR_BASE		(GIC_BASE + 0x60000)
+
+#define UART0_BASE		0xfdd50000
+#define UART0_SIZE		SIZE_K(64)
+
+#define UART1_BASE		0xfe650000
+#define UART1_SIZE		SIZE_K(64)
+
+#define UART2_BASE		0xfe660000
+#define UART2_SIZE		SIZE_K(64)
+
+#define UART5_BASE		0xfe690000
+#define UART5_SIZE		SIZE_K(64)
+
+#define FIREWALL_DDR_BASE	0xfe200000
+#define FIREWALL_DDR_SIZE	SIZE_K(64)
+
+#define OTP_S_BASE		0xfe3a0000
+#define OTP_S_SIZE		SIZE_K(32)
+
+#define SGRF_BASE		0xFDD18000
+#define SGRF_SIZE		SIZE_K(16)
+
+#define OTP_NS_BASE		0xFE38C000
+#define OTP_NS_SIZE		SIZE_K(16)
+
+#define OTPC_PHY_BASE		0xFE880000
+#define OTPC_PHY_SIZE		SIZE_K(64)
+
+#define TRNG_S_BASE		0xfe370000
+#define TRNG_S_SIZE		SIZE_K(64)
+
+#define CRU_S_BASE		0xFDD10000
+#define CRU_S_SIZE		SIZE_K(32)
+
+#define CRU_NS_BASE		0xFDD20000
+#define CRU_NS_SIZE		SIZE_K(64)
+
+/* DRAM layout for OP-TEE */
+#define DRAM0_BASE		0x00200000
+#define DRAM0_SIZE		0x7FE00000
+
+#define CFG_DRAM_BASE		DRAM0_BASE
+#define CFG_DRAM_SIZE		DRAM0_SIZE
+
+/* Trusted Zone DRAM carve-out for OP-TEE core */
+#define CFG_TZDRAM_START	0x30000000
+#define CFG_TZDRAM_SIZE		0x02000000
+
+/* Using dynamic SHM via shared-dma-pool in the kernel DTS */
+
 #elif defined(PLATFORM_FLAVOR_rk3576)
 
 #define GIC_BASE		0x2a700000
