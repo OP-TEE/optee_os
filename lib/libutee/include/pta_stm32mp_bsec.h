@@ -80,7 +80,11 @@ enum stm32_bsec_pta_sec_state {
  * PTA_BSEC_LOCK_SHADOW_R	Shadow programming (from fuse) lock
  * PTA_BSEC_LOCK_SHADOW_W	Shadow memory write lock
  * PTA_BSEC_LOCK_SHADOW_P	Fuse programming sticky lock
- * PTA_BSEC_LOCK_ERROR		Flag indicating an error in lock access
+ * PTA_BSEC_LOCK_ERROR		Flag indicating an error in lock access*
+ * PTA_BSEC_STATUS_PROVISIONING Flag indicating the OTP can be provisioned
+ *				by non-secure world
+ * PTA_BSEC_STATUS_SECURE	Flag indicating the OTP cannot be accessed
+ *				from non-secure world
  */
 #define PTA_BSEC_LOCK_PERM			BIT(30)
 #define PTA_BSEC_LOCK_SHADOW_R			BIT(29)

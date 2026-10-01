@@ -6,8 +6,8 @@
 #include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
-#include <drivers/stm32_bsec.h>
 #include <drivers/rstctrl.h>
+#include <drivers/stm32_bsec.h>
 #include <drivers/stm32_rif.h>
 #include <drivers/stm32_serc.h>
 #include <drivers/stm32_uart.h>

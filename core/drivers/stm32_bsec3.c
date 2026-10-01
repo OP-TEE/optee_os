@@ -13,8 +13,8 @@
 #include <kernel/pm.h>
 #include <kernel/boot.h>
 #include <kernel/spinlock.h>
-#include <limits.h>
 #include <libfdt.h>
+#include <limits.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <pta_stm32mp_bsec.h>
@@ -45,6 +45,7 @@ static_assert(!(IS_ENABLED(CFG_STM32_CM33TDCID) &&
 #endif /* CFG_STM32MP21 */
 #define BSEC_VERR			U(0xFF4)
 #define BSEC_IPIDR			U(0xFF8)
+#define BSEC_SIDR			U(0xFFC)
 
 /* BSEC_OTPCR register fields */
 #define BSEC_OTPCR_PROG			BIT(13)
@@ -228,7 +229,7 @@ static void bsec_unlock(uint32_t exceptions)
 
 static vaddr_t bsec_base(void)
 {
-	return io_pa_or_va_secure(&bsec_dev.base, 1);
+	return io_pa_or_va_secure(&bsec_dev.base, BSEC_SIDR + 4);
 }
 
 static uint32_t bsec_get_otp_status(void)
@@ -256,7 +257,7 @@ static uint32_t otp_bank(uint32_t otp)
 {
 	assert(otp <= bsec_dev.max_id);
 
-	return ((otp & ~BSEC_OTP_MASK) >> BSEC_OTP_BANK_SHIFT);
+	return (otp & ~BSEC_OTP_MASK) >> BSEC_OTP_BANK_SHIFT;
 }
 
 /* get bit in the bank associated to the OTP */
@@ -267,8 +268,7 @@ static uint32_t otp_bit(uint32_t otp)
 
 static bool is_bsec_write_locked(void)
 {
-	return (io_read32(bsec_base() + BSEC_LOCKR) &
-		BSEC_LOCKR_GWLOCK_MASK);
+	return (io_read32(bsec_base() + BSEC_LOCKR) & BSEC_LOCKR_GWLOCK_MASK);
 }
 
 static TEE_Result shadow_otp(unsigned int otp)
@@ -276,6 +276,8 @@ static TEE_Result shadow_otp(unsigned int otp)
 	unsigned int i = 0U;
 	TEE_Result result = TEE_ERROR_GENERIC;
 	uint32_t status = 0U;
+
+	assert(otp < ARRAY_SIZE(bsec_dev.mirror->otp));
 
 	/* if shadow is not allowed */
 	if (bsec_dev.mirror->otp[otp].status & PTA_BSEC_LOCK_SHADOW_R) {
@@ -338,22 +340,10 @@ static bool is_fuse_shadowed(uint32_t otp)
 {
 	uint32_t bank = otp_bank(otp);
 	uint32_t mask = otp_bit(otp);
-	uint32_t bank_value = 0U;
 
-	bank_value = io_read32(bsec_base() + BSEC_SFSR(bank));
-
-	if (bank_value & mask)
-		return true;
-
-	return false;
+	return !!(io_read32(bsec_base() + BSEC_SFSR(bank)) & mask);
 }
 
-/*
- * bsec_read_otp: read an OTP data value.
- * val: read value.
- * otp: OTP number.
- * return value: TEE_SUCCESS if no error.
- */
 TEE_Result stm32_bsec_read_otp(uint32_t *val, uint32_t otp)
 {
 	TEE_Result result = TEE_ERROR_GENERIC;
@@ -374,20 +364,15 @@ TEE_Result stm32_bsec_read_otp(uint32_t *val, uint32_t otp)
 		return TEE_ERROR_ACCESS_DENIED;
 
 	/* for secure OTP, reload fuse word */
-	*val = 0U;
 	result = shadow_otp(otp);
 	if (!result)
 		*val = io_read32(bsec_base() + BSEC_FVR(otp));
+	else
+		*val = 0;
 
 	return result;
 }
 
-/*
- * Read a range of OTP data values thanks to the name of the cell
- * @name: Name of the cell describing the OTP range
- * @len : Size of the OTP range to read
- * @values : Output read values
- */
 TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
 					     size_t len, uint8_t **values)
 {
@@ -412,8 +397,8 @@ TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
 		return TEE_ERROR_GENERIC;
 	}
 
-	otp_length = len / sizeof(uint32_t);
-	data_buf = (uint32_t *)calloc(otp_length, sizeof(uint32_t));
+	otp_length = ROUNDUP2_DIV(len, sizeof(uint32_t));
+	data_buf = calloc(otp_length, sizeof(uint32_t));
 	if (!data_buf)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -427,7 +412,8 @@ TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
 			goto clean_values;
 	}
 
-	/* values has to be freed by API caller */
+	memset(*values + len, 0, sizeof(uint32_t) - (len % sizeof(uint32_t)));
+
 	return TEE_SUCCESS;
 
 clean_values:
@@ -437,12 +423,6 @@ clean_values:
 	return res;
 }
 
-/*
- * bsec_shadow_read_otp: Load OTP from SAFMEM and provide its value
- * val: read value.
- * otp: OTP number.
- * return value: TEE_SUCCESS if no error.
- */
 TEE_Result stm32_bsec_shadow_read_otp(uint32_t *val, uint32_t otp)
 {
 	TEE_Result result = TEE_SUCCESS;
@@ -472,12 +452,6 @@ TEE_Result stm32_bsec_shadow_read_otp(uint32_t *val, uint32_t otp)
 	return result;
 }
 
-/*
- * bsec_write_otp: write value in BSEC data register.
- * val: value to write.
- * otp: OTP number.
- * return value: TEE_SUCCESS if no error.
- */
 TEE_Result stm32_bsec_write_otp(uint32_t val, uint32_t otp)
 {
 	uint32_t exceptions = 0U;
@@ -581,45 +555,45 @@ TEE_Result stm32_bsec_program_otp(uint32_t val, uint32_t otp)
 	if (i == MAX_NB_TRIES) {
 		result = TEE_ERROR_GENERIC;
 		EMSG("BSEC program %"PRIu32" retry", otp);
+		goto exit;
 	}
 
 	/* update the shadow */
-	if (!result) {
-		stm32_bsec_read_sr_lock(otp, &value);
-		/* if reload is locked: directly write in shadow register */
-		if (value) {
-			stm32_bsec_read_sw_lock(otp, &value);
-			/*
-			 * update value in FVR register for HW shadowed OTP
-			 * if they are not shadow wrtite locked
-			 */
-			if (is_fuse_shadowed(otp) && !value) {
-				io_write32(bsec_base() + BSEC_FVR(otp), val);
-				fvr = io_read32(bsec_base() + BSEC_FVR(otp));
-			} else {
-				fvr = val;
-			}
+	stm32_bsec_read_sr_lock(otp, &value);
+	/* if reload is locked: directly write in shadow register */
+	if (value) {
+		stm32_bsec_read_sw_lock(otp, &value);
+		/*
+		 * update value in FVR register for HW shadowed OTP
+		 * if they are not shadow wrtite locked
+		 */
+		if (is_fuse_shadowed(otp) && !value) {
+			io_write32(bsec_base() + BSEC_FVR(otp), val);
+			fvr = io_read32(bsec_base() + BSEC_FVR(otp));
 		} else {
-			shadow_res = shadow_otp(otp); /* reload the fuse word */
-			if (!shadow_res)
-				fvr = io_read32(bsec_base() + BSEC_FVR(otp));
+			fvr = val;
 		}
+	} else {
+		shadow_res = shadow_otp(otp); /* reload the fuse word */
+		if (!shadow_res)
+			fvr = io_read32(bsec_base() + BSEC_FVR(otp));
+	}
 
-		if (shadow_res || fvr != val)
-			EMSG("BSEC shadow %"PRIu32" invalid: %08x, write= %08x, reload err %"PRIx32,
-			     otp, fvr, val, shadow_res);
+	if (shadow_res || fvr != val)
+		EMSG("BSEC shadow %"PRIu32" invalid: %08x, write= %08x, reload err %"PRIx32,
+			otp, fvr, val, shadow_res);
 
-		if (!(bsec_dev.mirror->otp[otp].status &
-		      PTA_BSEC_STATUS_SECURE)) {
-			/* update the mirror memory if allowed */
-			bsec_dev.mirror->otp[otp].value = fvr;
-			if (!shadow_res && fvr == val) {
-				bsec_dev.mirror->otp[otp].status &=
-					~PTA_BSEC_LOCK_ERROR;
-			}
+	if (!(bsec_dev.mirror->otp[otp].status &
+		PTA_BSEC_STATUS_SECURE)) {
+		/* update the mirror memory if allowed */
+		bsec_dev.mirror->otp[otp].value = fvr;
+		if (!shadow_res && fvr == val) {
+			bsec_dev.mirror->otp[otp].status &=
+				~PTA_BSEC_LOCK_ERROR;
 		}
 	}
 
+exit:
 	bsec_unlock(exceptions);
 
 	return result;
@@ -778,33 +752,18 @@ bool stm32_bsec_coresight_is_enabled(void)
 	return (denr & coresight_mask) == coresight_mask;
 }
 
-/*
- * bsec_get_version: return BSEC version.
- */
 static uint32_t bsec_get_version(void)
 {
 	return io_read32(bsec_base() + BSEC_VERR) & BSEC_VERR_MASK;
 }
 
-/*
- * bsec_get_id: return BSEC ID.
- */
 static uint32_t bsec_get_id(void)
 {
 	return io_read32(bsec_base() + BSEC_IPIDR);
 }
 
-/*
- * bsec_set_sr_lock: set shadow-read lock.
- * otp: OTP number.
- * return value: TEE_SUCCESS if no error.
- */
 TEE_Result stm32_bsec_set_sr_lock(uint32_t otp)
 {
-	TEE_Result result = TEE_ERROR_GENERIC;
-	uint32_t bank = otp_bank(otp);
-	uint32_t bank_value = 0U;
-	uint32_t mask = otp_bit(otp);
 	uint32_t exceptions = 0U;
 
 	if (IS_ENABLED(CFG_STM32_CM33TDCID))
@@ -818,26 +777,12 @@ TEE_Result stm32_bsec_set_sr_lock(uint32_t otp)
 
 	exceptions = bsec_lock();
 
-	bank_value = io_read32(bsec_base() + BSEC_SRLOCK(bank));
-
-	if (bank_value & mask) {
-		/* The lock is already set */
-		result = TEE_SUCCESS;
-	} else {
-		bank_value = bank_value | mask;
-
-		/*
-		 * We can write 0 in all other OTP bits with no effect,
-		 * even if the lock is activated.
-		 */
-		io_write32(bsec_base() + BSEC_SRLOCK(bank), bank_value);
-		bsec_dev.mirror->otp[otp].status |= PTA_BSEC_LOCK_SHADOW_R;
-		result = TEE_SUCCESS;
-	}
+	io_setbits32(bsec_base() + BSEC_SRLOCK(otp_bank(otp)), otp_bit(otp));
+	bsec_dev.mirror->otp[otp].status |= PTA_BSEC_LOCK_SHADOW_R;
 
 	bsec_unlock(exceptions);
 
-	return result;
+	return TEE_SUCCESS;
 }
 
 TEE_Result stm32_bsec_read_sr_lock(uint32_t otp, bool *value)
@@ -852,17 +797,8 @@ TEE_Result stm32_bsec_read_sr_lock(uint32_t otp, bool *value)
 	return TEE_SUCCESS;
 }
 
-/*
- * bsec_set_sw_lock: set shadow-write lock.
- * otp: OTP number.
- * return value: TEE_SUCCESS if no error.
- */
 TEE_Result stm32_bsec_set_sw_lock(uint32_t otp)
 {
-	TEE_Result result = TEE_ERROR_GENERIC;
-	uint32_t bank = otp_bank(otp);
-	uint32_t mask = otp_bit(otp);
-	uint32_t bank_value = 0U;
 	uint32_t exceptions = 0U;
 
 	if (IS_ENABLED(CFG_STM32_CM33TDCID))
@@ -876,26 +812,12 @@ TEE_Result stm32_bsec_set_sw_lock(uint32_t otp)
 
 	exceptions = bsec_lock();
 
-	bank_value = io_read32(bsec_base() + BSEC_SWLOCK(bank));
-
-	if (bank_value & mask) {
-		/* The lock is already set */
-		result = TEE_SUCCESS;
-	} else {
-		bank_value = bank_value | mask;
-
-		/*
-		 * We can write 0 in all other OTP bits with no effect,
-		 * even if the lock is activated.
-		 */
-		io_write32(bsec_base() + BSEC_SWLOCK(bank), bank_value);
-		bsec_dev.mirror->otp[otp].status |= PTA_BSEC_LOCK_SHADOW_W;
-		result = TEE_SUCCESS;
-	}
+	io_setbits32(bsec_base() + BSEC_SWLOCK(otp_bank(otp)), otp_bit(otp));
+	bsec_dev.mirror->otp[otp].status |= PTA_BSEC_LOCK_SHADOW_W;
 
 	bsec_unlock(exceptions);
 
-	return result;
+	return TEE_SUCCESS;
 }
 
 TEE_Result stm32_bsec_read_sw_lock(uint32_t otp, bool *value)
@@ -905,24 +827,20 @@ TEE_Result stm32_bsec_read_sw_lock(uint32_t otp, bool *value)
 	if (otp > bsec_dev.max_id)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	*value = bsec_dev.mirror->otp[otp].status & PTA_BSEC_LOCK_SHADOW_W;
-
 	/*
 	 * OEM keys are accessible only in ROM code
 	 * They are stored in last OTPs
 	 */
 	if (otp >= OEM_KEY_FIRST_OTP)
 		*value = PTA_BSEC_LOCK_SHADOW_W;
+	else
+		*value = bsec_dev.mirror->otp[otp].status & PTA_BSEC_LOCK_SHADOW_W;
 
 	return TEE_SUCCESS;
 }
 
 TEE_Result stm32_bsec_set_sp_lock(uint32_t otp)
 {
-	TEE_Result result = TEE_ERROR_GENERIC;
-	uint32_t bank = otp_bank(otp);
-	uint32_t bank_value = 0U;
-	uint32_t mask = otp_bit(otp);
 	uint32_t exceptions = 0U;
 
 	if (IS_ENABLED(CFG_STM32_CM33TDCID))
@@ -936,26 +854,12 @@ TEE_Result stm32_bsec_set_sp_lock(uint32_t otp)
 
 	exceptions = bsec_lock();
 
-	bank_value = io_read32(bsec_base() + BSEC_SPLOCK(bank));
-
-	if (bank_value & mask) {
-		/* The lock is already set */
-		result = TEE_SUCCESS;
-	} else {
-		bank_value = bank_value | mask;
-
-		/*
-		 * We can write 0 in all other OTP bits with no effect,
-		 * even if the lock is activated.
-		 */
-		io_write32(bsec_base() + BSEC_SPLOCK(bank), bank_value);
-		bsec_dev.mirror->otp[otp].status |= PTA_BSEC_LOCK_SHADOW_P;
-		result = TEE_SUCCESS;
-	}
+	io_setbits32(bsec_base() + BSEC_SPLOCK(otp_bank(otp)), otp_bit(otp));
+	bsec_dev.mirror->otp[otp].status |= PTA_BSEC_LOCK_SHADOW_P;
 
 	bsec_unlock(exceptions);
 
-	return result;
+	return TEE_SUCCESS;
 }
 
 TEE_Result stm32_bsec_read_sp_lock(uint32_t otp, bool *value)
@@ -1107,7 +1011,7 @@ static uint32_t init_state(uint32_t status)
 		/* Only 1 supported state = CLOSED */
 		if (nvstates != BSEC_SR_NVSTATES_CLOSED) {
 			state = BSEC_STATE_INVALID;
-			EMSG("BSEC invalid nvstates %#x\n", nvstates);
+			EMSG("BSEC invalid nvstates %#"PRIx32, nvstates);
 		} else {
 			state = BSEC_STATE_SEC_OPEN;
 			if (bsec_dev.mirror->otp[OTP_SECURE_BOOT].value &
@@ -1228,7 +1132,7 @@ TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
 		if (otp_bit_len)
 			*otp_bit_len = bsec_dev.cells[i].bit_len;
 
-		DMSG("nvmem %s = %zu: %"PRIu32" bit offset: %u, length: %zu",
+		DMSG("nvmem %s = %zu: %"PRIu32" bit offset: %"PRIu8", length: %zu",
 		     name, i, bsec_dev.cells[i].otp_id,
 		     bsec_dev.cells[i].bit_offset, bsec_dev.cells[i].bit_len);
 
@@ -1261,7 +1165,7 @@ TEE_Result stm32_bsec_find_otp_by_phandle(const uint32_t phandle,
 		if (otp_bit_len)
 			*otp_bit_len = bsec_dev.cells[i].bit_len;
 
-		DMSG("nvmem %"PRIu32" = %zu: %"PRIu32" bit offset: %u, length: %zu",
+		DMSG("nvmem %"PRIu32" = %zu: %"PRIu32" bit offset: %"PRIu8", length: %zu",
 		     phandle, i, bsec_dev.cells[i].otp_id,
 		     bsec_dev.cells[i].bit_offset, bsec_dev.cells[i].bit_len);
 
@@ -1333,7 +1237,7 @@ static void initialize_nvmem_layout_from_dt(void *fdt, int bsec_node)
 			panic();
 
 		cell_cnt++;
-		DMSG("nvmem[%d] = %s %"PRIu32"bit offset: %u, length: %zu",
+		DMSG("nvmem[%d] = %s %"PRIu32"bit offset: %"PRIu8", length: %zu",
 		     cell_cnt, cell->name, cell->otp_id,
 		     cell->bit_offset, cell->bit_len);
 
@@ -1346,10 +1250,9 @@ static void initialize_nvmem_layout_from_dt(void *fdt, int bsec_node)
 			     otp < cell->otp_id + otp_nb; otp++)
 				bsec_dev.otp_dt_status[otp] |=
 					PTA_BSEC_STATUS_SECURE;
-		}
-		/* check if provisioning is allowed */
-		else if (fdt_getprop(fdt, node,
+		} else if (fdt_getprop(fdt, node,
 				     "st,non-secure-otp-provisioning", NULL)) {
+			/* Case provisioning by non-secure is allowed */
 			for (otp = cell->otp_id;
 			     otp < cell->otp_id + otp_nb; otp++)
 				bsec_dev.otp_dt_status[otp] |=
@@ -1376,6 +1279,8 @@ static void initialize_bsec_from_dt(void *fdt, int node)
 	if (bsec_info.reg != bsec_dev.base.pa ||
 	    !(bsec_info.status & DT_STATUS_OK_SEC))
 		panic();
+
+	initialize_nvmem_layout_from_dt(fdt, node);
 }
 
 static TEE_Result
@@ -1393,7 +1298,7 @@ stm32_bsec_pm(enum pm_op op, unsigned int pm_hint,
 		stm32_bsec_mirror_init();
 
 		/* recopy value from the previous mirror into the new one */
-		for (unsigned int otp = 0; otp < bsec_dev.max_id; otp++) {
+		for (unsigned int otp = 0; otp <= bsec_dev.max_id; otp++) {
 			if (bsec_dev.mirror_pm.otp[otp].value) {
 				stm32_bsec_write_otp(
 					bsec_dev.mirror_pm.otp[otp].value, otp);
@@ -1454,8 +1359,6 @@ static TEE_Result initialize_bsec(void)
 
 		register_pm_core_service_cb(stm32_bsec_pm, NULL, "stm32-bsec");
 	}
-
-	initialize_nvmem_layout_from_dt(fdt, node);
 
 	return TEE_SUCCESS;
 }
