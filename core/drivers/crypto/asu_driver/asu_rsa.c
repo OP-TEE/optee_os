@@ -193,25 +193,39 @@ static struct {
 } asu_rsa_fw_caps;
 
 /*
- * asu_rsa_check_fw_compat() - Validate the ASU RSA module version and
- * cache its FeatureCaps for use by the HW/SW fallback checks below
+ * asu_rsa_check_fw_compat() - Validate the ASU RSA and KeyManager module
+ * versions and cache RSA's FeatureCaps
+ *
+ * RSA hardware key-pair generation requires KeyManager. Use software
+ * fallback unless both modules meet their minimum versions.
  */
 static void asu_rsa_check_fw_compat(void)
 {
-	const struct fw_module_info *mod = NULL;
+	const struct fw_module_info *rsa_mod = NULL;
+	const struct fw_module_info *km_mod = NULL;
 
-	mod = fw_compat_get_module_info(ASU_MODULE_RSA_ID);
-	if (!asu_module_version_at_least(mod, CFG_AMD_ASU_RSA_MINVER_MAJ,
+	rsa_mod = fw_compat_get_module_info(ASU_MODULE_RSA_ID);
+	if (!asu_module_version_at_least(rsa_mod, CFG_AMD_ASU_RSA_MINVER_MAJ,
 					 CFG_AMD_ASU_RSA_MINVER_MNR)) {
 		EMSG("ASU RSA module unavailable or below min %u.%u, using SW",
 		     CFG_AMD_ASU_RSA_MINVER_MAJ, CFG_AMD_ASU_RSA_MINVER_MNR);
 		return;
 	}
 
-	asu_rsa_fw_caps.hw_available = true;
-	asu_rsa_fw_caps.feature_caps = mod->feature_caps;
+	km_mod = fw_compat_get_module_info(ASU_MODULE_KEYMANAGER_ID);
+	if (!asu_module_version_at_least(km_mod,
+					 CFG_AMD_ASU_KEYMANAGER_MINVER_MAJ,
+					 CFG_AMD_ASU_KEYMANAGER_MINVER_MNR)) {
+		EMSG("ASU KeyManager unavailable or below min %u.%u, using SW",
+		     CFG_AMD_ASU_KEYMANAGER_MINVER_MAJ,
+		     CFG_AMD_ASU_KEYMANAGER_MINVER_MNR);
+		return;
+	}
 
-	IMSG("ASU RSA HW available, caps=%#"PRIx16, mod->feature_caps);
+	asu_rsa_fw_caps.hw_available = true;
+	asu_rsa_fw_caps.feature_caps = rsa_mod->feature_caps;
+
+	IMSG("ASU RSA HW available, caps=%#"PRIx16, rsa_mod->feature_caps);
 }
 
 /* Whether HW-accelerated padded RSA (OAEP/PSS) operations can be used */
