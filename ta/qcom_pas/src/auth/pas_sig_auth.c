@@ -233,11 +233,6 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 	size_t roots_len = 0;
 	size_t leaf_len = 0;
 
-	if (!hs->oem_certs || !hs->oem_sig || !hs->signed_region) {
-		EMSG("PAS auth: metadata is not OEM-signed");
-		return TEE_ERROR_SECURITY;
-	}
-
 	if (pas_meta_get(hs, &meta) == TEE_SUCCESS)
 		root_cert_sel = meta.root_cert_sel;
 
@@ -440,8 +435,10 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 				     size_t meta_data_size,
 				     uint32_t pas_id,
 				     uint32_t segment_hash_len,
-				     const uint8_t *anchor)
+				     const uint8_t *anchor,
+				     enum pas_secboot_state secboot_state)
 {
+	bool fail_open = secboot_state == PAS_SECBOOT_OFF;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (hs->uie_encrypted) {
@@ -454,19 +451,29 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
+	if (!hs->oem_certs || !hs->oem_sig || !hs->signed_region) {
+		EMSG("PAS auth: metadata is not OEM-signed");
+		return TEE_ERROR_SECURITY;
+	}
+
 	res = verify_oem_signature(hs, pas_id, anchor);
-	if (res)
-		return res;
+	if (res != TEE_ERROR_SECURITY || !fail_open) {
+		if (res)
+			return res;
+	} else {
+		EMSG("PAS auth: ignore signature (secboot off): %#"PRIx32, res);
+	}
 
 	res = pas_meta_verify_elf_headers_hash(meta_data, meta_data_size,
 					       hs->hash_table,
 					       segment_hash_len);
-	if (res)
-		return res;
+	if (res != TEE_ERROR_SECURITY || !fail_open) {
+		if (res)
+			return res;
+	} else {
+		EMSG("PAS auth: secboot off, ignoring hash mismatch: %#"PRIx32,
+		     res);
+	}
 
-	res = check_anti_rollback(hs, pas_id);
-	if (res)
-		return res;
-
-	return TEE_SUCCESS;
+	return check_anti_rollback(hs, pas_id);
 }
