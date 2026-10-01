@@ -318,11 +318,6 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 	size_t roots_len = 0;
 	size_t leaf_len = 0;
 
-	if (!hs->oem_certs || !hs->oem_sig || !hs->signed_region) {
-		EMSG("PAS auth: metadata is not OEM-signed");
-		return TEE_ERROR_SECURITY;
-	}
-
 	res = pas_fuse_get_mrc_info(&mrc);
 	if (res) {
 		EMSG("PAS auth: cannot read MRC info: %#"PRIx32, res);
@@ -490,7 +485,8 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 				     size_t meta_data_size,
 				     uint32_t pas_id,
 				     uint32_t segment_hash_len,
-				     const uint8_t *anchor)
+				     const uint8_t *anchor,
+				     enum pas_secboot_state secboot_state)
 {
 	struct pas_oem_metadata meta = { };
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -505,6 +501,11 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
+	if (!hs->oem_certs || !hs->oem_sig || !hs->signed_region) {
+		EMSG("PAS auth: metadata is not OEM-signed");
+		return TEE_ERROR_SECURITY;
+	}
+
 	res = get_oem_metadata(hs, &meta);
 	if (res)
 		return res;
@@ -513,13 +514,16 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 	if (res)
 		return res;
 
-	res = check_oem_metadata(&meta, pas_id);
-	if (res)
-		return res;
+	/* A non-secure device does not refuse an image over these checks. */
+	if (secboot_state != PAS_SECBOOT_OFF) {
+		res = check_oem_metadata(&meta, pas_id);
+		if (res)
+			return res;
 
-	res = verify_oem_signature(hs, meta.root_cert_sel, anchor);
-	if (res)
-		return res;
+		res = verify_oem_signature(hs, meta.root_cert_sel, anchor);
+		if (res)
+			return res;
+	}
 
 	res = pas_meta_verify_elf_headers_hash(meta_data, meta_data_size,
 					       hs->hash_table,
