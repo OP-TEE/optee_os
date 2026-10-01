@@ -16,8 +16,8 @@
 #include <limits.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
-#include <stm32_util.h>
 #include <stdlib_ext.h>
+#include <stm32_util.h>
 #include <string.h>
 #include <tee_api_defines.h>
 #include <types_ext.h>
@@ -320,12 +320,6 @@ TEE_Result stm32_bsec_read_otp(uint32_t *value, uint32_t otp_id)
 	return TEE_SUCCESS;
 }
 
-/*
- * Read a range of OTP data values thanks to the name of the cell
- * @name: Name of the cell describing the OTP range
- * @len : Size of the OTP range to read
- * @values : Output read values
- */
 TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
 					     size_t len, uint8_t **values)
 {
@@ -350,8 +344,8 @@ TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
 		return TEE_ERROR_GENERIC;
 	}
 
-	otp_length = len / sizeof(uint32_t);
-	data_buf = (uint32_t *)calloc(otp_length, sizeof(uint32_t));
+	otp_length = ROUNDUP2_DIV(len, sizeof(uint32_t));
+	data_buf = calloc(otp_length, sizeof(uint32_t));
 	if (!data_buf)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -365,7 +359,8 @@ TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
 			goto clean_values;
 	}
 
-	/* values has to be freed by API caller */
+	memset(*values + len, 0, sizeof(uint32_t) - (len % sizeof(uint32_t)));
+
 	return TEE_SUCCESS;
 
 clean_values:
