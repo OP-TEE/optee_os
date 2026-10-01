@@ -213,7 +213,7 @@ static inline __noprof void riscv_cpu_pause(void)
 
 static inline __noprof void flush_tlb(void)
 {
-	asm volatile("sfence.vma zero, zero");
+	asm volatile("sfence.vma zero, zero" : : : "memory");
 }
 
 static inline __noprof void flush_tlb_entry(unsigned long va)
