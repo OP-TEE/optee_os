@@ -185,6 +185,8 @@ static inline void core_mmu_table_write_barrier(void)
 {
 	/* Invoke memory barrier */
 	mb();
+	/* Without Svvptc a hart may keep an invalid PTE cached until sfence.vma */
+	flush_tlb();
 }
 
 TEE_Result cache_op_inner(enum cache_op op, void *va, size_t len);
