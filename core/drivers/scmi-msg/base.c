@@ -26,6 +26,13 @@ const char __weak *plat_scmi_agent_name(unsigned int agent_id __unused)
 	return NULL;
 }
 
+int32_t __weak
+plat_scmi_channel_id_to_agent_id(unsigned int channel_id __unused,
+				 uint32_t *agent_id __unused)
+{
+	return SCMI_NOT_SUPPORTED;
+}
+
 static void report_version(struct scmi_msg *msg)
 {
 	struct scmi_protocol_version_p2a return_values = {
@@ -138,6 +145,7 @@ static void discover_agent(struct scmi_msg *msg)
 	};
 	uint32_t agent_id = 0;
 	const char *name = NULL;
+	int32_t status = SCMI_SUCCESS;
 
 	if (msg->in_size != sizeof(*in_args)) {
 		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
@@ -145,8 +153,14 @@ static void discover_agent(struct scmi_msg *msg)
 	}
 
 	agent_id = in_args->agent_id;
-	if (agent_id == SCMI_BASE_AGENT_ID_OWN)
-		agent_id = msg->channel_id + 1;
+	if (agent_id == SCMI_BASE_AGENT_ID_OWN) {
+		status = plat_scmi_channel_id_to_agent_id(msg->channel_id,
+							  &agent_id);
+		if (status != SCMI_SUCCESS) {
+			scmi_status_response(msg, status);
+			return;
+		}
+	}
 
 	if (agent_id > plat_scmi_agent_count()) {
 		scmi_status_response(msg, SCMI_NOT_FOUND);
