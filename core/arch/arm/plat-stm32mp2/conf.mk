@@ -167,7 +167,7 @@ endif
 # Enable BSEC PTA for fuses access management
 CFG_STM32_BSEC_PTA ?= y
 ifeq ($(CFG_STM32_BSEC_PTA),y)
-$(call force,CFG_STM32_BSEC3,y,Mandated by CFG_STM32_BSEC_PTA)
+$(call force,CFG_STM32_BSEC3,y,Required by CFG_STM32_BSEC_PTA)
 endif
 
 # Optional behavior upon receiving illegal access events
