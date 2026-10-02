@@ -260,9 +260,9 @@ static TEE_Result lpass_fw_start(struct qcom_pas_data *data)
 	return TEE_ERROR_TIMEOUT;
 }
 
-static TEE_Result lpass_fw_shutdown(struct qcom_pas_data *data __unused)
+static TEE_Result lpass_fw_shutdown(struct qcom_pas_data *data)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	return qcom_clock_pas_reset(data->clk_group);
 }
 
 static TEE_Result lpass_get_resource_table(struct resource_table *rt,
