@@ -114,6 +114,25 @@ enum sbi_ext_hsm_fid {
 	SBI_EXT_HSM_HART_SUSPEND,
 };
 
+/* SBI function IDs for Firmware Features (FWFT) extension */
+enum sbi_ext_fwft_fid {
+	SBI_EXT_FWFT_SET = 0,
+	SBI_EXT_FWFT_GET,
+};
+
+/* Features of the FWFT extension, one setting per hart unless global */
+enum sbi_fwft_feature {
+	SBI_FWFT_MISALIGNED_EXC_DELEG = 0x0,
+	SBI_FWFT_LANDING_PAD = 0x1,
+	SBI_FWFT_SHADOW_STACK = 0x2,
+	SBI_FWFT_DOUBLE_TRAP = 0x3,
+	SBI_FWFT_PTE_AD_HW_UPDATING = 0x4,
+	SBI_FWFT_POINTER_MASKING_PMLEN = 0x5,
+};
+
+/* Flags for sbi_fwft_set(): lock the feature until the next hart reset */
+#define SBI_FWFT_SET_FLAG_LOCK		BIT(0)
+
 /* SBI function IDs for Debug Console extension */
 enum sbi_ext_dbcn_fid {
 	SBI_EXT_DBCN_CONSOLE_WRITE = 0,
@@ -154,6 +173,9 @@ int sbi_remote_sfence_vma_asid(unsigned long hart_mask,
 			       unsigned long hart_mask_base,
 			       unsigned long start_addr, unsigned long size,
 			       unsigned long asid);
+int sbi_fwft_set(enum sbi_fwft_feature feature, unsigned long value,
+		 unsigned long flags);
+int sbi_fwft_get(enum sbi_fwft_feature feature, unsigned long *value);
 
 #endif /*__ASSEMBLER__*/
 #endif /*defined(CFG_RISCV_SBI)*/

@@ -2763,6 +2763,7 @@
 #define MATCH_ZUNPKD832 0xad700077
 #define MASK_ZUNPKD832 0xfff0707f
 
+#define CSR_SSP 0x11 /* Zicfiss: shadow stack pointer */
 #define CSR_FFLAGS 0x1
 #define CSR_FRM 0x2
 #define CSR_FCSR 0x3
@@ -3175,6 +3176,11 @@
 #define CAUSE_LOAD_GUEST_PAGE_FAULT 0x15
 #define CAUSE_VIRTUAL_INSTRUCTION 0x16
 #define CAUSE_STORE_GUEST_PAGE_FAULT 0x17
+#define CAUSE_SOFTWARE_CHECK 0x12
+
+/* xtval codes of a software-check exception */
+#define SW_CHECK_LANDING_PAD_FAULT 2 /* Zicfilp */
+#define SW_CHECK_SHADOW_STACK_FAULT 3 /* Zicfiss */
 
 #define INSN_FIELD_RD 0xf80
 #define INSN_FIELD_RT 0xf8000

@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2023 Andes Technology Corporation
  * Copyright  2022  Beijing ESWIN Computing Technology Co., Ltd.
+ * Copyright 2026 NXP
  */
 
 #include <tee_syscall_numbers.h>
@@ -41,3 +42,5 @@
 	END_FUNC _utee_panic
 
 #include <utee_syscalls_asm.S>
+
+RISCV_CFI(emit_riscv_feature_1_and RISCV_TA_FEATURE_1_AND)

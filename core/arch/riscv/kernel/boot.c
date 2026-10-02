@@ -10,6 +10,7 @@
 #include <console.h>
 #include <keep.h>
 #include <kernel/boot.h>
+#include <kernel/cfi.h>
 #include <kernel/dt.h>
 #include <kernel/hart.h>
 #include <kernel/linker.h>
@@ -197,6 +198,7 @@ static void init_primary(void)
 	/* Initialize canaries around the stacks */
 	thread_init_canaries();
 	thread_init_per_cpu();
+	cfi_init_hart();
 }
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
@@ -346,6 +348,7 @@ static void init_secondary_helper(void)
 	thread_set_exceptions(THREAD_EXCP_ALL);
 
 	thread_init_per_cpu();
+	cfi_init_hart();
 	boot_secondary_init_intc();
 
 	IMSG("Secondary CPU%zu (hart%"PRIu32") initialized",

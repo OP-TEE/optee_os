@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright  2022  Beijing ESWIN Computing Technology Co., Ltd.
+ * Copyright 2026 NXP
  */
 
 #include <asm.S>
@@ -59,3 +60,5 @@ reloc_begin_rel:
 reloc_end_rel:
     .word __reloc_end - reloc_end_rel
 END_FUNC _ldelf_start
+
+RISCV_CFI(emit_riscv_feature_1_and RISCV_TA_FEATURE_1_AND)

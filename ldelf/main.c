@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2019, Linaro Limited
  * Copyright (c) 2022-2023, Arm Limited
+ * Copyright 2026 NXP 
  */
 
 #include <assert.h>
@@ -168,7 +169,7 @@ void ldelf(struct ldelf_arg *arg)
 
 	/* Load the main binary and get a list of dependencies, if any. */
 	ta_elf_load_main(&arg->uuid, &arg->is_32bit, &arg->stack_ptr,
-			 &arg->flags);
+			 &arg->shadow_stack_ptr, &arg->flags);
 
 	/*
 	 * Load binaries, ta_elf_load() may add external libraries to the
