@@ -149,7 +149,8 @@ static bool __maybe_unused core_mmu_entry_is_branch(struct mmu_pte *pte)
 	return core_mmu_entry_is_valid(pte) && !core_mmu_entry_is_leaf(pte);
 }
 
-static unsigned long core_mmu_pte_create(unsigned long ppn, uint8_t pte_bits)
+static unsigned long core_mmu_pte_create(unsigned long ppn,
+					 unsigned long pte_bits)
 {
 	/*
 	 * This function may be called from core_mmu_set_entry(). There is a
@@ -198,6 +199,45 @@ static unsigned long core_mmu_pgt_to_satp(unsigned long asid,
 	return satp;
 }
 
+/*
+ * Svpbmt: PBMT overrides the PMAs of a leaf PTE. Device and strongly
+ * ordered mappings get PBMT=IO (non-cacheable, non-idempotent, strongly
+ * ordered), cacheable ones keep PBMT=PMA. NC is not used.
+ *
+ * Needs menvcfg.PBMTE set by the M-mode firmware, otherwise the field is
+ * reserved and a non-zero value raises a page fault.
+ */
+/* TEE_MATTR_MEM_TYPE_* field of a mattr word */
+#define MATTR_MEM_TYPE_FIELD	SHIFT_U32(TEE_MATTR_MEM_TYPE_MASK, \
+					  TEE_MATTR_MEM_TYPE_SHIFT)
+
+static unsigned long mem_type_to_pbmt(uint32_t attr)
+{
+	unsigned long pbmt = PTE_PBMT_PMA;
+
+	switch (get_field_u32(attr, MATTR_MEM_TYPE_FIELD)) {
+	case TEE_MATTR_MEM_TYPE_DEV:
+	case TEE_MATTR_MEM_TYPE_STRONGLY_O:
+		pbmt = PTE_PBMT_IO;
+		break;
+	default:
+		break;
+	}
+
+	return set_field_u64(0, PTE_PBMT, pbmt);
+}
+
+static uint32_t pbmt_to_mem_type(unsigned long entry)
+{
+	switch (get_field_u64(entry, PTE_PBMT)) {
+	case PTE_PBMT_IO:
+	case PTE_PBMT_NC:
+		return TEE_MATTR_MEM_TYPE_DEV;
+	default:
+		return TEE_MATTR_MEM_TYPE_CACHED;
+	}
+}
+
 static unsigned long pte_to_mattr(unsigned level __maybe_unused,
 				  struct mmu_pte *pte)
 {
@@ -230,10 +270,15 @@ static unsigned long pte_to_mattr(unsigned level __maybe_unused,
 	if (entry & PTE_G)
 		mattr |= TEE_MATTR_GLOBAL;
 
+	if (IS_ENABLED(CFG_RISCV_ISA_SVPBMT))
+		mattr = set_field_u32(mattr, MATTR_MEM_TYPE_FIELD,
+				      pbmt_to_mem_type(entry));
+
 	return mattr;
 }
 
-static uint8_t mattr_to_pte_bits(unsigned level __maybe_unused, uint32_t attr)
+static unsigned long mattr_to_pte_bits(unsigned level __maybe_unused,
+				       uint32_t attr)
 {
 	unsigned long pte_bits = 0;
 
@@ -265,6 +310,9 @@ static uint8_t mattr_to_pte_bits(unsigned level __maybe_unused, uint32_t attr)
 
 	if (attr & TEE_MATTR_GLOBAL)
 		pte_bits |= PTE_G;
+
+	if (IS_ENABLED(CFG_RISCV_ISA_SVPBMT))
+		pte_bits |= mem_type_to_pbmt(attr);
 
 	return pte_bits;
 }
@@ -653,12 +701,37 @@ void tlbi_va_asid(vaddr_t va, uint32_t asid)
 	tlbi_remote(va, SMALL_PAGE_SIZE, asid, true);
 }
 
-void tlbi_va_range(vaddr_t va, size_t len,
-		   size_t granule)
+#ifndef CFG_RISCV_ISA_SVINVAL
+/* One SFENCE.VMA per page, each a full fence and invalidation */
+void tlbi_va_range_local(vaddr_t va, size_t len, size_t granule)
 {
 	vaddr_t v = va;
 	size_t l = len;
 
+	while (l) {
+		tlbi_va_allasid_local(v);
+		l -= granule;
+		v += granule;
+	}
+}
+
+void tlbi_va_range_asid_local(vaddr_t va, size_t len, size_t granule,
+			      uint32_t asid)
+{
+	vaddr_t v = va;
+	size_t l = len;
+
+	while (l) {
+		tlbi_va_asid_local(v, asid);
+		l -= granule;
+		v += granule;
+	}
+}
+#endif /*!CFG_RISCV_ISA_SVINVAL*/
+
+void tlbi_va_range(vaddr_t va, size_t len,
+		   size_t granule)
+{
 	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
 	assert(!(va & (granule - 1)) && !(len & (granule - 1)));
 
@@ -667,11 +740,7 @@ void tlbi_va_range(vaddr_t va, size_t len,
 	 * with TLB invalidation.
 	 */
 	mb();
-	while (l) {
-		tlbi_va_allasid_local(v);
-		l -= granule;
-		v += granule;
-	}
+	tlbi_va_range_local(va, len, granule);
 	/* One remote fence covers the whole range */
 	tlbi_remote(va, len, 0, false);
 	/*
@@ -685,9 +754,6 @@ void tlbi_va_range(vaddr_t va, size_t len,
 void tlbi_va_range_asid(vaddr_t va, size_t len,
 			size_t granule, uint32_t asid)
 {
-	vaddr_t v = va;
-	size_t l = len;
-
 	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
 	assert(!(va & (granule - 1)) && !(len & (granule - 1)));
 
@@ -696,11 +762,7 @@ void tlbi_va_range_asid(vaddr_t va, size_t len,
 	 * and correctness of memory accesses.
 	 */
 	mb();
-	while (l) {
-		tlbi_va_asid_local(v, asid);
-		l -= granule;
-		v += granule;
-	}
+	tlbi_va_range_asid_local(va, len, granule, asid);
 	/* One remote fence covers the whole range */
 	tlbi_remote(va, len, asid, true);
 	/* Enforce ordering of memory operations and ensure that all
@@ -981,7 +1043,7 @@ void core_mmu_set_entry_primitive(void *table, size_t level, size_t idx,
 {
 	struct mmu_pgt *pgt = (struct mmu_pgt *)table;
 	struct mmu_pte *pte = core_mmu_table_get_entry(pgt, idx);
-	uint8_t pte_bits = mattr_to_pte_bits(level, attr);
+	unsigned long pte_bits = mattr_to_pte_bits(level, attr);
 
 	core_mmu_entry_set(pte, core_mmu_pte_create(pa_to_ppn(pa), pte_bits));
 }
