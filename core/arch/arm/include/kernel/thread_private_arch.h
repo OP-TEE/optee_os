@@ -191,6 +191,9 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 			  uint32_t a4, uint32_t a5);
 void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 			    uint32_t a2, uint32_t a3);
+#ifdef CFG_SECURE_PARTITION
+void thread_resume_from_ffa_run(uint32_t thread_id);
+#endif
 
 /*
  * The thread_rpc() function suspends current thread and temporarily exits

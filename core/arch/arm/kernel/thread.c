@@ -417,8 +417,26 @@ static bool is_user_mode(struct thread_ctx_regs *regs)
 	return is_from_user((uint32_t)regs->cpsr);
 }
 
-void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
-			    uint32_t a2, uint32_t a3)
+static bool can_resume_thread(const struct thread_ctx *thread,
+			      bool from_ffa_run)
+{
+	bool ffa_only = thread->flags & THREAD_FLAGS_FFA_ONLY;
+	bool rpc_return = thread->flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN;
+
+	/*
+	 * COPY_ARGS_ON_RETURN is set for the current RPC suspension and is
+	 * cleared when that suspension is resumed. An FFA_RUN caller has
+	 * already claimed the preempted SP session before reaching here.
+	 */
+	if (from_ffa_run)
+		return ffa_only && !rpc_return;
+
+	return !ffa_only || rpc_return;
+}
+
+static void thread_resume_from_suspend(uint32_t thread_id, uint32_t a0,
+				       uint32_t a1, uint32_t a2,
+				       uint32_t a3, bool from_ffa_run)
 {
 	size_t n = thread_id;
 	struct thread_core_local *l = thread_get_core_local();
@@ -428,7 +446,9 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 
 	thread_lock_global();
 
-	if (n < CFG_NUM_THREADS && threads[n].state == THREAD_STATE_SUSPENDED) {
+	if (n < CFG_NUM_THREADS &&
+	    threads[n].state == THREAD_STATE_SUSPENDED &&
+	    can_resume_thread(threads + n, from_ffa_run)) {
 		threads[n].state = THREAD_STATE_ACTIVE;
 		found_thread = true;
 	}
@@ -468,6 +488,19 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 	/*NOTREACHED*/
 	panic();
 }
+
+void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
+			    uint32_t a2, uint32_t a3)
+{
+	thread_resume_from_suspend(thread_id, a0, a1, a2, a3, false);
+}
+
+#ifdef CFG_SECURE_PARTITION
+void thread_resume_from_ffa_run(uint32_t thread_id)
+{
+	thread_resume_from_suspend(thread_id, 0, 0, 0, 0, true);
+}
+#endif
 
 #ifdef ARM64
 static uint64_t spsr_from_pstate(void)
@@ -591,7 +624,10 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 		core_mmu_set_user_map(NULL);
 	}
 
-	if (IS_ENABLED(CFG_SECURE_PARTITION)) {
+	/* Only an FFA-only thread returning FFA_INTERRUPT expects FFA_RUN. */
+	if (IS_ENABLED(CFG_SECURE_PARTITION) &&
+	    (threads[ct].flags & THREAD_FLAGS_FFA_ONLY) &&
+	    (flags & THREAD_FLAGS_EXIT_ON_FOREIGN_INTR)) {
 		struct ts_session *ts_sess =
 			TAILQ_FIRST(&threads[ct].tsd.sess_stack);
 
