@@ -22,11 +22,33 @@ struct vfp_reg {
 };
 #endif
 
+#if defined(CFG_WITH_VFP) && defined(CFG_RISCV_VEC)
+/*
+ * The vector CSRs plus the register file. vl and vtype are read-only CSRs
+ * restored through vsetvl; they must be carried too or a concurrent TA's
+ * vsetvl leaves the resumed context with the wrong vl/vtype. The register
+ * area is sized at runtime from vlenb (32 * vlenb), so the struct is
+ * allocated rather than embedded.
+ */
+struct riscv_vector_state {
+	unsigned long vcsr;
+	unsigned long vstart;
+	unsigned long vl;
+	unsigned long vtype;
+	uint8_t vregs[];
+};
+#endif
+
 struct vfp_state {
 	struct vfp_reg reg[VFP_NUM_REGS];
 	uint32_t fcsr;
 	/* xstatus.FS at the time of vfp_lazy_save_state_init() */
 	unsigned long fs;
+#if defined(CFG_WITH_VFP) && defined(CFG_RISCV_VEC)
+	/* Vector context, allocated by the thread layer, and xstatus.VS */
+	struct riscv_vector_state *vregs;
+	unsigned long vs;
+#endif
 };
 
 #ifdef CFG_WITH_VFP

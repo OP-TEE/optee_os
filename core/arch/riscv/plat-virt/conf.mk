@@ -3,6 +3,7 @@ $(call force,CFG_RV64_core,y)
 # ISA extension flags
 $(call force,CFG_RISCV_ISA_C,y)
 $(call force,CFG_RISCV_FPU,y)
+CFG_RISCV_VEC ?= y
 
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_RESERVED_SHM,n)

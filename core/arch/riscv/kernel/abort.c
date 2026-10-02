@@ -11,6 +11,7 @@
 #include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_private.h>
+#include <kernel/vfp.h>
 #include <kernel/user_mode_ctx.h>
 #include <kernel/vfp.h>
 #include <mm/core_mmu.h>
@@ -243,11 +244,11 @@ static void handle_user_mode_panic(struct abort_info *ai)
 }
 
 #ifdef CFG_WITH_VFP
-static void handle_user_mode_vfp(void)
+static bool handle_user_mode_vfp(void)
 {
 	struct ts_session *s = ts_get_current_session();
 
-	thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
+	return thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
 }
 #endif /*CFG_WITH_VFP*/
 
@@ -271,9 +272,9 @@ static bool is_vfp_fault(struct abort_info *ai)
 {
 	/*
 	 * An illegal instruction is reported as ABORT_TYPE_UNDEF. If it came
-	 * from a context that had the FP unit disabled, take it as the first
-	 * FP use and hand over the unit; a genuinely illegal instruction
-	 * traps again once the unit is enabled and is a panic then.
+	 * from a context that had the FP or vector unit disabled, take it as
+	 * the first FP/vector use and hand over the unit; a genuinely illegal
+	 * instruction traps again once the unit is enabled and is a panic then.
 	 */
 	if (ai->abort_type != ABORT_TYPE_UNDEF || vfp_is_enabled())
 		return false;
@@ -374,7 +375,11 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		break;
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_MODE_VFP:
-		handle_user_mode_vfp();
+		if (!handle_user_mode_vfp()) {
+			EMSG("Out of memory for a TA vector context");
+			save_abort_info_in_tsd(&ai);
+			handle_user_mode_panic(&ai);
+		}
 		break;
 #endif
 	case FAULT_TYPE_PAGE_FAULT:
