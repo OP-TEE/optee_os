@@ -6,10 +6,12 @@
 #include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
+#include <drivers/stm32_bsec.h>
 #include <drivers/rstctrl.h>
 #include <drivers/stm32_rif.h>
 #include <drivers/stm32_serc.h>
 #include <drivers/stm32_uart.h>
+#include <drivers/stm32mp_dt_bindings.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #include <initcall.h>
 #include <kernel/abort.h>
@@ -22,6 +24,9 @@
 #include <platform_config.h>
 #include <stm32_util.h>
 #include <trace.h>
+
+/* DBGMCU registers */
+#define DBGMCU_DBG_AUTH_DEV		U(0x104)
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, APB1_BASE, APB1_SIZE);
 
@@ -37,6 +42,11 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, SAPB_BASE, SAPB_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SAHB_BASE, SAHB_SIZE);
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
+
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, DBGMCU_BASE, DBGMCU_SIZE);
+
+/* Map beginning SRAM1 as read write for BSEC shadow */
+register_phys_mem(MEM_AREA_RAM_SEC, SRAM1_BASE, SIZE_4K);
 
 #define _ID2STR(id)		(#id)
 #define ID2STR(id)		_ID2STR(id)
@@ -143,6 +153,13 @@ vaddr_t stm32_rcc_base(void)
 	return io_pa_or_va_secure(&base, 1);
 }
 
+static __maybe_unused uintptr_t stm32_dbgmcu_base(void)
+{
+	static struct io_pa_va dbgmcu_base = { .pa = DBGMCU_BASE };
+
+	return io_pa_or_va_nsec(&dbgmcu_base, 1);
+}
+
 void boot_primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
@@ -182,6 +199,64 @@ void plat_external_abort_handler(struct abort_info *ai __unused)
 	/* External abort may be due to SERC events */
 	stm32_serc_handle_ilac();
 }
+
+#ifdef CFG_STM32_BSEC3
+void plat_bsec_get_static_cfg(struct stm32_bsec_static_cfg *cfg)
+{
+	cfg->base = BSEC3_BASE;
+	cfg->mirror = SRAM1_BASE;
+	cfg->upper_start = STM32MP2_UPPER_OTP_START;
+	cfg->max_id = STM32MP2_OTP_MAX_ID;
+}
+
+#ifndef CFG_STM32_CM33TDCID
+static TEE_Result init_debug(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct clk *dbg_clk = stm32mp_rcc_clock_id_to_clk(CK_SYSDBG);
+	uint32_t state = 0;
+
+	res = stm32_bsec_get_state(&state);
+	if (res)
+		return res;
+
+	if (state != BSEC_STATE_SEC_CLOSED) {
+		struct clk __maybe_unused *dbgmcu_clk = NULL;
+
+		if (IS_ENABLED(CFG_INSECURE))
+			IMSG("WARNING: All debug access are allowed");
+
+		res = stm32_bsec_write_debug_conf(STM32_BSEC_DEBUG_ALL);
+		if (res)
+			panic("Debug configuration failed");
+
+		/* Enable DBG as used to access coprocessor debug registers */
+		assert(dbg_clk);
+		if (clk_enable(dbg_clk))
+			panic("Could not enable debug clock");
+
+#if defined(CFG_STM32MP21)
+		dbgmcu_clk = stm32mp_rcc_clock_id_to_clk(CK_DBGMCU);
+
+		assert(dbgmcu_clk);
+		if (clk_enable(dbgmcu_clk))
+			panic("Could not enable DBGMCU clock");
+
+		stm32_bsec_mp21_ap0_unlock();
+
+		/*
+		 * Write a dummy value to trigger the full visibility
+		 * of the debug port.
+		 */
+		io_write32(stm32_dbgmcu_base() + DBGMCU_DBG_AUTH_DEV, 1);
+#endif
+	}
+
+	return res;
+}
+early_init_late(init_debug);
+#endif /* !CFG_STM32_CM33TDCID */
+#endif /* CFG_STM32_BSEC3 */
 
 void __noreturn do_reset(const char *str __maybe_unused)
 {

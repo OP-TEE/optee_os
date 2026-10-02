@@ -17,6 +17,7 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stm32_util.h>
+#include <stdlib_ext.h>
 #include <string.h>
 #include <tee_api_defines.h>
 #include <types_ext.h>
@@ -319,6 +320,61 @@ TEE_Result stm32_bsec_read_otp(uint32_t *value, uint32_t otp_id)
 	return TEE_SUCCESS;
 }
 
+/*
+ * Read a range of OTP data values thanks to the name of the cell
+ * @name: Name of the cell describing the OTP range
+ * @len : Size of the OTP range to read
+ * @values : Output read values
+ */
+TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
+					     size_t len, uint8_t **values)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t otp_bit_offset = 0;
+	uint32_t *data_buf = NULL;
+	size_t otp_bit_len = 0;
+	uint32_t otp_start = 0;
+	size_t otp_length = 0;
+	uint32_t otp_id = 0;
+
+	res = stm32_bsec_find_otp_in_nvmem_layout(name, &otp_start,
+						  &otp_bit_offset,
+						  &otp_bit_len);
+	if (res) {
+		EMSG("Can't find %s", name);
+		return res;
+	}
+
+	if (otp_bit_offset || otp_bit_len != len * CHAR_BIT) {
+		EMSG("Bad key OTP alignment");
+		return TEE_ERROR_GENERIC;
+	}
+
+	otp_length = len / sizeof(uint32_t);
+	data_buf = (uint32_t *)calloc(otp_length, sizeof(uint32_t));
+	if (!data_buf)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*values = (uint8_t *)data_buf;
+
+	for (otp_id = otp_start; otp_id < otp_start + otp_length;
+	     otp_id++, data_buf++) {
+		/* Read key in OTP */
+		res = stm32_bsec_read_otp(data_buf, otp_id);
+		if (res)
+			goto clean_values;
+	}
+
+	/* values has to be freed by API caller */
+	return TEE_SUCCESS;
+
+clean_values:
+	free_wipe(*values);
+	*values = NULL;
+
+	return res;
+}
+
 TEE_Result stm32_bsec_shadow_read_otp(uint32_t *otp_value, uint32_t otp_id)
 {
 	TEE_Result result = 0;
@@ -489,21 +545,47 @@ out:
 }
 #endif /*CFG_STM32_BSEC_WRITE*/
 
-TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
+static uint32_t parse_permission(uint32_t perm_mask)
+{
+	uint32_t denr_val = 0U;
+
+	if (!(perm_mask & STM32_BSEC_DEBUG_CORTEX_A_NSDDIS)) {
+		if (perm_mask & STM32_BSEC_DEBUG_CORTEX_A_NSTO)
+			denr_val |= BSEC_DENR_NIDEN;
+		if (perm_mask & STM32_BSEC_DEBUG_CORTEX_A_NSFD)
+			denr_val |= BSEC_DENR_NIDEN | BSEC_DENR_DBGEN;
+	}
+
+	if (!(perm_mask & STM32_BSEC_DEBUG_CORTEX_A_SDDIS)) {
+		if (perm_mask & STM32_BSEC_DEBUG_CORTEX_A_STO)
+			denr_val |= BSEC_DENR_SPNIDEN;
+		if (perm_mask & STM32_BSEC_DEBUG_CORTEX_A_SFD)
+			denr_val |= BSEC_DENR_SPNIDEN | BSEC_DENR_SPIDEN;
+	}
+
+	if (denr_val != 0)
+		denr_val |= BSEC_DENR_DEVICEEN | BSEC_DENR_HDPEN |
+			    BSEC_DENR_DBGSWEN;
+
+	return denr_val;
+}
+
+TEE_Result stm32_bsec_write_debug_conf(uint32_t perm_mask)
 {
 	TEE_Result result = TEE_ERROR_GENERIC;
 	uint32_t exceptions = 0;
-
-	assert(!(value & ~BSEC_DEN_ALL_MSK));
+	uint32_t denr = 0;
 
 	if (state_is_invalid_mode())
 		return TEE_ERROR_SECURITY;
 
+	denr = parse_permission(perm_mask);
+
 	exceptions = bsec_lock();
 
-	io_clrsetbits32(bsec_base() + BSEC_DEN_OFF, BSEC_DEN_ALL_MSK, value);
+	io_clrsetbits32(bsec_base() + BSEC_DEN_OFF, BSEC_DEN_ALL_MSK, denr);
 
-	if (stm32_bsec_read_debug_conf() == value)
+	if ((io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DEN_ALL_MSK) == denr)
 		result = TEE_SUCCESS;
 
 	bsec_unlock(exceptions);
@@ -511,9 +593,23 @@ TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 	return result;
 }
 
-uint32_t stm32_bsec_read_debug_conf(void)
+bool stm32_bsec_self_hosted_debug_is_enabled(void)
 {
-	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DEN_ALL_MSK;
+	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DENR_DBGSWEN;
+}
+
+bool stm32_bsec_hdp_is_enabled(void)
+{
+	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DENR_HDPEN;
+}
+
+bool stm32_bsec_coresight_is_enabled(void)
+{
+	uint32_t denr = io_read32(bsec_base() + BSEC_DEN_OFF);
+	uint32_t coresight_mask = BSEC_DENR_DBGEN | BSEC_DENR_DEVICEEN |
+				  BSEC_DENR_DBGSWEN;
+
+	return (denr & coresight_mask) == coresight_mask;
 }
 
 static TEE_Result set_bsec_lock(uint32_t otp_id, size_t lock_offset)
@@ -722,20 +818,6 @@ TEE_Result stm32_bsec_get_state(enum stm32_bsec_sec_state *state)
 	return TEE_SUCCESS;
 }
 
-bool stm32_bsec_hdp_is_enabled(void)
-{
-	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DENR_HDPEN;
-}
-
-bool stm32_bsec_coresight_is_enabled(void)
-{
-	uint32_t denr = io_read32(bsec_base() + BSEC_DEN_OFF);
-	uint32_t coresight_mask = BSEC_DENR_DBGEN | BSEC_DENR_DEVICEEN |
-				  BSEC_DENR_DBGSWEN;
-
-	return (denr & coresight_mask) == coresight_mask;
-}
-
 static void enable_nsec_access(unsigned int otp_id)
 {
 	unsigned int idx = (otp_id - otp_upper_base()) / BSEC_BITS_PER_WORD;
@@ -941,9 +1023,9 @@ static TEE_Result bsec_pm(enum pm_op op, uint32_t pm_hint __unused,
 	assert(op == PM_OP_SUSPEND || op == PM_OP_RESUME);
 
 	if (op == PM_OP_SUSPEND)
-		debug_conf = stm32_bsec_read_debug_conf();
+		debug_conf = io_read32(bsec_base() + BSEC_DEN_OFF);
 	else
-		stm32_bsec_write_debug_conf(debug_conf);
+		io_write32(bsec_base() + BSEC_DEN_OFF, debug_conf);
 
 	return TEE_SUCCESS;
 }
@@ -953,7 +1035,7 @@ static TEE_Result initialize_bsec(void)
 {
 	struct stm32_bsec_static_cfg cfg = { };
 
-	stm32mp_get_bsec_static_cfg(&cfg);
+	plat_bsec_get_static_cfg(&cfg);
 
 	bsec_dev.base.pa = cfg.base;
 	bsec_dev.upper_base = cfg.upper_start;

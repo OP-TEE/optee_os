@@ -87,5 +87,7 @@ enum stm32_bsec_pta_sec_state {
 #define PTA_BSEC_LOCK_SHADOW_W			BIT(28)
 #define PTA_BSEC_LOCK_SHADOW_P			BIT(27)
 #define PTA_BSEC_LOCK_ERROR			BIT(26)
+#define PTA_BSEC_STATUS_PROVISIONING		BIT(1)
+#define PTA_BSEC_STATUS_SECURE			BIT(0)
 
 #endif /* __PTA_STM32MP_BSEC_H */

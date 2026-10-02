@@ -38,6 +38,7 @@ srcs-$(CFG_MICROCHIP_PIT) += microchip_pit.c
 srcs-$(CFG_AMLOGIC_UART) += amlogic_uart.c
 srcs-$(CFG_MVEBU_UART) += mvebu_uart.c
 srcs-$(CFG_STM32_BSEC) += stm32_bsec.c
+srcs-$(CFG_STM32_BSEC3) += stm32_bsec3.c
 srcs-$(CFG_STM32_CPU_OPP) += stm32_cpu_opp.c
 srcs-$(CFG_STM32_EXTI) += stm32_exti.c
 srcs-$(CFG_STM32_FMC) += stm32_fmc.c
