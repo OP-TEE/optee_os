@@ -1,3 +1,3 @@
-srcs-y += subsys.c lpass.c
+srcs-y += subsys.c gpu.c lpass.c
 incdirs-y += .
 incdirs-y += ../

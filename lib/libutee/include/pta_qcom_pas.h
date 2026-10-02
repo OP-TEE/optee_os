@@ -17,6 +17,7 @@
 #define PAS_ID_QDSP6		1
 #define PAS_ID_WPSS		6
 #define PAS_ID_IRIS		9
+#define PAS_ID_GPU		13
 #define PAS_ID_TURING		18
 #define PAS_ID_TURING1		30
 #define PAS_ID_CAMERA		33
