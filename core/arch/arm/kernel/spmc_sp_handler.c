@@ -470,10 +470,13 @@ int spmc_sp_resume_from_preempted(uint16_t endpoint_id, uint16_t thread_id)
 	if (!sp_sess)
 		return FFA_INVALID_PARAMETERS;
 
-	if (sp_sess->state != sp_preempted || sp_sess->thread_id != thread_id)
-		return FFA_DENIED;
-
 	cpu_spin_lock(&sp_sess->spinlock);
+	if (sp_sess->state != sp_preempted ||
+	    sp_sess->thread_id != thread_id) {
+		cpu_spin_unlock(&sp_sess->spinlock);
+		return FFA_DENIED;
+	}
+
 	sp_sess->state = sp_busy;
 	cpu_spin_unlock(&sp_sess->spinlock);
 
