@@ -26,7 +26,13 @@ register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_COMPUTE_BASE,
 register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_NSP_BASE, RPMH_PDC_NSP_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_GPDSP0_BASE, RPMH_PDC_GPDSP0_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_GPDSP1_BASE, RPMH_PDC_GPDSP1_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_AUDIO_BASE, RPMH_PDC_AUDIO_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, TCSR_MUTEX_BASE, TCSR_MUTEX_SIZE);
+
+static bool lpass_halt_acked(uint32_t val)
+{
+	return val & TCSR_LPASS_BIT;
+}
 
 static TEE_Result cdsp_enable(paddr_t turing_base)
 {
@@ -526,6 +532,79 @@ static TEE_Result gpdsp_reset_processor(const struct gpdsp_reset_regs *r)
 	return TEE_SUCCESS;
 }
 
+/* HALT_ACK polls for up to 1s; a QDSP6 in a bad state may never ack. */
+#define LPASS_HALT_ACK_TIMEOUT_US	(200000 * 5)
+
+/*
+ * Put LPASS through a subsystem restart (AOSS_CC_LPASS_RESTART and PDC sync
+ * reset), so that a stopped or crashed ADSP boots again from reset.
+ */
+static TEE_Result lpass_reset_processor(void)
+{
+	vaddr_t pdc_global = QCOM_IO_VA(RPMH_PDC_GLOBAL_BASE,
+					RPMH_PDC_GLOBAL_SIZE);
+	vaddr_t pdc_status = QCOM_IO_VA(RPMH_PDC_AUDIO_BASE,
+					RPMH_PDC_AUDIO_SIZE);
+	vaddr_t tcsr = QCOM_IO_VA(TCSR_MUTEX_BASE, TCSR_MUTEX_SIZE);
+	vaddr_t aoss_cc = QCOM_IO_VA(AOSS_CC_BASE, AOSS_CC_SIZE);
+	vaddr_t lpass_base = QCOM_IO_VA(LPASS_BASE, LPASS_SIZE);
+	vaddr_t gcc_base = QCOM_IO_VA(GCC_BASE, GCC_SIZE);
+	vaddr_t aon_cc = lpass_base + LPASS_AON_CC_OFFSET;
+	vaddr_t pub = lpass_base + LPASS_PUB_OFFSET;
+	vaddr_t sbm = lpass_base + LPASS_AG_NOC_SBM_OFFSET;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t val = 0;
+
+	if (!gcc_base || !lpass_base || !aoss_cc || !pdc_global ||
+	    !pdc_status || !tcsr)
+		return TEE_ERROR_GENERIC;
+
+	/* Bail if the PDC sequencer is mid-transition. */
+	if (io_read32(pdc_status + RPMH_PDC_MODE_STATUS_DRV0) &
+	    PDC_MODE_STATUS_SEQ_BUSY_BIT)
+		return TEE_ERROR_BUSY;
+
+	/* The QDSP6SS registers are reachable only with these branches on. */
+	res = qcom_clock_enable_cbc(gcc_base + GCC_CFG_NOC_LPASS_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = qcom_clock_enable_cbc(aon_cc + LPASS_AON_CC_Q6_AHBS_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Reset the retention flops too; the QDSP6 clears this once it runs. */
+	io_setbits32(pub + LPASS_QDSP6SS_RET_CFG,
+		     QDSP6SS_RET_CFG_RET_ARES_ENA_BIT);
+
+	io_setbits32(tcsr + TCSR_LPASS_HALTREQ, TCSR_LPASS_BIT);
+	/* A QDSP6 in a bad state may never ack; reset it anyway. */
+	IO_READ32_POLL_TIMEOUT(tcsr + TCSR_LPASS_HALTACK, val,
+			       lpass_halt_acked(val), 5,
+			       LPASS_HALT_ACK_TIMEOUT_US);
+
+	io_setbits32(pdc_global + RPMH_PDC_SYNC_RESET,
+		     PDC_SYNC_RESET_AUDIO_BIT);
+	io_setbits32(aoss_cc + AOSS_CC_LPASS_RESTART, LPASS_RESTART_SS_BIT);
+	dsb();
+	mdelay(10);
+
+	io_clrbits32(pdc_global + RPMH_PDC_SYNC_RESET,
+		     PDC_SYNC_RESET_AUDIO_BIT);
+	io_clrbits32(aoss_cc + AOSS_CC_LPASS_RESTART, LPASS_RESTART_SS_BIT);
+	dsb();
+	udelay(200);
+
+	io_clrbits32(tcsr + TCSR_LPASS_HALTREQ, TCSR_LPASS_BIT);
+	udelay(100);
+
+	io_write32(sbm + LPASS_AG_NOC_SBM_FLAGOUTSET0_LOW, 0);
+	io_write32(sbm + LPASS_AG_NOC_SBM_FLAGOUTCLR0_LOW,
+		   LPASS_AG_NOC_SBM_PORT1_BIT);
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group)
 {
 	switch (group) {
@@ -538,12 +617,7 @@ TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group)
 	case QCOM_CLKS_GPDSP1:
 		return gpdsp_reset_processor(&gpdsp1_reset_regs);
 	case QCOM_CLKS_LPASS:
-		/*
-		 * The LPASS subsystem reset is the SSR / tear-down path;
-		 * cold bring-up starts from a known state with the LPASS
-		 * core domain already powered.
-		 */
-		return TEE_SUCCESS;
+		return lpass_reset_processor();
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
