@@ -222,6 +222,7 @@ jobs:
               _make PLATFORM=qcom-ipq52xx
               _make PLATFORM=qcom-nord
               _make PLATFORM=qcom-shikra
+              _make PLATFORM=qcom-agatti
               _make PLATFORM=qcom-cacao
           - name: arm rockchip
             make_commands: |
