@@ -20,6 +20,14 @@
  * member may be NULL when the subsystem does not implement that operation;
  * the generic core (pas_core.c) returns the appropriate error in that case.
  *
+ * @fw_init_image:      Inspect the image metadata (ELF header and program
+ *                      headers) of the image about to be loaded. @metadata
+ *                      is borrowed from the caller, not yet authenticated,
+ *                      and valid only for the duration of the call: copy out
+ *                      what is needed and validate it. State derived from it
+ *                      belongs to this image only and must be replaced on the
+ *                      next call. An error fails PTA_QCOM_PAS_INIT_IMAGE and
+ *                      the derived state must then be left empty.
  * @fw_start:           Program the firmware entry and run the boot FSM.
  * @fw_shutdown:        Put the processor back into reset.
  * @fw_set_state:       Power the processor on (@on == true) or off.
@@ -27,6 +35,8 @@
  *                      resource_table.h).  NULL for subsystems with no table.
  */
 struct qcom_pas_ops {
+	TEE_Result (*fw_init_image)(struct qcom_pas_data *data,
+				    const void *metadata, size_t size);
 	TEE_Result (*fw_start)(struct qcom_pas_data *data);
 	TEE_Result (*fw_shutdown)(struct qcom_pas_data *data);
 	TEE_Result (*fw_set_state)(struct qcom_pas_data *data, bool on);
