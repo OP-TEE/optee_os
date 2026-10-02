@@ -16,6 +16,15 @@
 /* GIC-500 redistributor (GICD_BASE is common to the family). */
 #define GICR_BASE			UL(0x0f300000)
 
+#define GCC_BASE			UL(0x01400000)
+#define GCC_SIZE			UL(0x001f0000)
+
+#define TCSR_BASE			UL(0x00300000)
+#define TCSR_SIZE			UL(0x00100000)
+
+#define LPASS_BASE			UL(0x0a000000)
+#define LPASS_SIZE			UL(0x01000000)
+
 #define QCOM_RNG_REG_BASE		UL(0x04453000)
 
 #endif /* TARGET_CONFIG_H */
