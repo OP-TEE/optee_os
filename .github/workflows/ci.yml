@@ -535,7 +535,7 @@ jobs:
               make -j$(nproc) check CFG_ULIBS_SHARED=y
           - name: default
             make_commands: |
-              make -j$(nproc) check
+              make -j$(nproc) check RUST_ENABLE=y
           - name: DYN_CONFIG=n
             make_commands: |
               make -j$(nproc) check CFG_DYN_CONFIG=n
@@ -616,6 +616,7 @@ jobs:
               export CFG_ATTESTATION_PTA=y
               export CFG_ATTESTATION_PTA_KEY_SIZE=1024
               export DUMP_LOGS_ON_ERROR=1
+              export RUST_ENABLE=n
 
               TOP=/root/optee_repo_qemu_v8
               mv $TOP/optee_os $TOP/optee_os_old
