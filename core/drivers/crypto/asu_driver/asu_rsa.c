@@ -7,6 +7,7 @@
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/asu_crypto_common.h>
 #include <drivers/amd/asu_fw_info.h>
 #include <drivers/amd/asu_sharedmem.h>
 #include <drivers/amd/fw_compat.h>
@@ -192,25 +193,39 @@ static struct {
 } asu_rsa_fw_caps;
 
 /*
- * asu_rsa_check_fw_compat() - Validate the ASU RSA module version and
- * cache its FeatureCaps for use by the HW/SW fallback checks below
+ * asu_rsa_check_fw_compat() - Validate the ASU RSA and KeyManager module
+ * versions and cache RSA's FeatureCaps
+ *
+ * RSA hardware key-pair generation requires KeyManager. Use software
+ * fallback unless both modules meet their minimum versions.
  */
 static void asu_rsa_check_fw_compat(void)
 {
-	const struct fw_module_info *mod = NULL;
+	const struct fw_module_info *rsa_mod = NULL;
+	const struct fw_module_info *km_mod = NULL;
 
-	mod = fw_compat_get_module_info(ASU_MODULE_RSA_ID);
-	if (!asu_module_version_at_least(mod, CFG_AMD_ASU_RSA_MINVER_MAJ,
+	rsa_mod = fw_compat_get_module_info(ASU_MODULE_RSA_ID);
+	if (!asu_module_version_at_least(rsa_mod, CFG_AMD_ASU_RSA_MINVER_MAJ,
 					 CFG_AMD_ASU_RSA_MINVER_MNR)) {
 		EMSG("ASU RSA module unavailable or below min %u.%u, using SW",
 		     CFG_AMD_ASU_RSA_MINVER_MAJ, CFG_AMD_ASU_RSA_MINVER_MNR);
 		return;
 	}
 
-	asu_rsa_fw_caps.hw_available = true;
-	asu_rsa_fw_caps.feature_caps = mod->feature_caps;
+	km_mod = fw_compat_get_module_info(ASU_MODULE_KEYMANAGER_ID);
+	if (!asu_module_version_at_least(km_mod,
+					 CFG_AMD_ASU_KEYMANAGER_MINVER_MAJ,
+					 CFG_AMD_ASU_KEYMANAGER_MINVER_MNR)) {
+		EMSG("ASU KeyManager unavailable or below min %u.%u, using SW",
+		     CFG_AMD_ASU_KEYMANAGER_MINVER_MAJ,
+		     CFG_AMD_ASU_KEYMANAGER_MINVER_MNR);
+		return;
+	}
 
-	IMSG("ASU RSA HW available, caps=%#"PRIx16, mod->feature_caps);
+	asu_rsa_fw_caps.hw_available = true;
+	asu_rsa_fw_caps.feature_caps = rsa_mod->feature_caps;
+
+	IMSG("ASU RSA HW available, caps=%#"PRIx16, rsa_mod->feature_caps);
 }
 
 /* Whether HW-accelerated padded RSA (OAEP/PSS) operations can be used */
@@ -376,6 +391,19 @@ static TEE_Result asu_rsa_sha_cfg_from_hash_algo(uint32_t hash_algo,
 	}
 
 	return TEE_SUCCESS;
+}
+
+/*
+ * asu_rsa_sha_module_id() - Map ASU RSA SHA family to the SHA engine module.
+ *
+ * OAEP and PSS commands in ASUFW allocate SHA2 or SHA3 for the whole request.
+ */
+static uint8_t asu_rsa_sha_module_id(uint8_t sha_type)
+{
+	if (sha_type == ASU_RSA_SHA2_TYPE)
+		return ASU_MODULE_SHA2_ID;
+
+	return ASU_MODULE_SHA3_ID;
 }
 
 /*
@@ -1213,6 +1241,7 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 	size_t label_len = 0;
 	size_t em_len = 0;
 	bool use_oaep = false;
+	bool sha_acquired = false;
 	uint8_t sha_type = 0;
 	uint8_t sha_mode = 0;
 	uint32_t expected_mgf_algo = 0;
@@ -1253,6 +1282,12 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 			ret = asu_rsa_sw_rsaes_encrypt(rsa_data);
 			goto out;
 		}
+		ret = asu_shadev_acquire(asu_rsa_sha_module_id(sha_type));
+		if (ret) {
+			ret = asu_rsa_sw_rsaes_encrypt(rsa_data);
+			goto out;
+		}
+		sha_acquired = true;
 		use_oaep = true;
 		break;
 	case DRVCRYPT_RSA_NOPAD:
@@ -1371,6 +1406,8 @@ static TEE_Result asu_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 	DMSG("RSA encryption successful");
 
 out:
+	if (sha_acquired)
+		asu_shadev_release(asu_rsa_sha_module_id(sha_type));
 	free_wipe(msg_buf);
 	free_wipe(out_buf);
 	free_wipe(label_buf);
@@ -1397,6 +1434,7 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 	size_t label_len = 0;
 	size_t sig_len = 0;
 	bool use_oaep = false;
+	bool sha_acquired = false;
 	uint8_t sha_type = 0;
 	uint8_t sha_mode = 0;
 	uint32_t expected_mgf_algo = 0;
@@ -1444,6 +1482,12 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 			ret = asu_rsa_sw_rsaes_decrypt(rsa_data);
 			goto out;
 		}
+		ret = asu_shadev_acquire(asu_rsa_sha_module_id(sha_type));
+		if (ret) {
+			ret = asu_rsa_sw_rsaes_decrypt(rsa_data);
+			goto out;
+		}
+		sha_acquired = true;
 		use_oaep = true;
 		break;
 	case DRVCRYPT_RSA_NOPAD:
@@ -1624,6 +1668,8 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 	DMSG("RSA decryption successful");
 
 out:
+	if (sha_acquired)
+		asu_shadev_release(asu_rsa_sha_module_id(sha_type));
 	free_wipe(cipher_buf);
 	free_wipe(out_buf);
 	free_wipe(label_buf);
@@ -1650,6 +1696,7 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	uint32_t key_size = 0;
 	uint32_t input_len = 0;
 	uint32_t output_len = 0;
+	bool sha_acquired = false;
 	TEE_Result ret = TEE_SUCCESS;
 
 	if (!ssa_data || !ssa_data->key.key) {
@@ -1697,12 +1744,6 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 		goto out;
 	}
 
-	key_comp = asu_rsa_alloc_align_buf(sizeof(*key_comp));
-	if (!key_comp) {
-		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
 	ret = asu_rsa_sha_cfg_from_hash_algo(ssa_data->hash_algo,
 					     &sha_type, &sha_mode);
 	if (ret) {
@@ -1710,6 +1751,18 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 		     ret, ssa_data->hash_algo);
 		goto out;
 	}
+
+	ret = asu_shadev_acquire(asu_rsa_sha_module_id(sha_type));
+	if (ret)
+		goto out;
+	sha_acquired = true;
+
+	key_comp = asu_rsa_alloc_align_buf(sizeof(*key_comp));
+	if (!key_comp) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
 	ret = asu_rsa_pack_private_key(ssa_data->key.key, ssa_data->key.n_size,
 				       key_comp);
 	if (ret) {
@@ -1756,6 +1809,8 @@ static TEE_Result asu_rsa_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	DMSG("RSA signing successful");
 
 out:
+	if (sha_acquired)
+		asu_shadev_release(asu_rsa_sha_module_id(sha_type));
 	free_wipe(msg_buf);
 	free_wipe(sig_buf);
 	free_wipe(key_comp);
@@ -1781,6 +1836,7 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	uint32_t key_size = 0;
 	uint32_t input_len = 0;
 	uint32_t output_len = 0;
+	bool sha_acquired = false;
 	TEE_Result ret = TEE_SUCCESS;
 
 	if (!ssa_data || !ssa_data->key.key) {
@@ -1826,12 +1882,6 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 		goto out;
 	}
 
-	key_comp = asu_rsa_alloc_align_buf(sizeof(*key_comp));
-	if (!key_comp) {
-		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
 	ret = asu_rsa_sha_cfg_from_hash_algo(ssa_data->hash_algo,
 					     &sha_type, &sha_mode);
 	if (ret) {
@@ -1839,6 +1889,18 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 		     ret, ssa_data->hash_algo);
 		goto out;
 	}
+
+	ret = asu_shadev_acquire(asu_rsa_sha_module_id(sha_type));
+	if (ret)
+		goto out;
+	sha_acquired = true;
+
+	key_comp = asu_rsa_alloc_align_buf(sizeof(*key_comp));
+	if (!key_comp) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
 	ret = asu_rsa_pack_public_key(ssa_data->key.key, ssa_data->key.n_size,
 				      key_comp);
 	if (ret) {
@@ -1883,6 +1945,8 @@ static TEE_Result asu_rsa_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 		DMSG("RSA signature verification successful");
 
 out:
+	if (sha_acquired)
+		asu_shadev_release(asu_rsa_sha_module_id(sha_type));
 	free_wipe(msg_buf);
 	free_wipe(sig_buf);
 	free_wipe(key_comp);

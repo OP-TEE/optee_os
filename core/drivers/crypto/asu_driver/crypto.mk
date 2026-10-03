@@ -37,12 +37,12 @@ $(call force,CFG_CRYPTO_DRV_ACIPHER,y)
 # bit is unset, that curve falls back to software
 CFG_AMD_ASU_ECC_MINVER_MAJ ?= 2
 CFG_AMD_ASU_ECC_MINVER_MNR ?= 0
+endif
 
-# Minimum ASU KeyManager module version, used internally by ECC HW key-pair
-# generation. Below this, key-pair generation falls back to software.
+# Minimum ASU KeyManager module version, used internally by ECC and RSA HW
+# key-pair generation. Below this, the drivers fall back to software.
 CFG_AMD_ASU_KEYMANAGER_MINVER_MAJ ?= 1
 CFG_AMD_ASU_KEYMANAGER_MINVER_MNR ?= 0
-endif
 
 ifeq ($(CFG_AMD_ASU_CIPHER),y)
 $(call force,CFG_CRYPTO_DRV_CIPHER,y)
