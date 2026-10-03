@@ -686,6 +686,11 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 			mf = thread_spmc_populate_mobj_from_rx(cookie, uc);
 		}
 #endif
+		if (mf && is_mobj_ffa_prm(&mf->mobj) && internal_offs) {
+			/* A protected-memory mobj has no page offset */
+			SLIST_INSERT_HEAD(&shm_inactive_head, mf, link);
+			mf = NULL;
+		}
 		if (mf) {
 #if defined(CFG_CORE_SEL1_SPMC)
 			if (!mf->registered_by_cookie) {
@@ -719,9 +724,6 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 				assert(!(mf->mobj.size & SMALL_PAGE_MASK));
 				mf->mobj.size -= internal_offs;
 				mfs->page_offset = internal_offs;
-			} else if (is_mobj_ffa_prm(&mf->mobj) &&
-				   internal_offs) {
-				mf = NULL;
 			}
 
 			SLIST_INSERT_HEAD(&shm_head, mf, link);
