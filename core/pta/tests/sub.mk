@@ -7,3 +7,4 @@ srcs-y += mutex.c
 srcs-y += aes_perf.c
 srcs-$(CFG_DT_DRIVER_EMBEDDED_TEST) += dt_driver_test.c
 srcs-$(CFG_TRANSFER_LIST_TEST) += transfer_list.c
+srcs-$(CFG_MBOX_TEST) += mbox.c

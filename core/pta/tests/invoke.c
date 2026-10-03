@@ -17,6 +17,7 @@
 #include <trace.h>
 #include <types_ext.h>
 
+#include "mbox_test.h"
 #include "misc.h"
 
 #define TA_NAME		"invoke_tests.pta"
@@ -435,6 +436,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 		return core_dt_driver_tests(nParamTypes, pParams);
 	case PTA_INVOKE_TESTS_CMD_TRANSFER_LIST_TESTS:
 		return core_transfer_list_tests(nParamTypes, pParams);
+	case PTA_INVOKE_TESTS_CMD_MBOX_TESTS:
+		return core_mbox_tests(nParamTypes, pParams);
 	default:
 		break;
 	}
