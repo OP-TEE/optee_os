@@ -724,7 +724,8 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 				mf = NULL;
 			}
 
-			SLIST_INSERT_HEAD(&shm_head, mf, link);
+			if (mf)
+				SLIST_INSERT_HEAD(&shm_head, mf, link);
 		}
 	}
 
