@@ -673,3 +673,10 @@ CFG_IMX_CAAM ?= y
 endif
 
 endif
+
+# i.MX IOMUXC pin controller driver ("fsl,pins" DT binding)
+CFG_IMX_PINCTRL ?= n
+ifeq ($(CFG_IMX_PINCTRL),y)
+$(call force,CFG_DT,y,Required by CFG_IMX_PINCTRL)
+$(call force,CFG_DRIVERS_PINCTRL,y,Required by CFG_IMX_PINCTRL)
+endif
