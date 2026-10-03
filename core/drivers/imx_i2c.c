@@ -228,7 +228,12 @@ static void i2c_set_prescaler(uint8_t bid, uint32_t bps)
 	i2c_io_write8(bid, IFDR, p->prescaler);
 }
 
-static void i2c_set_bus_speed(uint8_t bid, int bps)
+/*
+ * The normal world may gate the clock of a bus it does not use (e.g. Linux
+ * clk_disable_unused), and accessing a gated controller stalls the CPU:
+ * enable the clock before each transfer, not only at init.
+ */
+static void i2c_enable_clock(uint8_t bid)
 {
 	vaddr_t addr = i2c_clk.base.va;
 	uint32_t val = 0;
@@ -250,6 +255,11 @@ static void i2c_set_bus_speed(uint8_t bid, int bps)
 #error IMX_I2C driver not supported on this platform
 #endif
 	io_write32(addr, val);
+}
+
+static void i2c_set_bus_speed(uint8_t bid, int bps)
+{
+	i2c_enable_clock(bid);
 	i2c_set_prescaler(bid, bps);
 }
 
@@ -376,6 +386,8 @@ static TEE_Result i2c_init_transfer(uint8_t bid, uint8_t chip)
 {
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t tmp = 0;
+
+	i2c_enable_clock(bid);
 
 	ret = i2c_idle_bus(bid);
 	if (ret)
