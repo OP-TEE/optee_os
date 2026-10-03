@@ -680,3 +680,10 @@ ifeq ($(CFG_IMX_PINCTRL),y)
 $(call force,CFG_DT,y,Required by CFG_IMX_PINCTRL)
 $(call force,CFG_DRIVERS_PINCTRL,y,Required by CFG_IMX_PINCTRL)
 endif
+
+# i.MX GPIO controller driver
+CFG_IMX_GPIO ?= n
+ifeq ($(CFG_IMX_GPIO),y)
+$(call force,CFG_DT,y,Required by CFG_IMX_GPIO)
+$(call force,CFG_DRIVERS_GPIO,y,Required by CFG_IMX_GPIO)
+endif
