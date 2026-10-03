@@ -29,7 +29,8 @@
 /* IOMUX */
 #define I2C_INP_SCL(__x)	0 /* Not implemented */
 #define I2C_INP_SDA(__x)	0 /* Not implemented */
-#define I2C_INP_VAL(__x)	0 /* Not implemented */
+#define I2C_INP_SCL_VAL(__b)	0 /* Not implemented */
+#define I2C_INP_SDA_VAL(__b)	0 /* Not implemented */
 #define I2C_MUX_VAL(__x)	0x010
 #define I2C_CFG_VAL(__x)	0x1c3
 /* Clock */
@@ -41,12 +42,27 @@
 #define I2C_INP_SCL(__x)	(IOMUXC_I2C1_SCL_INP_OFF + ((__x) - 1) * 0x8)
 #define I2C_INP_SDA(__x)	(IOMUXC_I2C1_SDA_INP_OFF + ((__x) - 1) * 0x8)
 #define I2C_INP_VAL(__x)	(((__x) == 1) ? 0x1 : 0x2)
+#define I2C_INP_SCL_VAL(__b)	I2C_INP_VAL((__b) + 1)
+#define I2C_INP_SDA_VAL(__b)	I2C_INP_VAL((__b) + 2)
 #define I2C_MUX_VAL(__x)	0x012
 #define I2C_CFG_VAL(__x)	0x1b8b0
 /* Clock */
 #define I2C_CLK_CGRBM(__x)	BM_CCM_CCGR2_I2C##__x##_SERIAL
 #define I2C_CLK_CGR6BM(__x)	BM_CCM_CCGR6_I2C##__x##_SERIAL
 #define I2C_CLK_CGR(__x)	(((__x) == 4) ? CCM_CCGR6 : CCM_CCGR2)
+#elif defined(CFG_MX7)
+/* IOMUX: I2Cx_SCL/SDA pads, ALT0 + SION */
+#define I2C_INP_SCL(__x)	(IOMUXC_I2C1_SCL_INP_OFF + ((__x) - 1) * 0x8)
+#define I2C_INP_SDA(__x)	(IOMUXC_I2C1_SDA_INP_OFF + ((__x) - 1) * 0x8)
+#define I2C_INP_SCL_VAL(__b)	(((__b) < 2) ? 0x1 : 0x2)
+#define I2C_INP_SDA_VAL(__b)	(((__b) < 2) ? 0x1 : 0x2)
+#define I2C_MUX_VAL(__x)	0x010
+#define I2C_CFG_VAL(__x)	0x7f
+/* Clock */
+#define I2C_CLK_CGRBM(__x)	0 /* Not implemented */
+#define I2C_CLK_CGR6BM(__x)	0
+#define I2C_CLK_CGR(__x)	CCM_CCGR_I2C##__x
+#define I2C_CLK_ROOT(__b)	(CCM_TARGET_ROOT_I2C1 + (__b))
 #else
 #error IMX_I2C driver not supported on this platform
 #endif
@@ -224,6 +240,12 @@ static void i2c_set_bus_speed(uint8_t bid, int bps)
 #elif defined(CFG_MX6ULL)
 	addr += i2c_clk.i2c[bid];
 	val = i2c_clk.cgrbm[bid] | io_read32(addr);
+#elif defined(CFG_MX7)
+	/* Root clock: 24 MHz OSC, no pre/post divider, enabled */
+	io_write32(addr + CCM_TARGET_ROOTx(I2C_CLK_ROOT(bid)),
+		   CCM_TARGET_ROOT_ENABLE);
+	addr += CCM_CCGRx_SET(i2c_clk.i2c[bid]);
+	val = CCM_CCGRx_ALWAYS_ON(0);
 #else
 #error IMX_I2C driver not supported on this platform
 #endif
@@ -461,13 +483,13 @@ TEE_Result imx_i2c_init(uint8_t bid, int bps)
 	io_write32(mux->base.va + mux->i2c[bid].scl_cfg, I2C_CFG_VAL(bid));
 	if (mux->i2c[bid].scl_inp)
 		io_write32(mux->base.va + mux->i2c[bid].scl_inp,
-			   I2C_INP_VAL(bid + 1));
+			   I2C_INP_SCL_VAL(bid));
 
 	io_write32(mux->base.va + mux->i2c[bid].sda_mux, I2C_MUX_VAL(bid));
 	io_write32(mux->base.va + mux->i2c[bid].sda_cfg, I2C_CFG_VAL(bid));
 	if (mux->i2c[bid].sda_inp)
 		io_write32(mux->base.va + mux->i2c[bid].sda_inp,
-			   I2C_INP_VAL(bid + 2));
+			   I2C_INP_SDA_VAL(bid));
 
 	/* Baud rate in bits per second */
 	i2c_set_bus_speed(bid, bps);
