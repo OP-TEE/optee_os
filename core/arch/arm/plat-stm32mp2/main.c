@@ -253,8 +253,8 @@ static TEE_Result init_debug(void)
 
 	return res;
 }
-early_init_late(init_debug);
 
+early_init_late(init_debug);
 #endif /* !CFG_STM32_CM33TDCID */
 #endif /* CFG_STM32_BSEC3 */
 
