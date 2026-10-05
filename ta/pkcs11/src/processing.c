@@ -293,6 +293,10 @@ enum pkcs11_rc entry_generate_secret(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+	rc = check_access_attrs_against_token(session, head);
+	if (rc)
+		goto out;
+
 	/*
 	 * Execute target processing and add value as attribute
 	 * PKCS11_CKA_VALUE. Symm key generation: depends on target
