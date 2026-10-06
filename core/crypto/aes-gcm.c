@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2017-2020, Linaro Limited
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <assert.h>
@@ -229,12 +230,15 @@ __gcm_update_payload(struct internal_aes_gcm_state *state,
 						     ek->rounds, state->ctr,
 						     state->buf_cryp);
 
-			xor_buf(state->buf_cryp + state->buf_pos, s, n);
-			if (mode == TEE_MODE_ENCRYPT)
+			if (mode == TEE_MODE_ENCRYPT) {
+				xor_buf(state->buf_cryp + state->buf_pos, s, n);
 				memcpy(state->buf_hash + state->buf_pos,
 				       state->buf_cryp + state->buf_pos, n);
-			else
+			} else {
 				memcpy(state->buf_hash + state->buf_pos, s, n);
+				xor_buf(state->buf_cryp + state->buf_pos,
+					state->buf_hash + state->buf_pos, n);
+			}
 			memcpy(d, state->buf_cryp + state->buf_pos, n);
 
 			state->buf_pos += n;

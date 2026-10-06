@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2017-2020, Linaro Limited
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <assert.h>
@@ -110,21 +111,16 @@ static void decrypt_pl(struct internal_aes_gcm_state *state,
 {
 	size_t n = 0;
 
-	if (IS_ALIGNED_WITH_TYPE(src, uint64_t)) {
-		for (n = 0; n < num_blocks; n++) {
-			const void *s = src + n * TEE_AES_BLOCK_SIZE;
-			void *d = dst + n * TEE_AES_BLOCK_SIZE;
+	for (n = 0; n < num_blocks; n++) {
+		uint64_t tmp[2] = { 0 };
+		void *d = dst + n * TEE_AES_BLOCK_SIZE;
 
-			decrypt_block(state, ek, s, d);
-		}
-	} else {
-		for (n = 0; n < num_blocks; n++) {
-			uint64_t tmp[2] = { 0 };
-			void *d = dst + n * TEE_AES_BLOCK_SIZE;
-
-			memcpy(tmp, src + n * TEE_AES_BLOCK_SIZE, sizeof(tmp));
-			decrypt_block(state, ek, tmp, d);
-		}
+		/*
+		 * Use a temporary buffer to handle unaligned src and to
+		 * avoid double-fetch of src in decrypt_block().
+		 */
+		memcpy(tmp, src + n * TEE_AES_BLOCK_SIZE, sizeof(tmp));
+		decrypt_block(state, ek, tmp, d);
 	}
 }
 
