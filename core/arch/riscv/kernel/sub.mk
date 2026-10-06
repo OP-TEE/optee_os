@@ -11,6 +11,7 @@ srcs-y += sbi_mpxy_rpmi.c
 srcs-y += sbi_mpxy_mailbox.c
 srcs-y += rpmi.c
 srcs-y += rpmi_reqfwd.c
+srcs-y += rpmi_tee.c
 endif
 srcs-y += boot.c
 srcs-y += hart.c
