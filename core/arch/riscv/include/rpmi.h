@@ -9,8 +9,11 @@
 #ifndef __ASSEMBLER__
 
 #include <compiler.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <tee_api_types.h>
+
+struct mbox_chan;
 
 /* RPMI error codes */
 enum rpmi_error_codes {
@@ -36,6 +39,16 @@ enum rpmi_error_codes {
 
 /* Convert an RPMI service status to the closest matching TEE_Result. */
 TEE_Result rpmi_status_to_tee_result(int32_t status);
+
+/*
+ * Exchange a request on a service-group channel validated by the caller.
+ * resp_len supplies the response buffer size. On TEE_SUCCESS, it receives
+ * the actual length and status receives the raw RPMI service status.
+ */
+TEE_Result rpmi_send_with_status(struct mbox_chan *channel,
+				 uint32_t service_id, void *req,
+				 size_t req_len, void *resp,
+				 size_t *resp_len, int32_t *status);
 
 /*
  * struct rpmi_message_header - Header of an RPMI message

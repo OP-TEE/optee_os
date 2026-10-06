@@ -3,8 +3,35 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <drivers/rpmi_mailbox.h>
+#include <io.h>
 #include <rpmi.h>
 #include <tee_api_defines_extensions.h>
+
+/* Return exchange errors separately from the firmware service status. */
+TEE_Result rpmi_send_with_status(struct mbox_chan *channel,
+				 uint32_t service_id, void *req,
+				 size_t req_len, void *resp,
+				 size_t *resp_len, int32_t *status)
+{
+	struct rpmi_mbox_message msg = {};
+	TEE_Result res = TEE_SUCCESS;
+
+	rpmi_mbox_init_send_with_response(&msg, service_id, req, req_len,
+					  resp, *resp_len);
+	res = rpmi_mbox_send_message_sync(channel, &msg);
+	if (res)
+		return res;
+
+	/* Error responses may contain only the status word. */
+	if (msg.data.out_response_len < sizeof(uint32_t))
+		return TEE_ERROR_BAD_FORMAT;
+
+	*resp_len = msg.data.out_response_len;
+	*status = (int32_t)get_unaligned_le32(resp);
+
+	return TEE_SUCCESS;
+}
 
 TEE_Result rpmi_status_to_tee_result(int32_t status)
 {

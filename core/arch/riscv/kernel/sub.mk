@@ -10,6 +10,7 @@ ifeq ($(CFG_RISCV_SBI_MPXY_RPMI),y)
 srcs-y += sbi_mpxy_rpmi.c
 srcs-y += sbi_mpxy_mailbox.c
 srcs-y += rpmi.c
+srcs-y += rpmi_reqfwd.c
 endif
 srcs-y += boot.c
 srcs-y += hart.c
