@@ -4,14 +4,16 @@
  */
 
 #include <riscv.h>
-#include <rpmi.h>
 #include <sbi.h>
 #include <sbi_mpxy.h>
-#include <sbi_mpxy_rpmi.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "sbi_mpxy_rpmi_private.h"
+
 struct sbi_mpxy_rpmi_context *sbi_mpxy_rpmi_ctx;
+
+static int sbi_mpxy_rpmi_read_attributes(struct sbi_mpxy_rpmi_channel *channel);
 
 /**
  * @brief Probes available MPXY channels supporting the RPMI protocol.
@@ -122,6 +124,9 @@ TEE_Result sbi_mpxy_rpmi_probe_channels(void)
 		}
 
 		memset(channel->notif, 0, mpxy_shmem_size);
+		/* Respect both scratch-buffer and firmware channel limits. */
+		channel->max_xfer_len = MIN(mpxy_shmem_size,
+					    channel->attrs.msg_max_len);
 		valid_channels++;
 	}
 
@@ -162,104 +167,11 @@ error:
  *
  * @return 0 on success, or a negative SBI error code on failure.
  */
-int sbi_mpxy_rpmi_read_attributes(struct sbi_mpxy_rpmi_channel *channel)
+static int sbi_mpxy_rpmi_read_attributes(struct sbi_mpxy_rpmi_channel *channel)
 {
 	return sbi_mpxy_read_attributes(channel->channel_id,
 					SBI_MPXY_ATTR_MSGPROTO_ATTR_START,
 					sizeof(channel->rpmi_attrs) /
 						sizeof(uint32_t),
 					&channel->rpmi_attrs);
-}
-
-/**
- * @brief Sends a raw RPMI message over an MPXY channel.
- *
- * This function transmits a message to the associated platform microcontroller
- * (PuC) using the given RPMI-enabled MPXY channel.
- *
- * @param channel Pointer to the RPMI channel used for transmission.
- * @param data Pointer to the message payload to send. It must be a
- *             properly initialized RPMI message structure.
- *
- * @return 0 on success, or a negative RPMI or SBI error code on failure.
- */
-int sbi_mpxy_rpmi_send_data(struct sbi_mpxy_rpmi_channel *channel, void *data)
-{
-	struct sbi_mpxy_rpmi_message *message = data;
-	int ret = 0;
-
-	if (channel->attrs.msg_proto_id != SBI_MPXY_MSGPROTO_RPMI_ID)
-		return RPMI_ERR_NOTSUPP;
-
-	switch (message->type) {
-	case SBI_MPXY_RPMI_MSG_TYPE_GET_ATTRIBUTE:
-		switch (message->attribute.id) {
-		case SBI_MPXY_RPMI_ATTR_SERVICEGROUP_ID:
-			message->attribute.value =
-				channel->rpmi_attrs.servicegroup_id;
-			break;
-		case SBI_MPXY_RPMI_ATTR_SERVICEGROUP_VERSION:
-			message->attribute.value =
-				channel->rpmi_attrs.servicegroup_version;
-			break;
-		case SBI_MPXY_RPMI_ATTR_IMPLEMENTATION_ID:
-			message->attribute.value =
-				channel->rpmi_attrs.implementation_id;
-			break;
-		case SBI_MPXY_RPMI_ATTR_IMPLEMENTATION_VERSION:
-			message->attribute.value =
-				channel->rpmi_attrs.implementation_version;
-			break;
-		default:
-			ret = RPMI_ERR_NOTSUPP;
-			break;
-		}
-		break;
-	case SBI_MPXY_RPMI_MSG_TYPE_SET_ATTRIBUTE:
-		/*
-		 * All RPMI Message Protocol Attributes of an SBI MPXY Channel
-		 * are RO.
-		 */
-		ret = RPMI_ERR_NOTSUPP;
-		break;
-	case SBI_MPXY_RPMI_MSG_TYPE_SEND_WITH_RESPONSE:
-		if ((!message->data.request && message->data.request_len) ||
-		    (!message->data.response &&
-		     message->data.max_response_len)) {
-			ret = RPMI_ERR_INVALID_PARAM;
-			break;
-		}
-		if (!(channel->attrs.capability &
-		      SBI_MPXY_CHAN_CAP_SEND_WITH_RESP)) {
-			ret = RPMI_ERR_IO;
-			break;
-		}
-		ret = sbi_mpxy_send_message_with_response(channel->channel_id
-		      , message->data.service_id, message->data.request,
-		      message->data.request_len, message->data.response,
-		      message->data.max_response_len,
-		      &message->data.response_len);
-		break;
-	case SBI_MPXY_RPMI_MSG_TYPE_SEND_WITHOUT_RESPONSE:
-		if (!message->data.request && message->data.request_len) {
-			ret = RPMI_ERR_INVALID_PARAM;
-			break;
-		}
-		if (!(channel->attrs.capability &
-		      SBI_MPXY_CHAN_CAP_SEND_WITHOUT_RESP)) {
-			ret = RPMI_ERR_IO;
-			break;
-		}
-		ret = sbi_mpxy_send_message_without_response(channel->channel_id
-		      , message->data.service_id, message->data.request,
-		      message->data.request_len);
-		break;
-	default:
-		ret = RPMI_ERR_NOTSUPP;
-		break;
-	}
-
-	message->error = ret;
-
-	return RPMI_SUCCESS;
 }
