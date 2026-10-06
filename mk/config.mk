@@ -641,6 +641,12 @@ CFG_WITH_STATS ?= n
 # an exploration based on compatible drivers found. It is default disabled.
 CFG_DRIVERS_DT_RECURSIVE_PROBE ?= n
 
+# Mailbox provider and consumer support.
+CFG_DRIVERS_MAILBOX ?= n
+ifeq ($(CFG_DRIVERS_MAILBOX),y)
+$(call force,CFG_DT,y)
+endif
+
 # This option enables OP-TEE to respond to SMP boot request: the Rich OS
 # issues this to request OP-TEE to release secondaries cores out of reset,
 # with specific core number and non-secure entry address.
