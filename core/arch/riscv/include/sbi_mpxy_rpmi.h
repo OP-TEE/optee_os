@@ -158,7 +158,8 @@ sbi_mpxy_rpmi_init_send_without_response(struct sbi_mpxy_rpmi_message *message,
 	message->error = 0;
 }
 
-void sbi_mpxy_rpmi_probe_channels(void);
+/* Discover channels on the primary hart before registering the provider. */
+TEE_Result sbi_mpxy_rpmi_probe_channels(void);
 int sbi_mpxy_rpmi_read_attributes(struct sbi_mpxy_rpmi_channel *channel);
 int sbi_mpxy_rpmi_send_data(struct sbi_mpxy_rpmi_channel *channel, void *data);
 
@@ -167,8 +168,9 @@ int sbi_mpxy_rpmi_send_data(struct sbi_mpxy_rpmi_channel *channel, void *data);
 #else /*!defined(CFG_RISCV_SBI_MPXY_RPMI)*/
 
 #ifndef __ASSEMBLER__
-static inline void sbi_mpxy_rpmi_probe_channels(void)
+static inline TEE_Result sbi_mpxy_rpmi_probe_channels(void)
 {
+	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif /*__ASSEMBLER__*/
 
