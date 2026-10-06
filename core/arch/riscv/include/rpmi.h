@@ -10,6 +10,7 @@
 
 #include <compiler.h>
 #include <stdint.h>
+#include <tee_api_types.h>
 
 /* RPMI error codes */
 enum rpmi_error_codes {
@@ -32,6 +33,9 @@ enum rpmi_error_codes {
 	RPMI_ERR_RESERVED_END		= -127,
 	RPMI_ERR_VENDOR_START		= -128,
 };
+
+/* Convert an RPMI service status to the closest matching TEE_Result. */
+TEE_Result rpmi_status_to_tee_result(int32_t status);
 
 /*
  * struct rpmi_message_header - Header of an RPMI message
