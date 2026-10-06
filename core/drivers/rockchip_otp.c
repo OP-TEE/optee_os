@@ -39,6 +39,31 @@
 #define OTP_POLL_TIMEOUT_US	1000
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, OTP_S_BASE, OTP_S_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, CRU_BASE, CRU_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, SCRU_BASE, SCRU_SIZE);
+
+/* Rockchip gate registers take the bits to change in the high half-word */
+static void ungate(paddr_t base, size_t size, paddr_t reg, uint32_t bits)
+{
+	vaddr_t va = (vaddr_t)phys_to_virt(base, MEM_AREA_IO_SEC, size);
+
+	if (!va)
+		panic("CRU not mapped");
+
+	io_write32(va + (reg - base), bits << 16);
+}
+
+/*
+ * The non-secure CRU gates are shared with the normal world, which turns
+ * them off as unused once it has booted, so ungate before every access.
+ * They are left on afterwards: gating them back would race the normal
+ * world's own OTP driver, which enables them around each of its reads.
+ */
+static void rockchip_otp_ungate(void)
+{
+	ungate(SCRU_BASE, SCRU_SIZE, OTP_S_CLKGATE_SCRU, OTP_S_CLKGATE_SCRU_BITS);
+	ungate(CRU_BASE, CRU_SIZE, OTP_S_CLKGATE_CRU, OTP_S_CLKGATE_CRU_BITS);
+}
 
 TEE_Result rockchip_otp_read_secure(uint32_t *value, uint32_t index,
 				    uint32_t count)
@@ -53,6 +78,8 @@ TEE_Result rockchip_otp_read_secure(uint32_t *value, uint32_t index,
 
 	if (!base)
 		panic("OTP_S base not mapped");
+
+	rockchip_otp_ungate();
 
 	/* Check for invalid parameters or exceeding hardware burst limit */
 	if (!value || !count || count > BURST_SIZE ||
@@ -113,6 +140,8 @@ TEE_Result rockchip_otp_write_secure(const uint32_t *value, uint32_t index,
 
 	if (!base)
 		panic("OTP_S base not mapped");
+
+	rockchip_otp_ungate();
 
 	/* Check for invalid parameters or exceeding hardware limits */
 	if (!value || !count || count > BURST_SIZE ||
