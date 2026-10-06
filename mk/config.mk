@@ -641,6 +641,10 @@ CFG_WITH_STATS ?= n
 # an exploration based on compatible drivers found. It is default disabled.
 CFG_DRIVERS_DT_RECURSIVE_PROBE ?= n
 
+ifeq ($(CFG_RISCV_SBI_MPXY_RPMI),y)
+$(call force,CFG_DRIVERS_MAILBOX,y)
+endif
+
 # Mailbox provider and consumer support.
 CFG_DRIVERS_MAILBOX ?= n
 ifeq ($(CFG_DRIVERS_MAILBOX),y)
