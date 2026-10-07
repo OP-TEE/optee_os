@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <kernel/spinlock.h>
+#include <kernel/thread.h>
 #include <limits.h>
 #include <mm/core_mmu.h>
 #include <optee_rpmi.h>
@@ -439,6 +440,12 @@ TEE_Result rpmi_shm_get(struct rpmi_shm_context *ctx,
 	cpu_spin_unlock_xrestore(&ctx->lock, exceptions);
 
 	return rpmi_parcel_accept(channel, parcel, pages, mobj);
+}
+
+TEE_Result mobj_rpmi_get_by_cookie(uint64_t global_id, struct mobj **mobj)
+{
+	return rpmi_shm_get(optee_rpmi_shm_context(), optee_rpmi_channel(),
+			    thread_get_tsd()->rpmi_caller_id, global_id, mobj);
 }
 
 TEE_Result rpmi_shm_unregister(struct rpmi_shm_context *ctx,

@@ -34,6 +34,9 @@ struct thread_specific_data {
 #ifdef CFG_CORE_FFA
 	uint32_t rpc_target_info;
 #endif
+#ifdef CFG_RPMI_TEE_ABI
+	uint32_t rpmi_caller_id;
+#endif
 	uint32_t abort_type;
 	uint32_t abort_descr;
 	vaddr_t abort_va;
