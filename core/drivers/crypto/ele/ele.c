@@ -621,4 +621,4 @@ void plat_init_soft_prng(void)
 	}
 }
 #endif /* CFG_WITH_SOFTWARE_PRNG */
-#endif /* CFG_MX93 || CFG_MX91 */
+#endif /* CFG_MX93 || CFG_MX91 || CFG_MX95 || CFG_MX943 || CFG_MX952 */
