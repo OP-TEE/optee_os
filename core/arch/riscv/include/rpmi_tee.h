@@ -18,6 +18,7 @@
 #define RPMI_TEE_PROBE_FEATURES		0x02
 #define RPMI_TEE_PROBE_SYSTEM		0x03
 #define RPMI_TEE_PROBE_SELF		0x04
+#define RPMI_TEE_SIGNAL_RAISE		0x0b
 #define RPMI_TEE_MEMORY_PARCEL_ACCEPT	0x0f
 #define RPMI_TEE_MEMORY_PARCEL_ACCEPT_MEMORY	0x10
 #define RPMI_TEE_MEMORY_PARCEL_RELEASE	0x11
@@ -140,5 +141,16 @@ TEE_Result rpmi_tee_memory_accept(struct mbox_chan *channel,
 /* Release this endpoint's interest, including an incomplete acceptance. */
 TEE_Result rpmi_tee_memory_release(struct mbox_chan *channel,
 				   uint32_t ep_id, uint32_t parcel_id);
+
+/* Signals. */
+
+/*
+ * Raise one signal on the bus shared with the target endpoint.
+ * On TEE_SUCCESS, status receives the RPMI service result, including errors.
+ * Otherwise status is unchanged. The caller supplies a non-NULL status.
+ */
+TEE_Result rpmi_tee_signal_raise(struct mbox_chan *channel,
+				 uint32_t target_id, uint32_t signal_id,
+				 int32_t *status);
 
 #endif /* __RPMI_TEE_H */
