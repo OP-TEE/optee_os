@@ -91,6 +91,9 @@ void tee_pager_add_core_region(vaddr_t base, enum vm_paged_region_type type,
  * @uctx:	user mode context of the region
  * @base:	base of covered memory region
  * @fobj:	fobj of the store backing the memory region
+ * @prot:	access permissions of the region
+ * @size:	size of the covered memory region
+ * @offs:	page-aligned byte offset into @fobj
  *
  * The mapping is created suitable to initialize the memory content while
  * loading the TA. Once the TA is properly loaded the regions should be
@@ -100,12 +103,14 @@ void tee_pager_add_core_region(vaddr_t base, enum vm_paged_region_type type,
  */
 #ifdef CFG_PAGED_USER_TA
 TEE_Result tee_pager_add_um_region(struct user_mode_ctx *uctx, vaddr_t base,
-				   struct fobj *fobj, uint32_t prot);
+				   struct fobj *fobj, uint32_t prot,
+				   size_t size, size_t offs);
 #else
 static inline TEE_Result
 tee_pager_add_um_region(struct user_mode_ctx *uctx __unused,
 			vaddr_t base __unused, struct fobj *fobj __unused,
-			uint32_t prot __unused)
+			uint32_t prot __unused, size_t size __unused,
+			size_t offs __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
