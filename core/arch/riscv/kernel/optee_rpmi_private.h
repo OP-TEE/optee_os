@@ -6,6 +6,7 @@
 #ifndef __KERNEL_OPTEE_RPMI_PRIVATE_H
 #define __KERNEL_OPTEE_RPMI_PRIVATE_H
 
+#include <drivers/mailbox.h>
 #include <mm/mobj.h>
 #include <optee_rpmi.h>
 #include <rpmi.h>
@@ -60,5 +61,48 @@ union optee_rpmi_control_response {
 
 TEE_Result optee_rpmi_dispatch(uint32_t self_id, const void *data,
 			       size_t data_len, void *resp, size_t *resp_len);
+
+/* optee_rpmi_core.c */
+
+/*
+ * Per-hart buffers for retrieving and completing forwarded RPMI requests.
+ * request holds the retrieved packet; response and response_len describe
+ * the reply passed to REQFWD completion on the same hart.
+ *
+ * A new secure thread copies its call arguments from request before it can
+ * yield. Suspended call state therefore does not depend on these buffers.
+ * The response buffer is still used when that thread yields or returns.
+ * A resume is a new forwarded request and may arrive on another hart.
+ */
+struct optee_rpmi_abi_buffers {
+	uint8_t *request;
+	uint8_t response[RPMI_TEE_CALL_RESP_HEADER_SIZE +
+			 sizeof(union optee_rpmi_control_response)];
+	size_t response_len;
+};
+
+struct optee_rpmi_core_state {
+	struct optee_rpmi_abi_buffers abi_buffers[CFG_TEE_CORE_NB_CORE];
+	struct mbox_client client;
+	struct mbox_chan *reqfwd_channel;
+	struct mbox_chan *tee_channel;
+	bool probed;
+	bool initialized;
+};
+
+/* One domain-wide backend; each state group retains its own synchronization. */
+struct optee_rpmi_context {
+	struct optee_rpmi_core_state core;
+	struct rpmi_shm_context shm;
+};
+
+struct mbox_chan *optee_rpmi_channel(void);
+struct rpmi_shm_context *optee_rpmi_shm_context(void);
+
+/* Keep interrupts masked while accessing the current hart's buffers. */
+struct optee_rpmi_abi_buffers *optee_rpmi_current_abi_buffers(void);
+
+/* Enter on the temporary stack; retrieval waits in firmware when idle. */
+void optee_rpmi_loop(void) __noreturn;
 
 #endif /* __KERNEL_OPTEE_RPMI_PRIVATE_H */

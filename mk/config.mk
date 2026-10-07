@@ -641,7 +641,7 @@ CFG_WITH_STATS ?= n
 # an exploration based on compatible drivers found. It is default disabled.
 CFG_DRIVERS_DT_RECURSIVE_PROBE ?= n
 
-ifeq ($(CFG_RISCV_SBI_MPXY_RPMI),y)
+ifneq ($(filter y,$(CFG_RPMI_TEE_ABI) $(CFG_RISCV_SBI_MPXY_RPMI)),)
 $(call force,CFG_DRIVERS_MAILBOX,y)
 endif
 
