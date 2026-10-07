@@ -27,9 +27,27 @@ struct rpmi_request {
 	size_t len;
 };
 
+/* Retire a parcel identified by an unaligned control request. */
+static TEE_Result handle_unregister_shm(uint32_t caller,
+					const void *service_data,
+					size_t service_len)
+{
+	const struct optee_rpmi_unregister_req *req = service_data;
+	uint64_t global_id = 0;
+
+	if (service_len != sizeof(*req))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	global_id = get_unaligned_le64(&req->global_id);
+
+	return rpmi_shm_unregister(optee_rpmi_shm_context(),
+				   optee_rpmi_channel(), caller,
+				   global_id);
+}
+
 /* Dispatch an OP-TEE service request and prepare its service response. */
 static TEE_Result
-dispatch_optee_request(const void *service_data,
+dispatch_optee_request(uint32_t caller, const void *service_data,
 		       size_t service_len,
 		       union optee_rpmi_control_response *resp,
 		       size_t *response_len)
@@ -68,6 +86,10 @@ dispatch_optee_request(const void *service_data,
 			TEE_U32_TO_LITTLE_ENDIAN(THREAD_RPC_MAX_NUM_PARAMS);
 		resp->caps.max_notification_key =
 			TEE_U32_TO_LITTLE_ENDIAN(NOTIF_VALUE_MAX);
+		break;
+	case OPTEE_RPMI_UNREGISTER_SHM:
+		status = handle_unregister_shm(caller, service_data,
+					       service_len);
 		break;
 	default:
 		status = TEE_ERROR_NOT_SUPPORTED;
@@ -154,7 +176,7 @@ TEE_Result optee_rpmi_dispatch(uint32_t self_id, const void *data,
 				    sizeof(control))
 			return TEE_ERROR_SHORT_BUFFER;
 
-		res = dispatch_optee_request(service_data,
+		res = dispatch_optee_request(sender_id, service_data,
 					     service_len, &control,
 					     &control_len);
 		if (res)

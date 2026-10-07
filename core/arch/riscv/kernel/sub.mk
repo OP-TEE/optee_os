@@ -15,6 +15,7 @@ srcs-y += rpmi_tee.c
 endif
 ifeq ($(CFG_RPMI_TEE_ABI),y)
 srcs-y += optee_rpmi_msg.c
+srcs-y += optee_rpmi_shm.c
 endif
 srcs-y += boot.c
 srcs-y += hart.c
