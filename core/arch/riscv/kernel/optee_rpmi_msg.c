@@ -5,6 +5,7 @@
 
 #include <io.h>
 #include <kernel/notif.h>
+#include <kernel/panic.h>
 #include <kernel/thread.h>
 #include <optee_rpmi.h>
 #include <rpmi_tee.h>
@@ -44,6 +45,24 @@ static TEE_Result handle_unregister_shm(uint32_t caller,
 				   optee_rpmi_channel(), caller,
 				   global_id);
 }
+
+#ifdef CFG_CORE_ASYNC_NOTIF
+/* Enable the doorbell described by an unaligned control request. */
+static TEE_Result handle_enable_async_notif(uint32_t caller,
+					    const void *service_data,
+					    size_t service_len)
+{
+	const struct optee_rpmi_enable_notif_req *req = service_data;
+	uint32_t signal = 0;
+
+	if (service_len != sizeof(*req))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	signal = get_unaligned_le32(&req->signal_id);
+
+	return optee_rpmi_enable_async_notif(caller, signal);
+}
+#endif
 
 /* Dispatch an OP-TEE service request and prepare its service response. */
 static TEE_Result
@@ -87,6 +106,12 @@ dispatch_optee_request(uint32_t caller, const void *service_data,
 		resp->caps.max_notification_key =
 			TEE_U32_TO_LITTLE_ENDIAN(NOTIF_VALUE_MAX);
 		break;
+#ifdef CFG_CORE_ASYNC_NOTIF
+	case OPTEE_RPMI_ENABLE_ASYNC_NOTIF:
+		status = handle_enable_async_notif(caller, service_data,
+						   service_len);
+		break;
+#endif
 	case OPTEE_RPMI_YIELDING_CALL_WITH_ARG:
 	case OPTEE_RPMI_YIELDING_CALL_RESUME:
 		size = sizeof(resp->call);
@@ -108,6 +133,46 @@ out:
 	*response_len = size;
 
 	return TEE_SUCCESS;
+}
+
+/* Handle signal-bus setup forwarded through REQFWD, not TEE_CALL. */
+static void dispatch_signal_bus_setup(uint32_t self_id,
+				      const struct rpmi_request *request,
+				      int32_t *status)
+{
+	uint32_t sender_id = 0;
+	uint32_t target_id = 0;
+	uint32_t bus_width = 0;
+	uint32_t sender_signals = 0;
+	TEE_Result res = TEE_SUCCESS;
+
+	*status = RPMI_ERR_DENIED;
+	res = rpmi_tee_signal_bus_setup_get_args(request->data, request->len,
+						 &sender_id, &target_id,
+						 &bus_width, &sender_signals);
+	if (!res && target_id == self_id)
+		*status = optee_rpmi_signal_bus_setup(sender_id, bus_width,
+						      sender_signals);
+}
+
+/* Handle signal-bus teardown forwarded through REQFWD, not TEE_CALL. */
+static void dispatch_signal_bus_teardown(uint32_t self_id,
+					 const struct rpmi_request *request,
+					 int32_t *status)
+{
+	uint32_t sender_id = 0;
+	uint32_t target_id = 0;
+	TEE_Result res = TEE_SUCCESS;
+
+	res = rpmi_tee_signal_bus_teardown_get_args(request->data, request->len,
+						    &sender_id, &target_id);
+	/* Forwarded teardown permits only a success response. */
+	if (res || target_id != self_id)
+		panic("Malformed forwarded signal-bus teardown");
+
+	optee_rpmi_signal_bus_teardown(sender_id);
+
+	*status = RPMI_SUCCESS;
 }
 
 /* Validate a complete RPMI packet from REQFWD and return a decoded view. */
@@ -168,6 +233,14 @@ TEE_Result optee_rpmi_dispatch(uint32_t self_id, const void *data,
 	}
 
 	switch (request.service_id) {
+	case RPMI_TEE_SIGNAL_BUS_SETUP:
+		dispatch_signal_bus_setup(self_id, &request, &status);
+		break;
+
+	case RPMI_TEE_SIGNAL_BUS_TEARDOWN:
+		dispatch_signal_bus_teardown(self_id, &request, &status);
+		break;
+
 	case RPMI_TEE_CALL:
 		res = rpmi_tee_call_get_args(request.data, request.len,
 					     &sender_id, &target_id, &service,
