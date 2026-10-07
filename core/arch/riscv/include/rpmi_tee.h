@@ -17,6 +17,8 @@
 #define RPMI_TEE_SERVICEGROUP_ID	0x0010
 #define RPMI_TEE_PROBE_FEATURES		0x02
 #define RPMI_TEE_PROBE_SYSTEM		0x03
+#define RPMI_TEE_SIGNAL_BUS_SETUP	0x0a
+#define RPMI_TEE_SIGNAL_BUS_TEARDOWN	0x0b
 #define RPMI_TEE_SIGNAL_RAISE		0x0c
 #define RPMI_TEE_MEMORY_PARCEL_ACCEPT	0x0f
 #define RPMI_TEE_MEMORY_PARCEL_RELEASE	0x10
@@ -34,6 +36,11 @@
 #define RPMI_TEE_MEMORY_UNSUPPORTED	0
 #define RPMI_TEE_MEMORY_TEE_ONLY	1
 #define RPMI_TEE_MEMORY_FULLY_SUPPORTED	2
+
+/* Signal-bus support and incoming interrupt delivery reported by firmware. */
+#define RPMI_TEE_SIGNAL_MODE_MASK	GENMASK_32(1, 0)
+#define RPMI_TEE_SIGNAL_MODE_SYSTEM_MSI	1
+#define RPMI_TEE_SIGNAL_MODE_SYSTEM_IRQ	2
 
 /* Fixed RPMI memory granule, independent of the host's page size. */
 #define RPMI_TEE_PAGE_SHIFT		12
@@ -144,6 +151,28 @@ TEE_Result rpmi_tee_memory_release(struct mbox_chan *channel,
 				   uint32_t ep_id, uint32_t parcel_id);
 
 /* Signals. */
+
+/*
+ * Get SIGNAL_BUS_SETUP arguments without the standard RPMI message header.
+ * The caller supplies non-NULL request and output pointers. On TEE_SUCCESS,
+ * outputs receive native-endian values; otherwise they are unchanged.
+ */
+TEE_Result rpmi_tee_signal_bus_setup_get_args(const void *request,
+					      size_t request_len,
+					      uint32_t *sender_id,
+					      uint32_t *target_id,
+					      uint32_t *bus_width,
+					      uint32_t *sender_signals);
+
+/*
+ * Get SIGNAL_BUS_TEARDOWN arguments without the standard RPMI message header.
+ * The caller supplies non-NULL request and output pointers. On TEE_SUCCESS,
+ * outputs receive native-endian values; otherwise they are unchanged.
+ */
+TEE_Result rpmi_tee_signal_bus_teardown_get_args(const void *request,
+						 size_t request_len,
+						 uint32_t *sender_id,
+						 uint32_t *target_id);
 
 /*
  * Raise one signal on the bus shared with the target endpoint.

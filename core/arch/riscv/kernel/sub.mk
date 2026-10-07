@@ -17,6 +17,7 @@ ifeq ($(CFG_RPMI_TEE_ABI),y)
 srcs-y += optee_rpmi_core.c
 srcs-y += optee_rpmi_msg.c
 srcs-y += optee_rpmi_shm.c
+srcs-$(CFG_CORE_ASYNC_NOTIF) += optee_rpmi_notif.c
 endif
 srcs-y += boot.c
 srcs-y += hart.c

@@ -9,6 +9,7 @@
 #include <kernel/dt_driver.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <rpmi_reqfwd.h>
 #include <rpmi_tee.h>
@@ -17,7 +18,13 @@
 
 #include "optee_rpmi_private.h"
 
-static struct optee_rpmi_context context;
+static struct optee_rpmi_context context = {
+#ifdef CFG_CORE_ASYNC_NOTIF
+	.notif.lifecycle_lock = SPINLOCK_UNLOCK,
+	.notif.lock = SPINLOCK_UNLOCK,
+	.notif.status = OPTEE_RPMI_NOTIF_NO_BUS,
+#endif
+};
 
 /* Each hart owns its request context and buffers through completion. */
 struct optee_rpmi_abi_buffers *optee_rpmi_current_abi_buffers(void)
@@ -39,6 +46,14 @@ struct rpmi_shm_context *optee_rpmi_shm_context(void)
 	assert(context.core.initialized);
 	return &context.shm;
 }
+
+#ifdef CFG_CORE_ASYNC_NOTIF
+struct optee_rpmi_notif_state *optee_rpmi_notif_context(void)
+{
+	assert(context.core.initialized);
+	return &context.notif;
+}
+#endif
 
 /*
  * Forwarded-request processing: allocate per-hart buffers, retrieve and
@@ -181,6 +196,7 @@ static TEE_Result optee_rpmi_probe_channels(struct mbox_chan *reqfwd,
 	struct optee_rpmi_core_state *core = &context.core;
 	uint32_t multisegment = 0;
 	uint32_t domain_id = 0;
+	uint32_t signals = 0;
 	uint32_t ep_id = 0;
 	uint32_t share = 0;
 	TEE_Result res = TEE_SUCCESS;
@@ -208,6 +224,13 @@ static TEE_Result optee_rpmi_probe_channels(struct mbox_chan *reqfwd,
 	if (res)
 		return res;
 
+	if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF)) {
+		res = rpmi_tee_probe_features(tee, RPMI_TEE_FEATURE_SIGNAL_BUS,
+					      &signals);
+		if (res)
+			return res;
+	}
+
 	res = rpmi_shm_context_init(&context.shm, ep_id, multisegment,
 				    CFG_RPMI_TEE_ABI_MAX_PARCEL_PAGES);
 	if (res)
@@ -215,6 +238,7 @@ static TEE_Result optee_rpmi_probe_channels(struct mbox_chan *reqfwd,
 
 	core->reqfwd_channel = reqfwd;
 	core->tee_channel = tee;
+	core->signal_bus_feature = signals;
 	core->probed = true;
 
 	return TEE_SUCCESS;
@@ -267,9 +291,20 @@ DEFINE_DT_DRIVER(optee_rpmi_driver) = {
 static TEE_Result optee_rpmi_activate(void)
 {
 	struct optee_rpmi_core_state *core = &context.core;
+#ifdef CFG_CORE_ASYNC_NOTIF
+	uint32_t mode = core->signal_bus_feature & RPMI_TEE_SIGNAL_MODE_MASK;
+#endif
 
 	if (!core->probed)
 		panic("OP-TEE RPMI backend was not probed");
+
+#ifdef CFG_CORE_ASYNC_NOTIF
+	if (mode != RPMI_TEE_SIGNAL_MODE_SYSTEM_MSI &&
+	    mode != RPMI_TEE_SIGNAL_MODE_SYSTEM_IRQ)
+		panic("RPMI signal buses are not supported");
+
+	notif_rpmi_init(&context.notif);
+#endif
 
 	core->initialized = true;
 

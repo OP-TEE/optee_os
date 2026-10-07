@@ -470,11 +470,59 @@ TEE_Result rpmi_tee_memory_release(struct mbox_chan *channel,
 
 /* Signals. */
 
+struct rpmi_tee_signal_bus_setup_req {
+	uint32_t sender_id;
+	uint32_t target_id;
+	uint32_t bus_width;
+	uint32_t sender_signals;
+} __packed;
+
+struct rpmi_tee_signal_bus_teardown_req {
+	uint32_t sender_id;
+	uint32_t target_id;
+} __packed;
+
 struct rpmi_tee_signal_raise_req {
 	uint32_t target_id;
 	uint32_t signal_count;
 	uint32_t signal;
 };
+
+TEE_Result rpmi_tee_signal_bus_setup_get_args(const void *request,
+					      size_t request_len,
+					      uint32_t *sender_id,
+					      uint32_t *target_id,
+					      uint32_t *bus_width,
+					      uint32_t *sender_signals)
+{
+	const struct rpmi_tee_signal_bus_setup_req *req = request;
+
+	if (request_len != sizeof(*req))
+		return TEE_ERROR_BAD_FORMAT;
+
+	*sender_id = get_unaligned_le32(&req->sender_id);
+	*target_id = get_unaligned_le32(&req->target_id);
+	*bus_width = get_unaligned_le32(&req->bus_width);
+	*sender_signals = get_unaligned_le32(&req->sender_signals);
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result rpmi_tee_signal_bus_teardown_get_args(const void *request,
+						 size_t request_len,
+						 uint32_t *sender_id,
+						 uint32_t *target_id)
+{
+	const struct rpmi_tee_signal_bus_teardown_req *req = request;
+
+	if (request_len != sizeof(*req))
+		return TEE_ERROR_BAD_FORMAT;
+
+	*sender_id = get_unaligned_le32(&req->sender_id);
+	*target_id = get_unaligned_le32(&req->target_id);
+
+	return TEE_SUCCESS;
+}
 
 TEE_Result rpmi_tee_signal_raise(struct mbox_chan *channel,
 				 uint32_t target_id, uint32_t signal_id,
