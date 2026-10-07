@@ -99,6 +99,18 @@ $(call force,CFG_PAGED_USER_TA,n)
 $(call force,CFG_WITH_PAGER,n)
 $(call force,CFG_GIC,n)
 $(call force,CFG_ARM_GICV3,n)
+# The core is not built for the vector ISA; the compiler could otherwise
+# lower core code (memcpy, struct copies, ...) to vector instructions that
+# would run with VS == Off. Only vfp_rv.S carries vector code, built with
+# $(vector-march) in kernel/sub.mk; TAs are built for it so they can use the
+# unit once they have a context. Autovectorization is turned off everywhere
+# as a belt-and-braces measure.
+CFG_RISCV_ISA_V ?= n
+ifeq ($(COMPILER),clang)
+platform-cflags-generic += -fno-vectorize -fno-slp-vectorize
+else
+platform-cflags-generic += -fno-tree-vectorize
+endif
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 
@@ -123,6 +135,9 @@ ifeq ($(CFG_RISCV_FPU),y)
 ISA_D = fd
 ABI_D = d
 endif
+ifeq ($(CFG_RISCV_ISA_V),y)
+ISA_V = v
+endif
 ifeq ($(CFG_RISCV_ISA_C),y)
 ISA_C = c
 endif
@@ -142,9 +157,16 @@ endif
 
 riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
 riscv-abi = $(ABI_BASE)$(ABI_D)
+riscv-ta-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_V)$(ISA_ZBB)_zicsr_zifencei
+vector-march = -march=$(riscv-ta-isa)
 
 CFG_WITH_VFP ?= $(CFG_RISCV_FPU)
 $(eval $(call cfg-depends-all,CFG_WITH_VFP,CFG_RISCV_FPU))
+
+# Vector (V) is a separate extension built on the FP context-switch machinery,
+# so it needs CFG_WITH_VFP. It stays off by default and is gated at runtime
+# against what the hart actually implements.
+$(eval $(call cfg-depends-all,CFG_RISCV_ISA_V,CFG_WITH_VFP))
 
 rv64-platform-cflags += -mcmodel=$(riscv-platform-mcmodel)
 rv64-platform-cflags += -march=$(riscv-isa) -mabi=$(riscv-abi)
@@ -271,10 +293,12 @@ ifeq ($(rv64-platform-hard-float-enabled),y)
 ta_rv64-platform-cflags += $(rv64-platform-cflags-hard-float)
 else
 ta_rv64-platform-cflags += $(rv64-platform-cflags-no-hard-float)
+ta_rv64-platform-cflags += $(vector-march)
 endif
 ta_rv64-platform-aflags += $(platform-aflags-generic)
 ta_rv64-platform-aflags += $(platform-aflags-debug-info)
 ta_rv64-platform-aflags += $(rv64-platform-aflags)
+ta_rv64-platform-aflags += $(vector-march)
 
 ta_rv64-platform-cxxflags += -fpic
 ta_rv64-platform-cxxflags += $(platform-cflags-optimization)
