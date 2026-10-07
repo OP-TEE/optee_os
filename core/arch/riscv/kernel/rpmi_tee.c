@@ -467,3 +467,40 @@ TEE_Result rpmi_tee_memory_release(struct mbox_chan *channel,
 
 	return rpmi_status_to_tee_result(status);
 }
+
+/* Signals. */
+
+struct rpmi_tee_signal_raise_req {
+	uint32_t target_id;
+	uint32_t signal_count;
+	uint32_t signal;
+};
+
+TEE_Result rpmi_tee_signal_raise(struct mbox_chan *channel,
+				 uint32_t target_id, uint32_t signal_id,
+				 int32_t *status)
+{
+	struct rpmi_tee_signal_raise_req req = {};
+	uint32_t resp = 0;
+	size_t resp_len = sizeof(resp);
+	int32_t service_status = RPMI_ERR_FAILED;
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!channel)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	req.target_id = TEE_U32_TO_LITTLE_ENDIAN(target_id);
+	req.signal_count = TEE_U32_TO_LITTLE_ENDIAN(1); /* Only one signal. */
+	req.signal = TEE_U32_TO_LITTLE_ENDIAN(signal_id);
+	res = tee_send_with_status(channel, RPMI_TEE_SIGNAL_RAISE, &req,
+				   sizeof(req), &resp, &resp_len,
+				   &service_status);
+	if (res)
+		return res;
+	if (resp_len != sizeof(resp))
+		return TEE_ERROR_BAD_FORMAT;
+
+	*status = service_status;
+
+	return TEE_SUCCESS;
+}
