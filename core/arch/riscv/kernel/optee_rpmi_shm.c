@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <initcall.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <limits.h>
@@ -209,6 +210,140 @@ static const struct mobj_ops parcel_ops = {
 	.inc_map = parcel_inc_map,
 	.dec_map = parcel_dec_map,
 };
+
+static TEE_Result parcel_mapping_init(void)
+{
+	vaddr_t start = 0;
+	vaddr_t end = 0;
+
+	core_mmu_get_mem_by_type(MEM_AREA_SHM_VASPACE, &start, &end);
+	if (!start || !end ||
+	    !tee_mm_init(&core_virt_shm_pool, start, end - start,
+			 SMALL_PAGE_SHIFT, TEE_MM_POOL_NO_FLAGS))
+		panic("Cannot initialize RPMI shared-memory mapping pool");
+
+	return TEE_SUCCESS;
+}
+preinit(parcel_mapping_init);
+
+/* A buffer-relative view over the backing memory of an RPMI parcel. */
+struct rpmi_parcel_shm_view {
+	struct mobj mobj;
+	struct rpmi_parcel *parcel;
+	size_t offset;
+};
+
+static struct rpmi_parcel_shm_view *to_view(struct mobj *mobj)
+{
+	return container_of(mobj, struct rpmi_parcel_shm_view, mobj);
+}
+
+static void *view_get_va(struct mobj *mobj, size_t offset, size_t len)
+{
+	struct rpmi_parcel_shm_view *view = to_view(mobj);
+
+	if (!mobj_check_offset_and_len(mobj, offset, len))
+		return NULL;
+
+	return mobj_get_va(&view->parcel->mobj, view->offset + offset, len);
+}
+
+static TEE_Result view_get_pa(struct mobj *mobj, size_t offset,
+			      size_t granule, paddr_t *pa)
+{
+	struct rpmi_parcel_shm_view *view = to_view(mobj);
+
+	if (offset >= mobj->size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return mobj_get_pa(&view->parcel->mobj, view->offset + offset,
+			   granule, pa);
+}
+
+static size_t view_get_phys_offs(struct mobj *mobj, size_t granule)
+{
+	struct rpmi_parcel_shm_view *view = to_view(mobj);
+
+	assert(granule && IS_POWER_OF_TWO(granule));
+	/* Return the view's starting offset within the requested granule. */
+	return (mobj_get_phys_offs(&view->parcel->mobj, granule) +
+		view->offset) & (granule - 1);
+}
+
+static TEE_Result view_get_mem_type(struct mobj *mobj, uint32_t *type)
+{
+	return mobj_get_mem_type(&to_view(mobj)->parcel->mobj, type);
+}
+
+static bool view_matches(struct mobj *mobj, enum buf_is_attr attr)
+{
+	return mobj_matches(&to_view(mobj)->parcel->mobj, attr);
+}
+
+static uint64_t view_get_cookie(struct mobj *mobj)
+{
+	return mobj_get_cookie(&to_view(mobj)->parcel->mobj);
+}
+
+static void view_free(struct mobj *mobj)
+{
+	struct rpmi_parcel_shm_view *view = to_view(mobj);
+
+	mobj_put(&view->parcel->mobj);
+	free(view);
+}
+
+static TEE_Result view_inc_map(struct mobj *mobj)
+{
+	return mobj_inc_map(&to_view(mobj)->parcel->mobj);
+}
+
+static TEE_Result view_dec_map(struct mobj *mobj)
+{
+	return mobj_dec_map(&to_view(mobj)->parcel->mobj);
+}
+
+static const struct mobj_ops view_ops = {
+	.get_va = view_get_va,
+	.get_pa = view_get_pa,
+	.get_phys_offs = view_get_phys_offs,
+	.get_mem_type = view_get_mem_type,
+	.matches = view_matches,
+	.get_cookie = view_get_cookie,
+	.free = view_free,
+	.inc_map = view_inc_map,
+	.dec_map = view_dec_map,
+};
+
+/* Create an offset view, transferring the parcel reference on success. */
+struct mobj *rpmi_shm_view_alloc(struct mobj *parent, size_t offset,
+				 size_t size)
+{
+	struct rpmi_parcel_shm_view *view = NULL;
+
+	if (offset > parent->size || size > parent->size - offset)
+		return NULL;
+
+	view = calloc(1, sizeof(*view));
+	if (!view)
+		return NULL;
+
+	view->mobj.ops = &view_ops;
+	/* Expose the backing extent for page-rounded mappings. */
+	view->mobj.size = parent->size - offset;
+	view->mobj.phys_granule = parent->phys_granule;
+	refcount_set(&view->mobj.refc, 1);
+	view->parcel = to_parcel(parent);
+	view->offset = offset;
+
+	return &view->mobj;
+}
+
+/* Return the view's parcel-relative origin, or zero for a whole parcel. */
+size_t rpmi_shm_view_offset(struct mobj *mobj)
+{
+	return mobj->ops == &view_ops ? to_view(mobj)->offset : 0;
+}
 
 TEE_Result rpmi_shm_context_init(struct rpmi_shm_context *ctx, uint32_t self_id,
 				 uint32_t multisegment_max, size_t max_pages)

@@ -64,6 +64,7 @@ $(call force,CFG_RISCV_M_MODE,n)
 $(call force,CFG_RISCV_SBI_MPXY_RPMI,y)
 $(call force,CFG_CORE_DYN_SHM,y)
 $(call force,CFG_NS_VIRTUALIZATION,n)
+$(call force,CFG_PREALLOC_RPC_CACHE,n)
 # Largest normal RPMI packet: an eight-byte header and 65532 data bytes.
 CFG_RPMI_TEE_ABI_MAX_REQUEST_SIZE ?= 65540
 # Bound page-array allocation and virtual mappings for an accepted parcel.

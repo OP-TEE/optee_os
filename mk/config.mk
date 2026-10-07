@@ -1000,7 +1000,7 @@ endif
 # CFG_PREALLOC_RPC_CACHE, when enabled, makes core to preallocate
 # shared memory for each secure thread. When disabled, RPC shared
 # memory is released once the secure thread has completed is execution.
-ifeq ($(CFG_WITH_PAGER),y)
+ifneq ($(filter y,$(CFG_WITH_PAGER) $(CFG_RPMI_TEE_ABI)),)
 CFG_PREALLOC_RPC_CACHE ?= n
 endif
 CFG_PREALLOC_RPC_CACHE ?= y
