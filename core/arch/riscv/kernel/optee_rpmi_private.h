@@ -7,6 +7,7 @@
 #define __KERNEL_OPTEE_RPMI_PRIVATE_H
 
 #include <drivers/mailbox.h>
+#include <kernel/notif.h>
 #include <mm/mobj.h>
 #include <optee_rpmi.h>
 #include <rpmi.h>
@@ -68,6 +69,49 @@ union optee_rpmi_control_response {
 TEE_Result optee_rpmi_dispatch(uint32_t self_id, const void *data,
 			       size_t data_len, void *resp, size_t *resp_len);
 
+/* optee_rpmi_notif.c */
+
+/* Asynchronous notification state and disabled-feature stubs. */
+#ifdef CFG_CORE_ASYNC_NOTIF
+enum optee_rpmi_notif_status {
+	OPTEE_RPMI_NOTIF_NO_BUS,
+	OPTEE_RPMI_NOTIF_DISABLED,
+	OPTEE_RPMI_NOTIF_ENABLED,
+};
+
+/*
+ * lifecycle_lock serializes bus changes, ENABLE/STARTED and the STOP callback.
+ * lock protects the binding and is held throughout a synchronous signal raise.
+ */
+struct optee_rpmi_notif_state {
+	unsigned int lifecycle_lock;
+	unsigned int lock;
+	enum optee_rpmi_notif_status status;
+	uint32_t peer_id;
+	uint32_t signal_id;
+	struct notif_driver driver;
+};
+
+void notif_rpmi_init(struct optee_rpmi_notif_state *state);
+int32_t optee_rpmi_signal_bus_setup(uint32_t sender_id, uint32_t bus_width,
+				    uint32_t sender_signals);
+void optee_rpmi_signal_bus_teardown(uint32_t sender_id);
+TEE_Result optee_rpmi_enable_async_notif(uint32_t peer, uint32_t signal);
+#else
+static inline int32_t
+optee_rpmi_signal_bus_setup(uint32_t sender_id __unused,
+			    uint32_t bus_width __unused,
+			    uint32_t sender_signals __unused)
+{
+	return RPMI_ERR_DENIED;
+}
+
+static inline void
+optee_rpmi_signal_bus_teardown(uint32_t sender_id __unused)
+{
+}
+#endif
+
 /* optee_rpmi_core.c */
 
 /*
@@ -95,16 +139,23 @@ struct optee_rpmi_core_state {
 	struct mbox_chan *tee_channel;
 	bool probed;
 	bool initialized;
+	uint32_t signal_bus_feature;
 };
 
 /* One domain-wide backend; each state group retains its own synchronization. */
 struct optee_rpmi_context {
 	struct optee_rpmi_core_state core;
 	struct rpmi_shm_context shm;
+#ifdef CFG_CORE_ASYNC_NOTIF
+	struct optee_rpmi_notif_state notif;
+#endif
 };
 
 struct mbox_chan *optee_rpmi_channel(void);
 struct rpmi_shm_context *optee_rpmi_shm_context(void);
+#ifdef CFG_CORE_ASYNC_NOTIF
+struct optee_rpmi_notif_state *optee_rpmi_notif_context(void);
+#endif
 
 /* Keep interrupts masked while accessing the current hart's buffers. */
 struct optee_rpmi_abi_buffers *optee_rpmi_current_abi_buffers(void);
