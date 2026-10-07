@@ -129,6 +129,7 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 			  uint32_t a4, uint32_t a5);
 void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 			    uint32_t a2, uint32_t a3);
+/* RPMI uses shared-memory RPC arguments and permits rv to be NULL. */
 void thread_rpc_xstatus(uint32_t rv[THREAD_RPC_NUM_ARGS], unsigned long status);
 void __thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
 

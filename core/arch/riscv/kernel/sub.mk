@@ -28,7 +28,11 @@ srcs-y += arch_scall_rv.S
 srcs-y += arch_scall.c
 srcs-$(CFG_UNWIND) += unwind_rv.c
 srcs-$(CFG_SEMIHOSTING) += semihosting_rv.S
+ifeq ($(CFG_RPMI_TEE_ABI),y)
+srcs-y += optee_rpmi_thread.c
+else
 srcs-y += thread_optee_abi.c
+endif
 srcs-y += thread_optee_abi_rv.S
 srcs-$(CFG_WITH_VFP) += vfp.c
 srcs-$(CFG_WITH_VFP) += vfp_rv.S

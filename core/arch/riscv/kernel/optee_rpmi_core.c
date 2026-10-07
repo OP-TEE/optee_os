@@ -13,6 +13,7 @@
 #include <rpmi_reqfwd.h>
 #include <rpmi_tee.h>
 #include <stdlib.h>
+#include <utee_defines.h>
 
 #include "optee_rpmi_private.h"
 
@@ -63,6 +64,36 @@ static void complete_current(struct optee_rpmi_abi_buffers *abi)
 	/* An uncertain completion cannot be retried without duplicating it. */
 	if (res)
 		panic("Forwarded request completion failed");
+}
+
+/*
+ * Prepare the current hart's yielding-call response.
+ * Caller must keep interrupts masked through forwarded-request completion.
+ */
+void optee_rpmi_set_yielding_response(TEE_Result status, uint32_t result,
+				      uint32_t token)
+{
+	struct optee_rpmi_abi_buffers *abi = optee_rpmi_current_abi_buffers();
+	struct optee_rpmi_call_resp call = {
+		.status = TEE_U32_TO_LITTLE_ENDIAN(status),
+		.result = TEE_U32_TO_LITTLE_ENDIAN(result),
+		.resume_token = TEE_U32_TO_LITTLE_ENDIAN(token),
+	};
+	TEE_Result res = TEE_SUCCESS;
+
+	abi->response_len = sizeof(abi->response);
+	/* Encode the outer TEE_CALL reply in the current hart's RPMI buffer. */
+	res = rpmi_tee_call_set_response(RPMI_SUCCESS, &call, sizeof(call),
+					 abi->response, &abi->response_len);
+	if (res)
+		panic("Cannot encode yielding-call response");
+}
+
+void optee_rpmi_complete_and_loop(void)
+{
+	complete_current(optee_rpmi_current_abi_buffers());
+	/* Bounded frame: each thread exit resets the temporary stack. */
+	optee_rpmi_loop();
 }
 
 /*

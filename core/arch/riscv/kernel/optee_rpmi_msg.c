@@ -87,6 +87,13 @@ dispatch_optee_request(uint32_t caller, const void *service_data,
 		resp->caps.max_notification_key =
 			TEE_U32_TO_LITTLE_ENDIAN(NOTIF_VALUE_MAX);
 		break;
+	case OPTEE_RPMI_YIELDING_CALL_WITH_ARG:
+	case OPTEE_RPMI_YIELDING_CALL_RESUME:
+		size = sizeof(resp->call);
+		/* Successful thread start or resume does not return here. */
+		status = thread_rpmi_handle_control(caller, op, service_data,
+						    service_len);
+		break;
 	case OPTEE_RPMI_UNREGISTER_SHM:
 		status = handle_unregister_shm(caller, service_data,
 					       service_len);
