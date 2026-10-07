@@ -14,6 +14,7 @@ srcs-y += rpmi_reqfwd.c
 srcs-y += rpmi_tee.c
 endif
 ifeq ($(CFG_RPMI_TEE_ABI),y)
+srcs-y += optee_rpmi_core.c
 srcs-y += optee_rpmi_msg.c
 srcs-y += optee_rpmi_shm.c
 endif
