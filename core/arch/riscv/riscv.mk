@@ -57,6 +57,15 @@ endif
 endif
 
 CFG_RISCV_SBI	 ?= n
+CFG_RPMI_TEE_ABI ?= n
+ifeq ($(CFG_RPMI_TEE_ABI),y)
+$(call force,CFG_RISCV_S_MODE,y)
+$(call force,CFG_RISCV_M_MODE,n)
+$(call force,CFG_RISCV_SBI_MPXY_RPMI,y)
+$(call force,CFG_CORE_DYN_SHM,y)
+$(call force,CFG_NS_VIRTUALIZATION,n)
+endif
+
 CFG_RISCV_M_MODE ?= y
 ifeq ($(CFG_RISCV_M_MODE),y)
 ifeq ($(CFG_RISCV_S_MODE),y)

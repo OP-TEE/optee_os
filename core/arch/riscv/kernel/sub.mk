@@ -13,6 +13,9 @@ srcs-y += rpmi.c
 srcs-y += rpmi_reqfwd.c
 srcs-y += rpmi_tee.c
 endif
+ifeq ($(CFG_RPMI_TEE_ABI),y)
+srcs-y += optee_rpmi_msg.c
+endif
 srcs-y += boot.c
 srcs-y += hart.c
 srcs-y += entry.S
