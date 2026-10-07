@@ -6,6 +6,7 @@
 #include <io.h>
 #include <rpmi_tee.h>
 #include <stdlib.h>
+#include <string.h>
 #include <utee_defines.h>
 #include <util.h>
 
@@ -41,6 +42,75 @@ static TEE_Result tee_send_with_status(struct mbox_chan *channel,
 
 	return rpmi_send_with_status(channel, service_id, req, req_len,
 				     resp, resp_len, status);
+}
+
+/* CALL. */
+
+struct rpmi_tee_call_req {
+	uint32_t sender_id;
+	uint32_t target_id;
+	uint8_t service[16];
+	uint32_t data_len;
+	uint8_t data[];
+} __packed;
+
+struct rpmi_tee_call_resp {
+	int32_t status;
+	uint32_t data_len;
+	uint8_t data[];
+} __packed;
+
+TEE_Result rpmi_tee_call_get_args(const void *request, size_t request_len,
+				  uint32_t *sender_id, uint32_t *target_id,
+				  const uint8_t **service,
+				  const void **service_data,
+				  size_t *service_len)
+{
+	const struct rpmi_tee_call_req *req = request;
+	size_t len = 0;
+
+	if (!sender_id || !target_id || !service ||
+	    !service_data || !service_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (request_len < sizeof(*req))
+		return TEE_ERROR_BAD_FORMAT;
+
+	len = get_unaligned_le32(&req->data_len);
+	if (len != request_len - sizeof(*req))
+		return TEE_ERROR_BAD_FORMAT;
+
+	*sender_id = get_unaligned_le32(&req->sender_id);
+	*target_id = get_unaligned_le32(&req->target_id);
+	*service = req->service;
+	*service_data = req->data;
+	*service_len = len;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result rpmi_tee_call_set_response(int32_t status,
+				      const void *service_data,
+				      size_t service_len,
+				      void *response, size_t *response_len)
+{
+	struct rpmi_tee_call_resp *resp = response;
+
+	if ((!service_data && service_len) || service_len > UINT32_MAX)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (*response_len < sizeof(*resp) ||
+	    service_len > *response_len - sizeof(*resp))
+		return TEE_ERROR_SHORT_BUFFER;
+
+	put_unaligned_le32(&resp->status, status);
+	put_unaligned_le32(&resp->data_len, service_len);
+	if (service_len)
+		memcpy(resp->data, service_data, service_len);
+
+	*response_len = sizeof(*resp) + service_len;
+
+	return TEE_SUCCESS;
 }
 
 /* Discovery. */
