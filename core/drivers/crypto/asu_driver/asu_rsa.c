@@ -66,10 +66,20 @@
 #define ASU_RSA_SHA_MODE_384			1U
 #define ASU_RSA_SHA_MODE_512			2U
 
-/* RSA operation status codes */
+/*
+ * 0x3FA and 0x3FB are AdditionalStatus success codes.
+ * The remaining values are first-error codes in bits [9:0] of the
+ * packed command status.
+ */
 #define ASU_RSA_PSS_SIGNATURE_VERIFIED		0x3FAU
 #define ASU_RSA_DECRYPTION_SUCCESS		0x3FBU
+#define ASU_RSA_MOD_DATA_INVALID		0x0ADU
+#define ASU_RSA_OAEP_DECRYPT_ERROR		0x0BBU
+#define ASU_RSA_OAEP_DECODE_ERROR		0x0BCU
+#define ASU_RSA_OAEP_HASH_CMP_FAIL		0x0BDU
 #define ASU_RSA_PSS_RIGHT_MOST_CMP_FAIL		0x0C4U
+#define ASU_RSA_PSS_LEFT_MOST_BIT_CMP_FAIL	0x0C5U
+#define ASU_RSA_PSS_DECODE_ERROR		0x0C7U
 #define ASU_RSA_PSS_HASH_CMP_FAIL		0x0C8U
 #define ASU_RSA_PSS_SIGN_VER_ERROR		0x0C9U
 
@@ -824,12 +834,14 @@ static TEE_Result asu_rsa_public_encrypt_cmd(struct asu_rsa_common_params *req)
  * asu_rsa_private_decrypt_cmd() - Issue raw RSA private decrypt command
  * @req: RSA command payload
  * @additional_status: Return additional status from firmware (optional)
+ * @fw_status: Packed firmware status on failure (optional)
  *
  * Return: TEE_SUCCESS on success, or error code.
  */
 static TEE_Result
 asu_rsa_private_decrypt_cmd(struct asu_rsa_common_params *req,
-			    uint32_t *additional_status)
+			    uint32_t *additional_status,
+			    uint32_t *fw_status)
 {
 	uint32_t resp_data[ASU_RSA_RESP_ARRAY_WORDS] = { };
 	TEE_Result ret = TEE_SUCCESS;
@@ -840,7 +852,7 @@ asu_rsa_private_decrypt_cmd(struct asu_rsa_common_params *req,
 
 	ret = asu_rsa_send_cmd(req, sizeof(*req), ASU_MODULE_RSA_ID,
 			       ASU_RSA_PRIVATE_DECRYPT_CMD_ID, resp_data,
-			       NULL);
+			       fw_status);
 	if (!ret && additional_status)
 		*additional_status =
 			resp_data[ASU_RSA_RESP_ADDITIONAL_STATUS_IDX];
@@ -854,12 +866,14 @@ asu_rsa_private_decrypt_cmd(struct asu_rsa_common_params *req,
  * @is_decrypt: true for OAEP decrypt command, false for OAEP encrypt command
  * @actual_len: Actual output data length after decryption (decrypt only)
  * @additional_status: Returned additional status from firmware (optional)
+ * @fw_status: Packed firmware status on failure (optional)
  *
  * Return: TEE_SUCCESS on success or an error code.
  */
 static TEE_Result
 asu_rsa_oaep_cmd(struct asu_rsa_oaep_padding_params *req, bool is_decrypt,
-		 uint32_t *actual_len, uint32_t *additional_status)
+		 uint32_t *actual_len, uint32_t *additional_status,
+		 uint32_t *fw_status)
 {
 	uint8_t cmd_id = 0;
 	uint32_t resp_data[ASU_RSA_RESP_ARRAY_WORDS] = { };
@@ -891,7 +905,7 @@ asu_rsa_oaep_cmd(struct asu_rsa_oaep_padding_params *req, bool is_decrypt,
 	}
 
 	ret = asu_rsa_send_cmd(req, sizeof(*req), ASU_MODULE_RSA_ID,
-			       cmd_id, resp_data, NULL);
+			       cmd_id, resp_data, fw_status);
 	if (!ret) {
 		if (actual_len)
 			*actual_len = resp_data[ASU_RSA_RESP_DATA_WORD0_INDEX];
@@ -912,7 +926,7 @@ asu_rsa_oaep_cmd(struct asu_rsa_oaep_padding_params *req, bool is_decrypt,
 static TEE_Result
 asu_rsa_oaep_encrypt_cmd(struct asu_rsa_oaep_padding_params *req)
 {
-	return asu_rsa_oaep_cmd(req, false, NULL, NULL);
+	return asu_rsa_oaep_cmd(req, false, NULL, NULL, NULL);
 }
 
 /*
@@ -920,15 +934,18 @@ asu_rsa_oaep_encrypt_cmd(struct asu_rsa_oaep_padding_params *req)
  * @req: OAEP request payload
  * @actual_len: Actual output length after decryption
  * @additional_status: Optional returned additional status from firmware
+ * @fw_status: Packed firmware status on failure (optional)
  *
  * Return: TEE_SUCCESS on success or an error code.
  */
 static TEE_Result
 asu_rsa_oaep_decrypt_cmd(struct asu_rsa_oaep_padding_params *req,
 			 uint32_t *actual_len,
-			 uint32_t *additional_status)
+			 uint32_t *additional_status,
+			 uint32_t *fw_status)
 {
-	return asu_rsa_oaep_cmd(req, true, actual_len, additional_status);
+	return asu_rsa_oaep_cmd(req, true, actual_len, additional_status,
+				fw_status);
 }
 
 /*
@@ -988,6 +1005,8 @@ static TEE_Result asu_rsa_pss_sign_ver_cmd(struct asu_rsa_padding_params *req)
 	uint8_t cmd_id = 0;
 	uint32_t resp_data[ASU_RSA_RESP_ARRAY_WORDS] = { };
 	uint32_t additional_status = 0;
+	uint32_t fw_status = 0;
+	uint32_t fw_code = 0;
 	TEE_Result ret = TEE_SUCCESS;
 
 	if (!req)
@@ -1030,24 +1049,37 @@ static TEE_Result asu_rsa_pss_sign_ver_cmd(struct asu_rsa_padding_params *req)
 		cmd_id = ASU_RSA_PSS_SIGN_VER_SHA3_CMD_ID;
 
 	ret = asu_rsa_send_cmd(req, sizeof(*req), ASU_MODULE_RSA_ID,
-			       cmd_id, resp_data, NULL);
-	additional_status = resp_data[ASU_RSA_RESP_ADDITIONAL_STATUS_IDX];
-	if (ret == TEE_ERROR_GENERIC &&
-	    (additional_status == ASU_RSA_PSS_RIGHT_MOST_CMP_FAIL ||
-	     additional_status == ASU_RSA_PSS_HASH_CMP_FAIL ||
-	     additional_status == ASU_RSA_PSS_SIGN_VER_ERROR)) {
-		DMSG("Signature mismatch status=0x%08"PRIx32,
-		     additional_status);
-		return TEE_ERROR_SIGNATURE_INVALID;
-	}
+			       cmd_id, resp_data, &fw_status);
+	if (ret == TEE_ERROR_GENERIC) {
+		/*
+		 * Decode failures are the first error code. 0xC9 is also
+		 * the handler wrapper and appears here only when no earlier
+		 * code occupied bits [9:0].
+		 */
+		fw_code = fw_status & ASU_RSA_FW_STATUS_CODE_MASK;
+		if (fw_code == ASU_RSA_PSS_RIGHT_MOST_CMP_FAIL ||
+		    fw_code == ASU_RSA_PSS_LEFT_MOST_BIT_CMP_FAIL ||
+		    fw_code == ASU_RSA_PSS_DECODE_ERROR ||
+		    fw_code == ASU_RSA_PSS_HASH_CMP_FAIL ||
+		    fw_code == ASU_RSA_PSS_SIGN_VER_ERROR) {
+			DMSG("Signature mismatch status=0x%08"PRIx32,
+			     fw_status);
+			return TEE_ERROR_SIGNATURE_INVALID;
+		}
 
-	if (!ret && additional_status != ASU_RSA_PSS_SIGNATURE_VERIFIED) {
+		return ret;
+	}
+	if (ret)
+		return ret;
+
+	additional_status = resp_data[ASU_RSA_RESP_ADDITIONAL_STATUS_IDX];
+	if (additional_status != ASU_RSA_PSS_SIGNATURE_VERIFIED) {
 		DMSG("Signature verification fail status=0x%08"PRIx32,
 		     additional_status);
 		return TEE_ERROR_SIGNATURE_INVALID;
 	}
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
 /*
@@ -1439,6 +1471,8 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 	uint8_t sha_mode = 0;
 	uint32_t expected_mgf_algo = 0;
 	uint32_t additional_status = 0;
+	uint32_t fw_status = 0;
+	uint32_t fw_code = 0;
 	uint32_t actual_oaep_len = 0;
 	uint32_t key_size = 0;
 	uint32_t input_len = 0;
@@ -1594,14 +1628,30 @@ static TEE_Result asu_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 		oaep_req.sha_mode = sha_mode;
 
 		ret = asu_rsa_oaep_decrypt_cmd(&oaep_req, &actual_oaep_len,
-					       &additional_status);
+					       &additional_status, &fw_status);
 
 		cache_operation(TEE_CACHEINVALIDATE, fw_output_len_buf,
 				sizeof(*fw_output_len_buf));
 	} else {
-		ret = asu_rsa_private_decrypt_cmd(&req, &additional_status);
+		ret = asu_rsa_private_decrypt_cmd(&req, &additional_status,
+						  &fw_status);
 	}
 
+	if (ret == TEE_ERROR_GENERIC) {
+		fw_code = fw_status & ASU_RSA_FW_STATUS_CODE_MASK;
+		if (fw_code == ASU_RSA_MOD_DATA_INVALID ||
+		    fw_code == ASU_RSA_OAEP_DECRYPT_ERROR ||
+		    fw_code == ASU_RSA_OAEP_DECODE_ERROR ||
+		    fw_code == ASU_RSA_OAEP_HASH_CMP_FAIL) {
+			DMSG("Invalid ciphertext status=0x%08"PRIx32,
+			     fw_status);
+			ret = TEE_ERROR_CIPHERTEXT_INVALID;
+		} else {
+			DMSG("ASU operation failed ret=%#"PRIx32
+			     " status=0x%08"PRIx32, ret, fw_status);
+		}
+		goto out;
+	}
 	if (ret) {
 		DMSG("ASU operation failed ret=%#"PRIx32, ret);
 		goto out;
