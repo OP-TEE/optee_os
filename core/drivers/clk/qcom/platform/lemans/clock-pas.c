@@ -34,6 +34,42 @@ static bool lpass_halt_acked(uint32_t val)
 	return val & TCSR_LPASS_BIT;
 }
 
+static bool rcg_update_done(uint32_t val)
+{
+	return !(val & CMD_RCGR_UPDATE_BIT);
+}
+
+static bool qch_inactive(uint32_t val)
+{
+	return !(val & QCHANNEL_CTL_QACTIVE_BIT);
+}
+
+static bool qch_accepted(uint32_t val)
+{
+	return !(val & QCHANNEL_CTL_QACCEPTN_BIT);
+}
+
+/* No AG NoC port other than port 0 (LPASS_CORE_HM) is still sensed. */
+static bool sbm_only_port0_sensed(uint32_t val)
+{
+	return !(val & ~LPASS_AG_NOC_SBM_PORT0_BIT);
+}
+
+static bool gdsc_is_on(uint32_t val)
+{
+	return val & GDSCR_PWR_ON_BIT;
+}
+
+static bool gdsc_is_off(uint32_t val)
+{
+	return !gdsc_is_on(val);
+}
+
+static bool bcr_is_asserted(uint32_t val)
+{
+	return val & BCR_BLK_ARES_BIT;
+}
+
 static TEE_Result cdsp_enable(paddr_t turing_base)
 {
 	vaddr_t cc_base = QCOM_IO_VA(turing_base + TURINGNSP_CC_OFFSET,
@@ -534,6 +570,148 @@ static TEE_Result gpdsp_reset_processor(const struct gpdsp_reset_regs *r)
 
 /* HALT_ACK polls for up to 1s; a QDSP6 in a bad state may never ack. */
 #define LPASS_HALT_ACK_TIMEOUT_US	(200000 * 5)
+#define LPASS_COLLAPSE_TIMEOUT_US	400000
+#define LPASS_AUDIO_HM_ON_TIMEOUT_US	10000
+#define LPASS_QCHANNEL_TRIES		10
+
+static TEE_Result lpass_rcg_to_xo(vaddr_t cmd_rcgr, vaddr_t cfg_rcgr)
+{
+	uint32_t val = 0;
+
+	io_clrbits32(cfg_rcgr, CFG_RCGR_SRC_SEL_MASK | CFG_RCGR_SRC_DIV_MASK);
+	io_setbits32(cmd_rcgr, CMD_RCGR_UPDATE_BIT);
+
+	return IO_READ32_POLL_TIMEOUT(cmd_rcgr, val, rcg_update_done(val), 1,
+				      LPASS_COLLAPSE_TIMEOUT_US);
+}
+
+/* Quiesce and power collapse LPASS_CORE_HM if it is on. */
+static TEE_Result lpass_core_hm_collapse(vaddr_t lpass_base, vaddr_t sbm)
+{
+	vaddr_t top_cc = lpass_base + LPASS_TOP_CC_OFFSET;
+	vaddr_t hm_cc = lpass_base + LPASS_CORE_HM_CC_OFFSET;
+	vaddr_t aon_cc = lpass_base + LPASS_AON_CC_OFFSET;
+	vaddr_t gdscr = top_cc + LPASS_TOP_CC_CORE_HM_GDSCR;
+	vaddr_t qch = hm_cc + LPASS_CORE_HM_AF_NOC_QCHANNEL_CTL;
+	TEE_Result res = TEE_SUCCESS;
+	unsigned int tries = 0;
+	uint32_t val = 0;
+
+	/* Retention would keep the core state across the reset. */
+	io_clrbits32(top_cc + LPASS_TOP_CC_CORE_GDSCR_DEBUG_VOTE,
+		     GDSCR_DEBUG_VOTE_RETENTION_BIT);
+	io_clrbits32(gdscr, GDSCR_RETAIN_FF_ENABLE_BIT);
+
+	if (!(io_read32(gdscr) & GDSCR_PWR_ON_BIT))
+		return TEE_SUCCESS;
+
+	/* Halt the AF NoC through its QChannel, retrying while it denies. */
+	do {
+		if (tries++ == LPASS_QCHANNEL_TRIES)
+			return TEE_ERROR_BUSY;
+
+		io_setbits32(qch, QCHANNEL_CTL_QREQN_BIT);
+		io_setbits32(qch, QCHANNEL_CTL_SW_OVERRIDE_EN_BIT);
+		res = IO_READ32_POLL_TIMEOUT(qch, val, qch_inactive(val), 2,
+					     LPASS_COLLAPSE_TIMEOUT_US);
+		if (res)
+			return res;
+
+		/* QDENY decides the retry; a late QACCEPTn is not an error. */
+		io_clrbits32(qch, QCHANNEL_CTL_QREQN_BIT);
+		IO_READ32_POLL_TIMEOUT(qch, val, qch_accepted(val), 2,
+				       LPASS_COLLAPSE_TIMEOUT_US);
+	} while (io_read32(qch) & QCHANNEL_CTL_QDENY_BIT);
+
+	res = lpass_rcg_to_xo(hm_cc + LPASS_CORE_HM_CORE_CMD_RCGR,
+			      hm_cc + LPASS_CORE_HM_CORE_CFG_RCGR);
+	if (res)
+		return res;
+
+	/* PLL standby. */
+	io_clrbits32(hm_cc + LPASS_CORE_HM_DIG_PLL_OPMODE, PLL_OPMODE_MASK);
+
+	/* Isolate LPASS_CORE_HM from the AG NoC. */
+	io_write32(sbm + LPASS_AG_NOC_SBM_FLAGOUTSET0_LOW,
+		   LPASS_AG_NOC_SBM_PORT0_BIT);
+	res = IO_READ32_POLL_TIMEOUT(sbm + LPASS_AG_NOC_SBM_SENSEIN0_LOW, val,
+				     sbm_only_port0_sensed(val), 2,
+				     LPASS_COLLAPSE_TIMEOUT_US);
+	if (res)
+		return res;
+
+	io_setbits32(aon_cc + LPASS_AON_CC_CORE_HM_COLLAPSE_VOTE, BIT(0));
+	io_setbits32(gdscr, GDSCR_SW_COLLAPSE_BIT);
+
+	return IO_READ32_POLL_TIMEOUT(gdscr, val, gdsc_is_off(val), 2,
+				      LPASS_COLLAPSE_TIMEOUT_US);
+}
+
+/* Park the LPASS_AUDIO_HM clocks and PLL, then power collapse it. */
+static TEE_Result lpass_audio_hm_collapse(vaddr_t audio_cc, vaddr_t hm_gdscr)
+{
+	vaddr_t pll_mode = audio_cc + LPASS_AUDIO_CC_PLL_MODE;
+	vaddr_t mclk_rcgr = audio_cc + LPASS_AUDIO_CC_RX_MCLK_CMD_RCGR;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t val = 0;
+
+	if (io_read32(audio_cc + LPASS_AUDIO_CC_RX_MCLK_MODE_MUXSEL) & BIT(0)) {
+		res = lpass_rcg_to_xo(mclk_rcgr, mclk_rcgr + RCGR_CFG_OFFSET);
+		if (res)
+			return res;
+	}
+
+	io_clrbits32(pll_mode, PLL_MODE_OUTCTRL_BIT);
+	io_clrbits32(audio_cc + LPASS_AUDIO_CC_PLL_OPMODE, PLL_OPMODE_MASK);
+	io_clrbits32(pll_mode, PLL_MODE_RESET_N_BIT);
+	io_clrbits32(pll_mode, PLL_MODE_BYPASSNL_BIT);
+	io_clrbits32(audio_cc + LPASS_AUDIO_CC_DIG_PLL_OPMODE, PLL_OPMODE_MASK);
+
+	io_setbits32(hm_gdscr, GDSCR_SW_COLLAPSE_BIT);
+
+	return IO_READ32_POLL_TIMEOUT(hm_gdscr, val, gdsc_is_off(val), 5,
+				      LPASS_COLLAPSE_TIMEOUT_US);
+}
+
+/* Reset LPASS_AUDIO_HM, then power collapse it and LPASS_AUDIO_ML. */
+static TEE_Result lpass_audio_collapse(vaddr_t lpass_base)
+{
+	vaddr_t aon_cc = lpass_base + LPASS_AON_CC_OFFSET;
+	vaddr_t audio_cc = lpass_base + LPASS_AUDIO_CC_OFFSET;
+	vaddr_t hm_gdscr = aon_cc + LPASS_AON_CC_AUDIO_HM_GDSCR;
+	vaddr_t ml_gdscr = aon_cc + LPASS_AON_CC_AUDIO_ML_GDSCR;
+	vaddr_t bcr = aon_cc + LPASS_AON_CC_AUDIO_HM_BCR;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t val = 0;
+
+	/* The block reset needs the domain powered. */
+	io_clrbits32(hm_gdscr, GDSCR_SW_COLLAPSE_BIT);
+	res = IO_READ32_POLL_TIMEOUT(hm_gdscr, val, gdsc_is_on(val), 5,
+				     LPASS_AUDIO_HM_ON_TIMEOUT_US);
+	if (res)
+		return res;
+
+	io_setbits32(bcr, BCR_BLK_ARES_BIT);
+	res = IO_READ32_POLL_TIMEOUT(bcr, val, bcr_is_asserted(val), 1,
+				     LPASS_COLLAPSE_TIMEOUT_US);
+	if (res)
+		return res;
+	/* At least five sleep clock cycles each way. */
+	udelay(150);
+	io_clrbits32(bcr, BCR_BLK_ARES_BIT);
+	udelay(150);
+
+	if (io_read32(hm_gdscr) & GDSCR_PWR_ON_BIT) {
+		res = lpass_audio_hm_collapse(audio_cc, hm_gdscr);
+		if (res)
+			return res;
+	}
+
+	if (io_read32(ml_gdscr) & GDSCR_PWR_ON_BIT)
+		io_setbits32(ml_gdscr, GDSCR_SW_COLLAPSE_BIT);
+
+	return TEE_SUCCESS;
+}
 
 /*
  * Put LPASS through a subsystem restart (AOSS_CC_LPASS_RESTART and PDC sync
@@ -554,6 +732,7 @@ static TEE_Result lpass_reset_processor(void)
 	vaddr_t sbm = lpass_base + LPASS_AG_NOC_SBM_OFFSET;
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t val = 0;
+	bool island = false;
 
 	if (!gcc_base || !lpass_base || !aoss_cc || !pdc_global ||
 	    !pdc_status || !tcsr)
@@ -572,6 +751,19 @@ static TEE_Result lpass_reset_processor(void)
 	res = qcom_clock_enable_cbc(aon_cc + LPASS_AON_CC_Q6_AHBS_CBCR);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	res = lpass_core_hm_collapse(lpass_base, sbm);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	island = io_read32(lpass_base + LPASS_TOP_CC_OFFSET +
+			   LPASS_TOP_CC_ISLAND_MODE_STATUS) &
+		 LPASS_ISLAND_MODE_BIT;
+	if (!island) {
+		res = lpass_audio_collapse(lpass_base);
+		if (res != TEE_SUCCESS)
+			return res;
+	}
 
 	/* Reset the retention flops too; the QDSP6 clears this once it runs. */
 	io_setbits32(pub + LPASS_QDSP6SS_RET_CFG,
