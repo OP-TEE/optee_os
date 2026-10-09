@@ -58,6 +58,12 @@ struct thread_user_vfp_state {
 	bool saved;
 };
 
+/* FP (xstatus.FS) and vector (xstatus.VS) are owned as two separate units. */
+enum thread_vfp_unit {
+	THREAD_VFP_UNIT_FP,
+	THREAD_VFP_UNIT_VEC,
+};
+
 struct thread_abi_args {
 	unsigned long a0;	/* ABI function ID */
 	unsigned long a1;	/* Parameter */
@@ -175,7 +181,18 @@ struct user_mode_ctx;
 #ifdef CFG_WITH_VFP
 uint32_t thread_kernel_enable_vfp(void);
 void thread_kernel_disable_vfp(uint32_t state);
-void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp);
+/*
+ * thread_user_enable_vfp() - Hand the next disabled unit to the current TA
+ * @uvfp:	The TA's FP/vector state
+ *
+ * Called on an illegal-instruction trap from a TA that still has an FP or
+ * vector unit off. The unit handed over is chosen by the trap sequence: FP
+ * while xstatus.FS is Off, then vector once FP is on, so a TA that uses only
+ * FP never enables the vector unit.
+ *
+ * Returns false if a vector context could not be allocated for the TA.
+ */
+bool thread_user_enable_vfp(struct thread_user_vfp_state *uvfp);
 #endif /*CFG_WITH_VFP*/
 #ifdef CFG_WITH_VFP
 void thread_user_save_vfp(void);
