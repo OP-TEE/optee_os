@@ -4,9 +4,18 @@
  */
 
 #include <io.h>
+#include <kernel/delay.h>
 #include <stdint.h>
+#include <trace.h>
 
 #include "iris.h"
+
+#define IRIS_CORE0_TZ_REG_BASE		0x000c2000
+#define IRIS_CORE1_TZ_REG_BASE		0x000c3000
+#define CORE_TZ_OFFSET			0x1000
+#define NUM_CORES			2
+
+#define IRIS_CLK_SETTLE_US		1U
 
 #define WRAPPER_TZ_XTSS_SW_RESET	0x1000
 #define WRAPPER_XTSS_SW_RESET_BIT	BIT(0)
@@ -27,9 +36,6 @@
 #define WRAPPER_SEC_CSR1_TUNNEL_BIT	BIT(0)
 #define WRAPPER_SEC_CSR7		0x109c
 
-#define CORE_TZ_OFFSET			0x1000
-#define NUM_CORES			2
-
 #define CORE_TZ_SEC_THRESHOLD_HEVC		0x4
 #define CORE_TZ_SEC_THRESHOLD_H264		0x8
 #define CORE_TZ_SEC_THRESHOLD_MP2		0xc
@@ -49,6 +55,11 @@
 #define CORE_TZ_SID_NUM_PARTITIONS	8
 
 #define SCIBCMDARG3_OFFSET		0x000a006c
+
+#define SECURE_NP_START		U(0x01000000)
+#define SECURE_NP_SIZE		U(0x24800000)
+#define NONSECURE_NP_START	U(0x25800000)
+#define NONSECURE_NP_SIZE	U(0xda600000)
 
 static const uint32_t cce_sid_table[CORE_TZ_SID_NUM_PARTITIONS]
 				   [CORE_TZ_SID_CCE_WORDS] = {
@@ -85,11 +96,6 @@ static const uint32_t vpp_sid_table[CORE_TZ_SID_NUM_PARTITIONS]
 	{ 0x378c639c, 0x000c637b },
 	{ 0x3b9ce7de, 0x000ce7bd },
 };
-
-#define SECURE_NP_START		0x01000000
-#define SECURE_NP_SIZE		0x24800000
-#define NONSECURE_NP_START	0x25800000
-#define NONSECURE_NP_SIZE	0xda600000
 
 static void iris_program_core_thresholds(vaddr_t core_base)
 {
@@ -152,22 +158,19 @@ static void iris_program_sec_sid_registers(vaddr_t iris_base)
 	io_write32(top_base + WRAPPER_SEC_CSR7, 0x1);
 }
 
-static void iris_program_mem_regions(vaddr_t tz_base, paddr_t fw_base,
-				     size_t fw_size)
+static void iris_program_mem_regions(vaddr_t tz_base,
+				     const struct qcom_pas_data *data)
 {
-	io_write32(tz_base + WRAPPER_TZ_SEC_0_START_ADDR, (uint32_t)fw_base);
-	io_write32(tz_base + WRAPPER_TZ_SEC_0_END_ADDR,
-		   (uint32_t)(fw_base + fw_size));
+	io_write32(tz_base + WRAPPER_TZ_SEC_0_START_ADDR, 0x0);
+	io_write32(tz_base + WRAPPER_TZ_SEC_0_END_ADDR, data->fw_size);
 
-	io_write32(tz_base + WRAPPER_TZ_SEC_1_START_ADDR,
-		   (uint32_t)SECURE_NP_START);
+	io_write32(tz_base + WRAPPER_TZ_SEC_1_START_ADDR, SECURE_NP_START);
 	io_write32(tz_base + WRAPPER_TZ_SEC_1_END_ADDR,
-		   (uint32_t)(SECURE_NP_START + SECURE_NP_SIZE));
+		   SECURE_NP_START + SECURE_NP_SIZE);
 
-	io_write32(tz_base + WRAPPER_TZ_SEC_5_START_ADDR,
-		   (uint32_t)NONSECURE_NP_START);
+	io_write32(tz_base + WRAPPER_TZ_SEC_5_START_ADDR, NONSECURE_NP_START);
 	io_write32(tz_base + WRAPPER_TZ_SEC_5_END_ADDR,
-		   (uint32_t)(NONSECURE_NP_START + NONSECURE_NP_SIZE));
+		   NONSECURE_NP_START + NONSECURE_NP_SIZE);
 }
 
 static TEE_Result iris_fw_start(struct qcom_pas_data *data)
@@ -194,7 +197,7 @@ static TEE_Result iris_fw_start(struct qcom_pas_data *data)
 		return TEE_SUCCESS;
 	}
 
-	iris_program_mem_regions(tz_base, data->fw_base, data->fw_size);
+	iris_program_mem_regions(tz_base, data);
 
 	iris_program_sec_sid_registers(iris_base);
 

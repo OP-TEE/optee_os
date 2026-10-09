@@ -10,10 +10,6 @@
 
 #define IRIS_WRAPPER_TOP_REG_BASE	0x000b0000
 #define IRIS_WRAPPER_TZ_REG_BASE	0x000c0000
-#define IRIS_CORE0_TZ_REG_BASE		0x000c2000
-#define IRIS_CORE1_TZ_REG_BASE		0x000c3000
-
-#define IRIS_CLK_SETTLE_US	1U
 
 extern const struct qcom_pas_ops iris_ops;
 

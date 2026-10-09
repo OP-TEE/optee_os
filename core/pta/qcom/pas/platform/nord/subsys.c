@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2024, Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <platform_config.h>
