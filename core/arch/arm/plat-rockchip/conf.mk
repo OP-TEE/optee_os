@@ -227,6 +227,44 @@ CFG_SHMEM_START  ?= 0x72000000
 CFG_SHMEM_SIZE   ?= 0x00400000
 endif
 
+ifeq ($(PLATFORM_FLAVOR),rk3568)
+include core/arch/arm/cpu/cortex-armv8-0.mk
+$(call force,CFG_TEE_CORE_NB_CORE,4)
+$(call force,CFG_ARM_GICV3,y)
+$(call force,CFG_AUTO_MAX_PA_BITS,y)
+$(call force,CFG_CRYPTO_WITH_CE,y)
+
+# The platform provides a hardware unique key (secure OTP) and TRNG-seeded
+# PRNG, so the insecure development stubs are not needed.
+CFG_INSECURE ?= n
+
+# Back secure storage with eMMC RPMB. This is required with CFG_INSECURE=n:
+# the default REE-FS integrity relies on a monotonic counter that the
+# platform does not otherwise provide, so without RPMB integrity secure
+# storage would fail to initialise. RPMB also provides the rollback
+# protection the fTPM relies on.
+CFG_RPMB_FS ?= y
+
+# BL32 load address expected by the Rockchip boot chain (rkbin
+# RK3568TRUST.ini BL32 ADDR); the OP-TEE v1 header advertises this so
+# U-Boot's FIT loads the TEE here and TF-A opteed dispatches to it.
+CFG_TZDRAM_START ?= 0x08400000
+CFG_TZDRAM_SIZE ?= 0x02000000
+CFG_SHMEM_START ?= 0x0a400000
+CFG_SHMEM_SIZE ?= 0x00400000
+
+# Register the low DRAM window (below the 3.75 GiB MMIO hole) so the core
+# advertises dynamic shared memory. RK3568 tops out at 8 GiB but the
+# NanoPi R5C carries far less; the low window covers its DRAM.
+CFG_DRAM_BASE ?= 0x00000000
+CFG_DRAM_SIZE ?= 0xf0000000
+
+CFG_EARLY_CONSOLE_BASE ?= UART2_BASE
+CFG_EARLY_CONSOLE_SIZE ?= UART2_SIZE
+CFG_EARLY_CONSOLE_BAUDRATE ?= 1500000
+CFG_EARLY_CONSOLE_CLK_IN_HZ ?= 24000000
+endif
+
 ifeq ($(platform-flavor-armv8),1)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
