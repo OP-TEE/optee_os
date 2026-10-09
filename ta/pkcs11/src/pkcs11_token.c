@@ -1135,7 +1135,8 @@ static enum pkcs11_rc check_so_pin(struct pkcs11_session *session,
 	struct token_persistent_main *db = token->db_main;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 
-	assert(db->flags & PKCS11_CKFT_TOKEN_INITIALIZED);
+	if (!(db->flags & PKCS11_CKFT_TOKEN_INITIALIZED))
+		return PKCS11_CKR_GENERAL_ERROR;
 
 	if (IS_ENABLED(CFG_PKCS11_TA_AUTH_TEE_IDENTITY) &&
 	    db->flags & PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH)
@@ -1293,10 +1294,6 @@ enum pkcs11_rc entry_ck_set_pin(struct pkcs11_client *client,
 		return PKCS11_CKR_SESSION_READ_ONLY;
 
 	if (pkcs11_session_is_so(session)) {
-		if (!(session->token->db_main->flags &
-		      PKCS11_CKFT_TOKEN_INITIALIZED))
-			return PKCS11_CKR_GENERAL_ERROR;
-
 		rc = check_so_pin(session, old_pin, old_pin_size);
 		if (rc)
 			return rc;
