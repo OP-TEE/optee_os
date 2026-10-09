@@ -325,6 +325,12 @@ R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelv
 S:	Maintained
 F:	core/arch/arm/plat-qcom/bobcat/
 
+Qualcomm GENI SPI driver
+R:	Anil Veshala Veshala <anil.veshala@oss.qualcomm.com>
+S:	Maintained
+F:	core/drivers/spi/qcom/
+F:	core/include/drivers/qcom_geni_spi.h
+
 Qualcomm Fuse Provisioning
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
 S:	Maintained
