@@ -275,3 +275,51 @@ int sbi_remote_sfence_vma_asid(unsigned long hart_mask,
 
 	return ret.error;
 }
+
+/**
+ * sbi_fwft_set() - Set a firmware feature for the calling hart
+ * @feature: One of enum sbi_fwft_feature
+ * @value: Value to set, feature specific (1 to enable the CFI features)
+ * @flags: SBI_FWFT_SET_FLAG_LOCK or 0
+ *
+ * The FWFT extension is part of SBI v3.0. Local features such as
+ * SBI_FWFT_SHADOW_STACK apply to the calling hart only and must be set
+ * on every hart.
+ *
+ * Return: SBI_SUCCESS or an SBI error code, SBI_ERR_NOT_SUPPORTED when
+ * the extension or the feature is not implemented.
+ */
+int sbi_fwft_set(enum sbi_fwft_feature feature, unsigned long value,
+		 unsigned long flags)
+{
+	struct sbiret ret = { };
+
+	if (!sbi_ext_available(SBI_EXT_FWFT))
+		return SBI_ERR_NOT_SUPPORTED;
+
+	ret = sbi_ecall(SBI_EXT_FWFT, SBI_EXT_FWFT_SET, feature, value,
+			flags);
+
+	return ret.error;
+}
+
+/**
+ * sbi_fwft_get() - Read a firmware feature of the calling hart
+ * @feature: One of enum sbi_fwft_feature
+ * @value: Output value of the feature
+ *
+ * Return: SBI_SUCCESS or an SBI error code
+ */
+int sbi_fwft_get(enum sbi_fwft_feature feature, unsigned long *value)
+{
+	struct sbiret ret = { };
+
+	if (!sbi_ext_available(SBI_EXT_FWFT))
+		return SBI_ERR_NOT_SUPPORTED;
+
+	ret = sbi_ecall(SBI_EXT_FWFT, SBI_EXT_FWFT_GET, feature);
+	if (!ret.error)
+		*value = ret.value;
+
+	return ret.error;
+}
