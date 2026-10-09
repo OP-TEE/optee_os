@@ -88,6 +88,11 @@ enum sbi_ext_base_fid {
 	SBI_EXT_BASE_GET_MIMPID,
 };
 
+/* SBI function IDs for Time extension */
+enum sbi_ext_time_fid {
+	SBI_EXT_TIME_SET_TIMER = 0,
+};
+
 /* SBI function IDs for RFENCE extension */
 enum sbi_ext_rfence_fid {
 	SBI_EXT_RFENCE_REMOTE_FENCE_I = 0,
@@ -145,6 +150,7 @@ bool sbi_ext_available(unsigned long extid);
 int sbi_probe_extension(int extid);
 void sbi_console_putchar(int ch);
 int sbi_dbcn_write_byte(unsigned char ch);
+int sbi_set_timer(uint64_t stime_value);
 int sbi_hsm_hart_start(uint32_t hartid, paddr_t start_addr, unsigned long arg);
 int sbi_hsm_hart_get_status(uint32_t hartid, enum sbi_hsm_hart_state *status);
 int sbi_remote_fence_i(unsigned long hart_mask, unsigned long hart_mask_base);

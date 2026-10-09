@@ -166,6 +166,27 @@ int sbi_dbcn_write_byte(unsigned char ch)
 }
 
 /**
+ * sbi_set_timer() - Program the next supervisor timer event
+ * @stime_value: Absolute time of the event, UINT64_MAX disarms the timer
+ *
+ * Return:      SBI error code (SBI_SUCCESS = 0 on success)
+ */
+int sbi_set_timer(uint64_t stime_value)
+{
+	struct sbiret ret = { };
+
+#ifdef RV32
+	ret = sbi_ecall(SBI_EXT_TIME, SBI_EXT_TIME_SET_TIMER,
+			low32_from_64(stime_value),
+			high32_from_64(stime_value));
+#else
+	ret = sbi_ecall(SBI_EXT_TIME, SBI_EXT_TIME_SET_TIMER, stime_value);
+#endif
+
+	return ret.error;
+}
+
+/**
  * sbi_hsm_hart_start() - Start target hart at OP-TEE entry in S-mode
  * @hartid:     Target hart ID
  * @start_addr: Physical address of OP-TEE entry

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  * Copyright (c) 2026, RISCStar Solutions Limited
  * Copyright (c) 2016-2022, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
@@ -32,6 +32,7 @@
 #include <mm/tee_mm.h>
 #include <mm/vm.h>
 #include <riscv.h>
+#include <sbi.h>
 #include <trace.h>
 #include <util.h>
 
@@ -528,6 +529,16 @@ void thread_init_per_cpu(void)
 	 * thread_kernel_enable_vfp() or a user FP trap.
 	 */
 	vfp_disable();
+#endif
+#if defined(CFG_RISCV_S_MODE) && defined(CFG_RISCV_SBI)
+	/*
+	 * A native timer interrupt is acknowledged by OP-TEE, so the timer
+	 * is OP-TEE's to program. Disarm it before the interrupt is ever
+	 * unmasked; a foreign timer belongs to the REE.
+	 */
+	if ((THREAD_EXCP_NATIVE_INTR & CSR_XIE_TIE) &&
+	    sbi_ext_available(SBI_EXT_TIME))
+		sbi_set_timer(UINT64_MAX);
 #endif
 }
 
