@@ -72,6 +72,16 @@ CFG_SHMEM_SIZE ?= 0x00200000
 endif
 
 ifeq ($(PLATFORM_FLAVOR),mt8188)
+# Hardware unique key from the SEJ engine. The SEJ must be secure-only, which
+# the DEVAPC setup of the boot firmware (coreboot's dapc_init()) does: the
+# driver checks the DEVAPC INFRA_AO SYS0 modules of the SEJ and the DEVAPC.
+CFG_MTK_SEJ_HUK ?= n
+ifeq ($(CFG_MTK_SEJ_HUK),y)
+CFG_MTK_SEJ_BASE ?= 0x1000a000
+CFG_MTK_SEJ_DEVAPC_BASE ?= 0x10030000
+CFG_MTK_SEJ_DEVAPC_MODULE ?= 36
+CFG_MTK_DEVAPC_DEVAPC_MODULE ?= 14
+endif
 $(call force,CFG_TEE_CORE_NB_CORE,8)
 $(call force,CFG_CORE_CLUSTER_SHIFT,2)
 $(call force,CFG_ARM_GICV3,y)
@@ -133,4 +143,12 @@ CFG_TZDRAM_START ?= 0x43041000
 CFG_TZDRAM_SIZE ?=  0x04ff000
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
 CFG_SHMEM_SIZE ?= 0x00200000
+endif
+
+ifeq ($(CFG_MTK_SEJ_HUK),y)
+ifeq ($(CFG_MTK_SEJ_DEVAPC_MODULE),)
+$(error CFG_MTK_SEJ_HUK needs the SEJ and DEVAPC settings of the SoC, only mt8188 has them)
+endif
+# The SEJ encrypts one AES block, which is the whole key
+$(call force,CFG_HW_UNIQUE_KEY_LENGTH,16)
 endif

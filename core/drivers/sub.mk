@@ -99,6 +99,7 @@ srcs-$(CFG_ROCKCHIP_OTP) += rockchip_otp.c
 srcs-$(CFG_SIFIVE_UART) += sifive_uart.c
 srcs-$(CFG_HISILICON_CRYPTO_DRIVER) += hisi_trng.c
 srcs-$(CFG_WIDEVINE_HUK) += widevine_huk.c
+srcs-$(CFG_MTK_SEJ_HUK) += mtk_sej_huk.c
 srcs-$(CFG_SEMIHOSTING_CONSOLE) += semihosting_console.c
 srcs-$(CFG_FFA_CONSOLE) += ffa_console.c
 srcs-$(CFG_OPENEDGES_OMC) += openedges_omc.c

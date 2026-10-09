@@ -171,6 +171,8 @@ jobs:
               _make PLATFORM=mediatek-mt8175
               _make PLATFORM=mediatek-mt8183
               _make PLATFORM=mediatek-mt8516
+              _make PLATFORM=mediatek-mt8188
+              _make PLATFORM=mediatek-mt8188 CFG_MTK_SEJ_HUK=y
           - name: arm misc 1
             make_commands: |
               _make PLATFORM=d02
