@@ -85,4 +85,19 @@ struct qcom_pas_subsys *qcom_pas_platform_subsys(size_t *count);
  */
 struct qcom_pas_subsys *qcom_pas_lookup(uint32_t pas_id);
 
+/*
+ * qcom_pas_get_fw() : fetch the authenticated firmware location of @pas_id.
+ *
+ * Lets a subsystem fetch a dependency's firmware image without reaching
+ * into its private data.
+ *
+ * @pas_id:  PAS_ID of the subsystem to query.
+ * @fw_base: out, physical base of the authenticated firmware.
+ * @fw_size: out, size of the authenticated firmware.
+ * Returns TEE_ERROR_NOT_SUPPORTED if @pas_id is not registered,
+ * TEE_ERROR_BAD_STATE if it is not loaded, TEE_SUCCESS otherwise.
+ */
+TEE_Result qcom_pas_get_fw(uint32_t pas_id, paddr_t *fw_base,
+			   size_t *fw_size);
+
 #endif /* PAS_SUBSYS_H */
