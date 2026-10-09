@@ -113,6 +113,7 @@ static void assert_type_is_valid(enum dt_driver_type type)
 	case DT_DRIVER_REGULATOR:
 	case DT_DRIVER_NVMEM:
 	case DT_DRIVER_FIREWALL:
+	case DT_DRIVER_MAILBOX:
 		return;
 	default:
 		assert(0);
@@ -205,6 +206,10 @@ int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
 		cells_name = "#access-controller-cells";
 		break;
 	case DT_DRIVER_I2C:
+		return 0;
+	case DT_DRIVER_MAILBOX:
+		cells_name = "#mbox-cells";
+		break;
 	case DT_DRIVER_REGULATOR:
 		return 0;
 	default:
