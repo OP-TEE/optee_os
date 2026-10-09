@@ -711,6 +711,37 @@ static TEE_Result lpass_audio_collapse(vaddr_t lpass_base)
 	return TEE_SUCCESS;
 }
 
+/* Quiesce LPASS_CORE_HM and the audio domains before the restart. */
+static TEE_Result lpass_quiesce(vaddr_t lpass_base, vaddr_t sbm)
+{
+	vaddr_t aon_cc = lpass_base + LPASS_AON_CC_OFFSET;
+	vaddr_t pub = lpass_base + LPASS_PUB_OFFSET;
+	TEE_Result res = TEE_SUCCESS;
+
+	/* The QDSP6SS registers are reachable only with this branch on. */
+	res = qcom_clock_enable_cbc(aon_cc + LPASS_AON_CC_Q6_AHBS_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = lpass_core_hm_collapse(lpass_base, sbm);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (!(io_read32(lpass_base + LPASS_TOP_CC_OFFSET +
+			LPASS_TOP_CC_ISLAND_MODE_STATUS) &
+	      LPASS_ISLAND_MODE_BIT)) {
+		res = lpass_audio_collapse(lpass_base);
+		if (res != TEE_SUCCESS)
+			return res;
+	}
+
+	/* Reset the retention flops too; the QDSP6 clears this once it runs. */
+	io_setbits32(pub + LPASS_QDSP6SS_RET_CFG,
+		     QDSP6SS_RET_CFG_RET_ARES_ENA_BIT);
+
+	return TEE_SUCCESS;
+}
+
 /*
  * Put LPASS through a subsystem restart (AOSS_CC_LPASS_RESTART and PDC sync
  * reset), so that a stopped or crashed ADSP boots again from reset.
@@ -725,47 +756,28 @@ static TEE_Result lpass_reset_processor(void)
 	vaddr_t aoss_cc = QCOM_IO_VA(AOSS_CC_BASE, AOSS_CC_SIZE);
 	vaddr_t lpass_base = QCOM_IO_VA(LPASS_BASE, LPASS_SIZE);
 	vaddr_t gcc_base = QCOM_IO_VA(GCC_BASE, GCC_SIZE);
-	vaddr_t aon_cc = lpass_base + LPASS_AON_CC_OFFSET;
-	vaddr_t pub = lpass_base + LPASS_PUB_OFFSET;
 	vaddr_t sbm = lpass_base + LPASS_AG_NOC_SBM_OFFSET;
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t val = 0;
-	bool island = false;
 
 	if (!gcc_base || !lpass_base || !aoss_cc || !pdc_global ||
 	    !pdc_status || !tcsr)
 		return TEE_ERROR_GENERIC;
 
-	/* Bail if the PDC sequencer is mid-transition. */
-	if (io_read32(pdc_status + RPMH_PDC_MODE_STATUS_DRV0) &
-	    PDC_MODE_STATUS_SEQ_BUSY_BIT)
-		return TEE_ERROR_BUSY;
-
-	/* The QDSP6SS registers are reachable only with these branches on. */
 	res = qcom_clock_enable_cbc(gcc_base + GCC_CFG_NOC_LPASS_CBCR);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = qcom_clock_enable_cbc(aon_cc + LPASS_AON_CC_Q6_AHBS_CBCR);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	res = lpass_core_hm_collapse(lpass_base, sbm);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	island = io_read32(lpass_base + LPASS_TOP_CC_OFFSET +
-			   LPASS_TOP_CC_ISLAND_MODE_STATUS) &
-		 LPASS_ISLAND_MODE_BIT;
-	if (!island) {
-		res = lpass_audio_collapse(lpass_base);
+	/*
+	 * While the PDC holds LPASS in low power mode, accessing its registers
+	 * stalls the CPU; the subsystem restart below resets it all the same.
+	 */
+	if (!(io_read32(pdc_status + RPMH_PDC_MODE_STATUS_DRV0) &
+	      PDC_MODE_STATUS_SEQ_BUSY_BIT)) {
+		res = lpass_quiesce(lpass_base, sbm);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
-
-	/* Reset the retention flops too; the QDSP6 clears this once it runs. */
-	io_setbits32(pub + LPASS_QDSP6SS_RET_CFG,
-		     QDSP6SS_RET_CFG_RET_ARES_ENA_BIT);
 
 	io_setbits32(tcsr + TCSR_LPASS_HALTREQ, TCSR_LPASS_BIT);
 	/* A QDSP6 in a bad state may never ack; reset it anyway. */
