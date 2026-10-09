@@ -301,6 +301,7 @@ PKCS#11 TA
 R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 R:	Ruchika Gupta <gupta.ruchika@gmail.com> [@ruchi393]
 R:	Vesa Jääskeläinen <vesa.jaaskelainen@vaisala.com> [@vesajaaskelainen]
+R:	Rouven Czerwinski <rouven.czerwinski@linaro.org> [@emantor]
 S:	Maintained
 F:	ta/pkcs11
 
