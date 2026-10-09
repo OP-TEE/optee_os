@@ -1075,6 +1075,14 @@ endif
 endif # CFG_WARN_INSECURE defined
 CFG_INSECURE ?= y
 
+ifeq ($(CFG_WITH_USER_TA),y)
+ifneq ($(filter $(realpath keys/default_ta.pem),$(realpath $(TA_SIGN_KEY))),)
+ifneq ($(CFG_INSECURE),y)
+$(error The default TA signing key requires CFG_INSECURE=y. Configure TA_SIGN_KEY with your own signing key)
+endif
+endif
+endif
+
 ifneq ($(CFG_INSECURE),y)
 ifneq ($(CFG_CORE_ASLR_SEED),)
 $(error CFG_CORE_ASLR_SEED requires CFG_INSECURE=y)
