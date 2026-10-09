@@ -128,6 +128,7 @@ struct asu_ecc_ecdh_params {
 	struct asu_ecc_key_object pub_key;
 	uint64_t shared_secret_addr;
 	uint64_t shared_secret_obj_id_addr;
+	struct asu_km_key_metadata shared_secret_metadata;
 };
 
 /* Callback context for key pair generation */
