@@ -7,6 +7,7 @@
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/asu_crypto_common.h>
 #include <drivers/amd/asu_fw_info.h>
 #include <drivers/amd/fw_compat.h>
 #include <drvcrypt.h>
@@ -82,37 +83,6 @@ struct asu_ecc_params {
 	uint64_t digest_addr;
 	uint64_t sign_addr;
 	uint32_t digest_len;
-	uint8_t reserved[4];
-};
-
-/* Key manager metadata for ECC key-pair generation */
-struct asu_km_key_metadata {
-	uint16_t key_id;
-	uint8_t key_type;
-	uint8_t vault_id;
-	uint8_t key_use_case;
-	uint8_t key_attributes;
-	uint16_t length;
-	uint32_t epoch_time;
-	uint32_t usage_count;
-};
-
-/* Key manager AES key object */
-struct asu_aes_key_object {
-	uint64_t key_address;
-	uint32_t key_size;
-	uint32_t key_src;
-	uint32_t key_id;
-	uint8_t reserved[4];
-};
-
-/* Key manager params for ECC key-pair generation */
-struct asu_km_params {
-	struct asu_km_key_metadata key_metadata;
-	struct asu_aes_key_object aes_key_obj;
-	uint64_t key_object_addr;
-	uint64_t key_id_addr;
-	uint32_t wrapped_input_len;
 	uint8_t reserved[4];
 };
 
@@ -665,6 +635,7 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 		ASU_KM_KEY_USAGE_COUNT_NON_DEPLETING_VALUE;
 	km_params.wrapped_input_len = 0U;
 	km_params.key_object_addr = virt_to_phys(keypair_obj);
+	km_params.key_object_len = sizeof(*keypair_obj);
 	km_params.key_id_addr = 0;
 
 	ret = asu_update_queue_buffer_n_send_ipi(&cparams, &km_params,

@@ -41,8 +41,8 @@ endif
 
 # Minimum ASU KeyManager module version, used internally by ECC and RSA HW
 # key-pair generation. Below this, the drivers fall back to software.
-CFG_AMD_ASU_KEYMANAGER_MINVER_MAJ ?= 1
-CFG_AMD_ASU_KEYMANAGER_MINVER_MNR ?= 0
+CFG_AMD_ASU_KEYMANAGER_MINVER_MAJ ?= 2
+CFG_AMD_ASU_KEYMANAGER_MINVER_MNR ?= 1
 
 ifeq ($(CFG_AMD_ASU_CIPHER),y)
 $(call force,CFG_CRYPTO_DRV_CIPHER,y)
