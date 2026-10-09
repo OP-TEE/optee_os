@@ -135,8 +135,9 @@ static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 	regs->sp = (uintptr_t)(regs + 1);
 }
 
-static void thread_unhandled_trap(struct thread_ctx_regs *regs __unused,
-				  unsigned long cause __unused)
+static void __noreturn thread_unhandled_trap(struct thread_ctx_regs *regs
+					     __unused,
+					     unsigned long cause __unused)
 {
 	DMSG("Unhandled trap xepc:0x%016lx xcause:0x%016lx xtval:0x%016lx",
 	     read_csr(CSR_XEPC), read_csr(CSR_XCAUSE), read_csr(CSR_XTVAL));
