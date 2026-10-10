@@ -733,13 +733,19 @@ static void free_region(struct vm_paged_region *reg)
 }
 
 static TEE_Result pager_add_um_region(struct user_mode_ctx *uctx, vaddr_t base,
-				      struct fobj *fobj, uint32_t prot)
+				      struct fobj *fobj, uint32_t prot,
+				      size_t size, size_t offs)
 {
 	struct vm_paged_region *r_prev = NULL;
 	struct vm_paged_region *reg = NULL;
 	vaddr_t b = base;
-	size_t fobj_pgoffs = 0;
-	size_t s = fobj->num_pages * SMALL_PAGE_SIZE;
+	size_t fobj_pgoffs = offs / SMALL_PAGE_SIZE;
+	size_t s = size;
+
+	if (!s || ((offs | s) & SMALL_PAGE_MASK) ||
+	    fobj_pgoffs > fobj->num_pages ||
+	    s / SMALL_PAGE_SIZE > fobj->num_pages - fobj_pgoffs)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (!uctx->regions) {
 		uctx->regions = malloc(sizeof(*uctx->regions));
@@ -811,13 +817,14 @@ static void map_pgts(struct vm_paged_region *reg)
 }
 
 TEE_Result tee_pager_add_um_region(struct user_mode_ctx *uctx, vaddr_t base,
-				   struct fobj *fobj, uint32_t prot)
+				   struct fobj *fobj, uint32_t prot,
+				   size_t size, size_t offs)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct thread_specific_data *tsd = thread_get_tsd();
 	struct vm_paged_region *reg = NULL;
 
-	res = pager_add_um_region(uctx, base, fobj, prot);
+	res = pager_add_um_region(uctx, base, fobj, prot, size, offs);
 	if (res)
 		return res;
 
