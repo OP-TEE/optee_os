@@ -22,6 +22,13 @@
 #define UART0_BASE		0xd4017000
 #define UART0_REG_SHIFT		2
 
+/* eFuse bank 7 (0xf0702800 + 0x190), shadowed into registers by U-Boot. Holds
+ * the per-die/chip IDs used to derive the hardware unique key. */
+#define EFUSE_BANK7_BASE	0xf0702990
+#define EFUSE_BANK7_SIZE	0x20
+/* 16 bytes spanning die_id/svt_dro/pack_id/chip_id/ver_id (bank offset 0x10). */
+#define EFUSE_HUK_OFFSET	0x10
+
 /* Every interrupt belongs to Linux: OP-TEE returns to it to have them served */
 #define PLAT_THREAD_EXCP_FOREIGN_INTR	\
 	(CSR_XIE_EIE | CSR_XIE_TIE | CSR_XIE_SIE)
