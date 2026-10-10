@@ -35,3 +35,41 @@ FUNC tlbi_va_asid_local , :
 	sfence.vma	a0, a1
 	ret
 END_FUNC tlbi_va_asid_local
+
+#ifdef CFG_RISCV_ISA_SVINVAL
+.option push
+.option arch, +svinval
+/*
+ * Svinval splits SFENCE.VMA into SINVAL.VMA, which only invalidates, and
+ * two fences: SFENCE.W.INVAL orders the page table stores before the
+ * invalidations, SFENCE.INVAL.IR orders the invalidations before later
+ * implicit page table reads. A range is invalidated with one fence pair
+ * around a run of SINVAL.VMA instead of a full SFENCE.VMA per page.
+ *
+ * void tlbi_va_range_local(vaddr_t va, size_t len, size_t granule);
+ */
+FUNC tlbi_va_range_local , :
+	add	a1, a0, a1
+	sfence.w.inval
+1:	sinval.vma	a0, zero
+	add	a0, a0, a2
+	bltu	a0, a1, 1b
+	sfence.inval.ir
+	ret
+END_FUNC tlbi_va_range_local
+
+/*
+ * void tlbi_va_range_asid_local(vaddr_t va, size_t len, size_t granule,
+ *				 uint32_t asid);
+ */
+FUNC tlbi_va_range_asid_local , :
+	add	a1, a0, a1
+	sfence.w.inval
+1:	sinval.vma	a0, a3
+	add	a0, a0, a2
+	bltu	a0, a1, 1b
+	sfence.inval.ir
+	ret
+END_FUNC tlbi_va_range_asid_local
+.option pop
+#endif /*CFG_RISCV_ISA_SVINVAL*/
