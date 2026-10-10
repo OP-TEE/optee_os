@@ -48,6 +48,11 @@
 #define CCM_CCGRx_ALWAYS_ON(idx)	\
 			SHIFT_U32(0x3, BS_CCM_CCGRx_SETTING(idx))
 
+#define CCM_CCGR_I2C1			136
+#define CCM_CCGR_I2C2			137
+#define CCM_CCGR_I2C3			138
+#define CCM_CCGR_I2C4			139
+
 /*
  * TARGET_ROOTx Registers (Target)
  */
@@ -58,6 +63,13 @@
 #define CCM_TARGET_ROOTx_SET(idx)	(CCM_TARGET_ROOTx(idx) + 0x4)
 #define CCM_TARGET_ROOTx_CLR(idx)	(CCM_TARGET_ROOTx(idx) + 0x8)
 #define CCM_TARGET_ROOTx_TOG(idx)	(CCM_TARGET_ROOTx(idx) + 0xC)
+
+#define CCM_TARGET_ROOT_ENABLE		BIT32(28)
+
+#define CCM_TARGET_ROOT_I2C1		91
+#define CCM_TARGET_ROOT_I2C2		92
+#define CCM_TARGET_ROOT_I2C3		93
+#define CCM_TARGET_ROOT_I2C4		94
 
 /*
  * MISC_ROOTx Registers (Miscellaneous)
