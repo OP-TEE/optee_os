@@ -55,6 +55,7 @@ ta-mk-file-export-vars-$(sm) += CFG_TA_SANITIZE_KADDRESS
 ta-mk-file-export-vars-$(sm) += CFG_USER_ASAN_SHADOW_OFFSET
 ta-mk-file-export-vars-$(sm) += CFG_SM2_PKE_LEGACY
 ta-mk-file-export-vars-$(sm) += _CFG_TA_STACK_PROTECTOR
+ta-mk-file-export-vars-$(sm) += CFG_TA_ASLR
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
