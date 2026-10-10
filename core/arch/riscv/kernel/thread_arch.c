@@ -24,6 +24,10 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#include <string.h>
+#include <malloc.h>
+#include <kernel/vfp.h>
+#include <initcall.h>
 #include <kernel/user_mode_ctx_struct.h>
 #include <kernel/vfp.h>
 #include <kernel/virtualization.h>
@@ -95,7 +99,8 @@ static void thread_lazy_save_ns_vfp(void)
 #ifdef CFG_WITH_VFP
 	struct thread_ctx *thr = threads + thread_get_id();
 
-	thr->vfp_state.ns_saved = false;
+	thr->vfp_state.ns_fp_saved = false;
+	thr->vfp_state.ns_vec_saved = false;
 	vfp_lazy_save_state_init(&thr->vfp_state.ns);
 #endif /*CFG_WITH_VFP*/
 }
@@ -107,17 +112,18 @@ static void thread_lazy_restore_ns_vfp(void)
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
 	/*
-	 * The REE FP context is only restored once the secure side has
-	 * released the unit, so it must be disabled here.
+	 * The REE FP and vector context is only restored once the secure
+	 * side has released the units, so they must be disabled here.
 	 */
-	assert(!vfp_is_enabled());
+	assert(!vfp_in_use());
 
 	if (tuv && tuv->lazy_saved && !tuv->saved) {
 		vfp_lazy_save_state_final(&tuv->vfp, false /*!force_save*/);
 		tuv->saved = true;
 	}
 
-	vfp_lazy_restore_state(&thr->vfp_state.ns, thr->vfp_state.ns_saved);
+	vfp_lazy_restore_state(&thr->vfp_state.ns, thr->vfp_state.ns_fp_saved,
+			       thr->vfp_state.ns_vec_saved);
 #endif /*CFG_WITH_VFP*/
 }
 
@@ -455,6 +461,26 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 		tee_ta_update_session_utime_suspend();
 		tee_ta_gprof_sample_pc(pc);
 	}
+#if defined(CFG_WITH_VFP) && defined(CFG_RISCV_ISA_V)
+	/*
+	 * The thread is about to yield the hart. Force any lazily disabled
+	 * user vector context out to memory so a concurrent thread using the
+	 * vector unit cannot clobber the registers otherwise left live in the
+	 * hardware. This is needed whether we were preempted in user mode or
+	 * in the middle of a syscall (kernel mode), where the pending context
+	 * was already lazily disabled by thread_user_save_vfp().
+	 */
+	{
+		struct thread_ctx *thr = threads + thread_get_id();
+		struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+
+		if (tuv && tuv->lazy_saved && !tuv->saved) {
+			vfp_lazy_save_state_final(&tuv->vfp,
+						  false /*!force_save*/);
+			tuv->saved = true;
+		}
+	}
+#endif
 	thread_lazy_restore_ns_vfp();
 
 	thread_lock_global();
@@ -523,9 +549,9 @@ void thread_init_per_cpu(void)
 #endif
 #ifdef CFG_WITH_VFP
 	/*
-	 * OpenSBI may leave xstatus.FS in any state on entry. Start with the
-	 * FP unit disabled: it is turned on only through vfp_enable(), i.e.
-	 * thread_kernel_enable_vfp() or a user FP trap.
+	 * OpenSBI may leave xstatus.FS/VS in any state on entry. Start with the
+	 * FP and vector units disabled: each is turned on only by its owner,
+	 * through vfp_enable() on a kernel request or user trap.
 	 */
 	vfp_disable();
 #endif
@@ -551,23 +577,61 @@ static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 }
 
 #ifdef CFG_WITH_VFP
+#if defined(CFG_RISCV_ISA_V)
+/*
+ * A vector context is sized from the hart's vlenb, so the REE kernel buffer
+ * is allocated once at boot; the domain switch is then free of allocation and
+ * has no failure path.
+ */
+static TEE_Result riscv_vector_alloc(void)
+{
+	size_t size = riscv_vector_state_size();
+	size_t n = 0;
+
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		threads[n].vfp_state.ns.vregs = memalign(__alignof__(long),
+							 size);
+		if (!threads[n].vfp_state.ns.vregs)
+			panic("Failed to allocate vector context");
+		memset(threads[n].vfp_state.ns.vregs, 0, size);
+	}
+
+	DMSG("Vector context switching enabled, %zu bytes a context", size);
+
+	return TEE_SUCCESS;
+}
+service_init(riscv_vector_alloc);
+
+/* Zero the live vector registers before handing a fresh context to a TA. */
+static void vfp_clear_regs(struct riscv_vector_state *vregs)
+{
+	memset(vregs, 0, riscv_vector_state_size());
+	riscv_vector_restore(vregs);
+}
+#endif /* CFG_RISCV_ISA_V */
+
 uint32_t thread_kernel_enable_vfp(void)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
-	assert(!vfp_is_enabled());
+	assert(!vfp_in_use());
 
-	if (!thr->vfp_state.ns_saved) {
-		vfp_lazy_save_state_final(&thr->vfp_state.ns,
-					  true /*force_save*/);
-		thr->vfp_state.ns_saved = true;
-	} else if (tuv && tuv->lazy_saved && !tuv->saved) {
-		/*
-		 * This can happen either during syscall or abort
-		 * processing (while processing a syscall).
-		 */
+	/*
+	 * OP-TEE core only uses the FP unit, so only the REE FP is saved.
+	 * Force the save: the normal world is commonly entered with FP lazily
+	 * disabled (FS == Off) while its registers are still live.
+	 */
+	if (!thr->vfp_state.ns_fp_saved)
+		thr->vfp_state.ns_fp_saved =
+			vfp_lazy_save_fp(&thr->vfp_state.ns, true /*force*/);
+
+	/*
+	 * Flush a pending TA's lazily disabled context before the FP unit is
+	 * clobbered. This can happen during syscall or abort processing.
+	 */
+	if (tuv && tuv->lazy_saved && !tuv->saved) {
 		vfp_lazy_save_state_final(&tuv->vfp, false /*!force_save*/);
 		tuv->saved = true;
 	}
@@ -580,7 +644,7 @@ void thread_kernel_disable_vfp(uint32_t state)
 {
 	uint32_t exceptions = 0;
 
-	assert(vfp_is_enabled());
+	assert(vfp_in_use());
 
 	vfp_disable();
 	exceptions = thread_get_exceptions();
@@ -590,46 +654,120 @@ void thread_kernel_disable_vfp(uint32_t state)
 	thread_set_exceptions(exceptions);
 }
 
-void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
+bool thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+	enum thread_vfp_unit unit = THREAD_VFP_UNIT_FP;
+	bool restored_fault_unit = false;
 
 	assert(uvfp);
 	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
-	assert(!vfp_is_enabled());
 
-	if (!thr->vfp_state.ns_saved) {
-		vfp_lazy_save_state_final(&thr->vfp_state.ns,
-					  true /*force_save*/);
-		thr->vfp_state.ns_saved = true;
-	} else if (tuv && uvfp != tuv) {
-		/*
-		 * Different user state saved last time, do a full save
-		 * of that state.
-		 */
-		if (tuv->lazy_saved && !tuv->saved) {
-			vfp_lazy_save_state_final(&tuv->vfp,
-						  false /*!force_save*/);
-			tuv->saved = true;
-		}
+#if defined(CFG_RISCV_ISA_V)
+	/*
+	 * Progressive hand-over: FP first, then vector. No instruction decode
+	 * is needed; vfp_fault_is_vector() tells FP from vector from the unit
+	 * state alone.
+	 */
+	if (vfp_fault_is_vector())
+		unit = THREAD_VFP_UNIT_VEC;
+#endif
+
+#if defined(CFG_RISCV_ISA_V)
+	/* A TA's vector context is allocated the first time it faults on V. */
+	if (unit == THREAD_VFP_UNIT_VEC && !uvfp->vfp.vregs) {
+		uvfp->vfp.vregs = memalign(__alignof__(long),
+					   riscv_vector_state_size());
+		if (!uvfp->vfp.vregs)
+			return false;
+	}
+#endif
+
+	/*
+	 * Save the REE's copy of the faulting unit, once, before the TA
+	 * clobbers it. Only this unit is saved: a TA that uses just FP never
+	 * makes the REE vector context be saved or restored.
+	 */
+	if (unit == THREAD_VFP_UNIT_FP && !thr->vfp_state.ns_fp_saved)
+		thr->vfp_state.ns_fp_saved =
+			vfp_lazy_save_fp(&thr->vfp_state.ns, true);
+#if defined(CFG_RISCV_ISA_V)
+	if (unit == THREAD_VFP_UNIT_VEC && !thr->vfp_state.ns_vec_saved)
+		thr->vfp_state.ns_vec_saved =
+			vfp_lazy_save_vec(&thr->vfp_state.ns, true);
+#endif
+
+	/* Flush a different TA's pending context before taking the unit. */
+	if (uvfp != tuv && tuv && tuv->lazy_saved && !tuv->saved) {
+		vfp_lazy_save_state_final(&tuv->vfp, false /*!force_save*/);
+		tuv->saved = true;
 	}
 
+	/*
+	 * Bring back this TA's units if it was lazily saved (including a resume
+	 * on the same hart, where uvfp == tuv), then clear the lazy state. This
+	 * runs whether or not the TA is already current, so that
+	 * thread_user_save_vfp()'s invariant holds on the next world switch.
+	 */
+	/*
+	 * restored_fault_unit tracks whether the restore below re-enables the
+	 * faulting unit, i.e. the TA already owned it. If not, the unit is new
+	 * to the TA and is handed over with zeroed registers below so nothing
+	 * leaks from a previous owner.
+	 */
 	if (uvfp->lazy_saved) {
-		vfp_lazy_restore_state(&uvfp->vfp, uvfp->saved);
-	} else {
 		/*
-		 * A new user context: do not hand it whatever the previous
-		 * owner left in the registers.
+		 * This TA's units were saved per-unit (only those it used), so
+		 * restore exactly those: FP if its FS was in use, vector if it
+		 * had a vector context in use.
 		 */
-		vfp_enable();
-		vfp_clear_extension_regs();
+		bool rfp = uvfp->saved &&
+			   uvfp->vfp.fs != CSR_XSTATUS_FS_OFF;
+		bool rvec = false;
+
+#if defined(CFG_RISCV_ISA_V)
+		rvec = uvfp->saved && uvfp->vfp.vregs &&
+		       uvfp->vfp.vs != CSR_XSTATUS_VS_OFF;
+#endif
+		/*
+		 * Restore writes xstatus.FS/VS back to the saved values, so
+		 * the faulting unit ends up on exactly when its saved field is
+		 * not Off - whether its registers come from memory (rfp/rvec)
+		 * or are still live from a same-hart suspend.
+		 */
+		restored_fault_unit = uvfp->vfp.fs != CSR_XSTATUS_FS_OFF;
+#if defined(CFG_RISCV_ISA_V)
+		if (unit == THREAD_VFP_UNIT_VEC)
+			restored_fault_unit =
+				uvfp->vfp.vregs &&
+				uvfp->vfp.vs != CSR_XSTATUS_VS_OFF;
+#endif
+		vfp_lazy_restore_state(&uvfp->vfp, rfp, rvec);
 	}
 	uvfp->lazy_saved = false;
 	uvfp->saved = false;
-
 	thr->vfp_state.uvfp = uvfp;
-	vfp_enable();
+
+	/*
+	 * Hand the faulting unit over unless the restore above already brought
+	 * it back. vfp_enable() turns on the first unit still off, which is the
+	 * faulting one, and its registers are zeroed; a unit the TA already
+	 * held keeps its own registers.
+	 */
+	if (!restored_fault_unit) {
+		vfp_enable();
+#if defined(CFG_RISCV_ISA_V)
+		if (unit == THREAD_VFP_UNIT_VEC)
+			vfp_clear_regs(uvfp->vfp.vregs);
+		else
+			vfp_clear_extension_regs();
+#else
+		vfp_clear_extension_regs();
+#endif
+	}
+
+	return true;
 }
 
 void thread_user_save_vfp(void)
@@ -638,7 +776,8 @@ void thread_user_save_vfp(void)
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
 	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
-	if (!vfp_is_enabled())
+
+	if (!vfp_in_use())
 		return;
 
 	assert(tuv && !tuv->lazy_saved && !tuv->saved);
@@ -655,6 +794,10 @@ void thread_user_clear_vfp(struct user_mode_ctx *uctx)
 		thr->vfp_state.uvfp = NULL;
 	uvfp->lazy_saved = false;
 	uvfp->saved = false;
+#if defined(CFG_RISCV_ISA_V)
+	free(uvfp->vfp.vregs);
+	uvfp->vfp.vregs = NULL;
+#endif
 }
 #endif /*CFG_WITH_VFP*/
 

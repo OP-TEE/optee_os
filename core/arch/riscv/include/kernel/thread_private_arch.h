@@ -62,7 +62,9 @@ struct thread_user_mode_rec {
 
 #ifdef CFG_WITH_VFP
 struct thread_vfp_state {
-	bool ns_saved;
+	/* The REE FP and vector units are saved independently, when taken. */
+	bool ns_fp_saved;
+	bool ns_vec_saved;
 	struct vfp_state ns;
 	struct thread_user_vfp_state *uvfp;
 };
