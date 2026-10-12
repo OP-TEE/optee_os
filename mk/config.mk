@@ -1365,6 +1365,18 @@ $(error "CFG_VERAISON_ATTESTATION_PTA_TEST_KEY=n needs secure storage")
 endif
 endif
 
+# When enabled, CFG_VERAISON_ATTESTATION_PTA_PLATFORM_CLAIMS takes the
+# security lifecycle and the boot signer of the PSA token from the
+# platform instead of fixed test values. Supported on the i.MX 8M family
+# (CFG_MX8M=y with CFG_IMX_OCOTP=y), where the lifecycle follows the SRK,
+# SEC_CONFIG and FIELD_RETURN fuses and the boot signer is the SRK hash.
+CFG_VERAISON_ATTESTATION_PTA_PLATFORM_CLAIMS ?= n
+ifeq ($(CFG_VERAISON_ATTESTATION_PTA_PLATFORM_CLAIMS),y)
+ifneq ($(call cfg-all-enabled,CFG_MX8M CFG_IMX_OCOTP),y)
+$(error "CFG_VERAISON_ATTESTATION_PTA_PLATFORM_CLAIMS needs an i.MX 8M with CFG_IMX_OCOTP=y")
+endif
+endif
+
 # CFG_SEMIHOSTING_CONSOLE, when enabled, embeds a semihosting console driver.
 # When CFG_SEMIHOSTING_CONSOLE_FILE=NULL, OP-TEE console reads/writes
 # trace messages from/to the debug terminal of the semihosting host computer.
