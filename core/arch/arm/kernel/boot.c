@@ -1244,6 +1244,7 @@ struct ns_entry_context *boot_core_hpen(void)
 unsigned long __weak get_aslr_seed(void)
 {
 	void *fdt = NULL;
+	unsigned long value = 0;
 	int rc = 0;
 	const uint64_t *seed = NULL;
 	int offs = 0;
@@ -1274,7 +1275,15 @@ unsigned long __weak get_aslr_seed(void)
 		goto err;
 	}
 
-	return fdt64_to_cpu(fdt64_ld(seed));
+	value = fdt64_to_cpu(fdt64_ld(seed));
+
+	rc = fdt_nop_property(fdt, offs, "kaslr-seed");
+	if (rc)
+		DMSG("Failed to remove kaslr-seed: %d", rc);
+	else if (IS_ENABLED(CFG_TRANSFER_LIST) && boot_arg_transfer_list)
+		transfer_list_update_checksum((void *)boot_arg_transfer_list);
+
+	return value;
 
 err:
 	/* Try platform implementation */
