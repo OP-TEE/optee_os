@@ -16,6 +16,10 @@
 #include <trace.h>
 #include <utee_defines.h>
 
+#ifdef CFG_NXP_CAAM_ECC_DRV
+#include <drivers/caam_extension.h>
+#endif
+
 #include "key.h"
 #include "sign.h"
 
@@ -311,8 +315,17 @@ TEE_Result key_import(const uint8_t *pub_x, const uint8_t *pub_y,
 
 	memcpy(new_key.pub_x, pub_x, KEY_SIZE);
 	memcpy(new_key.pub_y, pub_y, KEY_SIZE);
+#ifdef CFG_NXP_CAAM_ECC_DRV
+	/* Keep it as a CAAM black key, like a generated key */
+	new_key.priv_len = sizeof(new_key.priv);
+	res = caam_key_wrap_black(priv, KEY_SIZE, new_key.priv,
+				  &new_key.priv_len);
+	if (res)
+		goto out;
+#else
 	memcpy(new_key.priv, priv, KEY_SIZE);
 	new_key.priv_len = KEY_SIZE;
+#endif
 
 	/* Only a matching pair signs and verifies */
 	res = sign_ecdsa_sha256(&new_key, check_msg, sizeof(check_msg), sig,
