@@ -13,6 +13,7 @@
 #include <mm/core_memprot.h>
 #include <stdint.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee/cache.h>
 #include <tee_api_defines.h>
 #include <trace.h>
@@ -709,6 +710,7 @@ enum caam_status caam_key_black_encapsulation(struct caamkey *key,
 	cache_operation(TEE_CACHEFLUSH, input_buf.data, input_buf.length);
 
 	/* Re-allocate the output key for black format */
+	memzero_explicit(key->buf.data, key->buf.length);
 	caam_key_free(key);
 	key->key_type = key_type;
 
@@ -765,6 +767,9 @@ enum caam_status caam_key_black_encapsulation(struct caamkey *key,
 	caam_key_dump("Output Key", key);
 
 out:
+	/* The plain key must not outlive the operation */
+	if (input_buf.data)
+		memzero_explicit(input_buf.data, input_buf.length);
 	caam_free_buf(&input_buf);
 	caam_free_desc(&desc);
 
