@@ -24,6 +24,7 @@ struct cbor_evidence_args {
 
 struct cose_evidence_args {
 	UsefulBufC ubc_cbor_evidence;
+	const struct signing_key *skey;
 };
 
 struct tbs_structure_args {
@@ -190,7 +191,8 @@ static UsefulBufC build_tbs_structure(UsefulBufC protected_header,
 }
 
 static void encode_cose_evidence(QCBOREncodeContext *context,
-				 UsefulBufC ubc_cbor_evidence)
+				 UsefulBufC ubc_cbor_evidence,
+				 const struct signing_key *skey)
 {
 	UsefulBufC protected_header = { NULL, 0 };
 	UsefulBufC tbs_payload = { NULL, 0 };
@@ -229,8 +231,8 @@ static void encode_cose_evidence(QCBOREncodeContext *context,
 	}
 
 	/* Calculate a signature and add the signature to payload */
-	if (sign_ecdsa_sha256(tbs_payload.ptr, tbs_payload.len, signature,
-			      &signature_len) != TEE_SUCCESS) {
+	if (sign_ecdsa_sha256(skey, tbs_payload.ptr, tbs_payload.len,
+			      signature, &signature_len) != TEE_SUCCESS) {
 		DMSG("Failed to sign payload");
 		mempool_free(mempool_default, (void *)protected_header.ptr);
 		mempool_free(mempool_default, (void *)tbs_payload.ptr);
@@ -271,7 +273,8 @@ static void encode_cose_evidence_wrapper(QCBOREncodeContext *context,
 	struct cose_evidence_args *cose_args =
 		(struct cose_evidence_args *)args;
 
-	encode_cose_evidence(context, cose_args->ubc_cbor_evidence);
+	encode_cose_evidence(context, cose_args->ubc_cbor_evidence,
+			     cose_args->skey);
 }
 
 static UsefulBufC
@@ -297,10 +300,12 @@ build_cbor_evidence(UsefulBufC ubc_eat_profile, int psa_client_id,
 	return build_encoded_buffer(encode_cbor_evidence_wrapper, &args);
 }
 
-static UsefulBufC build_cose_evidence(UsefulBufC ubc_cbor_evidence)
+static UsefulBufC build_cose_evidence(UsefulBufC ubc_cbor_evidence,
+				      const struct signing_key *skey)
 {
 	struct cose_evidence_args args = {
 		.ubc_cbor_evidence = ubc_cbor_evidence,
+		.skey = skey,
 	};
 
 	return build_encoded_buffer(encode_cose_evidence_wrapper, &args);
@@ -344,7 +349,8 @@ UsefulBufC generate_cbor_evidence(const char *eat_profile,
 				   ubc_measurement_value);
 }
 
-UsefulBufC generate_cose_evidence(UsefulBufC ubc_cbor_evidence)
+UsefulBufC generate_cose_evidence(UsefulBufC ubc_cbor_evidence,
+				  const struct signing_key *skey)
 {
-	return build_cose_evidence(ubc_cbor_evidence);
+	return build_cose_evidence(ubc_cbor_evidence, skey);
 }

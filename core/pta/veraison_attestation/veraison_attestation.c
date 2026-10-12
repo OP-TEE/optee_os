@@ -5,6 +5,8 @@
 
 #include <base64.h>
 #include <kernel/pseudo_ta.h>
+#include <kernel/ts_manager.h>
+#include <kernel/user_ta.h>
 #include <mempool.h>
 #include <pta_veraison_attestation.h>
 #include <stdlib.h>
@@ -12,6 +14,8 @@
 
 #include "cbor.h"
 #include "hash.h"
+#include "key.h"
+#include "sign.h"
 
 #define PTA_NAME "veraison_attestation.pta"
 
@@ -24,7 +28,6 @@
 #define LIFECYCLE 12288
 #define MEASURMENT_TYPE "PRoT"
 #define SIGNER_ID_LEN 32
-#define INSTANCE_ID_LEN 33
 
 /* clang-format off */
 #define SIGNER_ID {                                                \
@@ -32,13 +35,6 @@
 		0x05, 0x52, 0x3c, 0xe4, 0xce, 0x1a, 0x24, 0x5a,    \
 		0xe1, 0xa2, 0x39, 0xae, 0x3c, 0x6b, 0xfd, 0x9e,    \
 		0x78, 0x71, 0xf7, 0xe5, 0xd8, 0xba, 0xe8, 0x6b     \
-	}
-#define INSTANCE_ID {                                              \
-		0x01, 0xce, 0xeb, 0xae, 0x7b, 0x89, 0x27, 0xa3,    \
-		0x22, 0x7e, 0x53, 0x03, 0xcf, 0x5e, 0x0f, 0x1f,    \
-		0x7b, 0x34, 0xbb, 0x54, 0x2a, 0xd7, 0x25, 0x0a,    \
-		0xc0, 0x3f, 0xbc, 0xde, 0x36, 0xec, 0x2f, 0x15,    \
-		0x08                                               \
 	}
 /* clang-format on */
 
@@ -58,7 +54,8 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 	const int psa_security_lifecycle = LIFECYCLE;
 	const char measurement_type[] = MEASURMENT_TYPE;
 	const uint8_t signer_id[SIGNER_ID_LEN] = SIGNER_ID;
-	const uint8_t psa_instance_id[INSTANCE_ID_LEN] = INSTANCE_ID;
+	uint8_t psa_instance_id[INSTANCE_ID_LEN] = { };
+	const struct signing_key *skey = NULL;
 
 	uint8_t measurement_value[TEE_SHA256_HASH_SIZE] = { 0 };
 	size_t b64_measurement_value_len = TEE_SHA256_HASH_SIZE * 2;
@@ -78,6 +75,14 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 
 	if (!output_buffer && *output_buffer_len)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	status = key_get(&skey);
+	if (status != TEE_SUCCESS)
+		return status;
+
+	status = compute_instance_id(skey, psa_instance_id);
+	if (status != TEE_SUCCESS)
+		return status;
 
 	/* Calculate measurement hash of memory */
 	status = get_hash_ta_memory(measurement_value);
@@ -114,7 +119,7 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 	}
 
 	/* Sign the CBOR and generate a COSE evidence */
-	ubc_cose_evidence = generate_cose_evidence(ubc_cbor_evidence);
+	ubc_cose_evidence = generate_cose_evidence(ubc_cbor_evidence, skey);
 	if (UsefulBuf_IsNULLC(ubc_cose_evidence)) {
 		DMSG("Failed to encode CBOR to COSE");
 		status = TEE_ERROR_GENERIC;
@@ -139,6 +144,79 @@ free_ubc_cbor_evidence:
 	return status;
 }
 
+static TEE_Result cmd_get_public_key(uint32_t param_types,
+				     TEE_Param params[TEE_NUM_PARAMS])
+{
+	TEE_Param *px = &params[0];
+	TEE_Param *py = &params[1];
+	const struct signing_key *skey = NULL;
+	TEE_Result res = TEE_SUCCESS;
+
+	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					   TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					   TEE_PARAM_TYPE_NONE,
+					   TEE_PARAM_TYPE_NONE))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* Check the parameters before the key is possibly generated */
+	if (px->memref.size < SIGNING_KEY_COORD_SIZE ||
+	    py->memref.size < SIGNING_KEY_COORD_SIZE) {
+		px->memref.size = SIGNING_KEY_COORD_SIZE;
+		py->memref.size = SIGNING_KEY_COORD_SIZE;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+	if (!px->memref.buffer || !py->memref.buffer)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = key_get(&skey);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	memcpy(px->memref.buffer, skey->pub_x, SIGNING_KEY_COORD_SIZE);
+	px->memref.size = SIGNING_KEY_COORD_SIZE;
+	memcpy(py->memref.buffer, skey->pub_y, SIGNING_KEY_COORD_SIZE);
+	py->memref.size = SIGNING_KEY_COORD_SIZE;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result cmd_import_key(uint32_t param_types,
+				 TEE_Param params[TEE_NUM_PARAMS])
+{
+	const struct signing_key *skey = NULL;
+	size_t n = 0;
+
+	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+					   TEE_PARAM_TYPE_MEMREF_INPUT,
+					   TEE_PARAM_TYPE_MEMREF_INPUT,
+					   TEE_PARAM_TYPE_NONE))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	for (n = 0; n < 3; n++)
+		if (!params[n].memref.buffer ||
+		    params[n].memref.size != SIGNING_KEY_COORD_SIZE)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+	return key_import(params[0].memref.buffer, params[1].memref.buffer,
+			  params[2].memref.buffer, &skey);
+}
+
+/*
+ * Only user TAs may use the PTA: the evidence is about the calling TA, and
+ * the key the PTA signs with is the key of every TA's evidence.
+ */
+static TEE_Result open_session(uint32_t param_types __unused,
+			       TEE_Param params[TEE_NUM_PARAMS] __unused,
+			       void **sess_ctx __unused)
+{
+	struct ts_session *s = ts_get_calling_session();
+
+	if (!s || !is_user_ta_ctx(s->ctx))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 				 uint32_t param_types,
 				 TEE_Param params[TEE_NUM_PARAMS])
@@ -146,6 +224,10 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 	switch (cmd_id) {
 	case PTA_VERAISON_ATTESTATION_GET_CBOR_EVIDENCE:
 		return cmd_get_cbor_evidence(param_types, params);
+	case PTA_VERAISON_ATTESTATION_GET_PUBLIC_KEY:
+		return cmd_get_public_key(param_types, params);
+	case PTA_VERAISON_ATTESTATION_IMPORT_KEY:
+		return cmd_import_key(param_types, params);
 	default:
 		break;
 	}
@@ -154,4 +236,5 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 
 pseudo_ta_register(.uuid = PTA_VERAISON_ATTESTATION_UUID, .name = PTA_NAME,
 		   .flags = PTA_DEFAULT_FLAGS,
+		   .open_session_entry_point = open_session,
 		   .invoke_command_entry_point = invoke_command);

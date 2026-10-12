@@ -10,6 +10,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "sign.h"
+
 /* PSA claim keys */
 /* https://datatracker.ietf.org/doc/draft-tschofenig-rats-psa-token/13/ */
 #define PSA_NONCE 10
@@ -49,6 +51,7 @@ UsefulBufC generate_cbor_evidence(const char *eat_profile,
 				  const uint8_t *measurement_value,
 				  size_t measurement_value_len);
 
-UsefulBufC generate_cose_evidence(UsefulBufC ubc_cbor_evidence);
+UsefulBufC generate_cose_evidence(UsefulBufC ubc_cbor_evidence,
+				  const struct signing_key *skey);
 
 #endif /* PTA_VERAISON_ATTESTATION_CBOR_H */

@@ -4,18 +4,14 @@
  */
 
 #include <crypto/crypto.h>
-#include <crypto/crypto_impl.h>
-#include <stdlib_ext.h>
 #include <string.h>
+#include <trace.h>
 #include <utee_defines.h>
 
 #include "sign.h"
 
-#define KEY_SIZE 32
+#define KEY_SIZE SIGNING_KEY_COORD_SIZE
 #define KEY_SIZE_BIT (KEY_SIZE * 8)
-
-static struct ecc_keypair *key;
-static struct ecc_public_key *pubkey;
 
 #ifdef CFG_VERAISON_ATTESTATION_PTA_TEST_KEY
 /*
@@ -55,9 +51,18 @@ static struct ecc_public_key *pubkey;
 		0x93, 0x8d, 0xdb, 0x55, 0xd8, 0xf7, 0x78, 0x01     \
 	}
 /* clang-format on */
-#else
-#error "This is experimental code, requires " \
-	"CFG_VERAISON_ATTESTATION_PTA_TEST_KEY=y"
+
+static const struct signing_key test_key = {
+	.pub_x = PUBLIC_KEY_X,
+	.pub_y = PUBLIC_KEY_Y,
+	.priv_len = KEY_SIZE,
+	.priv = PRIVATE_KEY,
+};
+
+const struct signing_key *sign_test_key(void)
+{
+	return &test_key;
+}
 #endif
 
 static TEE_Result hash_sha256(const uint8_t *msg, size_t msg_len, uint8_t *hash)
@@ -81,95 +86,105 @@ out:
 	return res;
 }
 
-static void free_keypair(void)
+static void free_keypair(struct ecc_keypair *key)
 {
-	if (!key)
-		return;
-
 	crypto_bignum_free(&key->d);
 	crypto_bignum_free(&key->x);
 	crypto_bignum_free(&key->y);
-
-	free_wipe(key);
-	key = NULL;
 }
 
-static void free_pubkey(void)
-{
-	if (!pubkey)
-		return;
-
-	crypto_bignum_free(&pubkey->x);
-	crypto_bignum_free(&pubkey->y);
-
-	free_wipe(pubkey);
-	pubkey = NULL;
-}
-
-static TEE_Result generate_key(void)
+/* Load @skey into a key pair and a public key for the crypto API */
+static TEE_Result load_key(const struct signing_key *skey,
+			   struct ecc_keypair *key,
+			   struct ecc_public_key *pubkey)
 {
 	TEE_Result res = TEE_SUCCESS;
-	const uint8_t private_key[] = PRIVATE_KEY;
-	const uint8_t public_key_x[] = PUBLIC_KEY_X;
-	const uint8_t public_key_y[] = PUBLIC_KEY_Y;
 
-	/* Allocate a private key storage */
-	assert(!key);
-	key = calloc(1, sizeof(*key));
-	if (!key)
-		return TEE_ERROR_OUT_OF_MEMORY;
 	res = crypto_acipher_alloc_ecc_keypair(key, TEE_TYPE_ECDSA_KEYPAIR,
 					       KEY_SIZE_BIT);
 	if (res != TEE_SUCCESS)
-		goto free_keypair;
+		return res;
 	key->curve = TEE_ECC_CURVE_NIST_P256;
 
-	/* Copy the private key */
-	res = crypto_bignum_bin2bn(private_key, KEY_SIZE, key->d);
+	/*
+	 * Copy the private key. A serialized CAAM key is longer than the
+	 * scalar; the CAAM crypto driver sizes the bignum for it and unwraps
+	 * it when the key is used.
+	 */
+	res = crypto_bignum_bin2bn(skey->priv, skey->priv_len, key->d);
 	if (res != TEE_SUCCESS)
 		goto free_keypair;
 
-	/* Allocate a public key storage */
-	assert(!pubkey);
-	pubkey = calloc(1, sizeof(*pubkey));
-	if (!pubkey) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto free_keypair;
-	}
 	res = crypto_acipher_alloc_ecc_public_key(pubkey,
 						  TEE_TYPE_ECDSA_PUBLIC_KEY,
 						  KEY_SIZE_BIT);
 	if (res != TEE_SUCCESS)
-		goto free_pubkey;
+		goto free_keypair;
 	pubkey->curve = TEE_ECC_CURVE_NIST_P256;
 
 	/* Copy the public key */
-	res = crypto_bignum_bin2bn(public_key_x, KEY_SIZE, pubkey->x);
+	res = crypto_bignum_bin2bn(skey->pub_x, KEY_SIZE, pubkey->x);
 	if (res != TEE_SUCCESS)
 		goto free_pubkey;
 
-	res = crypto_bignum_bin2bn(public_key_y, KEY_SIZE, pubkey->y);
+	res = crypto_bignum_bin2bn(skey->pub_y, KEY_SIZE, pubkey->y);
 	if (res != TEE_SUCCESS)
 		goto free_pubkey;
 
 	return TEE_SUCCESS;
 
 free_pubkey:
-	free_pubkey();
+	crypto_acipher_free_ecc_public_key(pubkey);
 free_keypair:
-	free_keypair();
+	free_keypair(key);
 
 	return res;
 }
 
-TEE_Result sign_ecdsa_sha256(const uint8_t *msg, size_t msg_len, uint8_t *sig,
+TEE_Result compute_instance_id(const struct signing_key *skey,
+			       uint8_t instance_id[INSTANCE_ID_LEN])
+{
+	TEE_Result res = TEE_SUCCESS;
+	void *ctx = NULL;
+	const uint8_t uncompressed_point = 0x04;
+
+	res = crypto_hash_alloc_ctx(&ctx, TEE_ALG_SHA256);
+	if (res != TEE_SUCCESS)
+		return res;
+	res = crypto_hash_init(ctx);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_update(ctx, &uncompressed_point, 1);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_update(ctx, skey->pub_x, KEY_SIZE);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_update(ctx, skey->pub_y, KEY_SIZE);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_final(ctx, instance_id + 1, TEE_SHA256_HASH_SIZE);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	/* EAT UEID type byte 0x01 (RAND): a hash */
+	instance_id[0] = 0x01;
+
+out:
+	crypto_hash_free_ctx(ctx);
+	return res;
+}
+
+TEE_Result sign_ecdsa_sha256(const struct signing_key *skey,
+			     const uint8_t *msg, size_t msg_len, uint8_t *sig,
 			     size_t *sig_len)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint8_t hash_msg[TEE_SHA256_HASH_SIZE] = { };
+	struct ecc_keypair key = { };
+	struct ecc_public_key pubkey = { };
 
-	/* Allocate the key pair*/
-	res = generate_key();
+	res = load_key(skey, &key, &pubkey);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -179,24 +194,23 @@ TEE_Result sign_ecdsa_sha256(const uint8_t *msg, size_t msg_len, uint8_t *sig,
 		goto free;
 
 	/* Sign the hashed msg by the key pair*/
-	res = crypto_acipher_ecc_sign(TEE_ALG_ECDSA_SHA256, key, hash_msg,
+	res = crypto_acipher_ecc_sign(TEE_ALG_ECDSA_SHA256, &key, hash_msg,
 				      TEE_SHA256_HASH_SIZE, sig, sig_len);
 	if (res != TEE_SUCCESS)
 		goto free;
 
 	/* Verify the signature */
-	res = crypto_acipher_ecc_verify(TEE_ALG_ECDSA_SHA256, pubkey, hash_msg,
-					TEE_SHA256_HASH_SIZE, sig, *sig_len);
+	res = crypto_acipher_ecc_verify(TEE_ALG_ECDSA_SHA256, &pubkey,
+					hash_msg, TEE_SHA256_HASH_SIZE, sig,
+					*sig_len);
 	if (res == TEE_SUCCESS)
 		DMSG("Success to verify");
 	else
 		DMSG("Failed to verify");
 
 free:
-	free_pubkey();
-	assert(!pubkey);
-	free_keypair();
-	assert(!key);
+	crypto_acipher_free_ecc_public_key(&pubkey);
+	free_keypair(&key);
 
 	return res;
 }

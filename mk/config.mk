@@ -1354,11 +1354,15 @@ $(call force,CFG_QCBOR,y)
 endif
 
 # When enabled, CFG_VERAISON_ATTESTATION_PTA_TEST_KEY embeds a test key.
-# Note: CFG_VERAISON_ATTESTATION_PTA_TEST_KEY must be enabled for
-# CFG_VERAISON_ATTESTATION_PTA to work.
+# Without it the PTA generates its signing key on first use and keeps it
+# in its secure storage, which needs CFG_REE_FS=y or CFG_RPMB_FS=y. With
+# the CAAM ECC driver (CFG_NXP_CAAM_ECC_DRV=y) that key is a CAAM black
+# key.
 CFG_VERAISON_ATTESTATION_PTA_TEST_KEY ?= y
 ifneq ($(CFG_VERAISON_ATTESTATION_PTA_TEST_KEY),y)
-$(error "CFG_VERAISON_ATTESTATION_PTA_TEST_KEY must be enabled")
+ifneq ($(call cfg-one-enabled,CFG_REE_FS CFG_RPMB_FS),y)
+$(error "CFG_VERAISON_ATTESTATION_PTA_TEST_KEY=n needs secure storage")
+endif
 endif
 
 # CFG_SEMIHOSTING_CONSOLE, when enabled, embeds a semihosting console driver.
