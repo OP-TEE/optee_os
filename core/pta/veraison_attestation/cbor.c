@@ -242,6 +242,10 @@ static void encode_cose_evidence(QCBOREncodeContext *context,
 
 	/* Close top level array for COSE_Sign1 */
 	QCBOREncode_CloseArray(context);
+
+	/* The encoder copied both buffers */
+	mempool_free(mempool_default, (void *)tbs_payload.ptr);
+	mempool_free(mempool_default, (void *)protected_header.ptr);
 }
 
 static void encode_cbor_evidence_wrapper(QCBOREncodeContext *context,
