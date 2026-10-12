@@ -5,6 +5,8 @@
 
 #include <base64.h>
 #include <config.h>
+#include <crypto/crypto.h>
+#include <kernel/early_ta.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/ts_manager.h>
 #include <kernel/user_ta.h>
@@ -12,6 +14,8 @@
 #include <pta_veraison_attestation.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ta_pub_key.h>
+#include <utee_defines.h>
 
 #include "cbor.h"
 #include "hash.h"
@@ -30,14 +34,82 @@
 #define LIFECYCLE 12288
 #define MEASURMENT_TYPE "PRoT"
 
-/* clang-format off */
-#define SIGNER_ID {                                                \
-		0xac, 0xbb, 0x11, 0xc7, 0xe4, 0xda, 0x21, 0x72,    \
-		0x05, 0x52, 0x3c, 0xe4, 0xce, 0x1a, 0x24, 0x5a,    \
-		0xe1, 0xa2, 0x39, 0xae, 0x3c, 0x6b, 0xfd, 0x9e,    \
-		0x78, 0x71, 0xf7, 0xe5, 0xd8, 0xba, 0xe8, 0x6b     \
-	}
-/* clang-format on */
+/* Signer of the boot images when the platform does not say */
+static const uint8_t test_boot_signer_id[SIGNER_ID_LEN] = {
+	0xac, 0xbb, 0x11, 0xc7, 0xe4, 0xda, 0x21, 0x72,
+	0x05, 0x52, 0x3c, 0xe4, 0xce, 0x1a, 0x24, 0x5a,
+	0xe1, 0xa2, 0x39, 0xae, 0x3c, 0x6b, 0xfd, 0x9e,
+	0x78, 0x71, 0xf7, 0xe5, 0xd8, 0xba, 0xe8, 0x6b,
+};
+
+static bool is_early_ta(const TEE_UUID *uuid)
+{
+	const struct embedded_ts *ta = NULL;
+
+	if (IS_ENABLED(CFG_EARLY_TA))
+		for_each_early_ta(ta)
+			if (!memcmp(&ta->uuid, uuid, sizeof(*uuid)))
+				return true;
+
+	return false;
+}
+
+/* The hash of the key that signs the boot images, the core among them */
+static TEE_Result get_boot_signer_id(uint8_t signer_id[SIGNER_ID_LEN])
+{
+	if (IS_ENABLED(CFG_VERAISON_ATTESTATION_PTA_PLATFORM_CLAIMS))
+		return platform_get_boot_signer_id(signer_id);
+
+	memcpy(signer_id, test_boot_signer_id, SIGNER_ID_LEN);
+
+	return TEE_SUCCESS;
+}
+
+/*
+ * The SHA-256 of the TA root public key the core verifies TAs against,
+ * over the big-endian modulus followed by the big-endian 32-bit exponent
+ */
+static TEE_Result get_ta_root_key_id(uint8_t signer_id[SIGNER_ID_LEN])
+{
+	uint32_t e = TEE_U32_TO_BIG_ENDIAN(ta_pub_key_exponent);
+	TEE_Result res = TEE_SUCCESS;
+	void *ctx = NULL;
+
+	res = crypto_hash_alloc_ctx(&ctx, TEE_ALG_SHA256);
+	if (res != TEE_SUCCESS)
+		return res;
+	res = crypto_hash_init(ctx);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_update(ctx, ta_pub_key_modulus,
+				 ta_pub_key_modulus_size);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_update(ctx, (uint8_t *)&e, sizeof(e));
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_final(ctx, signer_id, SIGNER_ID_LEN);
+out:
+	crypto_hash_free_ctx(ctx);
+
+	return res;
+}
+
+/*
+ * Who vouches for the calling TA: a TA loaded from the REE file system or
+ * the secure storage is verified against the TA root public key built into
+ * the core, so that key is its signer. An early TA is part of the core
+ * image and carries no signature of its own, so its signer is whoever
+ * signed the core.
+ */
+static TEE_Result get_ta_signer_id(const TEE_UUID *uuid,
+				   uint8_t signer_id[SIGNER_ID_LEN])
+{
+	if (is_early_ta(uuid))
+		return get_boot_signer_id(signer_id);
+
+	return get_ta_root_key_id(signer_id);
+}
 
 static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 					TEE_Param params[TEE_NUM_PARAMS])
@@ -48,13 +120,14 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 	size_t *output_buffer_len = &params[1].memref.size;
 	const uint8_t *psa_implementation_id = params[2].memref.buffer;
 	const size_t psa_implementation_id_len = params[2].memref.size;
+	struct ts_session *s = ts_get_calling_session();
 	TEE_Result status = TEE_SUCCESS;
 
 	const char eat_profile[] = EAT_PROFILE;
 	const int psa_client_id = CLIENT_ID;
 	int psa_security_lifecycle = LIFECYCLE;
 	const char measurement_type[] = MEASURMENT_TYPE;
-	const uint8_t signer_id[SIGNER_ID_LEN] = SIGNER_ID;
+	uint8_t signer_id[SIGNER_ID_LEN] = { };
 	uint8_t psa_instance_id[INSTANCE_ID_LEN] = { };
 	const struct signing_key *skey = NULL;
 
@@ -77,6 +150,9 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 	if (!output_buffer && *output_buffer_len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (!s || !is_user_ta_ctx(s->ctx))
+		return TEE_ERROR_ACCESS_DENIED;
+
 	status = key_get(&skey);
 	if (status != TEE_SUCCESS)
 		return status;
@@ -90,6 +166,10 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 		if (status != TEE_SUCCESS)
 			return status;
 	}
+
+	status = get_ta_signer_id(&s->ctx->uuid, signer_id);
+	if (status != TEE_SUCCESS)
+		return status;
 
 	/* Calculate measurement hash of memory */
 	status = get_hash_ta_memory(measurement_value);
