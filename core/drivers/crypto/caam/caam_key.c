@@ -100,11 +100,23 @@ static const char *const caam_key_type_to_str[] __maybe_unused = {
 	[CAAM_KEY_BLACK_CCM] = "Black CCM",
 };
 
-static struct caam_key_serialized *data_to_serialized_key(const uint8_t *data,
-							  size_t size)
+/*
+ * Return the serialized key header of the given key buffer, or NULL when
+ * the buffer holds a plain key: a buffer too short for the header, or one
+ * without the magic number, can only be a plain key.
+ *
+ * @data	Input buffer
+ * @size	Input buffer size
+ */
+static const struct caam_key_serialized *
+data_to_serialized_key(const uint8_t *data, size_t size)
 {
-	assert(data && size);
-	assert(size > sizeof(struct caam_key_serialized));
+	const struct caam_key_serialized *key = NULL;
+
+	assert(data);
+
+	if (size <= sizeof(*key))
+		return NULL;
 
 	/*
 	 * It's important to make sure uint8_t and caam_key_serialized{} are
@@ -122,7 +134,12 @@ static struct caam_key_serialized *data_to_serialized_key(const uint8_t *data,
 	 * The cast to void* instead of struct caam_key_serialized* is needed
 	 * to avoid the cast alignment compilation warning.
 	 */
-	return (void *)data;
+	key = (const void *)data;
+
+	if (key->magic_number != MAGIC_NUMBER)
+		return NULL;
+
+	return key;
 }
 
 /*
@@ -133,9 +150,10 @@ static struct caam_key_serialized *data_to_serialized_key(const uint8_t *data,
  */
 static enum caam_key_type get_key_type(const uint8_t *data, size_t size)
 {
-	struct caam_key_serialized *key = data_to_serialized_key(data, size);
+	const struct caam_key_serialized *key = data_to_serialized_key(data,
+								       size);
 
-	if (key->magic_number != MAGIC_NUMBER)
+	if (!key)
 		return CAAM_KEY_PLAIN_TEXT;
 
 	return key->key_type;
@@ -149,9 +167,10 @@ static enum caam_key_type get_key_type(const uint8_t *data, size_t size)
  */
 static size_t get_key_sec_size(const uint8_t *data, size_t size)
 {
-	struct caam_key_serialized *key = data_to_serialized_key(data, size);
+	const struct caam_key_serialized *key = data_to_serialized_key(data,
+								       size);
 
-	if (key->magic_number != MAGIC_NUMBER)
+	if (!key)
 		return size;
 
 	return key->sec_size;
@@ -165,12 +184,10 @@ static size_t get_key_sec_size(const uint8_t *data, size_t size)
  */
 static unsigned long get_key_buf_offset(const uint8_t *data, size_t size)
 {
-	struct caam_key_serialized *key = data_to_serialized_key(data, size);
-
-	if (key->magic_number != MAGIC_NUMBER)
+	if (!data_to_serialized_key(data, size))
 		return 0;
-	else
-		return offsetof(struct caam_key_serialized, key);
+
+	return offsetof(struct caam_key_serialized, key);
 }
 
 /*
@@ -181,13 +198,14 @@ static unsigned long get_key_buf_offset(const uint8_t *data, size_t size)
  */
 static size_t get_key_buf_size(const uint8_t *data, size_t size)
 {
-	struct caam_key_serialized *key = data_to_serialized_key(data, size);
+	if (!data_to_serialized_key(data, size))
+		return size;
 
 	/*
 	 * In the caam_key_serialized{}, the last element of the structure is
 	 * a variable-sized buffer.
 	 */
-	return size - sizeof(*key);
+	return size - sizeof(struct caam_key_serialized);
 }
 
 size_t caam_key_get_alloc_size(const struct caamkey *key)
@@ -432,6 +450,11 @@ enum caam_status caam_key_deserialize_from_bin(uint8_t *data, size_t size,
 	blob.sec_size = sec_size;
 	blob.is_blob = true;
 
+	if (blob.key_type >= CAAM_KEY_MAX_VALUE) {
+		KEY_TRACE("Unknown key type %d", blob.key_type);
+		return CAAM_BAD_PARAM;
+	}
+
 	/*
 	 * Validate the input size against the expected key size. The buffer
 	 * allocated below is derived from blob.sec_size (either the provided
@@ -608,6 +631,8 @@ enum caam_status caam_key_deserialize_from_bn(const struct bignum *inkey,
 
 	/* Get bignum size */
 	size = crypto_bignum_num_bytes((struct bignum *)inkey);
+	if (!size)
+		return CAAM_BAD_PARAM;
 
 	/* Allocate temporary buffer */
 	buf = caam_calloc(size);
