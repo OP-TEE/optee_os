@@ -467,9 +467,13 @@ void plat_init_soft_prng(void)
 	uint8_t seed[RNG_FIFO_BYTE_DEPTH] = { };
 
 	if (!stm32_rng) {
-		__plat_init_soft_prng();
-		DMSG("PRNG seeded without RNG");
+#ifdef CFG_INSECURE
+		__plat_init_insecure_soft_prng();
+		IMSG("PRNG seeded without RNG");
 		return;
+#else
+		panic("Insecure PRNG with CFG_INSECURE disabled");
+#endif
 	}
 
 	if (stm32_rng_read(seed, sizeof(seed)))
