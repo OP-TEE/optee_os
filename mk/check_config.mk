@@ -1,0 +1,34 @@
+# Check consistency of OP-TEE configuration
+#
+# This file currently checks generic configuration directives
+# against CFG_INSECURE configuration switch.
+
+ifeq ($(CFG_INSECURE),y)
+$(call force,CFG_ENFORCE_SECURE_CONFIG,n,Required by CFG_INSECURE)
+endif
+CFG_ENFORCE_SECURE_CONFIG ?= y
+
+ifeq ($(CFG_ENFORCE_SECURE_CONFIG),y)
+$(call force,CFG_DEBUG_INFO,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_TEE_CORE_LOG_LEVEL,0,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_TEE_TA_LOG_LEVEL,0,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_TEE_CORE_TA_TRACE,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_RPMB_RESET_FAT,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_RPMB_TESTKEY,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_RPMB_WRITE_KEY,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_CORE_ASLR,y,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_TA_ASLR,y,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_REE_FS_ALLOW_RESET,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_ENABLE_EMBEDDED_TESTS,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_TEE_CORE_EMBED_INTERNAL_TESTS,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_WITH_STATS,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_TA_GPROF_SUPPORT,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_FTRACE_SUPPORT,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_SYSCALL_FTRACE,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_SYSCALL_WRAPPERS_MCOUNT,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_NOTIF_TEST_WD,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_TA_STATS,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_CORE_UNSAFE_MODEXP,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+$(call force,CFG_TA_MBEDTLS_UNSAFE_MODEXP,n,Required by CFG_ENFORCE_SECURE_CONFIG)
+endif # CFG_ENFORCE_SECURE_CONFIG
+

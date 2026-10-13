@@ -102,6 +102,8 @@ endif
 
 include mk/cleandirs.mk
 
+include mk/check_config.mk
+
 .PHONY: clean
 clean:
 	@$(cmd-echo-silent) '  CLEAN   $(out-dir)'
