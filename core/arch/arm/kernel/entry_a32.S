@@ -581,13 +581,14 @@ shadow_stack_access_ok:
 #endif
 
 #ifdef CFG_CORE_ASLR
-	bl	get_aslr_seed
 #ifdef CFG_CORE_ASLR_SEED
 	mov_imm	r0, CFG_CORE_ASLR_SEED
-#endif
+#else
+	bl	get_aslr_seed
+#endif /* CFG_CORE_ASLR_SEED */
 #else
 	mov	r0, #0
-#endif
+#endif /* CFG_CORE_ASLR */
 
 	ldr	r1, =boot_mmu_config
 	bl	core_init_mmu_map
