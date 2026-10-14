@@ -6,6 +6,7 @@
 #include <auth/pas_auth.h>
 #include <auth/pas_meta.h>
 #include <auth/pas_fuse.h>
+#include <pas_init.h>
 #include <pta_qcom_pas.h>
 #include <string.h>
 #include <ta_qcom_pas.h>
@@ -21,6 +22,10 @@ static TEE_Result qcom_pas_init_image(struct qcom_pas_session *s, uint32_t pt,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	struct pas_fw_region fw_region;
+	uint64_t fw_min_addr = UINT64_MAX;
+	uint64_t fw_max_addr = 0;
+	TEE_Param pta_params[TEE_NUM_PARAMS];
 	void *metadata = NULL;
 	size_t meta_size = 0;
 	uint32_t pas_id = 0;
@@ -34,7 +39,6 @@ static TEE_Result qcom_pas_init_image(struct qcom_pas_session *s, uint32_t pt,
 
 	pas_id = params[0].value.a;
 	meta_size = params[1].memref.size;
-
 	if (!meta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -46,9 +50,22 @@ static TEE_Result qcom_pas_init_image(struct qcom_pas_session *s, uint32_t pt,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	memcpy(metadata, params[1].memref.buffer, meta_size);
+	res = pas_get_fw_min_max_addr(metadata, meta_size,
+				      &fw_min_addr,
+				      &fw_max_addr);
+	if (res)
+		goto out;
 
+	res = pas_get_fw_region(fw_min_addr, fw_max_addr, &fw_region);
+	if (res)
+		goto out;
+
+	pta_params[0].value.a = pas_id;
+	pta_params[1].memref.buffer = &fw_region;
+	pta_params[1].memref.size = sizeof(fw_region);
 	res = TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
-				  PTA_QCOM_PAS_INIT_IMAGE, pt, params, NULL);
+				  PTA_QCOM_PAS_INIT_IMAGE, pt, pta_params,
+				  NULL);
 	if (res)
 		goto out;
 
