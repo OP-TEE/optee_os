@@ -15,11 +15,10 @@ struct cbor_evidence_args {
 	int psa_client_id;
 	int psa_security_lifecycle;
 	UsefulBufC ubc_psa_implementation_id;
-	UsefulBufC ubc_measurement_type;
-	UsefulBufC ubc_signer_id;
+	const struct psa_sw_component *components;
+	size_t num_components;
 	UsefulBufC ubc_psa_instance_id;
 	UsefulBufC ubc_psa_nonce;
-	UsefulBufC ubc_measurement_value;
 };
 
 struct cose_evidence_args {
@@ -36,14 +35,36 @@ struct tbs_structure_args {
 	UsefulBufC payload;
 };
 
+static void encode_sw_component(QCBOREncodeContext *context,
+				const struct psa_sw_component *c)
+{
+	UsefulBufC ubc_measurement_value = { c->measurement_value,
+					     c->measurement_value_len };
+	UsefulBufC ubc_signer_id = { c->signer_id, c->signer_id_len };
+
+	QCBOREncode_OpenMap(context); /* { */
+	QCBOREncode_AddTextToMapN(context, PSA_SW_COMPONENT_MEASUREMENT_TYPE,
+				  UsefulBuf_FromSZ(c->measurement_type));
+	QCBOREncode_AddBytesToMapN(context, PSA_SW_COMPONENT_MEASUREMENT_VALUE,
+				   ubc_measurement_value);
+	if (c->version)
+		QCBOREncode_AddTextToMapN(context, PSA_SW_COMPONENT_VERSION,
+					  UsefulBuf_FromSZ(c->version));
+	QCBOREncode_AddBytesToMapN(context, PSA_SW_COMPONENT_SIGNER_ID,
+				   ubc_signer_id);
+	QCBOREncode_CloseMap(context); /* } */
+}
+
 static void
 encode_cbor_evidence(QCBOREncodeContext *context, UsefulBufC ubc_eat_profile,
 		     const int psa_client_id, const int psa_security_lifecycle,
 		     UsefulBufC ubc_psa_implementation_id,
-		     UsefulBufC ubc_measurement_type, UsefulBufC ubc_signer_id,
-		     UsefulBufC ubc_psa_instance_id, UsefulBufC ubc_psa_nonce,
-		     UsefulBufC ubc_measurement_value)
+		     const struct psa_sw_component *components,
+		     size_t num_components, UsefulBufC ubc_psa_instance_id,
+		     UsefulBufC ubc_psa_nonce)
 {
+	size_t i = 0;
+
 	QCBOREncode_OpenMap(context);
 
 	/* Profile Definition */
@@ -63,14 +84,8 @@ encode_cbor_evidence(QCBOREncodeContext *context, UsefulBufC ubc_eat_profile,
 
 	/* Software Components */
 	QCBOREncode_OpenArrayInMapN(context, PSA_SW_COMPONENTS); /* [ */
-	QCBOREncode_OpenMap(context); /* { */
-	QCBOREncode_AddTextToMapN(context, PSA_SW_COMPONENT_MEASUREMENT_TYPE,
-				  ubc_measurement_type);
-	QCBOREncode_AddBytesToMapN(context, PSA_SW_COMPONENT_MEASUREMENT_VALUE,
-				   ubc_measurement_value);
-	QCBOREncode_AddBytesToMapN(context, PSA_SW_COMPONENT_SIGNER_ID,
-				   ubc_signer_id);
-	QCBOREncode_CloseMap(context); /* } */
+	for (i = 0; i < num_components; i++)
+		encode_sw_component(context, &components[i]);
 	QCBOREncode_CloseArray(context); /* ] */
 
 	/* Nonce */
@@ -261,11 +276,10 @@ static void encode_cbor_evidence_wrapper(QCBOREncodeContext *context,
 			     evidence_args->psa_client_id,
 			     evidence_args->psa_security_lifecycle,
 			     evidence_args->ubc_psa_implementation_id,
-			     evidence_args->ubc_measurement_type,
-			     evidence_args->ubc_signer_id,
+			     evidence_args->components,
+			     evidence_args->num_components,
 			     evidence_args->ubc_psa_instance_id,
-			     evidence_args->ubc_psa_nonce,
-			     evidence_args->ubc_measurement_value);
+			     evidence_args->ubc_psa_nonce);
 }
 
 static void encode_cose_evidence_wrapper(QCBOREncodeContext *context,
@@ -281,20 +295,19 @@ static UsefulBufC
 build_cbor_evidence(UsefulBufC ubc_eat_profile, int psa_client_id,
 		    int psa_security_lifecycle,
 		    UsefulBufC ubc_psa_implementation_id,
-		    UsefulBufC ubc_measurement_type, UsefulBufC ubc_signer_id,
-		    UsefulBufC ubc_psa_instance_id, UsefulBufC ubc_psa_nonce,
-		    UsefulBufC ubc_measurement_value)
+		    const struct psa_sw_component *components,
+		    size_t num_components, UsefulBufC ubc_psa_instance_id,
+		    UsefulBufC ubc_psa_nonce)
 {
 	struct cbor_evidence_args args = {
 		.ubc_eat_profile = ubc_eat_profile,
 		.psa_client_id = psa_client_id,
 		.psa_security_lifecycle = psa_security_lifecycle,
 		.ubc_psa_implementation_id = ubc_psa_implementation_id,
-		.ubc_measurement_type = ubc_measurement_type,
-		.ubc_signer_id = ubc_signer_id,
+		.components = components,
+		.num_components = num_components,
 		.ubc_psa_instance_id = ubc_psa_instance_id,
 		.ubc_psa_nonce = ubc_psa_nonce,
-		.ubc_measurement_value = ubc_measurement_value,
 	};
 
 	return build_encoded_buffer(encode_cbor_evidence_wrapper, &args);
@@ -322,37 +335,29 @@ UsefulBufC generate_cbor_evidence(const char *eat_profile,
 				  int psa_security_lifecycle,
 				  const uint8_t *psa_implementation_id,
 				  size_t psa_implementation_id_len,
-				  const char *measurement_type,
-				  const uint8_t *signer_id,
-				  size_t signer_id_len,
+				  const struct psa_sw_component *components,
+				  size_t num_components,
 				  const uint8_t *psa_instance_id,
 				  size_t psa_instance_id_len,
 				  const uint8_t *psa_nonce,
-				  size_t psa_nonce_len,
-				  const uint8_t *measurement_value,
-				  size_t measurement_value_len)
+				  size_t psa_nonce_len)
 {
 	/* prepare usefulbufs because qcbor only accepts them */
 	UsefulBufC ubc_eat_profile = UsefulBuf_FromSZ(eat_profile);
 	UsefulBufC ubc_psa_implementation_id = { psa_implementation_id,
 						 psa_implementation_id_len };
-	UsefulBufC ubc_measurement_type = UsefulBuf_FromSZ(measurement_type);
-	UsefulBufC ubc_signer_id = { signer_id, signer_id_len };
 	UsefulBufC ubc_psa_instance_id = { psa_instance_id,
 					   psa_instance_id_len };
 	UsefulBufC ubc_psa_nonce = { psa_nonce, psa_nonce_len };
-	UsefulBufC ubc_measurement_value = { measurement_value,
-					     measurement_value_len };
 
 	return build_cbor_evidence(ubc_eat_profile,
 				   psa_client_id,
 				   psa_security_lifecycle,
 				   ubc_psa_implementation_id,
-				   ubc_measurement_type,
-				   ubc_signer_id,
+				   components,
+				   num_components,
 				   ubc_psa_instance_id,
-				   ubc_psa_nonce,
-				   ubc_measurement_value);
+				   ubc_psa_nonce);
 }
 
 UsefulBufC generate_cose_evidence(UsefulBufC ubc_cbor_evidence,
