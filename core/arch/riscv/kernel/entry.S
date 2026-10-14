@@ -240,14 +240,13 @@ UNWIND(	.cantunwind)
 	jal	boot_mem_init
 
 #ifdef CFG_CORE_ASLR
+	jal	get_aslr_seed
 #ifdef CFG_CORE_ASLR_SEED
 	li	a0, CFG_CORE_ASLR_SEED
-#else
-	jal	get_aslr_seed
 #endif
 #else
 	mv	a0, x0
-#endif
+#endif /* CFG_CORE_ASLR */
 	lla	a1, boot_mmu_config
 	jal	core_init_mmu_map
 
