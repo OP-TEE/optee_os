@@ -45,7 +45,7 @@
  * PAS image initialization.
  *
  * [in]  params[0].value.a:	Unique 32bit remote processor identifier
- * [in]  params[1].memref:	Loadable firmware metadata
+ * [in]  params[1].memref:	Firmware region info (base, size)
  */
 #define PTA_QCOM_PAS_INIT_IMAGE			3
 

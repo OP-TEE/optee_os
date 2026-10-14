@@ -35,7 +35,7 @@ TEE_Result pas_platform_set_remote_state(uint32_t pas_id, uint32_t state);
 TEE_Result pas_platform_auth_and_reset(uint32_t pas_id);
 TEE_Result pas_platform_is_supported(uint32_t pas_id);
 TEE_Result pas_platform_capabilities(uint32_t pas_id);
-TEE_Result pas_platform_init_image(uint32_t pas_id);
+TEE_Result pas_platform_init_image(uint32_t pas_id, struct pas_fw_region *fw);
 TEE_Result pas_platform_shutdown(uint32_t pas_id);
 
 #ifdef CFG_QCOM_PAS_AUTH
