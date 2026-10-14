@@ -13,9 +13,11 @@
 #include <kernel/user_ta.h>
 #include <mempool.h>
 #include <pta_veraison_attestation.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ta_pub_key.h>
+#include <tee/uuid.h>
 #include <utee_defines.h>
 
 #include "cbor.h"
@@ -30,7 +32,6 @@
 #define TEE_SHA256_HASH_SIZE 32
 
 #define EAT_PROFILE "http://arm.com/psa/2.0.0"
-#define CLIENT_ID 1
 #define LIFECYCLE 12288
 #define MEASURMENT_TYPE "PRoT"
 #define INSTANCE_ID_LEN 33
@@ -117,6 +118,44 @@ static TEE_Result get_ta_signer_id(const TEE_UUID *uuid,
 	return get_ta_root_key_id(signer_id);
 }
 
+/*
+ * The PSA client-id names the caller the evidence is about. Derive it from
+ * the UUID of the calling TA: the SHA-256 of the UUID in its RFC 4122 octet
+ * form, reduced to 1..INT32_MAX, the value range the PSA token reserves for
+ * callers in the secure world.
+ */
+static TEE_Result get_client_id(const TEE_UUID *uuid, int *client_id)
+{
+	uint8_t hash[TEE_SHA256_HASH_SIZE] = { };
+	uint8_t octets[sizeof(TEE_UUID)] = { };
+	TEE_Result res = TEE_SUCCESS;
+	void *ctx = NULL;
+	uint32_t v = 0;
+
+	tee_uuid_to_octets(octets, uuid);
+
+	res = crypto_hash_alloc_ctx(&ctx, TEE_ALG_SHA256);
+	if (res != TEE_SUCCESS)
+		return res;
+	res = crypto_hash_init(ctx);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_update(ctx, octets, sizeof(octets));
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_final(ctx, hash, sizeof(hash));
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	v = ((uint32_t)hash[28] << 24) | ((uint32_t)hash[29] << 16) |
+	    ((uint32_t)hash[30] << 8) | hash[31];
+	*client_id = 1 + v % INT32_MAX;
+out:
+	crypto_hash_free_ctx(ctx);
+
+	return res;
+}
+
 static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 					TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -136,7 +175,7 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 	TEE_Result status = TEE_SUCCESS;
 
 	const char eat_profile[] = EAT_PROFILE;
-	const int psa_client_id = CLIENT_ID;
+	int psa_client_id = 0;
 	int psa_security_lifecycle = LIFECYCLE;
 	const char measurement_type[] = MEASURMENT_TYPE;
 	uint8_t signer_id[SIGNER_ID_LEN] = { 0 };
@@ -167,6 +206,10 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 
 	if (!s || !is_user_ta_ctx(s->ctx))
 		return TEE_ERROR_ACCESS_DENIED;
+
+	status = get_client_id(&s->ctx->uuid, &psa_client_id);
+	if (status != TEE_SUCCESS)
+		return status;
 
 	/*
 	 * The signing key, when the caller supplies one: the public key
