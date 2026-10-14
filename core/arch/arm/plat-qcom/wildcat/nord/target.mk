@@ -16,3 +16,11 @@ CFG_QCOM_RPMH_CLIENT ?= y
 ifeq ($(CFG_QCOM_RPMH_CLIENT),y)
 $(call force,CFG_QCOM_CMD_DB,y)
 endif
+
+ifeq ($(CFG_QCOM_PAS_AUTH),y)
+$(call force,CFG_QCOM_FUSE_PTA,y)
+endif
+
+ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_FUSE_PTA)),)
+$(call force,CFG_QCOM_QFPROM,y)
+endif
