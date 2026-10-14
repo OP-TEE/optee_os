@@ -4,6 +4,7 @@
  */
 
 #include <base64.h>
+#include <config.h>
 #include <crypto/crypto.h>
 #include <drivers/caam_extension.h>
 #include <kernel/pseudo_ta.h>
@@ -14,6 +15,7 @@
 
 #include "cbor.h"
 #include "hash.h"
+#include "platform.h"
 #include "sign.h"
 
 #define PTA_NAME "veraison_attestation.pta"
@@ -26,7 +28,6 @@
 #define CLIENT_ID 1
 #define LIFECYCLE 12288
 #define MEASURMENT_TYPE "PRoT"
-#define SIGNER_ID_LEN 32
 #define INSTANCE_ID_LEN 33
 
 #define PUBKEY_COORD_SIZE 32
@@ -62,7 +63,7 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 
 	const char eat_profile[] = EAT_PROFILE;
 	const int psa_client_id = CLIENT_ID;
-	const int psa_security_lifecycle = LIFECYCLE;
+	int psa_security_lifecycle = LIFECYCLE;
 	const char measurement_type[] = MEASURMENT_TYPE;
 	const uint8_t signer_id[SIGNER_ID_LEN] = SIGNER_ID;
 	uint8_t psa_instance_id[INSTANCE_ID_LEN] = { 0 };
@@ -131,6 +132,12 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 		return TEE_ERROR_GENERIC;
 	}
 	DMSG("b64_measurement_value: %s", b64_measurement_value);
+
+	if (IS_ENABLED(CFG_VERAISON_ATTESTATION_PTA_PLATFORM_CLAIMS)) {
+		status = platform_get_lifecycle(&psa_security_lifecycle);
+		if (status != TEE_SUCCESS)
+			return status;
+	}
 
 	/* Encode evidence to CBOR */
 	ubc_cbor_evidence = generate_cbor_evidence(eat_profile,
