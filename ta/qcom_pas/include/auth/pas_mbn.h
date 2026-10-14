@@ -26,7 +26,7 @@
  * v7 adds a common-metadata block shared by both signers (holding the hash
  * table's digest algorithm, among other fields) ahead of the per-signer
  * metadata; its header uses a different field layout and offsets from v6
- * (see pas_mbn_parser_priv.h) but the same "fixed header, then concatenated
+ * (see pas_mbn_parser_common.h) but the same "fixed header, then concatenated
  * variable-length regions" shape.
  *
  * Hash table: one digest per ELF program header; entry 0 = digest of the ELF
@@ -81,9 +81,7 @@ struct pas_mbn_header_v6 {
  *			block (image content is encrypted)
  *
  * The common_meta/oem_meta/oem_sig/oem_certs, qti_meta/qti_sig/qti_certs and
- * signed_region fields are populated by pas_mbn_parse() for pas_meta.c's
- * use under CFG_QCOM_PAS_AUTH; a CFG_QCOM_PAS_AUTH-only
- * build parses but never reads them.
+ * signed_region fields are populated by pas_mbn_parse() for authentication.
  */
 struct pas_mbn {
 	uint32_t version;
@@ -125,5 +123,8 @@ TEE_Result pas_mbn_get_region(const uint8_t *segment, size_t segment_size,
 
 TEE_Result pas_mbn_parse(const uint8_t *md, size_t md_size,
 			 uint32_t hash_len, struct pas_mbn *out);
+
+TEE_Result pas_mbn_get_signed_data(const struct pas_mbn *mbn,
+				   uint8_t **data, size_t *data_len);
 
 #endif /* __AUTH_PAS_MBN_H */

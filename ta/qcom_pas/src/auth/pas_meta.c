@@ -14,7 +14,33 @@
 #include <utee_defines.h>
 #include <util.h>
 
-#include <pas_mbn_parser_priv.h>
+#include "pas_mbn_parser_common.h"
+#include "pas_meta_common.h"
+
+static const struct pas_meta_ops *pas_meta_get_ops(uint32_t version)
+{
+	switch (version) {
+	case PAS_MBN_VERSION_6:
+		return &pas_meta_v6_ops;
+	case PAS_MBN_VERSION_7:
+		return &pas_meta_v7_ops;
+	default:
+		return NULL;
+	}
+}
+
+static TEE_Result pas_meta_get_mbn_ops(const struct pas_mbn *mbn,
+				       const struct pas_meta_ops **ops)
+{
+	if (!mbn || !ops)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*ops = pas_meta_get_ops(mbn->version);
+	if (!*ops)
+		return TEE_ERROR_BAD_FORMAT;
+
+	return TEE_SUCCESS;
+}
 
 TEE_Result pas_meta_get_root_cert_sel(const uint8_t *meta_data,
 				      size_t meta_data_size,
