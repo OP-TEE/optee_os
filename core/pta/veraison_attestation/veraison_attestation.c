@@ -12,6 +12,7 @@
 
 #include "cbor.h"
 #include "hash.h"
+#include "sign.h"
 
 #define PTA_NAME "veraison_attestation.pta"
 
@@ -26,19 +27,17 @@
 #define SIGNER_ID_LEN 32
 #define INSTANCE_ID_LEN 33
 
+#define PUBKEY_COORD_SIZE 32
+#define KEY_PARAM_HEADER_SIZE (2 * PUBKEY_COORD_SIZE)
+/* The private key is at least the plain P-256 scalar */
+#define KEY_PARAM_MIN_SIZE (KEY_PARAM_HEADER_SIZE + PUBKEY_COORD_SIZE)
+
 /* clang-format off */
 #define SIGNER_ID {                                                \
 		0xac, 0xbb, 0x11, 0xc7, 0xe4, 0xda, 0x21, 0x72,    \
 		0x05, 0x52, 0x3c, 0xe4, 0xce, 0x1a, 0x24, 0x5a,    \
 		0xe1, 0xa2, 0x39, 0xae, 0x3c, 0x6b, 0xfd, 0x9e,    \
 		0x78, 0x71, 0xf7, 0xe5, 0xd8, 0xba, 0xe8, 0x6b     \
-	}
-#define INSTANCE_ID {                                              \
-		0x01, 0xce, 0xeb, 0xae, 0x7b, 0x89, 0x27, 0xa3,    \
-		0x22, 0x7e, 0x53, 0x03, 0xcf, 0x5e, 0x0f, 0x1f,    \
-		0x7b, 0x34, 0xbb, 0x54, 0x2a, 0xd7, 0x25, 0x0a,    \
-		0xc0, 0x3f, 0xbc, 0xde, 0x36, 0xec, 0x2f, 0x15,    \
-		0x08                                               \
 	}
 /* clang-format on */
 
@@ -51,6 +50,12 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 	size_t *output_buffer_len = &params[1].memref.size;
 	const uint8_t *psa_implementation_id = params[2].memref.buffer;
 	const size_t psa_implementation_id_len = params[2].memref.size;
+	const uint8_t *private_key = NULL;
+	size_t private_key_len = 0;
+	const uint8_t *public_key_x = NULL;
+	const uint8_t *public_key_y = NULL;
+	uint8_t test_public_key_x[PUBKEY_COORD_SIZE] = { 0 };
+	uint8_t test_public_key_y[PUBKEY_COORD_SIZE] = { 0 };
 	TEE_Result status = TEE_SUCCESS;
 
 	const char eat_profile[] = EAT_PROFILE;
@@ -58,7 +63,7 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 	const int psa_security_lifecycle = LIFECYCLE;
 	const char measurement_type[] = MEASURMENT_TYPE;
 	const uint8_t signer_id[SIGNER_ID_LEN] = SIGNER_ID;
-	const uint8_t psa_instance_id[INSTANCE_ID_LEN] = INSTANCE_ID;
+	uint8_t psa_instance_id[INSTANCE_ID_LEN] = { 0 };
 
 	uint8_t measurement_value[TEE_SHA256_HASH_SIZE] = { 0 };
 	size_t b64_measurement_value_len = TEE_SHA256_HASH_SIZE * 2;
@@ -70,7 +75,11 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 					   TEE_PARAM_TYPE_MEMREF_OUTPUT,
 					   TEE_PARAM_TYPE_MEMREF_INPUT,
-					   TEE_PARAM_TYPE_NONE))
+					   TEE_PARAM_TYPE_NONE) &&
+	    param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+					   TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					   TEE_PARAM_TYPE_MEMREF_INPUT,
+					   TEE_PARAM_TYPE_MEMREF_INPUT))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (!nonce || !nonce_sz)
@@ -78,6 +87,34 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 
 	if (!output_buffer && *output_buffer_len)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * The signing key, when the caller supplies one: the public key
+	 * coordinates followed by the private key, a plain P-256 scalar or a
+	 * serialized CAAM black key. The embedded test key otherwise.
+	 */
+	if (TEE_PARAM_TYPE_GET(param_types, 3) == TEE_PARAM_TYPE_MEMREF_INPUT) {
+		const uint8_t *p = params[3].memref.buffer;
+		size_t len = params[3].memref.size;
+
+		if (!p || len < KEY_PARAM_MIN_SIZE ||
+		    len > KEY_PARAM_HEADER_SIZE + MAX_KEY_SIZE)
+			return TEE_ERROR_BAD_PARAMETERS;
+		public_key_x = p;
+		public_key_y = p + PUBKEY_COORD_SIZE;
+		private_key = p + KEY_PARAM_HEADER_SIZE;
+		private_key_len = len - KEY_PARAM_HEADER_SIZE;
+	} else {
+		get_test_key_pubkey(test_public_key_x, test_public_key_y);
+		public_key_x = test_public_key_x;
+		public_key_y = test_public_key_y;
+	}
+
+	/* The instance-id names the key in use */
+	status = compute_instance_id(public_key_x, public_key_y,
+				     psa_instance_id);
+	if (status != TEE_SUCCESS)
+		return status;
 
 	/* Calculate measurement hash of memory */
 	status = get_hash_ta_memory(measurement_value);
@@ -114,7 +151,9 @@ static TEE_Result cmd_get_cbor_evidence(uint32_t param_types,
 	}
 
 	/* Sign the CBOR and generate a COSE evidence */
-	ubc_cose_evidence = generate_cose_evidence(ubc_cbor_evidence);
+	ubc_cose_evidence = generate_cose_evidence(ubc_cbor_evidence,
+						   private_key, private_key_len,
+						   public_key_x, public_key_y);
 	if (UsefulBuf_IsNULLC(ubc_cose_evidence)) {
 		DMSG("Failed to encode CBOR to COSE");
 		status = TEE_ERROR_GENERIC;
