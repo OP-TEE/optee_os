@@ -196,6 +196,9 @@ CFG_DT_DRIVER_EMBEDDED_TEST ?= y
 ifeq ($(CFG_DT_DRIVER_EMBEDDED_TEST),y)
 $(call force,CFG_EMBED_DTB_SOURCE_FILE,embedded_dtb_test.dts,Mandated for DT tests)
 endif
+# Enable the mailbox framework; its self tests (CFG_MBOX_TEST) then get
+# embedded automatically since CFG_ENABLE_EMBEDDED_TESTS is enabled here.
+CFG_DRIVERS_MAILBOX ?= y
 endif
 
 CFG_PKCS11_TA ?= y

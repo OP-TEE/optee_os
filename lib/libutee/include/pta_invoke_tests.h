@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2026, STMicroelectronics
  */
 
 #ifndef __PTA_INVOKE_TESTS_H
@@ -113,5 +114,44 @@
  */
 #define PTA_INVOKE_TESTS_CMD_TRANSFER_LIST_TESTS	12
 
+/*
+ * Tests Mailbox  *
+ * [in]  value[0].a	Test function PTA_MBOX_TEST_*
+ * [in]  value[0].b     b depends on PTA_MBOX_TEST_*
+ *
+ */
+
+/*
+ * Optee sends a request to a virtual copro and copro replies, parameter b
+ * provides the number of request sent
+ */
+#define PTA_MBOX_TEST_SEND_RECEIVE     0
+/*
+ * Optee driver replies to a response from copro, the copro sends a request
+ * at boot. When pta call is received, the test checks that one request is
+ * received, and it replies to the request and then copro sends another
+ * request ..., b provides the number of responses sent to the copro
+ */
+#define PTA_MBOX_TEST_RECEIVE_SEND        1
+#define PTA_MBOX_TEST_COPRO_INIT 3
+#define PTA_MBOX_TEST_COPRO_SEND_WAIT 4
+#define PTA_MBOX_TEST_COPRO_WAIT_SEND 5
+/*
+ * A invalid register is provided, b provides the invalid register
+ * parameter
+ */
+#define PTA_MBOX_TEST_REGISTER_INCORRECT_PARAM  7
+/* Test invalid sends commands, b provides the invalid send parameter test */
+#define PTA_MBOX_TEST_SEND_INCORRECT  8
+/* Test invalid receive command, n */
+#define PTA_MBOX_TEST_RECEIVE_INCORRECT  9
+/*
+ * Software only tests of the consumer callbacks, using the non blocking
+ * flavour of the API. They do not require asynchronous notifications.
+ */
+#define PTA_MBOX_TEST_CALLBACK_SEND 11
+#define PTA_MBOX_TEST_CALLBACK_RECEIVE 12
+/* Launch test of mailbox */
+#define PTA_INVOKE_TESTS_CMD_MBOX_TESTS 1000
 #endif /*__PTA_INVOKE_TESTS_H*/
 
