@@ -39,4 +39,33 @@
  */
 #define PTA_VERAISON_ATTESTATION_GET_CBOR_EVIDENCE 0x0
 
+/*
+ * Generate an ECDSA P-256 key pair in the CAAM, for GET_CBOR_EVIDENCE
+ *
+ * [out]    memref[0]        Private key, a serialized CAAM black key
+ * [out]    memref[1]        Public key X (32 bytes)
+ * [out]    memref[2]        Public key Y (32 bytes)
+ *
+ * Main return codes:
+ * TEE_SUCCESS
+ * TEE_ERROR_BAD_PARAMETERS  - Incorrect input param
+ * TEE_ERROR_SHORT_BUFFER    - A buffer is too small, its size is updated
+ * TEE_ERROR_NOT_SUPPORTED   - Built without the CAAM ECC driver
+ */
+#define PTA_VERAISON_ATTESTATION_GENERATE_KEYPAIR 0x1
+
+/*
+ * Wrap a plain ECDSA P-256 private key into a serialized CAAM black key
+ *
+ * [in]     memref[0]        Plain private key (32 bytes)
+ * [out]    memref[1]        Private key, a serialized CAAM black key
+ *
+ * Main return codes:
+ * TEE_SUCCESS
+ * TEE_ERROR_BAD_PARAMETERS  - Incorrect input param
+ * TEE_ERROR_SHORT_BUFFER    - The buffer is too small, its size is updated
+ * TEE_ERROR_NOT_SUPPORTED   - Built without the CAAM ECC driver
+ */
+#define PTA_VERAISON_ATTESTATION_CONVERT_TO_BLACKKEY 0x2
+
 #endif /* __PTA_VERAISON_ATTESTATION_H */

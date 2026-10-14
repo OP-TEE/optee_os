@@ -4,6 +4,8 @@
  */
 
 #include <base64.h>
+#include <crypto/crypto.h>
+#include <drivers/caam_extension.h>
 #include <kernel/pseudo_ta.h>
 #include <mempool.h>
 #include <pta_veraison_attestation.h>
@@ -178,6 +180,104 @@ free_ubc_cbor_evidence:
 	return status;
 }
 
+#ifdef CFG_NXP_CAAM_ECC_DRV
+#define KEY_SIZE_BIT (PUBKEY_COORD_SIZE * 8)
+
+/* Export a coordinate as a big-endian number of PUBKEY_COORD_SIZE bytes */
+static TEE_Result export_coord(struct bignum *bn, uint8_t *out)
+{
+	size_t len = crypto_bignum_num_bytes(bn);
+
+	if (len > PUBKEY_COORD_SIZE)
+		return TEE_ERROR_GENERIC;
+	memset(out, 0, PUBKEY_COORD_SIZE);
+	crypto_bignum_bn2bin(bn, out + PUBKEY_COORD_SIZE - len);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result cmd_generate_keypair(uint32_t param_types,
+				       TEE_Param params[TEE_NUM_PARAMS])
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct ecc_keypair key = { };
+	size_t key_len = 0;
+
+	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					   TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					   TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					   TEE_PARAM_TYPE_NONE))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!params[1].memref.buffer || !params[2].memref.buffer ||
+	    params[1].memref.size < PUBKEY_COORD_SIZE ||
+	    params[2].memref.size < PUBKEY_COORD_SIZE) {
+		params[1].memref.size = PUBKEY_COORD_SIZE;
+		params[2].memref.size = PUBKEY_COORD_SIZE;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	res = crypto_acipher_alloc_ecc_keypair(&key, TEE_TYPE_ECDSA_KEYPAIR,
+					       KEY_SIZE_BIT);
+	if (res != TEE_SUCCESS)
+		return res;
+	key.curve = TEE_ECC_CURVE_NIST_P256;
+
+	/* The CAAM ECC driver generates a black key: key.d is its blob */
+	res = crypto_acipher_gen_ecc_key(&key, KEY_SIZE_BIT);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	key_len = crypto_bignum_num_bytes(key.d);
+	if (!params[0].memref.buffer || params[0].memref.size < key_len) {
+		params[0].memref.size = key_len;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
+	}
+	crypto_bignum_bn2bin(key.d, params[0].memref.buffer);
+	params[0].memref.size = key_len;
+
+	res = export_coord(key.x, params[1].memref.buffer);
+	if (res != TEE_SUCCESS)
+		goto out;
+	params[1].memref.size = PUBKEY_COORD_SIZE;
+	res = export_coord(key.y, params[2].memref.buffer);
+	if (res != TEE_SUCCESS)
+		goto out;
+	params[2].memref.size = PUBKEY_COORD_SIZE;
+out:
+	crypto_bignum_free(&key.d);
+	crypto_bignum_free(&key.x);
+	crypto_bignum_free(&key.y);
+
+	return res;
+}
+
+static TEE_Result cmd_convert_to_blackkey(uint32_t param_types,
+					  TEE_Param params[TEE_NUM_PARAMS])
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t out_size = params[1].memref.size;
+
+	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+					   TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					   TEE_PARAM_TYPE_NONE,
+					   TEE_PARAM_TYPE_NONE))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!params[0].memref.buffer ||
+	    params[0].memref.size != PUBKEY_COORD_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = caam_key_wrap_black(params[0].memref.buffer, PUBKEY_COORD_SIZE,
+				  params[1].memref.buffer, &out_size);
+	if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER)
+		params[1].memref.size = out_size;
+
+	return res;
+}
+#endif /* CFG_NXP_CAAM_ECC_DRV */
+
 static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 				 uint32_t param_types,
 				 TEE_Param params[TEE_NUM_PARAMS])
@@ -185,6 +285,16 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 	switch (cmd_id) {
 	case PTA_VERAISON_ATTESTATION_GET_CBOR_EVIDENCE:
 		return cmd_get_cbor_evidence(param_types, params);
+#ifdef CFG_NXP_CAAM_ECC_DRV
+	case PTA_VERAISON_ATTESTATION_GENERATE_KEYPAIR:
+		return cmd_generate_keypair(param_types, params);
+	case PTA_VERAISON_ATTESTATION_CONVERT_TO_BLACKKEY:
+		return cmd_convert_to_blackkey(param_types, params);
+#else
+	case PTA_VERAISON_ATTESTATION_GENERATE_KEYPAIR:
+	case PTA_VERAISON_ATTESTATION_CONVERT_TO_BLACKKEY:
+		return TEE_ERROR_NOT_SUPPORTED;
+#endif
 	default:
 		break;
 	}
