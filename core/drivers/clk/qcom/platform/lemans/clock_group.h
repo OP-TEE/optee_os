@@ -101,15 +101,6 @@
 						  (Q6RCG_SRC_SEL_SHIFT)) | \
 						 (Q6RCG_SRC_DIV))
 
-/* Q6 Lucid-EVO PLL settings, identical for both NSP instances. */
-#define TURINGNSP_Q6_PLL_L_VAL			0x32
-#define TURINGNSP_Q6_PLL_CAL_L_VAL		0x44
-#define TURINGNSP_Q6_PLL_CONFIG_CTL		0x20485699
-#define TURINGNSP_Q6_PLL_CONFIG_CTL_U		0x00182261
-#define TURINGNSP_Q6_PLL_CONFIG_CTL_U1		0x32AA299C
-#define TURINGNSP_Q6_PLL_USER_CTL		0x00000000
-#define TURINGNSP_Q6_PLL_USER_CTL_U		0x00400805
-
 /*
  * LPASS / ADSP (QDSP6 v68/v69). All offsets are relative to LPASS_BASE; the
  * subsystem window is mapped once by the PAS PTA (pas_platform_mem_setup), so
@@ -205,19 +196,6 @@
 #define LPASS_AG_NOC_SBM_PORT1_BIT		BIT(1)
 
 /*
- * LPASS Q6 Lucid-EVO PLL settings, taken from the reference clock driver
- * HALclkPLLSettings.h (HAL_CLK_LPASS_AON_CC_LPASS_QDSP6SS_PLL_*). Identical to
- * the Turing Q6 PLL except for the L value.
- */
-#define LPASS_Q6_PLL_L_VAL			0x2C
-#define LPASS_Q6_PLL_CAL_L_VAL			0x44
-#define LPASS_Q6_PLL_CONFIG_CTL			0x20485699
-#define LPASS_Q6_PLL_CONFIG_CTL_U		0x00182261
-#define LPASS_Q6_PLL_CONFIG_CTL_U1		0x32AA299C
-#define LPASS_Q6_PLL_USER_CTL			0x00000000
-#define LPASS_Q6_PLL_USER_CTL_U			0x00400805
-
-/*
  * GP-DSP0 / GP-DSP1 (TURINGGDSP / TURINGGDSP1, QDSP6 v68/v69) sub-block offsets
  * relative to TURING_GDSP_{0,1}_BASE; identical for both instances.
  */
@@ -272,18 +250,6 @@
 #define TCSR_GPDSP1_IL0_MASTER_IDLE		0x3201c
 #define TCSR_GPDSP1_IL1_MASTER_IDLE		0x32020
 #define TCSR_GPDSP1_PWR_ON			0x32024
-
-/*
- * GP-DSP Q6 Lucid-EVO PLL settings, identical for both instances; differs from
- * the Turing NSP Q6 PLL only in the L value.
- */
-#define GPDSP_Q6_PLL_L_VAL			0x3A
-#define GPDSP_Q6_PLL_CAL_L_VAL			0x44
-#define GPDSP_Q6_PLL_CONFIG_CTL			0x20485699
-#define GPDSP_Q6_PLL_CONFIG_CTL_U		0x00182261
-#define GPDSP_Q6_PLL_CONFIG_CTL_U1		0x32AA299C
-#define GPDSP_Q6_PLL_USER_CTL			0x00000000
-#define GPDSP_Q6_PLL_USER_CTL_U			0x00400805
 
 #ifdef CFG_QCOM_CLK_CFG
 /*
