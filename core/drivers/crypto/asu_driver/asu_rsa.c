@@ -156,37 +156,6 @@ struct asu_rsa_resp_cbctx {
 	uint32_t *resp_data; /* Response buffer from ASUFW */
 };
 
-/* KeyManager AES key object */
-struct asu_rsa_aes_key_object {
-	uint64_t key_address;
-	uint32_t key_size;
-	uint32_t key_src;
-	uint32_t key_id;
-	uint8_t reserved[4];
-};
-
-/* KeyManager key metadata */
-struct asu_rsa_km_key_metadata {
-	uint16_t key_id;
-	uint8_t key_type;
-	uint8_t vault_id;
-	uint8_t key_use_case;
-	uint8_t key_attributes;
-	uint16_t length;
-	uint32_t epoch_time;
-	uint32_t usage_count;
-};
-
-/* KeyManager parameters */
-struct asu_rsa_km_params {
-	struct asu_rsa_km_key_metadata key_metadata;
-	struct asu_rsa_aes_key_object aes_key_obj;
-	uint64_t key_object_addr;
-	uint64_t key_id_addr;
-	uint32_t wrapped_input_len;
-	uint8_t reserved[4];
-};
-
 /* Public exponent prefix size in the KeyManager key-pair object */
 #define ASU_RSA_KM_PUBEXP_SIZE_IN_BYTES		4U
 
@@ -2018,7 +1987,7 @@ out:
 static TEE_Result asu_rsa_gen_keypair(struct rsa_keypair *key,
 				      size_t size_bits)
 {
-	struct asu_rsa_km_params req = { };
+	struct asu_km_params req = { };
 	uint8_t *key_obj = NULL;
 	size_t key_obj_req_len = 0;
 	size_t size_bytes = 0;
@@ -2049,6 +2018,7 @@ static TEE_Result asu_rsa_gen_keypair(struct rsa_keypair *key,
 		ASU_RSA_KM_USAGE_COUNT_NON_DEPLETING;
 	req.wrapped_input_len = 0U;
 	req.key_object_addr = virt_to_phys(key_obj);
+	req.key_object_len = key_obj_req_len;
 	req.key_id_addr = 0U;
 
 	cache_operation(TEE_CACHEFLUSH, key_obj, key_obj_req_len);
