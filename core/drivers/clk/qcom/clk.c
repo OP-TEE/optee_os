@@ -18,17 +18,6 @@ register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
 #define CBCR_HW_CTL_ENABLE_BIT		BIT(1)
 #define CBCR_BRANCH_OFF_BIT		BIT(31)
 
-/* Lucid-EVO PLL register offsets, relative to the PLL register block base. */
-#define PLL_MODE			0x0
-#define PLL_OPMODE			0x4
-#define PLL_L_VAL			0x10
-#define PLL_ALPHA_VAL			0x14
-#define PLL_USER_CTL			0x18
-#define PLL_USER_CTL_U			0x1c
-#define PLL_CONFIG_CTL			0x20
-#define PLL_CONFIG_CTL_U		0x24
-#define PLL_CONFIG_CTL_U1		0x28
-
 /* PLL_MODE fields */
 #define PLL_MODE_OUTCTRL		BIT(0)
 #define PLL_MODE_RESET_N		BIT(2)
@@ -78,19 +67,25 @@ static inline bool pll_locked(uint32_t val)
 TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
 				    const struct qcom_lucidevo_pll_config *cfg)
 {
+	const struct qcom_lucidevo_pll_offsets *offsets = NULL;
 	uint32_t user_val = 0;
 	int ret = 0;
 
-	io_write32(pll_base + PLL_CONFIG_CTL, cfg->config_ctl);
-	io_write32(pll_base + PLL_CONFIG_CTL_U, cfg->config_ctl_u);
-	io_write32(pll_base + PLL_CONFIG_CTL_U1, cfg->config_ctl_u1);
-	io_write32(pll_base + PLL_USER_CTL, cfg->user_ctl);
-	io_write32(pll_base + PLL_USER_CTL_U, cfg->user_ctl_u);
+	if (!cfg || !cfg->offsets)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	io_mask32(pll_base + PLL_L_VAL, cfg->l_val, PLL_L_VAL_L_MASK);
-	io_write32(pll_base + PLL_ALPHA_VAL, cfg->alpha_val);
+	offsets = cfg->offsets;
 
-	user_val = io_read32(pll_base + PLL_USER_CTL);
+	io_write32(pll_base + offsets->config_ctl, cfg->config_ctl);
+	io_write32(pll_base + offsets->config_ctl_u, cfg->config_ctl_u);
+	io_write32(pll_base + offsets->config_ctl_u1, cfg->config_ctl_u1);
+	io_write32(pll_base + offsets->user_ctl, cfg->user_ctl);
+	io_write32(pll_base + offsets->user_ctl_u, cfg->user_ctl_u);
+
+	io_mask32(pll_base + offsets->l_val, cfg->l_val, PLL_L_VAL_L_MASK);
+	io_write32(pll_base + offsets->alpha_val, cfg->alpha_val);
+
+	user_val = io_read32(pll_base + offsets->user_ctl);
 	if (cfg->frac_mode_mn)
 		user_val |= PLL_USER_CTL_FRAC_FORMAT_SEL;
 	else
@@ -103,23 +98,26 @@ TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
 		user_val |= SHIFT_U32(cfg->pre_div - 1,
 				      PLL_USER_CTL_PRE_DIV_SHIFT) &
 			    PLL_USER_CTL_PRE_DIV_MASK;
-	io_write32(pll_base + PLL_USER_CTL, user_val);
+	io_write32(pll_base + offsets->user_ctl, user_val);
 
-	io_setbits32(pll_base + PLL_USER_CTL_U, PLL_USER_CTL_U_FINE_LOCK_DET);
+	io_setbits32(pll_base + offsets->user_ctl_u,
+		     PLL_USER_CTL_U_FINE_LOCK_DET);
 
-	io_mask32(pll_base + PLL_L_VAL,
+	io_mask32(pll_base + offsets->l_val,
 		  SHIFT_U32(cfg->cal_l_val, PLL_L_VAL_CAL_L_SHIFT),
 		  PLL_L_VAL_CAL_L_MASK);
 
-	io_write32(pll_base + PLL_OPMODE, PLL_OPMODE_RUN);
-	io_setbits32(pll_base + PLL_MODE, PLL_MODE_RESET_N);
+	io_write32(pll_base + offsets->opmode, PLL_OPMODE_RUN);
+	io_setbits32(pll_base + offsets->mode, PLL_MODE_RESET_N);
 
-	REG_POLL_TIMEOUT(pll_base + PLL_MODE, 10 * 1000, 10, &ret, pll_locked);
+	REG_POLL_TIMEOUT(pll_base + offsets->mode, 10 * 1000, 10, &ret,
+			 pll_locked);
 	if (ret < 0)
 		return TEE_ERROR_TIMEOUT;
 
-	io_setbits32(pll_base + PLL_MODE, PLL_MODE_OUTCTRL);
-	io_setbits32(pll_base + PLL_USER_CTL, PLL_USER_CTL_PLLOUT_MAIN_EN);
+	io_setbits32(pll_base + offsets->mode, PLL_MODE_OUTCTRL);
+	io_setbits32(pll_base + offsets->user_ctl,
+		     PLL_USER_CTL_PLLOUT_MAIN_EN);
 
 	return TEE_SUCCESS;
 }
