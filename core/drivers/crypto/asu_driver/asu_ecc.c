@@ -9,6 +9,7 @@
 #include <drivers/amd/asu_client.h>
 #include <drivers/amd/asu_fw_info.h>
 #include <drivers/amd/fw_compat.h>
+#include <drivers/amd/asu_crypto_common.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
 #include <initcall.h>
@@ -83,37 +84,6 @@ struct asu_ecc_params {
 	uint64_t sign_addr;
 	uint32_t digest_len;
 	uint8_t reserved[4];
-};
-
-/* Key manager metadata for ECC key-pair generation */
-struct asu_km_key_metadata {
-	uint16_t key_id;
-	uint8_t key_type;
-	uint8_t vault_id;
-	uint8_t key_use_case;
-	uint8_t key_attributes;
-	uint16_t length;
-	uint32_t epoch_time;
-	uint32_t usage_count;
-};
-
-/* Key manager AES key object */
-struct asu_aes_key_object {
-	uint64_t key_address;
-	uint32_t key_size;
-	uint32_t key_src;
-	uint32_t key_id;
-	uint8_t reserved[4];
-};
-
-/* Key manager params for ECC key-pair generation */
-struct asu_km_params {
-	struct asu_km_key_metadata key_metadata;
-	struct asu_aes_key_object aes_key_obj;
-	uint64_t key_object_addr;
-	uint64_t key_id_addr;
-	uint32_t wrapped_input_len;
-	uint32_t key_object_len;
 };
 
 /* Key object buffer for KeyManager ECC key-pair generation */

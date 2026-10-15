@@ -8,6 +8,7 @@
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <drivers/amd/asu_client.h>
+#include <drivers/amd/asu_crypto_common.h>
 #include <drivers/amd/asu_fw_info.h>
 #include <drivers/amd/fw_compat.h>
 #include <drvcrypt.h>
@@ -97,13 +98,6 @@ struct asu_aes_params {
 	uint8_t operation_flags;
 	uint8_t is_last;
 	uint8_t operation_type;
-};
-
-struct asu_aes_key_object {
-	uint64_t key_address;
-	uint32_t key_size;
-	uint32_t key_src;
-	uint32_t key_id;
 };
 
 /*

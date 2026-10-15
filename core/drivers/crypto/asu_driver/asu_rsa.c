@@ -11,6 +11,7 @@
 #include <drivers/amd/asu_fw_info.h>
 #include <drivers/amd/asu_sharedmem.h>
 #include <drivers/amd/fw_compat.h>
+#include <drivers/amd/asu_crypto_common.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
 #include <initcall.h>
@@ -154,37 +155,6 @@ struct asu_rsa_oaep_padding_params {
 
 struct asu_rsa_resp_cbctx {
 	uint32_t *resp_data; /* Response buffer from ASUFW */
-};
-
-/* KeyManager AES key object */
-struct asu_rsa_aes_key_object {
-	uint64_t key_address;
-	uint32_t key_size;
-	uint32_t key_src;
-	uint32_t key_id;
-	uint8_t reserved[4];
-};
-
-/* KeyManager key metadata */
-struct asu_rsa_km_key_metadata {
-	uint16_t key_id;
-	uint8_t key_type;
-	uint8_t vault_id;
-	uint8_t key_use_case;
-	uint8_t key_attributes;
-	uint16_t length;
-	uint32_t epoch_time;
-	uint32_t usage_count;
-};
-
-/* KeyManager parameters */
-struct asu_rsa_km_params {
-	struct asu_rsa_km_key_metadata key_metadata;
-	struct asu_rsa_aes_key_object aes_key_obj;
-	uint64_t key_object_addr;
-	uint64_t key_id_addr;
-	uint32_t wrapped_input_len;
-	uint32_t key_object_len;
 };
 
 /* Public exponent prefix size in the KeyManager key-pair object */
@@ -2018,7 +1988,7 @@ out:
 static TEE_Result asu_rsa_gen_keypair(struct rsa_keypair *key,
 				      size_t size_bits)
 {
-	struct asu_rsa_km_params req = { };
+	struct asu_km_params req = { };
 	uint8_t *key_obj = NULL;
 	size_t key_obj_req_len = 0;
 	size_t size_bytes = 0;
