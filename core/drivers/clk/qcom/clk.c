@@ -51,7 +51,8 @@ TEE_Result qcom_clock_enable_cbc(vaddr_t cbcr)
 	if (io_read32(cbcr) & CBCR_HW_CTL_ENABLE_BIT)
 		return TEE_SUCCESS;
 
-	REG_POLL_TIMEOUT(cbcr, 10 * 1000, 10, &ret, cbcr_branch_on);
+	REG_POLL_TIMEOUT(cbcr, QCOM_CLK_POLL_TIMEOUT_US,
+			 QCOM_CLK_POLL_DELAY_US, &ret, cbcr_branch_on);
 
 	if (ret < 0)
 		return TEE_ERROR_TIMEOUT;
@@ -65,9 +66,9 @@ static inline bool pll_locked(uint32_t val)
 }
 
 TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
-				    const struct qcom_lucidevo_pll_config *cfg)
+				    const struct qcom_pll_config *cfg)
 {
-	const struct qcom_lucidevo_pll_offsets *offsets = NULL;
+	const struct qcom_pll_offsets *offsets = NULL;
 	uint32_t user_val = 0;
 	int ret = 0;
 
@@ -110,8 +111,8 @@ TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
 	io_write32(pll_base + offsets->opmode, PLL_OPMODE_RUN);
 	io_setbits32(pll_base + offsets->mode, PLL_MODE_RESET_N);
 
-	REG_POLL_TIMEOUT(pll_base + offsets->mode, 10 * 1000, 10, &ret,
-			 pll_locked);
+	REG_POLL_TIMEOUT(pll_base + offsets->mode, QCOM_CLK_POLL_TIMEOUT_US,
+			 QCOM_CLK_POLL_DELAY_US, &ret, pll_locked);
 	if (ret < 0)
 		return TEE_ERROR_TIMEOUT;
 
