@@ -219,6 +219,7 @@ static TEE_Result lmcu_get_resource_table(struct resource_table *rt,
 	static struct resource_table table = {
 		.ver = 1,
 		.num = LMCU_NUM_MEM_RESOURCES,
+		.offset[LMCU_NUM_MEM_RESOURCES - 1] = 0,
 	};
 
 	return get_mem_rsc(rt, rt_size, &table, &header,
