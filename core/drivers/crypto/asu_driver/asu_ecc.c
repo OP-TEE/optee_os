@@ -129,6 +129,8 @@ struct asu_ecc_ecdh_params {
 	uint64_t shared_secret_addr;
 	uint64_t shared_secret_obj_id_addr;
 	struct asu_km_key_metadata shared_secret_metadata;
+	uint32_t shared_secret_len;
+	uint8_t reserved[4];
 };
 
 /* Callback context for key pair generation */
@@ -1069,6 +1071,7 @@ static TEE_Result asu_ecc_shared_secret(struct drvcrypt_secret_data *sdata)
 	ecdh_params.pub_key.curve_type = asu_curve_id;
 	ecdh_params.shared_secret_addr = virt_to_phys(shared_secret_buf);
 	ecdh_params.shared_secret_obj_id_addr = 0;
+	ecdh_params.shared_secret_len = key_len;
 
 	ret = asu_update_queue_buffer_n_send_ipi(&cparams, &ecdh_params,
 						 sizeof(ecdh_params), header,
