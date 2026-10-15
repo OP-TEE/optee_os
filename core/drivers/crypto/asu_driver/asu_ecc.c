@@ -113,7 +113,7 @@ struct asu_km_params {
 	uint64_t key_object_addr;
 	uint64_t key_id_addr;
 	uint32_t wrapped_input_len;
-	uint8_t reserved[4];
+	uint32_t key_object_len;
 };
 
 /* Key object buffer for KeyManager ECC key-pair generation */
@@ -667,6 +667,7 @@ static TEE_Result asu_ecc_gen_keypair(struct ecc_keypair *key,
 		ASU_KM_KEY_USAGE_COUNT_NON_DEPLETING_VALUE;
 	km_params.wrapped_input_len = 0U;
 	km_params.key_object_addr = virt_to_phys(keypair_obj);
+	km_params.key_object_len = sizeof(*keypair_obj);
 	km_params.key_id_addr = 0;
 
 	ret = asu_update_queue_buffer_n_send_ipi(&cparams, &km_params,

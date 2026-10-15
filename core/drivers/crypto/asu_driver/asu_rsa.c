@@ -184,7 +184,7 @@ struct asu_rsa_km_params {
 	uint64_t key_object_addr;
 	uint64_t key_id_addr;
 	uint32_t wrapped_input_len;
-	uint8_t reserved[4];
+	uint32_t key_object_len;
 };
 
 /* Public exponent prefix size in the KeyManager key-pair object */
@@ -2049,6 +2049,7 @@ static TEE_Result asu_rsa_gen_keypair(struct rsa_keypair *key,
 		ASU_RSA_KM_USAGE_COUNT_NON_DEPLETING;
 	req.wrapped_input_len = 0U;
 	req.key_object_addr = virt_to_phys(key_obj);
+	req.key_object_len = key_obj_req_len;
 	req.key_id_addr = 0U;
 
 	cache_operation(TEE_CACHEFLUSH, key_obj, key_obj_req_len);
