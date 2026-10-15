@@ -117,15 +117,29 @@ out:
 	return TEE_SUCCESS;
 }
 
-static const struct qcom_lucidevo_pll_config q6_pll_cfg = {
-	.l_val = TURINGNSP_Q6_PLL_L_VAL,
-	.cal_l_val = TURINGNSP_Q6_PLL_CAL_L_VAL,
+/* Lucid-EVO PLL register offsets, relative to the PLL register block base. */
+static const struct qcom_pll_offsets lucid_evo_pll_offsets = {
+	.mode = 0x0,
+	.opmode = 0x4,
+	.l_val = 0x10,
+	.alpha_val = 0x14,
+	.user_ctl = 0x18,
+	.user_ctl_u = 0x1c,
+	.config_ctl = 0x20,
+	.config_ctl_u = 0x24,
+	.config_ctl_u1 = 0x28,
+};
+
+static const struct qcom_pll_config q6_pll_cfg = {
+	.offsets = &lucid_evo_pll_offsets,
+	.l_val = 0x32,
+	.cal_l_val = 0x44,
 	.pre_div = 1,
-	.config_ctl = TURINGNSP_Q6_PLL_CONFIG_CTL,
-	.config_ctl_u = TURINGNSP_Q6_PLL_CONFIG_CTL_U,
-	.config_ctl_u1 = TURINGNSP_Q6_PLL_CONFIG_CTL_U1,
-	.user_ctl = TURINGNSP_Q6_PLL_USER_CTL,
-	.user_ctl_u = TURINGNSP_Q6_PLL_USER_CTL_U,
+	.config_ctl = 0x20485699,
+	.config_ctl_u = 0x00182261,
+	.config_ctl_u1 = 0x32aa299c,
+	.user_ctl = 0x00000000,
+	.user_ctl_u = 0x00400805,
 	/* alpha (default) fractional mode */
 };
 
@@ -163,15 +177,16 @@ static TEE_Result cdsp_enable_processor(paddr_t turing_base)
 	return TEE_SUCCESS;
 }
 
-static const struct qcom_lucidevo_pll_config lpass_q6_pll_cfg = {
-	.l_val = LPASS_Q6_PLL_L_VAL,
-	.cal_l_val = LPASS_Q6_PLL_CAL_L_VAL,
+static const struct qcom_pll_config lpass_q6_pll_cfg = {
+	.offsets = &lucid_evo_pll_offsets,
+	.l_val = 0x2c,
+	.cal_l_val = 0x44,
 	.pre_div = 1,
-	.config_ctl = LPASS_Q6_PLL_CONFIG_CTL,
-	.config_ctl_u = LPASS_Q6_PLL_CONFIG_CTL_U,
-	.config_ctl_u1 = LPASS_Q6_PLL_CONFIG_CTL_U1,
-	.user_ctl = LPASS_Q6_PLL_USER_CTL,
-	.user_ctl_u = LPASS_Q6_PLL_USER_CTL_U,
+	.config_ctl = 0x20485699,
+	.config_ctl_u = 0x00182261,
+	.config_ctl_u1 = 0x32aa299c,
+	.user_ctl = 0x00000000,
+	.user_ctl_u = 0x00400805,
 	/* alpha (default) fractional mode */
 };
 
@@ -226,15 +241,16 @@ static TEE_Result lpass_setup(void)
 				   Q6RCG_CFG_VALUE);
 }
 
-static const struct qcom_lucidevo_pll_config gpdsp_q6_pll_cfg = {
-	.l_val = GPDSP_Q6_PLL_L_VAL,
-	.cal_l_val = GPDSP_Q6_PLL_CAL_L_VAL,
+static const struct qcom_pll_config gpdsp_q6_pll_cfg = {
+	.offsets = &lucid_evo_pll_offsets,
+	.l_val = 0x3a,
+	.cal_l_val = 0x44,
 	.pre_div = 1,
-	.config_ctl = GPDSP_Q6_PLL_CONFIG_CTL,
-	.config_ctl_u = GPDSP_Q6_PLL_CONFIG_CTL_U,
-	.config_ctl_u1 = GPDSP_Q6_PLL_CONFIG_CTL_U1,
-	.user_ctl = GPDSP_Q6_PLL_USER_CTL,
-	.user_ctl_u = GPDSP_Q6_PLL_USER_CTL_U,
+	.config_ctl = 0x20485699,
+	.config_ctl_u = 0x00182261,
+	.config_ctl_u1 = 0x32aa299c,
+	.user_ctl = 0x00000000,
+	.user_ctl_u = 0x00400805,
 	/* alpha (default) fractional mode */
 };
 

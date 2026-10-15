@@ -45,8 +45,28 @@ static inline bool cbcr_branch_on(uint32_t val)
 	return !(val & CBCR_BRANCH_OFF_BIT);
 }
 
-/* Register configuration for a Lucid-EVO PLL. */
-struct qcom_lucidevo_pll_config {
+/* Platform-specific register offsets for a Qualcomm PLL. */
+struct qcom_pll_offsets {
+	uint32_t mode;
+	uint32_t opmode;
+	uint32_t l_val;
+	uint32_t alpha_val;
+	uint32_t alpha_val_u;
+	uint32_t user_ctl;
+	uint32_t user_ctl_u;
+	uint32_t config_ctl;
+	uint32_t config_ctl_u;
+	uint32_t config_ctl_u1;
+	uint32_t test_ctl;
+	uint32_t test_ctl_u;
+};
+
+/*
+ * Register configuration shared by Qualcomm PLLs. Helpers use the fields
+ * relevant to their PLL type and ignore the remaining fields.
+ */
+struct qcom_pll_config {
+	const struct qcom_pll_offsets *offsets;
 	uint32_t l_val;
 	uint32_t cal_l_val;
 	uint32_t alpha_val;
@@ -54,6 +74,8 @@ struct qcom_lucidevo_pll_config {
 	uint32_t config_ctl;
 	uint32_t config_ctl_u;
 	uint32_t config_ctl_u1;
+	uint32_t test_ctl;
+	uint32_t test_ctl_u;
 	uint32_t user_ctl;
 	uint32_t user_ctl_u;
 	bool frac_mode_mn;		/* false = alpha (default for Q6) */
@@ -68,7 +90,7 @@ TEE_Result qcom_clock_set_rate(vaddr_t cfg_rcgr, vaddr_t cmd_rcgr,
  * TEE_ERROR_TIMEOUT if it fails to lock.
  */
 TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
-				    const struct qcom_lucidevo_pll_config *cfg);
+				    const struct qcom_pll_config *cfg);
 
 #if defined(CFG_QCOM_CLK_CFG)
 /*
