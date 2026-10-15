@@ -11,6 +11,9 @@
 #define DRAM1_BASE			ULL(0x880000000)
 #define DRAM1_SIZE			ULL(0x780000000)
 
+#define GCC_BASE			UL(0x01400000)
+#define GCC_SIZE			UL(0x001f0000)
+
 #define GENI_UART_REG_BASE		UL(0x04a80000)
 
 #endif /* TARGET_CONFIG_H */
