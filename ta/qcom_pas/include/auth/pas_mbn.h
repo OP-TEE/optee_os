@@ -36,21 +36,6 @@
 #define PAS_MBN_VERSION_6	6
 #define PAS_MBN_VERSION_7	7
 
-struct pas_mbn_header_v6 {
-	uint32_t reserved0;
-	uint32_t version;
-	uint32_t qc_signature_size;
-	uint32_t qc_cert_chain_size;
-	uint32_t image_size;
-	uint32_t code_size;
-	uint32_t reserved1;
-	uint32_t oem_signature_size;
-	uint32_t reserved2;
-	uint32_t oem_cert_chain_size;
-	uint32_t qc_metadata_size;
-	uint32_t oem_metadata_size;
-};
-
 /*
  * struct pas_mbn - parsed view of an MBN hash segment
  *
@@ -113,14 +98,6 @@ struct pas_mbn {
 
 	bool uie_encrypted;
 };
-
-TEE_Result pas_mbn_get_hash_segment(const uint8_t *md, size_t md_size,
-				    const uint8_t **seg, size_t *seg_size);
-
-TEE_Result pas_mbn_get_region(const uint8_t *segment, size_t segment_size,
-			      size_t *offset, size_t len,
-			      const uint8_t **region, size_t *region_len);
-
 TEE_Result pas_mbn_parse(const uint8_t *md, size_t md_size,
 			 uint32_t hash_len, struct pas_mbn *out);
 

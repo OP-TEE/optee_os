@@ -11,30 +11,6 @@
 #include <auth/pas_mbn.h>
 #include <tee_api_types.h>
 
-/* MBN header field offsets (bytes from hash-segment start) */
-#define MBN_OFF_VERSION		0x04
-#define MBN_OFF_QC_SIG_SIZE	0x08
-#define MBN_OFF_QC_CERT_SIZE	0x0c
-#define MBN_OFF_CODE_SIZE	0x14
-#define MBN_OFF_OEM_SIG_SIZE	0x1c
-#define MBN_OFF_OEM_CERT_SIZE	0x24
-#define MBN_OFF_QC_META_SIZE	0x28
-#define MBN_OFF_OEM_META_SIZE	0x2c
-
-#define MBN_HDR_SIZE_V6		0x30
-
-#define MBN_OFF_V7_VERSION		0x04
-#define MBN_OFF_V7_COMMON_META_SIZE	0x08
-#define MBN_OFF_V7_QC_META_SIZE		0x0c
-#define MBN_OFF_V7_OEM_META_SIZE	0x10
-#define MBN_OFF_V7_CODE_SIZE		0x14
-#define MBN_OFF_V7_QC_SIG_SIZE		0x18
-#define MBN_OFF_V7_QC_CERT_SIZE		0x1c
-#define MBN_OFF_V7_OEM_SIG_SIZE		0x20
-#define MBN_OFF_V7_OEM_CERT_SIZE	0x24
-
-#define MBN_HDR_SIZE_V7			0x28
-
 struct pas_mbn_layout {
 	uint32_t version;
 	size_t header_size;

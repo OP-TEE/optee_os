@@ -46,87 +46,31 @@ TEE_Result pas_meta_get_root_cert_sel(const uint8_t *meta_data,
 				      size_t meta_data_size,
 				      uint32_t *root_cert_sel)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
-	const uint8_t *oem_meta = NULL;
-	const uint8_t *qc_meta = NULL;
+	const struct pas_meta_ops *ops = NULL;
 	const uint8_t *segment = NULL;
-	size_t oem_metadata_size = 0;
-	size_t qc_metadata_size = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	size_t segment_size = 0;
-	uint32_t common_metadata_size = 0;
-	uint32_t oem_metadata_size_u32 = 0;
-	uint32_t qc_metadata_size_u32 = 0;
 	uint32_t version = 0;
-	size_t hdr_size = 0;
-	size_t offset = 0;
 
 	if (!meta_data || !meta_data_size || !root_cert_sel)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = pas_mbn_get_hash_segment(meta_data, meta_data_size, &segment,
-				       &segment_size);
+	res = pas_mbn_locate(meta_data, meta_data_size, &segment,
+			     &segment_size);
 	if (res)
 		return res;
 
-	if (segment_size < sizeof(uint32_t) * 2)
-		return TEE_ERROR_BAD_FORMAT;
+	res = pas_mbn_get_version(segment, segment_size, &version);
+	if (res)
+		return res;
 
-	version = pas_mbn_read_u32(segment + MBN_OFF_VERSION);
-	switch (version) {
-	case PAS_MBN_VERSION_6:
-		hdr_size = MBN_HDR_SIZE_V6;
-		qc_metadata_size_u32 = pas_mbn_read_u32(segment +
-						       MBN_OFF_QC_META_SIZE);
-		oem_metadata_size_u32 = pas_mbn_read_u32(segment +
-							MBN_OFF_OEM_META_SIZE);
-		break;
-	case PAS_MBN_VERSION_7:
-		hdr_size = MBN_HDR_SIZE_V7;
-		common_metadata_size = pas_mbn_read_u32(segment +
-							MBN_OFF_V7_COMMON_META_SIZE);
-		qc_metadata_size_u32 = pas_mbn_read_u32(segment +
-						       MBN_OFF_V7_QC_META_SIZE);
-		oem_metadata_size_u32 = pas_mbn_read_u32(segment +
-							MBN_OFF_V7_OEM_META_SIZE);
-		break;
-	default:
+	ops = pas_meta_get_ops(version);
+	if (!ops) {
 		EMSG("PAS auth: unsupported MBN version %#"PRIx32, version);
 		return TEE_ERROR_BAD_FORMAT;
 	}
 
-	if (segment_size < hdr_size)
-		return TEE_ERROR_BAD_FORMAT;
-
-	offset = hdr_size;
-	res = pas_mbn_get_region(segment, segment_size, &offset,
-				 common_metadata_size, &qc_meta,
-				 &qc_metadata_size);
-	if (res)
-		return res;
-
-	res = pas_mbn_get_region(segment, segment_size, &offset,
-				 qc_metadata_size_u32, &qc_meta,
-				 &qc_metadata_size);
-	if (res)
-		return res;
-
-	res = pas_mbn_get_region(segment, segment_size, &offset,
-				 oem_metadata_size_u32, &oem_meta,
-				 &oem_metadata_size);
-	if (res)
-		return res;
-
-	if (!oem_meta)
-		return TEE_ERROR_NO_DATA;
-
-	if (oem_metadata_size < sizeof(struct pas_oem_metadata))
-		return TEE_ERROR_BAD_FORMAT;
-
-	memcpy(root_cert_sel, oem_meta +
-	       offsetof(struct pas_oem_metadata, root_cert_sel),
-	       sizeof(*root_cert_sel));
-
-	return TEE_SUCCESS;
+	return ops->get_root_cert_sel(segment, segment_size, root_cert_sel);
 }
 
 TEE_Result pas_meta_verify_elf_headers_hash(const uint8_t *meta_data,
@@ -210,71 +154,137 @@ out:
 	return res;
 }
 
-TEE_Result pas_meta_get(const struct pas_mbn *hs,
-			struct pas_oem_metadata *meta)
+TEE_Result pas_meta_validate_version(const struct pas_mbn *mbn)
 {
-	const uint8_t *m = NULL;
+	const struct pas_meta_ops *ops = NULL;
+	TEE_Result res = pas_meta_get_mbn_ops(mbn, &ops);
 
-	if (!hs || !meta)
+	if (res)
+		return res;
+
+	return ops->validate_version(mbn);
+}
+
+TEE_Result pas_meta_validate_options(const struct pas_mbn *mbn)
+{
+	const struct pas_meta_ops *ops = NULL;
+	TEE_Result res = pas_meta_get_mbn_ops(mbn, &ops);
+
+	if (res)
+		return res;
+
+	return ops->validate_options(mbn);
+}
+
+TEE_Result pas_meta_get_sw_id(const struct pas_mbn *mbn, uint32_t *sw_id)
+{
+	const struct pas_meta_ops *ops = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!sw_id)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!hs->oem_meta || !hs->oem_meta_size)
-		return TEE_ERROR_NO_DATA;
+	res = pas_meta_get_mbn_ops(mbn, &ops);
+	if (res)
+		return res;
 
-	if (hs->oem_meta_size < sizeof(struct pas_oem_metadata))
-		return TEE_ERROR_BAD_FORMAT;
-
-	m = hs->oem_meta;
-	memcpy(meta, m, sizeof(*meta));
-
-	return TEE_SUCCESS;
+	return ops->get_sw_id(mbn, sw_id);
 }
 
-static void mask_meta_block(uint8_t *copy, size_t copy_len,
-			    const uint8_t *block, size_t block_len,
-			    const uint8_t *base)
+TEE_Result pas_meta_get_hw_id(const struct pas_mbn *mbn, uint32_t *hw_id)
 {
-	size_t off = 0;
+	const struct pas_meta_ops *ops = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
-	if (!block || !block_len)
-		return;
-
-	off = (size_t)(block - base);
-	if (off < copy_len && block_len <= copy_len - off)
-		memset(copy + off, 0, block_len);
-}
-
-static void zero_field(uint8_t *copy, size_t copy_len, size_t off)
-{
-	if (off + sizeof(uint32_t) <= copy_len)
-		memset(copy + off, 0, sizeof(uint32_t));
-}
-
-TEE_Result
-pas_meta_get_signed_region_copy(const struct pas_mbn *hs,
-				uint8_t **out, size_t *out_len)
-{
-	uint8_t *copy = NULL;
-
-	if (!hs || !hs->signed_region || !hs->signed_region_size || !out ||
-	    !out_len)
+	if (!hw_id)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	copy = TEE_Malloc(hs->signed_region_size, TEE_MALLOC_FILL_ZERO);
-	if (!copy)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	res = pas_meta_get_mbn_ops(mbn, &ops);
+	if (res)
+		return res;
 
-	memcpy(copy, hs->signed_region, hs->signed_region_size);
+	return ops->get_hw_id(mbn, hw_id);
+}
 
-	zero_field(copy, hs->signed_region_size,
-		   offsetof(struct pas_mbn_header_v6, qc_signature_size));
-	zero_field(copy, hs->signed_region_size,
-		   offsetof(struct pas_mbn_header_v6, qc_cert_chain_size));
-	mask_meta_block(copy, hs->signed_region_size, hs->qti_meta,
-			hs->qti_meta_size, hs->signed_region);
+TEE_Result pas_meta_get_oem_id(const struct pas_mbn *mbn, uint32_t *oem_id)
+{
+	const struct pas_meta_ops *ops = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
-	*out = copy;
-	*out_len = hs->signed_region_size;
+	if (!oem_id)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	return TEE_SUCCESS;
+	res = pas_meta_get_mbn_ops(mbn, &ops);
+	if (res)
+		return res;
+
+	return ops->get_oem_id(mbn, oem_id);
+}
+
+TEE_Result pas_meta_get_model_id(const struct pas_mbn *mbn,
+				 uint32_t *model_id)
+{
+	const struct pas_meta_ops *ops = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!model_id)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = pas_meta_get_mbn_ops(mbn, &ops);
+	if (res)
+		return res;
+
+	return ops->get_model_id(mbn, model_id);
+}
+
+#define PAS_META_BOUND_GETTER(_name) \
+	TEE_Result pas_meta_is_##_name##_bound(const struct pas_mbn *mbn, \
+					      bool *bound) \
+	{ \
+		const struct pas_meta_ops *ops = NULL; \
+		TEE_Result res = TEE_ERROR_GENERIC; \
+		if (!bound) \
+			return TEE_ERROR_BAD_PARAMETERS; \
+		res = pas_meta_get_mbn_ops(mbn, &ops); \
+		if (res) \
+			return res; \
+		return ops->is_##_name##_bound(mbn, bound); \
+	}
+
+PAS_META_BOUND_GETTER(oem_id)
+PAS_META_BOUND_GETTER(model_id)
+PAS_META_BOUND_GETTER(jtag_id)
+PAS_META_BOUND_GETTER(serial)
+PAS_META_BOUND_GETTER(soc_version)
+
+TEE_Result pas_meta_serial_num_matches(const struct pas_mbn *mbn,
+				       uint64_t serial_num, bool *matches)
+{
+	const struct pas_meta_ops *ops = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!matches)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = pas_meta_get_mbn_ops(mbn, &ops);
+	if (res)
+		return res;
+
+	return ops->serial_num_matches(mbn, serial_num, matches);
+}
+
+TEE_Result pas_meta_soc_version_matches(const struct pas_mbn *mbn,
+					uint32_t soc_version, bool *matches)
+{
+	const struct pas_meta_ops *ops = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!matches)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = pas_meta_get_mbn_ops(mbn, &ops);
+	if (res)
+		return res;
+
+	return ops->soc_version_matches(mbn, soc_version, matches);
 }
