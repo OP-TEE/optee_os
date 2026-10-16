@@ -94,6 +94,29 @@ TEE_Result pas_platform_set_remote_state(uint32_t pas_id, uint32_t state)
 	return subsys->ops->fw_set_state(&subsys->data, state);
 }
 
+/* A failed start leaves the subsystem in reset, so a later start can work */
+static TEE_Result pas_clk_full_start(struct qcom_pas_subsys *subsys)
+{
+	struct qcom_pas_data *data = &subsys->data;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result rc = TEE_ERROR_GENERIC;
+
+	res = qcom_clock_enable(data->clk_group);
+	if (!res)
+		res = subsys->ops->fw_start(data);
+	if (!res)
+		res = qcom_clock_enable_pas_processor(data->clk_group);
+	if (!res)
+		return TEE_SUCCESS;
+
+	rc = qcom_clock_pas_reset(data->clk_group);
+	if (rc)
+		EMSG("PAS %"PRIu32": reset after start error %#"PRIx32
+		     " failed: %#"PRIx32, data->pas_id, res, rc);
+
+	return res;
+}
+
 TEE_Result pas_platform_auth_and_reset(uint32_t pas_id)
 {
 	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
@@ -109,15 +132,7 @@ TEE_Result pas_platform_auth_and_reset(uint32_t pas_id)
 
 	switch (subsys->reset_seq) {
 	case QCOM_PAS_RESET_CLK_FULL:
-		res = qcom_clock_enable(data->clk_group);
-		if (res != TEE_SUCCESS)
-			return res;
-
-		res = subsys->ops->fw_start(data);
-		if (res != TEE_SUCCESS)
-			return res;
-
-		return qcom_clock_enable_pas_processor(data->clk_group);
+		return pas_clk_full_start(subsys);
 	case QCOM_PAS_RESET_CLK_ENABLE:
 		res = qcom_clock_enable(data->clk_group);
 		if (res != TEE_SUCCESS) {

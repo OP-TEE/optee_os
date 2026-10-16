@@ -45,8 +45,22 @@ static inline bool cbcr_branch_on(uint32_t val)
 	return !(val & CBCR_BRANCH_OFF_BIT);
 }
 
+/* Platform-specific register offsets of a Lucid-EVO PLL. */
+struct qcom_lucidevo_pll_offsets {
+	uint32_t mode;
+	uint32_t opmode;
+	uint32_t l_val;
+	uint32_t alpha_val;
+	uint32_t user_ctl;
+	uint32_t user_ctl_u;
+	uint32_t config_ctl;
+	uint32_t config_ctl_u;
+	uint32_t config_ctl_u1;
+};
+
 /* Register configuration for a Lucid-EVO PLL. */
 struct qcom_lucidevo_pll_config {
+	const struct qcom_lucidevo_pll_offsets *offsets;
 	uint32_t l_val;
 	uint32_t cal_l_val;
 	uint32_t alpha_val;
