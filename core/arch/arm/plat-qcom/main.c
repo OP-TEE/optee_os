@@ -4,6 +4,7 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/qcom_geni_uart.h>
@@ -50,8 +51,10 @@ void plat_trace_init(void)
 
 void plat_console_init(void)
 {
-	qcom_geni_uart_init(&console_data, GENI_UART_REG_BASE);
-	register_serial_console(&console_data.chip);
+	if (IS_ENABLED(CFG_QCOM_GENI_UART)) {
+		qcom_geni_uart_init(&console_data, GENI_UART_REG_BASE);
+		register_serial_console(&console_data.chip);
+	}
 }
 
 static TEE_Result platform_banner(void)

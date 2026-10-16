@@ -16,9 +16,10 @@ $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,40)
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_RESERVED_SHM,n)
-$(call force,CFG_QCOM_GENI_UART,y)
 $(call force,CFG_CRYPTO_WITH_CE,y)
 $(call force,CFG_HW_UNIQUE_KEY_LENGTH,32)
+
+CFG_QCOM_GENI_UART ?= y
 
 # The GENI UART is shared with the Linux kernel and an excessively long
 # wait period may lead to RCU stall warnings depending on system load.
