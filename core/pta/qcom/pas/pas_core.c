@@ -38,12 +38,18 @@ TEE_Result pas_platform_capabilities(uint32_t pas_id __unused)
 	return TEE_SUCCESS;
 }
 
-TEE_Result pas_platform_init_image(uint32_t pas_id)
+TEE_Result pas_platform_init_image(uint32_t pas_id, const void *metadata,
+				   size_t size)
 {
-	if (!qcom_pas_lookup(pas_id))
+	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
+
+	if (!subsys)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	return TEE_SUCCESS;
+	if (!subsys->ops->fw_init_image)
+		return TEE_SUCCESS;
+
+	return subsys->ops->fw_init_image(&subsys->data, metadata, size);
 }
 
 TEE_Result pas_platform_mem_setup(uint32_t pas_id, uint32_t fw_size,

@@ -16,28 +16,10 @@
 #include <utee_defines.h>
 #include <util.h>
 
+#include "pas_elf.h"
 #include "pas_subsys.h"
 
 #define MAX_HASH_SIZE			48U
-
-#define MI_PBT_PAGE_MODE_MASK		0x00100000
-#define MI_PBT_PAGE_MODE_SHIFT		20
-#define MI_PBT_ACCESS_TYPE_MASK		0x00E00000
-#define MI_PBT_ACCESS_TYPE_SHIFT	21
-#define MI_PBT_SEGMENT_TYPE_MASK	0x07000000
-#define MI_PBT_SEGMENT_TYPE_SHIFT	24
-
-#define MI_PBT_NON_PAGED_SEGMENT	0x0
-#define MI_PBT_HASH_SEGMENT		0x2
-#define MI_PBT_NOTUSED_SEGMENT		0x3
-#define MI_PBT_SHARED_SEGMENT		0x4
-
-#define MI_PBT_PAGE_MODE(x) \
-	(((x) & MI_PBT_PAGE_MODE_MASK) >> MI_PBT_PAGE_MODE_SHIFT)
-#define MI_PBT_ACCESS_TYPE(x) \
-	(((x) & MI_PBT_ACCESS_TYPE_MASK) >> MI_PBT_ACCESS_TYPE_SHIFT)
-#define MI_PBT_SEGMENT_TYPE(x) \
-	(((x) & MI_PBT_SEGMENT_TYPE_MASK) >> MI_PBT_SEGMENT_TYPE_SHIFT)
 
 struct elf_info {
 	size_t elf_hdr_len;
@@ -92,17 +74,6 @@ static bool check_range(uint64_t off, uint64_t len, uint64_t total)
 		return false;
 
 	return end <= total;
-}
-
-static bool is_hashed(uint32_t p_type, uint32_t p_flags)
-{
-	if (p_type != PT_LOAD)
-		return false;
-
-	return MI_PBT_PAGE_MODE(p_flags) == MI_PBT_NON_PAGED_SEGMENT &&
-	       MI_PBT_SEGMENT_TYPE(p_flags) != MI_PBT_HASH_SEGMENT &&
-	       MI_PBT_ACCESS_TYPE(p_flags) != MI_PBT_NOTUSED_SEGMENT &&
-	       MI_PBT_ACCESS_TYPE(p_flags) != MI_PBT_SHARED_SEGMENT;
 }
 
 static TEE_Result parse_elf(const uint8_t *fw, size_t fw_size,
@@ -180,7 +151,7 @@ static TEE_Result image_range(const uint8_t *fw, const struct elf_info *e_info,
 	for (i = 0; i < e_info->phdr_count; i++) {
 		get_phdr(fw, e_info, i, &p_info);
 
-		if (!is_hashed(p_info.type, p_info.flags))
+		if (!pas_elf_is_image_seg(p_info.type, p_info.flags))
 			continue;
 
 		if (ADD_OVERFLOW(p_info.paddr, p_info.mem_len, &seg_end))
@@ -298,7 +269,8 @@ static TEE_Result verify_segments(const struct verify_ctx *ctx)
 	for (i = 0; i < e_info.phdr_count; i++) {
 		get_phdr(ctx->metadata, &e_info, i, &p_info);
 
-		if (!is_hashed(p_info.type, p_info.flags) || !p_info.file_len)
+		if (!pas_elf_is_image_seg(p_info.type, p_info.flags) ||
+		    !p_info.file_len)
 			continue;
 
 		if (p_info.paddr < base)

@@ -29,6 +29,9 @@ TEE_Result pas_auth_verify(struct qcom_pas_session *s,
 
 TEE_Result pas_auth_release_metadata(struct qcom_pas_session *s,
 				     uint32_t pas_id);
+
+TEE_Result pas_auth_get_metadata(struct qcom_pas_session *s, uint32_t pas_id,
+				 void **buf, size_t *size);
 #else
 static inline TEE_Result
 pas_auth_save_metadata(struct qcom_pas_session *s __unused,
@@ -59,6 +62,14 @@ pas_auth_release_metadata(struct qcom_pas_session *s __unused,
 			  uint32_t pas_id __unused)
 {
 	return TEE_SUCCESS;
+}
+
+static inline TEE_Result
+pas_auth_get_metadata(struct qcom_pas_session *s __unused,
+		      uint32_t pas_id __unused, void **buf __unused,
+		      size_t *size __unused)
+{
+	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 #endif /* CFG_QCOM_PAS_AUTH */
 
