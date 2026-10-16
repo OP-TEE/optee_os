@@ -12,6 +12,13 @@
 #include <util.h>
 
 #define TEE_MATTR_VALID_BLOCK		BIT(0)
+/*
+ * Shadow stack page (RISC-V Zicfiss): only written by the shadow stack
+ * instructions of user mode, readable through ordinary loads, not
+ * writable through ordinary stores. Exclusive of the other permission
+ * bits.
+ */
+#define TEE_MATTR_SHADOW_STACK		BIT(1)
 #define TEE_MATTR_TABLE			BIT(3)
 #define TEE_MATTR_PR			BIT(4)
 #define TEE_MATTR_PW			BIT(5)
@@ -26,7 +33,8 @@
 #define TEE_MATTR_URX			(TEE_MATTR_UR | TEE_MATTR_UX)
 #define TEE_MATTR_URWX			(TEE_MATTR_URW | TEE_MATTR_UX)
 #define TEE_MATTR_PROT_MASK	\
-		(TEE_MATTR_PRWX | TEE_MATTR_URWX | TEE_MATTR_GUARDED)
+		(TEE_MATTR_PRWX | TEE_MATTR_URWX | TEE_MATTR_GUARDED | \
+		 TEE_MATTR_SHADOW_STACK)
 
 #define TEE_MATTR_GLOBAL		BIT(10)
 #define TEE_MATTR_SECURE		BIT(11)

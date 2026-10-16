@@ -28,8 +28,10 @@ static const bool is_32bit = true;
 static const bool is_32bit;
 #endif
 
-static TEE_Result alloc_and_map_fobj(struct user_mode_ctx *uctx, size_t sz,
-				     uint32_t prot, uint32_t flags, vaddr_t *va)
+static TEE_Result alloc_and_map_fobj_pad(struct user_mode_ctx *uctx,
+					 size_t sz, uint32_t prot,
+					 uint32_t flags, vaddr_t *va,
+					 size_t pad)
 {
 	size_t num_pgs = ROUNDUP_DIV(sz, SMALL_PAGE_SIZE);
 	struct fobj *fobj = fobj_ta_mem_alloc(num_pgs);
@@ -40,11 +42,54 @@ static TEE_Result alloc_and_map_fobj(struct user_mode_ctx *uctx, size_t sz,
 	fobj_put(fobj);
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	res = vm_map(uctx, va, num_pgs * SMALL_PAGE_SIZE, prot, flags, mobj, 0);
+	res = vm_map_pad(uctx, va, num_pgs * SMALL_PAGE_SIZE, prot, flags,
+			 mobj, 0, pad, pad, 0);
 	mobj_put(mobj);
 
 	return res;
 }
+
+static TEE_Result alloc_and_map_fobj(struct user_mode_ctx *uctx, size_t sz,
+				     uint32_t prot, uint32_t flags, vaddr_t *va)
+{
+	return alloc_and_map_fobj_pad(uctx, sz, prot, flags, va, 0);
+}
+
+#ifdef CFG_TA_ZICFISS
+#include <kernel/cfi.h>
+
+/*
+ * ldelf is built with shadow stack support and needs a shadow stack of
+ * its own for the calls it makes. Every call frame is at least 16 bytes
+ * on the stack and pushes one XLEN word on the shadow stack, so half the
+ * stack size is an upper bound. The mapping is padded by a page on each
+ * side so that a shadow stack over- or underflow lands on an unmapped
+ * page rather than on a neighbouring mapping.
+ */
+static TEE_Result map_ldelf_shadow_stack(struct user_mode_ctx *uctx)
+{
+	size_t sz = ROUNDUP(LDELF_STACK_SIZE / 2, SMALL_PAGE_SIZE);
+	vaddr_t va = 0;
+	TEE_Result res = TEE_SUCCESS;
+
+	/* Without the extension the shadow stack instructions are no-ops */
+	if (!cfi_shadow_stack_enabled())
+		return TEE_SUCCESS;
+
+	res = alloc_and_map_fobj_pad(uctx, sz, TEE_MATTR_SHADOW_STACK,
+				     VM_FLAG_LDELF, &va, SMALL_PAGE_SIZE);
+	if (res)
+		return res;
+	uctx->ldelf_shadow_stack_ptr = va + sz;
+
+	return TEE_SUCCESS;
+}
+#else
+static TEE_Result map_ldelf_shadow_stack(struct user_mode_ctx *uctx __unused)
+{
+	return TEE_SUCCESS;
+}
+#endif
 
 /*
  * This function may leave a few mappings behind on error, but that's taken
@@ -76,6 +121,10 @@ TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx)
 		return res;
 	uctx->ldelf_stack_ptr = stack_addr + LDELF_STACK_SIZE;
 
+	res = map_ldelf_shadow_stack(uctx);
+	if (res)
+		return res;
+
 	res = alloc_and_map_fobj(uctx, ldelf_code_size, TEE_MATTR_PRW,
 				 VM_FLAG_LDELF, &code_addr);
 	if (res)
@@ -99,7 +148,8 @@ TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx)
 		return res;
 
 	prot = TEE_MATTR_URX;
-	if (IS_ENABLED(CFG_CORE_BTI))
+	/* ldelf is built with BTI (Arm) or landing pads (RISC-V) */
+	if (IS_ENABLED(CFG_CORE_BTI) || IS_ENABLED(CFG_TA_ZICFILP))
 		prot |= TEE_MATTR_GUARDED;
 
 	res = vm_set_prot(uctx, code_addr,
@@ -176,6 +226,9 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 	uctx->entry_func = arg_bbuf->entry_func;
 	uctx->load_addr = arg_bbuf->load_addr;
 	uctx->stack_ptr = arg_bbuf->stack_ptr;
+#ifdef CFG_TA_ZICFISS
+	uctx->shadow_stack_ptr = arg_bbuf->shadow_stack_ptr;
+#endif
 	uctx->dump_entry_func = arg_bbuf->dump_entry;
 #ifdef CFG_FTRACE_SUPPORT
 	uctx->ftrace_entry_func = arg_bbuf->ftrace_entry;

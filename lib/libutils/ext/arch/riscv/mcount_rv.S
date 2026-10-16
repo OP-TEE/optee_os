@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2023 Andes Technology Corporation
  * Copyright (c) 2016, Linaro Limited
+ * Copyright 2026 NXP
  */
 
 #include <asm.S>
@@ -120,3 +121,5 @@ END_FUNC __ftrace_return
 #endif
 
 #endif /* CFG_FTRACE_SUPPORT */
+
+RISCV_CFI(emit_riscv_feature_1_and RISCV_TA_FEATURE_1_AND)
