@@ -243,11 +243,11 @@ static void handle_user_mode_panic(struct abort_info *ai)
 }
 
 #ifdef CFG_WITH_VFP
-static void handle_user_mode_vfp(void)
+static bool handle_user_mode_vfp(void)
 {
 	struct ts_session *s = ts_get_current_session();
 
-	thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
+	return thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
 }
 #endif /*CFG_WITH_VFP*/
 
@@ -266,32 +266,23 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 }
 #endif /*CFG_WITH_USER_TA*/
 
-#if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
-static bool is_vfp_fault(struct abort_info *ai)
-{
-	/*
-	 * An illegal instruction is reported as ABORT_TYPE_UNDEF. If it came
-	 * from a context that had the FP unit disabled, take it as the first
-	 * FP use and hand over the unit; a genuinely illegal instruction
-	 * traps again once the unit is enabled and is a panic then.
-	 */
-	if (ai->abort_type != ABORT_TYPE_UNDEF || vfp_is_enabled())
-		return false;
-
-	return true;
-}
-#else /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
-static bool is_vfp_fault(struct abort_info *ai __unused)
-{
-	return false;
-}
-#endif  /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
-
 static enum fault_type get_fault_type(struct abort_info *ai)
 {
 	if (abort_is_user_exception(ai)) {
-		if (is_vfp_fault(ai))
+#if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
+		/*
+		 * An illegal instruction from a context that still has an FP or
+		 * vector unit off is taken as the first use of that unit: hand
+		 * it over and let the instruction retry. FP is handed over
+		 * first, then vector on the next trap; an instruction that
+		 * still faults with every unit on is genuinely illegal and the
+		 * TA panics (no re-fault loop). No instruction decode is
+		 * needed.
+		 */
+		if (ai->fault_descr == CAUSE_ILLEGAL_INSTRUCTION &&
+		    !vfp_is_enabled())
 			return FAULT_TYPE_USER_MODE_VFP;
+#endif
 		return FAULT_TYPE_USER_MODE_PANIC;
 	}
 
@@ -358,10 +349,12 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 {
 	struct abort_info ai;
+	enum fault_type fault = FAULT_TYPE_IGNORE;
 
 	set_abort_info(abort_type, regs, &ai);
 
-	switch (get_fault_type(&ai)) {
+	fault = get_fault_type(&ai);
+	switch (fault) {
 	case FAULT_TYPE_IGNORE:
 		break;
 	case FAULT_TYPE_USER_MODE_PANIC:
@@ -374,7 +367,11 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		break;
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_MODE_VFP:
-		handle_user_mode_vfp();
+		if (!handle_user_mode_vfp()) {
+			EMSG("Out of memory for a TA vector context");
+			save_abort_info_in_tsd(&ai);
+			handle_user_mode_panic(&ai);
+		}
 		break;
 #endif
 	case FAULT_TYPE_PAGE_FAULT:
