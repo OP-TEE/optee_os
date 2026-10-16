@@ -36,7 +36,7 @@ supported-ta-targets ?= ta_arm64
 HOYA_ARCH_CHIPSETS := kodiak lemans monaco
 BOBCAT_ARCH_CHIPSETS := ipq96xx ipq52xx
 WILDCAT_ARCH_CHIPSETS := nord cacao
-BRUIN_ARCH_CHIPSETS := shikra
+BRUIN_ARCH_CHIPSETS := shikra agatti
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(HOYA_ARCH_CHIPSETS)))
 QCOM_ARCH_FAMILY := hoya
