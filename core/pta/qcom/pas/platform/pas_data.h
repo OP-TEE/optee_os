@@ -18,6 +18,8 @@ struct qcom_pas_data {
 	paddr_t fw_base;
 	size_t fw_size;
 	enum qcom_clk_group clk_group;
+	/* Memtype for the controller window: NSEC, or SEC if XPU-gated. */
+	enum teecore_memtypes map_type;
 };
 
 #endif /* _PAS_DATA_H_ */
