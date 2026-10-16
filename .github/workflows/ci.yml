@@ -1,5 +1,9 @@
 name: CI
-on: [push, pull_request]
+on:
+  pull_request:
+  schedule:
+    # Nightly run of master, 01:17 UTC
+    - cron: '17 1 * * *'
 permissions:
   contents: read
 concurrency:
@@ -9,6 +13,7 @@ concurrency:
 jobs:
   code_style:
     name: Code style
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     container: jforissier/optee_os_ci
     steps:
