@@ -184,6 +184,20 @@ TEE_Result pas_auth_verify(struct qcom_pas_session *s,
 	return res;
 }
 
+TEE_Result pas_auth_get_metadata(struct qcom_pas_session *s, uint32_t pas_id,
+				 void **buf, size_t *size)
+{
+	struct pas_md_slot *slot = get_meta_data_slot(s, pas_id);
+
+	if (!slot || !slot->meta_data)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	*buf = slot->meta_data;
+	*size = slot->meta_data_size;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result pas_auth_release_metadata(struct qcom_pas_session *s,
 				     uint32_t pas_id)
 {
@@ -192,11 +206,9 @@ TEE_Result pas_auth_release_metadata(struct qcom_pas_session *s,
 	if (!slot)
 		return TEE_SUCCESS;
 
+	/* Free the slot too, so that failed images cannot use up the slots */
 	TEE_Free(slot->meta_data);
-	slot->meta_data = NULL;
-	slot->meta_data_size = 0;
-	slot->ready = false;
-	memset(&slot->mbn, 0, sizeof(slot->mbn));
+	memset(slot, 0, sizeof(*slot));
 
 	return TEE_SUCCESS;
 }

@@ -7,6 +7,7 @@
 #include <auth/pas_meta.h>
 #include <auth/pas_fuse.h>
 #include <pta_qcom_pas.h>
+#include <string.h>
 #include <ta_qcom_pas.h>
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
@@ -19,18 +20,45 @@ static TEE_TASessionHandle pta_session;
 static TEE_Result qcom_pas_init_image(struct qcom_pas_session *s, uint32_t pt,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_MEMREF_INPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param p[TEE_NUM_PARAMS] = { };
 	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t pas_id = 0;
+	size_t size = 0;
+	void *md = NULL;
 
-	res = TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
-				  PTA_QCOM_PAS_INIT_IMAGE, pt, params, NULL);
-	if (res)
-		return res;
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	pas_id = params[0].value.a;
+
+	/*
+	 * One image at a time: drop the previous one, prepare the PTA from
+	 * the copy that is authenticated, and drop that copy on any failure.
+	 */
+	pas_auth_release_metadata(s, pas_id);
 
 	res = pas_auth_save_metadata(s, pt, params);
 	if (res)
 		return res;
 
-	return pas_auth_prepare_and_authenticate(s, params[0].value.a);
+	memcpy(p, params, sizeof(p));
+	if (!pas_auth_get_metadata(s, pas_id, &md, &size)) {
+		p[1].memref.buffer = md;
+		p[1].memref.size = size;
+	}
+
+	res = TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
+				  PTA_QCOM_PAS_INIT_IMAGE, pt, p, NULL);
+	if (!res)
+		res = pas_auth_prepare_and_authenticate(s, pas_id);
+	if (res)
+		pas_auth_release_metadata(s, pas_id);
+
+	return res;
 }
 
 static TEE_Result qcom_pas_auth_and_reset(struct qcom_pas_session *s,
