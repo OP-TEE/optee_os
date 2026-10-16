@@ -595,8 +595,11 @@ static TEE_Result lpass_rcg_to_xo(vaddr_t cmd_rcgr, vaddr_t cfg_rcgr)
 	io_clrbits32(cfg_rcgr, CFG_RCGR_SRC_SEL_MASK | CFG_RCGR_SRC_DIV_MASK);
 	io_setbits32(cmd_rcgr, CMD_RCGR_UPDATE_BIT);
 
-	return IO_READ32_POLL_TIMEOUT(cmd_rcgr, val, rcg_update_done(val), 1,
-				      LPASS_COLLAPSE_TIMEOUT_US);
+	if (IO_READ32_POLL_TIMEOUT(cmd_rcgr, val, rcg_update_done(val), 1,
+				   LPASS_COLLAPSE_TIMEOUT_US))
+		return TEE_ERROR_TIMEOUT;
+
+	return TEE_SUCCESS;
 }
 
 /* Quiesce and power collapse LPASS_CORE_HM if it is on. */
@@ -626,10 +629,9 @@ static TEE_Result lpass_core_hm_collapse(vaddr_t lpass_base, vaddr_t sbm)
 
 		io_setbits32(qch, QCHANNEL_CTL_QREQN_BIT);
 		io_setbits32(qch, QCHANNEL_CTL_SW_OVERRIDE_EN_BIT);
-		res = IO_READ32_POLL_TIMEOUT(qch, val, qch_inactive(val), 2,
-					     LPASS_COLLAPSE_TIMEOUT_US);
-		if (res)
-			return res;
+		if (IO_READ32_POLL_TIMEOUT(qch, val, qch_inactive(val), 2,
+					   LPASS_COLLAPSE_TIMEOUT_US))
+			return TEE_ERROR_TIMEOUT;
 
 		/* QDENY decides the retry; a late QACCEPTn is not an error. */
 		io_clrbits32(qch, QCHANNEL_CTL_QREQN_BIT);
@@ -648,17 +650,19 @@ static TEE_Result lpass_core_hm_collapse(vaddr_t lpass_base, vaddr_t sbm)
 	/* Isolate LPASS_CORE_HM from the AG NoC. */
 	io_write32(sbm + LPASS_AG_NOC_SBM_FLAGOUTSET0_LOW,
 		   LPASS_AG_NOC_SBM_PORT0_BIT);
-	res = IO_READ32_POLL_TIMEOUT(sbm + LPASS_AG_NOC_SBM_SENSEIN0_LOW, val,
-				     sbm_only_port0_sensed(val), 2,
-				     LPASS_COLLAPSE_TIMEOUT_US);
-	if (res)
-		return res;
+	if (IO_READ32_POLL_TIMEOUT(sbm + LPASS_AG_NOC_SBM_SENSEIN0_LOW, val,
+				   sbm_only_port0_sensed(val), 2,
+				   LPASS_COLLAPSE_TIMEOUT_US))
+		return TEE_ERROR_TIMEOUT;
 
 	io_setbits32(aon_cc + LPASS_AON_CC_CORE_HM_COLLAPSE_VOTE, BIT(0));
 	io_setbits32(gdscr, GDSCR_SW_COLLAPSE_BIT);
 
-	return IO_READ32_POLL_TIMEOUT(gdscr, val, gdsc_is_off(val), 2,
-				      LPASS_COLLAPSE_TIMEOUT_US);
+	if (IO_READ32_POLL_TIMEOUT(gdscr, val, gdsc_is_off(val), 2,
+				   LPASS_COLLAPSE_TIMEOUT_US))
+		return TEE_ERROR_TIMEOUT;
+
+	return TEE_SUCCESS;
 }
 
 /* Park the LPASS_AUDIO_HM clocks and PLL, then power collapse it. */
@@ -683,8 +687,11 @@ static TEE_Result lpass_audio_hm_collapse(vaddr_t audio_cc, vaddr_t hm_gdscr)
 
 	io_setbits32(hm_gdscr, GDSCR_SW_COLLAPSE_BIT);
 
-	return IO_READ32_POLL_TIMEOUT(hm_gdscr, val, gdsc_is_off(val), 5,
-				      LPASS_COLLAPSE_TIMEOUT_US);
+	if (IO_READ32_POLL_TIMEOUT(hm_gdscr, val, gdsc_is_off(val), 5,
+				   LPASS_COLLAPSE_TIMEOUT_US))
+		return TEE_ERROR_TIMEOUT;
+
+	return TEE_SUCCESS;
 }
 
 /* Reset LPASS_AUDIO_HM, then power collapse it and LPASS_AUDIO_ML. */
@@ -700,16 +707,14 @@ static TEE_Result lpass_audio_collapse(vaddr_t lpass_base)
 
 	/* The block reset needs the domain powered. */
 	io_clrbits32(hm_gdscr, GDSCR_SW_COLLAPSE_BIT);
-	res = IO_READ32_POLL_TIMEOUT(hm_gdscr, val, gdsc_is_on(val), 5,
-				     LPASS_AUDIO_HM_ON_TIMEOUT_US);
-	if (res)
-		return res;
+	if (IO_READ32_POLL_TIMEOUT(hm_gdscr, val, gdsc_is_on(val), 5,
+				   LPASS_AUDIO_HM_ON_TIMEOUT_US))
+		return TEE_ERROR_TIMEOUT;
 
 	io_setbits32(bcr, BCR_BLK_ARES_BIT);
-	res = IO_READ32_POLL_TIMEOUT(bcr, val, bcr_is_asserted(val), 1,
-				     LPASS_COLLAPSE_TIMEOUT_US);
-	if (res)
-		return res;
+	if (IO_READ32_POLL_TIMEOUT(bcr, val, bcr_is_asserted(val), 1,
+				   LPASS_COLLAPSE_TIMEOUT_US))
+		return TEE_ERROR_TIMEOUT;
 	/* At least five sleep clock cycles each way. */
 	udelay(150);
 	io_clrbits32(bcr, BCR_BLK_ARES_BIT);
