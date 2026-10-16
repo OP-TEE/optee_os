@@ -59,7 +59,8 @@ static TEE_Result qcom_pas_init_image(uint32_t pt,
 		return TEE_ERROR_BAD_PARAMETERS;
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
-	return pas_platform_init_image(params[0].value.a);
+	return pas_platform_init_image(params[0].value.a,
+				       params[1].memref.buffer);
 }
 
 static TEE_Result qcom_pas_mem_setup(uint32_t pt,
