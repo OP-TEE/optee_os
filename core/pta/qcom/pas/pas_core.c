@@ -62,7 +62,15 @@ TEE_Result pas_platform_mem_setup(uint32_t pas_id, uint32_t fw_size,
 
 	/* Map the controller */
 	if (!data->base.va) {
-		data->base.va = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_NSEC,
+		/* Reject rather than map with an unset/unintended type. */
+		if (data->map_type != MEM_AREA_IO_SEC &&
+		    data->map_type != MEM_AREA_IO_NSEC) {
+			EMSG("PAS %#"PRIx32" has invalid map_type %d", pas_id,
+			     data->map_type);
+			return TEE_ERROR_BAD_STATE;
+		}
+
+		data->base.va = (vaddr_t)core_mmu_add_mapping(data->map_type,
 							      data->base.pa,
 							      data->size);
 		if (!data->base.va)
