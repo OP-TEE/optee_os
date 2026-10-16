@@ -44,6 +44,7 @@
 #define CDNS_UART_CONTROL_TXRES		BIT(1)
 #define CDNS_UART_CONTROL_RXEN		BIT(2)
 #define CDNS_UART_CONTROL_TXEN		BIT(4)
+#define CDNS_UART_CONTROL_TXDIS		BIT(5)
 
 #define CDNS_UART_MODE_8BIT		(0 << 1)
 #define CDNS_UART_MODE_PARITY_NONE	(0x4 << 3)
@@ -64,11 +65,25 @@ static vaddr_t chip_to_base(struct serial_chip *chip)
 	return io_pa_or_va(&pd->base, CDNS_UART_SIZE);
 }
 
+static bool cdns_uart_tx_enabled(vaddr_t base)
+{
+	uint32_t control = io_read32(base + CDNS_UART_CONTROL);
+
+	return (control & (CDNS_UART_CONTROL_TXEN | CDNS_UART_CONTROL_TXDIS)) ==
+	       CDNS_UART_CONTROL_TXEN;
+}
+
 static void cdns_uart_flush(struct serial_chip *chip)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	while (!(io_read32(base + CDNS_UART_CHANNEL_STATUS) &
+	/*
+	 * A disabled transmitter cannot drain a nonempty FIFO. Stop waiting if
+	 * the normal world disables transmission, checking on every iteration
+	 * in case this happens while we are polling.
+	 */
+	while (cdns_uart_tx_enabled(base) &&
+	       !(io_read32(base + CDNS_UART_CHANNEL_STATUS) &
 		 CDNS_UART_CHANNEL_STATUS_TEMPTY))
 		;
 }
@@ -94,10 +109,19 @@ static void cdns_uart_putc(struct serial_chip *chip, int ch)
 {
 	vaddr_t base = chip_to_base(chip);
 
-	/* Wait until there is space in the FIFO */
-	while (io_read32(base + CDNS_UART_CHANNEL_STATUS) &
-	       CDNS_UART_CHANNEL_STATUS_TFUL)
-		;
+	/*
+	 * A disabled transmitter cannot drain the FIFO. Drop the character
+	 * rather than waiting indefinitely, checking on every iteration in
+	 * case the normal world disables transmission while we are polling.
+	 */
+	while (true) {
+		if (!cdns_uart_tx_enabled(base))
+			return;
+
+		if (!(io_read32(base + CDNS_UART_CHANNEL_STATUS) &
+		      CDNS_UART_CHANNEL_STATUS_TFUL))
+			break;
+	}
 
 	/* Send the character */
 	io_write32(base + CDNS_UART_FIFO, ch);
