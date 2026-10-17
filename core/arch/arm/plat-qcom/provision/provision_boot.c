@@ -35,6 +35,11 @@ static TEE_Result execute_provisioning(void)
 
 	COMPILE_TIME_ASSERT(sizeof(struct secdat_hdr) <= CFG_SEC_ELF_DDR_SIZE);
 
+	/* Configure MRC before the sec.elf path and its DLOAD gate. */
+	res = qcom_secboot_provision_mrc_fuses();
+	if (res)
+		EMSG("MRC provisioning failed: %#"PRIx32, res);
+
 	if (qcom_is_dload_mode(&dload_mode) != TEE_SUCCESS)
 		panic("Failed to determine boot mode");
 	if (dload_mode) {
