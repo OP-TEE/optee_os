@@ -156,16 +156,19 @@ TEE_Result crypto_rng_init(const void *data, size_t dlen)
 
 	res = key_from_data(state.reseed_ctx, data, dlen, key);
 	if (res)
-		return res;
+		goto err;
 
 	res = crypto_cipher_alloc_ctx(&ctx, CIPHER_ALGO);
 	if (res)
-		return res;
+		goto err;
+
+	state.ctx = ctx;
 	res = cipher_init(ctx, key);
 	if (res)
-		return res;
+		goto err;
+
 	inc_counter(state.counter);
-	state.ctx = ctx;
+
 	return TEE_SUCCESS;
 err:
 	fortuna_done();
@@ -208,11 +211,11 @@ static size_t pop_ring_buffer(uint8_t *snum, uint8_t *pnum,
 
 	next_end = (ring_buffer.end + 1) % ARRAY_SIZE(ring_buffer.elem);
 
-	*snum = ring_buffer.elem[ring_buffer.end].snum;
-	*pnum = ring_buffer.elem[ring_buffer.end].pnum;
-	dlen = MIN(ring_buffer.elem[ring_buffer.end].dlen, RING_BUF_DATA_SIZE);
-	assert(ring_buffer.elem[ring_buffer.end].dlen == dlen);
-	memcpy(data, ring_buffer.elem[ring_buffer.end].data, dlen);
+	*snum = ring_buffer.elem[next_end].snum;
+	*pnum = ring_buffer.elem[next_end].pnum;
+	dlen = MIN(ring_buffer.elem[next_end].dlen, RING_BUF_DATA_SIZE);
+	assert(ring_buffer.elem[next_end].dlen == dlen);
+	memcpy(data, ring_buffer.elem[next_end].data, dlen);
 
 	atomic_store_uint(&ring_buffer.end, next_end);
 
