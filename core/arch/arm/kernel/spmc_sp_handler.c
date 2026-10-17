@@ -1133,7 +1133,7 @@ ffa_handle_sp_direct_resp(struct thread_smc_1_2_regs *args,
 			}
 
 			/* The SP must be subscribed for this message */
-			if (!(dst->props & FFA_PART_PROP_NOTIF_CREATED)) {
+			if (!(caller_sp->props & FFA_PART_PROP_NOTIF_CREATED)) {
 				ffa_set_error(args, FFA_INVALID_PARAMETERS);
 				return caller_sp;
 			}
@@ -1146,7 +1146,8 @@ ffa_handle_sp_direct_resp(struct thread_smc_1_2_regs *args,
 			}
 
 			/* The SP must be subscribed for this message */
-			if (!(dst->props & FFA_PART_PROP_NOTIF_DESTROYED)) {
+			if (!(caller_sp->props &
+			      FFA_PART_PROP_NOTIF_DESTROYED)) {
 				ffa_set_error(args, FFA_INVALID_PARAMETERS);
 				return caller_sp;
 			}
