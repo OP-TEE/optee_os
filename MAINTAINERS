@@ -215,6 +215,11 @@ S:	Maintained
 F:	ldelf/ftrace.c
 F:	lib/libutils/ext/ftrace/
 
+Google
+R:	Kuan-Wei Chiu <visitorckw@gmail.com> [@visitorckw]
+S:	Maintained
+F:	core/arch/arm/plat-google/
+
 HiSilicon D02
 S:	Orphan
 F:	core/arch/arm/plat-d02/
