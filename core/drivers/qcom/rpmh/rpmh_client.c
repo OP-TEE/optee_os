@@ -64,7 +64,6 @@ struct client_queue {
 };
 
 #define AOP_BOOT_COOKIE		0xA0C00C1E
-#define MSG_RAM_SECTION_SIZE	0x10000
 
 struct aop_msg_ram_dict {
 	uint32_t boot_cookie_offset;
@@ -224,7 +223,7 @@ static TEE_Result check_aop_init(void)
 		return TEE_ERROR_GENERIC;
 	}
 
-	dict_addr = base + AOP_MSG_RAM_SIZE - MSG_RAM_SECTION_SIZE;
+	dict_addr = base + AOP_BOOT_COOKIE_SECTION * MSG_RAM_SECTION_SIZE;
 	dict = (struct aop_msg_ram_dict *)dict_addr;
 	cookie_addr = base + dict->boot_cookie_offset;
 
