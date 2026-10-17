@@ -342,7 +342,8 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 			goto err_rem_reg;
 		}
 
-		res = tee_pager_add_um_region(uctx, reg->va, fobj, prot);
+		res = tee_pager_add_um_region(uctx, reg->va, fobj, prot,
+					      reg->size, reg->offset);
 		fobj_put(fobj);
 		if (res)
 			goto err_rem_reg;
@@ -617,7 +618,8 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 				set_um_region(uctx, r);
 			else
 				res = tee_pager_add_um_region(uctx, r->va, fobj,
-							      r->attr);
+							      r->attr, r->size,
+							      r->offset);
 		}
 
 		if (res) {
@@ -672,7 +674,8 @@ err_restore_map:
 		if (alloc_pgt(uctx))
 			panic("Cannot restore mapping");
 		if (fobj) {
-			if (tee_pager_add_um_region(uctx, r->va, fobj, r->attr))
+			if (tee_pager_add_um_region(uctx, r->va, fobj, r->attr,
+						    r->size, r->offset))
 				panic("Cannot restore mapping");
 		} else {
 			set_um_region(uctx, r);
