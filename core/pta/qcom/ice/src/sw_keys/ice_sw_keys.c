@@ -12,7 +12,8 @@
 #include <string_ext.h>
 #include <trace.h>
 
-#include "ice_sw_keys.h"
+#include "sw_keys/ice_sw_keys.h"
+#include "ice_config.h"
 
 /*
  * Register the ICE (Inline Crypto Engine) LUT keys register region so this
