@@ -281,7 +281,7 @@ static inline void reg_pair_from_64(uint64_t val, uint32_t *reg0,
  * Returns the updated bitfield value with the specified bits set to
  * the new value.
  *
- * E.g. set_bitfield_u32(0x123456, 0xf0ff00, 0xabcd) returns 0xa2cd56.
+ * E.g. set_field_u32(0x123456, 0xf0ff00, 0xabcd) returns 0xa2cd56.
  *
  * get_field_u32()
  * get_field_u64() - Extracts the value of specific bits in a bitfield
@@ -293,7 +293,7 @@ static inline void reg_pair_from_64(uint64_t val, uint32_t *reg0,
  * Returns the value of the bits specified by the mask, shifted to the
  * @mask rightmost non-zero bit position.
  *
- * E.g. get_bitfield_u32(0x123456, 0xf0ff00) returns 0x1034.
+ * E.g. get_field_u32(0x123456, 0xf0ff00) returns 0x1034.
  */
 static inline uint32_t get_field_u32(uint32_t reg, uint32_t mask)
 {
@@ -302,7 +302,7 @@ static inline uint32_t get_field_u32(uint32_t reg, uint32_t mask)
 
 static inline uint32_t set_field_u32(uint32_t reg, uint32_t mask, uint32_t val)
 {
-	return (reg & ~mask) | (val * (mask & ~(mask - 1)));
+	return (reg & ~mask) | (mask & (val * (mask & ~(mask - 1))));
 }
 
 static inline uint64_t get_field_u64(uint64_t reg, uint64_t mask)
@@ -312,7 +312,7 @@ static inline uint64_t get_field_u64(uint64_t reg, uint64_t mask)
 
 static inline uint64_t set_field_u64(uint64_t reg, uint64_t mask, uint64_t val)
 {
-	return (reg & ~mask) | (val * (mask & ~(mask - 1)));
+	return (reg & ~mask) | (mask & (val * (mask & ~(mask - 1))));
 }
 
 /* Helper function for qsort with standard types */
