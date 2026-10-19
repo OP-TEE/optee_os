@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 name: CI Images
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    branches: [ci_testing]
 
 permissions:
   contents: read
