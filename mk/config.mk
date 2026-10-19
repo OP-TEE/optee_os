@@ -1075,6 +1075,10 @@ endif
 endif # CFG_WARN_INSECURE defined
 CFG_INSECURE ?= y
 
+# CFG_CORE_ASLR_SEED, when defined, allows to override OP-TEE core ASLR seed
+# value fetched at runtime with a build-time defined value. This is intended
+# to debug purpose and is not suitable in a secure device.
+# CFG_CORE_ASLR_SEED has no effect when CFG_CORE_ASLR is disabled.
 ifneq ($(CFG_INSECURE),y)
 ifneq ($(CFG_CORE_ASLR_SEED),)
 $(error CFG_CORE_ASLR_SEED requires CFG_INSECURE=y)
