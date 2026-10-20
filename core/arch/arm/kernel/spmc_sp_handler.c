@@ -509,6 +509,9 @@ check_retrieve_request(struct sp_mem_receiver *receiver, uint32_t ffa_vers,
 	retr_access = (void *)((vaddr_t)rx + mem_trans->mem_access_offs);
 	retr_perm = READ_ONCE(retr_access->access_perm.perm);
 
+	if (mem_trans->sender_id != smem->sender_id)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	/* Check if tag is correct */
 	if (receiver->smem->tag != retr_tag) {
 		EMSG("Incorrect tag %#"PRIx64" %#"PRIx64, receiver->smem->tag,
