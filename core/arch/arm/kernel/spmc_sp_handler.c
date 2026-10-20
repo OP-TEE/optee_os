@@ -892,10 +892,11 @@ bool ffa_mem_reclaim(struct thread_smc_1_2_regs *args,
 		return false;
 
 	/*
-	 * If the caller is an SP, make sure that it is the owner of the share.
-	 * If the call comes from NWd this is ensured by the hypervisor.
+	 * Only the owner may reclaim an SP-owned share. The hypervisor enforces
+	 * ownership among NWd endpoints.
 	 */
-	if (caller_sp && caller_sp->endpoint_id != smem->sender_id) {
+	if ((caller_sp && caller_sp->endpoint_id != smem->sender_id) ||
+	    (!caller_sp && smem->sender_id >= FFA_SWD_ID_MIN)) {
 		sp_mem_write_unlock(smem);
 		ffa_set_error(args, FFA_INVALID_PARAMETERS);
 		return true;
