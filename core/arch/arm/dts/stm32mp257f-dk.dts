@@ -334,6 +334,54 @@
 	status = "okay";
 };
 
+&pwr {
+	status = "okay";
+
+	vdd33ucpd: vdd33ucpd {
+		vdd33ucpd-supply = <&vdd3v3_usb>;
+		status = "okay";
+	};
+
+	vdda18adc: vdda18adc {
+		vdda18adc-supply = <&v1v8>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	vddgpu: vddgpu {
+		vddgpu-supply = <&vddgpu_pmic>;
+		status = "okay";
+	};
+
+	vddio1: vddio1 {
+		vddio1-supply = <&vddio_sdcard>;
+		status = "okay";
+	};
+
+	vddio2: vddio2 {
+		vddio2-supply = <&v1v8>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	vddio3: vddio3 {
+		vddio3-supply = <&vddio_pmic>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	vddio4: vddio4 {
+		vddio4-supply = <&vddio_pmic>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	vddio: vddio {
+		vdd-supply = <&vddio_pmic>;
+		status = "okay";
+	};
+};
+
 &risaf2 {
 	status = "okay";
 };
