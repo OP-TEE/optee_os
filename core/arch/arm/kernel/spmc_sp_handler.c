@@ -329,7 +329,7 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 		return FFA_NO_MEMORY;
 
 	if ((owner_sp && owner_sp->endpoint_id != sender_id) ||
-	    (!owner_sp && sp_get_session(sender_id))) {
+	    (!owner_sp && sender_id >= FFA_SWD_ID_MIN)) {
 		res = FFA_DENIED;
 		goto cleanup;
 	}
