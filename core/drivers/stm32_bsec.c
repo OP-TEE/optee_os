@@ -951,13 +951,9 @@ DECLARE_KEEP_PAGER(bsec_pm);
 
 static TEE_Result initialize_bsec(void)
 {
-	struct stm32_bsec_static_cfg cfg = { };
-
-	stm32mp_get_bsec_static_cfg(&cfg);
-
-	bsec_dev.base.pa = cfg.base;
-	bsec_dev.upper_base = cfg.upper_start;
-	bsec_dev.max_id = cfg.max_id;
+	bsec_dev.base.pa = BSEC_BASE;
+	bsec_dev.upper_base = STM32MP1_UPPER_OTP_START;
+	bsec_dev.max_id = STM32MP1_OTP_MAX_ID;
 
 	if (state_is_invalid_mode())
 		panic();
