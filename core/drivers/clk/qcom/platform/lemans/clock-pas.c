@@ -75,6 +75,12 @@ static bool bcr_is_asserted(uint32_t val)
 	return val & BCR_BLK_ARES_BIT;
 }
 
+static bool pdc_low_power(vaddr_t pdc)
+{
+	return io_read32(pdc + RPMH_PDC_MODE_STATUS_DRV0) &
+	       PDC_MODE_STATUS_BIT;
+}
+
 static TEE_Result cdsp_enable(paddr_t turing_base)
 {
 	vaddr_t cc_base = QCOM_IO_VA(turing_base + TURINGNSP_CC_OFFSET,
@@ -401,9 +407,8 @@ static TEE_Result cdsp_reset_processor(const struct cdsp_reset_regs *r)
 	    !pdc_status || !tcsr)
 		return TEE_ERROR_GENERIC;
 
-	/* Bail if the PDC sequencer is mid-transition. */
-	if (io_read32(pdc_status + RPMH_PDC_MODE_STATUS_DRV0) &
-	    PDC_MODE_STATUS_SEQ_BUSY_BIT)
+	/* Bail while the PDC holds the NSP in low power. */
+	if (pdc_low_power(pdc_status))
 		return TEE_ERROR_BUSY;
 
 	/* Activate a full QDSP6 reset before the SSR. */
@@ -511,38 +516,11 @@ static const struct gpdsp_reset_regs gpdsp1_reset_regs = {
 /* HALT_ACK polls for up to 1s (200000 * 5us), matching the reference. */
 #define GPDSP_HALT_ACK_TIMEOUT_US	(200000 * 5)
 
-/*
- * Put a GP-DSP QDSP6 through a full subsystem reset (AOSS_CC_GPDSP_RESTART and
- * PDC sync reset) when it is shut down. Unlike the Turing NSP there is no
- * NSPAUX/ALT_RESET retention handling and the idle check covers two ports.
- */
-static TEE_Result gpdsp_reset_processor(const struct gpdsp_reset_regs *r)
+/* Halt the GP-DSP bus traffic and pulse its subsystem restart. */
+static void gpdsp_restart(const struct gpdsp_reset_regs *r, vaddr_t gcc_base,
+			  vaddr_t tcsr, vaddr_t pdc_global, vaddr_t aoss_cc)
 {
-	vaddr_t pdc_global = QCOM_IO_VA(RPMH_PDC_GLOBAL_BASE,
-					RPMH_PDC_GLOBAL_SIZE);
-	vaddr_t pdc_status = QCOM_IO_VA(r->pdc_status_base,
-					r->pdc_status_size);
-	vaddr_t base = QCOM_IO_VA(r->gdsp_base, TURING_GDSP_0_SIZE);
-	vaddr_t tcsr = QCOM_IO_VA(TCSR_MUTEX_BASE, TCSR_MUTEX_SIZE);
-	vaddr_t aoss_cc = QCOM_IO_VA(AOSS_CC_BASE, AOSS_CC_SIZE);
-	vaddr_t gcc_base = QCOM_IO_VA(GCC_BASE, GCC_SIZE);
-	vaddr_t pub = base + TURINGGDSP_PUB_OFFSET;
 	uint32_t val = 0;
-
-	if (!base || !gcc_base || !aoss_cc || !pdc_global || !pdc_status ||
-	    !tcsr)
-		return TEE_ERROR_GENERIC;
-
-	/* Bail if the PDC sequencer is mid-transition. */
-	if (io_read32(pdc_status + RPMH_PDC_MODE_STATUS_DRV0) &
-	    PDC_MODE_STATUS_SEQ_BUSY_BIT)
-		return TEE_ERROR_BUSY;
-
-	/* Reset the retention logic and let the write settle. */
-	io_setbits32(pub + TURINGGDSP_QDSP6SS_RET_CFG,
-		     QDSP6SS_RET_CFG_RET_ARES_ENA_BIT);
-	dsb();
-	udelay(2000);
 
 	/* Disconnect the SWAY NIU socket to halt config-NoC traffic. */
 	io_clrbits32(gcc_base + r->gcc_cfg_ahb_cbcr, CBCR_CLK_ENABLE_BIT);
@@ -578,6 +556,47 @@ static TEE_Result gpdsp_reset_processor(const struct gpdsp_reset_regs *r)
 	io_clrbits32(pdc_global + RPMH_PDC_SYNC_RESET, r->pdc_sync_reset_bit);
 	io_clrbits32(tcsr + r->tcsr_haltreq, TCSR_TURING_BIT);
 	udelay(100);
+}
+
+/*
+ * Put a GP-DSP QDSP6 through a full subsystem reset (AOSS_CC_GPDSP_RESTART and
+ * PDC sync reset) when it is shut down. Unlike the Turing NSP there is no
+ * NSPAUX/ALT_RESET retention handling and the idle check covers two ports.
+ */
+static TEE_Result gpdsp_reset_processor(const struct gpdsp_reset_regs *r)
+{
+	vaddr_t pdc_global = QCOM_IO_VA(RPMH_PDC_GLOBAL_BASE,
+					RPMH_PDC_GLOBAL_SIZE);
+	vaddr_t pdc_status = QCOM_IO_VA(r->pdc_status_base,
+					r->pdc_status_size);
+	vaddr_t base = QCOM_IO_VA(r->gdsp_base, TURING_GDSP_0_SIZE);
+	vaddr_t tcsr = QCOM_IO_VA(TCSR_MUTEX_BASE, TCSR_MUTEX_SIZE);
+	vaddr_t aoss_cc = QCOM_IO_VA(AOSS_CC_BASE, AOSS_CC_SIZE);
+	vaddr_t gcc_base = QCOM_IO_VA(GCC_BASE, GCC_SIZE);
+	vaddr_t pub = base + TURINGGDSP_PUB_OFFSET;
+
+	if (!base || !gcc_base || !aoss_cc || !pdc_global || !pdc_status ||
+	    !tcsr)
+		return TEE_ERROR_GENERIC;
+
+	/*
+	 * While the PDC holds the GP-DSP in low power mode, accessing its
+	 * registers stalls the CPU. A first restart takes it out of the PDC's
+	 * hands so that the retention logic can be reset too.
+	 */
+	if (pdc_low_power(pdc_status)) {
+		gpdsp_restart(r, gcc_base, tcsr, pdc_global, aoss_cc);
+		if (pdc_low_power(pdc_status))
+			return TEE_ERROR_BUSY;
+	}
+
+	/* Reset the retention logic and let the write settle. */
+	io_setbits32(pub + TURINGGDSP_QDSP6SS_RET_CFG,
+		     QDSP6SS_RET_CFG_RET_ARES_ENA_BIT);
+	dsb();
+	udelay(2000);
+
+	gpdsp_restart(r, gcc_base, tcsr, pdc_global, aoss_cc);
 
 	return TEE_SUCCESS;
 }
@@ -793,8 +812,7 @@ static TEE_Result lpass_reset_processor(void)
 	 * While the PDC holds LPASS in low power mode, accessing its registers
 	 * stalls the CPU; the subsystem restart below resets it all the same.
 	 */
-	if (!(io_read32(pdc_status + RPMH_PDC_MODE_STATUS_DRV0) &
-	      PDC_MODE_STATUS_SEQ_BUSY_BIT)) {
+	if (!pdc_low_power(pdc_status)) {
 		res = lpass_quiesce(lpass_base, sbm);
 		if (res != TEE_SUCCESS)
 			return res;

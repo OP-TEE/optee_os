@@ -58,7 +58,7 @@
 
 /* RPMH PDC per-block mode status, drv0 (within each PDC window). */
 #define RPMH_PDC_MODE_STATUS_DRV0		0x1030
-#define PDC_MODE_STATUS_SEQ_BUSY_BIT		BIT(0)
+#define PDC_MODE_STATUS_BIT			BIT(0)
 
 /*
  * TCSR Turing master-halt / power registers (offsets within the TCSR mutex
