@@ -103,7 +103,7 @@ static_assert(!(IS_ENABLED(CFG_STM32_CM33TDCID) &&
 #define BSEC_DENR_WRITE_CONF		U(0xDEB00000)
 #endif /* CFG_STM32MP21 */
 
-// compute SECDED ECC as HAMMING(17,12) with parity
+/* compute SECDED ECC as HAMMING(17,12) with parity */
 #define PARITY_4BIT(x)		((((x) >> 3) ^ ((x) >> 2) ^ ((x) >> 1) ^ (x)) \
 				 & 1)
 #define PARITY_12BIT(x)		PARITY_4BIT(((x) >> 8) ^ ((x) >> 4) ^ (x))
@@ -443,11 +443,13 @@ TEE_Result stm32_bsec_shadow_read_otp(uint32_t *val, uint32_t otp)
 		return TEE_ERROR_ACCESS_DENIED;
 
 	/* for secure OTP, reload fuse word if not shadowed */
-	*val = 0U;
 	if (!is_fuse_shadowed(otp))
 		result = shadow_otp(otp);
+
 	if (!result)
 		*val = io_read32(bsec_base() + BSEC_FVR(otp));
+	else
+		*val = 0U;
 
 	return result;
 }
@@ -455,7 +457,7 @@ TEE_Result stm32_bsec_shadow_read_otp(uint32_t *val, uint32_t otp)
 TEE_Result stm32_bsec_write_otp(uint32_t val, uint32_t otp)
 {
 	uint32_t exceptions = 0U;
-	bool value = false;
+	bool sw_lock = false;
 
 	if (IS_ENABLED(CFG_STM32_CM33TDCID))
 		return TEE_ERROR_ACCESS_DENIED;
@@ -468,8 +470,8 @@ TEE_Result stm32_bsec_write_otp(uint32_t val, uint32_t otp)
 
 	/* for HW shadowed OTP, update value in FVR register */
 	if (is_fuse_shadowed(otp)) {
-		stm32_bsec_read_sw_lock(otp, &value);
-		if (value) {
+		stm32_bsec_read_sw_lock(otp, &sw_lock);
+		if (sw_lock) {
 			DMSG("BSEC: OTP %"PRIu32" is locked, write ignored",
 			     otp);
 			return TEE_ERROR_ACCESS_DENIED;
@@ -511,7 +513,8 @@ TEE_Result stm32_bsec_program_otp(uint32_t val, uint32_t otp)
 	TEE_Result result = TEE_ERROR_GENERIC;
 	TEE_Result shadow_res = TEE_SUCCESS;
 	unsigned int i = 0U;
-	bool value = false;
+	bool sp_lock = true;
+	bool sr_lock = false;
 	uint32_t exceptions = 0U;
 	uint32_t fvr = 0U;
 
@@ -521,15 +524,15 @@ TEE_Result stm32_bsec_program_otp(uint32_t val, uint32_t otp)
 	if (is_bsec_write_locked())
 		return TEE_ERROR_ACCESS_DENIED;
 
-	result = stm32_bsec_read_sp_lock(otp, &value);
+	result = stm32_bsec_read_sp_lock(otp, &sp_lock);
 	if (result) {
 		EMSG("BSEC: %"PRIu32" Sticky-prog bit read Error %"PRIu32,
 		     otp, result);
 		return result;
 	}
 
-	if (value) {
-		DMSG("BSEC: OTP locked, prog will be ignored");
+	if (sp_lock) {
+		DMSG("BSEC: OTP program locked, cannot be programmed");
 		return TEE_ERROR_ACCESS_DENIED;
 	}
 
@@ -559,15 +562,15 @@ TEE_Result stm32_bsec_program_otp(uint32_t val, uint32_t otp)
 	}
 
 	/* update the shadow */
-	stm32_bsec_read_sr_lock(otp, &value);
+	stm32_bsec_read_sr_lock(otp, &sr_lock);
 	/* if reload is locked: directly write in shadow register */
-	if (value) {
-		stm32_bsec_read_sw_lock(otp, &value);
+	if (sr_lock) {
+		stm32_bsec_read_sw_lock(otp, &sr_lock);
 		/*
 		 * update value in FVR register for HW shadowed OTP
 		 * if they are not shadow wrtite locked
 		 */
-		if (is_fuse_shadowed(otp) && !value) {
+		if (is_fuse_shadowed(otp) && !sr_lock) {
 			io_write32(bsec_base() + BSEC_FVR(otp), val);
 			fvr = io_read32(bsec_base() + BSEC_FVR(otp));
 		} else {
@@ -580,11 +583,10 @@ TEE_Result stm32_bsec_program_otp(uint32_t val, uint32_t otp)
 	}
 
 	if (shadow_res || fvr != val)
-		EMSG("BSEC shadow %"PRIu32" invalid: %08x, write= %08x, reload err %"PRIx32,
-			otp, fvr, val, shadow_res);
+		EMSG("BSEC shadow %"PRIu32" invalid: %08"PRIx32", write= %08"
+		     PRIx32", reload err %"PRIx32, otp, fvr, val, shadow_res);
 
-	if (!(bsec_dev.mirror->otp[otp].status &
-		PTA_BSEC_STATUS_SECURE)) {
+	if (!(bsec_dev.mirror->otp[otp].status & PTA_BSEC_STATUS_SECURE)) {
 		/* update the mirror memory if allowed */
 		bsec_dev.mirror->otp[otp].value = fvr;
 		if (!shadow_res && fvr == val) {
@@ -832,9 +834,10 @@ TEE_Result stm32_bsec_read_sw_lock(uint32_t otp, bool *value)
 	 * They are stored in last OTPs
 	 */
 	if (otp >= OEM_KEY_FIRST_OTP)
-		*value = PTA_BSEC_LOCK_SHADOW_W;
+		*value = true;
 	else
-		*value = bsec_dev.mirror->otp[otp].status & PTA_BSEC_LOCK_SHADOW_W;
+		*value = !!(bsec_dev.mirror->otp[otp].status &
+			    PTA_BSEC_LOCK_SHADOW_W);
 
 	return TEE_SUCCESS;
 }
@@ -1251,7 +1254,8 @@ static void initialize_nvmem_layout_from_dt(void *fdt, int bsec_node)
 				bsec_dev.otp_dt_status[otp] |=
 					PTA_BSEC_STATUS_SECURE;
 		} else if (fdt_getprop(fdt, node,
-				     "st,non-secure-otp-provisioning", NULL)) {
+				       "st,non-secure-otp-provisioning",
+				       NULL)) {
 			/* Case provisioning by non-secure is allowed */
 			for (otp = cell->otp_id;
 			     otp < cell->otp_id + otp_nb; otp++)
@@ -1287,6 +1291,8 @@ static TEE_Result
 stm32_bsec_pm(enum pm_op op, unsigned int pm_hint,
 	      const struct pm_callback_handle *pm_handle __unused)
 {
+	unsigned int otp = 0;
+
 	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT))
 		return TEE_SUCCESS;
 
@@ -1298,7 +1304,7 @@ stm32_bsec_pm(enum pm_op op, unsigned int pm_hint,
 		stm32_bsec_mirror_init();
 
 		/* recopy value from the previous mirror into the new one */
-		for (unsigned int otp = 0; otp <= bsec_dev.max_id; otp++) {
+		for (otp = 0; otp <= bsec_dev.max_id; otp++) {
 			if (bsec_dev.mirror_pm.otp[otp].value) {
 				stm32_bsec_write_otp(
 					bsec_dev.mirror_pm.otp[otp].value, otp);
@@ -1314,25 +1320,22 @@ stm32_bsec_pm(enum pm_op op, unsigned int pm_hint,
 
 static TEE_Result initialize_bsec(void)
 {
-	struct stm32_bsec_static_cfg cfg = { };
 	void *fdt = NULL;
 	vaddr_t va = 0;
 	int node = 0;
 
-	plat_bsec_get_static_cfg(&cfg);
-
 	if (IS_ENABLED(CFG_STM32_CM33TDCID))
-		va = core_mmu_get_va(cfg.mirror, MEM_AREA_RAM_NSEC, SIZE_4K);
+		va = core_mmu_get_va(SRAM1_BASE, MEM_AREA_RAM_NSEC, SIZE_4K);
 	else
-		va = core_mmu_get_va(cfg.mirror, MEM_AREA_RAM_SEC, SIZE_4K);
+		va = core_mmu_get_va(SRAM1_BASE, MEM_AREA_RAM_SEC, SIZE_4K);
 
 	if (!va)
 		return TEE_ERROR_GENERIC;
 
-	bsec_dev.base.pa = cfg.base;
+	bsec_dev.base.pa = BSEC3_BASE;
 	bsec_dev.mirror = (struct bsec_mirror *)va;
-	bsec_dev.upper_base = cfg.upper_start;
-	bsec_dev.max_id = cfg.max_id;
+	bsec_dev.upper_base = STM32MP2_UPPER_OTP_START;
+	bsec_dev.max_id = STM32MP2_OTP_MAX_ID;
 
 	fdt = get_embedded_dt();
 	node = fdt_node_offset_by_compatible(fdt, 0, "st,stm32mp25-bsec");
@@ -1343,14 +1346,14 @@ static TEE_Result initialize_bsec(void)
 
 	if (IS_ENABLED(CFG_STM32_CM33TDCID)) {
 		if (bsec_dev.mirror->magic != BSEC_MAGIC)
-			panic("BSEC mirror is not initialized\n");
+			panic("BSEC mirror is not initialized");
 	} else {
 		if ((IS_ENABLED(CFG_STM32MP21) &&
 		     bsec_get_version() != BSEC_IP_VERSION_1_2) ||
 		    (IS_ENABLED(CFG_STM32MP25) &&
 		     bsec_get_version() != BSEC_IP_VERSION_1_0) ||
 		    bsec_get_id() != BSEC_IP_ID_3)
-			panic("BSEC probe wrong IP version/ID\n");
+			panic("BSEC probe wrong IP version/ID");
 
 		check_reset_error();
 
