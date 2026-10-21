@@ -585,13 +585,6 @@ static TEE_Result qfprom_init(void)
 
 	drv->corr_base = QFPROM_RAW_TO_CORR(drv->raw_base);
 
-	/* Cleanup releases supply votes before setup, so both need it. */
-	drv->rpmh_handle = rpmh_create_handle(RSC_DRV_SECURE, "qfprom");
-	if (!drv->rpmh_handle) {
-		EMSG("RPMH client creation failed");
-		goto err_panic;
-	}
-
 	return TEE_SUCCESS;
 
 err_panic:

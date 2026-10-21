@@ -18,6 +18,7 @@ ifeq ($(CFG_QCOM_QFPROM),y)
 # for programming, plus Kodiak's MX rail workaround; both are voted
 # over RPMH.
 $(call force,CFG_QCOM_RPMH_CLIENT,y)
+$(call force,CFG_QCOM_QFPROM_RPMH_CLIENT,y)
 $(call force,CFG_QCOM_CMD_DB,y)
 endif
 
