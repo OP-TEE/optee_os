@@ -3,7 +3,6 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#include <boot_mode.h>
 #include <drivers/qcom/cmd_db/cmd_db.h>
 #include <drivers/qcom/qfprom/qfprom.h>
 #include <drivers/qcom/rpmh/rpmh_client.h>
@@ -14,6 +13,7 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
+#include <qcom_common.h>
 #include <stdlib.h>
 #include <stdlib_ext.h>
 #include <string.h>

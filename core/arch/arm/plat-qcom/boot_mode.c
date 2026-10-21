@@ -7,9 +7,8 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
+#include <qcom_common.h>
 #include <util.h>
-
-#include "boot_mode.h"
 
 #define TCSR_BOOT_MISC_DLOAD	BIT(4)
 

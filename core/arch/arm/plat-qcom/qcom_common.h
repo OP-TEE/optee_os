@@ -3,14 +3,17 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#ifndef __DIAG_LOG_H
-#define __DIAG_LOG_H
+#ifndef __QCOM_COMMON_H
+#define __QCOM_COMMON_H
 
 #include <compiler.h>
 #include <config.h>
 #include <platform_config.h>
+#include <stdbool.h>
+#include <tee_api_types.h>
 #include <util.h>
 
+/* Diagnostic log */
 #if defined(CFG_QCOM_DIAG_LOG)
 void qcom_diag_log_init(void);
 void qcom_diag_log_puts(const char *str);
@@ -19,4 +22,7 @@ static inline void qcom_diag_log_init(void) { }
 static inline void qcom_diag_log_puts(const char *str __unused) { }
 #endif
 
-#endif /* __DIAG_LOG_H */
+/* Boot mode */
+TEE_Result qcom_is_dload_mode(bool *enabled);
+
+#endif /* __QCOM_COMMON_H */
