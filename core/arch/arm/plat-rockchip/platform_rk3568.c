@@ -482,19 +482,19 @@ static TEE_Result otp_read_secure(uint16_t *value, uint32_t addr,
 }
 
 /*
- * Halfword addresses the vendor secure OTP driver permits programming;
- * everything else (BootROM device data, secure-boot cells outside the
- * whitelisted windows) is refused. Nothing is writable unless
- * CFG_ROCKCHIP_HUK_PROVISION is enabled.
+ * Only the HUK and its marker are writable, and only with
+ * CFG_ROCKCHIP_HUK_PROVISION=y: never the secure-boot or rollback cells.
  */
 static bool otp_addr_writable(uint32_t addr)
 {
+	static_assert(ROCKCHIP_OTP_HUK_MARKER_ADDR ==
+		      ROCKCHIP_OTP_HUK_ADDR + ROCKCHIP_OTP_HUK_SIZE);
+
 	if (!IS_ENABLED(CFG_ROCKCHIP_HUK_PROVISION))
 		return false;
 
-	return addr == 64 || (addr >= 72 && addr <= 102) ||
-	       (addr >= 112 && addr <= 115) ||
-	       (addr >= 229 && addr < OTP_S_HALFWORDS);
+	return addr >= ROCKCHIP_OTP_HUK_ADDR &&
+	       addr <= ROCKCHIP_OTP_HUK_MARKER_ADDR;
 }
 
 static TEE_Result otp_wait_prog(vaddr_t base, bool busy, uint32_t timeout_us)

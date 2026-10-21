@@ -280,8 +280,8 @@
  * Halfword address/count in the secure OTP region (0x000-0x1bf). The
  * area starting at 0x100 (byte 0x200) is well clear of the cells used
  * by the boot chain (secure-boot enable flag at byte 0x80, RSA pubkey
- * hash at bytes 0x90-0xaf, anti-rollback counter at bytes 0xe0-0xe7)
- * and lies in the range the vendor secure OTP driver allows writing.
+ * hash at bytes 0x90-0xaf, anti-rollback counter at bytes 0xe0-0xe7).
+ * otp_addr_writable() allows programming only these cells.
  *
  * A provisioning marker halfword is burned last, after the key has been
  * written and verified, so an interrupted burn is detectable
