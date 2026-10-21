@@ -9,15 +9,15 @@
 
 #include "iris.h"
 
-#define WRAPPER_IRIS_VERSION		0x0
-#define WRAPPER_CPA_START_ADDR		0x1020
-#define WRAPPER_CPA_END_ADDR		0x1024
-#define WRAPPER_FW_START_ADDR		0x1028
-#define WRAPPER_FW_END_ADDR		0x102C
-#define WRAPPER_NONPIX_START_ADDR	0x1030
-#define WRAPPER_NONPIX_END_ADDR		0x1034
-#define WRAPPER_TZ_XTSS_SW_RESET	0x1000
-#define WRAPPER_XTSS_SW_RESET_BIT	BIT(0)
+/* Registers, as offsets from IRIS_BASE */
+#define WRAPPER_TZ_XTSS_SW_RESET		0x000c1000
+#define WRAPPER_XTSS_SW_RESET_BIT		BIT(0)
+#define WRAPPER_TZ_SEC_CPA_START_ADDR		0x000c1020
+#define WRAPPER_TZ_SEC_CPA_END_ADDR		0x000c1024
+#define WRAPPER_TZ_SEC_FW_START_ADDR		0x000c1028
+#define WRAPPER_TZ_SEC_FW_END_ADDR		0x000c102c
+#define WRAPPER_TZ_SEC_NONPIX_START_ADDR	0x000c1030
+#define WRAPPER_TZ_SEC_NONPIX_END_ADDR		0x000c1034
 
 static TEE_Result iris_reset_cpu(struct qcom_pas_data *data)
 {
@@ -27,14 +27,12 @@ static TEE_Result iris_reset_cpu(struct qcom_pas_data *data)
 	if (!base)
 		return TEE_ERROR_GENERIC;
 
-	base += IRIS_WRAPPER_TOP_TZ_REG_BASE;
-
-	io_write32(base + WRAPPER_FW_START_ADDR, 0);
-	io_write32(base + WRAPPER_FW_END_ADDR, data->fw_size);
-	io_write32(base + WRAPPER_CPA_START_ADDR, 0);
-	io_write32(base + WRAPPER_CPA_END_ADDR, data->fw_size);
-	io_write32(base + WRAPPER_NONPIX_START_ADDR, data->fw_size);
-	io_write32(base + WRAPPER_NONPIX_END_ADDR, data->fw_size);
+	io_write32(base + WRAPPER_TZ_SEC_FW_START_ADDR, 0);
+	io_write32(base + WRAPPER_TZ_SEC_FW_END_ADDR, data->fw_size);
+	io_write32(base + WRAPPER_TZ_SEC_CPA_START_ADDR, 0);
+	io_write32(base + WRAPPER_TZ_SEC_CPA_END_ADDR, data->fw_size);
+	io_write32(base + WRAPPER_TZ_SEC_NONPIX_START_ADDR, data->fw_size);
+	io_write32(base + WRAPPER_TZ_SEC_NONPIX_END_ADDR, data->fw_size);
 	io_write32(base + WRAPPER_TZ_XTSS_SW_RESET, 0);
 
 	return TEE_SUCCESS;
@@ -48,8 +46,6 @@ static TEE_Result iris_fw_shutdown(struct qcom_pas_data *data)
 	base = io_pa_or_va(&data->base, data->size);
 	if (!base)
 		return TEE_ERROR_GENERIC;
-
-	base += IRIS_WRAPPER_TOP_TZ_REG_BASE;
 
 	reg = io_read32(base + WRAPPER_TZ_XTSS_SW_RESET);
 	reg |= WRAPPER_XTSS_SW_RESET_BIT;
