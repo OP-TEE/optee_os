@@ -248,7 +248,7 @@ static enum caam_status do_keypair_conv_f2(struct caam_rsa_keypair *outkey,
 	 * If the Prime P or Prime Q are not filled, returns
 	 * immediately. This is not an error.
 	 */
-	if (size_p || !size_q)
+	if (!size_p || !size_q)
 		return CAAM_NO_ERROR;
 
 	/* Field Prime p */
