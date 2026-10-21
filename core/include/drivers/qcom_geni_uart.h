@@ -6,6 +6,7 @@
 #ifndef __DRIVERS_QCOM_GENI_UART_H
 #define __DRIVERS_QCOM_GENI_UART_H
 
+#include <compiler.h>
 #include <drivers/serial.h>
 #include <types_ext.h>
 
@@ -16,6 +17,13 @@ struct qcom_geni_uart_data {
 	struct serial_chip chip;
 };
 
+#ifdef CFG_QCOM_GENI_UART
 void qcom_geni_uart_init(struct qcom_geni_uart_data *pd, paddr_t base);
+#else
+static inline void qcom_geni_uart_init(struct qcom_geni_uart_data *pd __unused,
+				       paddr_t base __unused)
+{
+}
+#endif /* CFG_QCOM_GENI_UART */
 
 #endif /* __DRIVERS_QCOM_GENI_UART_H */
