@@ -314,6 +314,7 @@ Qualcomm
 R:	Sumit Garg <sumit.garg@oss.qualcomm.com> [@b49020]
 R:	Jorge Ramirez <jorge.ramirez@oss.qualcomm.com> [@ldts]
 S:	Maintained
+F:	core/arch/arm/dts/qcom-*
 F:	core/arch/arm/plat-qcom/
 F:	core/drivers/qcom/
 F:	core/drivers/qcom_geni_uart.c

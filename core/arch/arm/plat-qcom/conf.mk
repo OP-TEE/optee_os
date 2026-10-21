@@ -53,3 +53,20 @@ endif
 # Include arch/target specific configurations if present
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
+
+# Device tree support is optional and off by default. A target that ships an
+# embedded DTB (core/arch/arm/dts/qcom-$(PLATFORM_FLAVOR).dts) advertises it
+# with CFG_QCOM_EMBED_DTB ?= n in its target.mk. Build with
+# CFG_QCOM_EMBED_DTB=y to embed that DTB, which implies CFG_DT=y. Drivers keep
+# their compile-time defaults and only use the DT when the matching node is
+# present, so the default build behaves exactly as before.
+ifeq ($(CFG_QCOM_EMBED_DTB),y)
+CFG_EMBED_DTB_SOURCE_FILE ?= qcom-$(PLATFORM_FLAVOR).dts
+# The embedded DTB is OP-TEE's own, leave the non-secure DTB alone
+CFG_EXTERNAL_DT ?= n
+# Never interpret the boot argument x2 as a DTB (get_aslr_seed() reads it
+# before the MMU is enabled when CFG_DT=y)
+CFG_DT_ADDR ?= 0
+# Qualcomm clocks are acquired by name, not described in DT
+CFG_DRIVERS_CLK_DT ?= n
+endif
