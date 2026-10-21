@@ -10,8 +10,7 @@
 #include <kernel/boot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
-
-#include "diag_log.h"
+#include <qcom_common.h>
 
 /*
  * Register the physical memory area for peripherals etc. Here we are

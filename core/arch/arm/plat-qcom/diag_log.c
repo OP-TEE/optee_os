@@ -8,11 +8,9 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
+#include <qcom_common.h>
 #include <string.h>
 #include <trace.h>
-
-#include "boot_mode.h"
-#include "diag_log.h"
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, DIAG_BASE, DIAG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC,
