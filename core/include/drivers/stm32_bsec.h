@@ -9,6 +9,7 @@
 #include <compiler.h>
 #include <stdint.h>
 #include <tee_api.h>
+#include <types_ext.h>
 
 /* BSEC_DEBUG */
 #define BSEC_HDPEN			BIT(4)
