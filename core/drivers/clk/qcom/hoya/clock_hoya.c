@@ -116,9 +116,23 @@ static bool gpdsp_master_busy(vaddr_t tcsr, const struct hoya_gpdsp *gpdsp)
 	       !tcsr_bit_set(tcsr + gpdsp->tcsr_il1_master_idle);
 }
 
+static bool gdsc_wait_on(vaddr_t gdscr, uint64_t timeout)
+{
+	while (!timeout_elapsed(timeout)) {
+		if (gdsc_is_on(io_read32(gdscr)))
+			return true;
+
+		udelay(10);
+	}
+
+	return false;
+}
+
 TEE_Result hoya_nsp_enable(const struct hoya_nsp *nsp)
 {
 	vaddr_t gcc_base = QCOM_IO_VA(GCC_BASE, GCC_SIZE);
+	vaddr_t boot_base = 0;
+	vaddr_t core_cc = 0;
 	vaddr_t cc_base = 0;
 	uint64_t timeout = 0;
 	TEE_Result res = TEE_SUCCESS;
@@ -133,9 +147,13 @@ TEE_Result hoya_nsp_enable(const struct hoya_nsp *nsp)
 
 	cc_base = QCOM_IO_VA(nsp->base + TURINGNSP_CC_OFFSET,
 			     TURINGNSP_PROC_WINDOW_SIZE);
+	boot_base = QCOM_IO_VA(nsp->base + TURINGNSP_BOOT_OFFSET,
+			       TURINGNSP_PROC_WINDOW_SIZE);
 	timeout = timeout_init_us(10000);
-	if (!cc_base)
+	if (!cc_base || !boot_base)
 		return TEE_ERROR_GENERIC;
+
+	core_cc = boot_base - TURINGNSP_BOOT_OFFSET + TURINGNSP_CORE_CC_OFFSET;
 
 	res = qcom_clock_enable_cbc(cc_base + TURINGNSP_Q6SS_AHBS_AON);
 	if (res != TEE_SUCCESS)
@@ -154,18 +172,23 @@ TEE_Result hoya_nsp_enable(const struct hoya_nsp *nsp)
 
 	/* Retention flop */
 	io_clrbits32(cc_base + TURINGNSP_VAPSS_GDSCR, GDSCR_SW_COLLAPSE_BIT);
-	while (!timeout_elapsed(timeout)) {
-		if (gdsc_is_on(io_read32(cc_base + TURINGNSP_VAPSS_GDSCR))) {
-			io_setbits32(cc_base + TURINGNSP_VAPSS_GDSCR,
-				     GDSCR_RETAIN_FF_ENABLE_BIT |
-				     GDSCR_SW_COLLAPSE_BIT);
-			return TEE_SUCCESS;
-		}
+	if (!gdsc_wait_on(cc_base + TURINGNSP_VAPSS_GDSCR, timeout))
+		return TEE_ERROR_TIMEOUT;
 
-		udelay(10);
-	}
+	io_setbits32(cc_base + TURINGNSP_VAPSS_GDSCR,
+		     GDSCR_RETAIN_FF_ENABLE_BIT | GDSCR_SW_COLLAPSE_BIT);
 
-	return TEE_ERROR_TIMEOUT;
+	/* QDSP6 core, AXI and NSP_AUX branches the boot FSM needs */
+	io_setbits32(core_cc + TURINGNSP_QDSP6SS_CORE_CBCR,
+		     CBCR_BRANCH_ENABLE_BIT);
+	io_setbits32(cc_base + TURINGNSP_Q6SS_Q6_AXIM_CBCR,
+		     CBCR_HW_CTL_ENABLE_BIT);
+	io_setbits32(cc_base + TURINGNSP_Q6SS_AXIS2_CBCR,
+		     CBCR_HW_CTL_ENABLE_BIT);
+	io_setbits32(cc_base + TURINGNSP_NSPAUX_XO_CBCR,
+		     CBCR_BRANCH_ENABLE_BIT);
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result
