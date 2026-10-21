@@ -6,11 +6,9 @@
 #include <drivers/clk.h>
 #include <drivers/clk_qcom.h>
 #include <io.h>
-#include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <stdint.h>
-#include <trace.h>
 
 #include "clock_group.h"
 #include "clock_hoya.h"
@@ -178,23 +176,11 @@ TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group)
 
 TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group)
 {
-	vaddr_t gcc_base = QCOM_IO_VA(GCC_BASE, GCC_SIZE);
-	TEE_Result res = 0;
-
-	if (!gcc_base)
-		return TEE_ERROR_GENERIC;
-
 	switch (group) {
 	case QCOM_CLKS_TURING:
-		res = hoya_nsp_enable(&cdsp0);
-		if (res != TEE_SUCCESS)
-			goto timeout;
-		break;
+		return hoya_nsp_enable(&cdsp0);
 	case QCOM_CLKS_TURING1:
-		res = hoya_nsp_enable(&cdsp1);
-		if (res != TEE_SUCCESS)
-			goto timeout;
-		break;
+		return hoya_nsp_enable(&cdsp1);
 	case QCOM_CLKS_LPASS:
 		return hoya_lpass_setup_lucidevo(&lpass_q6_pll_cfg);
 	case QCOM_CLKS_GPDSP0:
@@ -204,9 +190,4 @@ TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group)
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
-
-	return TEE_SUCCESS;
-timeout:
-	EMSG("Timeout trying to enable clock group %d\n", group);
-	return TEE_ERROR_TIMEOUT;
 }
