@@ -90,12 +90,12 @@ TEE_Result stm32_bsec_read_otp(uint32_t *value, uint32_t otp_id);
 /*
  * Read a range of OTP data values thanks to the name of the cell.
  *
- * Upon success, this function allocates a buffer and write the target OTP
+ * Upon success, this function allocates a buffer and writes the target OTP
  * values in. @values output value provides the buffer reference. It is the
- * caller responsibility the free the allocated buffer (e.g. with free()).
+ * caller responsibility to free the allocated buffer (e.g. with free()).
  *
  * @name: Name of the cell describing the OTP range
- * @len : Size of the OTP range to read
+ * @len : Size of the OTP range to read, in bytes
  * @values : Output read values
  */
 TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
