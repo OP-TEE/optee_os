@@ -284,7 +284,7 @@
  * and lies in the range the vendor secure OTP driver allows writing.
  *
  * A provisioning marker halfword is burned last, after the key has been
- * written and verified, so an interrupted first-boot burn is detectable
+ * written and verified, so an interrupted burn is detectable
  * (the marker stays blank) and never mistaken for a valid short key.
  */
 #define ROCKCHIP_OTP_HUK_ADDR		0x100

@@ -235,9 +235,17 @@ $(call force,CFG_AUTO_MAX_PA_BITS,y)
 # enabled by BL31, which TF-A does since v2.15.
 CFG_CRYPTO_WITH_CE ?= y
 
-# The platform provides a hardware unique key (secure OTP) and TRNG-seeded
-# PRNG, so the insecure development stubs are not needed.
+# The platform reads its HUK from the secure OTP and seeds the PRNG from the
+# TRNG, so the insecure development stubs are not needed.
 CFG_INSECURE ?= n
+
+# Burn a TRNG-generated HUK into the secure OTP on the first boot of a blank
+# device. Irreversible, so off by default: a blank device then has no HUK, or
+# the all-zero test key with CFG_INSECURE=y.
+CFG_ROCKCHIP_HUK_PROVISION ?= n
+ifeq ($(CFG_ROCKCHIP_HUK_PROVISION)-$(CFG_INSECURE),y-y)
+$(warning CFG_ROCKCHIP_HUK_PROVISION=y with CFG_INSECURE=y burns a permanent HUK from an insecure build)
+endif
 
 # Back secure storage with eMMC RPMB. This is required with CFG_INSECURE=n:
 # the default REE-FS integrity relies on a monotonic counter that the

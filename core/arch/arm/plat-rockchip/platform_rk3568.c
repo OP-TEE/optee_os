@@ -484,10 +484,14 @@ static TEE_Result otp_read_secure(uint16_t *value, uint32_t addr,
 /*
  * Halfword addresses the vendor secure OTP driver permits programming;
  * everything else (BootROM device data, secure-boot cells outside the
- * whitelisted windows) is refused.
+ * whitelisted windows) is refused. Nothing is writable unless
+ * CFG_ROCKCHIP_HUK_PROVISION is enabled.
  */
 static bool otp_addr_writable(uint32_t addr)
 {
+	if (!IS_ENABLED(CFG_ROCKCHIP_HUK_PROVISION))
+		return false;
+
 	return addr == 64 || (addr >= 72 && addr <= 102) ||
 	       (addr >= 112 && addr <= 115) ||
 	       (addr >= 229 && addr < OTP_S_HALFWORDS);
@@ -666,6 +670,9 @@ static struct mutex huk_mutex = MUTEX_INITIALIZER;
 /* Cache the HUK in memory */
 static struct tee_hw_unique_key *huk;
 
+/* Set once the OTP is found blank with provisioning disabled */
+static bool huk_unprovisioned;
+
 /*
  * Condition raw TRNG output down to the key length with SHA-256 so the
  * 128-bit HUK carries a full 128 bits of entropy even under the
@@ -790,6 +797,11 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	if (huk)
 		goto out;
 
+	if (huk_unprovisioned) {
+		res = TEE_ERROR_NO_DATA;
+		goto out;
+	}
+
 	huk = malloc(sizeof(*huk));
 	if (!huk) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
@@ -800,7 +812,20 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	if (res != TEE_ERROR_NO_DATA)
 		goto out;
 
+	if (!IS_ENABLED(CFG_ROCKCHIP_HUK_PROVISION)) {
+		if (IS_ENABLED(CFG_INSECURE)) {
+			EMSG("WARNING: HUK not provisioned, using test key");
+			memset(huk->data, 0, sizeof(huk->data));
+			res = TEE_SUCCESS;
+		} else {
+			EMSG("HUK not provisioned and provisioning disabled");
+			huk_unprovisioned = true;
+		}
+		goto out;
+	}
+
 	/* No HUK provisioned yet: generate one and persist it in the OTP */
+	IMSG("Provisioning HUK into secure OTP");
 	res = generate_huk(huk);
 	if (res)
 		goto out;
