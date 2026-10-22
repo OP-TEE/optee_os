@@ -62,6 +62,14 @@ struct qup_spi_data {
 	 * GENI SE firmware; gates re-running the load on repeat init calls.
 	 */
 	bool fw_loaded;
+	/*
+	 * cmd_db resource id of the QUP-core Bus Clock Manager (BCM) for this
+	 * SE's wrapper (e.g. "QUP2"). Linux votes the "qup-core" interconnect
+	 * path through this BCM before it can clock the SE; OP-TEE owns the SE
+	 * earlier than Linux ever runs, so it must place the vote itself.
+	 * NULL if the platform does not require it (vote skipped).
+	 */
+	const char *core_bcm_name;
 	/* Requested SPI bus clock in Hz, set before calling configure() */
 	unsigned int speed_hz;
 	enum spi_mode mode;
@@ -153,6 +161,12 @@ struct qup_spi_platform_cfg {
 	 */
 	const uint8_t *fw_image;
 	size_t fw_image_size;
+	/*
+	 * cmd_db resource id of this SE wrapper's QUP-core BCM (e.g. "QUP2"),
+	 * voted over RPMh before firmware load so the SE core is clocked.
+	 * NULL if not required on this platform.
+	 */
+	const char *core_bcm_name;
 };
 
 /* SoC-specific hardware descriptor defined per platform. */

@@ -6,6 +6,8 @@
 #include <assert.h>
 #include <drivers/clk.h>
 #include <drivers/clk_qcom.h>
+#include <drivers/qcom/cmd_db/cmd_db.h>
+#include <drivers/qcom/rpmh/rpmh_client.h>
 #include <drivers/qcom/tlmm/tlmm.h>
 #include <drivers/qcom_geni_spi.h>
 #include <inttypes.h>
@@ -1291,6 +1293,7 @@ bool qup_spi_get_platform_data(unsigned int qup_spi_id,
 		qs->pin_group_count = qup_spi_config[i].pin_group_count;
 		qs->fw_image = qup_spi_config[i].fw_image;
 		qs->fw_image_size = qup_spi_config[i].fw_image_size;
+		qs->core_bcm_name = qup_spi_config[i].core_bcm_name;
 		DMSG("QUP SPI %u: base=%#" PRIxVA " irq=%zu se_clk=%s",
 		     qup_spi_id, qs->base, qs->itr_num, qs->se_clock_name);
 		return true;
@@ -1298,6 +1301,128 @@ bool qup_spi_get_platform_data(unsigned int qup_spi_id,
 
 	EMSG("QUP SPI: no platform data for SE id %u", qup_spi_id);
 	return false;
+}
+
+/*
+ * QUP-core interconnect (BCM) vote over RPMh.
+ *
+ * The "qup-core" interconnect path gates the QUP wrapper's core clock. Until
+ * it is voted the serial engine is register-accessible (config NoC / AHB is
+ * up) but its datapath to the pads is unclocked, so it shifts nothing on the
+ * wire -- an internal digital loopback still PASSES while an external read
+ * returns MISO flat 0. Linux's geni-se driver votes this path (plus
+ * qup-config / qup-memory) through the ICC framework before loading SE
+ * firmware; OP-TEE takes the SE at boot, long before Linux runs, so it must
+ * place the vote itself.
+ *
+ * This is a single fixed vote on the wrapper's QUP-core BCM, reproducing the
+ * value Linux derives for GENI_DEFAULT_BW (1 kBps) through the icc-rpmh BCM
+ * aggregation (bcm-voter.c bcm_aggregate() + tcs_cmd_gen()). qup-config and
+ * qup-memory are deliberately not voted: register access already works (the
+ * config NoC is up) and this driver is FIFO-only (no DMA to DDR).
+ */
+
+/* BCM TCS command bit layout (see linux soc/qcom/tcs.h, BCM_TCS_CMD()) */
+#define BCM_TCS_CMD_COMMIT_SHFT		30
+#define BCM_TCS_CMD_VALID_SHFT		29
+#define BCM_TCS_CMD_VOTE_X_SHFT		14
+#define BCM_TCS_CMD_VOTE_MASK		GENMASK_32(13, 0)
+
+/* Linux GENI_DEFAULT_BW = Bps_to_icc(1000) = 1000 / 1000 (icc kBps units) */
+#define GENI_CORE_DEFAULT_BW		1ULL
+
+/* qup*_core_{master,slave} ICC node geometry on this SoC (sa8775p.c) */
+#define QUP_CORE_NODE_BUSWIDTH		4ULL
+#define QUP_CORE_NODE_CHANNELS		1ULL
+
+/* BCM auxiliary-data blob layout in cmd_db (icc-rpmh.h struct bcm_db) */
+#define BCM_DB_UNIT_OFF			0	/* __le32 unit */
+#define BCM_DB_WIDTH_OFF		4	/* __le16 width */
+#define BCM_DB_MIN_LEN			6
+
+static struct rpmh_client *geni_icc_rpmh;
+
+/* bcm-voter.c bcm_div(): never lose a small but non-zero vote. */
+static uint64_t bcm_div(uint64_t num, uint64_t base)
+{
+	if (!base)
+		return num;
+	if (num && num < base)
+		return 1;
+	return num / base;
+}
+
+static enum spi_result qup_spi_icc_vote_core(struct qup_spi_data *qs)
+{
+	uint8_t aux[RPMH_MAX_TCS_SIZE] = { };
+	size_t aux_len = sizeof(aux);
+	uint32_t addr = 0;
+	uint32_t unit = 0;
+	uint32_t width = 0;
+	uint64_t agg = 0;
+	uint64_t vote = 0;
+	uint32_t data = 0;
+	uint32_t req_id = 0;
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!qs->core_bcm_name)
+		return SPI_OK;
+
+	if (!geni_icc_rpmh) {
+		geni_icc_rpmh = rpmh_create_handle(RSC_DRV_SECURE, "geni-icc");
+		if (!geni_icc_rpmh) {
+			EMSG("QUP SPI %u: cannot create RPMh handle for ICC vote",
+			     qs->id);
+			return SPI_ERR_GENERIC;
+		}
+	}
+
+	res = cmd_db_get_addr(qs->core_bcm_name, &addr);
+	if (res) {
+		EMSG("QUP SPI %u: cmd_db has no BCM '%s': %#" PRIx32,
+		     qs->id, qs->core_bcm_name, res);
+		return SPI_ERR_GENERIC;
+	}
+
+	res = cmd_db_get_aux(qs->core_bcm_name, aux, &aux_len);
+	if (res || aux_len < BCM_DB_MIN_LEN) {
+		EMSG("QUP SPI %u: bad BCM '%s' aux (res=%#" PRIx32 " len=%zu)",
+		     qs->id, qs->core_bcm_name, res, aux_len);
+		return SPI_ERR_GENERIC;
+	}
+
+	unit = get_le32(aux + BCM_DB_UNIT_OFF);
+	width = aux[BCM_DB_WIDTH_OFF] | (aux[BCM_DB_WIDTH_OFF + 1] << 8);
+
+	/*
+	 * bcm_aggregate() for a single consumer at GENI_DEFAULT_BW, AMC bucket.
+	 * sum_avg == max_peak == GENI_CORE_DEFAULT_BW and vote_scale == 1, so
+	 * vote_x == vote_y. bcm_div() clamps the tiny result up to 1.
+	 */
+	agg = bcm_div(GENI_CORE_DEFAULT_BW * width,
+		      QUP_CORE_NODE_BUSWIDTH * QUP_CORE_NODE_CHANNELS);
+	vote = bcm_div(agg, unit);
+	if (vote > BCM_TCS_CMD_VOTE_MASK)
+		vote = BCM_TCS_CMD_VOTE_MASK;
+
+	/* BCM_TCS_CMD(commit=1, valid=1, vote_x=vote, vote_y=vote) */
+	data = BIT32(BCM_TCS_CMD_COMMIT_SHFT) | BIT32(BCM_TCS_CMD_VALID_SHFT) |
+	       ((uint32_t)vote << BCM_TCS_CMD_VOTE_X_SHFT) |
+	       ((uint32_t)vote & BCM_TCS_CMD_VOTE_MASK);
+
+	res = rpmh_send_command(geni_icc_rpmh, RPMH_SET_ACTIVE, true, addr,
+				data, &req_id);
+	if (res) {
+		EMSG("QUP SPI %u: BCM '%s' vote failed: %#" PRIx32,
+		     qs->id, qs->core_bcm_name, res);
+		return SPI_ERR_GENERIC;
+	}
+	rpmh_barrier_single(geni_icc_rpmh, req_id);
+
+	DMSG("QUP SPI %u: voted BCM '%s' (addr=%#" PRIx32 " data=%#" PRIx32 ")",
+	     qs->id, qs->core_bcm_name, addr, data);
+
+	return SPI_OK;
 }
 
 TEE_Result qup_spi_init(struct qup_spi_data *qs, unsigned int qup_spi_id)
@@ -1333,6 +1458,17 @@ TEE_Result qup_spi_init(struct qup_spi_data *qs, unsigned int qup_spi_id)
 
 	qs->chip.ops = &qup_spi_ops;
 	mutex_init(&qs->lock);
+
+	/*
+	 * Vote the QUP-core interconnect BCM before touching the clocks, same
+	 * order as Linux's geni_load_se_fw(): geni_icc_set_bw()+geni_icc_enable()
+	 * precede geni_se_resources_on()/clk_prepare_enable(). The NoC path must
+	 * carry the core clock before it is ungated, or the engine is clocked but
+	 * its datapath to the pads is starved. Only cmd_db/RPMh are needed here,
+	 * both up since driver_init, so this has no dependency on clk_setup.
+	 */
+	if (qup_spi_icc_vote_core(qs) != SPI_OK)
+		return TEE_ERROR_GENERIC;
 
 	res = qup_spi_clk_setup(qs);
 	if (res)

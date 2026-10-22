@@ -259,6 +259,8 @@ const struct qup_spi_platform_cfg qup_spi_config[] = {
 		.pin_group_count    = ARRAY_SIZE(qup2_se2_spi_pin_groups),
 		.fw_image           = spi_qup_fw,
 		.fw_image_size      = sizeof(spi_qup_fw),
+		/* QUP-core BCM for wrapper 2 (sa8775p: bcm_qup2 "QUP2"). */
+		.core_bcm_name      = "QUP2",
 	},
 };
 
