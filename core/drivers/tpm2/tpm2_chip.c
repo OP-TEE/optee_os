@@ -207,7 +207,12 @@ enum tpm2_result tpm2_chip_register(struct tpm2_chip *chip)
 	if (tpm2_device)
 		return TPM2_ERR_GENERIC;
 
-	if (!chip || !chip->ops)
+	/*
+	 * init() and end() are mandatory: register() and the fail-closed
+	 * teardown below call them unconditionally, so reject a transport
+	 * missing either rather than dereferencing a NULL op.
+	 */
+	if (!chip || !chip->ops || !chip->ops->init || !chip->ops->end)
 		return TPM2_ERR_NODEV;
 
 	/* Assign timeouts etc based on interface */
@@ -221,7 +226,7 @@ enum tpm2_result tpm2_chip_register(struct tpm2_chip *chip)
 	ret = tpm2_startup(TPM2_SU_CLEAR);
 	if (ret) {
 		EMSG("TPM2 Startup Failed");
-		return ret;
+		goto err;
 	}
 
 	/* Self test result is informative */
@@ -229,8 +234,11 @@ enum tpm2_result tpm2_chip_register(struct tpm2_chip *chip)
 		EMSG("TPM2 Self Test Failed");
 
 	ret = tpm2_populate_capability(chip);
-	if (!ret)
-		tpm2_dump_capability(chip);
+	if (ret) {
+		EMSG("TPM2 capability read failed");
+		goto err;
+	}
+	tpm2_dump_capability(chip);
 
 	/*
 	 * Register TPM2 as a TCG PCR provider when that framework is built
@@ -239,8 +247,22 @@ enum tpm2_result tpm2_chip_register(struct tpm2_chip *chip)
 	 * treat only a real registration failure as fatal.
 	 */
 	res = tpm2_tcg_register();
-	if (res && res != TEE_ERROR_NOT_IMPLEMENTED)
-		return TPM2_ERR_GENERIC;
+	if (res && res != TEE_ERROR_NOT_IMPLEMENTED) {
+		ret = TPM2_ERR_GENERIC;
+		goto err;
+	}
+
+	return TPM2_OK;
+
+err:
+	/*
+	 * Fail closed: never leave a half-initialised chip published. Undo
+	 * ops->init() and drop the device so tpm2_chip_is_registered() stays
+	 * false and callers cannot transceive against an unstarted/unmeasured
+	 * TPM.
+	 */
+	chip->ops->end(chip);
+	tpm2_device = NULL;
 
 	return ret;
 }
