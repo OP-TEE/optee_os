@@ -1249,6 +1249,10 @@ ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
 CFG_CORE_TCG_PROVIDER ?= $(CFG_DRIVERS_TPM2)
 endif
 
+# Expose the in-core discrete TPM to the normal world as a TPM transport,
+# via a pseudo TA the Linux TEE-backed TPM driver can bind to by UUID.
+CFG_TPM_PASSTHROUGH_PTA ?= n
+
 # Enable the FF-A SPMC tests in xtests
 CFG_SPMC_TESTS ?= n
 
