@@ -7,6 +7,7 @@
 #define PLATFORM_PAS_H
 
 #include <resource_table.h>
+#include <stdbool.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
 
@@ -25,6 +26,32 @@ struct pas_hash_table {
 	size_t len;
 	uint32_t entry_size;
 };
+
+struct elf_info {
+	size_t elf_hdr_len;
+	size_t phdr_offset;
+	size_t phdr_entry_len;
+	size_t phdr_count;
+	uint64_t entry;
+	bool is_64;
+};
+
+struct phdr_info {
+	uint64_t paddr;
+	size_t file_len;
+	size_t mem_len;
+	uint32_t type;
+	uint32_t flags;
+};
+
+bool pas_elf_is_hashed(uint32_t p_type, uint32_t p_flags);
+void pas_elf_get_phdr(const uint8_t *fw, const struct elf_info *e_info,
+		      size_t idx, struct phdr_info *p_info);
+
+TEE_Result pas_elf_parse(const uint8_t *fw, size_t fw_size,
+			 struct elf_info *e_info);
+TEE_Result pas_elf_image_range(const uint8_t *fw, const struct elf_info *e_info,
+			       uint64_t *base, uint64_t *end);
 
 TEE_Result pas_platform_mem_setup(uint32_t pas_id, uint32_t fw_size,
 				  uint32_t fw_base_low, uint32_t fw_base_high);
