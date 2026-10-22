@@ -211,12 +211,12 @@ TEE_Result pas_platform_verify_image(uint32_t pas_id,
 	data = &subsys->data;
 
 	if (!data->fw_base || !data->fw_size) {
-		EMSG("PAS auth: no MEM_SETUP for pas_id=%#"PRIx32, pas_id);
+		EMSG("PAS auth: no fw base/size for pas_id=%#"PRIx32, pas_id);
 		return TEE_ERROR_BAD_STATE;
 	}
 
 	if (fw->base != data->fw_base) {
-		EMSG("PAS auth: base %#"PRIxPA" != MEM_SETUP %#"PRIxPA,
+		EMSG("PAS auth: carevout base %#"PRIxPA" != fw base %#"PRIxPA,
 		     fw->base, data->fw_base);
 		return TEE_ERROR_SECURITY;
 	}

@@ -16,6 +16,7 @@
 #define MI_PBT_ACCESS_TYPE_SHIFT	21
 #define MI_PBT_SEGMENT_TYPE_MASK	0x07000000
 #define MI_PBT_SEGMENT_TYPE_SHIFT	24
+#define MI_PBT_RELOCATABLE_SEGMENT	BIT(27)
 
 #define MI_PBT_NON_PAGED_SEGMENT	0x0
 #define MI_PBT_HASH_SEGMENT		0x2
@@ -103,6 +104,20 @@ void pas_elf_get_phdr(const uint8_t *fw, const struct elf_info *e_info,
 	}
 }
 
+bool pas_elf_is_relocatable(const uint8_t *fw, const struct elf_info *e_info)
+{
+	struct phdr_info p_info = { };
+	size_t i = 0;
+
+	for (i = 0; i < e_info->phdr_count; i++) {
+		pas_elf_get_phdr(fw, e_info, i, &p_info);
+		if (p_info.flags & MI_PBT_RELOCATABLE_SEGMENT)
+			return true;
+	}
+
+	return false;
+}
+
 TEE_Result pas_elf_parse(const uint8_t *fw, size_t fw_size,
 			 struct elf_info *e_info)
 {
@@ -185,6 +200,34 @@ TEE_Result pas_elf_image_range(const uint8_t *fw, const struct elf_info *e_info,
 	*base = ROUNDDOWN(min_paddr, SMALL_PAGE_SIZE);
 	if (ROUNDUP_OVERFLOW(max_end, SMALL_PAGE_SIZE, end))
 		return TEE_ERROR_BAD_FORMAT;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result pas_elf_get_fw_range(const uint8_t *fw, size_t fw_size,
+				struct elf_info *e_info, paddr_t *base,
+				size_t *size)
+{
+	uint64_t end = 0;
+	uint64_t start = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!base || !size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = pas_elf_parse(fw, fw_size, e_info);
+	if (res)
+		return res;
+
+	res = pas_elf_image_range(fw, e_info, &start, &end);
+	if (res)
+		return res;
+
+	if (start > UINTPTR_MAX || end < start)
+		return TEE_ERROR_BAD_FORMAT;
+
+	*base = (paddr_t)start;
+	*size = end - start;
 
 	return TEE_SUCCESS;
 }
