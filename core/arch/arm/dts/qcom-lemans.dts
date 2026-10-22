@@ -36,6 +36,15 @@
 			reg = <0x0 0x00a8c000 0x0 0x4000>;
 		};
 
+		/* OP-TEE uses its own execution environment page of the TRNG */
+		rng@10d1000 {
+			compatible = "qcom,sa8775p-trng", "qcom,trng";
+			reg = <0x0 0x010d1000 0x0 0x1000>;
+			/* Only OP-TEE uses this page */
+			status = "disabled";
+			secure-status = "okay";
+		};
+
 		intc: interrupt-controller@17a00000 {
 			compatible = "arm,gic-v3";
 			reg = <0x0 0x17a00000 0x0 0x10000>,	/* GICD */
