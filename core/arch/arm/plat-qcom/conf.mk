@@ -47,12 +47,12 @@ else
 $(error Unsupported PLATFORM_FLAVOR: $(PLATFORM_FLAVOR))
 endif
 
-# Include arch/target specific configurations if present
--include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
--include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
+# Include family/target specific configurations if present
+-include core/arch/arm/plat-qcom/family/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
+-include core/arch/arm/plat-qcom/family/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
 
 ifeq ($(CFG_QCOM_PAS_AUTH),y)
 # Authentication flow needs larger temporary allocations.
-# Override any arch/target defaults when PAS auth is enabled.
+# Override any family/target defaults when PAS auth is enabled.
 CFG_PAS_TA_HEAP_SIZE := (1024 * 1024)
 endif
