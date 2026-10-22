@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * Secure world view of Lemans (SA8775P) as seen by OP-TEE.
+ *
+ * Only the properties OP-TEE consumes are described, so properties such as
+ * clocks, interrupts and pinctrl are left out. The compile-time values in
+ * plat-qcom stay the fallback for every node.
+ */
+
+/dts-v1/;
+
+/ {
+	compatible = "qcom,sa8775p";
+	model = "Qualcomm Lemans (OP-TEE)";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &uart;
+	};
+
+	chosen {
+		stdout-path = "serial0";
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		uart: serial@a8c000 {
+			compatible = "qcom,geni-debug-uart";
+			reg = <0x0 0x00a8c000 0x0 0x4000>;
+		};
+	};
+};
