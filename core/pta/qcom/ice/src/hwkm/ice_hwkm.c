@@ -1,0 +1,998 @@
+// SPDX-License-Identifier: BSD-2-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+#include <arm.h>
+#include <drivers/hwkm.h>
+#include <drivers/hwkm_errno.h>
+#include <crypto/crypto.h>
+#include <io.h>
+#include <kernel/mutex.h>
+#include <mm/core_memprot.h>
+#include <string.h>
+#include <trace.h>
+
+#include "ice_config.h"
+#include "hwkm/hwkm_derive_keys.h"
+#include "hwkm/ice_hwkm.h"
+
+#define HWKM_ICE_SLAVE_GP_SLOT          140U
+#define HWKM_ICE_DEFAULT_TPKEY_SLOT     146U
+#define HWKM_ICE_MAP_SLOT(pipe)         ((uint8_t)(((pipe) * 2U) + 10U))
+#define HWKM_CTX_ALIGN_BYTES            8U
+#define HWKM_DONT_CARE_START            64U
+#define HWKM_DONT_CARE_END              68U
+#define HWKM_CMAC_BLOCK_SIZE            16U
+
+static inline size_t round_up_ctx_len(size_t len)
+{
+	return (len + (HWKM_CTX_ALIGN_BYTES - 1U)) & ~(HWKM_CTX_ALIGN_BYTES - 1U);
+}
+
+static const uint8_t inlinecrypt_ctx[] = "inline encryption key";
+
+static const uint8_t raw_secret_label[] = {
+	0x00, 0x00, 0x40, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x20,
+};
+
+static const uint8_t raw_secret_context[] = {
+	'r', 'a', 'w', ' ', 's', 'e', 'c', 'r', 'e', 't',
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x02, 0x17, 0x00, 0x80, 0x50,
+	0x00, 0x00, 0x00, 0x00,
+};
+
+static uint8_t g_ephemeral_ctx[HWKM_EPHEMERAL_CTX_SIZE] = { 0 };
+static bool g_ephemeral_ctx_set = false;
+
+static TEE_Result get_or_init_ephemeral_ctx(const uint8_t **ctx,
+					    size_t *ctx_len)
+{
+	if (!ctx || !ctx_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!g_ephemeral_ctx_set) {
+		if (crypto_rng_read(g_ephemeral_ctx,
+				    sizeof(g_ephemeral_ctx)) != TEE_SUCCESS)
+			return TEE_ERROR_GENERIC;
+
+		g_ephemeral_ctx_set = true;
+	}
+
+	*ctx = g_ephemeral_ctx;
+	*ctx_len = sizeof(g_ephemeral_ctx);
+	return TEE_SUCCESS;
+}
+
+/*
+ * is_ice_in_standard_mode() - Check whether ICE HWKM is in standard mode.
+ * @base: MMIO base address of the ICE HWKM module.
+ *
+ * Reads TZ_KM_CTL and validates that the mode value matches the expected
+ * standard-mode configuration.
+ *
+ * Return: true if standard mode is active, false otherwise.
+ */
+static bool is_ice_in_standard_mode(vaddr_t base)
+{
+	uint32_t mode = io_read32_off_field(base + ICE_HWKM_TZ_REGS_OFFSET,
+					    ICE_HWKM_TZ_KM_CTL,
+					    ICE_LEGACY_MODE_EN_OTP);
+
+	/* Standard mode */
+	if (mode == 0x0)
+		return true;
+
+	return false;
+}
+
+TEE_Result clear_ice_slave_slot_hwkm(uint32_t slot)
+{
+	struct hwkm_transaction t_clear = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = 0,
+				.is_double_key = true,
+			},
+		},
+	};
+	int rc = HWKM_ERR_GENERIC;
+	vaddr_t base = 0;
+	vaddr_t hwkm_base = 0;
+	struct hwkm_drv_ctx *drv = hwkm_get_context();
+	if (!drv)
+		return TEE_ERROR_BAD_STATE;
+
+	if (slot >= ICE_MAX_KEY_IDX)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	hwkm_base = (vaddr_t)phys_to_virt(HWKM_ICE_BASE, MEM_AREA_IO_SEC,
+					  HWKM_ICE_SIZE);
+	if (!hwkm_base) {
+		EMSG("Failed to map ICE HWKM region");
+		return TEE_ERROR_GENERIC;
+	}
+
+	if (!is_ice_in_standard_mode(hwkm_base))
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	base = (vaddr_t)phys_to_virt(ICE_LUT_KEYS, MEM_AREA_IO_SEC,
+				     ICE_LUT_KEYS_SIZE);
+
+	/* Disable slot first so stale key/config cannot be used. */
+	io_write32_off_field(base, ICE_CRYPTOCFG_r_16_OFF(slot),
+			     ICE_CRYPTOCFG_r_16_CFGE_BMSK,
+			     0x0);
+
+	t_clear.cmd.clear.dks = HWKM_ICE_MAP_SLOT(slot);
+
+	mutex_lock(&drv->hwkm_lock);
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_ICE_SLAVE, &t_clear);
+	mutex_unlock(&drv->hwkm_lock);
+	if (rc)
+		return hwkm_to_optee(rc);
+
+	if (t_clear.rsp.status != HWKM_RSP_ERR_SUCCESS &&
+	    t_clear.rsp.status != HWKM_CLEAR_ERR_DKS_SLOT_EMPTY) {
+		EMSG("ICE invalidate clear failed: slot=%u mapped=%u status=0x%x",
+		     slot, (unsigned int)t_clear.cmd.clear.dks,
+		     (unsigned int)t_clear.rsp.status);
+		return TEE_ERROR_GENERIC;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result check_dont_care_bytes(const uint8_t *blob, size_t blob_len)
+{
+	size_t i = 0;
+
+	if (!blob || blob_len < HWKM_DONT_CARE_END)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	for (i = HWKM_DONT_CARE_START; i < HWKM_DONT_CARE_END; i++) {
+		if (blob[i] != 0U) {
+			EMSG("ICE raw secret: dont-care byte[%zu]=0x%x",
+			     i, blob[i]);
+			return TEE_ERROR_SECURITY;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result hwkm_unwrap_and_read_slot_key(const uint8_t *wrapped_blob,
+						size_t wrapped_blob_len,
+						uint8_t slot,
+						uint8_t key[HWKM_MAX_KEY_SIZE])
+{
+	const uint8_t *ephemeral_ctx = NULL;
+	size_t ephemeral_ctx_len = 0;
+	struct hwkm_transaction t_unwrap = {
+		.cmd = {
+			.op = HWKM_OP_KEY_UNWRAP_IMPORT,
+			.unwrap = {
+				.dks = slot,
+				.kwk = HWKM_SLOT_TZ_WRAP_KEY_SLOT,
+			},
+		},
+	};
+
+	struct hwkm_transaction t_read = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_RDWR,
+			.rdwr = {
+				.slot = slot,
+				.is_write = false,
+			},
+		},
+	};
+
+	struct hwkm_transaction t_clear = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = slot,
+				.is_double_key = false,
+			},
+		},
+	};
+	int rc = HWKM_ERR_GENERIC;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct hwkm_drv_ctx *drv = hwkm_get_context();
+	if (!drv)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (!wrapped_blob || wrapped_blob_len != HWKM_MAX_BLOB_SIZE || !key)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = get_or_init_ephemeral_ctx(&ephemeral_ctx, &ephemeral_ctx_len);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	mutex_lock(&drv->hwkm_lock);
+	res = derive_ephemeral_wrapping_key(ephemeral_ctx, ephemeral_ctx_len);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	memcpy(t_unwrap.cmd.unwrap.wkb, wrapped_blob, HWKM_MAX_BLOB_SIZE);
+	rc = hwkm_run_transactions(HWKM_KEY_DEST_KM_MASTER, 2,
+				   (struct hwkm_transaction *const[]){
+					&t_unwrap, &t_read});
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto out;
+	}
+
+	if (t_unwrap.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE raw secret unwrap failed: status=0x%x",
+		     (unsigned int)t_unwrap.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	if (t_read.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE raw secret read failed: status=0x%x",
+		     (unsigned int)t_read.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	memcpy(key, t_read.rsp.rdwr.key, HWKM_MAX_KEY_SIZE);
+	res = TEE_SUCCESS;
+out:
+	(void)clear_ephemeral_key();
+	hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_clear);
+	mutex_unlock(&drv->hwkm_lock);
+	memset(t_read.rsp.rdwr.key, 0, sizeof(t_read.rsp.rdwr.key));
+	memset(t_unwrap.cmd.unwrap.wkb, 0, sizeof(t_unwrap.cmd.unwrap.wkb));
+	return res;
+}
+
+static TEE_Result cmac_counter_kdf(const uint8_t key[HWKM_MAX_KEY_SIZE],
+				   uint8_t *out, size_t out_len,
+				   const uint8_t *label, size_t label_len,
+				   const uint8_t *ctx, size_t ctx_len)
+{
+	void *mac_ctx = NULL;
+	uint8_t out_block[HWKM_CMAC_BLOCK_SIZE] = { 0 };
+	uint8_t fixed_data[64] = { 0 };
+	size_t fixed_len = 0;
+	size_t copied = 0;
+	size_t off = 0;
+	uint32_t counter = 1;
+	uint32_t be_out_len_bits = TEE_U32_TO_BIG_ENDIAN((uint32_t)(out_len * 8U));
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!key || !out || !out_len || !label || !label_len || !ctx || !ctx_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	fixed_len = sizeof(uint32_t) + label_len + 1U + ctx_len + sizeof(uint32_t);
+	if (fixed_len > sizeof(fixed_data))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	off = sizeof(uint32_t);
+	memcpy(fixed_data + off, label, label_len);
+	off += label_len;
+	fixed_data[off++] = 0x00;
+	memcpy(fixed_data + off, ctx, ctx_len);
+	off += ctx_len;
+	memcpy(fixed_data + off, &be_out_len_bits, sizeof(be_out_len_bits));
+
+	res = crypto_mac_alloc_ctx(&mac_ctx, TEE_ALG_AES_CMAC);
+	if (res)
+		goto exit;
+
+	while (copied < out_len) {
+		uint32_t be_counter = TEE_U32_TO_BIG_ENDIAN(counter);
+		size_t n = HWKM_CMAC_BLOCK_SIZE;
+
+		memcpy(fixed_data, &be_counter, sizeof(be_counter));
+
+		res = crypto_mac_init(mac_ctx, key, HWKM_MAX_KEY_SIZE);
+		if (res)
+			goto exit;
+
+		res = crypto_mac_update(mac_ctx, fixed_data, fixed_len);
+		if (res)
+			goto exit;
+
+		res = crypto_mac_final(mac_ctx, out_block, sizeof(out_block));
+		if (res)
+			goto exit;
+
+		if (n > out_len - copied)
+			n = out_len - copied;
+
+		memcpy(out + copied, out_block, n);
+		copied += n;
+		counter++;
+	}
+
+	res = TEE_SUCCESS;
+exit:
+	if (mac_ctx)
+		crypto_mac_free_ctx(mac_ctx);
+	memset(fixed_data, 0, sizeof(fixed_data));
+	memset(out_block, 0, sizeof(out_block));
+	return res;
+}
+
+/*
+ * export_tpkey_wrapped_blob_from_ephemeral() - Unwrap input blob under
+ * ephemeral wrapping key, then re-wrap/export under TPKEY.
+ */
+static TEE_Result export_tpkey_wrapped_blob_from_ephemeral(const uint8_t *in_blob,
+							   size_t in_blob_len,
+							   uint8_t *out_blob,
+							   size_t *out_blob_len)
+{
+	const uint8_t *ephemeral_ctx = NULL;
+	size_t ephemeral_ctx_len = 0;
+	struct hwkm_transaction t_unwrap = {
+		.cmd = {
+			.op = HWKM_OP_KEY_UNWRAP_IMPORT,
+			.unwrap = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.kwk = HWKM_SLOT_TZ_WRAP_KEY_SLOT,
+			},
+		},
+	};
+	struct hwkm_transaction t_wrap_tpkey = {
+		.cmd = {
+			.op = HWKM_OP_KEY_WRAP_EXPORT,
+			.wrap = {
+				.sks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.kwk = HWKM_SLOT_TPKEY_SLOT,
+			},
+		},
+	};
+	struct hwkm_transaction t_clear_gp1 = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.is_double_key = false,
+			},
+		},
+	};
+	int rc = HWKM_ERR_GENERIC;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct hwkm_drv_ctx *drv = hwkm_get_context();
+	if (!drv)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (!in_blob || !out_blob || !out_blob_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (in_blob_len != HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (*out_blob_len < HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	res = get_or_init_ephemeral_ctx(&ephemeral_ctx, &ephemeral_ctx_len);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	mutex_lock(&drv->hwkm_lock);
+	res = derive_ephemeral_wrapping_key(ephemeral_ctx, ephemeral_ctx_len);
+	if (res != TEE_SUCCESS)
+		goto cleanup;
+
+	memcpy(t_unwrap.cmd.unwrap.wkb, in_blob, HWKM_MAX_BLOB_SIZE);
+
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_unwrap);
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto cleanup;
+	}
+
+	if (t_unwrap.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE tpwrap unwrap failed: status=0x%x",
+		     (unsigned int)t_unwrap.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto cleanup;
+	}
+
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_wrap_tpkey);
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto cleanup;
+	}
+
+	if (t_wrap_tpkey.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE tpwrap export failed: status=0x%x",
+		     (unsigned int)t_wrap_tpkey.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto cleanup;
+	}
+
+	memcpy(out_blob, t_wrap_tpkey.rsp.wrap.wkb, HWKM_MAX_BLOB_SIZE);
+	*out_blob_len = HWKM_MAX_BLOB_SIZE;
+	res = TEE_SUCCESS;
+
+cleanup:
+	(void)clear_ephemeral_key();
+	(void)hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_clear_gp1);
+	mutex_unlock(&drv->hwkm_lock);
+
+	memset(t_unwrap.cmd.unwrap.wkb, 0, sizeof(t_unwrap.cmd.unwrap.wkb));
+	memset(t_wrap_tpkey.rsp.wrap.wkb, 0, sizeof(t_wrap_tpkey.rsp.wrap.wkb));
+	return res;
+}
+
+/*
+ * program_ice_slave_from_tpkey_blob() - On ICE_SLAVE, import TPKEY-wrapped
+ * blob into staging slot and derive final key into mapped ICE key slot.
+ */
+static TEE_Result program_ice_slave_from_tpkey_blob(uint32_t pipe,
+						    const uint8_t *tpkey_blob,
+						    size_t tpkey_blob_len)
+{
+	uint8_t mapped_slot = 0;
+	size_t ctx_len = round_up_ctx_len(sizeof(inlinecrypt_ctx) - 1);
+	struct hwkm_transaction t_clear_mapped = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = 0,
+				.is_double_key = true,
+			},
+		},
+	};
+	struct hwkm_transaction t_clear_gp = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = HWKM_ICE_SLAVE_GP_SLOT,
+				.is_double_key = false,
+			},
+		},
+	};
+	struct hwkm_transaction t_import = {
+		.cmd = {
+			.op = HWKM_OP_KEY_UNWRAP_IMPORT,
+			.unwrap = {
+				.dks = HWKM_ICE_SLAVE_GP_SLOT,
+				.kwk = HWKM_ICE_DEFAULT_TPKEY_SLOT,
+			},
+		},
+	};
+	struct hwkm_transaction t_kdf_ice = {
+		.cmd = {
+			.op = HWKM_OP_SYSTEM_KDF,
+			.kdf = {
+				.dks = 0,
+				.kdk = HWKM_ICE_SLAVE_GP_SLOT,
+				.policy = {
+					.km_by_tz_allowed = true,
+					.alg_allowed = HWKM_ALGO_AES256_XTS,
+					.enc_allowed = true,
+					.dec_allowed = true,
+					.key_type = HWKM_KEY_TYPE_GENERIC_KEY,
+					.security_lvl = HWKM_KEY_SECURITY_LVL_SW_KEY,
+					.hw_destination = HWKM_KEY_DEST_ICE_SLAVE,
+				},
+				.bsve = {
+					.enabled = true,
+					.km_swc_en = true,
+					.km_child_key_policy_en = true,
+				},
+				.ctx_len = 0,
+			},
+		},
+	};
+	int rc = HWKM_ERR_GENERIC;
+	struct hwkm_drv_ctx *drv = hwkm_get_context();
+	if (!drv)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (!tpkey_blob || tpkey_blob_len != HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (pipe >= ICE_MAX_KEY_IDX)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mapped_slot = HWKM_ICE_MAP_SLOT(pipe);
+	t_clear_mapped.cmd.clear.dks = mapped_slot;
+	t_kdf_ice.cmd.kdf.dks = mapped_slot;
+
+	memset(t_kdf_ice.cmd.kdf.ctx, 0, sizeof(t_kdf_ice.cmd.kdf.ctx));
+	memcpy(t_kdf_ice.cmd.kdf.ctx, inlinecrypt_ctx, sizeof(inlinecrypt_ctx) - 1);
+	t_kdf_ice.cmd.kdf.ctx_len = ctx_len;
+
+	memcpy(t_import.cmd.unwrap.wkb, tpkey_blob, HWKM_MAX_BLOB_SIZE);
+
+	mutex_lock(&drv->hwkm_lock);
+	rc = hwkm_run_transactions(HWKM_KEY_DEST_ICE_SLAVE, 4,
+				   (struct hwkm_transaction *const[]){
+					&t_clear_gp, &t_clear_mapped,
+					&t_import, &t_kdf_ice });
+
+	mutex_unlock(&drv->hwkm_lock);
+	memset(t_import.cmd.unwrap.wkb, 0, sizeof(t_import.cmd.unwrap.wkb));
+	memset(t_kdf_ice.cmd.kdf.ctx, 0, sizeof(t_kdf_ice.cmd.kdf.ctx));
+
+	if (rc)
+		return hwkm_to_optee(rc);
+
+	if ((t_clear_gp.rsp.status != HWKM_RSP_ERR_SUCCESS &&
+	     t_clear_gp.rsp.status != HWKM_CLEAR_ERR_DKS_SLOT_EMPTY) ||
+	    (t_clear_mapped.rsp.status != HWKM_RSP_ERR_SUCCESS &&
+	     t_clear_mapped.rsp.status != HWKM_CLEAR_ERR_DKS_SLOT_EMPTY) ||
+	    t_import.rsp.status != HWKM_RSP_ERR_SUCCESS ||
+	    t_kdf_ice.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE slave prog failed: clear_gp=0x%x clear_dst=0x%x import=0x%x kdf=0x%x",
+		     (unsigned int)t_clear_gp.rsp.status,
+		     (unsigned int)t_clear_mapped.rsp.status,
+		     (unsigned int)t_import.rsp.status,
+		     (unsigned int)t_kdf_ice.rsp.status);
+		return TEE_ERROR_GENERIC;
+	}
+
+	return TEE_SUCCESS;
+}
+
+/*
+ * program_content_key_using_hwkm() - Top-level helper for ICE key programming.
+ *
+ * Chains:
+ * wrapped blob (ephemeral) -> TPKEY-wrapped blob -> ICE_SLAVE import + KDF.
+ */
+static TEE_Result program_content_key_using_hwkm(uint32_t pipe,
+						 const uint8_t *wrapped_blob,
+						 size_t wrapped_blob_len)
+{
+	uint8_t tpkey_blob[HWKM_MAX_BLOB_SIZE] = { };
+	size_t tpkey_blob_len = sizeof(tpkey_blob);
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = export_tpkey_wrapped_blob_from_ephemeral(wrapped_blob,
+						       wrapped_blob_len,
+						       tpkey_blob,
+						       &tpkey_blob_len);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = program_ice_slave_from_tpkey_blob(pipe, tpkey_blob, tpkey_blob_len);
+
+out:
+	memset(tpkey_blob, 0, sizeof(tpkey_blob));
+	return res;
+}
+
+/*
+ * set_config_ice_key_using_hwkm() - Top-level HWKM + ICE register sequence.
+ *
+ * Sequence:
+ * 1) Disable ICE slot configuration.
+ * 2) Program key to mapped ICE slot through HWKM helper chain.
+ * 3) Program fixed data-unit configuration.
+ * 4) Enable ICE slot configuration.
+ *
+ * Fixed UFS settings:
+ * - CAPIDX = AES-XTS-256
+ * - DUSIZE = 4096-byte data unit for UFS
+ *          =  512-byte data unit for eMMC
+ */
+TEE_Result set_config_ice_key_using_hwkm(uint32_t slot,
+					 const uint8_t *wrapped_blob,
+					 size_t wrapped_blob_len)
+{
+	const uint32_t cap_index = ICE_CIPHER_MODE_XTS_256;
+	uint32_t data_unit_size = ICE_DATA_UNIT_SIZE_4096;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	vaddr_t base = 0;
+
+	if (!wrapped_blob || wrapped_blob_len != HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (slot >= ICE_MAX_KEY_IDX)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	base = (vaddr_t)phys_to_virt(ICE_LUT_KEYS, MEM_AREA_IO_SEC,
+				     ICE_LUT_KEYS_SIZE);
+
+	/* Disable slot first to prevent use of stale key/config. */
+	io_write32_off_field(base, ICE_CRYPTOCFG_r_16_OFF(slot),
+			     ICE_CRYPTOCFG_r_16_CFGE_BMSK,
+			     0x0);
+
+	res = program_content_key_using_hwkm(slot, wrapped_blob, wrapped_blob_len);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Program fixed capability index (CAPIDX) and data unit size (DUSIZE). */
+	io_write32_off_field(base, ICE_CRYPTOCFG_r_16_OFF(slot),
+			     ICE_CRYPTOCFG_r_16_CAPIDX_BMSK,
+			     cap_index);
+	dsb();
+
+	if (ICE_LUT_KEYS == PERIPH_SS_SDC1_SDCC_ICE_LUT_KEYS)
+		data_unit_size = ICE_DATA_UNIT_SIZE_512;
+
+	io_write32_off_field(base, ICE_CRYPTOCFG_r_16_OFF(slot),
+			     ICE_CRYPTOCFG_r_16_DUSIZE_BMSK,
+			     data_unit_size);
+	dsb();
+
+	/* Enable configuration (CFGE=1). */
+	io_write32_off_field(base, ICE_CRYPTOCFG_r_16_OFF(slot),
+			     ICE_CRYPTOCFG_r_16_CFGE_BMSK,
+			     0x1);
+	dsb();
+
+	return TEE_SUCCESS;
+}
+
+/*
+ * export_hw_wrapped_key() - Rewrap wrapped key blob under an ephemeral key.
+ *
+ * Sequence:
+ * 1) Unwrap input blob with base wrapping key.
+ * 2) Derive ephemeral wrapping key from RNG-provided context.
+ * 3) Wrap key under ephemeral wrapping key.
+ * 4) Clear ephemeral key slot.
+ */
+TEE_Result export_hw_wrapped_key(const uint8_t *in_blob, size_t in_blob_len,
+				 uint8_t *out_blob, size_t *out_blob_len)
+{
+	const uint8_t *ephemeral_ctx = NULL;
+	size_t ephemeral_ctx_len = 0;
+	struct hwkm_transaction t_unwrap = {
+		.cmd = {
+			.op = HWKM_OP_KEY_UNWRAP_IMPORT,
+			.unwrap = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.kwk = HWKM_SLOT_TZ_WRAP_KEY_SLOT,
+			},
+		},
+	};
+	struct hwkm_transaction t_wrap_ephemeral = {
+		.cmd = {
+			.op = HWKM_OP_KEY_WRAP_EXPORT,
+			.wrap = {
+				.sks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.kwk = HWKM_SLOT_TZ_WRAP_KEY_SLOT,
+			},
+		},
+	};
+	struct hwkm_transaction t_clear_gp1 = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.is_double_key = false,
+			},
+		},
+	};
+	int rc = HWKM_ERR_GENERIC;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct hwkm_drv_ctx *drv = hwkm_get_context();
+	if (!drv)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (!in_blob || !out_blob || !out_blob_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (in_blob_len != HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (*out_blob_len < HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	res = get_or_init_ephemeral_ctx(&ephemeral_ctx, &ephemeral_ctx_len);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	mutex_lock(&drv->hwkm_lock);
+	res = derive_l4_wrapping_key();
+	if (res != TEE_SUCCESS)
+		goto cleanup;
+
+	memcpy(t_unwrap.cmd.unwrap.wkb, in_blob, HWKM_MAX_BLOB_SIZE);
+
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_unwrap);
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto cleanup;
+	}
+
+	if (t_unwrap.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE export unwrap: unwrap=0x%x",
+		     (unsigned int)t_unwrap.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto cleanup;
+	}
+
+	res = clear_l4_wrapping_key();
+	if (res != TEE_SUCCESS)
+		goto cleanup;
+
+	res = derive_ephemeral_wrapping_key(ephemeral_ctx, ephemeral_ctx_len);
+	if (res != TEE_SUCCESS)
+		goto cleanup;
+
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_wrap_ephemeral);
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto cleanup;
+	}
+
+	if (t_wrap_ephemeral.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE export rewrap: wrap=0x%x",
+		     (unsigned int)t_wrap_ephemeral.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto cleanup;
+	}
+
+	memcpy(out_blob, t_wrap_ephemeral.rsp.wrap.wkb, HWKM_MAX_BLOB_SIZE);
+	*out_blob_len = HWKM_MAX_BLOB_SIZE;
+	res = TEE_SUCCESS;
+
+cleanup:
+	(void)clear_ephemeral_key();
+	(void)clear_l4_wrapping_key();
+	(void)hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_clear_gp1);
+	mutex_unlock(&drv->hwkm_lock);
+
+	memset(t_unwrap.cmd.unwrap.wkb, 0, sizeof(t_unwrap.cmd.unwrap.wkb));
+	memset(t_wrap_ephemeral.rsp.wrap.wkb, 0, sizeof(t_wrap_ephemeral.rsp.wrap.wkb));
+	return res;
+}
+
+/*
+ * import_and_wrap_with_hw_key() - Import caller key bytes then wrap under L4 key.
+ *
+ * Writes caller key material into TZ_GENERAL_PURPOSE_SLOT1, derives L3 then
+ * L4 wrapping keys from TZ_UKDK_L2, exports wrapped blob, and clears
+ * transient slots.
+ */
+TEE_Result import_and_wrap_with_hw_key(const uint8_t *in_key, size_t in_key_len,
+				       uint8_t *out_blob, size_t *out_blob_len)
+{
+	const struct hwkm_key_policy import_policy = {
+		.km_by_tz_allowed = true,
+		.km_by_nsec_allowed = true,
+		.alg_allowed = HWKM_ALGO_AES256_CMAC,
+		.enc_allowed = true,
+		.key_type = HWKM_KEY_TYPE_KDK,
+		.kdf_depth = 1,
+		.wrap_export_allowed = true,
+		.swap_export_allowed = true,
+		.wrap_with_tpkey_allowed = true,
+		.security_lvl = HWKM_KEY_SECURITY_LVL_SW_KEY,
+		.hw_destination = HWKM_KEY_DEST_ICE_SLAVE,
+	};
+	struct hwkm_transaction t_import = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_RDWR,
+			.rdwr = {
+				.slot = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.is_write = true,
+				.policy = import_policy,
+			},
+		},
+	};
+	struct hwkm_transaction t_wrap = {
+		.cmd = {
+			.op = HWKM_OP_KEY_WRAP_EXPORT,
+			.wrap = {
+				.sks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.kwk = HWKM_SLOT_TZ_WRAP_KEY_SLOT,
+			},
+		},
+	};
+	struct hwkm_transaction t_clear_gp1 = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.is_double_key = false,
+			},
+		},
+	};
+	int rc = HWKM_ERR_GENERIC;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct hwkm_drv_ctx *drv = hwkm_get_context();
+	if (!drv)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (!in_key || !in_key_len || !out_blob || !out_blob_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (in_key_len > HWKM_MAX_KEY_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (*out_blob_len < HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	memcpy(t_import.cmd.rdwr.key, in_key, in_key_len);
+
+	mutex_lock(&drv->hwkm_lock);
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_import);
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto cleanup;
+	}
+
+	if (t_import.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE import L4: import=0x%x", (unsigned int)t_import.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto cleanup;
+	}
+
+	res = derive_l4_wrapping_key();
+	if (res != TEE_SUCCESS)
+		goto cleanup;
+
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_wrap);
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto cleanup;
+	}
+
+	if (t_wrap.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE import L4: wrap=0x%x", (unsigned int)t_wrap.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto cleanup;
+	}
+
+	memcpy(out_blob, t_wrap.rsp.wrap.wkb, HWKM_MAX_BLOB_SIZE);
+	*out_blob_len = HWKM_MAX_BLOB_SIZE;
+	res = TEE_SUCCESS;
+
+cleanup:
+	(void)clear_l4_wrapping_key();
+	(void)hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_clear_gp1);
+	mutex_unlock(&drv->hwkm_lock);
+
+	memset(t_import.cmd.rdwr.key, 0, sizeof(t_import.cmd.rdwr.key));
+	memset(t_wrap.rsp.wrap.wkb, 0, sizeof(t_wrap.rsp.wrap.wkb));
+	return res;
+}
+
+/*
+ * generate_hw_wrapped_key() - Generate and wrap a key with UKDK-derived L4 key.
+ *
+ * Generates key material in TZ_GENERAL_PURPOSE_SLOT1, derives L3 then L4
+ * wrapping keys from TZ_UKDK_L2, exports wrapped blob, and clears transient
+ * slots.
+ */
+TEE_Result generate_hw_wrapped_key(uint8_t *out_blob, size_t *out_blob_len)
+{
+	const struct hwkm_key_policy key_policy = {
+		.km_by_tz_allowed = true,
+		.km_by_nsec_allowed = true,
+		.alg_allowed = HWKM_ALGO_AES256_CMAC,
+		.enc_allowed = true,
+		.key_type = HWKM_KEY_TYPE_KDK,
+		.kdf_depth = 1,
+		.wrap_export_allowed = true,
+		.swap_export_allowed = true,
+		.wrap_with_tpkey_allowed = true,
+		.security_lvl = HWKM_KEY_SECURITY_LVL_SW_KEY,
+		.hw_destination = HWKM_KEY_DEST_ICE_SLAVE,
+	};
+	struct hwkm_transaction t_keygen = {
+		.cmd = {
+			.op = HWKM_OP_NIST_KEYGEN,
+			.keygen = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.policy = key_policy,
+			},
+		},
+	};
+	struct hwkm_transaction t_wrap = {
+		.cmd = {
+			.op = HWKM_OP_KEY_WRAP_EXPORT,
+			.wrap = {
+				.sks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.kwk = HWKM_SLOT_TZ_WRAP_KEY_SLOT,
+			},
+		},
+	};
+	struct hwkm_transaction t_clear_gp1 = {
+		.cmd = {
+			.op = HWKM_OP_KEY_SLOT_CLEAR,
+			.clear = {
+				.dks = HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+				.is_double_key = false,
+			},
+		},
+	};
+	int rc = HWKM_ERR_GENERIC;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct hwkm_drv_ctx *drv = hwkm_get_context();
+	if (!drv)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (!out_blob || !out_blob_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (*out_blob_len < HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	mutex_lock(&drv->hwkm_lock);
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_keygen);
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto cleanup;
+	}
+
+	if (t_keygen.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE gen L4: keygen=0x%x", (unsigned int)t_keygen.rsp.status);
+		goto cleanup;
+	}
+
+	res = derive_l4_wrapping_key();
+	if (res != TEE_SUCCESS)
+		goto cleanup;
+
+	rc = hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_wrap);
+	if (rc) {
+		res = hwkm_to_optee(rc);
+		goto cleanup;
+	}
+
+	if (t_wrap.rsp.status != HWKM_RSP_ERR_SUCCESS) {
+		EMSG("ICE gen L4: wrap=0x%x", (unsigned int)t_wrap.rsp.status);
+		res = TEE_ERROR_GENERIC;
+		goto cleanup;
+	}
+
+	memcpy(out_blob, t_wrap.rsp.wrap.wkb, HWKM_MAX_BLOB_SIZE);
+	*out_blob_len = HWKM_MAX_BLOB_SIZE;
+	res = TEE_SUCCESS;
+
+cleanup:
+	(void)clear_l4_wrapping_key();
+	(void)hwkm_run_transaction(HWKM_KEY_DEST_KM_MASTER, &t_clear_gp1);
+	mutex_unlock(&drv->hwkm_lock);
+
+	memset(t_wrap.rsp.wrap.wkb, 0, sizeof(t_wrap.rsp.wrap.wkb));
+	return res;
+}
+
+TEE_Result get_raw_secret_from_wrapped_key(const uint8_t *wrapped_blob,
+					   size_t wrapped_blob_len,
+					   uint8_t *raw_secret,
+					   size_t *raw_secret_len)
+{
+	uint8_t derivation_key[HWKM_MAX_KEY_SIZE] = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!wrapped_blob || !raw_secret || !raw_secret_len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (wrapped_blob_len != HWKM_MAX_BLOB_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (*raw_secret_len != ICE_RAW_SECRET_SIZE_BYTES)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = check_dont_care_bytes(wrapped_blob, wrapped_blob_len);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = hwkm_unwrap_and_read_slot_key(wrapped_blob, wrapped_blob_len,
+					    HWKM_SLOT_TZ_GENERAL_PURPOSE_SLOT1,
+					    derivation_key);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	res = cmac_counter_kdf(derivation_key, raw_secret,
+			       *raw_secret_len,
+			       raw_secret_label,
+			       sizeof(raw_secret_label),
+			       raw_secret_context,
+			       sizeof(raw_secret_context));
+
+out:
+	memset(derivation_key, 0, sizeof(derivation_key));
+	return res;
+}

@@ -9,8 +9,8 @@
 #include <string.h>
 #include <trace.h>
 
-#include <hwkm.h>
-#include <hwkm_errno.h>
+#include <drivers/hwkm.h>
+#include <drivers/hwkm_errno.h>
 
 #define HWKM_HUK_MKS_CTX	"OPTEE_HUK_HWKM_V1_MKS"
 #define HWKM_HUK_L3_CTX		"OPTEE_HUK_HWKM_V1_L3"

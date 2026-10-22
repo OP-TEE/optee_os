@@ -104,4 +104,19 @@
 
 #define TITAN_SS_BASE			UL(0x0ac00000)
 #define TITAN_SS_SIZE			UL(0x00200000)
+
+#if defined(CFG_QCOM_STORAGE_UFS)
+#define HWKM_ICE_BASE                   HWKM_UFS_MEM_ICE_BASE
+#define HWKM_ICE_SIZE                   HWKM_UFS_MEM_ICE_SIZE
+
+#define ICE_LUT_KEYS                    UFS_MEM_ICE_LUT_KEYS
+#define ICE_LUT_KEYS_SIZE               UFS_MEM_ICE_LUT_KEYS_SIZE
+#else /* CFG_QCOM_STORAGE_UFS */
+#define HWKM_ICE_BASE                   HWKM_SDC1_SDCC_ICE_BASE
+#define HWKM_ICE_SIZE                   HWKM_SDC1_SDCC_ICE_SIZE
+
+#define ICE_LUT_KEYS                    PERIPH_SS_SDC1_SDCC_ICE_LUT_KEYS
+#define ICE_LUT_KEYS_SIZE               PERIPH_SS_SDC1_SDCC_ICE_LUT_KEYS_SIZE
+#endif /* CFG_QCOM_STORAGE_UFS */
+
 #endif /* TARGET_CONFIG_H */
