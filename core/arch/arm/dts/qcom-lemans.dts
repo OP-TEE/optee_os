@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * Secure world view of Lemans (SA8775P) as seen by OP-TEE.
+ *
+ * Only the properties OP-TEE consumes are described, so properties such as
+ * clocks, interrupts and pinctrl are left out. The compile-time values in
+ * plat-qcom stay the fallback for every node.
+ */
+
+/dts-v1/;
+
+/ {
+	compatible = "qcom,sa8775p";
+	model = "Qualcomm Lemans (OP-TEE)";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &uart;
+	};
+
+	chosen {
+		stdout-path = "serial0";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* Vault of the pIMEM window which backs the TA RAM */
+		trusted_apps_mem: trusted-apps@d1900000 {
+			reg = <0x0 0xd1900000 0x0 0x1c00000>;
+			no-map;
+		};
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* Ramblur controller of the pIMEM */
+		pimem@610000 {
+			compatible = "qcom,ramblur-pimem";
+			reg = <0x0 0x00610000 0x0 0x4000>;
+			memory-region = <&trusted_apps_mem>;
+			/* Only OP-TEE uses it */
+			status = "disabled";
+			secure-status = "okay";
+		};
+
+		uart: serial@a8c000 {
+			compatible = "qcom,geni-debug-uart";
+			reg = <0x0 0x00a8c000 0x0 0x4000>;
+		};
+
+		/* OP-TEE uses its own execution environment page of the TRNG */
+		rng@10d1000 {
+			compatible = "qcom,sa8775p-trng", "qcom,trng";
+			reg = <0x0 0x010d1000 0x0 0x1000>;
+			/* Only OP-TEE uses this page */
+			status = "disabled";
+			secure-status = "okay";
+		};
+
+		intc: interrupt-controller@17a00000 {
+			compatible = "arm,gic-v3";
+			reg = <0x0 0x17a00000 0x0 0x10000>,	/* GICD */
+			      <0x0 0x17a60000 0x0 0x100000>;	/* GICR */
+			interrupt-controller;
+			#interrupt-cells = <3>;
+		};
+	};
+};
