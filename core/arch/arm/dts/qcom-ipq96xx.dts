@@ -35,5 +35,14 @@
 			compatible = "qcom,geni-debug-uart";
 			reg = <0x0 0x01a98000 0x0 0x4000>;
 		};
+
+		intc: interrupt-controller@f200000 {
+			compatible = "arm,gic-v3";
+			reg = <0x0 0x0f200000 0x0 0x10000>,	/* GICD */
+			      <0x0 0x0f240000 0x0 0xa0000>;	/* GICR */
+			interrupt-controller;
+			/* OP-TEE resolves at most 3 interrupt cells */
+			#interrupt-cells = <3>;
+		};
 	};
 };
