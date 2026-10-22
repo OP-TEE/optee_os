@@ -45,13 +45,16 @@ struct phdr_info {
 };
 
 bool pas_elf_is_hashed(uint32_t p_type, uint32_t p_flags);
+bool pas_elf_is_relocatable(const uint8_t *fw, const struct elf_info *e_info);
 void pas_elf_get_phdr(const uint8_t *fw, const struct elf_info *e_info,
 		      size_t idx, struct phdr_info *p_info);
-
 TEE_Result pas_elf_parse(const uint8_t *fw, size_t fw_size,
 			 struct elf_info *e_info);
 TEE_Result pas_elf_image_range(const uint8_t *fw, const struct elf_info *e_info,
 			       uint64_t *base, uint64_t *end);
+TEE_Result pas_elf_get_fw_range(const uint8_t *fw, size_t fw_size,
+				struct elf_info *e_info, paddr_t *base,
+				size_t *size);
 
 TEE_Result pas_platform_mem_setup(uint32_t pas_id, uint32_t fw_size,
 				  uint32_t fw_base_low, uint32_t fw_base_high);
@@ -62,7 +65,8 @@ TEE_Result pas_platform_set_remote_state(uint32_t pas_id, uint32_t state);
 TEE_Result pas_platform_auth_and_reset(uint32_t pas_id);
 TEE_Result pas_platform_is_supported(uint32_t pas_id);
 TEE_Result pas_platform_capabilities(uint32_t pas_id);
-TEE_Result pas_platform_init_image(uint32_t pas_id);
+TEE_Result pas_platform_init_image(uint32_t pas_id,
+				   const struct pas_metadata *metadata);
 TEE_Result pas_platform_shutdown(uint32_t pas_id);
 
 #ifdef CFG_QCOM_PAS_AUTH
