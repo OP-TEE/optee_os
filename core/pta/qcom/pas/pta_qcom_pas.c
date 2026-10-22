@@ -54,12 +54,19 @@ static TEE_Result qcom_pas_init_image(uint32_t pt,
 						TEE_PARAM_TYPE_MEMREF_INPUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE);
+	struct pas_metadata metadata = { };
 
 	if (pt != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	metadata.data = params[1].memref.buffer;
+	metadata.size = params[1].memref.size;
+	if (!metadata.data || !metadata.size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	DMSG("invoked with pas_id: %d", params[0].value.a);
 
-	return pas_platform_init_image(params[0].value.a);
+	return pas_platform_init_image(params[0].value.a, &metadata);
 }
 
 static TEE_Result qcom_pas_mem_setup(uint32_t pt,
