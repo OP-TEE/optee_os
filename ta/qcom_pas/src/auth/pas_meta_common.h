@@ -37,5 +37,6 @@ struct pas_meta_ops {
 };
 
 extern const struct pas_meta_ops pas_meta_v6_ops;
+extern const struct pas_meta_ops pas_meta_v7_ops;
 
 #endif /* __PAS_META_COMMON_H */

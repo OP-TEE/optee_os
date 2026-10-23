@@ -22,6 +22,8 @@ static const struct pas_meta_ops *pas_meta_get_ops(uint32_t version)
 	switch (version) {
 	case PAS_MBN_VERSION_6:
 		return &pas_meta_v6_ops;
+	case PAS_MBN_VERSION_7:
+		return &pas_meta_v7_ops;
 	default:
 		return NULL;
 	}
