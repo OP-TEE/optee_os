@@ -245,7 +245,7 @@ enum tpm2_result tpm2_pcr_read(uint8_t pcr_idx, uint16_t alg, void *digest,
 	 * pcr_select_size indicates the number of octets in pcr_select. It's
 	 * minimum value is available in caps structure.
 	 */
-	pcr_select_size = MAX(pcr_select_idx, caps.pcr_select_min);
+	pcr_select_size = MAX(pcr_select_idx + 1U, caps.pcr_select_min);
 
 	/* Double check - the size shouldn't exceed TPM2_PCR_SELECT_MAX */
 	if (pcr_select_size > TPM2_PCR_SELECT_MAX)
