@@ -329,7 +329,7 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 		return FFA_NO_MEMORY;
 
 	if ((owner_sp && owner_sp->endpoint_id != sender_id) ||
-	    (!owner_sp && sp_get_session(sender_id))) {
+	    (!owner_sp && sender_id >= FFA_SWD_ID_MIN)) {
 		res = FFA_DENIED;
 		goto cleanup;
 	}
@@ -508,6 +508,9 @@ check_retrieve_request(struct sp_mem_receiver *receiver, uint32_t ffa_vers,
 
 	retr_access = (void *)((vaddr_t)rx + mem_trans->mem_access_offs);
 	retr_perm = READ_ONCE(retr_access->access_perm.perm);
+
+	if (mem_trans->sender_id != smem->sender_id)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* Check if tag is correct */
 	if (receiver->smem->tag != retr_tag) {
@@ -889,10 +892,11 @@ bool ffa_mem_reclaim(struct thread_smc_1_2_regs *args,
 		return false;
 
 	/*
-	 * If the caller is an SP, make sure that it is the owner of the share.
-	 * If the call comes from NWd this is ensured by the hypervisor.
+	 * Only the owner may reclaim an SP-owned share. The hypervisor enforces
+	 * ownership among NWd endpoints.
 	 */
-	if (caller_sp && caller_sp->endpoint_id != smem->sender_id) {
+	if ((caller_sp && caller_sp->endpoint_id != smem->sender_id) ||
+	    (!caller_sp && smem->sender_id >= FFA_SWD_ID_MIN)) {
 		sp_mem_write_unlock(smem);
 		ffa_set_error(args, FFA_INVALID_PARAMETERS);
 		return true;
