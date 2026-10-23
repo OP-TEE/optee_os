@@ -109,7 +109,7 @@ TEE_Result qcom_secboot_get_device_ids(struct qcom_secboot_device_ids *ids)
 	res = read_sense_reg(JTAG_ID_OFFSET, &val);
 	if (res)
 		return res;
-	ids->jtag_id = val & JTAG_ID_AUTH_BMSK;
+	ids->jtag_id = (val & JTAG_ID_AUTH_BMSK) >> JTAG_ID_AUTH_SHFT;
 
 	res = read_sense_reg(SERIAL_NUM_OFFSET, &ids->serial_num);
 	if (res)

@@ -223,6 +223,7 @@ enum qfprom_perm_bit_pos {
 
 #define JTAG_ID_OFFSET				0x6130
 #define JTAG_ID_AUTH_BMSK			GENMASK_32(27, 0)
+#define JTAG_ID_AUTH_SHFT			0
 
 #define SERIAL_NUM_OFFSET			0x6134
 
