@@ -16,4 +16,7 @@
 /* GIC-500 redistributor (GICD_BASE is common to the family). */
 #define GICR_BASE			UL(0x0f260000)
 
+#define TLMM_BASE			UL(0x00400000)
+#define TLMM_BASE_SIZE			UL(0x00800000)
+
 #endif /* TARGET_CONFIG_H */
