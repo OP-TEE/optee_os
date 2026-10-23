@@ -68,6 +68,40 @@ TEE_Result qcom_secboot_is_use_serial_num_enabled(bool *enabled)
 	return TEE_SUCCESS;
 }
 
+#ifdef QFPROM_ROOT_OF_TRUST_SENSE_OFFSET
+/*
+ * The root-of-trust hash is spread over QFPROM_ROOT_OF_TRUST_SENSE_REG_COUNT
+ * consecutive registers which alternately hold 32 and 24 bits of it, least
+ * significant bit first.
+ */
+static TEE_Result read_root_of_trust(uint8_t *hash, size_t len)
+{
+	size_t bit_pos = 0;
+	size_t reg = 0;
+
+	memset(hash, 0, len);
+
+	for (reg = 0; reg < QFPROM_ROOT_OF_TRUST_SENSE_REG_COUNT; reg++) {
+		uint32_t width = (reg % 2) ? 24 : 32;
+		uint32_t value = 0;
+		uint32_t bit = 0;
+		TEE_Result res = TEE_ERROR_GENERIC;
+
+		res = read_sense_reg(QFPROM_ROOT_OF_TRUST_SENSE_OFFSET +
+				     reg * sizeof(uint32_t), &value);
+		if (res)
+			return res;
+
+		for (bit = 0; bit < width && bit_pos < len * 8;
+		     bit++, bit_pos++) {
+			if (value & BIT32(bit))
+				hash[bit_pos / 8] |= U(1) << (bit_pos % 8);
+		}
+	}
+
+	return bit_pos == len * 8 ? TEE_SUCCESS : TEE_ERROR_BAD_FORMAT;
+}
+#else
 static TEE_Result read_root_of_trust(uint8_t *hash, size_t len)
 {
 	size_t off = 0;
@@ -85,6 +119,7 @@ static TEE_Result read_root_of_trust(uint8_t *hash, size_t len)
 
 	return TEE_SUCCESS;
 }
+#endif
 
 TEE_Result qcom_secboot_get_root_of_trust(uint8_t *hash, size_t len)
 {
