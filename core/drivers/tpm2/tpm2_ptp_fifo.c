@@ -380,6 +380,28 @@ enum tpm2_result tpm2_fifo_send(struct tpm2_chip *chip, uint8_t *buf,
 	return ret;
 }
 
+/*
+ * Reject a reported response length that would underflow the read-loop bound
+ * and overflow buf, or that exceeds the caller's buffer. Such a slipped stream
+ * is retried by the caller via TIS RESPONSE_RETRY.
+ */
+static enum tpm2_result tpm2_check_resp_len(uint32_t resp_len, uint32_t rxsize,
+					    uint32_t buf_len)
+{
+	if (resp_len < TPM2_HDR_LEN || resp_len < rxsize) {
+		EMSG("Bad response length %" PRIx32 ", retrying", resp_len);
+		return TPM2_ERR_IO;
+	}
+
+	if (resp_len > buf_len) {
+		EMSG("Response length %" PRIx32 " > buffer %" PRIx32
+		     ", retrying", resp_len, buf_len);
+		return TPM2_ERR_SHORT_BUFFER;
+	}
+
+	return TPM2_OK;
+}
+
 /* Based on Fig 4 - Receive response using FIFO protocol in DD Specification */
 enum tpm2_result tpm2_fifo_recv(struct tpm2_chip *chip, uint8_t *buf,
 				uint32_t *len, uint32_t cmd_duration)
@@ -425,12 +447,14 @@ enum tpm2_result tpm2_fifo_recv(struct tpm2_chip *chip, uint8_t *buf,
 		param_size_flag = 0;
 		ret = TPM2_OK;
 
-		while (bytes2read - rxsize) {
+		while (rxsize < bytes2read) {
 			ret = tpm2_fifo_get_burstcount(chip, &burstcnt);
 			if (ret)
 				break;
 
 			sz = MIN(burstcnt, bytes2read - rxsize);
+			/* Never write past the caller's buffer */
+			sz = MIN(sz, *len - rxsize);
 			ret = ops->rx8(chip, TPM2_DATA_FIFO(chip->locality), sz,
 				       buf + rxsize);
 			if (ret)
@@ -446,14 +470,17 @@ enum tpm2_result tpm2_fifo_recv(struct tpm2_chip *chip, uint8_t *buf,
 				bytes2read = tpm2_cmd_len((void *)buf);
 				param_size_flag = true;
 
-				if (bytes2read > *len) {
-					EMSG("Buffer too small: %" PRIx32 "> %"
-					      PRIx32, bytes2read, *len);
-					/* Return required buffer length */
-					*len = bytes2read;
-					ret = TPM2_ERR_SHORT_BUFFER;
-					goto out;
-				}
+				ret = tpm2_check_resp_len(bytes2read, rxsize,
+							  *len);
+				/*
+				 * A bad or oversized length is almost always a
+				 * corrupt header read on a flaky bus; a re-read
+				 * via RESPONSE_RETRY can recover it, so retry
+				 * rather than bail. A genuinely too-big response
+				 * survives every retry and is reported at out:.
+				 */
+				if (ret)
+					break;
 			}
 		}
 
@@ -478,6 +505,13 @@ enum tpm2_result tpm2_fifo_recv(struct tpm2_chip *chip, uint8_t *buf,
 		retry_cnt++;
 	}
 out:
+	/*
+	 * A response that still did not fit after every retry is a genuine
+	 * too-big reply, not a transient glitch: report the required length.
+	 */
+	if (ret == TPM2_ERR_SHORT_BUFFER)
+		*len = bytes2read;
+
 	/* Cancel command and relinquish locality */
 	if (tpm2_fifo_end(chip))
 		return TPM2_ERR_GENERIC;
