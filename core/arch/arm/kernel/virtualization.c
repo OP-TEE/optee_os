@@ -14,6 +14,7 @@
 #include <kernel/panic.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
+#include <kernel/thread_private.h>
 #include <kernel/thread_spmc.h>
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
@@ -249,6 +250,7 @@ static TEE_Result configure_guest_prtn_mem(struct guest_partition *prtn)
 	       phys_to_virt(original_data_pa, MEM_AREA_SEC_RAM_OVERALL,
 			    __data_end - __data_start),
 	       __data_end - __data_start);
+	core_mmu_init_uref_base(&prtn->mem_map);
 
 	return TEE_SUCCESS;
 
@@ -299,11 +301,29 @@ static TEE_Result alloc_gsd(struct guest_partition *prtn)
 
 	return TEE_SUCCESS;
 }
+
+static size_t add_heap_pool(void)
+{
+#ifdef CFG_DYN_CONFIG
+	static uint8_t heap_pool[SMALL_PAGE_SIZE] __aligned(sizeof(long) * 2);
+	void *buf = heap_pool;
+	size_t sz = sizeof(heap_pool);
+#else
+	void *buf = __heap1_start;
+	size_t sz = __heap1_end - __heap1_start;
+#endif
+
+	malloc_add_pool(buf, sz);
+
+	return sz;
+}
+
 TEE_Result virt_guest_created(uint16_t guest_id)
 {
 	struct guest_partition *prtn = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t exceptions = 0;
+	size_t heap_sz = 0;
 
 	if (guest_id == HYP_CLNT_ID)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -325,7 +345,7 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 
 	set_current_prtn(prtn);
 
-	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
+	heap_sz = add_heap_pool();
 	/*
 	 * The TA memory is registered in the core pool to allow it to be
 	 * used for both core and TA physical memory allocations.
@@ -333,6 +353,21 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 	phys_mem_init(tee_mm_get_smem(prtn->ta_ram),
 		      tee_mm_get_bytes(prtn->ta_ram), 0, 0);
 	page_alloc_init();
+	if (IS_ENABLED(CFG_DYN_CONFIG)) {
+		size_t sz = CFG_CORE_HEAP_SIZE;
+		vaddr_t va = 0;
+
+		sz += sizeof(struct thread_ctx) * CFG_NUM_THREADS;
+		sz -= heap_sz;
+		sz = ROUNDUP(sz, SMALL_PAGE_SIZE);
+		va = virt_page_alloc(sz / SMALL_PAGE_SIZE,
+				     MAF_CORE_MEM | MAF_ZERO_INIT);
+		if (!va) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto err_unset_prtn;
+		}
+		malloc_add_pool((void *)va, sz);
+	}
 	/* Initialize threads */
 	thread_init_threads(CFG_NUM_THREADS);
 	/* Do the preinitcalls */
@@ -349,6 +384,19 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 
 	return TEE_SUCCESS;
 
+err_unset_prtn:
+	set_current_prtn(NULL);
+	core_mmu_set_default_prtn();
+	tee_mm_free(prtn->tee_ram);
+	prtn->tee_ram = NULL;
+	tee_mm_free(prtn->ta_ram);
+	prtn->ta_ram = NULL;
+	tee_mm_free(prtn->tables);
+	prtn->tables = NULL;
+	core_free_mmu_prtn(prtn->mmu_prtn);
+	prtn->mmu_prtn = NULL;
+	nex_free(prtn->mem_map.map);
+	prtn->mem_map.map = NULL;
 err_free_gsd:
 	destroy_gsd(prtn, true /*free_only*/);
 err_free_prtn:
