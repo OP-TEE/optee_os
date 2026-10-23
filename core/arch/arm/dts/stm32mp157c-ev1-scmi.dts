@@ -31,3 +31,8 @@
 	compatible = "st,stm32mp1-rcc-secure";
 	status = "okay";
 };
+
+&iwdg1 {
+	timeout-sec = <32>;
+	status = "okay";
+};
