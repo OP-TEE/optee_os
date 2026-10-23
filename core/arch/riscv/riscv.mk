@@ -29,6 +29,18 @@ $(error Error: CFG_RV64_core or CFG_RV32_core should be defined)
 endif
 endif
 
+# Pad core .text, .rodata and .data out to separate naturally aligned
+# power-of-two regions, each described by one NAPOT PMP entry in the OpenSBI
+# domain device tree. The orders must add up to CFG_TEE_RAM_VA_SIZE.
+CFG_RISCV_CORE_NAPOT_REGIONS ?= n
+ifeq ($(CFG_RISCV_CORE_NAPOT_REGIONS),y)
+$(call force,CFG_CORE_RODATA_NOEXEC,y)
+$(call force,CFG_CORE_RWDATA_NOEXEC,y)
+CFG_RISCV_CORE_TEXT_ORDER ?= 20
+CFG_RISCV_CORE_RODATA_ORDER ?= 19
+CFG_RISCV_CORE_RWDATA_ORDER ?= 19
+endif
+
 CFG_CORE_RWDATA_NOEXEC ?= y
 CFG_CORE_RODATA_NOEXEC ?= n
 ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
