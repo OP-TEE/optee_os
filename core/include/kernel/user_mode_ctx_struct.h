@@ -25,8 +25,11 @@
  * @dl_entry_func:	Entry address in ldelf for dynamic linking
  * @ldelf_stack_ptr:	Stack pointer used for dumping address mappings and
  *			stack trace
+ * @ldelf_shadow_stack_ptr: Shadow stack pointer paired with @ldelf_stack_ptr
  * @is_32bit:		True if 32-bit TS, false if 64-bit TS
  * @stack_ptr:		Stack pointer
+ * @shadow_stack_ptr:	Shadow stack pointer paired with @stack_ptr, 0 if the
+ *			TS has no shadow stack
  * @bbuf:		Bounce buffer for user buffers
  * @bbuf_size:		Size of bounce buffer
  * @bbuf_offs:		Offset to unused part of bounce buffer
@@ -50,8 +53,14 @@ struct user_mode_ctx {
 #endif
 	uaddr_t dl_entry_func;
 	uaddr_t ldelf_stack_ptr;
+#ifdef CFG_TA_ZICFISS
+	uaddr_t ldelf_shadow_stack_ptr;
+#endif
 	bool is_32bit;
 	vaddr_t stack_ptr;
+#ifdef CFG_TA_ZICFISS
+	vaddr_t shadow_stack_ptr;
+#endif
 	uint8_t *bbuf;
 	size_t bbuf_size;
 	size_t bbuf_offs;

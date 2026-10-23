@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
+ * Copyright 2026 NXP
  * Copyright (c) 2023 ESWIN Corp. or its affiliates.
  * Authors:
  *   Liu Shiwei <liushiwei@eswincomputing.com>
@@ -29,3 +30,5 @@ FUNC _ldelf_panic, :
 END_FUNC _ldelf_panic
 
 #include "syscalls_asm.S"
+
+RISCV_CFI(emit_riscv_feature_1_and RISCV_TA_FEATURE_1_AND)
