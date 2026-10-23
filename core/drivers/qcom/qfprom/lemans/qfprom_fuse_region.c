@@ -3,6 +3,7 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <qfprom_rpmh.h>
 #include <qfprom_target.h>
 
 #include "qfprom_priv.h"
@@ -104,13 +105,13 @@ const size_t region_count = ARRAY_SIZE(region_data);
 
 static TEE_Result qfprom_platform_init(void)
 {
-	return qfprom_vote_supply(qfprom_get_context()->rpmh_handle, "smpa4",
+	return qfprom_rpmh_vote_supply("smpa4",
 				  1800, QFPROM_VREG_MODE_LPM, true);
 }
 
 static TEE_Result qfprom_platform_deinit(void)
 {
-	return qfprom_vote_supply(qfprom_get_context()->rpmh_handle, "smpa4",
+	return qfprom_rpmh_vote_supply("smpa4",
 				  1800, QFPROM_VREG_MODE_LPM, false);
 }
 
