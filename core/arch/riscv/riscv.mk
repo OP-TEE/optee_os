@@ -83,6 +83,7 @@ endif
 
 ifeq ($(CFG_RISCV_SBI_MPXY_RPMI),y)
 $(call force,CFG_RISCV_SBI_MPXY,y)
+$(call force,CFG_DRIVERS_MAILBOX,y)
 endif
 
 # 'y' to let M-mode secure monitor handle the communication between OP-TEE OS
