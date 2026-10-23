@@ -33,16 +33,19 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stdint.h>
+#include <drivers/hfic.h>
 #include <drivers/scif.h>
 #include <drivers/gic.h>
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, SCIF_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
+#ifdef CFG_GIC
 #ifdef _CFG_ARM_GIC_V3_OR_V4
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE,
 			GIC_REDIST_REG_SIZE * CFG_TEE_CORE_NB_CORE);
 #else
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
+#endif
 #endif
 #ifdef PRR_BASE
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, PRR_BASE, SMALL_PAGE_SIZE);
@@ -104,14 +107,20 @@ unsigned long plat_get_aslr_seed(void)
 
 void boot_primary_init_intc(void)
 {
+#ifdef CFG_CORE_HAFNIUM_INTC
+	hfic_init();
+#else
 #ifdef _CFG_ARM_GIC_V3_OR_V4
 	gic_init_v3(0, GICD_BASE, GICR_BASE);
 #else
 	gic_init(GICC_BASE, GICD_BASE);
 #endif
+#endif
 }
 
+#ifdef CFG_GIC
 void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
 }
+#endif /* CFG_GIC */
