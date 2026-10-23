@@ -5,7 +5,6 @@ include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_SCIF,y)
-$(call force,CFG_GIC,y)
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_LPAE,y)
@@ -27,6 +26,7 @@ CFG_TEE_RAM_VA_SIZE ?= 0x100000
 CFG_DT ?= y
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
 $(call force,CFG_TEE_CORE_NB_CORE,8)
+$(call force,CFG_GIC,y)
 ifeq ($(CFG_RCAR_GEN3_HWRNG), y)
 $(warning "Warning: Use of HWRNG can cause crashes on some Renesas SoCs")
 CFG_WITH_SOFTWARE_PRNG ?= n
@@ -48,6 +48,7 @@ $(call force,CFG_TEE_CORE_NB_CORE,8)
 $(call force,CFG_RCAR_ROMAPI, n)
 $(call force,CFG_CORE_CLUSTER_SHIFT, 1)
 $(call force,CFG_ARM_GICV3, y)
+$(call force,CFG_GIC,y)
 endif
 
 ifeq ($(CFG_RCAR_GEN5), y)
@@ -63,7 +64,10 @@ $(call force,CFG_CORE_ARM64_PA_BITS,37)
 $(call force,CFG_TEE_CORE_NB_CORE,32)
 CFG_NUM_THREADS ?= $(CFG_TEE_CORE_NB_CORE)
 $(call force,CFG_CORE_CLUSTER_SHIFT, 2)
+ifneq ($(CFG_CORE_HAFNIUM_INTC),y)
 $(call force,CFG_ARM_GICV3, y)
+$(call force,CFG_GIC,y)
+endif
 $(call force,CFG_CORE_ASLR,n)
 $(call force,CFG_RCAR_ROMAPI, n)
 endif
