@@ -185,6 +185,8 @@ static const struct pas_mbn_ops *pas_mbn_get_ops(uint32_t version)
 	switch (version) {
 	case PAS_MBN_VERSION_6:
 		return &pas_mbn_v6_ops;
+	case PAS_MBN_VERSION_7:
+		return &pas_mbn_v7_ops;
 	default:
 		return NULL;
 	}
@@ -206,8 +208,9 @@ TEE_Result pas_mbn_parse_layout(const uint8_t *segment, size_t segment_size,
 	    layout->hash_table_size % hash_len)
 		return TEE_ERROR_BAD_FORMAT;
 
-	if (ADD_OVERFLOW(layout->qc_meta_size, layout->oem_meta_size,
+	if (ADD_OVERFLOW(layout->common_meta_size, layout->qc_meta_size,
 			 &signed_size) ||
+	    ADD_OVERFLOW(signed_size, layout->oem_meta_size, &signed_size) ||
 	    ADD_OVERFLOW(signed_size, layout->hash_table_size, &signed_size) ||
 	    ADD_OVERFLOW(signed_size, layout->header_size, &signed_size) ||
 	    signed_size > segment_size)
@@ -217,6 +220,13 @@ TEE_Result pas_mbn_parse_layout(const uint8_t *segment, size_t segment_size,
 	mbn->signed_region = segment;
 	mbn->signed_region_size = signed_size;
 	offset = layout->header_size;
+
+	res = pas_mbn_reserve_region(segment, segment_size, &offset,
+				     layout->common_meta_size,
+				     &mbn->common_meta,
+				     &mbn->common_meta_size);
+	if (res)
+		return res;
 
 	res = pas_mbn_reserve_region(segment, segment_size, &offset,
 				     layout->qc_meta_size, &mbn->qc_meta,

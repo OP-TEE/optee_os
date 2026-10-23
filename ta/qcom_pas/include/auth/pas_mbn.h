@@ -19,26 +19,38 @@
  *   MBN hash segment, v6 (48-byte header):
  *     [header][qc meta][oem meta][hash table]
  *     [qc sig][qc certs][oem sig][oem certs]
+ *   MBN hash segment, v7 (40-byte header):
+ *     [header][common meta][qc meta][oem meta][hash table]
+ *     [qc sig][qc certs][oem sig][oem certs]
+ *
+ * v7 adds a common-metadata block shared by both signers (holding the hash
+ * table's digest algorithm, among other fields) ahead of the per-signer
+ * metadata; its header uses a different field layout and offsets from v6
+ * (see pas_mbn_parser_common.h) but the same "fixed header, then concatenated
+ * variable-length regions" shape.
  *
  * Hash table: one digest per ELF program header; entry 0 = digest of the ELF
  * header plus program-header table, entry i = digest of the segment at phdr i.
  */
 
 #define PAS_MBN_VERSION_6	6
+#define PAS_MBN_VERSION_7	7
 
 /*
  * struct pas_mbn - parsed view of an MBN hash segment
  *
  * All pointers reference the caller-owned metadata buffer.
  *
- * @version:		MBN header version (PAS_MBN_VERSION_*)
+ * @version:		MBN header version (PAS_MBN_VERSION_6 / _7)
  * @hash_table:		per-program-header digest table
  * @hash_table_size:	size of the hash table in bytes
  * @num_entries:	number of digests in the table
  * @hash_size:		digest size in bytes (32 = SHA-256, 48 = SHA-384)
  * @signed_region:	first byte covered by the signature
  * @signed_region_size:	number of bytes covered by the signature
- * @oem_meta:		OEM metadata block, NULL if absent
+ * @common_meta:	v7 common metadata block, NULL if absent (v7 only)
+ * @common_meta_size:	common metadata size in bytes
+ * @oem_meta:		OEM metadata block, NULL if absent (v6/v7 only)
  * @oem_meta_size:	OEM metadata size in bytes
  * @oem_sig:		OEM signature (NULL if absent)
  * @oem_sig_size:	OEM signature size
@@ -53,8 +65,8 @@
  * @uie_encrypted:	true if the segment carries a UIE encryption parameter
  *			block (image content is encrypted)
  *
- * The oem_*, qc_* and signed_region fields are populated by pas_mbn_parse()
- * for authentication.
+ * The common_meta/oem_*, qc_* and signed_region fields are populated by
+ * pas_mbn_parse() for authentication.
  */
 struct pas_mbn {
 	uint32_t version;
@@ -65,6 +77,8 @@ struct pas_mbn {
 	uint32_t hash_len;
 	const uint8_t *signed_region;
 	size_t signed_region_size;
+	const uint8_t *common_meta;
+	size_t common_meta_size;
 	const uint8_t *oem_meta;
 	size_t oem_meta_size;
 	const uint8_t *oem_sig;
