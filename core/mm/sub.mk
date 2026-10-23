@@ -7,7 +7,7 @@ srcs-y += core_mmu.c
 srcs-y += pgt_cache.c
 srcs-y += tee_mm.c
 srcs-y += phys_mem.c
-ifneq ($(CFG_CORE_FFA),y)
+ifeq ($(filter y,$(CFG_CORE_FFA) $(CFG_RPMI_TEE_ABI)),)
 srcs-$(CFG_CORE_DYN_SHM) += mobj_dyn_shm.c
 endif
 srcs-y += boot_mem.c

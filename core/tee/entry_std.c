@@ -26,6 +26,9 @@
 #ifdef CFG_CORE_FFA
 #include <kernel/thread_spmc.h>
 #endif
+#ifdef CFG_RPMI_TEE_ABI
+#include <optee_rpmi.h>
+#endif
 
 #define SHM_CACHE_ATTRS	\
 	(uint32_t)(core_mmu_is_shm_cached() ? \
@@ -96,7 +99,39 @@ static TEE_Result set_fmem_param(const struct optee_msg_param_fmem *fmem,
 
 	return TEE_SUCCESS;
 }
-#else /*!CFG_CORE_FFA*/
+#elif defined(CFG_RPMI_TEE_ABI)
+/* Resolve a memory reference relative to the start of its shared parcel. */
+static TEE_Result set_pmem_param(const struct optee_msg_param_pmem *pmem,
+				 struct param_mem *mem)
+{
+	uint64_t key = READ_ONCE(pmem->global_id);
+	uint64_t offset = READ_ONCE(pmem->offs);
+	uint64_t size = READ_ONCE(pmem->size);
+	TEE_Result res = TEE_SUCCESS;
+
+	if (offset > SIZE_MAX || size > SIZE_MAX)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mem->offs = offset;
+	mem->size = size;
+	if (!optee_rpmi_nonce(key)) {
+		/* A NULL memory reference must have a zero parcel offset. */
+		if (offset)
+			return TEE_ERROR_BAD_PARAMETERS;
+		return TEE_SUCCESS;
+	}
+
+	res = mobj_rpmi_get_by_cookie(key, &mem->mobj);
+	if (res)
+		return res;
+
+	if (mem->offs > mem->mobj->size ||
+	    mem->size > mem->mobj->size - mem->offs)
+		return TEE_ERROR_SECURITY;
+
+	return TEE_SUCCESS;
+}
+#else /*!CFG_CORE_FFA && !CFG_RPMI_TEE_ABI*/
 /* fill 'struct param_mem' structure if buffer matches a valid memory object */
 static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 				 uint32_t attr, struct param_mem *mem)
@@ -227,7 +262,20 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 			pt[n] = TEE_PARAM_TYPE_MEMREF_INPUT + attr -
 				OPTEE_MSG_ATTR_TYPE_FMEM_INPUT;
 			break;
-#else /*!CFG_CORE_FFA*/
+#elif defined(CFG_RPMI_TEE_ABI)
+		case OPTEE_MSG_ATTR_TYPE_PMEM_INPUT:
+		case OPTEE_MSG_ATTR_TYPE_PMEM_OUTPUT:
+		case OPTEE_MSG_ATTR_TYPE_PMEM_INOUT:
+			if (saved_attr[n] != attr)
+				return TEE_ERROR_BAD_PARAMETERS;
+			res = set_pmem_param(&params[n].u.pmem,
+					     &ta_param->u[n].mem);
+			if (res)
+				return res;
+			pt[n] = TEE_PARAM_TYPE_MEMREF_INPUT + attr -
+				OPTEE_MSG_ATTR_TYPE_PMEM_INPUT;
+			break;
+#else /*!CFG_CORE_FFA && !CFG_RPMI_TEE_ABI*/
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
@@ -483,7 +531,7 @@ out:
 	arg->ret_origin = err_orig;
 }
 
-#ifndef CFG_CORE_FFA
+#if !defined(CFG_CORE_FFA) && !defined(CFG_RPMI_TEE_ABI)
 #ifdef CFG_CORE_DYN_SHM
 static void register_shm(struct optee_msg_arg *arg, uint32_t num_params)
 {
@@ -705,7 +753,8 @@ TEE_Result __tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 	case OPTEE_MSG_CMD_CANCEL:
 		entry_cancel(arg, num_params);
 		break;
-#if defined(CFG_CORE_DYN_SHM) && !defined(CFG_CORE_FFA)
+#if defined(CFG_CORE_DYN_SHM) && !defined(CFG_CORE_FFA) && \
+	!defined(CFG_RPMI_TEE_ABI)
 	case OPTEE_MSG_CMD_REGISTER_SHM:
 		register_shm(arg, num_params);
 		break;
