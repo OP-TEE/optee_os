@@ -52,5 +52,5 @@ $(error Unsupported PLATFORM_FLAVOR: $(PLATFORM_FLAVOR))
 endif
 
 # Include arch/target specific configurations if present
--include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
--include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
+-include core/arch/arm/plat-qcom/arch/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
+-include core/arch/arm/plat-qcom/arch/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
