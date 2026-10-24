@@ -118,6 +118,36 @@ bool pas_elf_is_relocatable(const uint8_t *fw, const struct elf_info *e_info)
 	return false;
 }
 
+/*
+ * Offset and memory size of the segment of program header @idx in the image
+ * as it is verified, from the base pas_elf_image_range() returns.
+ * TEE_ERROR_ITEM_NOT_FOUND when @idx is not a hashed segment.
+ */
+TEE_Result pas_elf_seg_range(const uint8_t *fw, const struct elf_info *e_info,
+			     size_t idx, uint64_t *offset, size_t *size)
+{
+	struct phdr_info p_info = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint64_t base = 0;
+	uint64_t end = 0;
+
+	if (idx >= e_info->phdr_count)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	pas_elf_get_phdr(fw, e_info, idx, &p_info);
+	if (!pas_elf_is_hashed(p_info.type, p_info.flags))
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	res = pas_elf_image_range(fw, e_info, &base, &end);
+	if (res)
+		return res;
+
+	*offset = p_info.paddr - base;
+	*size = p_info.mem_len;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result pas_elf_parse(const uint8_t *fw, size_t fw_size,
 			 struct elf_info *e_info)
 {
