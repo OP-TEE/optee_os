@@ -107,6 +107,7 @@ TEE_Result pas_elf_parse(const uint8_t *fw, size_t fw_size,
 			 struct elf_info *e_info)
 {
 	const unsigned char *ident = fw;
+	size_t phdr_end = 0;
 
 	if (!fw || !e_info)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -148,6 +149,12 @@ TEE_Result pas_elf_parse(const uint8_t *fw, size_t fw_size,
 	default:
 		return TEE_ERROR_BAD_FORMAT;
 	}
+
+	if (MUL_OVERFLOW(e_info->phdr_entry_len, e_info->phdr_count,
+			 &phdr_end) ||
+	    ADD_OVERFLOW(phdr_end, e_info->phdr_offset, &phdr_end) ||
+	    phdr_end > fw_size)
+		return TEE_ERROR_BAD_FORMAT;
 
 	return TEE_SUCCESS;
 }
