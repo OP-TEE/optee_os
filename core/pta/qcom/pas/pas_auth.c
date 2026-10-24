@@ -87,7 +87,6 @@ static TEE_Result verify_segments(const struct verify_ctx *ctx)
 	const uint8_t *expected = NULL;
 	struct phdr_info p_info = { };
 	struct elf_info e_info = { };
-	size_t phdr_table_len = 0;
 	uint64_t image_end = 0;
 	uint64_t offset = 0;
 	size_t verified = 0;
@@ -103,11 +102,6 @@ static TEE_Result verify_segments(const struct verify_ctx *ctx)
 	res = pas_elf_parse(ctx->metadata, ctx->metadata_len, &e_info);
 	if (res)
 		return res;
-
-	if (MUL_OVERFLOW(e_info.phdr_entry_len, e_info.phdr_count,
-			 &phdr_table_len) ||
-	    !check_range(e_info.phdr_offset, phdr_table_len, ctx->metadata_len))
-		return TEE_ERROR_BAD_FORMAT;
 
 	if (ctx->num_entries != e_info.phdr_count)
 		return TEE_ERROR_SECURITY;
