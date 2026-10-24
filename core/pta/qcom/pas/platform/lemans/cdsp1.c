@@ -10,12 +10,6 @@
 
 #include "cdsp1.h"
 
-#define TURING_NSPAUX_XO_CBCR		0x02008040
-#define TURING_Q6SS_Q6_AXIM_CBCR	0x02008404
-#define TURING_Q6SS_AXIS2_CBCR		0x0200840c
-
-#define TURING_QDSP6SS_CORE_CBCR	0x02348040
-
 #define TURING_QDSP6SS_RST_EVB		0x02300010
 #define TURING_QDSP6SS_BOOT_CMD		0x02300404
 #define TURING_QDSP6SS_BOOT_STATUS	0x02300408
@@ -194,12 +188,6 @@ static TEE_Result cdsp1_fw_start(struct qcom_pas_data *data)
 {
 	vaddr_t base = io_pa_or_va(&data->base, data->size);
 	uint64_t timeout = timeout_init_us(BOOT_FSM_TIMEOUT);
-
-	/* QDSPV73SS out of reset sequence */
-	io_setbits32(base + TURING_QDSP6SS_CORE_CBCR, CBCR_BRANCH_ENABLE_BIT);
-	io_setbits32(base + TURING_Q6SS_Q6_AXIM_CBCR, CBCR_HW_CTL_ENABLE_BIT);
-	io_setbits32(base + TURING_Q6SS_AXIS2_CBCR, CBCR_HW_CTL_ENABLE_BIT);
-	io_setbits32(base + TURING_NSPAUX_XO_CBCR, CBCR_BRANCH_ENABLE_BIT);
 
 	/* Program firmware */
 	io_write32(base + TURING_QDSP6SS_RST_EVB, data->fw_base >> 4);
