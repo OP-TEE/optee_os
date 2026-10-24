@@ -52,6 +52,8 @@ TEE_Result pas_elf_parse(const uint8_t *fw, size_t fw_size,
 			 struct elf_info *e_info);
 TEE_Result pas_elf_image_range(const uint8_t *fw, const struct elf_info *e_info,
 			       uint64_t *base, uint64_t *end);
+TEE_Result pas_elf_seg_range(const uint8_t *fw, const struct elf_info *e_info,
+			     size_t idx, uint64_t *offset, size_t *size);
 TEE_Result pas_elf_get_fw_range(const uint8_t *fw, size_t fw_size,
 				struct elf_info *e_info, paddr_t *base,
 				size_t *size);
