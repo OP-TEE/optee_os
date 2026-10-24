@@ -160,6 +160,8 @@ TEE_Result pas_platform_init_image(uint32_t pas_id,
 	data->fw_size = fw_size;
 	data->relocatable = pas_elf_is_relocatable(metadata_copy, &e_info);
 	res = pas_map_controller_window(pas_id, data);
+	if (!res && subsys->ops->fw_init_image)
+		res = subsys->ops->fw_init_image(data, metadata_copy, &e_info);
 out:
 	free(metadata_copy);
 	return res;
