@@ -2058,7 +2058,7 @@ static void fill_elf_phdr_info(vaddr_t va, size_t idx, struct ta_elf *elf,
 		if (elf->soname)
 			dlpi->dlpi_name = elf->soname;
 		else
-			dlpi->dlpi_name = &info32->zero;
+			dlpi->dlpi_name = &info->zero;
 		dlpi->dlpi_phdr = elf->phdr;
 		dlpi->dlpi_phnum = elf->e_phnum;
 		dlpi->dlpi_adds = 1; /* No unloading on dlclose() currently */
