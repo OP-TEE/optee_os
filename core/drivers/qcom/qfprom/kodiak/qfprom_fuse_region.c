@@ -3,9 +3,8 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#include <drivers/qcom/cmd_db/cmd_db.h>
-#include <drivers/qcom/rpmh/rpmh_client.h>
 #include <inttypes.h>
+#include <qfprom_rpmh.h>
 #include <qfprom_target.h>
 #include <trace.h>
 
@@ -87,58 +86,41 @@ static const struct {
 	{ "smpb1", 1956, QFPROM_VREG_MODE_RET },
 };
 
-static TEE_Result qfprom_vote_mx(uint32_t level)
-{
-	struct rpmh_client *rpmh_handle = qfprom_get_context()->rpmh_handle;
-	TEE_Result res = TEE_ERROR_GENERIC;
-	uint32_t vrm_addr = 0;
-	uint32_t req_id = 0;
-
-	res = cmd_db_get_addr("mx.lvl", &vrm_addr);
-	if (res == TEE_SUCCESS && !vrm_addr)
-		res = TEE_ERROR_ITEM_NOT_FOUND;
-	if (res == TEE_SUCCESS)
-		res = rpmh_send_command(rpmh_handle, RPMH_SET_ACTIVE, true,
-					vrm_addr, level, &req_id);
-	if (res != TEE_SUCCESS)
-		EMSG("MX vote failed: %#"PRIx32, res);
-
-	return res;
-}
-
 static TEE_Result qfprom_platform_init(void)
 {
-	struct rpmh_client *rpmh_handle = qfprom_get_context()->rpmh_handle;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	size_t i = 0;
 
 	for (i = 0; i < ARRAY_SIZE(qfprom_supplies); i++) {
-		res = qfprom_vote_supply(rpmh_handle, qfprom_supplies[i].name,
-					 qfprom_supplies[i].voltage_mv,
-					 qfprom_supplies[i].off_mode, true);
+		const char *name = qfprom_supplies[i].name;
+		uint32_t mv = qfprom_supplies[i].voltage_mv;
+		uint32_t mode = qfprom_supplies[i].off_mode;
+
+		res = qfprom_rpmh_vote_supply(name, mv, mode, true);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
 
-	return qfprom_vote_mx(MX_QFPROM_ENABLE_VAL);
+	return qfprom_rpmh_vote_mx(MX_QFPROM_ENABLE_VAL);
 }
 
 static TEE_Result qfprom_platform_deinit(void)
 {
-	struct rpmh_client *rpmh_handle = qfprom_get_context()->rpmh_handle;
 	TEE_Result res = TEE_SUCCESS;
 	TEE_Result ret = TEE_SUCCESS;
 	size_t i = 0;
 
 	/* Release every vote even if an earlier release fails. */
 	for (i = 0; i < ARRAY_SIZE(qfprom_supplies); i++) {
-		ret = qfprom_vote_supply(rpmh_handle, qfprom_supplies[i].name,
-					 qfprom_supplies[i].voltage_mv,
-					 qfprom_supplies[i].off_mode, false);
+		const char *name = qfprom_supplies[i].name;
+		uint32_t mv = qfprom_supplies[i].voltage_mv;
+		uint32_t mode = qfprom_supplies[i].off_mode;
+
+		ret = qfprom_rpmh_vote_supply(name, mv, mode, false);
 		if (res == TEE_SUCCESS)
 			res = ret;
 	}
-	ret = qfprom_vote_mx(MX_QFPROM_DISABLE_VAL);
+	ret = qfprom_rpmh_vote_mx(MX_QFPROM_DISABLE_VAL);
 	if (res == TEE_SUCCESS)
 		res = ret;
 

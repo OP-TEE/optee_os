@@ -11,9 +11,10 @@ endif
 
 ifeq ($(CFG_QCOM_QFPROM_FUSEPROV),y)
 $(call force,CFG_QCOM_QFPROM,y)
+$(call force,CFG_QCOM_QFPROM_RPMH_CLIENT,y)
 endif
 
-ifeq ($(CFG_QCOM_QFPROM),y)
+ifeq ($(CFG_QCOM_QFPROM_RPMH_CLIENT),y)
 # Fuse blowing needs the ldoc1/smpb1 supply rails the SoC requires
 # for programming, plus Kodiak's MX rail workaround; both are voted
 # over RPMH.
