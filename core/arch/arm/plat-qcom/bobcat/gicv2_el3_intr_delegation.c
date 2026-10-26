@@ -3,7 +3,6 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#include <initcall.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
@@ -83,7 +82,8 @@ static void qcom_gicv2_el3_intr_delegation_register(struct itr_chip *chip,
 		panic("GICv2 EL3 interrupt delegation init failed");
 }
 
-static TEE_Result qcom_gicv2_el3_intr_delegation_init(void)
+/* Register before native interrupts are unmasked, so none gets masked */
+void qcom_gicv2_el3_intr_delegation_init(void)
 {
 	struct itr_chip *chip = interrupt_get_main_chip();
 	size_t it = 0;
@@ -98,7 +98,4 @@ static TEE_Result qcom_gicv2_el3_intr_delegation_init(void)
 	qcom_gicv2_el3_intr_delegation_enable_spis(chip);
 	/* Other cores do it from boot_secondary_init_intc() */
 	qcom_gicv2_el3_intr_delegation_init_per_cpu();
-
-	return TEE_SUCCESS;
 }
-service_init(qcom_gicv2_el3_intr_delegation_init);

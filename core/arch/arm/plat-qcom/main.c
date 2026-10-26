@@ -71,6 +71,7 @@ void boot_primary_init_intc(void)
 	gic_init_v3(0, GICD_BASE, GICR_BASE);
 #else
 	gic_init(GICC_BASE, GICD_BASE);
+	qcom_gicv2_el3_intr_delegation_init();
 #endif
 }
 
