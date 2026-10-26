@@ -100,8 +100,8 @@ static struct stm32_rng_instance *stm32_rng;
 
 static uint32_t stm32_rng_get_entropy_mask(void)
 {
-	return (RNG_CR_CONFIG3 | RNG_CR_NISTC |
-		RNG_CR_CONFIG2 | stm32_rng->ddata->cr_config1_mask);
+	return RNG_CR_CONFIG3 | RNG_CR_NISTC | RNG_CR_CONFIG2 |
+	       stm32_rng->ddata->cr_config1_mask;
 }
 
 static vaddr_t get_base(void)
