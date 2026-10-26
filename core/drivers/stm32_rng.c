@@ -64,7 +64,7 @@
 
 #define RNG_CONFIG_MASK		(RNG_CR_CED | RNG_CR_CLKDIV)
 
-#define DT_RNG_MAX_NIST_CONFIG	U(3)
+#define DT_RNG_NB_NIST_CONFIG	U(3)
 
 struct stm32_rng_driver_data {
 	unsigned long max_noise_clk_freq;
@@ -627,15 +627,19 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 		stm32_rng->clock_error = true;
 
 	cuint = fdt_getprop(fdt, node, "st,rng-cfg", &len);
-	if (cuint && len > 0 &&
-	    (uint32_t)len <= DT_RNG_MAX_NIST_CONFIG * sizeof(uint32_t)) {
+	if (cuint) {
 		uint32_t i = 0;
-		uint32_t rng_cr_config1 = stm32_rng->ddata->cr_config1_mask;
-		uint32_t cr_shift_mask[DT_RNG_MAX_NIST_CONFIG] = {
-			rng_cr_config1,
+		uint32_t cr_shift_mask[DT_RNG_NB_NIST_CONFIG] = {
+			stm32_rng->ddata->cr_config1_mask,
 			RNG_CR_CONFIG2,
 			RNG_CR_CONFIG3,
 		};
+
+		if (len != DT_RNG_NB_NIST_CONFIG * sizeof(uint32_t)) {
+			EMSG("Invalid number of argument for st,rng-cfg : %lu",
+			     len / sizeof(uint32_t));
+			panic();
+		}
 
 		stm32_rng->rng_config = 0;
 
