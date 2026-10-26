@@ -24,8 +24,10 @@ static inline void qcom_diag_log_puts(const char *str __unused) { }
 
 /* GICv2 EL3 interrupt delegation */
 #if defined(CFG_QCOM_GICV2_EL3_INTR_DELEGATION)
+void qcom_gicv2_el3_intr_delegation_init(void);
 void qcom_gicv2_el3_intr_delegation_init_per_cpu(void);
 #else
+static inline void qcom_gicv2_el3_intr_delegation_init(void) { }
 static inline void qcom_gicv2_el3_intr_delegation_init_per_cpu(void) { }
 #endif
 
