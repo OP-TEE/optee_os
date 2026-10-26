@@ -210,11 +210,10 @@ static TEE_Result init_debug(void)
 	if (res)
 		return res;
 
-	if (state != BSEC_STATE_SEC_CLOSED) {
+	if (state != BSEC_STATE_SEC_CLOSED && IS_ENABLED(CFG_INSECURE)) {
 		struct clk __maybe_unused *dbgmcu_clk = NULL;
 
-		if (IS_ENABLED(CFG_INSECURE))
-			IMSG("WARNING: All debug access are allowed");
+		IMSG("WARNING: All debug access are allowed");
 
 		res = stm32_bsec_write_debug_conf(STM32_BSEC_DEBUG_ALL);
 		if (res)
