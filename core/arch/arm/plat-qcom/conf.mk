@@ -54,3 +54,7 @@ endif
 # Include arch/target specific configurations if present
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
+
+# Fuse blowing support in the QFPROM driver is only needed for provisioning.
+# The security-fuse readers used by the PAS authentication do not need it.
+CFG_QCOM_FUSE_BLOW ?= $(CFG_QCOM_QFPROM_FUSEPROV)
