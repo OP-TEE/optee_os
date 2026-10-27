@@ -23,6 +23,8 @@ struct tee_pobj {
 	bool creating;	/* can only be changed with mutex held */
 	/* Filesystem handling this object */
 	const struct tee_file_operations *fops;
+	/* Non-owning backend-private state, managed by the filesystem. */
+	void *fs_private;
 };
 
 enum tee_pobj_usage {

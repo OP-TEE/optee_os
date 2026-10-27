@@ -166,12 +166,13 @@ TEE_Result tee_fs_htree_truncate(struct tee_fs_htree **ht, size_t block_num);
 TEE_Result tee_fs_htree_write_block(struct tee_fs_htree **ht, size_t block_num,
 				    const void *block);
 /**
- * tee_fs_htree_write_block() - read and decrypt a data block from storage
+ * tee_fs_htree_read_block() - read and decrypt a data block from storage
  * @ht:		hash tree
  * @block_num:	block number
  * @block:	pointer to a block of stor->block_size size
  *
- * Frees the hash tree and sets *ht to NULL on failure and returns an error code
+ * Frees the hash tree and sets *ht to NULL on a missing node, invalid block
+ * length, or authentication failure. RPC and memory errors leave it open.
  */
 TEE_Result tee_fs_htree_read_block(struct tee_fs_htree **ht, size_t block_num,
 				   void *block);
