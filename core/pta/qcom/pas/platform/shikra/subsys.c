@@ -10,6 +10,7 @@
 
 #include "lmcu.h"
 #include "cdsp.h"
+#include "iris.h"
 #include "pas_subsys.h"
 
 static struct qcom_pas_subsys subsystems[] = {
@@ -42,6 +43,16 @@ static struct qcom_pas_subsys subsystems[] = {
 		},
 		.ops = &cdsp_ops,
 		.reset_seq = QCOM_PAS_RESET_CLK_FULL,
+	},
+	{
+		.data = {
+			.pas_id = PAS_ID_IRIS,
+			.base.pa = IRIS_BASE,
+			.size = IRIS_SIZE,
+			.map_type = MEM_AREA_IO_NSEC,
+		},
+		.ops = &iris_ops,
+		.reset_seq = QCOM_PAS_RESET_NONE,
 	},
 };
 
