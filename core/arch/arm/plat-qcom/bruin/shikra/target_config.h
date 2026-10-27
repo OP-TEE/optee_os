@@ -16,4 +16,7 @@
 /* GIC-500 redistributor (GICD_BASE is common to the family). */
 #define GICR_BASE			UL(0x0f260000)
 
+#define IRIS_BASE			UL(0x05a00000)
+#define IRIS_SIZE			ULL(0x00100000)
+
 #endif /* TARGET_CONFIG_H */
