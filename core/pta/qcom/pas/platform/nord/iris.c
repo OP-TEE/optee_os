@@ -145,8 +145,9 @@ static void iris_program_sec_sid_registers(vaddr_t iris_base)
 
 		iris_program_core_thresholds(core_base);
 		iris_program_core_sid_tables(core_base);
-		io_write32(iris_base + SCIBCMDARG3_OFFSET, 0xbeef0001);
 	}
+
+	io_write32(iris_base + SCIBCMDARG3_OFFSET, 0xbeef0001);
 
 	io_write32(iris_base + WRAPPER_TZ_SEC_0_SID, 0x0198a422);
 	io_write32(iris_base + WRAPPER_TZ_SEC_1_SID, 0x00006208);
@@ -176,14 +177,20 @@ static TEE_Result iris_fw_start(struct qcom_pas_data *data)
 {
 	vaddr_t iris_base = 0;
 
-	iris_base = io_pa_or_va(&data->base, data->size);
-	if (!iris_base)
-		return TEE_ERROR_GENERIC;
-
 	if (!data->fw_base) {
 		EMSG("iris: FW not loaded");
 		return TEE_ERROR_NO_DATA;
 	}
+
+	if (!data->fw_size || data->fw_size > SECURE_NP_START) {
+		EMSG("Iris: firmware size %#zx outside the CP layout",
+		     data->fw_size);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	iris_base = io_pa_or_va(&data->base, data->size);
+	if (!iris_base)
+		return TEE_ERROR_GENERIC;
 
 	udelay(IRIS_CLK_SETTLE_US);
 
