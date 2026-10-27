@@ -6,7 +6,9 @@
 #include <initcall.h>
 #include <io.h>
 #include <kernel/delay.h>
+#include <kernel/mutex.h>
 #include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <rng_support.h>
 
@@ -18,35 +20,34 @@
 
 #define QCOM_RNG_TIMEOUT_US			1000000
 
-static struct {
-	paddr_t pa;
-	vaddr_t va;
-} rng = {
+static struct mutex rng_lock = MUTEX_INITIALIZER;
+
+static struct io_pa_va rng = {
 	.pa = QCOM_RNG_REG_BASE,
 };
 
-TEE_Result hw_get_random_bytes(void *buf, size_t len)
+/* No lock, so it can be used before the MMU is enabled (registers via PA) */
+TEE_Result hw_get_random_bytes_nolock(void *buf, size_t len)
 {
 	uint8_t *out = buf;
+	vaddr_t base = 0;
 	uint32_t val = 0;
 	uint64_t to = 0;
-
-	if (!rng.va)
-		return TEE_ERROR_NOT_SUPPORTED;
 
 	if (!out || !len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	base = io_pa_or_va_secure(&rng, QCOM_RNG_REG_SIZE);
 	to = timeout_init_us(QCOM_RNG_TIMEOUT_US);
 	while (len) {
-		if (!(io_read32(rng.va + QCOM_RNG_STATUS) &
+		if (!(io_read32(base + QCOM_RNG_STATUS) &
 		      QCOM_RNG_STATUS_DATA_AVAIL_BMSK)) {
 			if (timeout_elapsed(to))
 				return TEE_ERROR_BUSY;
 			continue;
 		}
 
-		while ((val = io_read32(rng.va + QCOM_RNG_DATA_OUT)) == 0) {
+		while ((val = io_read32(base + QCOM_RNG_DATA_OUT)) == 0) {
 			if (timeout_elapsed(to))
 				return TEE_ERROR_BUSY;
 		}
@@ -60,11 +61,20 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	return TEE_SUCCESS;
 }
 
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	mutex_lock(&rng_lock);
+	res = hw_get_random_bytes_nolock(buf, len);
+	mutex_unlock(&rng_lock);
+
+	return res;
+}
+
 static TEE_Result qcom_csrng_init(void)
 {
-	rng.va = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC, rng.pa,
-					       QCOM_RNG_REG_SIZE);
-	if (!rng.va)
+	if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, rng.pa, QCOM_RNG_REG_SIZE))
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
