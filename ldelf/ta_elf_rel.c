@@ -740,6 +740,140 @@ static void __noreturn e64_relocate(struct ta_elf *elf __unused,
 }
 #endif /*ARM64 || RV64*/
 
+#ifdef RV32
+/*
+ * RISC-V uses RELA relocations, also in 32-bit ELF files: this is the
+ * 32-bit counterpart of the RV64 part of e64_relocate().
+ */
+static void e32_get_rela_sym_name(const Elf32_Sym *sym_tab, size_t num_syms,
+				  const char *str_tab, size_t str_tab_size,
+				  Elf32_Rela *rela, const char **name,
+				  bool *weak_undef)
+{
+	Elf32_Rel rel = { .r_offset = rela->r_offset, .r_info = rela->r_info };
+
+	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, &rel, name,
+			 weak_undef);
+}
+
+static void e32_process_dyn_rela(const Elf32_Sym *sym_tab, size_t num_syms,
+				 const char *str_tab, size_t str_tab_size,
+				 Elf32_Rela *rela, Elf32_Addr *where)
+{
+	const char *name = NULL;
+	vaddr_t val = 0;
+	bool weak_undef = false;
+
+	e32_get_rela_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rela,
+			      &name, &weak_undef);
+	resolve_sym(name, &val, NULL, !weak_undef);
+	*where = val;
+}
+
+static void e32_relocate_rela(struct ta_elf *elf, unsigned int rel_sidx)
+{
+	Elf32_Shdr *shdr = elf->shdr;
+	Elf32_Rela *rela = NULL;
+	Elf32_Rela *rela_end = NULL;
+	size_t sym_tab_idx = 0;
+	Elf32_Sym *sym_tab = NULL;
+	size_t num_syms = 0;
+	size_t sh_end = 0;
+	const char *str_tab = NULL;
+	size_t str_tab_size = 0;
+
+	assert(shdr[rel_sidx].sh_type == SHT_RELA);
+
+	assert(shdr[rel_sidx].sh_entsize == sizeof(Elf32_Rela));
+
+	sym_tab_idx = shdr[rel_sidx].sh_link;
+	if (sym_tab_idx) {
+		size_t str_tab_idx = 0;
+
+		if (sym_tab_idx >= elf->e_shnum)
+			err(TEE_ERROR_BAD_FORMAT, "SYMTAB index out of range");
+		sym_tab_idx = confine_array_index(sym_tab_idx, elf->e_shnum);
+
+		assert(shdr[sym_tab_idx].sh_entsize == sizeof(Elf32_Sym));
+
+		/* Check the address is inside TA memory */
+		if (ADD_OVERFLOW(shdr[sym_tab_idx].sh_addr,
+				 shdr[sym_tab_idx].sh_size, &sh_end))
+			err(TEE_ERROR_BAD_FORMAT, "Overflow");
+		if (sh_end >= (elf->max_addr - elf->load_addr))
+			err(TEE_ERROR_BAD_FORMAT, "SYMTAB out of range");
+
+		sym_tab = (Elf32_Sym *)(elf->load_addr +
+					shdr[sym_tab_idx].sh_addr);
+
+		num_syms = shdr[sym_tab_idx].sh_size / sizeof(Elf32_Sym);
+
+		str_tab_idx = shdr[sym_tab_idx].sh_link;
+		if (str_tab_idx) {
+			if (str_tab_idx >= elf->e_shnum)
+				err(TEE_ERROR_BAD_FORMAT,
+				    "STRTAB index out of range");
+			str_tab_idx = confine_array_index(str_tab_idx,
+							  elf->e_shnum);
+
+			/* Check the address is inside ELF memory */
+			if (ADD_OVERFLOW(shdr[str_tab_idx].sh_addr,
+					 shdr[str_tab_idx].sh_size, &sh_end))
+				err(TEE_ERROR_BAD_FORMAT, "Overflow");
+			if (sh_end >= (elf->max_addr - elf->load_addr))
+				err(TEE_ERROR_BAD_FORMAT,
+				    "STRTAB out of range");
+
+			str_tab = (const char *)(elf->load_addr +
+						 shdr[str_tab_idx].sh_addr);
+			str_tab_size = shdr[str_tab_idx].sh_size;
+		}
+	}
+
+	/* Check the address is inside TA memory */
+	if (ADD_OVERFLOW(shdr[rel_sidx].sh_addr,
+			 shdr[rel_sidx].sh_size, &sh_end))
+		err(TEE_ERROR_BAD_FORMAT, "Overflow");
+	if (sh_end >= (elf->max_addr - elf->load_addr))
+		err(TEE_ERROR_BAD_FORMAT, ".rela.*/RELA out of range");
+	rela = (Elf32_Rela *)(elf->load_addr + shdr[rel_sidx].sh_addr);
+
+	rela_end = rela + shdr[rel_sidx].sh_size / sizeof(Elf32_Rela);
+	for (; rela < rela_end; rela++) {
+		Elf32_Addr *where = NULL;
+		Elf32_Addr end_offs = 0;
+
+		/* Check the address is inside TA memory */
+		if (ADD_OVERFLOW(rela->r_offset, sizeof(*where), &end_offs) ||
+		    end_offs >= (elf->max_addr - elf->load_addr))
+			err(TEE_ERROR_BAD_FORMAT,
+			    "Relocation offset out of range");
+
+		where = (Elf32_Addr *)(elf->load_addr + rela->r_offset);
+
+		switch (ELF32_R_TYPE(rela->r_info)) {
+		case R_RISCV_NONE:
+			break;
+		case R_RISCV_RELATIVE:
+			*where = rela->r_addend + elf->load_addr;
+			break;
+		case R_RISCV_32:
+			e32_process_dyn_rela(sym_tab, num_syms, str_tab,
+					     str_tab_size, rela, where);
+			*where += rela->r_addend;
+			break;
+		case R_RISCV_JUMP_SLOT:
+			e32_process_dyn_rela(sym_tab, num_syms, str_tab,
+					     str_tab_size, rela, where);
+			break;
+		default:
+			err(TEE_ERROR_BAD_FORMAT, "Unknown relocation type %d",
+			    ELF32_R_TYPE(rela->r_info));
+		}
+	}
+}
+#endif /*RV32*/
+
 void ta_elf_relocate(struct ta_elf *elf)
 {
 	size_t n = 0;
@@ -747,9 +881,14 @@ void ta_elf_relocate(struct ta_elf *elf)
 	if (elf->is_32bit) {
 		Elf32_Shdr *shdr = elf->shdr;
 
-		for (n = 0; n < elf->e_shnum; n++)
+		for (n = 0; n < elf->e_shnum; n++) {
 			if (shdr[n].sh_type == SHT_REL)
 				e32_relocate(elf, n);
+#ifdef RV32
+			else if (shdr[n].sh_type == SHT_RELA)
+				e32_relocate_rela(elf, n);
+#endif
+		}
 	} else {
 		Elf64_Shdr *shdr = elf->shdr;
 
