@@ -9,7 +9,7 @@ ifeq ($(CFG_QCOM_QFPROM_FUSEPROV),y)
 $(call force,CFG_QCOM_QFPROM,y)
 endif
 
-CFG_QCOM_PAS_PTA ?= y
+CFG_QCOM_PAS_PTA ?= n
 
 ifeq ($(CFG_QCOM_PAS_PTA),y)
 CFG_RESERVED_VASPACE_SIZE ?= (60 * 1024 * 1024)

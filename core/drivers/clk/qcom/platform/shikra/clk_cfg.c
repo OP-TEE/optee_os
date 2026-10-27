@@ -4,7 +4,7 @@
  */
 
 #include <platform_config.h>
-#include <trace.h>
+#include <drivers/qcom/rpm/rpm_client.h>
 #include <util.h>
 
 #include "clk_cfg.h"
@@ -18,6 +18,16 @@
 
 #define QUP_SE_DFS_STATES	8
 #define QUP_SE_MND_WIDTH	16
+
+#define RPM_UNIT_KHZ	QCOM_RPM_FOURCC('K', 'H', 'z', '\0')
+#define RPM_UNIT_STATE	QCOM_RPM_FOURCC('S', 'T', 'A', 'T')
+
+#define RPM_TYPE_CE	QCOM_RPM_FOURCC('c', 'e', '\0', '\0')
+#define RPM_TYPE_MMXI	QCOM_RPM_FOURCC('m', 'm', 'x', 'i')
+#define RPM_TYPE_QUP	QCOM_RPM_FOURCC('q', 'u', 'p', '\0')
+#define RPM_TYPE_QPIC	QCOM_RPM_FOURCC('q', 'p', 'i', 'c')
+#define RPM_TYPE_PKA	QCOM_RPM_FOURCC('p', 'k', 'a', '\0')
+#define RPM_TYPE_HWKM	QCOM_RPM_FOURCC('h', 'w', 'k', 'm')
 
 static const struct clk_mux_config qup_se_config[] = {
 	{   7372800, SRC_GPLL0_DIV2, 2,  384, 15625, CLK_DFS_NA,
@@ -70,7 +80,21 @@ static const struct clk_pll_vote pll_votes[] = {
 static const struct clk_parent_map parent_map_0[] = {
 	{ SRC_BI_TCXO,    0 },
 	{ SRC_GPLL0_DIV2, 2 },
-	{ SRC_GPLL6,      6 },
+	{ SRC_GPLL6,      4 },
+};
+
+static const struct qcom_clk_rpm_resource rpm_resources[] = {
+	{ "/clk/ce1", RPM_UNIT_KHZ, RPM_TYPE_CE, 0 },
+	{ "/clk/qdss", RPM_UNIT_STATE, QCOM_RPM_CLOCK_0_REQ, 1 },
+	{ "/clk/cnoc", RPM_UNIT_KHZ, QCOM_RPM_CLOCK_1_REQ, 1 },
+	{ "/clk/snoc", RPM_UNIT_KHZ, QCOM_RPM_CLOCK_1_REQ, 2 },
+	{ "/clk/mmnrt", RPM_UNIT_KHZ, RPM_TYPE_MMXI, 0 },
+	{ "/clk/mmrt", RPM_UNIT_KHZ, RPM_TYPE_MMXI, 1 },
+	{ "/clk/ddr", RPM_UNIT_KHZ, QCOM_RPM_CLOCK_2_REQ, 0 },
+	{ "/clk/qup", RPM_UNIT_KHZ, RPM_TYPE_QUP, 0 },
+	{ "/clk/qpic", RPM_UNIT_KHZ, RPM_TYPE_QPIC, 0 },
+	{ "/clk/pka", RPM_UNIT_KHZ, RPM_TYPE_PKA, 0 },
+	{ "/clk/hwkm", RPM_UNIT_KHZ, RPM_TYPE_HWKM, 0 },
 };
 
 #define QUP_SE_RCG(_idx) \
@@ -147,11 +171,11 @@ static const struct clk_cfg shikra_clk_cfg = {
 	.n_branches = ARRAY_SIZE(branches),
 	.pll_votes = pll_votes,
 	.n_pll_votes = ARRAY_SIZE(pll_votes),
+	.rpm_resources = rpm_resources,
+	.n_rpm_resources = ARRAY_SIZE(rpm_resources),
 };
 
 const struct clk_cfg *clk_get_cfg(void)
 {
-	IMSG("Shikra QUP clock debug marker: OP-TEE clock image is registered");
-
 	return &shikra_clk_cfg;
 }
