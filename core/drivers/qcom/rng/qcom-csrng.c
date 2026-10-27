@@ -5,8 +5,10 @@
 
 #include <initcall.h>
 #include <io.h>
+#include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/mutex.h>
+#include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -70,6 +72,17 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	mutex_unlock(&rng_lock);
 
 	return res;
+}
+
+/* Called before the MMU is enabled */
+unsigned long plat_get_aslr_seed(void)
+{
+	unsigned long seed = 0;
+
+	if (hw_get_random_bytes_nolock(&seed, sizeof(seed)))
+		panic("Failed to get the ASLR seed");
+
+	return seed;
 }
 
 static TEE_Result qcom_csrng_init(void)
