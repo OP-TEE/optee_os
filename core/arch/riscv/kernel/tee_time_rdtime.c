@@ -21,9 +21,9 @@ __noprof uint64_t read_time(void)
 #ifdef CFG_RISCV_S_MODE
 #ifdef RV32
 	do {
-		hi = read_csr(timeh);
-		lo = read_csr(time);
-	} while (hi != read_csr(timeh));
+		hi = read_csr(CSR_TIMEH);
+		lo = read_csr(CSR_TIME);
+	} while (hi != read_csr(CSR_TIMEH));
 
 	time = SHIFT_U64(hi, 32) | lo;
 #else /*RV64*/
