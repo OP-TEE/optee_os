@@ -1,3 +1,3 @@
-srcs-y += subsys.c lmcu.c cdsp.c
+srcs-y += subsys.c iris.c lmcu.c cdsp.c
 incdirs-y += .
 incdirs-y += ../
