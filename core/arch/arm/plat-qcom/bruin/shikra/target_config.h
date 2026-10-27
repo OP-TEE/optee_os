@@ -28,4 +28,7 @@
 #define CFG_SEC_ELF_DDR_ADDR		UL(0x85fff000)
 #define CFG_SEC_ELF_DDR_SIZE		UL(0x00001000)
 
+#define IRIS_BASE			UL(0x05a00000)
+#define IRIS_SIZE			ULL(0x00100000)
+
 #endif /* TARGET_CONFIG_H */
