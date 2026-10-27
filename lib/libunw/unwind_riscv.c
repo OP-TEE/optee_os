@@ -16,6 +16,15 @@ void __weak ftrace_map_lr(uint64_t *lr __unused)
 {
 }
 
+/* ftrace_map_lr() takes a 64-bit return address, also on RV32 */
+static void map_ra(unsigned long *pc)
+{
+	uint64_t ra = *pc;
+
+	ftrace_map_lr(&ra);
+	*pc = ra;
+}
+
 bool unwind_stack_riscv(struct unwind_state_riscv *frame,
 			vaddr_t stack, size_t stack_size)
 {
@@ -57,7 +66,7 @@ bool unwind_stack_riscv(struct unwind_state_riscv *frame,
 	frame->fp = caller_state->fp;
 	frame->pc = caller_state->pc;
 
-	ftrace_map_lr(&frame->pc);
+	map_ra(&frame->pc);
 
 	frame->pc -= 4;
 
@@ -71,7 +80,7 @@ void print_stack_riscv(struct unwind_state_riscv *state,
 
 	trace_printf_helper_raw(TRACE_ERROR, true, "Call stack:");
 
-	ftrace_map_lr(&state->pc);
+	map_ra(&state->pc);
 	do {
 		trace_printf_helper_raw(TRACE_ERROR, true, " 0x%0*"PRIxVA,
 					width, state->pc);
