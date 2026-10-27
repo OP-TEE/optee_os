@@ -686,6 +686,7 @@ typedef struct {
 #define	R_386_IRELATIVE		42	/* PLT entry resolved indirectly at runtime */
 
 #define	R_RISCV_NONE		0	/* No relocation. */
+#define	R_RISCV_32		1	/* 32-bit relocation. */
 #define	R_RISCV_64		2	/* 64-bit relocation. */
 #define	R_RISCV_RELATIVE	3	/* Adjust a link address (A) to its
 					   load address (B + A). */
