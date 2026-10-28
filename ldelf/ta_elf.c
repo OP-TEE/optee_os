@@ -1979,7 +1979,7 @@ TEE_Result ta_elf_set_init_fini_info_compat(bool is_32bit)
 
 	res = realloc_ifs(info_va, cnt, is_32bit);
 	if (res)
-		goto err;
+		return res;
 
 	cnt = 0;
 	TAILQ_FOREACH(elf, &main_elf_queue, link) {
@@ -1988,9 +1988,6 @@ TEE_Result ta_elf_set_init_fini_info_compat(bool is_32bit)
 	}
 
 	return TEE_SUCCESS;
-err:
-	free(info);
-	return res;
 }
 
 static TEE_Result realloc_elf_phdr_info(vaddr_t va, size_t cnt, bool is_32bit)
@@ -2061,7 +2058,7 @@ static void fill_elf_phdr_info(vaddr_t va, size_t idx, struct ta_elf *elf,
 		if (elf->soname)
 			dlpi->dlpi_name = elf->soname;
 		else
-			dlpi->dlpi_name = &info32->zero;
+			dlpi->dlpi_name = &info->zero;
 		dlpi->dlpi_phdr = elf->phdr;
 		dlpi->dlpi_phnum = elf->e_phnum;
 		dlpi->dlpi_adds = 1; /* No unloading on dlclose() currently */
