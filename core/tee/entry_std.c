@@ -70,6 +70,8 @@ static TEE_Result set_fmem_param(const struct optee_msg_param_fmem *fmem,
 	size_t req_size = 0;
 	uint64_t global_id = READ_ONCE(fmem->global_id);
 	size_t sz = READ_ONCE(fmem->size);
+	uint16_t internal_offs = READ_ONCE(fmem->internal_offs);
+	size_t page_offs = internal_offs & ~SMALL_PAGE_MASK;
 
 	if (global_id == OPTEE_MSG_FMEM_INVALID_GLOBAL_ID && !sz) {
 		mem->mobj = NULL;
@@ -77,8 +79,13 @@ static TEE_Result set_fmem_param(const struct optee_msg_param_fmem *fmem,
 		mem->size = 0;
 		return TEE_SUCCESS;
 	}
+	/*
+	 * Normal world may use a larger page granule than SMALL_PAGE_SIZE.
+	 * Keep the sub-page offset in the mobj and add the whole pages to
+	 * the memref offset instead.
+	 */
 	mem->mobj = mobj_ffa_get_by_cookie(global_id,
-					   READ_ONCE(fmem->internal_offs));
+					   internal_offs & SMALL_PAGE_MASK);
 	if (!mem->mobj)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -90,7 +97,8 @@ static TEE_Result set_fmem_param(const struct optee_msg_param_fmem *fmem,
 	 * Check that the supplied offset and size is covered by the
 	 * previously verified MOBJ.
 	 */
-	if (ADD_OVERFLOW(mem->offs, mem->size, &req_size) ||
+	if (ADD_OVERFLOW(mem->offs, page_offs, &mem->offs) ||
+	    ADD_OVERFLOW(mem->offs, mem->size, &req_size) ||
 	    mem->mobj->size < req_size)
 		return TEE_ERROR_SECURITY;
 
