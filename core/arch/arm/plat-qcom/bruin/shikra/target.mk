@@ -18,7 +18,7 @@ $(call force,CFG_QCOM_FUSE_PTA,y)
 CFG_PAS_MD_SLOTS = 8
 endif
 
-ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_FUSE_PTA)),)
+ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_FUSE_PTA) $(CFG_QCOM_FUSE_BLOW)),)
 $(call force,CFG_QCOM_QFPROM,y)
 endif
 
