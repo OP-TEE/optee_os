@@ -252,7 +252,6 @@ jobs:
 
               if [ -d $HOME/scp-firmware ]; then _make PLATFORM=vexpress-qemu_armv8a CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
               if [ -d $HOME/scp-firmware ]; then _make PLATFORM=vexpress-fvp CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
-              # if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp1-157C_DK2 CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
           - name: arm stm
             make_commands: |
               _make PLATFORM=stm-b2260
