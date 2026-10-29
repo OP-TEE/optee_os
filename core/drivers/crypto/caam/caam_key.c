@@ -13,6 +13,7 @@
 #include <mm/core_memprot.h>
 #include <stdint.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee/cache.h>
 #include <tee_api_defines.h>
 #include <trace.h>
@@ -260,6 +261,9 @@ void caam_key_free(struct caamkey *key)
 {
 	if (!key)
 		return;
+
+	if (key->buf.data)
+		memzero_explicit(key->buf.data, key->buf.length);
 
 	caam_free_buf(&key->buf);
 }
