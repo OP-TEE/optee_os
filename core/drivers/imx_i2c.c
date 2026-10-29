@@ -3,17 +3,21 @@
  * (c) 2020 Jorge Ramirez <jorge@foundries.io>, Foundries Ltd.
  */
 #include <arm.h>
+#include <drivers/i2c.h>
 #include <drivers/imx_i2c.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
+#include <kernel/mutex.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <stdlib.h>
+#include <string.h>
 #include <trace.h>
 #include <util.h>
 
@@ -29,7 +33,8 @@
 /* IOMUX */
 #define I2C_INP_SCL(__x)	0 /* Not implemented */
 #define I2C_INP_SDA(__x)	0 /* Not implemented */
-#define I2C_INP_VAL(__x)	0 /* Not implemented */
+#define I2C_INP_SCL_VAL(__b)	0 /* Not implemented */
+#define I2C_INP_SDA_VAL(__b)	0 /* Not implemented */
 #define I2C_MUX_VAL(__x)	0x010
 #define I2C_CFG_VAL(__x)	0x1c3
 /* Clock */
@@ -41,12 +46,27 @@
 #define I2C_INP_SCL(__x)	(IOMUXC_I2C1_SCL_INP_OFF + ((__x) - 1) * 0x8)
 #define I2C_INP_SDA(__x)	(IOMUXC_I2C1_SDA_INP_OFF + ((__x) - 1) * 0x8)
 #define I2C_INP_VAL(__x)	(((__x) == 1) ? 0x1 : 0x2)
+#define I2C_INP_SCL_VAL(__b)	I2C_INP_VAL((__b) + 1)
+#define I2C_INP_SDA_VAL(__b)	I2C_INP_VAL((__b) + 2)
 #define I2C_MUX_VAL(__x)	0x012
 #define I2C_CFG_VAL(__x)	0x1b8b0
 /* Clock */
 #define I2C_CLK_CGRBM(__x)	BM_CCM_CCGR2_I2C##__x##_SERIAL
 #define I2C_CLK_CGR6BM(__x)	BM_CCM_CCGR6_I2C##__x##_SERIAL
 #define I2C_CLK_CGR(__x)	(((__x) == 4) ? CCM_CCGR6 : CCM_CCGR2)
+#elif defined(CFG_MX7)
+/* IOMUX: I2Cx_SCL/SDA pads, ALT0 + SION */
+#define I2C_INP_SCL(__x)	(IOMUXC_I2C1_SCL_INP_OFF + ((__x) - 1) * 0x8)
+#define I2C_INP_SDA(__x)	(IOMUXC_I2C1_SDA_INP_OFF + ((__x) - 1) * 0x8)
+#define I2C_INP_SCL_VAL(__b)	(((__b) < 2) ? 0x1 : 0x2)
+#define I2C_INP_SDA_VAL(__b)	(((__b) < 2) ? 0x1 : 0x2)
+#define I2C_MUX_VAL(__x)	0x010
+#define I2C_CFG_VAL(__x)	0x7f
+/* Clock */
+#define I2C_CLK_CGRBM(__x)	0 /* Not implemented */
+#define I2C_CLK_CGR6BM(__x)	0
+#define I2C_CLK_CGR(__x)	CCM_CCGR_I2C##__x
+#define I2C_CLK_ROOT(__b)	(CCM_TARGET_ROOT_I2C1 + (__b))
 #else
 #error IMX_I2C driver not supported on this platform
 #endif
@@ -212,7 +232,12 @@ static void i2c_set_prescaler(uint8_t bid, uint32_t bps)
 	i2c_io_write8(bid, IFDR, p->prescaler);
 }
 
-static void i2c_set_bus_speed(uint8_t bid, int bps)
+/*
+ * The normal world may gate the clock of a bus it does not use (e.g. Linux
+ * clk_disable_unused), and accessing a gated controller stalls the CPU:
+ * enable the clock before each transfer, not only at init.
+ */
+static void i2c_enable_clock(uint8_t bid)
 {
 	vaddr_t addr = i2c_clk.base.va;
 	uint32_t val = 0;
@@ -224,10 +249,21 @@ static void i2c_set_bus_speed(uint8_t bid, int bps)
 #elif defined(CFG_MX6ULL)
 	addr += i2c_clk.i2c[bid];
 	val = i2c_clk.cgrbm[bid] | io_read32(addr);
+#elif defined(CFG_MX7)
+	/* Root clock: 24 MHz OSC, no pre/post divider, enabled */
+	io_write32(addr + CCM_TARGET_ROOTx(I2C_CLK_ROOT(bid)),
+		   CCM_TARGET_ROOT_ENABLE);
+	addr += CCM_CCGRx_SET(i2c_clk.i2c[bid]);
+	val = CCM_CCGRx_ALWAYS_ON(0);
 #else
 #error IMX_I2C driver not supported on this platform
 #endif
 	io_write32(addr, val);
+}
+
+static void i2c_set_bus_speed(uint8_t bid, int bps)
+{
+	i2c_enable_clock(bid);
 	i2c_set_prescaler(bid, bps);
 }
 
@@ -355,6 +391,8 @@ static TEE_Result i2c_init_transfer(uint8_t bid, uint8_t chip)
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t tmp = 0;
 
+	i2c_enable_clock(bid);
+
 	ret = i2c_idle_bus(bid);
 	if (ret)
 		return ret;
@@ -461,13 +499,13 @@ TEE_Result imx_i2c_init(uint8_t bid, int bps)
 	io_write32(mux->base.va + mux->i2c[bid].scl_cfg, I2C_CFG_VAL(bid));
 	if (mux->i2c[bid].scl_inp)
 		io_write32(mux->base.va + mux->i2c[bid].scl_inp,
-			   I2C_INP_VAL(bid + 1));
+			   I2C_INP_SCL_VAL(bid));
 
 	io_write32(mux->base.va + mux->i2c[bid].sda_mux, I2C_MUX_VAL(bid));
 	io_write32(mux->base.va + mux->i2c[bid].sda_cfg, I2C_CFG_VAL(bid));
 	if (mux->i2c[bid].sda_inp)
 		io_write32(mux->base.va + mux->i2c[bid].sda_inp,
-			   I2C_INP_VAL(bid + 2));
+			   I2C_INP_SDA_VAL(bid));
 
 	/* Baud rate in bits per second */
 	i2c_set_bus_speed(bid, bps);
@@ -569,3 +607,201 @@ static TEE_Result i2c_init(void)
 }
 
 early_init(i2c_init);
+
+#ifdef CFG_DRIVERS_I2C
+/*
+ * Generic I2C framework provider: each secure "fsl,imx21-i2c" node of the
+ * secure DT becomes an I2C controller and its child nodes are probed by the
+ * matching I2C device drivers.
+ */
+#define IMX_I2C_DEFAULT_BPS	100000
+
+struct imx_i2c_ctrl {
+	struct i2c_ctrl ctrl;
+	uint8_t bid;
+	struct mutex lock;	/* serializes transfers on the bus */
+};
+
+static struct imx_i2c_ctrl *to_imx_i2c_ctrl(struct i2c_dev *i2c_dev)
+{
+	return container_of(i2c_dev->ctrl, struct imx_i2c_ctrl, ctrl);
+}
+
+/* Called with the controller lock held */
+static TEE_Result imx_i2c_xfer_read(uint8_t bid, uint8_t chip, uint8_t *buf,
+				    size_t len)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t *tmp = NULL;
+
+	if (!len || len >= INT32_MAX)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* imx_i2c_read() stores one byte past @len: use a bounce buffer */
+	tmp = malloc(len + 1);
+	if (!tmp)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = imx_i2c_read(bid, chip, tmp, len);
+	if (!res)
+		memcpy(buf, tmp, len);
+
+	free(tmp);
+
+	return res;
+}
+
+static TEE_Result imx_i2c_ctrl_read(struct i2c_dev *i2c_dev, uint8_t *buf,
+				    size_t len)
+{
+	struct imx_i2c_ctrl *c = to_imx_i2c_ctrl(i2c_dev);
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	mutex_lock(&c->lock);
+	res = imx_i2c_xfer_read(c->bid, i2c_dev->addr, buf, len);
+	mutex_unlock(&c->lock);
+
+	return res;
+}
+
+static TEE_Result imx_i2c_ctrl_write(struct i2c_dev *i2c_dev,
+				     const uint8_t *buf, size_t len)
+{
+	struct imx_i2c_ctrl *c = to_imx_i2c_ctrl(i2c_dev);
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (len >= INT32_MAX)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mutex_lock(&c->lock);
+	res = imx_i2c_write(c->bid, i2c_dev->addr, buf, len);
+	mutex_unlock(&c->lock);
+
+	return res;
+}
+
+static TEE_Result imx_i2c_ctrl_smbus(struct i2c_dev *i2c_dev,
+				     enum i2c_smbus_dir dir,
+				     enum i2c_smbus_protocol proto,
+				     uint8_t cmd_code, uint8_t *buf,
+				     size_t len)
+{
+	struct imx_i2c_ctrl *c = to_imx_i2c_ctrl(i2c_dev);
+	uint8_t frame[1 + I2C_SMBUS_MAX_BUF_SIZE] = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!len || len > I2C_SMBUS_MAX_BUF_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+	if (proto == I2C_SMBUS_PROTO_BYTE && len != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mutex_lock(&c->lock);
+	if (dir == I2C_SMBUS_WRITE) {
+		frame[0] = cmd_code;
+		memcpy(frame + 1, buf, len);
+		res = imx_i2c_write(c->bid, i2c_dev->addr, frame, len + 1);
+	} else {
+		res = imx_i2c_write(c->bid, i2c_dev->addr, &cmd_code, 1);
+		if (!res)
+			res = imx_i2c_xfer_read(c->bid, i2c_dev->addr, buf,
+						len);
+	}
+	mutex_unlock(&c->lock);
+
+	return res;
+}
+
+static const struct i2c_ctrl_ops imx_i2c_ctrl_ops = {
+	.read = imx_i2c_ctrl_read,
+	.write = imx_i2c_ctrl_write,
+	.smbus = imx_i2c_ctrl_smbus,
+};
+
+static TEE_Result imx_i2c_get_dt_i2c(struct dt_pargs *args, void *data,
+				     struct i2c_dev **out_device)
+{
+	struct i2c_dev *i2c_dev = NULL;
+
+	i2c_dev = i2c_create_dev(data, args->fdt, args->consumer_node);
+	if (!i2c_dev)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*out_device = i2c_dev;
+
+	return TEE_SUCCESS;
+}
+
+/* The bus index selects the IOMUX and clock settings of the controller */
+static TEE_Result imx_i2c_bus_from_pa(paddr_t pa, uint8_t *bid)
+{
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(i2c_bus); n++) {
+		if (i2c_bus[n].va && i2c_bus[n].pa == pa) {
+			*bid = n;
+			return TEE_SUCCESS;
+		}
+	}
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+static TEE_Result imx_i2c_dt_probe(const void *fdt, int node,
+				   const void *compat_data __unused)
+{
+	struct imx_i2c_ctrl *c = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t bps = 0;
+	paddr_t pa = 0;
+	uint8_t bid = 0;
+
+	if (!(fdt_get_status(fdt, node) & DT_STATUS_OK_SEC))
+		return TEE_SUCCESS;
+
+	pa = fdt_reg_base_address(fdt, node);
+	if (pa == DT_INFO_INVALID_REG)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = imx_i2c_bus_from_pa(pa, &bid);
+	if (res) {
+		EMSG("No i.MX I2C bus at %#"PRIxPA, pa);
+		return res;
+	}
+
+	bps = fdt_read_uint32_default(fdt, node, "clock-frequency",
+				      IMX_I2C_DEFAULT_BPS);
+	res = imx_i2c_init(bid, bps);
+	if (res)
+		return res;
+
+	c = calloc(1, sizeof(*c));
+	if (!c)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	c->bid = bid;
+	c->ctrl.ops = &imx_i2c_ctrl_ops;
+	mutex_init(&c->lock);
+
+	res = i2c_register_provider(fdt, node, imx_i2c_get_dt_i2c, &c->ctrl);
+	if (res) {
+		free(c);
+		return res;
+	}
+
+	DMSG("I2C%"PRIu8" registered", bid + 1);
+
+	return TEE_SUCCESS;
+}
+
+static const struct dt_device_match imx_i2c_match_table[] = {
+	{ .compatible = "fsl,imx21-i2c" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(imx_i2c_dt_driver) = {
+	.name = "imx_i2c",
+	.type = DT_DRIVER_NOTYPE,
+	.match_table = imx_i2c_match_table,
+	.probe = imx_i2c_dt_probe,
+};
+#endif /* CFG_DRIVERS_I2C */
