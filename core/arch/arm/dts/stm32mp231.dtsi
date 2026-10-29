@@ -332,6 +332,61 @@
 			status = "disabled";
 		};
 
+		bsec: efuse@44000000 {
+			compatible = "st,stm32mp25-bsec";
+			reg = <0x44000000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			part_number_otp@24 {
+				reg = <0x24 0x4>;
+			};
+
+			package_otp@1e8 {
+				reg = <0x1e8 0x1>;
+			};
+
+			hconf1_otp: otp124@1f0 {
+				reg = <0x1f0 0x4>;
+			};
+
+			pkh_otp: otp144@240 {
+				reg = <0x240 0x20>;
+			};
+
+			oem_rproc_pkh: oem_rproc_pkh@2c0 {
+				/* 0x2C0 -> otp176 */
+				reg = <0x2C0 0x20>;
+				st,non-secure-otp-provisioning;
+			};
+
+			oem_fip_enc_key: otp260@410 {
+				reg = <0x410 0x20>;
+				st,non-secure-otp-provisioning;
+			};
+
+			oem_rproc_enc_key: oem_rproc_enc_key@540 {
+				/* 0x540 -> otp336 */
+				reg = <0x540 0x20>;
+				st,non-secure-otp-provisioning;
+			};
+
+			tfm_iak: otp352@580 {
+				reg = <0x580 0x20>;
+				st,non-secure-otp-provisioning;
+			};
+
+			oem_enc_key_2: otp360@5a0 {
+				reg = <0x5a0 0x10>;
+				st,non-secure-otp-provisioning;
+			};
+
+			oem_enc_key_1: otp364@5b0 {
+				reg = <0x5b0 0x10>;
+				st,non-secure-otp-provisioning;
+			};
+		};
+
 		serc: serc@44080000 {
 			compatible = "st,stm32mp25-serc";
 			reg = <0x44080000 0x1000>;
