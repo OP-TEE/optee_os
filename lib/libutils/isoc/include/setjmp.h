@@ -59,8 +59,9 @@
  * s0-s11, ra, sp
  * One additional value used in case ftrace
  * is enabled to restore ftrace return stack.
+ * One additional value for the Zicfiss shadow stack pointer.
  */
-#define _JBLEN 15
+#define _JBLEN 16
 #define _JBTYPE unsigned long
 #endif
 

@@ -8,6 +8,7 @@ link-out-dir$(sm) := $(out-dir)/$(sm)
 
 cppflags$(sm)	:= $(core-platform-cppflags)
 cflags$(sm)	:= $(core-platform-cflags) -fpie -fvisibility=hidden
+cflags$(sm)	+= $(ldelf-platform-cflags)
 aflags$(sm)	:= $(core-platform-aflags)
 
 # ldelf is compiled for the same arch or register width as core

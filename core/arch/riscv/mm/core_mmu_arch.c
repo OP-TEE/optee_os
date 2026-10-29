@@ -7,6 +7,7 @@
 #include <bitstring.h>
 #include <config.h>
 #include <kernel/boot.h>
+#include <kernel/cfi.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -15,6 +16,7 @@
 #include <kernel/tee_misc.h>
 #include <kernel/tlb_helpers.h>
 #include <mm/core_memprot.h>
+#include <kernel/user_mode_ctx.h>
 #include <mm/core_mmu.h>
 #include <mm/phys_mem.h>
 #include <platform_config.h>
@@ -212,6 +214,9 @@ static unsigned long pte_to_mattr(unsigned level __maybe_unused,
 	}
 
 	if (entry & PTE_U) {
+		/* Zicfiss: W without R encodes a shadow stack page */
+		if ((entry & (PTE_R | PTE_W)) == PTE_W)
+			return mattr | TEE_MATTR_SHADOW_STACK;
 		if (entry & PTE_R)
 			mattr |= TEE_MATTR_UR | TEE_MATTR_PR;
 		if (entry & PTE_W)
@@ -242,6 +247,17 @@ static uint8_t mattr_to_pte_bits(unsigned level __maybe_unused, uint32_t attr)
 
 	if (attr & TEE_MATTR_VALID_BLOCK)
 		pte_bits |= PTE_V;
+
+	/*
+	 * Zicfiss: a shadow stack page is encoded as W without R, an
+	 * encoding otherwise reserved. It carries no other permission,
+	 * ordinary loads are allowed by the extension and ordinary stores
+	 * fault. A and D are set, the page is written by SSPUSH.
+	 */
+	if (attr & TEE_MATTR_SHADOW_STACK) {
+		assert(!(attr & (TEE_MATTR_PRWX | TEE_MATTR_URWX)));
+		return pte_bits | PTE_U | PTE_W | PTE_A | PTE_D;
+	}
 
 	if (attr & TEE_MATTR_UR)
 		pte_bits |= PTE_R | PTE_U;
@@ -1065,6 +1081,37 @@ core_mmu_get_user_mapping_entry(struct mmu_partition *prtn)
 	return core_mmu_table_get_entry(pgt, user_va_idx);
 }
 
+/* senvcfg bits that follow the user mapping rather than the hart */
+#define USER_MAP_SENVCFG_MASK	(CSR_SENVCFG_LPE | CSR_SENVCFG_SSE)
+
+static bool user_map_has_senvcfg(void)
+{
+	return IS_ENABLED(CFG_TA_ZICFILP) || IS_ENABLED(CFG_TA_ZICFISS);
+}
+
+/*
+ * Landing pads are all or nothing for a privilege mode: with
+ * senvcfg.LPE set every indirect jump in U-mode must reach an LPAD.
+ * Enforce them for a context only when each of its executable mappings
+ * was marked TEE_MATTR_GUARDED, that is, built with landing pads. ldelf
+ * sets the mark for ELFs carrying the CFI_LP property and refuses to
+ * mix guarded and unguarded ELFs, so a context is either fully covered
+ * or runs without enforcement.
+ */
+static unsigned long user_map_senvcfg_lpe(struct user_mode_ctx *uctx)
+{
+	struct vm_region *r = NULL;
+
+	if (!IS_ENABLED(CFG_TA_ZICFILP))
+		return 0;
+
+	TAILQ_FOREACH(r, &uctx->vm_info.regions, link)
+		if ((r->attr & TEE_MATTR_UX) && !(r->attr & TEE_MATTR_GUARDED))
+			return 0;
+
+	return CSR_SENVCFG_LPE;
+}
+
 void core_mmu_set_user_map(struct core_mmu_user_map *map)
 {
 	unsigned long satp = 0;
@@ -1072,6 +1119,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	struct mmu_partition *prtn = core_mmu_get_prtn();
 	struct mmu_pte *pte = NULL;
 	unsigned long ptp = 0;
+	unsigned long senvcfg = 0;
 
 	satp = read_satp();
 	/* Clear ASID */
@@ -1083,9 +1131,16 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 		core_mmu_table_write_barrier();
 		satp |= SHIFT_U64(map->asid, RISCV_SATP_ASID_SHIFT);
 		write_satp(satp);
+		senvcfg = map->senvcfg & USER_MAP_SENVCFG_MASK;
 	} else {
 		core_mmu_entry_set(pte, 0);
 		core_mmu_table_write_barrier();
+	}
+
+	if (user_map_has_senvcfg()) {
+		clear_csr(CSR_SENVCFG, USER_MAP_SENVCFG_MASK);
+		if (senvcfg)
+			set_csr(CSR_SENVCFG, senvcfg);
 	}
 
 	/* The user mapping is per hart, no need to reach the other harts */
@@ -1136,6 +1191,13 @@ void core_mmu_create_user_map(struct user_mode_ctx *uctx,
 	core_mmu_populate_user_map(&tbl_info, uctx);
 	map->user_map = virt_to_phys(tbl_info.table);
 	map->asid = uctx->vm_info.asid;
+	map->senvcfg = user_map_senvcfg_lpe(uctx);
+	/*
+	 * Shadow stack instructions are no-ops in a context built without
+	 * them, so SSE is set for every context once the hart supports it.
+	 */
+	if (cfi_shadow_stack_enabled())
+		map->senvcfg |= CSR_SENVCFG_SSE;
 }
 
 void core_mmu_get_user_map(struct core_mmu_user_map *map)
@@ -1144,12 +1206,17 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 	struct mmu_pte *pte = core_mmu_get_user_mapping_entry(prtn);
 
 	map->user_map = pte_to_pa(pte);
+	map->senvcfg = 0;
 
-	if (map->user_map)
+	if (map->user_map) {
 		map->asid = (read_satp() >> RISCV_SATP_ASID_SHIFT) &
 			    RISCV_SATP_ASID_MASK;
-	else
+		if (user_map_has_senvcfg())
+			map->senvcfg = read_csr(CSR_SENVCFG) &
+				       USER_MAP_SENVCFG_MASK;
+	} else {
 		map->asid = 0;
+	}
 }
 
 bool core_mmu_user_mapping_is_active(void)
