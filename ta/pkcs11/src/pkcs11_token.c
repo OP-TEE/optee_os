@@ -1491,7 +1491,21 @@ enum pkcs11_rc entry_ck_login(struct pkcs11_client *client,
 		break;
 
 	case PKCS11_CKU_CONTEXT_SPECIFIC:
-		return PKCS11_CKR_OPERATION_NOT_INITIALIZED;
+		if (!session->processing ||
+		    !session->processing->always_authen)
+			return PKCS11_CKR_OPERATION_NOT_INITIALIZED;
+
+		if (!pkcs11_session_is_user(session))
+			return PKCS11_CKR_USER_NOT_LOGGED_IN;
+
+		session->processing->relogged = false;
+		rc = check_user_pin(session, pin, pin_size);
+		if (!rc)
+			session->processing->relogged = true;
+		else if (rc == PKCS11_CKR_PIN_LOCKED)
+			session_logout(session);
+
+		break;
 
 	default:
 		return PKCS11_CKR_USER_TYPE_INVALID;
