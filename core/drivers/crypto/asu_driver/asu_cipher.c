@@ -241,6 +241,8 @@ static void asu_cipher_free_ctx(void *ctx)
 		memzero_explicit(asu_cipherctx->key,
 				 sizeof(asu_cipherctx->key));
 		memzero_explicit(asu_cipherctx->iv, sizeof(asu_cipherctx->iv));
+		memzero_explicit(asu_cipherctx->keystream,
+				 sizeof(asu_cipherctx->keystream));
 		free(asu_cipherctx);
 	}
 }
