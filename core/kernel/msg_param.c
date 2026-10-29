@@ -120,12 +120,19 @@ struct mobj *msg_param_mobj_from_noncontig(paddr_t buf_ptr, size_t size,
 	paddr_t page_offset = 0;
 	size_t num_pages = 0;
 	size_t size_plus_offs = 0;
+	size_t mobj_size = 0;
 	size_t msize = 0;
 
 	page_offset = buf_ptr & SMALL_PAGE_MASK;
-	if (ADD_OVERFLOW(size, page_offset, &size_plus_offs))
+	/* A zero-sized memref is a raw pointer and still covers one byte */
+	if (ADD_OVERFLOW(MAX(size, (size_t)1), page_offset,
+			 &size_plus_offs))
 		return NULL;
-	num_pages = (size_plus_offs - 1) / SMALL_PAGE_SIZE + 1;
+	num_pages = ROUNDUP2_DIV(size_plus_offs, SMALL_PAGE_SIZE);
+	/* Validate the final span before parsing the untrusted page list */
+	if (MUL_OVERFLOW(num_pages - 1, SMALL_PAGE_SIZE, &mobj_size) ||
+	    ADD_OVERFLOW(mobj_size, SMALL_PAGE_SIZE - page_offset, &mobj_size))
+		return NULL;
 	if (MUL_OVERFLOW(num_pages, sizeof(paddr_t), &msize))
 		return NULL;
 
