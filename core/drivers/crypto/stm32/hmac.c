@@ -9,6 +9,7 @@
 #include <drvcrypt_mac.h>
 #include <drvcrypt.h>
 #include <kernel/dt.h>
+#include <stdlib_ext.h>
 #include <string.h>
 
 #include "common.h"
@@ -46,8 +47,7 @@ static TEE_Result do_hmac_init(struct crypto_mac_ctx *ctx, const uint8_t *key,
 	 * If hmac_init() is called again,
 	 * we won't need the previously saved key.
 	 */
-	if (c->key)
-		free(c->key);
+	free_wipe(c->key);
 
 	c->key = malloc(len);
 	if (!c->key) {
@@ -120,7 +120,7 @@ static void do_hmac_free(struct crypto_mac_ctx *ctx)
 {
 	struct stm32_hmac_ctx *c = to_stm32_hmac_ctx(ctx);
 
-	free(c->key);
+	free_wipe(c->key);
 	stm32_hash_free(&c->hash);
 	free(c);
 }
