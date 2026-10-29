@@ -20,9 +20,29 @@
 #define PAS_ID_TURING		18
 #define PAS_ID_TURING1		30
 #define PAS_ID_CAMERA		33
-#define PAS_ID_TURING_DTB	37
 #define PAS_ID_GPDSP0		39
 #define PAS_ID_GPDSP1		40
+#define PAS_ID_TURING2		57
+#define PAS_ID_TURING3		58
+#define PAS_ID_HPASS0		PAS_ID_QDSP6
+#define PAS_ID_HPASS1		53
+#define PAS_ID_HPASS2		54
+#define PAS_ID_SOCCP		51
+#define PAS_ID_LMCU		86
+
+/*
+ * Device Tree interface for remote processor management
+ */
+#define DTB_ID_QDSP6		36
+#define DTB_ID_TURING		37
+#define DTB_ID_HPASS0		DTB_ID_QDSP6
+#define DTB_ID_HPASS1		55
+#define DTB_ID_HPASS2		56
+#define DTB_ID_TURING1		59
+#define DTB_ID_TURING2		60
+#define DTB_ID_TURING3		61
+#define DTB_ID_SOCCP		65
+#define DTB_ID_LMCU		87
 
 #define PTA_QCOM_PAS_UUID { 0xdaedbae4, 0xcf3e, 0x4b76, \
 		{ 0xa5, 0xc5, 0xdb, 0xf8, 0xb6, 0xfd, 0x5a, 0xf4} }
