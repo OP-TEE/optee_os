@@ -24,10 +24,6 @@
 #define PAS_ID_GPDSP0		39
 #define PAS_ID_GPDSP1		40
 #define PAS_ID_LMCU		86
-
-/*
- * Device Tree interface for remote processor management
- */
 #define DTB_ID_LMCU		87
 
 #define PTA_QCOM_PAS_UUID { 0xdaedbae4, 0xcf3e, 0x4b76, \
