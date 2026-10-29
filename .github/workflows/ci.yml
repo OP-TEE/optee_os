@@ -368,6 +368,7 @@ jobs:
               _make PLATFORM=virt CFG_CORE_ASLR=n CFG_TA_ASLR=n COMPILER=clang
               _make PLATFORM=sifive
               _make PLATFORM=cva6
+              _make PLATFORM=spacemit-k1
     steps:
       - name: Checkout
         uses: actions/checkout@v7
