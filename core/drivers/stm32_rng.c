@@ -636,7 +636,7 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 		};
 
 		if (len != DT_RNG_NB_NIST_CONFIG * sizeof(uint32_t)) {
-			EMSG("Invalid number of argument for st,rng-cfg : %lu",
+			EMSG("Invalid number of argument for st,rng-cfg : %zu",
 			     len / sizeof(uint32_t));
 			panic();
 		}
