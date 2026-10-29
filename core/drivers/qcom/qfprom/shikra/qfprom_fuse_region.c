@@ -6,6 +6,7 @@
 #include <qfprom_target.h>
 
 #include "qfprom_priv.h"
+#include "qfprom_rpm.h"
 
 #define QFPROM_REGION_ENTRY(name, sz, fec, readable, idx) \
 	{ \
@@ -73,6 +74,8 @@ const size_t region_count = ARRAY_SIZE(region_data);
 
 const struct qfprom_platform_config plat_config = {
 	.name = "Shikra",
+	.init = qfprom_rpm_enable,
+	.deinit = qfprom_rpm_disable,
 	.qfprom_raw_base = QFPROM_RAW_BASE,
 	.qfprom_corr_base = QFPROM_CORR_BASE,
 	.qfprom_size = QFPROM_SIZE,
