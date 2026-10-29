@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <stdlib_ext.h>
 #include <string.h>
 #include <trace.h>
 
@@ -178,7 +179,7 @@ void *mrvl_ehsm_mem_alloc(size_t size)
 
 void mrvl_ehsm_mem_free(void *ptr)
 {
-	free(ptr);
+	free_wipe(ptr);
 }
 
 TEE_Result mrvl_ehsm_cryp_initialize(void)
