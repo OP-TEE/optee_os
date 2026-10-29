@@ -8,6 +8,7 @@ srcs-y += qfprom_hal.c
 srcs-y += qfprom_target.c
 srcs-$(CFG_QCOM_QFPROM_RPMH_CLIENT) += qfprom_rpmh.c
 srcs-y += $(PLATFORM_FLAVOR)/qfprom_fuse_region.c
+srcs-$(CFG_QCOM_RPM_CLIENT) += $(PLATFORM_FLAVOR)/qfprom_rpm.c
 srcs-$(CFG_QCOM_FUSE_PTA) += qfprom_secboot.c
 
 global-incdirs-y += .
