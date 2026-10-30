@@ -10,7 +10,9 @@
 #include <mm/core_mmu.h>
 #include <trace.h>
 
+#if !defined(PLATFORM_FLAVOR_nord)
 register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
+#endif
 
 #define QCOM_CLOCK_UPDATE_TIMEOUT_US	U(10000)
 
