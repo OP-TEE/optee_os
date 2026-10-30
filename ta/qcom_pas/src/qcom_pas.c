@@ -20,17 +20,26 @@ static TEE_Result qcom_pas_init_image(struct qcom_pas_session *s, uint32_t pt,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-
-	res = TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
-				  PTA_QCOM_PAS_INIT_IMAGE, pt, params, NULL);
-	if (res)
-		return res;
+	uint32_t pas_id = 0;
 
 	res = pas_auth_save_metadata(s, pt, params);
 	if (res)
 		return res;
 
-	return pas_auth_prepare_and_authenticate(s, params[0].value.a);
+	pas_id = params[0].value.a;
+	res = pas_auth_prepare_and_authenticate(s, pas_id);
+	if (res)
+		goto out;
+
+	res = TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
+				  PTA_QCOM_PAS_INIT_IMAGE, pt, params, NULL);
+	if (res)
+		goto out;
+
+	return res;
+out:
+	pas_auth_release_metadata(s, pas_id);
+	return res;
 }
 
 static TEE_Result qcom_pas_auth_and_reset(struct qcom_pas_session *s,
