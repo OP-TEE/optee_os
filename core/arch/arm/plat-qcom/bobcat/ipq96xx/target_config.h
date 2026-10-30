@@ -38,6 +38,10 @@
 #define CDSP_TCSR_BASE			UL(0x01966000)
 #define CDSP_TCSR_SIZE			UL(0x00001000)
 
+/* TME-Lite secure boot SW IDs of the CDSP images. */
+#define SW_ID_CDSP			UL(23)
+#define SW_ID_CDSP_DTB			UL(82)
+
 /*
  * QMP-Lite mailbox — OP-TEE ↔ TME communication
  *
