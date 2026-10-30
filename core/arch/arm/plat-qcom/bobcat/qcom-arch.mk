@@ -8,3 +8,6 @@ CFG_QCOM_XPU_PROTECT ?= y
 ifeq ($(CFG_QCOM_XPU_PROTECT),y)
 $(call force,CFG_QCOM_XPUV4,y)
 endif
+
+CFG_PAS_MD_SLOTS ?= 1
+CFG_PAS_TA_HEAP_SIZE ?= (4 * 1024)

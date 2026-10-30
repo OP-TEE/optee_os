@@ -26,10 +26,6 @@ CFG_QCOM_GENI_UART ?= y
 # Make this value configurable per platform.
 CFG_QCOM_GENI_UART_RDY_WAIT_USEC ?= 1000
 
-# PIL PAS authentication metadata slots, defaults to 1.
-# Platform-specific configs may override this value.
-CFG_PAS_MD_SLOTS ?= 1
-
 ta-targets = ta_arm64
 supported-ta-targets ?= ta_arm64
 
@@ -54,3 +50,9 @@ endif
 # Include arch/target specific configurations if present
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
+
+ifeq ($(CFG_QCOM_PAS_AUTH),y)
+# Authentication flow needs larger temporary allocations.
+# Override any arch/target defaults when PAS auth is enabled.
+CFG_PAS_TA_HEAP_SIZE := (1024 * 1024)
+endif
