@@ -7,6 +7,7 @@
 
 import argparse
 import array
+from elftools.elf.dynamic import DynamicSection
 from elftools.elf.elffile import ELFFile, ELFError
 from elftools.elf.sections import SymbolTableSection
 import os
@@ -62,14 +63,27 @@ def get_name(obj):
     return name
 
 
+def has_soname(elffile):
+    for s in elffile.iter_sections():
+        if isinstance(s, DynamicSection):
+            for tag in s.iter_tags():
+                if tag.entry.d_tag == 'DT_SONAME':
+                    return True
+    return False
+
+
 def ta_get_flags(ta_f):
     with open(ta_f, 'rb') as f:
         elffile = ELFFile(f)
+        ta_head_undef = False
 
         for s in elffile.iter_sections():
             if isinstance(s, SymbolTableSection):
                 for symbol in s.iter_symbols():
                     if symbol.name == 'ta_head':
+                        if symbol.entry['st_shndx'] == 'SHN_UNDEF':
+                            ta_head_undef = True
+                            continue
                         # Get the section containing the symbol
                         s2 = elffile.get_section(symbol.entry['st_shndx'])
                         offs = s2.header['sh_offset'] - s2.header['sh_addr']
@@ -84,6 +98,11 @@ def ta_get_flags(ta_f):
         for s in elffile.iter_sections():
             if get_name(s) == '.ta_head':
                 return struct.unpack('<16x4xI', s.data()[:24])[0]
+
+        # A shared TA library has no TA header, so no flags: it references
+        # ta_head without defining it and, unlike a TA, has a DT_SONAME
+        if ta_head_undef and has_soname(elffile):
+            return 0
 
         raise Exception('.ta_head section not found')
 
