@@ -25,6 +25,10 @@
 #define TCSR_FUSE_SEC_HW_KEY_REG_COUNT	8
 #endif
 
+/* Hybrid PQC bits of the OEM MRC row, folded into the activation vector */
+#define QCOM_TME_OEM_MRC_HYBRID_STATE_VECTOR_MASK	GENMASK_32(1, 0)
+#define QCOM_TME_OEM_MRC_ACTIVATION_HYBRID_SHIFT	30
+
 #if defined(CFG_QCOM_TMEL_COM)
 /*
  * Coherent carveout at the end of TZDRAM for TMEL IPC buffers.

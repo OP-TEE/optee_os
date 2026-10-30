@@ -22,6 +22,19 @@
 #define QCOM_WDT_TMR_BASE		UL(0x0F411000)
 #define QCOM_WDT_BARK_INT_ID		UL(0x36)
 
+/* Fuse row holding the OEM MRC state vector, which TME-Lite updates */
+#define QCOM_TME_OEM_MRC_STATE_VECTOR_ADDR	UL(0xA0098)
+/* Width of the activation and of the revocation vector in that row */
+#define QCOM_TME_OEM_MRC_VECTOR_BITS	8
+
+/* Inclusive address ranges of the rows whose MSB word carries FEC bits */
+#define QCOM_FEC_ENABLED_RANGES { \
+	{ UL(0xA0100), UL(0xA0148) }, \
+	{ UL(0xA02C8), UL(0xA02E8) }, \
+	{ UL(0xA06C0), UL(0xA06C8) }, \
+	{ UL(0xA0328), UL(0xA0360) } \
+}
+
 /* CDSP (Turing/NSP) PAS register windows. */
 #define GCC_BASE			UL(0x01800000)
 #define GCC_SIZE			UL(0x00080000)
