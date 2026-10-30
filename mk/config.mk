@@ -1353,6 +1353,9 @@ $(eval $(call cfg-depends-all,CFG_WIDEVINE_HUK,CFG_DT))
 CFG_WIDEVINE_PTA ?= n
 $(eval $(call cfg-depends-all,CFG_WIDEVINE_PTA,CFG_DT CFG_WIDEVINE_HUK))
 
+# SDM services Pseudo-TA
+CFG_SDM_SVC_PTA ?= n
+
 # When enabled, CFG_VERAISON_ATTESTATION_PTA embeds remote attestation PTA
 # service. Note: This is an experimental feature and should be used
 # with caution in production environments.

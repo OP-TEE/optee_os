@@ -36,3 +36,6 @@ CFG_WITH_SOFTWARE_PRNG ?= y
 CFG_TEE_CORE_LOG_LEVEL ?= 2
 
 include core/arch/arm/cpu/cortex-armv8-0.mk
+
+# SDM services Pseudo-TA
+CFG_SDM_SVC_PTA ?= y
