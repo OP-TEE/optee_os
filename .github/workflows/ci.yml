@@ -226,6 +226,7 @@ jobs:
               _make PLATFORM=qcom-monaco
               _make PLATFORM=qcom-ipq96xx
               _make PLATFORM=qcom-ipq52xx
+              _make PLATFORM=qcom-ipq52xx CFG_QCOM_LM_PROFILE=y
               _make PLATFORM=qcom-nord
               _make PLATFORM=qcom-shikra
               _make PLATFORM=qcom-agatti
