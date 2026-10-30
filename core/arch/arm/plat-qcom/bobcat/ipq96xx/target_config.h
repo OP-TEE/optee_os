@@ -59,6 +59,11 @@
 #define TME_QMP_LITE_IRQ_OUT_REG_ADDR		UL(0x0F400008)
 #define TME_QMP_LITE_IRQ_OUT_BIT_MASK		0x00200000U
 
+#if defined(CFG_QCOM_TMEL_AUTH)
+/* TME-Lite secure authentication request version supported by this SoC */
+#define TMEL_AUTH_VERSION			2
+#endif
+
 #if defined(CFG_QCOM_TMEL_KM)
 /* TCSR hardware key fuse registers for key management */
 #define CFG_TCSR_FUSE_PRI_HW_KEY_BASE_START	UL(0x193D404)
