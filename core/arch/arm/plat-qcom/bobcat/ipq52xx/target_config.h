@@ -22,6 +22,21 @@
 
 #define QCOM_RNG_REG_BASE		UL(0x4C5000)
 
+#if defined(CFG_QCOM_TMEL_FUSEPROV)
+/* Fuse row holding the OEM MRC state vector, which TME-Lite updates */
+#define QCOM_TME_OEM_MRC_STATE_VECTOR_ADDR	UL(0xA0090)
+/* Width of the activation and of the revocation vector in that row */
+#define QCOM_TME_OEM_MRC_VECTOR_BITS	4
+
+/* Inclusive address ranges of the rows whose MSB word carries FEC bits */
+#define QCOM_FEC_ENABLED_RANGES { \
+	{ UL(0xA00F8), UL(0xA0140) }, \
+	{ UL(0xA02C0), UL(0xA02E0) }, \
+	{ UL(0xA0640), UL(0xA0648) }, \
+	{ UL(0xA0320), UL(0xA0358) } \
+}
+#endif
+
 #define QCOM_WDT_TMR_BASE		UL(0x0B117000)
 #define QCOM_WDT_BARK_INT_ID		UL(0x23)
 
