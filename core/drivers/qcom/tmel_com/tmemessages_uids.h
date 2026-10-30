@@ -127,6 +127,12 @@
 				 0, 0, 0, 0)
 
 /* Build a paramID from the argument count and per-parameter types */
+#define TME_MSG_CREATE_PARAM_ID_2(p1, p2) \
+	__TME_MSG_CREATE_PARAM_ID(2, p1, p2)
+#define TME_MSG_CREATE_PARAM_ID_3(p1, p2, p3) \
+	__TME_MSG_CREATE_PARAM_ID(3, p1, p2, p3)
+#define TME_MSG_CREATE_PARAM_ID_4(p1, p2, p3, p4) \
+	__TME_MSG_CREATE_PARAM_ID(4, p1, p2, p3, p4)
 #define TME_MSG_CREATE_PARAM_ID_7(p1, p2, p3, p4, p5, p6, p7) \
 	__TME_MSG_CREATE_PARAM_ID(7, p1, p2, p3, p4, p5, p6, p7)
 #define TME_MSG_CREATE_PARAM_ID_8(p1, p2, p3, p4, p5, p6, p7, p8) \
@@ -147,6 +153,7 @@
  * <Template> : TME_MSG_<MSGTYPE_NAME>
  */
 #define TME_MSG_SECBOOT			0x00 /* Secure boot services */
+#define TME_MSG_FUSE			0x03 /* Fuse services */
 #define TME_MSG_KM			0x07 /* Key management services */
 #define TME_MSG_HCS			0x0B /* Host crypto services */
 
@@ -157,8 +164,13 @@
  */
 
 /* Action ID's for TME_MSG_SECBOOT */
+#define TME_ACTION_SECBOOT_OEM_MRC_STATE_UPDATE		0x03
 #define TME_ACTION_SECBOOT_SEC_AUTH			0x04
 #define TME_ACTION_SECBOOT_SEC_AUTH_V2			0x0F
+
+/* Action ID's for TME_MSG_FUSE */
+#define TME_ACTION_FUSE_WRITE_SINGLE_ROW		0x07
+#define TME_ACTION_FUSE_WRITE_MULTIPLE_ROW		0x08
 
 /* Action ID's for TME_MSG_KM */
 #define TME_ACTION_KM_CLEAR				0x01
@@ -218,6 +230,36 @@
 			TME_MSG_PARAM_TYPE_VAL, \
 			TME_MSG_PARAM_TYPE_VAL, \
 			TME_MSG_PARAM_TYPE_VAL)
+
+/* OEM MRC state update {activateVector, revokeVector, status} */
+#define TME_MSG_UID_SECBOOT_OEM_MRC_STATE_UPDATE \
+		TME_MSG_UID_CREATE(TME_MSG_SECBOOT, \
+		TME_ACTION_SECBOOT_OEM_MRC_STATE_UPDATE)
+#define TME_MSG_UID_SECBOOT_OEM_MRC_STATE_UPDATE_PARAM_ID \
+		TME_MSG_CREATE_PARAM_ID_3( \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL)
+
+/* Write a single fuse row {status, fuseAddr, lsbVal, msbVal} */
+#define TME_MSG_UID_FUSE_WRITE_SINGLE_ROW \
+		TME_MSG_UID_CREATE(TME_MSG_FUSE, \
+		TME_ACTION_FUSE_WRITE_SINGLE_ROW)
+#define TME_MSG_UID_FUSE_WRITE_SINGLE_ROW_PARAM_ID \
+		TME_MSG_CREATE_PARAM_ID_4( \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL)
+
+/* Write multiple fuse rows {status, fuseWrData} */
+#define TME_MSG_UID_FUSE_WRITE_MULTIPLE_ROW \
+		TME_MSG_UID_CREATE(TME_MSG_FUSE, \
+		TME_ACTION_FUSE_WRITE_MULTIPLE_ROW)
+#define TME_MSG_UID_FUSE_WRITE_MULTIPLE_ROW_PARAM_ID \
+		TME_MSG_CREATE_PARAM_ID_2( \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_BUF_IN)
 
 /*
  * Get RNG number
