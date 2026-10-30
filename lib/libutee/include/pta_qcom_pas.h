@@ -23,8 +23,6 @@
 #define PAS_ID_TURING_DTB	37
 #define PAS_ID_GPDSP0		39
 #define PAS_ID_GPDSP1		40
-#define PAS_ID_LMCU		86
-#define DTB_ID_LMCU		87
 
 #define PTA_QCOM_PAS_UUID { 0xdaedbae4, 0xcf3e, 0x4b76, \
 		{ 0xa5, 0xc5, 0xdb, 0xf8, 0xb6, 0xfd, 0x5a, 0xf4} }
