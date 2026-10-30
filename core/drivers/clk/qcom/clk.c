@@ -10,7 +10,7 @@
 #include <mm/core_mmu.h>
 #include <trace.h>
 
-register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, GCC_BASE, GCC_SIZE);
 
 #define QCOM_CLOCK_UPDATE_TIMEOUT_US	U(10000)
 
