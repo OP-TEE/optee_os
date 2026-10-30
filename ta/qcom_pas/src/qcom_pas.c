@@ -6,6 +6,7 @@
 #include <auth/pas_auth.h>
 #include <auth/pas_meta.h>
 #include <auth/pas_fuse.h>
+#include <pas_utils.h>
 #include <pta_qcom_pas.h>
 #include <ta_qcom_pas.h>
 #include <tee_internal_api.h>
@@ -21,24 +22,42 @@ static TEE_Result qcom_pas_init_image(struct qcom_pas_session *s, uint32_t pt,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t pas_id = 0;
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_MEMREF_INPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	void *meta_data;
+	size_t meta_data_size;
+	struct pas_md_slot *slot;
+	TEE_Param pta_params[TEE_NUM_PARAMS] = { };
 
-	res = pas_auth_save_metadata(s, pt, params);
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	pas_id = params[0].value.a;
+	meta_data = params[1].memref.buffer;
+	meta_data_size = params[1].memref.size;
+	res = pas_utils_save_metadata(s, pas_id, meta_data, meta_data_size);
 	if (res)
 		return res;
 
-	pas_id = params[0].value.a;
 	res = pas_auth_prepare_and_authenticate(s, pas_id);
 	if (res)
 		goto out;
 
+	slot = get_meta_data_slot(s, pas_id);
+	pta_params[0].value.a = pas_id;
+	pta_params[1].memref.buffer = slot->meta_data;
+	pta_params[1].memref.size = slot->meta_data_size;
 	res = TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
-				  PTA_QCOM_PAS_INIT_IMAGE, pt, params, NULL);
+				  PTA_QCOM_PAS_INIT_IMAGE, pt, pta_params,
+				  NULL);
 	if (res)
 		goto out;
 
 	return res;
 out:
-	pas_auth_release_metadata(s, pas_id);
+	pas_utils_release_metadata(s, pas_id);
 	return res;
 }
 
@@ -79,7 +98,7 @@ static TEE_Result qcom_pas_shutdown(struct qcom_pas_session *s, uint32_t pt,
 	res = TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
 				  PTA_QCOM_PAS_SHUTDOWN, pt, params, NULL);
 
-	pas_auth_release_metadata(s, params[0].value.a);
+	pas_utils_release_metadata(s, params[0].value.a);
 
 	return res;
 }

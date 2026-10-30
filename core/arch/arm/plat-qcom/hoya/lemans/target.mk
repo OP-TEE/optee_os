@@ -26,7 +26,6 @@ CFG_QCOM_HWKM ?= y
 
 ifeq ($(CFG_QCOM_PAS_AUTH),y)
 $(call force,CFG_QCOM_FUSE_PTA,y)
-CFG_PAS_MD_SLOTS = 8
 # This chip's OEM_CONFIG2 fuse row has a per-root-cert hash function
 # select bit; targets without it always use SHA-384.
 $(call force,CFG_QCOM_SEGMENT_HASH_SELECT,y)
