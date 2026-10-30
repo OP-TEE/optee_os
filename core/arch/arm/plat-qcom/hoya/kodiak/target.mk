@@ -22,6 +22,7 @@ $(call force,CFG_QCOM_RPMH_CLIENT,y)
 $(call force,CFG_QCOM_CMD_DB,y)
 endif
 
+CFG_QCOM_QFPROM_FUSE_CORE ?= y
 CFG_QCOM_PAS_PTA ?= y
 
 ifeq ($(CFG_QCOM_PAS_PTA),y)

@@ -5,6 +5,7 @@ ifneq ($(CFG_INSECURE),y)
 CFG_QCOM_QFPROM ?= y
 endif
 
+CFG_QCOM_QFPROM_FUSE_CORE ?= y
 CFG_QCOM_PAS_PTA ?= y
 
 ifeq ($(CFG_QCOM_PAS_PTA),y)
