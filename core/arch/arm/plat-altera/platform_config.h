@@ -22,4 +22,8 @@
 #define DRAM0_BASE 0x80000000
 #define DRAM0_SIZE 0x70000000  /* 1792 MB */
 
+/* System Manager - needed by sdm_svc PTA for SDM DMA control */
+#define SYSMGR_BASE		0x10D12000
+#define SYSMGR_SIZE		0x1000
+
 #endif /* __PLATFORM_CONFIG_H */

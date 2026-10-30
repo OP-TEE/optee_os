@@ -33,6 +33,8 @@ void plat_console_init(void)
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 			SERIAL8250_UART_REG_SIZE);
 
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, SYSMGR_BASE, SYSMGR_SIZE);
+
 /* Register main DDR for dynamic shared memory */
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
 
