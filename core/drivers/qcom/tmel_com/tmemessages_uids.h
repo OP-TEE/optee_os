@@ -181,6 +181,7 @@
  *
  * <Template> : TME_MSG_<MSGTYPE_NAME>
  */
+#define TME_MSG_SECBOOT			0x00 /* Secure boot services */
 #define TME_MSG_KM			0x07 /* Key management services */
 #define TME_MSG_HCS			0x0B /* Host crypto services */
 
@@ -189,6 +190,10 @@
  *
  * <Template> : TME_ACTION_<MSGTYPE_NAME>_<ACTIONID_NAME>
  */
+
+/* Action ID's for TME_MSG_SECBOOT */
+#define TME_ACTION_SECBOOT_SEC_AUTH			0x04
+#define TME_ACTION_SECBOOT_SEC_AUTH_V2			0x0F
 
 /* Action ID's for TME_MSG_KM */
 #define TME_ACTION_KM_CLEAR				0x01
@@ -204,6 +209,50 @@
  * <Template> : TME_MSG_UID_<MSGTYPE_NAME>_<ACTIONID_NAME>
  * <Template> : TME_MSG_UID_<MSGTYPE_NAME>_<ACTIONID_NAME>_PARAM_ID
  */
+
+/*
+ * Elf Image Signature & Segment Hash Verification Request.
+ * @param_id {swId, elfBuf, regionList, relocate, fSegmentAddr, fSegmentLen,
+ *	      entryAddr, extendedError, status}
+ */
+#define TME_MSG_UID_SECBOOT_SEC_AUTH \
+		TME_MSG_UID_CREATE(TME_MSG_SECBOOT, \
+		TME_ACTION_SECBOOT_SEC_AUTH)
+#define TME_MSG_UID_SECBOOT_SEC_AUTH_PARAM_ID \
+		TME_MSG_CREATE_PARAM_ID_9( \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_BUF_IN, \
+			TME_MSG_PARAM_TYPE_BUF_IN, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL)
+
+/*
+ * Elf Image Signature & Segment Hash Verification Request, V2.
+ * @param_id {swId, elfBuf, regionList, relocate, inputBitFields,
+ *	      reservedBuf, fSegmentAddr, fSegmentLen, entryAddr,
+ *	      extendedError, status, keyHandle}
+ */
+#define TME_MSG_UID_SECBOOT_SEC_AUTH_V2 \
+		TME_MSG_UID_CREATE(TME_MSG_SECBOOT, \
+		TME_ACTION_SECBOOT_SEC_AUTH_V2)
+#define TME_MSG_UID_SECBOOT_SEC_AUTH_V2_PARAM_ID \
+		TME_MSG_CREATE_PARAM_ID_12( \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_BUF_IN, \
+			TME_MSG_PARAM_TYPE_BUF_IN, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_BUF_IN, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL, \
+			TME_MSG_PARAM_TYPE_VAL)
 
 /*
  * Get RNG number
