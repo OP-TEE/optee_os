@@ -13,3 +13,4 @@ subdirs-$(CFG_QCOM_RPMH_CLIENT) += rpmh
 subdirs-$(CFG_QCOM_QFPROM) += qfprom
 subdirs-$(CFG_QCOM_XPUV4) += xpu
 subdirs-$(CFG_QCOM_TLMM) += tlmm
+subdirs-$(call cfg-one-enabled, CFG_QCOM_ICB CFG_QCOM_ICB_RPM) += icb
