@@ -15,10 +15,20 @@ struct qcom_pas_session {
 	struct pas_md_slot slots[PAS_MD_SLOTS];
 };
 
-#ifdef CFG_QCOM_PAS_AUTH
-TEE_Result pas_auth_save_metadata(struct qcom_pas_session *s, uint32_t pt,
-				  TEE_Param params[TEE_NUM_PARAMS]);
+static inline struct pas_md_slot
+*get_meta_data_slot(struct qcom_pas_session *s, uint32_t pas_id)
+{
+	size_t i = 0;
 
+	for (i = 0; i < PAS_MD_SLOTS; i++) {
+		if (s->slots[i].in_use && s->slots[i].pas_id == pas_id)
+			return &s->slots[i];
+	}
+
+	return NULL;
+}
+
+#ifdef CFG_QCOM_PAS_AUTH
 TEE_Result pas_auth_prepare_and_authenticate(struct qcom_pas_session *s,
 					     uint32_t pas_id);
 
@@ -26,18 +36,7 @@ TEE_Result pas_auth_verify(struct qcom_pas_session *s,
 			   TEE_TASessionHandle pta_session,
 			   uint32_t pas_id,
 			   TEE_Param params[TEE_NUM_PARAMS]);
-
-TEE_Result pas_auth_release_metadata(struct qcom_pas_session *s,
-				     uint32_t pas_id);
 #else
-static inline TEE_Result
-pas_auth_save_metadata(struct qcom_pas_session *s __unused,
-		       uint32_t pt __unused,
-		       TEE_Param params[TEE_NUM_PARAMS] __unused)
-{
-	return TEE_SUCCESS;
-}
-
 static inline TEE_Result
 pas_auth_prepare_and_authenticate(struct qcom_pas_session *s __unused,
 				  uint32_t pas_id __unused)
@@ -50,13 +49,6 @@ pas_auth_verify(struct qcom_pas_session *s __unused,
 		TEE_TASessionHandle pta_session __unused,
 		uint32_t pas_id __unused,
 		TEE_Param params[TEE_NUM_PARAMS] __unused)
-{
-	return TEE_SUCCESS;
-}
-
-static inline TEE_Result
-pas_auth_release_metadata(struct qcom_pas_session *s __unused,
-			  uint32_t pas_id __unused)
 {
 	return TEE_SUCCESS;
 }

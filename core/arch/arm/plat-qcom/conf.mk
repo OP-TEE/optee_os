@@ -26,9 +26,9 @@ CFG_QCOM_GENI_UART ?= y
 # Make this value configurable per platform.
 CFG_QCOM_GENI_UART_RDY_WAIT_USEC ?= 1000
 
-# PIL PAS authentication metadata slots, defaults to 1.
+# PAS metadata slots, defaults to 8.
 # Platform-specific configs may override this value.
-CFG_PAS_MD_SLOTS ?= 1
+CFG_PAS_MD_SLOTS ?= 8
 
 ta-targets = ta_arm64
 supported-ta-targets ?= ta_arm64
