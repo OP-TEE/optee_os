@@ -58,4 +58,9 @@
 #define TME_QMP_LITE_IRQ_OUT_REG_ADDR		UL(0x0B111004)
 #define TME_QMP_LITE_IRQ_OUT_BIT_MASK		0x00200000U
 
+#if defined(CFG_QCOM_TMEL_AUTH)
+/* TME-Lite secure authentication request version supported by this SoC */
+#define TMEL_AUTH_VERSION			1
+#endif
+
 #endif /* TARGET_CONFIG_H */
