@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <kernel/delay.h>
 #include <trace.h>
+#include <util.h>
 
 #include "iris.h"
 
@@ -59,13 +60,26 @@
 #define CP_NONPIXEL_START	0x01000000
 #define CP_NONPIXEL_SIZE	0x24800000
 
+struct iris_threshold {
+	uint32_t offset;
+	uint32_t value;
+};
+
+static const struct iris_threshold core_thresholds[] = {
+	{ WRAPPER_TZ_SEC_THRESHOLD_HEVC,         1344  },
+	{ WRAPPER_TZ_SEC_THRESHOLD_H264,          270  },
+	{ WRAPPER_TZ_SEC_THRESHOLD_NON_VCL_HEVC, 3800  },
+	{ WRAPPER_TZ_SEC_THRESHOLD_NON_VCL_H264, 12600 },
+	{ WRAPPER_TZ_SEC_DS_THRESHOLD,              3  },
+};
+
 static void iris_program_core_thresholds(vaddr_t iris_base)
 {
-	io_write32(iris_base + WRAPPER_TZ_SEC_THRESHOLD_HEVC, 1344);
-	io_write32(iris_base + WRAPPER_TZ_SEC_THRESHOLD_H264, 270);
-	io_write32(iris_base + WRAPPER_TZ_SEC_THRESHOLD_NON_VCL_HEVC, 3800);
-	io_write32(iris_base + WRAPPER_TZ_SEC_THRESHOLD_NON_VCL_H264, 12600);
-	io_write32(iris_base + WRAPPER_TZ_SEC_DS_THRESHOLD, 3);
+	size_t i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(core_thresholds); i++)
+		io_write32(iris_base + core_thresholds[i].offset,
+			   core_thresholds[i].value);
 }
 
 static void iris_program_core_sid_regs(vaddr_t iris_base)
@@ -144,9 +158,7 @@ static TEE_Result iris_fw_start(struct qcom_pas_data *data)
 	}
 
 	iris_program_mem_regions(iris_base, data);
-
 	iris_program_sec_sid_registers(iris_base);
-
 	io_write32(iris_base + WRAPPER_TZ_XTSS_SW_RESET, 0);
 
 	return TEE_SUCCESS;

@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <kernel/delay.h>
 #include <trace.h>
+#include <util.h>
 
 #include "iris.h"
 
@@ -62,6 +63,22 @@
 #define NONSECURE_NP_START	U(0x25800000)
 #define NONSECURE_NP_SIZE	U(0xda600000)
 
+struct iris_threshold {
+	uint32_t offset;
+	uint32_t value;
+};
+
+static const struct iris_threshold core_thresholds[] = {
+	{ CORE_TZ_SEC_THRESHOLD_HEVC,         1344  },
+	{ CORE_TZ_SEC_THRESHOLD_H264,          270  },
+	{ CORE_TZ_SEC_THRESHOLD_MP2,            46  },
+	{ CORE_TZ_SEC_THRESHOLD_NON_VCL_HEVC, 3800  },
+	{ CORE_TZ_SEC_THRESHOLD_NON_VCL_H264, 12600 },
+	{ CORE_TZ_SEC_THRESHOLD_NON_VCL_MP2,  1600  },
+	{ CORE_TZ_SEC_DS_THRESHOLD,              3  },
+	{ CORE_TZ_SEC_THRESHOLD_AV1,           1280 },
+};
+
 static const uint32_t cce_sid_table[CORE_TZ_SID_NUM_PARTITIONS]
 				   [CORE_TZ_SID_CCE_WORDS] = {
 	{ 0x04201084, 0x04010082, 0x00000000 },
@@ -100,14 +117,11 @@ static const uint32_t vpp_sid_table[CORE_TZ_SID_NUM_PARTITIONS]
 
 static void iris_program_core_thresholds(vaddr_t core_base)
 {
-	io_write32(core_base + CORE_TZ_SEC_THRESHOLD_HEVC, 1344);
-	io_write32(core_base + CORE_TZ_SEC_THRESHOLD_H264, 270);
-	io_write32(core_base + CORE_TZ_SEC_THRESHOLD_MP2, 46);
-	io_write32(core_base + CORE_TZ_SEC_THRESHOLD_NON_VCL_HEVC, 3800);
-	io_write32(core_base + CORE_TZ_SEC_THRESHOLD_NON_VCL_H264, 12600);
-	io_write32(core_base + CORE_TZ_SEC_THRESHOLD_NON_VCL_MP2, 1600);
-	io_write32(core_base + CORE_TZ_SEC_DS_THRESHOLD, 3);
-	io_write32(core_base + CORE_TZ_SEC_THRESHOLD_AV1, 1280);
+	size_t i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(core_thresholds); i++)
+		io_write32(core_base + core_thresholds[i].offset,
+			   core_thresholds[i].value);
 }
 
 static void iris_program_core_sid_tables(vaddr_t core_base)
@@ -201,9 +215,7 @@ static TEE_Result iris_fw_start(struct qcom_pas_data *data)
 	}
 
 	iris_program_mem_regions(iris_base, data);
-
 	iris_program_sec_sid_registers(iris_base);
-
 	io_write32(iris_base + WRAPPER_TZ_XTSS_SW_RESET, 0);
 
 	return TEE_SUCCESS;
