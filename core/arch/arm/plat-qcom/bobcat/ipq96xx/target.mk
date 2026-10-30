@@ -21,7 +21,10 @@ ifeq ($(CFG_QCOM_PAS_PTA),y)
 CFG_DRIVERS_CLK ?= y
 CFG_DRIVERS_QCOM_CLK ?= y
 CFG_IN_TREE_EARLY_TAS += qcom_pas/cff7d191-7ca0-4784-af13-48223b9a4fbe
+# Images are authenticated by TME-Lite, not by the PAS TA.
 $(call force,CFG_QCOM_PAS_AUTH,n)
+$(call force,CFG_QCOM_TMEL_AUTH,y,required by CFG_QCOM_PAS_PTA)
+$(call force,CFG_QCOM_TMEL_COM,y,required by CFG_QCOM_TMEL_AUTH)
 endif
 
 # Hardware RNG via the TME-Lite RNG service, which needs the TME-Lite COM
