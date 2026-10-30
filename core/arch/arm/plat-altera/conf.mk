@@ -14,6 +14,10 @@ $(call force,CFG_TEE_CORE_NB_CORE,4)
 CFG_TZDRAM_START ?= 0x83000000
 CFG_TZDRAM_SIZE ?= 0x02000000
 
+# Core heap: default 64KB is too small for max-size SDOS bounce buffers.
+# Max SDOS operation needs ~65KB (32712 src + 32760 dst) plus session overhead.
+CFG_CORE_HEAP_SIZE ?= 0x100000
+
 $(call force,CFG_CORE_RESERVED_SHM,n)
 $(call force,CFG_CORE_DYN_SHM,y)
 
