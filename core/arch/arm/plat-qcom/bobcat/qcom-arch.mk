@@ -3,6 +3,11 @@
 
 CFG_QCOM_SEC_WDOG ?= y
 
+# TME-Lite fuse programming client; it reaches TME-Lite through tmel_com.
+ifeq ($(CFG_QCOM_TMEL_FUSE),y)
+$(call force,CFG_QCOM_TMEL_COM,y,required by CFG_QCOM_TMEL_FUSE)
+endif
+
 # XPU protection for TZDRAM and the OP-TEE DIAG log buffer
 CFG_QCOM_XPU_PROTECT ?= y
 ifeq ($(CFG_QCOM_XPU_PROTECT),y)
