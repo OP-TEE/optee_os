@@ -24,6 +24,7 @@
 #include <mm/tee_pager.h>
 #include <platform_config.h>
 #include <riscv.h>
+#include <riscv_pmp.h>
 #include <rng_support.h>
 #include <sbi.h>
 #include <sbi_mpxy.h>
@@ -312,6 +313,7 @@ void __weak boot_init_primary_runtime(void)
 	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
 	     (unsigned long)boot_mmu_config.map_offset, VCORE_START_VA);
 #endif
+	riscv_pmp_dump_core_regions();
 	/*
 	 * The interrupt controller resolves the context of each hart from
 	 * the device tree, so the hart list has to be known first.

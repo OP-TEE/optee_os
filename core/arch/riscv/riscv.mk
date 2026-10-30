@@ -29,6 +29,32 @@ $(error Error: CFG_RV64_core or CFG_RV32_core should be defined)
 endif
 endif
 
+# Pad core .text, .rodata and .data out to separate naturally aligned
+# power-of-two regions, each described by one NAPOT PMP entry in the OpenSBI
+# domain device tree. The orders must add up to CFG_TEE_RAM_VA_SIZE.
+CFG_RISCV_CORE_NAPOT_REGIONS ?= n
+ifeq ($(CFG_RISCV_CORE_NAPOT_REGIONS),y)
+$(call force,CFG_CORE_RODATA_NOEXEC,y)
+$(call force,CFG_CORE_RWDATA_NOEXEC,y)
+# Sized for plat-virt, whose TEE RAM is 2MiB: .text needs the larger region,
+# .rodata and the read-write area fit in half of one each.
+CFG_RISCV_CORE_TEXT_ORDER ?= 20
+CFG_RISCV_CORE_RODATA_ORDER ?= 19
+CFG_RISCV_CORE_RWDATA_ORDER ?= 19
+# The regions are laid out back to back from TEE_LOAD_ADDR, so they have to
+# fill TEE RAM exactly. kern.ld.S asserts this too, but failing here names
+# the orders that are wrong before anything is built.
+riscv-core-region-sum := $(shell echo $$(( (1 << $(CFG_RISCV_CORE_TEXT_ORDER)) + \
+	(1 << $(CFG_RISCV_CORE_RODATA_ORDER)) + \
+	(1 << $(CFG_RISCV_CORE_RWDATA_ORDER)) )))
+riscv-core-tee-ram := $(shell echo $$(( $(CFG_TEE_RAM_VA_SIZE) )))
+ifneq ($(riscv-core-region-sum),$(riscv-core-tee-ram))
+$(error CFG_RISCV_CORE_TEXT_ORDER, CFG_RISCV_CORE_RODATA_ORDER and \
+CFG_RISCV_CORE_RWDATA_ORDER describe $(riscv-core-region-sum) bytes, but \
+CFG_TEE_RAM_VA_SIZE is $(riscv-core-tee-ram))
+endif
+endif
+
 CFG_CORE_RWDATA_NOEXEC ?= y
 CFG_CORE_RODATA_NOEXEC ?= n
 ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
@@ -99,6 +125,7 @@ $(call force,CFG_PAGED_USER_TA,n)
 $(call force,CFG_WITH_PAGER,n)
 $(call force,CFG_GIC,n)
 $(call force,CFG_ARM_GICV3,n)
+$(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 
@@ -129,22 +156,9 @@ endif
 ifeq ($(CFG_RISCV_ISA_ZBB),y)
 ISA_ZBB = _zbb
 endif
-# Zicbom cache-block management operations, used for the data cache range
-# maintenance in cache_helpers_rv.S. The M-mode firmware must allow them
-# from S-mode (menvcfg.CBCFE and menvcfg.CBIE), which OpenSBI does when
-# the hart advertises the extension.
-CFG_RISCV_ISA_ZICBOM ?= n
-ifeq ($(CFG_RISCV_ISA_ZICBOM),y)
-ISA_ZICBOM = _zicbom
-# Cache block size in bytes ("riscv,cbom-block-size" in the device tree)
-CFG_RISCV_CBOM_BLOCK_SIZE ?= 64
-endif
 
-riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
+riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei
 riscv-abi = $(ABI_BASE)$(ABI_D)
-
-CFG_WITH_VFP ?= $(CFG_RISCV_FPU)
-$(eval $(call cfg-depends-all,CFG_WITH_VFP,CFG_RISCV_FPU))
 
 rv64-platform-cflags += -mcmodel=$(riscv-platform-mcmodel)
 rv64-platform-cflags += -march=$(riscv-isa) -mabi=$(riscv-abi)

@@ -34,6 +34,18 @@ static inline TEE_Result core_lockdep_tests(
 TEE_Result core_aslr_tests(uint32_t param_types,
 			   TEE_Param params[TEE_NUM_PARAMS]);
 
+#ifdef CFG_RISCV_CORE_NAPOT_REGIONS
+TEE_Result core_pmp_tests(uint32_t param_types,
+			  TEE_Param params[TEE_NUM_PARAMS]);
+#else
+static inline TEE_Result
+core_pmp_tests(uint32_t param_types __unused,
+	       TEE_Param params[TEE_NUM_PARAMS] __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
+
 TEE_Result core_aes_perf_tests(uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS]);
 

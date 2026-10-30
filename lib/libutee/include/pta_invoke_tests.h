@@ -124,5 +124,17 @@
 #define PTA_INVOKE_TESTS_ASLR_ENABLED		BIT(0)
 #define PTA_INVOKE_TESTS_ASLR_RANDOMIZED	BIT(1)
 
+/*
+ * Core PMP region status, RISC-V only
+ *
+ * [out]    value[0].a	PTA_INVOKE_TESTS_REGIONS_* flags
+ * [out]    value[0].b	number of core regions described
+ */
+#define PTA_INVOKE_TESTS_CMD_CORE_REGIONS	15
+#define PTA_INVOKE_TESTS_REGIONS_ENABLED	BIT(0)
+#define PTA_INVOKE_TESTS_REGIONS_NAPOT		BIT(1)
+#define PTA_INVOKE_TESTS_REGIONS_MAPPING		BIT(2)
+#define PTA_INVOKE_TESTS_REGIONS_ACCESS		BIT(3)
+
 #endif /*__PTA_INVOKE_TESTS_H*/
 
