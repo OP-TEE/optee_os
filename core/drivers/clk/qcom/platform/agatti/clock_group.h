@@ -1,0 +1,61 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+#ifndef _CLOCK_GROUP_QCOM_H_
+#define _CLOCK_GROUP_QCOM_H_
+
+/* GCC, relative to GCC_BASE */
+#define GCC_LPASS_CORE_AXIM_CBCR		0x3a008
+#define GCC_LPASS_SWAY_CBCR			0x3a00c
+#define GCC_LPASS_RESTART			0xc0000
+
+/* TCSR, relative to TCSR_BASE */
+#define TCSR_LPASS_HALTREQ			0x62000
+#define TCSR_LPASS_HALTACK			0x62004
+
+/* LPASS, relative to LPASS_BASE */
+#define LPASS_QDSP6SS_DBG_CFG			0x400018
+#define LPASS_QDSP6SS_RET_CFG			0x40001c
+#define LPASS_QDSP6SS_CORE_CBCR			0x400020
+#define LPASS_QDSP6SS_XO_CBCR			0x400038
+#define LPASS_QDSP6SS_SLEEP_CBCR		0x40003c
+#define LPASS_AUDIO_CC_DIG_PLL_MODE		0x5403e8
+#define LPASS_AUDIO_CC_PLL_MODE			0x5407d0
+#define LPASS_PDC_HM_GDSCR			0x783090
+#define LPASS_Q6_AHBM_CBCR			0x78901c
+#define LPASS_Q6_AHBS_CBCR			0x789020
+#define LPASS_AUDIO_HM_BCR			0x78908c
+#define LPASS_AUDIO_HM_GDSCR			0x789090
+#define LPASS_AT_CBCR				0x78a00c
+#define LPASS_PCLKDBG_CBCR			0x78a014
+#define LPASS_SSC_GDSCR				0x796090
+#define LPASS_SSC_PWR_RDY_STATUS		0x79609c
+#define LPASS_APB_LOW_POWER_HANDSHAKE		0x955018
+#define LPASS_NTS_LOW_POWER_HANDSHAKE		0x955020
+#define LPASS_SSC_SCC_CRIF_CBCR			0xc02004
+
+#define QDSP6SS_RET_CFG_RET_ARES_ENA		BIT(0)
+
+#define GDSCR_SW_COLLAPSE			BIT(0)
+#define GDSCR_CLK_DIS_WAIT_MASK			GENMASK_32(15, 12)
+#define GDSCR_CLK_DIS_WAIT_SHIFT		12
+/* Longest clock-disable wait before the PDC head switch collapses */
+#define PDC_HM_CLK_DIS_WAIT			0xf
+#define GDSCR_PWR_ON				BIT(31)
+
+#define BCR_BLK_ARES				BIT(0)
+
+#define PLL_MODE_OUTCTRL			BIT(0)
+#define PLL_MODE_BYPASSNL			BIT(1)
+#define PLL_MODE_RESET_N			BIT(2)
+
+#define SSC_RDY_FOR_ACCESS			BIT(0)
+
+#define LOW_POWER_HANDSHAKE_ACK			BIT(0)
+#define LOW_POWER_HANDSHAKE_REQUEST		BIT(2)
+
+#define TCSR_HALT_BIT				BIT(0)
+
+#endif /* _CLOCK_GROUP_QCOM_H_ */
