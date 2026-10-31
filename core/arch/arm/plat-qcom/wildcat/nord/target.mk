@@ -16,3 +16,5 @@ CFG_QCOM_RPMH_CLIENT ?= y
 ifeq ($(CFG_QCOM_RPMH_CLIENT),y)
 $(call force,CFG_QCOM_CMD_DB,y)
 endif
+
+CFG_QCOM_TLMM ?= y
