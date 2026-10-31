@@ -1059,6 +1059,11 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 	goto out;
 invalidate:
 	tee_fs_htree_close(&fdp->ht);
+	/* A failed sync leaves dfh.hash unchanged and preserves old blocks. */
+	if (res != TEE_ERROR_CORRUPT_OBJECT && res != TEE_ERROR_SECURITY &&
+	    tee_fs_htree_open(false, fdp->dfh.hash, 0, &fdp->uuid,
+			      &ree_fs_storage_ops, fdp, &fdp->ht))
+		res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
 out:
 	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
@@ -1200,6 +1205,12 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 	goto out;
 invalidate:
 	tee_fs_htree_close(&fdp->ht);
+	/* A shrink may already have removed blocks needed by the old hash. */
+	if (len >= old_len && res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_SECURITY &&
+	    tee_fs_htree_open(false, fdp->dfh.hash, 0, &fdp->uuid,
+			      &ree_fs_storage_ops, fdp, &fdp->ht))
+		res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
 out:
 	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
