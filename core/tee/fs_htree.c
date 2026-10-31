@@ -929,13 +929,18 @@ TEE_Result tee_fs_htree_read_block(struct tee_fs_htree **ht_arg,
 	size_t len;
 	void *ctx;
 	void *enc_block;
+	bool close_ht = false;
 
 	if (!ht)
 		return TEE_ERROR_CORRUPT_OBJECT;
 
 	res = get_block_node(ht, false, block_num, &node);
-	if (res != TEE_SUCCESS)
+	if (res != TEE_SUCCESS) {
+		/* A missing node is an inconsistent tree, not an RPC error. */
+		res = TEE_ERROR_CORRUPT_OBJECT;
+		close_ht = true;
 		goto out;
+	}
 
 	block_vers = !!(node->node.flags & HTREE_NODE_COMMITTED_BLOCK);
 	res = ht->stor->rpc_read_init(ht->stor_aux, &op,
@@ -949,6 +954,7 @@ TEE_Result tee_fs_htree_read_block(struct tee_fs_htree **ht_arg,
 		goto out;
 	if (len != ht->stor->block_size) {
 		res = TEE_ERROR_CORRUPT_OBJECT;
+		close_ht = true;
 		goto out;
 	}
 
@@ -959,8 +965,10 @@ TEE_Result tee_fs_htree_read_block(struct tee_fs_htree **ht_arg,
 
 	res = authenc_decrypt_final(ctx, node->node.tag, enc_block,
 				    ht->stor->block_size, block);
+	close_ht = res == TEE_ERROR_CORRUPT_OBJECT ||
+		   res == TEE_ERROR_SECURITY;
 out:
-	if (res != TEE_SUCCESS)
+	if (close_ht)
 		tee_fs_htree_close(ht_arg);
 	return res;
 }
