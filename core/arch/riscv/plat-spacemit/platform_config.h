@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2026 Ahmed Fardi
  *
- * SpacemiT K1 platform configuration
+ * SpacemiT K1 and K3 platform configuration
  */
 
 #ifndef PLATFORM_CONFIG_H
@@ -11,11 +11,18 @@
 #include <mm/generic_ram_layout.h>
 #include <riscv.h>
 
+/* Fallback DDR ranges: the DT memory nodes give the actual size */
+#if defined(PLATFORM_FLAVOR_k3)
+/* DDR from 4 GiB */
+#define DRAM0_BASE		0x100000000ULL
+#define DRAM0_SIZE		0x200000000ULL
+#else
 /* DDR: up to 2 GiB at 0, the rest above 4 GiB */
 #define DRAM0_BASE		0x00000000
 #define DRAM0_SIZE		0x80000000
 #define DRAM1_BASE		0x100000000ULL
 #define DRAM1_SIZE		0x80000000
+#endif
 
 /* PXA/XScale 8250, 32-bit registers */
 #define UART0_BASE		0xd4017000

@@ -1,10 +1,11 @@
-# SpacemiT K1 (BananaPi BPI-F3, MusePi Pro): OP-TEE runs in an OpenSBI
-# trusted domain and talks to the other domain over SBI MPXY.
+# SpacemiT K1 (BananaPi BPI-F3, MusePi Pro) and K3 (BananaPi BPI-SM10):
+# OP-TEE runs in an OpenSBI trusted domain and talks to the other domain
+# over SBI MPXY.
 PLATFORM_FLAVOR ?= k1
 
 $(call force,CFG_RV64_core,y)
 
-# X60 cores: RV64GCV; OP-TEE itself does not use V
+# X60 (K1) and X100 (K3) cores: RV64GCV; OP-TEE itself does not use V
 $(call force,CFG_RISCV_ISA_C,y)
 $(call force,CFG_RISCV_FPU,y)
 
@@ -51,8 +52,15 @@ CFG_RISCV_WITH_M_MODE_SM ?= y
 
 supported-ta-targets = ta_rv64
 
-# Secure DDR: the 32 MiB no-map region of the OpenSBI trusted domain, clear
-# of the U-Boot load addresses and of the Linux CMA area at 0x40000000
+# Secure DDR: the 32 MiB no-map region of the OpenSBI trusted domain.
+# K1: clear of the U-Boot load addresses and of the Linux CMA area at
+# 0x40000000. K3: DRAM starts at 4 GiB; above the U-Boot Android load
+# buffers (0x180000000, 0x190000000), below the Linux CMA pool
+# (0x1e0000000).
+ifeq ($(PLATFORM_FLAVOR),k3)
+CFG_TDDRAM_START ?= 0x1c0000000
+else
 CFG_TDDRAM_START ?= 0x36000000
+endif
 CFG_TDDRAM_SIZE ?= 0x02000000
 CFG_TEE_RAM_VA_SIZE ?= 0x00200000

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2026 Ahmed Fardi
  *
- * SpacemiT K1 platform
+ * SpacemiT K1 and K3 platform
  */
 
 #include <console.h>
@@ -17,7 +17,9 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART0_BASE, CORE_MMU_PGDIR_SIZE);
 #endif
 
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
+#ifdef DRAM1_BASE
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
+#endif
 
 #ifdef CFG_16550_UART
 void plat_console_init(void)

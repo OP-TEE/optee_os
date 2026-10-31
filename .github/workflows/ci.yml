@@ -369,6 +369,7 @@ jobs:
               _make PLATFORM=sifive
               _make PLATFORM=cva6
               _make PLATFORM=spacemit-k1
+              _make PLATFORM=spacemit-k3
     steps:
       - name: Checkout
         uses: actions/checkout@v7
