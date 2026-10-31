@@ -9,6 +9,7 @@
 #include <drivers/gic.h>
 #include <drivers/qcom_geni_uart.h>
 #include <kernel/boot.h>
+#include <kernel/panic.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <qcom_common.h>
@@ -20,6 +21,8 @@
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, GENI_UART_REG_BASE,
 			GENI_UART_REG_SIZE);
 
+/* The GIC and the DRAM are described by the DT, if there is one */
+#ifndef CFG_DT
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
 #ifdef _CFG_ARM_GIC_V3_OR_V4
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE,
@@ -35,6 +38,7 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #ifdef DRAM2_BASE
 register_ddr(DRAM2_BASE, DRAM2_SIZE);
 #endif
+#endif /*!CFG_DT*/
 
 static struct qcom_geni_uart_data console_data;
 
@@ -67,7 +71,10 @@ boot_final(platform_banner);
 
 void boot_primary_init_intc(void)
 {
-#ifdef _CFG_ARM_GIC_V3_OR_V4
+#ifdef CFG_DT
+	if (gic_init_from_dt())
+		panic("No usable GIC node in the DT");
+#elif defined(_CFG_ARM_GIC_V3_OR_V4)
 	gic_init_v3(0, GICD_BASE, GICR_BASE);
 #else
 	gic_init(GICC_BASE, GICD_BASE);
