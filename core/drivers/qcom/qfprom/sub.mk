@@ -3,12 +3,12 @@
 # Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 #
 
-srcs-y += qfprom_core.c
-srcs-y += qfprom_hal.c
-srcs-y += qfprom_target.c
+srcs-$(CFG_QCOM_QFPROM_FUSE_CORE) += qfprom_core.c
+srcs-$(CFG_QCOM_QFPROM_FUSE_CORE) += qfprom_hal.c
+srcs-$(CFG_QCOM_QFPROM_FUSE_CORE) += qfprom_target.c
 srcs-$(CFG_QCOM_QFPROM_RPMH_CLIENT) += qfprom_rpmh.c
-srcs-y += $(PLATFORM_FLAVOR)/qfprom_fuse_region.c
-srcs-$(CFG_QCOM_FUSE_PTA) += qfprom_secboot.c
+srcs-$(CFG_QCOM_FUSE_BLOW) += $(PLATFORM_FLAVOR)/qfprom_fuse_region.c
+srcs-$(CFG_QCOM_QFPROM_FUSE_CORE) += qfprom_secboot.c
 
-global-incdirs-y += .
+global-incdirs-$(CFG_QCOM_QFPROM_FUSE_CORE) += .
 global-incdirs-y += $(PLATFORM_FLAVOR)

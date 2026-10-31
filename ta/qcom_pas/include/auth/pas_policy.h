@@ -16,6 +16,8 @@
 #define SECBOOT_TURING1_SW_TYPE	0x44
 #define SECBOOT_GPDSP0_SW_TYPE	0x58
 #define SECBOOT_GPDSP1_SW_TYPE	0x5A
+#define SECBOOT_LPAICP_MISSION_MODE_SW_TYPE	0xD1
+#define SECBOOT_LPAICP_DTB_SW_TYPE	0xD2
 
 struct pas_swid_entry {
 	uint32_t pas_id;
