@@ -82,6 +82,8 @@
 	.macro __clear_freg reg
 #if RISCV_FLEN_BITS == 32
 		fmv.w.x	f\reg, zero
+#elif defined(RV32)
+		fcvt.d.w	f\reg, zero
 #else
 		fmv.d.x	f\reg, zero
 #endif
