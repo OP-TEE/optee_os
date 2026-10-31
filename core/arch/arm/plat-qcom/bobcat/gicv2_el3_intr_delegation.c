@@ -3,7 +3,6 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#include <initcall.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
@@ -18,7 +17,7 @@
  * trap into OP-TEE first and are handed back to TF-A with an SMC.
  */
 
-static const uint32_t qcom_gicv2_el3_delegated_spis[] = {
+static const uint32_t delegated_spis[] = {
 	QCOM_WDT_BITE_INT_ID,
 	QCOM_XPU_VIOLATION_INT_ID,
 	QCOM_MEMNOC_ERROR_INT_ID,
@@ -58,14 +57,6 @@ qcom_gicv2_el3_intr_delegation_handler(struct itr_handler *h)
 	return ITRR_HANDLED;
 }
 
-static void qcom_gicv2_el3_intr_delegation_enable_spis(struct itr_chip *chip)
-{
-	size_t n = 0;
-
-	for (n = 0; n < ARRAY_SIZE(qcom_gicv2_el3_delegated_spis); n++)
-		interrupt_enable(chip, qcom_gicv2_el3_delegated_spis[n]);
-}
-
 /* The reset SGI's GIC enable bit is banked per-CPU: enable it on every core */
 void qcom_gicv2_el3_intr_delegation_init_per_cpu(void)
 {
@@ -83,22 +74,19 @@ static void qcom_gicv2_el3_intr_delegation_register(struct itr_chip *chip,
 		panic("GICv2 EL3 interrupt delegation init failed");
 }
 
-static TEE_Result qcom_gicv2_el3_intr_delegation_init(void)
+/* Register before native interrupts are unmasked, so none gets masked */
+void qcom_gicv2_el3_intr_delegation_init(void)
 {
 	struct itr_chip *chip = interrupt_get_main_chip();
-	size_t it = 0;
 	size_t n = 0;
 
-	for (n = 0; n < ARRAY_SIZE(qcom_gicv2_el3_delegated_spis); n++) {
-		it = qcom_gicv2_el3_delegated_spis[n];
-		qcom_gicv2_el3_intr_delegation_register(chip, it);
+	for (n = 0; n < ARRAY_SIZE(delegated_spis); n++) {
+		qcom_gicv2_el3_intr_delegation_register(chip,
+							delegated_spis[n]);
+		interrupt_enable(chip, delegated_spis[n]);
 	}
 	qcom_gicv2_el3_intr_delegation_register(chip, QCOM_RESET_SGI_INT_ID);
 
-	qcom_gicv2_el3_intr_delegation_enable_spis(chip);
 	/* Other cores do it from boot_secondary_init_intc() */
 	qcom_gicv2_el3_intr_delegation_init_per_cpu();
-
-	return TEE_SUCCESS;
 }
-service_init(qcom_gicv2_el3_intr_delegation_init);
