@@ -16,7 +16,6 @@ $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,40)
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_RESERVED_SHM,n)
-$(call force,CFG_CRYPTO_WITH_CE,y)
 $(call force,CFG_HW_UNIQUE_KEY_LENGTH,32)
 
 CFG_QCOM_GENI_UART ?= y
@@ -54,3 +53,20 @@ endif
 # Include arch/target specific configurations if present
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
+
+# Arm CE only accelerates the crypto library, so leave it out when that is off.
+# This comes after the arch and target files, which may set CFG_CRYPTO.
+ifneq ($(CFG_CRYPTO),n)
+$(call force,CFG_CRYPTO_WITH_CE,y)
+endif
+
+# A target describes its platform in a DT embedded in the core by setting
+# CFG_EMBED_DTB_SOURCE_FILE in its target.mk.
+ifneq ($(strip $(CFG_EMBED_DTB_SOURCE_FILE)),)
+# The embedded DTB is OP-TEE's own, leave the non-secure DTB alone
+$(call force,CFG_EXTERNAL_DT,n)
+# x2 is not a DTB (get_aslr_seed() would read it with CFG_DT=y)
+$(call force,CFG_DT_ADDR,0)
+# Qualcomm clocks are acquired by name, not described in DT
+CFG_DRIVERS_CLK_DT ?= n
+endif

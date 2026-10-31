@@ -1186,8 +1186,45 @@ static const struct dt_device_match gic_match_table[] = {
 	{ .compatible = "arm,cortex-a5-gic" },
 	{ .compatible = "arm,cortex-a9-gic" },
 	{ .compatible = "arm,gic-400" },
+	{ .compatible = "arm,gic-v3" },
+	{ .compatible = "qcom,msm-qgic2" },
 	{ }
 };
+
+TEE_Result gic_init_from_dt(void)
+{
+	const struct dt_device_match *match = NULL;
+	const void *fdt = get_dt();
+	paddr_t base[2] = { };
+	size_t size[2] = { };
+	int node = -1;
+	int i = 0;
+
+	if (!fdt)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	for (match = gic_match_table; match->compatible && node < 0; match++)
+		node = fdt_node_offset_by_compatible(fdt, -1,
+						     match->compatible);
+	if (node < 0)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	for (i = 0; i < 2; i++) {
+		if (fdt_get_reg_props_by_index(fdt, node, i, &base[i],
+					       &size[i]))
+			return TEE_ERROR_BAD_FORMAT;
+		if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, base[i], size[i]))
+			return TEE_ERROR_GENERIC;
+	}
+
+	DMSG("GIC: bases from DT: %#"PRIxPA" %#"PRIxPA, base[0], base[1]);
+	if (IS_ENABLED2(_CFG_ARM_GIC_V3_OR_V4))
+		gic_init_v3(0, base[0], base[1]);
+	else
+		gic_init(base[1], base[0]);
+
+	return TEE_SUCCESS;
+}
 
 DEFINE_DT_DRIVER(gic_dt_driver) = {
 	.name = "gic",
