@@ -66,12 +66,22 @@ struct clk_pll_vote {
 	uint8_t vote_bit;
 };
 
+/* RPM resource that can be voted by name through qcom_clk_rpm_request(). */
+struct qcom_clk_rpm_resource {
+	const char *name;
+	uint32_t key;
+	uint32_t resource;
+	uint32_t id;
+};
+
 /* Per-target config; combined branches point @rcg at own clk_rcg_desc. */
 struct clk_cfg {
 	const struct clk_branch_desc *branches;
 	uint32_t n_branches;
 	const struct clk_pll_vote *pll_votes;
 	uint32_t n_pll_votes;
+	const struct qcom_clk_rpm_resource *rpm_resources;
+	uint32_t n_rpm_resources;
 };
 
 const struct clk_cfg *clk_get_cfg(void);
