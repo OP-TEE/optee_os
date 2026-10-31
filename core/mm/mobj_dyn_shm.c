@@ -352,9 +352,13 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 	TEE_Result res = TEE_SUCCESS;
 	size_t i = 0;
 	uint32_t exceptions = 0;
+	size_t mobj_size = 0;
 	size_t s = 0;
 
 	if (!num_pages || page_offset >= SMALL_PAGE_SIZE)
+		return NULL;
+	if (MUL_OVERFLOW(num_pages - 1, SMALL_PAGE_SIZE, &mobj_size) ||
+	    ADD_OVERFLOW(mobj_size, SMALL_PAGE_SIZE - page_offset, &mobj_size))
 		return NULL;
 
 	s = mobj_reg_shm_size(num_pages);
@@ -365,7 +369,7 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 		return NULL;
 
 	mobj_reg_shm->mobj.ops = &mobj_reg_shm_ops;
-	mobj_reg_shm->mobj.size = num_pages * SMALL_PAGE_SIZE - page_offset;
+	mobj_reg_shm->mobj.size = mobj_size;
 	mobj_reg_shm->mobj.phys_granule = SMALL_PAGE_SIZE;
 	refcount_set(&mobj_reg_shm->mobj.refc, 1);
 	mobj_reg_shm->cookie = cookie;
