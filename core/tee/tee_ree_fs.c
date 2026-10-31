@@ -303,6 +303,7 @@ static TEE_Result ree_fs_ftruncate_internal(struct ree_fs_object *fdp,
 	} else {
 		tee_fs_off_t offs = 0;
 		size_t sz;
+		size_t old_len = meta->length;
 
 		res = get_offs_size(TEE_FS_HTREE_TYPE_BLOCK,
 				    ROUNDUP_DIV(new_file_len, BLOCK_SIZE), 1,
@@ -315,20 +316,33 @@ static TEE_Result ree_fs_ftruncate_internal(struct ree_fs_object *fdp,
 		if (res != TEE_SUCCESS)
 			return res;
 
+		meta->length = new_file_len;
+		tee_fs_htree_meta_set_dirty(fdp->ht);
+
+		res = tee_fs_htree_sync_to_storage(&fdp->ht,
+						   fdp->dfh.hash, NULL);
+		if (res) {
+			tee_fs_htree_close(&fdp->ht);
+			/* A failed sync preserves the old hash and blocks. */
+			if (res != TEE_ERROR_CORRUPT_OBJECT &&
+			    res != TEE_ERROR_SECURITY &&
+			    tee_fs_htree_open(false, fdp->dfh.hash, 0,
+					      &fdp->uuid, &ree_fs_storage_ops,
+					      fdp, &fdp->ht))
+				res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
+			return res;
+		}
+
 		res = tee_fs_rpc_truncate(OPTEE_RPC_CMD_FS, fdp->fd,
 					  offs + (tee_fs_off_t)sz);
 		if (res != TEE_SUCCESS) {
-			if ((size_t)new_file_len / BLOCK_SIZE <
-			    meta->length / BLOCK_SIZE) {
-				/* The failed RPC follows an HTree prune. */
+			if ((size_t)new_file_len < old_len) {
+				/* New length is synced but not committed. */
 				tee_fs_htree_close(&fdp->ht);
 				return res;
 			}
 			return res;
 		}
-
-		meta->length = new_file_len;
-		tee_fs_htree_meta_set_dirty(fdp->ht);
 	}
 
 	return TEE_SUCCESS;
@@ -1059,6 +1073,11 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 	goto out;
 invalidate:
 	tee_fs_htree_close(&fdp->ht);
+	/* A failed sync leaves dfh.hash unchanged and preserves old blocks. */
+	if (res != TEE_ERROR_CORRUPT_OBJECT && res != TEE_ERROR_SECURITY &&
+	    tee_fs_htree_open(false, fdp->dfh.hash, 0, &fdp->uuid,
+			      &ree_fs_storage_ops, fdp, &fdp->ht))
+		res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
 out:
 	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
@@ -1200,6 +1219,12 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 	goto out;
 invalidate:
 	tee_fs_htree_close(&fdp->ht);
+	/* A shrink may already have removed blocks needed by the old hash. */
+	if (len >= old_len && res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_SECURITY &&
+	    tee_fs_htree_open(false, fdp->dfh.hash, 0, &fdp->uuid,
+			      &ree_fs_storage_ops, fdp, &fdp->ht))
+		res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
 out:
 	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
