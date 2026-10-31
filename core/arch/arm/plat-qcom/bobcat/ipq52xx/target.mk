@@ -21,6 +21,9 @@ CFG_PREALLOC_RPC_CACHE ?= n
 
 # Random data comes from the CSRNG, nothing else needs a crypto library
 CFG_CRYPTO ?= n
+else
+# The other profiles describe the platform in a DT, the LM one does not
+CFG_EMBED_DTB_SOURCE_FILE ?= qcom/ipq5210-rdp504.dts
 endif
 
 $(call force,CFG_TEE_CORE_NB_CORE,4)

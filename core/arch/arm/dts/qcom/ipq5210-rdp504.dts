@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * Secure world view of the IPQ5210 RDP504 as seen by OP-TEE.
+ *
+ * Only what OP-TEE uses is described.
+ */
+
+/dts-v1/;
+
+/ {
+	compatible = "qcom,ipq5210-rdp504", "qcom,ipq5210";
+	model = "Qualcomm Technologies, Inc. IPQ5210 RDP504";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	/* Real sizes, as nothing fills them in for the embedded DTB */
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x80000000>,
+		      <0x8 0x0 0x0 0x80000000>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		interrupt-controller@b000000 {
+			compatible = "qcom,msm-qgic2";
+			reg = <0x0 0x0b000000 0x0 0x1000>,	/* GICD */
+			      <0x0 0x0b002000 0x0 0x1000>;	/* GICC */
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <3>;
+		};
+	};
+};
