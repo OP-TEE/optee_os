@@ -54,3 +54,17 @@ endif
 # Include arch/target specific configurations if present
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
+
+# Targets that embed their DT set CFG_QCOM_EMBED_DTB and QCOM_DTS_FILE
+ifeq ($(CFG_QCOM_EMBED_DTB),y)
+CFG_EMBED_DTB_SOURCE_FILE ?= $(QCOM_DTS_FILE)
+ifeq ($(strip $(CFG_EMBED_DTB_SOURCE_FILE)),)
+$(error CFG_QCOM_EMBED_DTB=y needs QCOM_DTS_FILE, this target has no DTS)
+endif
+# The embedded DTB is OP-TEE's own, leave the non-secure DTB alone
+$(call force,CFG_EXTERNAL_DT,n)
+# x2 is not a DTB (get_aslr_seed() would read it with CFG_DT=y)
+$(call force,CFG_DT_ADDR,0)
+# Qualcomm clocks are acquired by name, not described in DT
+CFG_DRIVERS_CLK_DT ?= n
+endif
