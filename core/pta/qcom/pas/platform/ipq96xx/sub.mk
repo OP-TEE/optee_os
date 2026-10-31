@@ -1,3 +1,3 @@
-srcs-y += subsys.c cdsp.c cdsp_dtb.c
+srcs-y += subsys.c cdsp.c cdsp_auth.c cdsp_dtb.c
 incdirs-y += .
 incdirs-y += ../

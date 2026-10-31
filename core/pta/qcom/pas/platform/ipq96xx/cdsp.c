@@ -13,6 +13,7 @@
 #include <util.h>
 
 #include "cdsp.h"
+#include "cdsp_auth.h"
 #include "pas_subsys.h"
 
 /* Sub-block offsets within the TURING window. */
@@ -85,6 +86,9 @@ register_phys_mem(MEM_AREA_IO_SEC, CDSP_TCSR_BASE, CDSP_TCSR_SIZE);
  */
 register_phys_mem(MEM_AREA_IO_SEC, GCC_BASE, GCC_SIZE);
 
+/* Metadata of the CDSP image, authenticated by cdsp_fw_start(). */
+static struct cdsp_metadata cdsp_md;
+
 static bool cdsp_boot_stage1_done(uint32_t val)
 {
 	return val == Q6SS_BOOT_STATUS_STAGE1;
@@ -105,11 +109,18 @@ static bool cdsp_halt_acked(uint32_t val)
 	return val & BIT(0);
 }
 
+static TEE_Result cdsp_fw_init_image(struct qcom_pas_data *data __unused,
+				     void *metadata, size_t size)
+{
+	return cdsp_metadata_save(&cdsp_md, metadata, size);
+}
+
 static TEE_Result cdsp_fw_start(struct qcom_pas_data *data)
 {
 	struct io_pa_va tcsr_spare = { .pa = TCSR_SPARE_BASE };
 	vaddr_t turing = io_pa_or_va(&data->base, data->size);
 	struct io_pa_va mpm2 = { .pa = MPM2_MPM_BASE };
+	TEE_Result ret = TEE_ERROR_GENERIC;
 	paddr_t dtb_base = 0;
 	size_t dtb_size = 0;
 	vaddr_t spare_va = 0;
@@ -138,6 +149,11 @@ static TEE_Result cdsp_fw_start(struct qcom_pas_data *data)
 	spare_va = io_pa_or_va(&tcsr_spare, TCSR_SPARE_SIZE);
 	if (!mpm2_va || !spare_va)
 		return TEE_ERROR_GENERIC;
+
+	/* Nothing below may touch the hardware before the image is trusted */
+	ret = cdsp_image_auth(&cdsp_md, SW_ID_CDSP);
+	if (ret)
+		return ret;
 
 	debug_q6 = io_read32(spare_va) & BIT(0);
 
@@ -226,6 +242,9 @@ static TEE_Result cdsp_fw_shutdown(struct qcom_pas_data *data)
 	vaddr_t tcsr = 0;
 	int res = 0;
 
+	/* Drop metadata that was never used to start the image */
+	cdsp_metadata_free(&cdsp_md);
+
 	if (!turing)
 		return TEE_ERROR_BAD_STATE;
 
@@ -281,6 +300,7 @@ static TEE_Result cdsp_fw_shutdown(struct qcom_pas_data *data)
 }
 
 const struct qcom_pas_ops cdsp_ops = {
+	.fw_init_image = cdsp_fw_init_image,
 	.fw_start = cdsp_fw_start,
 	.fw_shutdown = cdsp_fw_shutdown,
 };
