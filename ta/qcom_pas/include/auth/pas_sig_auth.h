@@ -22,7 +22,7 @@ TEE_Result pas_sig_auth_segment_hash_len(const struct pas_md_slot *slot,
  * Authenticate @hs's signing chain, root-of-trust, and device bindings,
  * then check the metadata against its ELF-header hash-table entry.
  */
-TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
+TEE_Result pas_sig_auth_verify_image(const struct pas_mbn *hs,
 				     const uint8_t *meta_data,
 				     size_t meta_data_size,
 				     uint32_t pas_id,
