@@ -81,6 +81,15 @@ static inline void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 	gic_init_v3(gicc_base_pa, gicd_base_pa, 0);
 }
 
+#ifdef CFG_DT
+/*
+ * Same as gic_init() or gic_init_v3(), with the register windows of the GIC
+ * node of the DT: first the distributor, then the CPU interface (GICv2) or
+ * the redistributors (GICv3 and GICv4).
+ */
+TEE_Result gic_init_from_dt(void);
+#endif
+
 /* Donates one of the secure SGIs to normal world */
 void gic_init_donate_sgi_to_ns(size_t it);
 
