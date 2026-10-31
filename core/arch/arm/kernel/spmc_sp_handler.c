@@ -388,6 +388,7 @@ int spmc_sp_add_share(struct ffa_mem_transaction_x *mem_trans,
 	/* Check if the region descriptors fit into the buffer */
 	if (MUL_OVERFLOW(addr_range_cnt, sizeof(*addr_range), &needed_size) ||
 	    ADD_OVERFLOW(needed_size, addr_range_offs, &needed_size) ||
+	    ADD_OVERFLOW(needed_size, sizeof(*mem_reg), &needed_size) ||
 	    needed_size > blen) {
 		res = FFA_INVALID_PARAMETERS;
 		goto cleanup;
