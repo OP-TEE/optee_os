@@ -22,6 +22,7 @@ struct qcom_pas_data {
 	size_t fw_size;
 	/* Set once fw_start() succeeds; cleared once fw_shutdown() succeeds. */
 	bool loaded;
+	bool relocatable;
 	enum qcom_clk_group clk_group;
 	/* Memtype for the controller window: NSEC, or SEC if XPU-gated. */
 	enum teecore_memtypes map_type;

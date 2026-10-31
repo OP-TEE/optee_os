@@ -4,8 +4,10 @@
  */
 
 #include <drivers/clk_qcom.h>
+#include <malloc.h>
 #include <mm/core_mmu.h>
 #include <platform_pas.h>
+#include <string.h>
 #include <trace.h>
 #include <util.h>
 
@@ -81,47 +83,20 @@ static struct qcom_pas_subsys *qcom_pas_loaded_dependent(uint32_t pas_id)
 	return NULL;
 }
 
-TEE_Result pas_platform_is_supported(uint32_t pas_id)
+static TEE_Result pas_map_controller_window(uint32_t pas_id,
+					    struct qcom_pas_data *data)
 {
-	if (!qcom_pas_lookup(pas_id))
-		return TEE_ERROR_NOT_SUPPORTED;
+	if (!data)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	return TEE_SUCCESS;
-}
+	/* Map the controller */
+	if (!data->size)
+		return TEE_SUCCESS;
 
-TEE_Result pas_platform_capabilities(uint32_t pas_id __unused)
-{
-	return TEE_SUCCESS;
-}
+	if (!data->base.pa)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-TEE_Result pas_platform_init_image(uint32_t pas_id)
-{
-	if (!qcom_pas_lookup(pas_id))
-		return TEE_ERROR_NOT_SUPPORTED;
-
-	return TEE_SUCCESS;
-}
-
-TEE_Result pas_platform_mem_setup(uint32_t pas_id, uint32_t fw_size,
-				  uint32_t fw_base_low, uint32_t fw_base_high)
-{
-	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
-	struct qcom_pas_data *data = NULL;
-
-	if (!subsys)
-		return TEE_ERROR_NOT_SUPPORTED;
-
-	data = &subsys->data;
-	data->fw_size = fw_size;
-	data->fw_base = fw_base_low;
-	data->fw_base |= SHIFT_U64(fw_base_high, 32);
-
-	/*
-	 * Subsystems with no MMIO controller window of their own (e.g. a
-	 * DTB blob) have data->size == 0 and carry only fw_base/fw_size;
-	 * skip mapping for them.
-	 */
-	if (data->size && !data->base.va) {
+	if (!data->base.va) {
 		/* Reject rather than map with an unset/unintended type. */
 		if (data->map_type != MEM_AREA_IO_SEC &&
 		    data->map_type != MEM_AREA_IO_NSEC) {
@@ -138,6 +113,78 @@ TEE_Result pas_platform_mem_setup(uint32_t pas_id, uint32_t fw_size,
 	}
 
 	return TEE_SUCCESS;
+}
+
+TEE_Result pas_platform_is_supported(uint32_t pas_id)
+{
+	if (!qcom_pas_lookup(pas_id))
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result pas_platform_capabilities(uint32_t pas_id __unused)
+{
+	return TEE_SUCCESS;
+}
+
+TEE_Result pas_platform_init_image(uint32_t pas_id,
+				   const struct pas_metadata *metadata)
+{
+	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
+	struct qcom_pas_data *data = NULL;
+	struct elf_info e_info = { };
+	size_t fw_size = 0;
+	paddr_t fw_base = 0;
+	uint8_t *metadata_copy = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!subsys)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (!metadata || !metadata->data || !metadata->size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	metadata_copy = malloc(metadata->size);
+	if (!metadata_copy)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	memcpy(metadata_copy, metadata->data, metadata->size);
+	res = pas_elf_get_fw_range(metadata_copy, metadata->size, &e_info,
+				   &fw_base, &fw_size);
+	if (res)
+		goto out;
+
+	data = &subsys->data;
+	data->fw_base = fw_base;
+	data->fw_size = fw_size;
+	data->relocatable = pas_elf_is_relocatable(metadata_copy, &e_info);
+	res = pas_map_controller_window(pas_id, data);
+	if (!res && subsys->ops->fw_init_image)
+		res = subsys->ops->fw_init_image(data, metadata_copy, &e_info);
+out:
+	free(metadata_copy);
+	return res;
+}
+
+TEE_Result pas_platform_mem_setup(uint32_t pas_id, uint32_t fw_size,
+				  uint32_t fw_base_low, uint32_t fw_base_high)
+{
+	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
+	struct qcom_pas_data *data = NULL;
+
+	if (!subsys)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	data = &subsys->data;
+	if (!data->relocatable)
+		return TEE_ERROR_SECURITY;
+
+	data->fw_size = fw_size;
+	data->fw_base = fw_base_low;
+	data->fw_base |= SHIFT_U64(fw_base_high, 32);
+
+	return pas_map_controller_window(pas_id, data);
 }
 
 TEE_Result pas_platform_get_resource_table(uint32_t pas_id,
