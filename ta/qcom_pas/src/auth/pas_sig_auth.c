@@ -16,28 +16,13 @@
 #include <utee_defines.h>
 #include <util.h>
 
-#define SECBOOT_METADATA_MAJOR_V0	0U
-#define SECBOOT_METADATA_MAJOR_V1	1U
-#define SECBOOT_METADATA_MINOR		0U
 #define SECBOOT_DEFAULT_ROOT_CERT_SEL	0U
 
-static TEE_Result check_metadata_version(const struct pas_oem_metadata *meta)
-{
-	if ((meta->major == SECBOOT_METADATA_MAJOR_V0 ||
-	     meta->major == SECBOOT_METADATA_MAJOR_V1) &&
-	    meta->minor == SECBOOT_METADATA_MINOR)
-		return TEE_SUCCESS;
-
-	EMSG("PAS auth: unsupported metadata version %#"PRIx32".%#"PRIx32,
-	     meta->major, meta->minor);
-	return TEE_ERROR_SECURITY;
-}
-
-static TEE_Result check_sw_binding(const struct pas_oem_metadata *meta,
-				   uint32_t pas_id)
+static TEE_Result check_sw_binding(const struct pas_mbn *mbn, uint32_t pas_id)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t expected = 0;
+	uint32_t sw_id = 0;
 
 	res = pas_policy_expected_swid(pas_id, &expected);
 	if (res) {
@@ -45,105 +30,101 @@ static TEE_Result check_sw_binding(const struct pas_oem_metadata *meta,
 		return res;
 	}
 
-	if (meta->sw_id != expected) {
+	res = pas_meta_get_sw_id(mbn, &sw_id);
+	if (res)
+		return res;
+
+	if (sw_id != expected) {
 		EMSG("PAS auth: SW_ID got %#"PRIx32" want %#"PRIx32,
-		     meta->sw_id, expected);
+		     sw_id, expected);
 		return TEE_ERROR_SECURITY;
 	}
 
 	return TEE_SUCCESS;
 }
 
-static uint32_t pas_meta_option(uint32_t flags, uint32_t shift)
-{
-	return (flags >> shift) & PAS_META_OPTION_MASK;
-}
-
-static bool pas_meta_option_sn_gated(uint32_t flags, uint32_t shift)
-{
-	return pas_meta_option(flags, shift) == PAS_META_OPTION_ENABLE_SN;
-}
-
-static TEE_Result check_metadata_options(const struct pas_oem_metadata *meta)
-{
-	if (pas_meta_option(meta->flags,
-			    PAS_META_FLAG_ROOT_REVOKE_ACTIVATE_SHIFT) <=
-	    PAS_META_OPTION_MAX &&
-	    pas_meta_option(meta->flags, PAS_META_FLAG_UIE_KEY_SWITCH_SHIFT) <=
-	    PAS_META_OPTION_MAX &&
-	    pas_meta_option(meta->flags, PAS_META_FLAG_DEBUG_SHIFT) <=
-	    PAS_META_OPTION_MAX)
-		return TEE_SUCCESS;
-
-	EMSG("PAS auth: reserved metadata option value, flags=%#"PRIx32,
-	     meta->flags);
-	return TEE_ERROR_SECURITY;
-}
-
-static TEE_Result check_oem_model_binding(const struct pas_oem_metadata *meta,
+static TEE_Result check_oem_model_binding(const struct pas_mbn *mbn,
 					  const struct pas_device_ids *ids)
 {
-	bool oem_independent = meta->flags &
-				BIT32(PAS_META_FLAG_OEM_ID_INDEPENDENT);
-	bool model_independent = false;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t model_id = 0;
+	uint32_t oem_id = 0;
+	bool bound = false;
 
-	/* v0 metadata has no MODEL_ID_INDEPENDENT bit; falls back to OEM's. */
-	if (meta->major == 0)
-		model_independent = oem_independent;
-	else
-		model_independent = meta->flags &
-				    BIT32(PAS_META_FLAG_MODEL_ID_INDEPENDENT);
+	res = pas_meta_is_oem_id_bound(mbn, &bound);
+	if (res)
+		return res;
 
-	if (!oem_independent && meta->oem_id != ids->oem_id) {
+	if (bound) {
+		res = pas_meta_get_oem_id(mbn, &oem_id);
+		if (res)
+			return res;
+	}
+
+	if (bound && oem_id != ids->oem_id) {
 		EMSG("PAS auth: OEM_ID got %#"PRIx32" want %#"PRIx32,
-		     meta->oem_id, ids->oem_id);
+		     oem_id, ids->oem_id);
 		return TEE_ERROR_SECURITY;
 	}
 
-	if (!model_independent && meta->model_id != ids->model_id) {
+	res = pas_meta_is_model_id_bound(mbn, &bound);
+	if (res)
+		return res;
+
+	if (bound) {
+		res = pas_meta_get_model_id(mbn, &model_id);
+		if (res)
+			return res;
+	}
+
+	if (bound && model_id != ids->model_id) {
 		EMSG("PAS auth: MODEL_ID got %#"PRIx32" want %#"PRIx32,
-		     meta->model_id, ids->model_id);
+		     model_id, ids->model_id);
 		return TEE_ERROR_SECURITY;
 	}
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result check_jtag_binding(const struct pas_oem_metadata *meta,
+static TEE_Result check_jtag_binding(const struct pas_mbn *mbn,
 				     const struct pas_device_ids *ids)
 {
-	if (!(meta->flags & BIT32(PAS_META_FLAG_IN_USE_JTAG_ID)))
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t hw_id = 0;
+	bool bound = false;
+
+	res = pas_meta_is_jtag_id_bound(mbn, &bound);
+	if (res)
+		return res;
+
+	if (!bound)
 		return TEE_SUCCESS;
 
-	if (meta->hw_id == ids->jtag_id)
+	res = pas_meta_get_hw_id(mbn, &hw_id);
+	if (res)
+		return res;
+
+	if (hw_id == ids->jtag_id)
 		return TEE_SUCCESS;
 
-	EMSG("PAS auth: HW_ID got %#"PRIx32" want %#"PRIx32, meta->hw_id,
+	EMSG("PAS auth: HW_ID got %#"PRIx32" want %#"PRIx32, hw_id,
 	     ids->jtag_id);
 	return TEE_ERROR_SECURITY;
 }
 
-static TEE_Result check_serial_binding(const struct pas_oem_metadata *meta,
+static TEE_Result check_serial_binding(const struct pas_mbn *mbn,
 				       const struct pas_device_ids *ids,
 				       bool use_serial_num_override)
 {
-	static const uint32_t sn_gated_shifts[] = {
-		PAS_META_FLAG_DEBUG_SHIFT,
-		PAS_META_FLAG_ROOT_REVOKE_ACTIVATE_SHIFT,
-		PAS_META_FLAG_UIE_KEY_SWITCH_SHIFT,
-	};
-	bool sn_gated = false;
-	size_t i = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	bool matches = false;
+	bool bound = false;
 
-	for (i = 0; i < ARRAY_SIZE(sn_gated_shifts); i++) {
-		if (pas_meta_option_sn_gated(meta->flags, sn_gated_shifts[i])) {
-			sn_gated = true;
-			break;
-		}
-	}
+	res = pas_meta_is_serial_bound(mbn, &bound);
+	if (res)
+		return res;
 
-	if (!(meta->flags & BIT32(PAS_META_FLAG_USE_SERIAL_NUMBER)) &&
-	    !use_serial_num_override && !sn_gated)
+	if (!bound && !use_serial_num_override)
 		return TEE_SUCCESS;
 
 	if (!ids->serial_num) {
@@ -151,46 +132,54 @@ static TEE_Result check_serial_binding(const struct pas_oem_metadata *meta,
 		return TEE_ERROR_SECURITY;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(meta->serial_num); i++) {
-		if (meta->serial_num[i] &&
-		    meta->serial_num[i] == ids->serial_num)
-			return TEE_SUCCESS;
-	}
+	res = pas_meta_serial_num_matches(mbn, ids->serial_num, &matches);
+	if (res)
+		return res;
+
+	if (matches)
+		return TEE_SUCCESS;
 
 	EMSG("PAS auth: serial number %#"PRIx32" not in metadata allow-list",
 	     ids->serial_num);
 	return TEE_ERROR_SECURITY;
 }
 
-static TEE_Result check_soc_vers_binding(const struct pas_oem_metadata *meta)
+static TEE_Result check_soc_vers_binding(const struct pas_mbn *mbn)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t fam_dev = 0;
-	size_t i = 0;
+	bool matches = false;
+	bool bound = false;
 
-	if (!(meta->flags & BIT32(PAS_META_FLAG_IN_USE_SOC_HW_VERSION)))
+	res = pas_meta_is_soc_version_bound(mbn, &bound);
+	if (res)
+		return res;
+
+	if (!bound)
 		return TEE_SUCCESS;
 
 	res = pas_fuse_get_soc_hw_version(&fam_dev);
 	if (res)
 		return res;
 
-	for (i = 0; i < ARRAY_SIZE(meta->soc_vers); i++) {
-		if (meta->soc_vers[i] == fam_dev)
-			return TEE_SUCCESS;
-	}
+	res = pas_meta_soc_version_matches(mbn, fam_dev, &matches);
+	if (res)
+		return res;
+
+	if (matches)
+		return TEE_SUCCESS;
 
 	EMSG("PAS auth: SOC_HW_VERSION %#"PRIx32" not in metadata allow-list",
 	     fam_dev);
 	return TEE_ERROR_SECURITY;
 }
 
-static TEE_Result check_hw_binding(const struct pas_oem_metadata *meta)
+static TEE_Result check_hw_binding(const struct pas_mbn *mbn)
 {
 	struct pas_fuse_hw_binding_info info = { };
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	res = check_metadata_options(meta);
+	res = pas_meta_validate_options(mbn);
 	if (res)
 		return res;
 
@@ -198,29 +187,28 @@ static TEE_Result check_hw_binding(const struct pas_oem_metadata *meta)
 	if (res)
 		return res;
 
-	res = check_oem_model_binding(meta, &info.ids);
+	res = check_oem_model_binding(mbn, &info.ids);
 	if (res)
 		return res;
 
-	res = check_jtag_binding(meta, &info.ids);
+	res = check_jtag_binding(mbn, &info.ids);
 	if (res)
 		return res;
 
-	res = check_serial_binding(meta, &info.ids,
+	res = check_serial_binding(mbn, &info.ids,
 				   info.use_serial_num_override);
 	if (res)
 		return res;
 
-	return check_soc_vers_binding(meta);
+	return check_soc_vers_binding(mbn);
 }
 
-static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
+static TEE_Result verify_oem_signature(const struct pas_mbn *hs,
 				       uint32_t pas_id,
 				       const uint8_t *anchor)
 {
 	uint32_t rot_hash_algo = TEE_ALG_SHA384;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct pas_oem_metadata meta = { };
 	uint8_t *signed_copy = NULL;
 	const uint8_t *roots = NULL;
 	uint32_t sig_hash_algo = 0;
@@ -260,23 +248,24 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 		return res;
 	}
 
-	res = pas_meta_get(hs, &meta);
-	if (res == TEE_ERROR_NO_DATA)
+	res = pas_meta_validate_version(hs);
+	if (res == TEE_ERROR_NO_DATA) {
 		res = TEE_ERROR_SECURITY;
-	if (res) {
 		EMSG("PAS auth: bad or missing OEM metadata");
 		return res;
 	}
-
-	res = check_metadata_version(&meta);
+	if (res == TEE_ERROR_BAD_FORMAT) {
+		EMSG("PAS auth: bad or missing OEM metadata");
+		return res;
+	}
 	if (res)
 		return res;
 
-	res = check_sw_binding(&meta, pas_id);
+	res = check_sw_binding(hs, pas_id);
 	if (res)
 		return res;
 
-	res = check_hw_binding(&meta);
+	res = check_hw_binding(hs);
 	if (res)
 		return res;
 
@@ -288,7 +277,7 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 		return res;
 	}
 
-	res = pas_meta_get_signed_region_copy(hs, &signed_copy, &signed_len);
+	res = pas_mbn_get_signed_data(hs, &signed_copy, &signed_len);
 	if (res)
 		return res;
 
@@ -327,7 +316,7 @@ TEE_Result pas_sig_auth_segment_hash_len(const struct pas_md_slot *slot,
 	return TEE_SUCCESS;
 }
 
-TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
+TEE_Result pas_sig_auth_verify_image(const struct pas_mbn *hs,
 				     const uint8_t *meta_data,
 				     size_t meta_data_size,
 				     uint32_t pas_id,
