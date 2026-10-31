@@ -42,6 +42,9 @@ struct qcom_pas_ops {
  * @QCOM_PAS_RESET_CLK_ENABLE: qcom_clock_enable() then fw_start().
  * @QCOM_PAS_RESET_CLK_FULL:   qcom_clock_enable(), fw_start(), then
  *                             qcom_clock_enable_pas_processor().
+ *
+ * If a CLK_ENABLE or CLK_FULL start fails in or after fw_start, fw_shutdown
+ * puts the subsystem back into reset.
  */
 enum qcom_pas_reset_seq {
 	QCOM_PAS_RESET_NONE = 0,
