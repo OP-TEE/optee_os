@@ -16,6 +16,9 @@
 /* GIC-500 redistributor (GICD_BASE is common to the family). */
 #define GICR_BASE			UL(0x0f260000)
 
+#define TLMM_BASE			UL(0x00400000)
+#define TLMM_BASE_SIZE			UL(0x00800000)
+
 #define GCC_BASE			UL(0x01400000)
 #define GCC_SIZE			UL(0x001f0000)
 
