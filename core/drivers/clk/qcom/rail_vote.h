@@ -13,6 +13,8 @@
 #define RAIL_VOLTAGE_LEVEL_MIN_SVS	0x30
 #define RAIL_VOLTAGE_LEVEL_LOW_SVS	0x40
 #define RAIL_VOLTAGE_LEVEL_SVS		0x80
+#define RAIL_VOLTAGE_LEVEL_SVS_L1	0xC0
+#define RAIL_VOLTAGE_LEVEL_NOM		0x100
 
 TEE_Result rail_vote_init(void);
 TEE_Result rail_vote(uint16_t old_corner, uint16_t new_corner);
