@@ -7,8 +7,11 @@
 #ifndef ARCH_CONFIG_H
 #define ARCH_CONFIG_H
 
+/* The targets with a DT take the GIC from it */
+#ifndef CFG_DT
 #define GICD_BASE			UL(0x17a00000)
 #define GICR_BASE			UL(0x17a60000)
+#endif
 
 #define RAMBLUR_PIMEM_REG_BASE		UL(0x610000)
 #define QCOM_RNG_REG_BASE		UL(0x010D1000)
