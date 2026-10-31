@@ -16,7 +16,6 @@ $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,40)
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_RESERVED_SHM,n)
-$(call force,CFG_CRYPTO_WITH_CE,y)
 $(call force,CFG_HW_UNIQUE_KEY_LENGTH,32)
 
 CFG_QCOM_GENI_UART ?= y
@@ -54,3 +53,9 @@ endif
 # Include arch/target specific configurations if present
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
+
+# Arm CE only accelerates the crypto library, so leave it out when that is off.
+# This comes after the arch and target files, which may set CFG_CRYPTO.
+ifneq ($(CFG_CRYPTO),n)
+$(call force,CFG_CRYPTO_WITH_CE,y)
+endif
