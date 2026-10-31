@@ -51,3 +51,13 @@ ifeq ($(CFG_QCOM_CLK_CFG),y)
 $(call force,CFG_QCOM_CMD_DB,y)
 $(call force,CFG_QCOM_RPMH_CLIENT,y)
 endif
+
+# ICB (base/RPMh variant) depends on both RPMH_CLIENT and CMD_DB.
+ifeq ($(CFG_QCOM_RPMH_CLIENT),y)
+CFG_QCOM_ICB ?= y
+endif
+
+ifeq ($(CFG_QCOM_ICB),y)
+# u_data.c defines 20 routes.
+CFG_QCOM_ICB_MAX_CLIENTS = 20
+endif
