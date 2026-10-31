@@ -3,8 +3,6 @@
  * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#include <elf32.h>
-#include <elf64.h>
 #include <kernel/cache_helpers.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -20,42 +18,6 @@
 
 #define MAX_HASH_SIZE			48U
 
-#define MI_PBT_PAGE_MODE_MASK		0x00100000
-#define MI_PBT_PAGE_MODE_SHIFT		20
-#define MI_PBT_ACCESS_TYPE_MASK		0x00E00000
-#define MI_PBT_ACCESS_TYPE_SHIFT	21
-#define MI_PBT_SEGMENT_TYPE_MASK	0x07000000
-#define MI_PBT_SEGMENT_TYPE_SHIFT	24
-
-#define MI_PBT_NON_PAGED_SEGMENT	0x0
-#define MI_PBT_HASH_SEGMENT		0x2
-#define MI_PBT_NOTUSED_SEGMENT		0x3
-#define MI_PBT_SHARED_SEGMENT		0x4
-
-#define MI_PBT_PAGE_MODE(x) \
-	(((x) & MI_PBT_PAGE_MODE_MASK) >> MI_PBT_PAGE_MODE_SHIFT)
-#define MI_PBT_ACCESS_TYPE(x) \
-	(((x) & MI_PBT_ACCESS_TYPE_MASK) >> MI_PBT_ACCESS_TYPE_SHIFT)
-#define MI_PBT_SEGMENT_TYPE(x) \
-	(((x) & MI_PBT_SEGMENT_TYPE_MASK) >> MI_PBT_SEGMENT_TYPE_SHIFT)
-
-struct elf_info {
-	size_t elf_hdr_len;
-	size_t phdr_offset;
-	size_t phdr_entry_len;
-	size_t phdr_count;
-	uint64_t entry;
-	bool is_64;
-};
-
-struct phdr_info {
-	uint64_t paddr;
-	size_t file_len;
-	size_t mem_len;
-	uint32_t type;
-	uint32_t flags;
-};
-
 struct verify_ctx {
 	uint32_t hash_algo;
 	size_t hash_len;
@@ -67,23 +29,6 @@ struct verify_ctx {
 	size_t fw_size;
 };
 
-#define PARSE_EHDR(e_info, ehdr, _is_64) do {				\
-	(e_info)->is_64 = (_is_64);					\
-	(e_info)->elf_hdr_len = (ehdr)->e_ehsize;			\
-	(e_info)->phdr_offset = (ehdr)->e_phoff;			\
-	(e_info)->phdr_entry_len = (ehdr)->e_phentsize;		\
-	(e_info)->phdr_count = (ehdr)->e_phnum;			\
-	(e_info)->entry = (ehdr)->e_entry;			\
-} while (0)
-
-#define PARSE_PHDR(p_info, phdr) do {					\
-	(p_info)->paddr = (phdr)->p_paddr;				\
-	(p_info)->file_len = (phdr)->p_filesz;				\
-	(p_info)->mem_len = (phdr)->p_memsz;				\
-	(p_info)->type = (phdr)->p_type;				\
-	(p_info)->flags = (phdr)->p_flags;				\
-} while (0)
-
 static bool check_range(uint64_t off, uint64_t len, uint64_t total)
 {
 	uint64_t end = 0;
@@ -92,114 +37,6 @@ static bool check_range(uint64_t off, uint64_t len, uint64_t total)
 		return false;
 
 	return end <= total;
-}
-
-static bool is_hashed(uint32_t p_type, uint32_t p_flags)
-{
-	if (p_type != PT_LOAD)
-		return false;
-
-	return MI_PBT_PAGE_MODE(p_flags) == MI_PBT_NON_PAGED_SEGMENT &&
-	       MI_PBT_SEGMENT_TYPE(p_flags) != MI_PBT_HASH_SEGMENT &&
-	       MI_PBT_ACCESS_TYPE(p_flags) != MI_PBT_NOTUSED_SEGMENT &&
-	       MI_PBT_ACCESS_TYPE(p_flags) != MI_PBT_SHARED_SEGMENT;
-}
-
-static TEE_Result parse_elf(const uint8_t *fw, size_t fw_size,
-			    struct elf_info *e_info)
-{
-	const unsigned char *ident = fw;
-
-	if (fw_size < EI_NIDENT)
-		return TEE_ERROR_BAD_FORMAT;
-
-	if (ident[EI_MAG0] != ELFMAG0 || ident[EI_MAG1] != ELFMAG1 ||
-	    ident[EI_MAG2] != ELFMAG2 || ident[EI_MAG3] != ELFMAG3)
-		return TEE_ERROR_BAD_FORMAT;
-
-	switch (ident[EI_CLASS]) {
-	case ELFCLASS64: {
-		const Elf64_Ehdr *ehdr = (const void *)fw;
-
-		if (fw_size < sizeof(*ehdr))
-			return TEE_ERROR_BAD_FORMAT;
-
-		PARSE_EHDR(e_info, ehdr, true);
-		if (e_info->elf_hdr_len != sizeof(*ehdr) ||
-		    e_info->phdr_offset != e_info->elf_hdr_len ||
-		    e_info->phdr_entry_len != sizeof(Elf64_Phdr))
-			return TEE_ERROR_BAD_FORMAT;
-		break;
-	}
-	case ELFCLASS32: {
-		const Elf32_Ehdr *ehdr = (const void *)fw;
-
-		if (fw_size < sizeof(*ehdr))
-			return TEE_ERROR_BAD_FORMAT;
-
-		PARSE_EHDR(e_info, ehdr, false);
-		if (e_info->elf_hdr_len != sizeof(*ehdr) ||
-		    e_info->phdr_offset != e_info->elf_hdr_len ||
-		    e_info->phdr_entry_len != sizeof(Elf32_Phdr))
-			return TEE_ERROR_BAD_FORMAT;
-		break;
-	}
-	default:
-		return TEE_ERROR_BAD_FORMAT;
-	}
-
-	return TEE_SUCCESS;
-}
-
-static void get_phdr(const uint8_t *fw, const struct elf_info *e_info,
-		     size_t idx, struct phdr_info *p_info)
-{
-	const uint8_t *p = fw + e_info->phdr_offset +
-			   idx * e_info->phdr_entry_len;
-
-	if (e_info->is_64) {
-		const Elf64_Phdr *phdr = (const void *)p;
-
-		PARSE_PHDR(p_info, phdr);
-	} else {
-		const Elf32_Phdr *phdr = (const void *)p;
-
-		PARSE_PHDR(p_info, phdr);
-	}
-}
-
-static TEE_Result image_range(const uint8_t *fw, const struct elf_info *e_info,
-			      uint64_t *base, uint64_t *end)
-{
-	uint64_t min_paddr = UINT64_MAX;
-	struct phdr_info p_info = { };
-	uint64_t seg_end = 0;
-	uint64_t max_end = 0;
-	size_t i = 0;
-
-	for (i = 0; i < e_info->phdr_count; i++) {
-		get_phdr(fw, e_info, i, &p_info);
-
-		if (!is_hashed(p_info.type, p_info.flags))
-			continue;
-
-		if (ADD_OVERFLOW(p_info.paddr, p_info.mem_len, &seg_end))
-			return TEE_ERROR_BAD_FORMAT;
-
-		if (p_info.paddr < min_paddr)
-			min_paddr = p_info.paddr;
-		if (seg_end > max_end)
-			max_end = seg_end;
-	}
-
-	if (min_paddr == UINT64_MAX)
-		return TEE_ERROR_BAD_FORMAT;
-
-	*base = ROUNDDOWN(min_paddr, SMALL_PAGE_SIZE);
-	if (ROUNDUP_OVERFLOW(max_end, SMALL_PAGE_SIZE, end))
-		return TEE_ERROR_BAD_FORMAT;
-
-	return TEE_SUCCESS;
 }
 
 static TEE_Result hash_verify(uint32_t algo, const uint8_t *data,
@@ -250,7 +87,6 @@ static TEE_Result verify_segments(const struct verify_ctx *ctx)
 	const uint8_t *expected = NULL;
 	struct phdr_info p_info = { };
 	struct elf_info e_info = { };
-	size_t phdr_table_len = 0;
 	uint64_t image_end = 0;
 	uint64_t offset = 0;
 	size_t verified = 0;
@@ -263,14 +99,9 @@ static TEE_Result verify_segments(const struct verify_ctx *ctx)
 	if (!ctx->hash_len || ctx->hash_len > MAX_HASH_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = parse_elf(ctx->metadata, ctx->metadata_len, &e_info);
+	res = pas_elf_parse(ctx->metadata, ctx->metadata_len, &e_info);
 	if (res)
 		return res;
-
-	if (MUL_OVERFLOW(e_info.phdr_entry_len, e_info.phdr_count,
-			 &phdr_table_len) ||
-	    !check_range(e_info.phdr_offset, phdr_table_len, ctx->metadata_len))
-		return TEE_ERROR_BAD_FORMAT;
 
 	if (ctx->num_entries != e_info.phdr_count)
 		return TEE_ERROR_SECURITY;
@@ -281,7 +112,7 @@ static TEE_Result verify_segments(const struct verify_ctx *ctx)
 		return res;
 	}
 
-	res = image_range(ctx->metadata, &e_info, &base, &image_end);
+	res = pas_elf_image_range(ctx->metadata, &e_info, &base, &image_end);
 	if (res)
 		return res;
 
@@ -296,9 +127,10 @@ static TEE_Result verify_segments(const struct verify_ctx *ctx)
 	}
 
 	for (i = 0; i < e_info.phdr_count; i++) {
-		get_phdr(ctx->metadata, &e_info, i, &p_info);
+		pas_elf_get_phdr(ctx->metadata, &e_info, i, &p_info);
 
-		if (!is_hashed(p_info.type, p_info.flags) || !p_info.file_len)
+		if (!pas_elf_is_hashed(p_info.type, p_info.flags) ||
+		    !p_info.file_len)
 			continue;
 
 		if (p_info.paddr < base)
@@ -373,12 +205,12 @@ TEE_Result pas_platform_verify_image(uint32_t pas_id,
 	data = &subsys->data;
 
 	if (!data->fw_base || !data->fw_size) {
-		EMSG("PAS auth: no MEM_SETUP for pas_id=%#"PRIx32, pas_id);
+		EMSG("PAS auth: no fw base/size for pas_id=%#"PRIx32, pas_id);
 		return TEE_ERROR_BAD_STATE;
 	}
 
 	if (fw->base != data->fw_base) {
-		EMSG("PAS auth: base %#"PRIxPA" != MEM_SETUP %#"PRIxPA,
+		EMSG("PAS auth: carveout base %#"PRIxPA" != fw base %#"PRIxPA,
 		     fw->base, data->fw_base);
 		return TEE_ERROR_SECURITY;
 	}

@@ -8,78 +8,13 @@
 #include <auth/pas_mbn.h>
 #include <auth/pas_meta.h>
 #include <auth/pas_sig_auth.h>
+#include <pas_utils.h>
 #include <pta_qcom_fuse.h>
 #include <pta_qcom_pas.h>
 #include <string.h>
 #include <string_ext.h>
 #include <tee_internal_api.h>
 #include <utee_defines.h>
-
-static struct pas_md_slot *get_meta_data_slot(struct qcom_pas_session *s,
-					      uint32_t pas_id)
-{
-	size_t i = 0;
-
-	for (i = 0; i < PAS_MD_SLOTS; i++) {
-		if (s->slots[i].in_use && s->slots[i].pas_id == pas_id)
-			return &s->slots[i];
-	}
-
-	return NULL;
-}
-
-TEE_Result pas_auth_save_metadata(struct qcom_pas_session *s, uint32_t pt,
-				  TEE_Param params[TEE_NUM_PARAMS])
-{
-	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-						TEE_PARAM_TYPE_MEMREF_INPUT,
-						TEE_PARAM_TYPE_NONE,
-						TEE_PARAM_TYPE_NONE);
-	struct pas_md_slot *slot = NULL;
-	void *meta_data_copy = NULL;
-	uint32_t pas_id = 0;
-	size_t size = 0;
-	size_t i = 0;
-
-	if (pt != exp_pt)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	size = params[1].memref.size;
-	if (size && !params[1].memref.buffer)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	pas_id = params[0].value.a;
-
-	slot = get_meta_data_slot(s, pas_id);
-	if (!slot) {
-		for (i = 0; i < PAS_MD_SLOTS; i++) {
-			if (!s->slots[i].in_use) {
-				slot = &s->slots[i];
-				goto found;
-			}
-		}
-		EMSG("PAS auth: no free md slot (pas_id=%#"PRIx32")", pas_id);
-		return TEE_ERROR_OUT_OF_MEMORY;
-	}
-
-found:
-	if (size) {
-		meta_data_copy = TEE_Malloc(size, TEE_MALLOC_FILL_ZERO);
-		if (!meta_data_copy)
-			return TEE_ERROR_OUT_OF_MEMORY;
-		memcpy(meta_data_copy, params[1].memref.buffer, size);
-	}
-
-	TEE_Free(slot->meta_data);
-	slot->meta_data = meta_data_copy;
-	slot->meta_data_size = size;
-	slot->pas_id = pas_id;
-	slot->in_use = true;
-	slot->ready = false;
-	memset(&slot->mbn, 0, sizeof(slot->mbn));
-
-	return TEE_SUCCESS;
-}
 
 TEE_Result pas_auth_prepare_and_authenticate(struct qcom_pas_session *s,
 					     uint32_t pas_id)
@@ -182,21 +117,4 @@ TEE_Result pas_auth_verify(struct qcom_pas_session *s,
 
 	TEE_Free(buffer);
 	return res;
-}
-
-TEE_Result pas_auth_release_metadata(struct qcom_pas_session *s,
-				     uint32_t pas_id)
-{
-	struct pas_md_slot *slot = get_meta_data_slot(s, pas_id);
-
-	if (!slot)
-		return TEE_SUCCESS;
-
-	TEE_Free(slot->meta_data);
-	slot->meta_data = NULL;
-	slot->meta_data_size = 0;
-	slot->ready = false;
-	memset(&slot->mbn, 0, sizeof(slot->mbn));
-
-	return TEE_SUCCESS;
 }
