@@ -18,6 +18,8 @@
 register_phys_mem(MEM_AREA_IO_NSEC, TURING_BASE, TURING_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, CORE_TOP_CSR_BASE, CORE_TOP_CSR_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, MCU_MCU_CNOC_MASTER_BASE,
+		  MCU_MCU_CNOC_MASTER_SIZE);
 
 /* Spark PLL register offsets, relative to the PLL register block base. */
 static const struct qcom_pll_offsets spark_pll_offsets = {
@@ -173,11 +175,100 @@ static TEE_Result turing_reset_processor(void)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result lmcu_setup(void)
+{
+	struct io_pa_va clk_ctl_io = { .pa = GCC_BASE };
+	vaddr_t clk_ctl = io_pa_or_va(&clk_ctl_io, GCC_SIZE);
+
+	io_setbits32(clk_ctl + GCC_MCU_AXI_M_CBCR,
+		     MCU_AXI_M_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(clk_ctl + GCC_MCU_AHB_CBCR, MCU_AHB_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(clk_ctl + GCC_SYS_NOC_MCU_AHB_CBCR,
+		     SYS_NOC_MCU_AHB_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(clk_ctl + GCC_MCU_F_CBCR, MCU_F_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(clk_ctl + GCC_MCU_PROC_H_CBCR,
+		     MCU_PROC_H_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(clk_ctl + GCC_MCU_SS_H_CBCR,
+		     MCU_SS_H_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(clk_ctl + GCC_MCU_SS_H_UNCOL_CBCR,
+		     MCU_SS_H_UNCOL_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(clk_ctl + GCC_MCU_TMR_CBCR, MCU_TMR_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(clk_ctl + GCC_MCU_SLEEP_CBCR,
+		     MCU_SLEEP_CBCR_CLK_ENABLE_BIT);
+
+	io_mask32(clk_ctl + GCC_MCU_F_CFG_RCGR,
+		  SHIFT_U32(0x1, MCU_F_CFG_RCGR_SRC_SEL_SHIFT),
+		  MCU_F_CFG_RCGR_SRC_SEL_MASK);
+	io_mask32(clk_ctl + GCC_MCU_F_CFG_RCGR,
+		  SHIFT_U32(0x1, MCU_F_CFG_RCGR_SRC_DIV_SHIFT),
+		  MCU_F_CFG_RCGR_SRC_DIV_MASK);
+	io_setbits32(clk_ctl + GCC_MCU_F_CMD_RCGR, MCU_F_CMD_RCGR_UPDATE_BIT);
+	if (poll_register_clear(clk_ctl + GCC_MCU_F_CMD_RCGR,
+				MCU_F_CMD_RCGR_UPDATE_BIT) != TEE_SUCCESS)
+		return TEE_ERROR_TIMEOUT;
+
+	io_mask32(clk_ctl + GCC_MCU_AHB_CFG_RCGR,
+		  SHIFT_U32(0x2, MCU_AHB_CFG_RCGR_SRC_SEL_SHIFT),
+		  MCU_AHB_CFG_RCGR_SRC_SEL_MASK);
+	io_mask32(clk_ctl + GCC_MCU_AHB_CFG_RCGR,
+		  SHIFT_U32(0x2, MCU_AHB_CFG_RCGR_SRC_DIV_SHIFT),
+		  MCU_AHB_CFG_RCGR_SRC_DIV_MASK);
+	io_setbits32(clk_ctl + GCC_MCU_AHB_CMD_RCGR,
+		     MCU_AHB_CMD_RCGR_UPDATE_BIT);
+	if (poll_register_clear(clk_ctl + GCC_MCU_AHB_CMD_RCGR,
+				MCU_AHB_CMD_RCGR_UPDATE_BIT) != TEE_SUCCESS)
+		return TEE_ERROR_TIMEOUT;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result lmcu_enable_processor(void)
+{
+	struct io_pa_va clk_ctl_io = { .pa = GCC_BASE };
+	vaddr_t clk_ctl = io_pa_or_va(&clk_ctl_io, GCC_SIZE);
+	struct io_pa_va mcu_io = { .pa = MCU_MCU_CNOC_MASTER_BASE };
+	vaddr_t mcu = io_pa_or_va(&mcu_io, MCU_MCU_CNOC_MASTER_SIZE);
+
+	io_setbits32(clk_ctl + GCC_MCU_PROC_H_CBCR,
+		     MCU_PROC_H_CBCR_CLK_ARES_BIT);
+	udelay(300);
+	io_clrbits32(clk_ctl + GCC_MCU_PROC_H_CBCR,
+		     MCU_PROC_H_CBCR_CLK_ARES_BIT);
+	io_setbits32(clk_ctl + GCC_MCU_PROC_H_CBCR,
+		     MCU_PROC_H_CBCR_CLK_ENABLE_BIT);
+
+	if (poll_register_clear(clk_ctl + GCC_MCU_PROC_H_CBCR,
+				MCU_PROC_H_CBCR_CLK_OFF_BIT) != TEE_SUCCESS)
+		return TEE_ERROR_TIMEOUT;
+
+	io_setbits32(clk_ctl + GCC_MCU_DBG_CBCR, MCU_DBG_CBCR_CLK_ENABLE_BIT);
+	udelay(10);
+	io_clrbits32(clk_ctl + GCC_MCU_DBG_CBCR, MCU_DBG_CBCR_CLK_ENABLE_BIT);
+
+	io_write32(mcu + MCU_RVCP_TILE0_BOOT_SUPPRESS, 0);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result lmcu_reset_processor(void)
+{
+	struct io_pa_va clk_ctl_io = { .pa = GCC_BASE };
+	vaddr_t clk_ctl = io_pa_or_va(&clk_ctl_io, GCC_SIZE);
+
+	io_setbits32(clk_ctl + GCC_MCU_RESTART, MCU_RESTART_SS_RESTART_BIT);
+	mdelay(10);
+	io_clrbits32(clk_ctl + GCC_MCU_RESTART, MCU_RESTART_SS_RESTART_BIT);
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group)
 {
 	switch (group) {
 	case QCOM_CLKS_TURING:
 		return turing_setup();
+	case QCOM_CLKS_LMCU:
+		return lmcu_setup();
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -188,6 +279,8 @@ TEE_Result qcom_clock_enable_pas_processor(enum qcom_clk_group group)
 	switch (group) {
 	case QCOM_CLKS_TURING:
 		return turing_enable_processor();
+	case QCOM_CLKS_LMCU:
+		return lmcu_enable_processor();
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -198,6 +291,8 @@ TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group)
 	switch (group) {
 	case QCOM_CLKS_TURING:
 		return turing_reset_processor();
+	case QCOM_CLKS_LMCU:
+		return lmcu_reset_processor();
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
