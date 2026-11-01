@@ -29,3 +29,8 @@ endif
 
 $(call force,CFG_QCOM_CSRNG,y)
 CFG_WITH_SOFTWARE_PRNG ?= n
+
+CFG_QCOM_RPM_CLIENT ?= y
+ifeq ($(CFG_QCOM_RPM_CLIENT),y)
+$(call force,CFG_QCOM_RPM_TRANSPORT_GLINK,y)
+endif
