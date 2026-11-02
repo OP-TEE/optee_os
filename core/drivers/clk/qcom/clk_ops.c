@@ -6,6 +6,9 @@
 #include <config.h>
 #include <drivers/clk.h>
 #include <drivers/clk_qcom.h>
+#ifdef CFG_QCOM_RPM_CLIENT
+#include <drivers/qcom/rpm/rpm_client.h>
+#endif
 #include <initcall.h>
 #include <io.h>
 #include <kernel/refcount.h>
@@ -19,6 +22,8 @@
 #include "clk_cfg.h"
 #include "clock_group.h"
 #include "rail_vote.h"
+
+#define QCOM_CLK_RPM_TIMEOUT_US	10000
 
 /* A shared vote-gated PLL source, or XO when @vote is 0 (no vote bit). */
 struct pll_vote_priv {
@@ -980,6 +985,57 @@ TEE_Result qcom_clk_get_by_name(const char *name, struct clk **out)
 
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
+
+#ifdef CFG_QCOM_RPM_CLIENT
+TEE_Result qcom_clk_rpm_get_id(const char *name,
+			       const struct qcom_clk_rpm_resource **id)
+{
+	const struct clk_cfg *cfg = clk_get_cfg();
+	size_t i = 0;
+
+	if (!name || !id || !cfg || !cfg->rpm_resources)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	for (i = 0; i < cfg->n_rpm_resources; i++) {
+		const struct qcom_clk_rpm_resource *rpm =
+			cfg->rpm_resources + i;
+
+		if (!strcmp(name, rpm->name)) {
+			*id = rpm;
+			return TEE_SUCCESS;
+		}
+	}
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+TEE_Result qcom_clk_rpm_request(const struct qcom_clk_rpm_resource *id,
+				uint32_t request)
+{
+	uint32_t msg_id = 0;
+	struct qcom_rpm_kvp kvp = { };
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!id)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = qcom_rpm_init();
+	if (res)
+		return res;
+
+	kvp.key = id->key;
+	kvp.data = &request;
+	kvp.len = sizeof(request);
+
+	/* Secure clock clients only need the active-set RPM vote to persist. */
+	res = qcom_rpm_post_request(QCOM_RPM_ACTIVE_SET, id->resource,
+				    id->id, &kvp, 1, &msg_id);
+	if (res)
+		return res;
+
+	return qcom_rpm_barrier(msg_id, QCOM_CLK_RPM_TIMEOUT_US);
+}
+#endif /* CFG_QCOM_RPM_CLIENT */
 
 TEE_Result qcom_clk_enable_dfs(struct clk *clk)
 {

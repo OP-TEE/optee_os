@@ -40,6 +40,8 @@ enum qcom_clk_group {
 #define CBCR_BRANCH_OFF_BIT		BIT(31)
 #define CMD_RCGR_UPDATE_BIT		BIT(0)
 
+struct qcom_clk_rpm_resource;
+
 static inline bool cbcr_branch_on(uint32_t val)
 {
 	return !(val & CBCR_BRANCH_OFF_BIT);
@@ -87,6 +89,7 @@ TEE_Result qcom_clk_enable_dfs(struct clk *clk);
 TEE_Result qcom_clk_get_dfs_rates_array(struct clk *clk, size_t start_index,
 					unsigned long *rates,
 					uint8_t *dfs_indices, size_t *count);
+
 #else
 static inline TEE_Result qcom_clk_get_by_name(const char *name __unused,
 					      struct clk **out __unused)
@@ -109,6 +112,27 @@ qcom_clk_get_dfs_rates_array(struct clk *clk __unused,
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif /* CFG_QCOM_CLK_CFG */
+
+#if defined(CFG_QCOM_CLK_CFG) && defined(CFG_QCOM_RPM_CLIENT)
+TEE_Result qcom_clk_rpm_get_id(const char *name,
+			       const struct qcom_clk_rpm_resource **id);
+TEE_Result qcom_clk_rpm_request(const struct qcom_clk_rpm_resource *id,
+				uint32_t request);
+#else
+static inline TEE_Result
+qcom_clk_rpm_get_id(const char *name __unused,
+		    const struct qcom_clk_rpm_resource **id __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result
+qcom_clk_rpm_request(const struct qcom_clk_rpm_resource *id __unused,
+		     uint32_t request __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif /* CFG_QCOM_CLK_CFG && CFG_QCOM_RPM_CLIENT */
 
 #ifdef CFG_QCOM_PAS_PTA
 TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group);
