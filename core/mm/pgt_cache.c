@@ -38,6 +38,12 @@
  * turn if needed.
  */
 
+/*
+ * Size of an entry in a translation table, which maps CORE_MMU_PGDIR_SIZE
+ * with small pages.
+ */
+#define PGT_ENTRY_SIZE	(PGT_SIZE / (CORE_MMU_PGDIR_SIZE / SMALL_PAGE_SIZE))
+
 #if defined(CFG_CORE_PREALLOC_EL0_TBLS) || \
 	(defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE))
 struct pgt_parent {
@@ -231,11 +237,7 @@ void pgt_clear_range(struct user_mode_ctx *uctx, vaddr_t begin, vaddr_t end)
 {
 	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
 	struct pgt *p = NULL;
-#ifdef CFG_WITH_LPAE
-	uint64_t *tbl = NULL;
-#else
-	uint32_t *tbl = NULL;
-#endif
+	uint8_t *tbl = NULL;
 	unsigned int idx = 0;
 	unsigned int n = 0;
 
@@ -249,7 +251,7 @@ void pgt_clear_range(struct user_mode_ctx *uctx, vaddr_t begin, vaddr_t end)
 		tbl = p->tbl;
 		idx = (b - p->vabase) / SMALL_PAGE_SIZE;
 		n = (e - b) / SMALL_PAGE_SIZE;
-		memset(tbl + idx, 0, n * sizeof(*tbl));
+		memset(tbl + idx * PGT_ENTRY_SIZE, 0, n * PGT_ENTRY_SIZE);
 	}
 }
 
@@ -736,11 +738,7 @@ static void clear_ctx_range_from_list(struct pgt_cache *pgt_cache,
 				      void *ctx, vaddr_t begin, vaddr_t end)
 {
 	struct pgt *p = NULL;
-#ifdef CFG_WITH_LPAE
-	uint64_t *tbl = NULL;
-#else
-	uint32_t *tbl = NULL;
-#endif
+	uint8_t *tbl = NULL;
 	unsigned int idx = 0;
 	unsigned int n = 0;
 
@@ -756,7 +754,7 @@ static void clear_ctx_range_from_list(struct pgt_cache *pgt_cache,
 		tbl = p->tbl;
 		idx = (b - p->vabase) / SMALL_PAGE_SIZE;
 		n = (e - b) / SMALL_PAGE_SIZE;
-		memset(tbl + idx, 0, n * sizeof(*tbl));
+		memset(tbl + idx * PGT_ENTRY_SIZE, 0, n * PGT_ENTRY_SIZE);
 	}
 }
 
