@@ -12,6 +12,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define PAS_ID_CAMERA		33
+#define PAS_ID_CAMERA1		50
+
 struct qcom_pas_data {
 	uint32_t pas_id;
 	/* 0-terminated list of PAS_IDs this must load after, or NULL. */
