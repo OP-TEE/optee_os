@@ -10,3 +10,5 @@ $(call force,CFG_QCOM_QFPROM,y)
 endif
 
 CFG_QCOM_TLMM ?= y
+
+CFG_QCOM_HWKM ?= y
