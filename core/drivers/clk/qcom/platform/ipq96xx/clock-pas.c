@@ -54,8 +54,6 @@ static TEE_Result cdsp_cc_enable(vaddr_t cc_base, vaddr_t qdsp6ss_base)
 		TURING_CC_CDSPNOC_APB_CBCR,
 		TURING_CC_Q6SS_AHBM_AON_CBCR,
 		TURING_CC_ALT_RESET_AON_CBCR,
-		TURING_CC_DEBUG_CBCR,
-		TURING_CC_PLL_TEST_CBCR,
 	};
 	static const uint32_t qdsp6ss_cbcr_offsets[] = {
 		QDSP6SS_CORE_CBCR,
@@ -90,10 +88,6 @@ static TEE_Result cdsp_cc_enable(vaddr_t cc_base, vaddr_t qdsp6ss_base)
 	for (i = 0; i < ARRAY_SIZE(qdsp6ss_cbcr_offsets); i++)
 		io_setbits32(qdsp6ss_base + qdsp6ss_cbcr_offsets[i],
 			     CBCR_BRANCH_ENABLE_BIT | CBCR_HW_CTL_ENABLE_BIT);
-
-	res = qcom_clock_enable_cbc(qdsp6ss_base + QDSP6SS_DEBUG_CBCR);
-	if (res)
-		return res;
 
 	io_write32(cc_base + CDSPAUX_BUS_BRIDGE_HALT,
 		   CDSPAUX_BRIDGE_DELAY_CYCLES);
