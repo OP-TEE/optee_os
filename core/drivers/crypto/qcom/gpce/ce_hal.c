@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2026 Qualcomm Technologies, Inc.
+ * Copyright (c) 2026, Qualcomm Technologies, Inc.
  *
  * Implementation of Crypto Engine hash context helpers.
  */
@@ -8,6 +8,7 @@
 #include "ce_hal.h"
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
@@ -23,7 +24,7 @@ TEE_Result CE_HAL_free(struct ce_ctx *me)
 {
 	if (!me)
 		return TEE_ERROR_BAD_STATE;
-	memset(me, 0, sizeof(*me));
+	memzero_explicit(me, sizeof(*me));
 	free(me);
 
 	return TEE_SUCCESS;
@@ -33,8 +34,8 @@ TEE_Result CE_HAL_reset(struct ce_ctx *me)
 {
 	if (!me)
 		return TEE_ERROR_BAD_STATE;
-	memset(me->auth_iv, 0, sizeof(me->auth_iv));
-	memset(me->auth_byte_cnt, 0, sizeof(me->auth_byte_cnt));
+	memzero_explicit(me->auth_iv, sizeof(me->auth_iv));
+	memzero_explicit(me->auth_byte_cnt, sizeof(me->auth_byte_cnt));
 
 	return TEE_SUCCESS;
 }

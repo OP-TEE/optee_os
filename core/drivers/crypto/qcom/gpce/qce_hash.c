@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2026 Qualcomm Technologies, Inc.
+ * Copyright (c) 2026, Qualcomm Technologies, Inc.
  *
  * Implementation of the Qualcomm Crypto Engine hash driver.
  */
@@ -22,7 +22,7 @@
 
 struct qce_hash_ctx {
 	struct crypto_hash_ctx hash_ctx;
-	struct hash_ctx_s *state;
+	struct qce_hash_state *state;
 	uint32_t tee_alg;
 };
 
@@ -37,7 +37,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, QCOM_GPCE_REG_BASE,
 static void qce_hash_free_ctx(struct crypto_hash_ctx *ctx)
 {
 	struct qce_hash_ctx *qce_ctx = NULL;
-	struct hash_ctx_s *state = NULL;
+	struct qce_hash_state *state = NULL;
 
 	if (!ctx || ctx->ops != &qce_hash_ops)
 		return;
@@ -47,7 +47,7 @@ static void qce_hash_free_ctx(struct crypto_hash_ctx *ctx)
 	if (state && state->ctx)
 		(void)SHA_CMN_CE_cleanup(state);
 	if (state) {
-		memset(state, 0, sizeof(*state));
+		memzero_explicit(state, sizeof(*state));
 		free(state);
 	}
 
@@ -63,7 +63,7 @@ static TEE_Result qce_hash_init(struct crypto_hash_ctx *ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	qce_ctx = container_of(ctx, struct qce_hash_ctx, hash_ctx);
-	return SHA1_CE_HWIO_init(qce_ctx->state);
+	return SHA_CMN_CE_init(qce_ctx->state);
 }
 
 static TEE_Result qce_hash_update(struct crypto_hash_ctx *ctx,
@@ -99,8 +99,9 @@ static void qce_hash_copy_state(struct crypto_hash_ctx *dst,
 {
 	struct qce_hash_ctx *dst_ctx = NULL;
 	struct qce_hash_ctx *src_ctx = NULL;
-	struct hash_ctx_s *dst_state = NULL;
-	struct hash_ctx_s *src_state = NULL;
+	struct qce_hash_state *dst_state = NULL;
+	struct qce_hash_state *src_state = NULL;
+	void *dst_inner_ctx = NULL;
 	TEE_Result ret = TEE_ERROR_BAD_STATE;
 
 	if (!dst || !src || dst->ops != &qce_hash_ops ||
@@ -116,19 +117,25 @@ static void qce_hash_copy_state(struct crypto_hash_ctx *dst,
 	    dst_ctx->tee_alg != src_ctx->tee_alg)
 		goto out;
 
-	if (dst_state->ctx) {
+	if (dst_state->ctx &&
+	    (!src_state->ctx ||
+	     dst_state->ctx_sz != src_state->ctx_sz)) {
 		ret = SHA_CMN_CE_cleanup(dst_state);
 		if (ret != TEE_SUCCESS)
 			goto out;
+		dst_state->ctx = NULL;
 	}
 
-	*dst_state = *src_state;
-	dst_state->ctx = NULL;
+	dst_inner_ctx = dst_state->ctx;
+	memcpy(dst_state, src_state, sizeof(*dst_state));
+	dst_state->ctx = dst_inner_ctx;
 	if (src_state->ctx) {
-		dst_state->ctx = calloc(1, src_state->ctx_sz);
-		if (!dst_state->ctx) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
+		if (!dst_inner_ctx) {
+			dst_state->ctx = calloc(1, src_state->ctx_sz);
+			if (!dst_state->ctx) {
+				ret = TEE_ERROR_OUT_OF_MEMORY;
+				goto out;
+			}
 		}
 		ret = SHA_CMN_CE_copy(dst_state, src_state);
 		if (ret != TEE_SUCCESS)
@@ -152,7 +159,7 @@ static TEE_Result qce_hash_alloc_ctx(struct crypto_hash_ctx **ctx,
 				     uint32_t algo)
 {
 	struct qce_hash_ctx *qce_ctx = NULL;
-	struct hash_ctx_s *state = NULL;
+	struct qce_hash_state *state = NULL;
 
 	if (!ctx)
 		return TEE_ERROR_BAD_PARAMETERS;

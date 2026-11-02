@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2026 Qualcomm Technologies, Inc.
+ * Copyright (c) 2026, Qualcomm Technologies, Inc.
  *
  * Implementation of Crypto Engine register access.
  */
 
 #include <io.h>
+#include <kernel/delay.h>
 #include <string.h>
 #include <util.h>
 
@@ -14,7 +15,6 @@
 #include "ce_hwio.h"
 #include "hash.h"
 
-#define CE_REG_VERSION			U(0x000)
 #define CE_REG_DATA_IN(n)		(U(0x010) + (n) * U(4))
 #define CE_REG_STATUS			U(0x100)
 #define CE_REG_SEG_SIZE		U(0x110)
@@ -27,12 +27,9 @@
 #define CE_REG_AUTH_BYTECNT(n)	(U(0x390) + (n) * U(4))
 #define CE_REG_CONFIG			U(0x400)
 
-#define CE_STATUS_HSD_ERR		BIT(20)
 #define CE_STATUS_AUTH_BUSY		BIT(8)
 #define CE_STATUS_DIN_RDY		BIT(2)
 #define CE_STATUS_OPERATION_DONE	BIT(1)
-#define CE_STATUS_SW_ERR		BIT(0)
-#define CE_STATUS_ERR_INTR		BIT(4)
 #define CE_STATUS_DIN_SIZE_AVAIL	GENMASK_32(25, 21)
 #define CE_STATUS_DIN_SIZE_SHIFT	U(21)
 
@@ -46,8 +43,10 @@
 #define CE_AUTH_CFG_FIRST		BIT(17)
 #define CE_GOPROC_GO			BIT(0)
 #define CE_HWIO_BASE(dev)	((dev)->base)
+#define CE_HWIO_FIFO_TIMEOUT_US	U(1000)
+#define CE_HWIO_OPERATION_TIMEOUT_US	U(1000)
 
-static void CE_HWIO_set_config(struct hash_ctx_s *ctx, bool little)
+static void CE_HWIO_set_config(struct qce_hash_state *ctx, bool little)
 {
 	uint32_t cfg_msk = CE_CONFIG_HIGH_SPEED_DATA_EN_N |
 			   CE_CONFIG_MASK_OP_DONE_INTR |
@@ -59,13 +58,10 @@ static void CE_HWIO_set_config(struct hash_ctx_s *ctx, bool little)
 	io_write32(CE_HWIO_BASE(ctx->dev) + CE_REG_CONFIG, cfg_msk);
 }
 
-static TEE_Result ce_hwio_get_ce_state(struct hash_ctx_s *ctx)
+static TEE_Result CE_HWIO_get_ce_state(struct qce_hash_state *ctx)
 {
 	uint32_t ce_status = io_read32(CE_HWIO_BASE(ctx->dev) + CE_REG_STATUS);
 
-	if (ce_status & (CE_STATUS_ERR_INTR | CE_STATUS_SW_ERR |
-			 CE_STATUS_HSD_ERR))
-		return TEE_ERROR_GENERIC;
 	if (!(ce_status & CE_STATUS_OPERATION_DONE) ||
 	    (ce_status & CE_STATUS_AUTH_BUSY))
 		return TEE_ERROR_BUSY;
@@ -73,12 +69,13 @@ static TEE_Result ce_hwio_get_ce_state(struct hash_ctx_s *ctx)
 	return TEE_SUCCESS;
 }
 
-TEE_Result CE_HWIO_set_ce_ctx(struct hash_ctx_s *ctx, size_t auth_sz,
+TEE_Result CE_HWIO_set_ce_ctx(struct qce_hash_state *ctx, size_t auth_sz,
 			      size_t seg_sz, bool first, bool last)
 {
 	struct ce_sha_ctx_s *sha_ctx = NULL;
 	struct qce_dev_s *dev = NULL;
 	struct ce_ctx *me = NULL;
+	/* Other algorithms may use fewer authentication byte counters. */
 	size_t max_auth_byte_cnt = MAX_AUTH_BYTE_COUNT;
 	size_t max_auth_iv_cnt = MAX_AUTH_IV_COUNT;
 	uint32_t cfg = CE_AUTH_CFG_SHA;
@@ -95,13 +92,13 @@ TEE_Result CE_HWIO_set_ce_ctx(struct hash_ctx_s *ctx, size_t auth_sz,
 		return TEE_ERROR_BAD_STATE;
 
 	/* CE HW Config set up */
-	bool little_endian = ce_hal_flag_set(me,
+	bool little_endian = CE_HAL_IS_FLAG_SET(me,
 					   CE_HAL_FLAGS_IS_LITTLE_ENDIAN);
 
 	CE_HWIO_set_config(ctx, little_endian);
 
 	/* Auth engine set up */
-	if (ce_hal_flag_set(me, CE_HAL_FLAGS_IS_AUTH_ENG_EN)) {
+	if (CE_HAL_IS_FLAG_SET(me, CE_HAL_FLAGS_IS_AUTH_ENG_EN)) {
 		if (auth_sz > seg_sz)
 			return TEE_ERROR_BAD_PARAMETERS;
 
@@ -146,7 +143,7 @@ TEE_Result CE_HWIO_set_ce_ctx(struct hash_ctx_s *ctx, size_t auth_sz,
 	return TEE_SUCCESS;
 }
 
-TEE_Result CE_HWIO_get_ce_ctx(struct hash_ctx_s *ctx)
+TEE_Result CE_HWIO_get_ce_ctx(struct qce_hash_state *ctx)
 {
 	struct ce_sha_ctx_s *sha_ctx = NULL;
 	struct qce_dev_s *dev = NULL;
@@ -154,6 +151,8 @@ TEE_Result CE_HWIO_get_ce_ctx(struct hash_ctx_s *ctx)
 	size_t max_auth_byte_cnt = MAX_AUTH_BYTE_COUNT;
 	size_t max_auth_iv_cnt = MAX_AUTH_IV_COUNT;
 	size_t i = 0;
+	uint64_t timeout = 0;
+	TEE_Result res = TEE_SUCCESS;
 
 	if (HASH_IS_CTX_NULL(ctx) ||
 	    !ctx->ctx ||
@@ -166,11 +165,17 @@ TEE_Result CE_HWIO_get_ce_ctx(struct hash_ctx_s *ctx)
 		return TEE_ERROR_BAD_STATE;
 
 	/* Auth Engine Context if enabled */
-	if (ce_hal_flag_set(me, CE_HAL_FLAGS_IS_AUTH_ENG_EN)) {
-		/* Make sure operation is done before reading IV and ByteCnt. */
-		while (!(io_read32(CE_HWIO_BASE(dev) + CE_REG_STATUS) &
-			 CE_STATUS_OPERATION_DONE))
-			;
+	if (CE_HAL_IS_FLAG_SET(me, CE_HAL_FLAGS_IS_AUTH_ENG_EN)) {
+		timeout = timeout_init_us(CE_HWIO_OPERATION_TIMEOUT_US);
+		while (true) {
+			res = CE_HWIO_get_ce_state(ctx);
+			if (res == TEE_SUCCESS)
+				break;
+			if (res != TEE_ERROR_BUSY)
+				return res;
+			if (timeout_elapsed(timeout))
+				return TEE_ERROR_TIMEOUT;
+		}
 
 		/* Save IVs */
 		for (i = 0; i < max_auth_iv_cnt; i++)
@@ -193,17 +198,16 @@ TEE_Result CE_HWIO_get_ce_ctx(struct hash_ctx_s *ctx)
 		}
 	}
 
-	return ce_hwio_get_ce_state(ctx);
+	return CE_HWIO_get_ce_state(ctx);
 }
 
-TEE_Result CE_HWIO_xfer_data(struct hash_ctx_s *ctx, const uint8_t *ibuf,
+TEE_Result CE_HWIO_xfer_data(struct qce_hash_state *ctx, const uint8_t *ibuf,
 			     size_t isz)
 {
 	struct ce_sha_ctx_s *sha_ctx = NULL;
 	struct qce_dev_s *dev = NULL;
 	struct ce_ctx *me = NULL;
 	size_t iwcnt = 0;
-	bool is_ibuf_align = false;
 
 	if (HASH_IS_CTX_NULL(ctx) ||
 	    !ctx->ctx ||
@@ -218,26 +222,31 @@ TEE_Result CE_HWIO_xfer_data(struct hash_ctx_s *ctx, const uint8_t *ibuf,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	iwcnt = ROUNDUP(isz, sizeof(uint32_t)) / sizeof(uint32_t);
-	is_ibuf_align = IS_ALIGNED((uintptr_t)ibuf, sizeof(uint32_t));
 	while (iwcnt) {
-		uint32_t status = io_read32(CE_HWIO_BASE(dev) + CE_REG_STATUS);
+		uint64_t timeout = timeout_init_us(CE_HWIO_FIFO_TIMEOUT_US);
+		uint32_t status = 0;
 		size_t fifo_words = 0;
 		size_t i = 0;
 
-		if (!(status & CE_STATUS_DIN_RDY))
-			continue;
+		while (true) {
+			status = io_read32(CE_HWIO_BASE(dev) + CE_REG_STATUS);
+			if (status & CE_STATUS_DIN_RDY)
+				break;
+			if (timeout_elapsed(timeout))
+				return TEE_ERROR_TIMEOUT;
+		}
 
 		fifo_words = ((status & CE_STATUS_DIN_SIZE_AVAIL) >>
 			      CE_STATUS_DIN_SIZE_SHIFT) / sizeof(uint32_t);
 		for (i = 0; iwcnt && i < fifo_words; i++, iwcnt--) {
 			uint32_t word = 0;
+			size_t word_sz = MIN(isz, sizeof(word));
 
-			if (is_ibuf_align)
-				memcpy(&word, ibuf, sizeof(word));
-			else
-				memcpy(&word, ibuf, sizeof(word));
+			/* Copy unaligned input and zero-pad a partial word. */
+			memcpy(&word, ibuf, word_sz);
 			io_write32(CE_HWIO_BASE(dev) + CE_REG_DATA_IN(i), word);
-			ibuf += sizeof(word);
+			ibuf += word_sz;
+			isz -= word_sz;
 		}
 	}
 
