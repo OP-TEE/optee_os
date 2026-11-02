@@ -2,6 +2,10 @@
 /*
  * Copyright (c) 2018, Linaro Limited
  */
+
+#ifndef __KERNEL_UNWIND_PRIVATE_H
+#define __KERNEL_UNWIND_PRIVATE_H
+
 #include <malloc.h>
 #include <stddef.h>
 #include <util.h>
@@ -21,3 +25,5 @@ static inline void *unw_grow(void *p, size_t *cur_size, size_t new_size)
 		*cur_size = rounded_size;
 	return tmp;
 }
+
+#endif /*__KERNEL_UNWIND_PRIVATE_H*/
