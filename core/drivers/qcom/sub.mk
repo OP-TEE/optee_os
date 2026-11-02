@@ -10,6 +10,7 @@ srcs-$(CFG_QCOM_SEC_WDOG) += wdt/qcom-wdt.c
 
 subdirs-$(CFG_QCOM_CMD_DB) += cmd_db
 subdirs-$(CFG_QCOM_RPMH_CLIENT) += rpmh
+subdirs-$(CFG_QCOM_RPM_CLIENT) += rpm
 subdirs-$(CFG_QCOM_QFPROM) += qfprom
 subdirs-$(CFG_QCOM_XPUV4) += xpu
 subdirs-$(CFG_QCOM_TLMM) += tlmm
