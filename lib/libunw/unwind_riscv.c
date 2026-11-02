@@ -64,6 +64,8 @@ bool unwind_stack_riscv(struct unwind_state_riscv *frame,
 	/* Get caller FP and RA */
 	caller_state = (struct unwind_state_riscv *)fp - 1;
 	frame->fp = caller_state->fp;
+	if (!frame->fp)
+		return false;
 	frame->pc = caller_state->pc;
 
 	map_ra(&frame->pc);
