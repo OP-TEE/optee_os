@@ -508,5 +508,13 @@ unsigned long thread_hvc(unsigned long func_id, unsigned long a1,
 unsigned long thread_smc(unsigned long func_id, unsigned long a1,
 			 unsigned long a2, unsigned long a3);
 void thread_smccc(struct thread_smc_args *arg_res);
+#ifdef ARM64
+/*
+ * Same as thread_smccc() but passes and returns x0-x17, for the SMC64
+ * functions that use more than 8 registers (for example
+ * FFA_MSG_SEND_DIRECT_REQ2).
+ */
+void thread_smccc_1_2(struct thread_smc_1_2_regs *arg_res);
+#endif
 #endif /*__ASSEMBLER__*/
 #endif /*__KERNEL_THREAD_ARCH_H*/

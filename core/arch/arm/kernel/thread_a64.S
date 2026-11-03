@@ -125,6 +125,29 @@ FUNC thread_smccc , :
 	ret
 END_FUNC thread_smccc
 
+/* void thread_smccc_1_2(struct thread_smc_1_2_regs *arg_res) */
+FUNC thread_smccc_1_2 , :
+	/* The argument pointer is the only register that survives the call */
+	push	x0, xzr
+	/* Load x1-x17 using x0 as base, x0 itself last */
+	load_xregs x0, 8, 1, 17
+	ldr	x0, [x0]
+#ifdef CFG_CORE_SEL2_SPMC
+	hvc	#0
+#else
+	smc	#0
+#endif
+	/* x0-x17 all hold results, spill x1 to free it for the pointer */
+	str	x1, [sp, #8]
+	ldr	x1, [sp]
+	str	x0, [x1]
+	ldr	x0, [sp, #8]
+	str	x0, [x1, #8]
+	store_xregs x1, 16, 2, 17
+	add	sp, sp, #16
+	ret
+END_FUNC thread_smccc_1_2
+
 FUNC thread_init_vbar , :
 	msr	vbar_el1, x0
 	ret

@@ -54,3 +54,12 @@ endif
 # Include arch/target specific configurations if present
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
 -include core/arch/arm/plat-qcom/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
+
+# When enabled, CFG_QCOM_TME_INTF embeds the TME interface: the
+# functions that can communicate with TME. The messages are sent to TME
+# through TF-A, so it needs CFG_QCOM_TFA_COMM.
+CFG_QCOM_TME_INTF ?= n
+ifeq ($(CFG_QCOM_TME_INTF),y)
+$(call force,CFG_QCBOR,y)
+$(call force,CFG_QCOM_TFA_COMM,y)
+endif
