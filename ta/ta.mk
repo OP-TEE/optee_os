@@ -48,6 +48,7 @@ ta-mk-file-export-vars-$(sm) += CFG_CORE_TPM_EVENT_LOG
 ta-mk-file-export-add-$(sm) += CFG_TEE_TA_LOG_LEVEL ?= $(CFG_TEE_TA_LOG_LEVEL)_nl_
 ta-mk-file-export-vars-$(sm) += CFG_TA_BGET_TEST
 ta-mk-file-export-vars-$(sm) += CFG_ATTESTATION_PTA
+ta-mk-file-export-vars-$(sm) += CFG_CORE_FUZZ_COVERAGE
 ta-mk-file-export-vars-$(sm) += CFG_MEMTAG
 ta-mk-file-export-vars-$(sm) += CFG_TA_LIBGCC
 ta-mk-file-export-vars-$(sm) += CFG_TA_SANITIZE_UNDEFINED
