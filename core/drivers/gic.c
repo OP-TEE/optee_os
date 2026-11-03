@@ -527,8 +527,13 @@ static void __maybe_unused probe_redist_base_addrs(vaddr_t *gicr_base_addrs,
 			DMSG("GICR_BASE[%zu] at %#"PRIxVA, core_pos, va);
 			gicr_base_addrs[core_pos] = va;
 		} else {
-			EMSG("Skipping too large core_pos %zu from GICR_TYPER",
-			     core_pos);
+			/*
+			 * A GIC may expose more redistributor frames than the
+			 * SoC has cores (GIC-500 is sized per cluster), so
+			 * this is expected, not an error.
+			 */
+			DMSG("Skipping GICR frame %zu beyond %u cores",
+			     core_pos, CFG_TEE_CORE_NB_CORE);
 		}
 		pa += sz;
 	} while (!(tv & GICR_TYPER_LAST));
