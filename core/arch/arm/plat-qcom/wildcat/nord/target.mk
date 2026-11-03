@@ -18,3 +18,6 @@ $(call force,CFG_QCOM_CMD_DB,y)
 endif
 
 CFG_QCOM_TLMM ?= y
+
+$(call force,CFG_QCOM_CSRNG,y)
+CFG_WITH_SOFTWARE_PRNG ?= n
