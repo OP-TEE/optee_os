@@ -182,6 +182,8 @@ void callout_service_cb(void)
 
 		if (co->callback(co)) {
 			co->expiry_value += co->period;
+			if (co->expiry_value <= now)
+				co->expiry_value = now + co->period;
 			insert_callout(co);
 		}
 	}
