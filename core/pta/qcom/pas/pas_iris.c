@@ -81,6 +81,9 @@ static const struct pas_iris_write sec_thresholds[] = {
 	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_HEVC, 1344),
 	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_H264, 270),
 	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_MP2, 46),
+};
+
+static const struct pas_iris_write sec_non_vcl_thresholds[] = {
 	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_NON_VCL_HEVC, 3800),
 	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_NON_VCL_H264, 12600),
 	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_NON_VCL_MP2, 1600),
@@ -118,7 +121,10 @@ static TEE_Result iris_program_sec_session(vaddr_t base,
 {
 	const struct pas_iris_seq seqs[] = {
 		{ sec_clear, ARRAY_SIZE(sec_clear) },
+		cfg->after_clear,
 		{ sec_thresholds, ARRAY_SIZE(sec_thresholds) },
+		cfg->after_thresholds,
+		{ sec_non_vcl_thresholds, ARRAY_SIZE(sec_non_vcl_thresholds) },
 		cfg->before_checks,
 		{ sec_checks, ARRAY_SIZE(sec_checks) },
 		cfg->after_checks,

@@ -20,6 +20,7 @@
 #define SS_TZ_SEC_THRESHOLD_NON_VCL_H264	0x000c201c
 #define SS_TZ_SEC_THRESHOLD_NON_VCL_MP2		0x000c2020
 #define SS_TZ_SEC_DS_THRESHOLD			0x000c2024
+#define SS_TZ_SEC_THRESHOLD_AV1			0x000c202c
 #define SS_TZ_SEC_SID_0_SECURE_OVERRIDE		0x000c2040
 #define SS_TZ_SEC_SID_1_SECURE_OVERRIDE		0x000c2044
 #define SS_TZ_SEC_SID_2_SECURE_OVERRIDE		0x000c2048
@@ -68,15 +69,22 @@ struct pas_iris_seq {
  *
  * The iris core writes the secure session settings shared by the cores with
  * an SS_TZ block, in this order: clear the CP override and every stream ID
- * secure override, set the secure thresholds, @before_checks, set and read
- * back the secure overrides of stream IDs 0x1 and 0x7, then @after_checks.
+ * secure override, @after_clear, set the secure thresholds,
+ * @after_thresholds, set the non-VCL secure thresholds, @before_checks, set
+ * and read back the secure overrides of stream IDs 0x1 and 0x7, then
+ * @after_checks.
  *
- * @before_checks: platform writes before the stream ID 0x1 and 0x7 overrides
- * @after_checks:  platform writes after them
- * @every_release: write the settings before every release on resume too,
- *                 not only at start
+ * @after_clear:      platform writes after the overrides are cleared
+ * @after_thresholds: platform writes before the non-VCL thresholds
+ * @before_checks:    platform writes before the stream ID 0x1 and 0x7
+ *                    overrides
+ * @after_checks:     platform writes after them
+ * @every_release:    write the settings before every release on resume too,
+ *                    not only at start
  */
 struct pas_iris_cfg {
+	struct pas_iris_seq after_clear;
+	struct pas_iris_seq after_thresholds;
 	struct pas_iris_seq before_checks;
 	struct pas_iris_seq after_checks;
 	bool every_release;
