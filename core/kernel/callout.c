@@ -191,3 +191,28 @@ void callout_service_cb(void)
 
 	cpu_spin_unlock(&callout_lock);
 }
+
+void callout_service_suspend(void)
+{
+	const struct callout_timer_desc *desc = callout_desc;
+	uint32_t state = 0;
+
+	if (!desc)
+		return;
+
+	state = cpu_spin_lock_xsave(&callout_lock);
+	desc->disable_timeout(desc);
+	cpu_spin_unlock_xrestore(&callout_lock, state);
+}
+
+void callout_service_resume(void)
+{
+	uint32_t state = 0;
+
+	if (!callout_desc)
+		return;
+
+	state = cpu_spin_lock_xsave(&callout_lock);
+	schedule_next_timeout();
+	cpu_spin_unlock_xrestore(&callout_lock, state);
+}
