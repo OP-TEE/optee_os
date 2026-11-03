@@ -196,7 +196,7 @@ Core Drivers QCOM XPU
 R:	Harikrishna <hart@qti.qualcomm.com> [@thariaruchamy-bit]
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
 S:	Maintained
-F:	core/arch/arm/plat-qcom/xpu_policy.c
+F:	core/arch/arm/plat-qcom/xpu_*
 F:	core/drivers/qcom/xpu/
 F:	core/include/drivers/qcom/xpu*
 
@@ -327,6 +327,7 @@ Qualcomm
 R:	Sumit Garg <sumit.garg@oss.qualcomm.com> [@b49020]
 R:	Jorge Ramirez <jorge.ramirez@oss.qualcomm.com> [@ldts]
 S:	Maintained
+F:	core/arch/arm/dts/qcom/
 F:	core/arch/arm/plat-qcom/
 F:	core/drivers/qcom/
 F:	core/drivers/qcom_geni_uart.c
@@ -338,6 +339,11 @@ Qualcomm Bobcat Family
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
 S:	Maintained
 F:	core/arch/arm/plat-qcom/family/bobcat/
+
+Qualcomm Device Tree
+R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
+S:	Maintained
+F:	core/arch/arm/dts/qcom/
 
 Qualcomm Fuse Provisioning
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
