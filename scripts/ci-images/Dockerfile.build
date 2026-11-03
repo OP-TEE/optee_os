@@ -66,7 +66,7 @@ RUN sed -i 's/Components: main/Components: main contrib/g' /etc/apt/sources.list
   vim \
   xz-utils \
   wget \
- && apt-get autoremove
+ && apt-get autoremove -y
 
 # Get latest Clang 20.x version from snapshot server
 # https://github.com/OP-TEE/optee_os/issues/7408
