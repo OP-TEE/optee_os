@@ -12,6 +12,7 @@
 #define DRAM1_SIZE			ULL(0x780000000)
 
 #define GENI_UART_REG_BASE		UL(0x04a80000)
+#define QCOM_RNG_REG_BASE		UL(0x04451000)
 
 /* GIC-500 redistributor (GICD_BASE is common to the family). */
 #define GICR_BASE			UL(0x0f260000)
