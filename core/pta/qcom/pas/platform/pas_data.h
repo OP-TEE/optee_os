@@ -26,6 +26,8 @@ struct pas_video_seed {
 	size_t size;
 };
 
+struct pas_iris_cfg;
+
 struct qcom_pas_data {
 	uint32_t pas_id;
 	/* 0-terminated list of PAS_IDs this must load after, or NULL. */
@@ -42,6 +44,8 @@ struct qcom_pas_data {
 	enum teecore_memtypes map_type;
 	/* Video firmware seed of the image being loaded */
 	struct pas_video_seed seed;
+	/* Iris platform settings, see pas_iris.h */
+	const struct pas_iris_cfg *iris;
 };
 
 #endif /* _PAS_DATA_H_ */

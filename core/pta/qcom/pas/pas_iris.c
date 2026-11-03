@@ -55,8 +55,89 @@ static void iris_program_mem_regions(vaddr_t base,
 	io_write32(base + WRAPPER_TZ_SEC_NONPIX_END_ADDR, IRIS_CP_NONPIX_END);
 }
 
-static TEE_Result iris_reset_cpu(struct qcom_pas_data *data)
+static const struct pas_iris_write sec_clear[] = {
+	PAS_IRIS_WRITE(SS_TZ_CP_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_0_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_1_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_2_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_3_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_4_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_5_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_6_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_7_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_8_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_9_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_A_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_B_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_C_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_D_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_E_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_F_SECURE_OVERRIDE, 0),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_10_SECURE_OVERRIDE, 0),
+};
+
+static const struct pas_iris_write sec_thresholds[] = {
+	PAS_IRIS_WRITE(SS_TZ_SEC_DS_THRESHOLD, 3),
+	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_HEVC, 1344),
+	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_H264, 270),
+	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_MP2, 46),
+	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_NON_VCL_HEVC, 3800),
+	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_NON_VCL_H264, 12600),
+	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_NON_VCL_MP2, 1600),
+};
+
+static const struct pas_iris_write sec_checks[] = {
+	PAS_IRIS_CHECK(SS_TZ_SEC_SID_1_SECURE_OVERRIDE, 1),
+	PAS_IRIS_CHECK(SS_TZ_SEC_SID_7_SECURE_OVERRIDE, 1),
+};
+
+static TEE_Result iris_write_seq(vaddr_t base, const struct pas_iris_seq *seq)
 {
+	const struct pas_iris_write *w = seq->writes;
+	uint32_t val = 0;
+	size_t i = 0;
+
+	for (i = 0; i < seq->count; i++, w++) {
+		io_write32(base + w->reg, w->val);
+		if (!w->check)
+			continue;
+
+		val = io_read32(base + w->reg);
+		if (val != w->val) {
+			EMSG("Iris: register %#"PRIx32" reads %#"PRIx32
+			     ", expected %#"PRIx32, w->reg, val, w->val);
+			return TEE_ERROR_GENERIC;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result iris_program_sec_session(vaddr_t base,
+					   const struct pas_iris_cfg *cfg)
+{
+	const struct pas_iris_seq seqs[] = {
+		{ sec_clear, ARRAY_SIZE(sec_clear) },
+		{ sec_thresholds, ARRAY_SIZE(sec_thresholds) },
+		cfg->before_checks,
+		{ sec_checks, ARRAY_SIZE(sec_checks) },
+		cfg->after_checks,
+	};
+	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(seqs); i++) {
+		res = iris_write_seq(base, seqs + i);
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result iris_reset_cpu(struct qcom_pas_data *data, bool start)
+{
+	const struct pas_iris_cfg *cfg = data->iris;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	vaddr_t base = 0;
 
@@ -67,6 +148,12 @@ static TEE_Result iris_reset_cpu(struct qcom_pas_data *data)
 	base = io_pa_or_va(&data->base, data->size);
 	if (!base)
 		return TEE_ERROR_GENERIC;
+
+	if (cfg && (start || cfg->every_release)) {
+		res = iris_program_sec_session(base, cfg);
+		if (res)
+			return res;
+	}
 
 	iris_program_mem_regions(base, data);
 	io_write32(base + WRAPPER_TZ_XTSS_SW_RESET, 0);
@@ -106,13 +193,13 @@ static TEE_Result iris_fw_start(struct qcom_pas_data *data)
 		return res;
 	}
 
-	return iris_reset_cpu(data);
+	return iris_reset_cpu(data, true);
 }
 
 static TEE_Result iris_fw_set_state(struct qcom_pas_data *data, bool power_on)
 {
 	if (power_on)
-		return iris_reset_cpu(data);
+		return iris_reset_cpu(data, false);
 
 	return iris_fw_shutdown(data);
 }
