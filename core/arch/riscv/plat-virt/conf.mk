@@ -19,6 +19,8 @@ $(call force,CFG_RISCV_ZKR_RNG,y)
 # Protection flags
 $(call force,CFG_CORE_SANITIZE_KADDRESS,n)
 
+CFG_ENABLE_EMBEDDED_TESTS ?= y
+
 # Hart-related flags
 CFG_TEE_CORE_NB_CORE ?= 1
 CFG_NUM_THREADS ?= 1

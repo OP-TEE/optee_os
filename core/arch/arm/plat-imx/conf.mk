@@ -308,7 +308,7 @@ $(call force,CFG_MX952,y)
 $(call force,CFG_ARM64_core,y)
 CFG_IMX_LPUART ?= y
 CFG_DRAM_BASE ?= 0x80000000
-CFG_TEE_CORE_NB_CORE ?= 6
+CFG_TEE_CORE_NB_CORE ?= 4
 $(call force,CFG_NXP_SNVS,n)
 $(call force,CFG_IMX_OCOTP,n)
 $(call force,CFG_TZC380,n)

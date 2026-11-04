@@ -172,10 +172,11 @@ __weak void plat_prng_add_jitter_entropy(enum crypto_rng_src sid,
 		crypto_rng_add_event(sid, pnum, &current, sizeof(current));
 }
 
-void __plat_init_soft_prng(void)
+#ifdef CFG_INSECURE
+void __plat_init_insecure_soft_prng(void)
 {
 	TEE_Result res = TEE_SUCCESS;
-	TEE_Time t;
+	TEE_Time t = { };
 
 #ifndef CFG_SECURE_TIME_SOURCE_REE
 	/*
@@ -206,9 +207,8 @@ void __plat_init_soft_prng(void)
  * the random number generator from an easily predictable timestamp value or a
  * constant value. It is not suitable for a secure environment.
  */
-#ifdef CFG_INSECURE
-void plat_init_soft_prng(void) __weak __alias("__plat_init_soft_prng");
-#endif
+void plat_init_soft_prng(void) __weak __alias("__plat_init_insecure_soft_prng");
+#endif /* CFG_INSECURE */
 
 static TEE_Result tee_cryp_init(void)
 {

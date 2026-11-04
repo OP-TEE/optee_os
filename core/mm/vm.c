@@ -1023,7 +1023,9 @@ TEE_Result vm_map_param(struct user_mode_ctx *uctx, struct tee_ta_param *param,
 		    (mem[n].offs == (mem[m].offs + mem[m].size) ||
 		     core_is_buffer_intersect(mem[m].offs, mem[m].size,
 					      mem[n].offs, mem[n].size))) {
-			mem[m].size = mem[n].offs + mem[n].size - mem[m].offs;
+			mem[m].size = MAX(mem[m].size,
+					  mem[n].offs + mem[n].size -
+					  mem[m].offs);
 			continue;
 		}
 		m++;

@@ -1211,6 +1211,35 @@ static struct sp_session *
 ffa_handle_sp_error(struct thread_smc_1_2_regs *args,
 		    struct sp_session *caller_sp)
 {
+	struct sp_session *dst = NULL;
+	TEE_Result res = FFA_OK;
+
+	if (caller_sp && caller_sp->caller_fid) {
+		/*
+		 * FFA_ERROR has no endpoint address, use the saved direct
+		 * caller.
+		 */
+		dst = sp_get_session(caller_sp->caller_id);
+
+		caller_sp->caller_id = 0;
+		caller_sp->caller_fid = 0;
+
+		cpu_spin_lock(&caller_sp->spinlock);
+		caller_sp->state = sp_idle;
+		cpu_spin_unlock(&caller_sp->spinlock);
+
+		if (!dst)
+			return NULL;
+
+		res = sp_enter(args, dst);
+		if (res) {
+			ffa_set_error(args, FFA_ABORTED);
+			return caller_sp;
+		}
+
+		return dst;
+	}
+
 	/* If caller_sp == NULL send message to Normal World */
 	if (caller_sp && sp_enter(args, caller_sp)) {
 		/*
@@ -1434,6 +1463,8 @@ out:
 void spmc_sp_msg_handler(struct thread_smc_1_2_regs *args,
 			 struct sp_session *caller_sp)
 {
+	struct sp_ctx *ctx = NULL;
+
 	thread_check_canaries();
 	do {
 		switch (args->a0) {
@@ -1465,8 +1496,10 @@ void spmc_sp_msg_handler(struct thread_smc_1_2_regs *args,
 		case FFA_RXTX_MAP_64:
 #endif
 		case FFA_RXTX_MAP_32:
+			ctx = to_sp_ctx(caller_sp->ts_sess.ctx);
 			ts_push_current_session(&caller_sp->ts_sess);
-			spmc_handle_rxtx_map(args, &caller_sp->rxtx);
+			spmc_handle_rxtx_map(args, &caller_sp->rxtx,
+					     &ctx->uctx);
 			ts_pop_current_session();
 			sp_enter(args, caller_sp);
 			break;

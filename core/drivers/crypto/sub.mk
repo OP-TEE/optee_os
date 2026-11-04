@@ -19,3 +19,5 @@ subdirs-$(CFG_HISILICON_CRYPTO_DRIVER) += hisilicon
 subdirs-$(CFG_IMX_ELE) += ele
 
 subdirs-$(CFG_QCOM_HWKM) += qcom
+
+subdirs-$(CFG_MARVELL_CRYPTO_DRIVER) += marvell

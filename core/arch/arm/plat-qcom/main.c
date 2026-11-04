@@ -4,14 +4,14 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/qcom_geni_uart.h>
 #include <kernel/boot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
-
-#include "diag_log.h"
+#include <qcom_common.h>
 
 /*
  * Register the physical memory area for peripherals etc. Here we are
@@ -50,8 +50,10 @@ void plat_trace_init(void)
 
 void plat_console_init(void)
 {
-	qcom_geni_uart_init(&console_data, GENI_UART_REG_BASE);
-	register_serial_console(&console_data.chip);
+	if (IS_ENABLED(CFG_QCOM_GENI_UART)) {
+		qcom_geni_uart_init(&console_data, GENI_UART_REG_BASE);
+		register_serial_console(&console_data.chip);
+	}
 }
 
 static TEE_Result platform_banner(void)
@@ -69,10 +71,12 @@ void boot_primary_init_intc(void)
 	gic_init_v3(0, GICD_BASE, GICR_BASE);
 #else
 	gic_init(GICC_BASE, GICD_BASE);
+	qcom_gicv2_el3_intr_delegation_init();
 #endif
 }
 
 void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
+	qcom_gicv2_el3_intr_delegation_init_per_cpu();
 }

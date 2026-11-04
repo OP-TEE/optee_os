@@ -16,9 +16,10 @@ $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,40)
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_RESERVED_SHM,n)
-$(call force,CFG_QCOM_GENI_UART,y)
 $(call force,CFG_CRYPTO_WITH_CE,y)
 $(call force,CFG_HW_UNIQUE_KEY_LENGTH,32)
+
+CFG_QCOM_GENI_UART ?= y
 
 # The GENI UART is shared with the Linux kernel and an excessively long
 # wait period may lead to RCU stall warnings depending on system load.
@@ -33,10 +34,10 @@ ta-targets = ta_arm64
 supported-ta-targets ?= ta_arm64
 
 # Architecture family mapping
-HOYA_ARCH_CHIPSETS := kodiak lemans
+HOYA_ARCH_CHIPSETS := kodiak lemans monaco
 BOBCAT_ARCH_CHIPSETS := ipq96xx ipq52xx
-WILDCAT_ARCH_CHIPSETS := nord
-BRUIN_ARCH_CHIPSETS := shikra
+WILDCAT_ARCH_CHIPSETS := nord cacao
+BRUIN_ARCH_CHIPSETS := shikra agatti
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(HOYA_ARCH_CHIPSETS)))
 QCOM_ARCH_FAMILY := hoya

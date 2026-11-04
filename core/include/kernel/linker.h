@@ -59,8 +59,10 @@ extern const uint8_t __extab_end[];
 #endif
 
 #define EMIT_SECTION_INFO_SYMBOLS(section_name) \
-	extern const uint8_t __vcore_ ## section_name ## _start[]; \
-	extern const uint8_t __vcore_ ## section_name ## _end[]; \
+	extern const uint8_t __vcore_ ## section_name ## _start[] \
+		__attribute__((visibility("hidden"))); \
+	extern const uint8_t __vcore_ ## section_name ## _end[] \
+		__attribute__((visibility("hidden"))); \
 	extern const uint8_t __vcore_ ## section_name ## _size[]
 
 EMIT_SECTION_INFO_SYMBOLS(unpg_rx);

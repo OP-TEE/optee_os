@@ -64,7 +64,6 @@ struct client_queue {
 };
 
 #define AOP_BOOT_COOKIE		0xA0C00C1E
-#define MSG_RAM_SECTION_SIZE	0x10000
 
 struct aop_msg_ram_dict {
 	uint32_t boot_cookie_offset;
@@ -177,6 +176,7 @@ static bool wait_for_cmd(uint32_t req_id)
 {
 	uint64_t timer = timeout_init_us(RPMH_CMD_COMPLETION_TIMEOUT_US);
 	bool cmd_complete = false;
+	bool tcs_idle = false;
 
 	if (req_id == 0)
 		return true;
@@ -191,9 +191,17 @@ static bool wait_for_cmd(uint32_t req_id)
 		udelay(1);
 	}
 
-	/* Clear the AMC-finished interrupt now that it's been consumed. */
-	if (cmd_complete)
+	if (cmd_complete) {
+		/*
+		 * Clear the AMC-finished interrupt now that it's been
+		 * consumed.
+		 */
 		hal_rpmh_clear_amc_status(RPMH_AMC_TCS);
+	} else {
+		hal_rpmh_is_tcs_idle(RPMH_AMC_TCS, &tcs_idle);
+		EMSG("AMC%"PRIu32" completion timeout, TCS idle=%d",
+		     RPMH_AMC_TCS, tcs_idle);
+	}
 
 	return cmd_complete;
 }
@@ -215,7 +223,7 @@ static TEE_Result check_aop_init(void)
 		return TEE_ERROR_GENERIC;
 	}
 
-	dict_addr = base + AOP_MSG_RAM_SIZE - MSG_RAM_SECTION_SIZE;
+	dict_addr = base + AOP_BOOT_COOKIE_SECTION * MSG_RAM_SECTION_SIZE;
 	dict = (struct aop_msg_ram_dict *)dict_addr;
 	cookie_addr = base + dict->boot_cookie_offset;
 
@@ -317,6 +325,8 @@ TEE_Result rpmh_send_command(struct rpmh_client *handle,
 	}
 
 	if (!wait_for_cmd(id)) {
+		EMSG("AMC%"PRIu32" command timeout for addr %#"PRIx32,
+		     RPMH_AMC_TCS, address);
 		res = TEE_ERROR_BUSY;
 		goto out;
 	}

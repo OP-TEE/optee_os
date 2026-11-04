@@ -27,7 +27,7 @@ END_FUNC vfp_restore_extension_regs
  * unit must be enabled by the caller.
  */
 FUNC vfp_clear_extension_regs , :
-	clear_fregs 0, 31
 	csrw	fcsr, zero
+	clear_fregs 0, 31
 	ret
 END_FUNC vfp_clear_extension_regs

@@ -42,9 +42,7 @@ FUNC _ldelf_start , :
 
 	/* Update the pointer at r_offset + load offset */
 	add	t1, a1, t1
-	ld	t4, 0(t1)
-	add	t4, t4, t3
-	add	t4, t4, a1
+	add	t4, t3, a1	/* *where = load offset + r_addend */
 	sd	t4, 0(t1)
 	ble	a2, a3, 1b
 2:

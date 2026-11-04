@@ -107,6 +107,12 @@ R:	Clement Leger <clement.leger@bootlin.com> [@clementleger]
 S:	Maintained
 F:	core/drivers/clk/
 
+Qualcomm Clock driver framework
+R:	Naresh Nunna <nnunna@qti.qualcomm.com> [@nnunna94]
+S:	Maintained
+F:	core/drivers/clk/qcom/
+F:	core/include/drivers/clk_qcom.h
+
 Core Drivers I2C
 R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
 R:	Sahil Malhotra <sahil.malhotra@nxp.com> [@sahilnxp]
@@ -166,6 +172,13 @@ S:	Maintained
 F:	core/drivers/qcom/rpmh/
 F:	core/include/drivers/qcom/rpmh/
 
+Core Drivers QCOM TLMM
+R:	Siva Rama Krishna Potu <spotu@qti.qualcomm.com> [@siva-potu]
+R:	Vinod Kumar Amanaganti <vinoda@qti.qualcomm.com> [@vinod-amanaganti]
+S:	Maintained
+F:	core/drivers/qcom/tlmm/
+F:	core/include/drivers/qcom/tlmm/
+
 Core Drivers QCOM WDT
 R:	Harikrishna <hart@qti.qualcomm.com> [@thariaruchamy-bit]
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
@@ -201,6 +214,11 @@ R:	Sumit Garg <sumit.garg@kernel.org> [@b49020]
 S:	Maintained
 F:	ldelf/ftrace.c
 F:	lib/libutils/ext/ftrace/
+
+Google
+R:	Kuan-Wei Chiu <visitorckw@gmail.com> [@visitorckw]
+S:	Maintained
+F:	core/arch/arm/plat-google/
 
 HiSilicon D02
 S:	Orphan
@@ -240,6 +258,7 @@ Marvell Armada 70x0, Armada 80x0, Armada 3700, OcteonTX2 CN96XX, OcteonTX2 CFN95
 R:	Tao Lu <taolu@marvell.com> [@taovcu]
 S:	Maintained
 F:	core/arch/arm/plat-marvell/
+F:	core/drivers/crypto/marvell/
 
 MediaTek
 R:	GM Lin <guan-gm.lin@mediatek.com> [@p870613]
@@ -288,6 +307,7 @@ PKCS#11 TA
 R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 R:	Ruchika Gupta <gupta.ruchika@gmail.com> [@ruchi393]
 R:	Vesa Jääskeläinen <vesa.jaaskelainen@vaisala.com> [@vesajaaskelainen]
+R:	Rouven Czerwinski <rouven.czerwinski@linaro.org> [@emantor]
 S:	Maintained
 F:	ta/pkcs11
 
@@ -341,11 +361,6 @@ Renesas RCAR
 R:	Volodymyr Babchuk <vlad.babchuk@gmail.com> [@lorc]
 S:	Maintained
 F:	core/arch/arm/plat-rcar/
-
-Renesas RCAR Gen5
-R:	Marek Vasut <marek.vasut+renesas@mailbox.org> [@marex]
-S:	Maintained
-F:	core/arch/arm/plat-rcar_gen5/
 
 Renesas RZ/G2
 R:	Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com> [@prabhakarlad]

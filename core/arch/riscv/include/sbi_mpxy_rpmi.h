@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  */
 
 #ifndef __SBI_MPXY_RPMI_H
@@ -87,6 +87,12 @@ struct sbi_mpxy_rpmi_channel {
 	struct sbi_mpxy_channel_attrs attrs;
 	struct sbi_mpxy_rpmi_channel_attrs rpmi_attrs;
 	struct sbi_mpxy_notification_data *notif;
+#if defined(CFG_RISCV_SBI_MPXY_RPMI_MSI)
+	/* Notification state, see sbi_mpxy_rpmi_msi.c */
+	bool have_events_state;
+	bool started;
+	uint32_t msi_irq;
+#endif
 };
 
 /* An instance of RPMI-over-MPXY channel group */
@@ -157,5 +163,14 @@ int sbi_mpxy_rpmi_read_attributes(struct sbi_mpxy_rpmi_channel *channel);
 int sbi_mpxy_rpmi_send_data(struct sbi_mpxy_rpmi_channel *channel, void *data);
 
 #endif /*__ASSEMBLER__*/
+
+#else /*!defined(CFG_RISCV_SBI_MPXY_RPMI)*/
+
+#ifndef __ASSEMBLER__
+static inline void sbi_mpxy_rpmi_probe_channels(void)
+{
+}
+#endif /*__ASSEMBLER__*/
+
 #endif /*defined(CFG_RISCV_SBI_MPXY_RPMI)*/
 #endif /*__SBI_MPXY_RPMI_H*/

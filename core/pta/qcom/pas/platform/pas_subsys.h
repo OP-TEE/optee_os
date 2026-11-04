@@ -40,9 +40,11 @@ struct qcom_pas_ops {
  *
  * @QCOM_PAS_RESET_NONE:       fw_start only; no clock management here.
  * @QCOM_PAS_RESET_CLK_ENABLE: qcom_clock_enable() then fw_start().
- * @QCOM_PAS_RESET_CLK_FULL:   qcom_clock_pas_reset(), qcom_clock_enable(),
- *                             fw_start(), then
+ * @QCOM_PAS_RESET_CLK_FULL:   qcom_clock_enable(), fw_start(), then
  *                             qcom_clock_enable_pas_processor().
+ *
+ * If a CLK_ENABLE or CLK_FULL start fails in or after fw_start, fw_shutdown
+ * puts the subsystem back into reset.
  */
 enum qcom_pas_reset_seq {
 	QCOM_PAS_RESET_NONE = 0,
@@ -84,5 +86,20 @@ struct qcom_pas_subsys *qcom_pas_platform_subsys(size_t *count);
  * Returns the matching descriptor, or NULL if none is registered.
  */
 struct qcom_pas_subsys *qcom_pas_lookup(uint32_t pas_id);
+
+/*
+ * qcom_pas_get_fw() : fetch the authenticated firmware location of @pas_id.
+ *
+ * Lets a subsystem fetch a dependency's firmware image without reaching
+ * into its private data.
+ *
+ * @pas_id:  PAS_ID of the subsystem to query.
+ * @fw_base: out, physical base of the authenticated firmware.
+ * @fw_size: out, size of the authenticated firmware.
+ * Returns TEE_ERROR_NOT_SUPPORTED if @pas_id is not registered,
+ * TEE_ERROR_BAD_STATE if it is not loaded, TEE_SUCCESS otherwise.
+ */
+TEE_Result qcom_pas_get_fw(uint32_t pas_id, paddr_t *fw_base,
+			   size_t *fw_size);
 
 #endif /* PAS_SUBSYS_H */

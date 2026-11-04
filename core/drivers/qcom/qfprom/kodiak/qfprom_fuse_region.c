@@ -3,9 +3,8 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#include <drivers/qcom/cmd_db/cmd_db.h>
-#include <drivers/qcom/rpmh/rpmh_client.h>
 #include <inttypes.h>
+#include <qfprom_rpmh.h>
 #include <qfprom_target.h>
 #include <trace.h>
 
@@ -78,65 +77,54 @@ const struct qfprom_region_info region_data[] = {
 
 const size_t region_count = ARRAY_SIZE(region_data);
 
-static struct rpmh_client *rpmh_handle;
+static const struct {
+	const char *name;
+	uint32_t voltage_mv;
+	uint32_t off_mode;
+} qfprom_supplies[] = {
+	{ "ldoc1", 1900, QFPROM_VREG_MODE_LPM },
+	{ "smpb1", 1956, QFPROM_VREG_MODE_RET },
+};
 
 static TEE_Result qfprom_platform_init(void)
 {
-	uint32_t vrm_addr = 0;
-	uint32_t req_id = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t i = 0;
 
-	if (!rpmh_handle) {
-		rpmh_handle = rpmh_create_handle(RSC_DRV_SECURE, "qfprom");
-		if (!rpmh_handle) {
-			EMSG("RPMH client creation failed");
-			return TEE_ERROR_GENERIC;
-		}
+	for (i = 0; i < ARRAY_SIZE(qfprom_supplies); i++) {
+		const char *name = qfprom_supplies[i].name;
+		uint32_t mv = qfprom_supplies[i].voltage_mv;
+		uint32_t mode = qfprom_supplies[i].off_mode;
+
+		res = qfprom_rpmh_vote_supply(name, mv, mode, true);
+		if (res != TEE_SUCCESS)
+			return res;
 	}
 
-	/* Enable MX voltage rail for QFPROM operations */
-	if (cmd_db_get_addr(PM_QFPROM_VREG_A, &vrm_addr) != TEE_SUCCESS) {
-		EMSG("QFPROM voltage rail '%s' not found in CMD_DB",
-		     PM_QFPROM_VREG_A);
-		return TEE_ERROR_GENERIC;
-	}
-
-	if (rpmh_send_command(rpmh_handle, RPMH_SET_ACTIVE, true,
-			      vrm_addr, QFPROM_VOLTAGE_ON, &req_id) !=
-	    TEE_SUCCESS) {
-		EMSG("RPMH enable MX failed: addr 0x%"PRIx32" req_id %"PRIu32,
-		     vrm_addr, req_id);
-		return TEE_ERROR_GENERIC;
-	}
-
-	return TEE_SUCCESS;
+	return qfprom_rpmh_vote_mx(MX_QFPROM_ENABLE_VAL);
 }
 
 static TEE_Result qfprom_platform_deinit(void)
 {
-	uint32_t vrm_addr = 0;
-	uint32_t req_id = 0;
+	TEE_Result res = TEE_SUCCESS;
+	TEE_Result ret = TEE_SUCCESS;
+	size_t i = 0;
 
-	if (!rpmh_handle) {
-		EMSG("RPMH not initialized");
-		return TEE_ERROR_GENERIC;
+	/* Release every vote even if an earlier release fails. */
+	for (i = 0; i < ARRAY_SIZE(qfprom_supplies); i++) {
+		const char *name = qfprom_supplies[i].name;
+		uint32_t mv = qfprom_supplies[i].voltage_mv;
+		uint32_t mode = qfprom_supplies[i].off_mode;
+
+		ret = qfprom_rpmh_vote_supply(name, mv, mode, false);
+		if (res == TEE_SUCCESS)
+			res = ret;
 	}
+	ret = qfprom_rpmh_vote_mx(MX_QFPROM_DISABLE_VAL);
+	if (res == TEE_SUCCESS)
+		res = ret;
 
-	/* Disable MX voltage rail after QFPROM operations */
-	if (cmd_db_get_addr(PM_QFPROM_VREG_A, &vrm_addr) != TEE_SUCCESS) {
-		EMSG("QFPROM voltage rail '%s' not found in CMD_DB",
-		     PM_QFPROM_VREG_A);
-		return TEE_ERROR_GENERIC;
-	}
-
-	if (rpmh_send_command(rpmh_handle, RPMH_SET_ACTIVE, true,
-			      vrm_addr, QFPROM_VOLTAGE_OFF, &req_id) !=
-	    TEE_SUCCESS) {
-		EMSG("RPMH disable MX failed: addr 0x%"PRIx32" req_id %"PRIu32,
-		     vrm_addr, req_id);
-		return TEE_ERROR_GENERIC;
-	}
-
-	return TEE_SUCCESS;
+	return res;
 }
 
 const struct qfprom_platform_config plat_config = {

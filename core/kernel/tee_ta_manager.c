@@ -248,7 +248,7 @@ struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 		s = tee_ta_find_session_nolock(id, open_sessions);
 		if (!s)
 			break;
-		if (s->unlink) {
+		if (!s->active) {
 			s = NULL;
 			break;
 		}
@@ -258,10 +258,10 @@ struct tee_ta_session *tee_ta_get_session(uint32_t id, bool exclusive,
 
 		assert(s->lock_thread != thread_get_id());
 
-		while (s->lock_thread != THREAD_ID_INVALID && !s->unlink)
+		while (s->lock_thread != THREAD_ID_INVALID && s->active)
 			condvar_wait(&s->lock_cv, &tee_ta_mutex);
 
-		if (s->unlink) {
+		if (!s->active) {
 			dec_session_ref_count(s);
 			s = NULL;
 			break;
@@ -282,9 +282,9 @@ static void tee_ta_unlink_session(struct tee_ta_session *s,
 
 	assert(s->ref_count >= 1);
 	assert(s->lock_thread == thread_get_id());
-	assert(!s->unlink);
+	assert(s->active);
 
-	s->unlink = true;
+	s->active = false;
 	condvar_broadcast(&s->lock_cv);
 
 	while (s->ref_count != 1)
@@ -468,14 +468,22 @@ static void close_session(struct tee_ta_session *sess,
 	}
 
 	ctx = ts_to_ta_ctx(ts_ctx);
-	if (ctx->panicked) {
-		destroy_session(sess, open_sessions);
-	} else {
-		tee_ta_set_busy(ctx);
-		set_invoke_timeout(sess, TEE_TIMEOUT_INFINITE);
-		ts_ctx->ops->enter_close_session(&sess->ts_sess);
+	if (tee_ta_try_set_busy(ctx)) {
+		if (!ctx->panicked) {
+			set_invoke_timeout(sess, TEE_TIMEOUT_INFINITE);
+			ts_ctx->ops->enter_close_session(&sess->ts_sess);
+		}
 		destroy_session(sess, open_sessions);
 		tee_ta_clear_busy(ctx);
+	} else {
+		/*
+		 * Deadlock avoided: ctx is already busy and we're
+		 * holding the single-instance lock, so we can't
+		 * safely enter the TA to run its close entry point,
+		 * regardless of whether it has panicked. Tear down
+		 * the session state without the busy protection.
+		 */
+		destroy_session(sess, open_sessions);
 	}
 
 	mutex_lock(&tee_ta_mutex);
@@ -618,6 +626,11 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	condvar_init(&s->lock_cv);
 	s->lock_thread = thread_get_id();
 	s->ref_count = 1;
+	/*
+	 * Keep the session marked inactive so tee_ta_get_session() rejects
+	 * it until initialisation has completed.
+	 */
+	s->active = false;
 
 	mutex_lock(&tee_ta_mutex);
 	s->id = new_session_id(open_sessions);
@@ -660,6 +673,9 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 
 out:
 	if (!res) {
+		mutex_lock(&tee_ta_mutex);
+		s->active = true;
+		mutex_unlock(&tee_ta_mutex);
 		*sess = s;
 		return TEE_SUCCESS;
 	}

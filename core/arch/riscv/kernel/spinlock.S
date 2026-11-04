@@ -16,7 +16,6 @@ FUNC __cpu_spin_lock , :
 1:
 	mv	a0, s0
 	jal	__cpu_spin_trylock
-	addiw	a0, a0, 0
 	bnez	a0, 1b
 	LDR	ra, REGOFF(1)(sp)
 	LDR	s0, REGOFF(0)(sp)

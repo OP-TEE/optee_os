@@ -3,6 +3,7 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <qfprom_rpmh.h>
 #include <qfprom_target.h>
 
 #include "qfprom_priv.h"
@@ -81,7 +82,7 @@ const struct qfprom_region_info region_data[] = {
 	QFPROM_FEC_REGION(QC_SPARE_21, 1, 28),
 	QFPROM_FEC_REGION(OEM_IMAGE_ENCRYPTION_KEY, 3, 29),
 	QFPROM_FEC_REGION(OEM_SECURE_BOOT, 2, 30),
-	QFPROM_FEC_REGION_MSB(SEC_KEY_DERIVATION_KEY, 5, 31),
+	QFPROM_FEC_REGION(SEC_KEY_DERIVATION_KEY, 5, 31),
 	QFPROM_FEC_REGION_MSB(IMAGE_ENCRYPTION_KEY_1, 3, 33),
 	QFPROM_FEC_REGION_MSB(USER_KEY_DERIVATION_KEY, 5, 34),
 	QFPROM_STD_REGION_MSB(OEM_SPARE_28, 2, 35),
@@ -102,8 +103,22 @@ const struct qfprom_region_info region_data[] = {
 
 const size_t region_count = ARRAY_SIZE(region_data);
 
+static TEE_Result qfprom_platform_init(void)
+{
+	return qfprom_rpmh_vote_supply("smpa4",
+				  1800, QFPROM_VREG_MODE_LPM, true);
+}
+
+static TEE_Result qfprom_platform_deinit(void)
+{
+	return qfprom_rpmh_vote_supply("smpa4",
+				  1800, QFPROM_VREG_MODE_LPM, false);
+}
+
 const struct qfprom_platform_config plat_config = {
 	.name = "Lemans",
+	.init = qfprom_platform_init,
+	.deinit = qfprom_platform_deinit,
 	.qfprom_raw_base = QFPROM_RAW_BASE,
 	.qfprom_corr_base = QFPROM_CORR_BASE,
 	.qfprom_size = QFPROM_SIZE,

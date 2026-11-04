@@ -50,7 +50,6 @@ struct thread_user_mode_rec {
 	unsigned long ctx_regs_ptr;
 	unsigned long exit_status0_ptr;
 	unsigned long exit_status1_ptr;
-	unsigned long pad;
 	/*
 	 * x[] is used to save registers for user/kernel context-switching
 	 * 0: ra
@@ -58,7 +57,7 @@ struct thread_user_mode_rec {
 	 * 3-12: s2-s11
 	 */
 	unsigned long x[13];
-};
+} __aligned(STACK_ALIGNMENT);
 
 #ifdef CFG_WITH_VFP
 struct thread_vfp_state {

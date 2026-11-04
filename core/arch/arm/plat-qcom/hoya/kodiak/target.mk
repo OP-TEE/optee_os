@@ -1,3 +1,5 @@
+CFG_TA_RAM_VA_SIZE ?= 0x1c00000
+
 CFG_DRIVERS_CLK ?= y
 CFG_DRIVERS_QCOM_CLK ?= y
 
@@ -9,14 +11,14 @@ endif
 
 ifeq ($(CFG_QCOM_QFPROM_FUSEPROV),y)
 $(call force,CFG_QCOM_QFPROM,y)
+$(call force,CFG_QCOM_QFPROM_RPMH_CLIENT,y)
 endif
 
-ifeq ($(CFG_QCOM_QFPROM),y)
-# Kodiak requires MX voltage rail workaround for QFPROM fuse blowing
+ifeq ($(CFG_QCOM_QFPROM_RPMH_CLIENT),y)
+# Fuse blowing needs the ldoc1/smpb1 supply rails the SoC requires
+# for programming, plus Kodiak's MX rail workaround; both are voted
+# over RPMH.
 $(call force,CFG_QCOM_RPMH_CLIENT,y)
-endif
-
-ifeq ($(CFG_QCOM_RPMH_CLIENT),y)
 $(call force,CFG_QCOM_CMD_DB,y)
 endif
 

@@ -1,5 +1,9 @@
 name: CI
-on: [push, pull_request]
+on:
+  pull_request:
+  schedule:
+    # Nightly run of master, 01:17 UTC
+    - cron: '17 1 * * *'
 permissions:
   contents: read
 concurrency:
@@ -9,6 +13,7 @@ concurrency:
 jobs:
   code_style:
     name: Code style
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     container: jforissier/optee_os_ci
     steps:
@@ -205,6 +210,7 @@ jobs:
               _make PLATFORM=versal2 CFG_AMD_PS_GPIO=y
               _make PLATFORM=sprd-sc9860
               _make PLATFORM=sprd-sc9860 CFG_ARM64_core=y
+              _make PLATFORM=google
           - name: arm Plug and Trust
             make_commands: |
               function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.2 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
@@ -217,10 +223,13 @@ jobs:
               _make PLATFORM=qcom-kodiak
               _make PLATFORM=qcom-lemans
               _make PLATFORM=qcom-lemans CFG_QCOM_DIAG_LOG=y CFG_QFPROM_PROGRAMMING=y CFG_QCOM_QFPROM_FUSEPROV=y
+              _make PLATFORM=qcom-monaco
               _make PLATFORM=qcom-ipq96xx
               _make PLATFORM=qcom-ipq52xx
               _make PLATFORM=qcom-nord
               _make PLATFORM=qcom-shikra
+              _make PLATFORM=qcom-agatti
+              _make PLATFORM=qcom-cacao
           - name: arm rockchip
             make_commands: |
               _make PLATFORM=rockchip-px30
@@ -354,6 +363,9 @@ jobs:
               _make PLATFORM=virt CFG_RISCV_PLIC=n CFG_RISCV_APLIC=y
               _make PLATFORM=virt CFG_RISCV_PLIC=n CFG_RISCV_APLIC_MSI=y CFG_RISCV_IMSIC=y
               _make PLATFORM=virt CFG_RISCV_ISA_ZICBOM=y
+              _make PLATFORM=virt COMPILER=clang
+              _make PLATFORM=virt CFG_CORE_ASLR=n CFG_TA_ASLR=n
+              _make PLATFORM=virt CFG_CORE_ASLR=n CFG_TA_ASLR=n COMPILER=clang
               _make PLATFORM=sifive
               _make PLATFORM=cva6
     steps:

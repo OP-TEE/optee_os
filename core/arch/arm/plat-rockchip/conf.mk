@@ -38,10 +38,8 @@ include ./core/arch/arm/cpu/cortex-a7.mk
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 
 # The kernel DT declares psci { method = "smc"; }, so Linux issues a PSCI SMC
-# before its console is up. Enable CFG_PSCI_ARM32 so the generic __weak PSCI
-# defaults answer (version 1.1, CPU_ON not supported), correct for a single
-# core; without a handler the SMC is mishandled and the kernel hangs.
-# psci_rk322x.c is rk322x-specific and not built here.
+# before its console is up. Enable CFG_PSCI_ARM32 so the SMC is answered;
+# without a handler it is incorrectly handled and the kernel hangs.
 $(call force,CFG_PSCI_ARM32,y)
 
 # No TF-A in the boot chain, so sm_init() must zero CNTVOFF.

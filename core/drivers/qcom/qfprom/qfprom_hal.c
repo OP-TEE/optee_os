@@ -17,7 +17,7 @@
 static void qfprom_write_reg(uint32_t offset, uint32_t value)
 {
 	struct qfprom_context *ctx = qfprom_get_context();
-	vaddr_t reg = ctx->raw_base_va + offset;
+	vaddr_t reg = ctx->raw_base + offset;
 
 	io_write32(reg, value);
 }
@@ -25,7 +25,7 @@ static void qfprom_write_reg(uint32_t offset, uint32_t value)
 static uint32_t qfprom_read_reg(uint32_t offset)
 {
 	struct qfprom_context *ctx = qfprom_get_context();
-	vaddr_t reg = ctx->raw_base_va + offset;
+	vaddr_t reg = ctx->raw_base + offset;
 
 	return io_read32(reg);
 }

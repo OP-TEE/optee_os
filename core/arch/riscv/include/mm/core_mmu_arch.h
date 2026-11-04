@@ -181,10 +181,16 @@ enum cache_op {
 	DCACHE_AREA_CLEAN_INV,
 };
 
+/*
+ * Make the new translation table entries usable before returning. A hart
+ * without Svvptc may cache invalid entries, so this needs sfence.vma too.
+ */
 static inline void core_mmu_table_write_barrier(void)
 {
-	/* Invoke memory barrier */
+	/* Order the table stores before the accesses that follow */
 	mb();
+	/* Order them before this hart's page table walks */
+	flush_tlb();
 }
 
 TEE_Result cache_op_inner(enum cache_op op, void *va, size_t len);

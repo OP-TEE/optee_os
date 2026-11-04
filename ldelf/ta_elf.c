@@ -410,7 +410,15 @@ static void save_soname_from_segment(struct ta_elf *elf, unsigned int type,
 	for (n = 0; n < num_dyns; n++) {
 		read_dyn(elf, addr, n, &tag, &val);
 		if (tag == DT_SONAME) {
-			if (val >= str_tab_sz)
+			/*
+			 * Reject a DT_SONAME offset outside the string
+			 * table and make sure the string is NUL-terminated
+			 * within the table before it is stored and later
+			 * used by strcmp()/debug logging, otherwise an
+			 * out-of-bounds read could occur.
+			 */
+			if (val >= str_tab_sz ||
+			    !memchr(str_tab + val, '\0', str_tab_sz - val))
 				err(TEE_ERROR_BAD_FORMAT,
 				    "Offset into .dynstr/STRTAB out of range");
 			elf->soname = str_tab + val;
@@ -1971,7 +1979,7 @@ TEE_Result ta_elf_set_init_fini_info_compat(bool is_32bit)
 
 	res = realloc_ifs(info_va, cnt, is_32bit);
 	if (res)
-		goto err;
+		return res;
 
 	cnt = 0;
 	TAILQ_FOREACH(elf, &main_elf_queue, link) {
@@ -1980,9 +1988,6 @@ TEE_Result ta_elf_set_init_fini_info_compat(bool is_32bit)
 	}
 
 	return TEE_SUCCESS;
-err:
-	free(info);
-	return res;
 }
 
 static TEE_Result realloc_elf_phdr_info(vaddr_t va, size_t cnt, bool is_32bit)
@@ -2053,7 +2058,7 @@ static void fill_elf_phdr_info(vaddr_t va, size_t idx, struct ta_elf *elf,
 		if (elf->soname)
 			dlpi->dlpi_name = elf->soname;
 		else
-			dlpi->dlpi_name = &info32->zero;
+			dlpi->dlpi_name = &info->zero;
 		dlpi->dlpi_phdr = elf->phdr;
 		dlpi->dlpi_phnum = elf->e_phnum;
 		dlpi->dlpi_adds = 1; /* No unloading on dlclose() currently */

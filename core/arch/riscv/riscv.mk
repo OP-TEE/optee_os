@@ -160,11 +160,8 @@ platform-aflags-generic ?= -pipe -march=$(riscv-isa) -mabi=$(riscv-abi)
 
 rv64-platform-cflags-generic := -mstrict-align $(call cc-option,)
 
-# Optimize for size by default, usually gives good performance too
-CFG_CC_OPT_LEVEL ?= 0
 platform-cflags-optimization ?= -O$(CFG_CC_OPT_LEVEL)
 
-CFG_DEBUG_INFO ?= y
 ifeq ($(CFG_DEBUG_INFO),y)
 platform-cflags-debug-info ?= -g3
 platform-aflags-debug-info ?= -g

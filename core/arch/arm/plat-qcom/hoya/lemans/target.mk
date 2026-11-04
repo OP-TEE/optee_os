@@ -1,5 +1,9 @@
+CFG_TA_RAM_VA_SIZE ?= 0x1c00000
+
 CFG_DRIVERS_CLK ?= y
 CFG_DRIVERS_QCOM_CLK ?= y
+
+CFG_QCOM_TLMM ?= y
 
 CFG_QCOM_DIAG_LOG ?= $(CFG_TEE_CORE_DEBUG)
 
@@ -16,6 +20,7 @@ ifeq ($(CFG_QCOM_PAS_PTA),y)
 CFG_RESERVED_VASPACE_SIZE ?= (256 * 1024 * 1024)
 CFG_IN_TREE_EARLY_TAS += qcom_pas/cff7d191-7ca0-4784-af13-48223b9a4fbe
 CFG_QCOM_PAS_AUTH ?= y
+$(call force,CFG_QCOM_CLK_HOYA_PAS,y)
 endif
 
 CFG_QCOM_HWKM ?= y
@@ -30,4 +35,20 @@ endif
 
 ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_FUSE_PTA)),)
 $(call force,CFG_QCOM_QFPROM,y)
+$(call force,CFG_QCOM_QFPROM_RPMH_CLIENT,y)
+endif
+
+ifeq ($(CFG_QCOM_QFPROM_RPMH_CLIENT),y)
+# Fuse blowing needs the smpa4 supply rail the SoC requires for
+# programming, voted over RPMH.
+$(call force,CFG_QCOM_RPMH_CLIENT,y)
+$(call force,CFG_QCOM_CMD_DB,y)
+endif
+
+# QUPv3 serial-engine clock set-rate/DFS support. Set-rate votes CX/MX via
+# RPMh, so pull cmd_db/RPMh client in whenever the clock config path is built.
+CFG_QCOM_CLK_CFG ?= y
+ifeq ($(CFG_QCOM_CLK_CFG),y)
+$(call force,CFG_QCOM_CMD_DB,y)
+$(call force,CFG_QCOM_RPMH_CLIENT,y)
 endif

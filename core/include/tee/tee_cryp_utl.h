@@ -31,10 +31,15 @@ void plat_prng_add_jitter_entropy(enum crypto_rng_src sid, unsigned int *pnum);
 
 /*
  * plat_init_soft_prng() - Provide a seed to the software RNG support.
+ *
  * If not overridden with a platform implementation, the function defaults
- * to __plat_init_soft_prng() that implements a weak seeding of the RNG.
+ * to __plat_init_insecure_soft_prng() that implements a weak seeding of the
+ * RNG. __plat_init_insecure_soft_prng() is supported only in insecure
+ * build configuration.
  */
 void plat_init_soft_prng(void);
-void __plat_init_soft_prng(void);
+#ifdef CFG_INSECURE
+void __plat_init_insecure_soft_prng(void);
+#endif
 
 #endif
