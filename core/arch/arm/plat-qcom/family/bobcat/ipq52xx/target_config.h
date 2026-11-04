@@ -8,10 +8,13 @@
 
 #define GENI_UART_REG_BASE		UL(0x1A84000)
 
+/* The LM profile has no DT, so it gives the DRAM here */
+#ifdef CFG_QCOM_LM_PROFILE
 #define DRAM0_BASE			UL(0x80000000)
 #define DRAM0_SIZE			UL(0x80000000)
 #define DRAM1_BASE			ULL(0x800000000)
 #define DRAM1_SIZE			UL(0x80000000)
+#endif
 
 #define GICD_BASE			UL(0xB000000)
 #define GICC_BASE			UL(0xB002000)
