@@ -17,7 +17,9 @@
 
 /* MACHX_LLCC_MPU: resource groups 30..39 are free for runtime allocation */
 #define DDR_MPU_BASE			UL(0x4060000)
-#define DDR_MPU_ADDR_OFFSET		UL(0x0)
+/* It is programmed with the physical addresses of the DRAM */
+#define DDR_MPU_ADDR_LOW(pa)		(pa)
+#define DDR_MPU_ADDR_HIGH(pa)		(pa)
 #define DDR_XPU_RG_START		UL(30)
 #define DDR_XPU_RG_COUNT		UL(10)
 
