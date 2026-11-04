@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include <initcall.h>
-#include <kernel/spinlock.h>
+#include <kernel/mutex.h>
 #include <trace.h>
 #include <util.h>
 
@@ -84,7 +84,7 @@ static struct icb_info *info;
 
 static struct rpmh_client *rpmh_handle;
 static struct icb_hw_node *commit_queue;
-static unsigned int icb_lock;
+static struct mutex icb_lock = MUTEX_INITIALIZER;
 
 static bool add_hw_node_request(struct icb_hw_request_list *req_list,
 				struct icb_bw_req *req,
@@ -406,16 +406,18 @@ struct icb_client *icbuarb_create_client(enum icbid_master master,
 	if (i >= info->num_routes)
 		return NULL;
 
+	mutex_lock(&icb_lock);
+
 	handle = icb_client_pool_alloc();
-	if (!handle)
+	if (!handle) {
+		mutex_unlock(&icb_lock);
 		return NULL;
+	}
 
 	handle->master = master;
 	handle->slave  = slave;
 	handle->route  = info->routes[i];
 	memset(&handle->curr_req, 0, sizeof(struct icb_bw_req));
-
-	cpu_spin_lock(&icb_lock);
 
 	for (i = 0; i < handle->route->num_hops; i++) {
 		if (handle->route->hops[i].master) {
@@ -443,7 +445,7 @@ struct icb_client *icbuarb_create_client(enum icbid_master master,
 		handle = NULL;
 	}
 
-	cpu_spin_unlock(&icb_lock);
+	mutex_unlock(&icb_lock);
 
 	return handle;
 }
@@ -460,7 +462,7 @@ bool icbuarb_issue_request(struct icb_client *handle, struct icb_bw_req *req)
 	if (!handle->route)
 		return false;
 
-	cpu_spin_lock(&icb_lock);
+	mutex_lock(&icb_lock);
 
 	handle->curr_req = *req;
 	route = handle->route;
@@ -495,7 +497,7 @@ bool icbuarb_issue_request(struct icb_client *handle, struct icb_bw_req *req)
 	commit_hw_requests();
 	ret = true;
 
-	cpu_spin_unlock(&icb_lock);
+	mutex_unlock(&icb_lock);
 
 	return ret;
 }
@@ -512,10 +514,10 @@ bool icbuarb_destroy_client(struct icb_client *handle)
 	if (!icbuarb_issue_request(handle, &req))
 		return false;
 
-	cpu_spin_lock(&icb_lock);
+	mutex_lock(&icb_lock);
 	icbuarb_destroy_client_internal(handle);
 	ret = true;
-	cpu_spin_unlock(&icb_lock);
+	mutex_unlock(&icb_lock);
 
 	return ret;
 }
