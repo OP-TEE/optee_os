@@ -67,4 +67,6 @@ $(call force,CFG_EXTERNAL_DT,n)
 $(call force,CFG_DT_ADDR,0)
 # Qualcomm clocks are acquired by name, not described in DT
 CFG_DRIVERS_CLK_DT ?= n
+# The GIC bases are in the embedded DT
+$(call force,CFG_GIC_FROM_DT,y)
 endif
