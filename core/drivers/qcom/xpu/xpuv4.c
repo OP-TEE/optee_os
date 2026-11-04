@@ -57,13 +57,17 @@ static const struct xpu4_instance *xpu4_find_instance(paddr_t start,
 {
 	const struct xpu4_instance *inst = NULL;
 	size_t i = 0;
+	size_t n = 0;
 
 	for (i = 0; i < xpu4_instance_count; i++) {
 		inst = &xpu4_instances[i];
 
-		if (core_is_buffer_inside(start, size, inst->guard_start,
-					  inst->guard_size))
-			return inst;
+		for (n = 0; n < inst->guard_count; n++) {
+			if (core_is_buffer_inside(start, size,
+						  inst->guards[n].start,
+						  inst->guards[n].size))
+				return inst;
+		}
 	}
 
 	return NULL;
