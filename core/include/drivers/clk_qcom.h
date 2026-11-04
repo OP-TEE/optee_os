@@ -33,9 +33,14 @@ enum qcom_clk_group {
 	QCOM_CLKS_WPSS,
 	QCOM_CLKS_TURING,
 	QCOM_CLKS_TURING1,
+	QCOM_CLKS_TURING2,
+	QCOM_CLKS_TURING3,
 	QCOM_CLKS_LPASS,
 	QCOM_CLKS_GPDSP0,
 	QCOM_CLKS_GPDSP1,
+	QCOM_CLKS_HPASS0,
+	QCOM_CLKS_HPASS1,
+	QCOM_CLKS_HPASS2,
 	QCOM_CLKS_LMCU,
 	QCOM_CLKS_MAX,
 };
@@ -64,6 +69,8 @@ struct qcom_pll_offsets {
 	uint32_t config_ctl_u1;
 	uint32_t test_ctl;
 	uint32_t test_ctl_u;
+	uint32_t test_ctl_u1;
+	uint32_t test_ctl_u2;
 };
 
 /*
@@ -81,6 +88,8 @@ struct qcom_pll_config {
 	uint32_t config_ctl_u1;
 	uint32_t test_ctl;
 	uint32_t test_ctl_u;
+	uint32_t test_ctl_u1;
+	uint32_t test_ctl_u2;
 	uint32_t user_ctl;
 	uint32_t user_ctl_u;
 	bool frac_mode_mn;		/* false = alpha (default for Q6) */
@@ -103,6 +112,13 @@ TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
  */
 TEE_Result qcom_spark_pll_enable(vaddr_t pll_base,
 				 const struct qcom_pll_config *cfg);
+
+/*
+ * Configure, lock and enable a Lucid-OLE PLL at @pll_base; returns
+ * TEE_ERROR_TIMEOUT if it fails to lock.
+ */
+TEE_Result qcom_lucidole_pll_enable(vaddr_t pll_base,
+				    const struct qcom_pll_config *cfg);
 
 #if defined(CFG_QCOM_CLK_CFG)
 /*
