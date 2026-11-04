@@ -14,8 +14,6 @@
 #include <mm/mobj.h>
 #include <mm/vm.h>
 
-#define BOUNCE_BUFFER_SIZE	4096
-
 extern uint8_t ldelf_data[];
 extern const unsigned int ldelf_code_size;
 extern const unsigned int ldelf_data_size;

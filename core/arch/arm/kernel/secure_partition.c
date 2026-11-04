@@ -14,6 +14,7 @@
 #include <kernel/thread_spmc.h>
 #include <kernel/tpm.h>
 #include <kernel/ts_store.h>
+#include <kernel/user_access.h>
 #include <ldelf.h>
 #include <libfdt.h>
 #include <mm/core_mmu.h>
@@ -31,8 +32,6 @@
 #include <utee_defines.h>
 #include <util.h>
 #include <zlib.h>
-
-#define BOUNCE_BUFFER_SIZE		4096
 
 #define UNDEFINED_BOOT_ORDER_VALUE	UINT32_MAX
 

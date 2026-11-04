@@ -54,6 +54,9 @@ static inline TEE_Result copy_to_user(void *uaddr __unused,
 }
 #endif
 
+/* Size of the per user mode context region bb_alloc() allocates from */
+#define BOUNCE_BUFFER_SIZE	4096
+
 /*
  * bb_alloc() - Allocate a bounce buffer
  * @len:	Length of bounce buffer
