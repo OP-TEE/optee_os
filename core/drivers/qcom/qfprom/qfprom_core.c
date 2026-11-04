@@ -470,9 +470,9 @@ err_deinit:
 TEE_Result qfprom_hw_deinit(void)
 {
 	TEE_Result res = qfprom_hw_cleanup();
+	TEE_Result release_res = qfprom_release_hw_mutex();
 
-	qfprom_release_hw_mutex();
-	return res;
+	return res != TEE_SUCCESS ? res : release_res;
 }
 
 TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data)
