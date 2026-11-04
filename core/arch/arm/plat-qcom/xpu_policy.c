@@ -15,14 +15,33 @@
 #include <util.h>
 #include <xpu_target.h>
 
+/* The DDR MPU guards all of the DRAM, which comes in two windows */
+static const struct xpu4_guard ddr_guards[] = {
+	{
+		.start = DRAM0_BASE,
+		.size = DRAM0_SIZE,
+	},
+	{
+		.start = DRAM1_BASE,
+		.size = DRAM1_SIZE,
+	},
+};
+
+static const struct xpu4_guard imem_guards[] = {
+	{
+		.start = IMEM_BASE,
+		.size = IMEM_SIZE,
+	},
+};
+
 /* This SoC's XPU4 instances, handed to the driver at protection time */
 static const struct xpu4_instance xpu4_instances[] = {
 	{
 		.base = DDR_MPU_BASE,
 		.map_size = CORE_MMU_PGDIR_SIZE,
 		.addr_off = DDR_MPU_ADDR_OFFSET,
-		.guard_start = DRAM0_BASE,
-		.guard_size = DRAM0_SIZE,
+		.guards = ddr_guards,
+		.guard_count = ARRAY_SIZE(ddr_guards),
 		.rg_start = DDR_XPU_RG_START,
 		.rg_count = DDR_XPU_RG_COUNT,
 	},
@@ -30,8 +49,8 @@ static const struct xpu4_instance xpu4_instances[] = {
 		.base = IMEM_MPU_BASE,
 		.map_size = IMEM_MPU_MAP_SIZE,
 		.addr_off = IMEM_BASE,
-		.guard_start = IMEM_BASE,
-		.guard_size = IMEM_SIZE,
+		.guards = imem_guards,
+		.guard_count = ARRAY_SIZE(imem_guards),
 		.rg_start = IMEM_XPU_RG_START,
 		.rg_count = IMEM_XPU_RG_COUNT,
 	},
