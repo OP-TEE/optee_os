@@ -52,18 +52,22 @@ void xpu4_register_instances(const struct xpu4_instance *instances,
 	xpu4_instance_count = count;
 }
 
-static const struct xpu4_instance *xpu4_find_instance(paddr_t start,
-						      size_t size)
+static const struct xpu4_guard *
+xpu4_find_guard(paddr_t start, size_t size, const struct xpu4_instance **inst)
 {
-	const struct xpu4_instance *inst = NULL;
+	const struct xpu4_guard *guard = NULL;
 	size_t i = 0;
+	size_t n = 0;
 
 	for (i = 0; i < xpu4_instance_count; i++) {
-		inst = &xpu4_instances[i];
-
-		if (core_is_buffer_inside(start, size, inst->guard_start,
-					  inst->guard_size))
-			return inst;
+		for (n = 0; n < xpu4_instances[i].guard_count; n++) {
+			guard = &xpu4_instances[i].guards[n];
+			if (core_is_buffer_inside(start, size, guard->start,
+						  guard->size)) {
+				*inst = &xpu4_instances[i];
+				return guard;
+			}
+		}
 	}
 
 	return NULL;
@@ -116,6 +120,7 @@ TEE_Result xpu_protect_region(paddr_t start, size_t size,
 			      uint32_t read_perm, uint32_t write_perm)
 {
 	const struct xpu4_instance *inst = NULL;
+	const struct xpu4_guard *guard = NULL;
 	uint32_t lock_perm = 0;
 	unsigned int rg = 0;
 	paddr_t xpu_start = 0;
@@ -131,18 +136,18 @@ TEE_Result xpu_protect_region(paddr_t start, size_t size,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	inst = xpu4_find_instance(start, size);
-	if (!inst) {
+	guard = xpu4_find_guard(start, size, &inst);
+	if (!guard) {
 		EMSG("XPU: no instance guards region %#" PRIxPA "+%#zx",
 		     start, size);
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
-	/* Addresses are relative to the region base; the end is exclusive */
-	if (SUB_OVERFLOW(start, inst->addr_off, &xpu_start) ||
+	/* The XPU has its own address for the range; the end is exclusive */
+	if (ADD_OVERFLOW(guard->mpu_start, start - guard->start, &xpu_start) ||
 	    ADD_OVERFLOW(xpu_start, size, &xpu_end)) {
-		EMSG("XPU: region %#" PRIxPA "+%#zx invalid for offset %#"
-		     PRIxPA, start, size, inst->addr_off);
+		EMSG("XPU: region %#" PRIxPA "+%#zx invalid for XPU address %#"
+		     PRIxPA, start, size, guard->mpu_start);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 

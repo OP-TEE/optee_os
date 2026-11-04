@@ -17,7 +17,14 @@
 
 /* MEMNOC_SCH_MPU: resource groups 10..15 are free for runtime allocation */
 #define DDR_MPU_BASE			UL(0xAC0000)
-#define DDR_MPU_ADDR_OFFSET		UL(0x80000000)
+/*
+ * The MPU does not see the DRAM at its physical addresses. It sees the two
+ * DRAM windows, the one below 4 GiB and the one above it, placed back to
+ * back from address 0. These macros turn a physical address of the first and
+ * of the second window into the address that the MPU has for it.
+ */
+#define DDR_MPU_ADDR_LOW(pa)		((pa) - UL(0x80000000))
+#define DDR_MPU_ADDR_HIGH(pa)		((pa) - ULL(0x780000000))
 #define DDR_XPU_RG_START		UL(10)
 #define DDR_XPU_RG_COUNT		UL(6)
 
