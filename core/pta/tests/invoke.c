@@ -437,6 +437,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 		return core_transfer_list_tests(nParamTypes, pParams);
 	case PTA_INVOKE_TESTS_CMD_ASLR:
 		return core_aslr_tests(nParamTypes, pParams);
+	case PTA_INVOKE_TESTS_CMD_CORE_REGIONS:
+		return core_pmp_tests(nParamTypes, pParams);
 	default:
 		break;
 	}

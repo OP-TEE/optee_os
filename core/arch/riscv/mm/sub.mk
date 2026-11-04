@@ -1,4 +1,5 @@
 srcs-y += core_mmu_arch.c
+srcs-$(CFG_RISCV_CORE_NAPOT_REGIONS) += riscv_pmp.c
 srcs-y += tlb_helpers_rv.S
 
 ifeq ($(CFG_SYSCALL_FTRACE),y)

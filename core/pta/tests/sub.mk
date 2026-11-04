@@ -6,5 +6,6 @@ cflags-misc.c-y += -fno-builtin
 srcs-y += mutex.c
 srcs-y += aes_perf.c
 srcs-y += aslr.c
+srcs-$(CFG_RISCV_CORE_NAPOT_REGIONS) += pmp.c
 srcs-$(CFG_DT_DRIVER_EMBEDDED_TEST) += dt_driver_test.c
 srcs-$(CFG_TRANSFER_LIST_TEST) += transfer_list.c
