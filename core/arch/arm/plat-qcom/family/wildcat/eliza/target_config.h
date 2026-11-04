@@ -8,9 +8,6 @@
 
 #define GENI_UART_REG_BASE		UL(0x894000)
 
-#define GICD_BASE			UL(0x17100000)
-#define GICR_BASE			UL(0x17180000)
-
 #define QCOM_RNG_REG_BASE		UL(0x010c1000)
 
 #endif /* TARGET_CONFIG_H */

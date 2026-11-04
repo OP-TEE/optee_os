@@ -16,8 +16,12 @@
 #define DRAM1_SIZE			UL(0x80000000)
 #endif
 
+/* The LM profile has no DT, so it gives the GIC bases here */
+#ifdef CFG_QCOM_LM_PROFILE
 #define GICD_BASE			UL(0xB000000)
 #define GICC_BASE			UL(0xB002000)
+#endif
+
 #define GICD_PIDR2			UL(0xFD8)
 
 #define IMEM_BASE			UL(0x8600000)
