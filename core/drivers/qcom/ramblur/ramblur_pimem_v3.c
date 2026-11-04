@@ -11,6 +11,7 @@
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <string.h>
+#include "ramblur_pimem_cfg.h"
 
 #define ANTIROLLBACK	(UINT32_C(1) << \
 	RAMBLUR_WIN0_ALGORITHM_ANTIROLLBACK_ENABLE_SHFT)
@@ -292,9 +293,12 @@ static TEE_Result initialize_window(int window, size_t size, uintptr_t vault)
  */
 static TEE_Result qti_ramblur_pimem_init(void)
 {
+	struct ramblur_pimem_cfg cfg = { };
+
+	ramblur_pimem_get_cfg(&cfg);
+
 	ramblur_va = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
-						   RAMBLUR_PIMEM_REG_BASE,
-						   RAMBLUR_PIMEM_REG_SIZE);
+						   cfg.reg_base, cfg.reg_size);
 	if (!ramblur_va)
 		panic("Can't map Ramblur pIMEM");
 
@@ -311,8 +315,7 @@ static TEE_Result qti_ramblur_pimem_init(void)
 	if (ramblur_version.major != 3)
 		panic();
 
-	return initialize_window(CFG_QCOM_RAMBLUR_TA_WINDOW_ID,
-				 RAMBLUR_PIMEM_VAULT_TA_SIZE,
-				 RAMBLUR_PIMEM_VAULT_TA_BASE);
+	return initialize_window(CFG_QCOM_RAMBLUR_TA_WINDOW_ID, cfg.vault_size,
+				 cfg.vault_base);
 }
 driver_init(qti_ramblur_pimem_init);

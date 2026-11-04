@@ -5,6 +5,7 @@
 #
 
 srcs-$(CFG_QCOM_RAMBLUR_PIMEM_V3) += ramblur/ramblur_pimem_v3.c
+srcs-$(CFG_QCOM_RAMBLUR_PIMEM_V3) += ramblur/ramblur_pimem_cfg_non_dt.c
 srcs-$(CFG_QCOM_CSRNG) += rng/qcom-csrng.c
 srcs-$(CFG_QCOM_SEC_WDOG) += wdt/qcom-wdt.c
 
