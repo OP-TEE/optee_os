@@ -28,6 +28,8 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE,
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
 #endif
 
+/* An embedded DT, if there is one, gives the DRAM */
+#ifndef CFG_EMBED_DTB
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
 #ifdef DRAM1_BASE
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
@@ -35,6 +37,7 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #ifdef DRAM2_BASE
 register_ddr(DRAM2_BASE, DRAM2_SIZE);
 #endif
+#endif /*!CFG_EMBED_DTB*/
 
 static struct qcom_geni_uart_data console_data;
 
