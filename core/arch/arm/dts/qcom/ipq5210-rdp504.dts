@@ -18,4 +18,20 @@
 		reg = <0x0 0x80000000 0x0 0x80000000>,
 		      <0x8 0x0 0x0 0x80000000>;
 	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		interrupt-controller@b000000 {
+			compatible = "qcom,msm-qgic2";
+			reg = <0x0 0x0b000000 0x0 0x1000>,	/* GICD */
+			      <0x0 0x0b002000 0x0 0x1000>;	/* GICC */
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <3>;
+		};
+	};
 };
