@@ -4,6 +4,7 @@ global-incdirs-y += $(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)
 srcs-y += main.c
 srcs-$(CFG_QCOM_DIAG_LOG) += diag_log.c
 srcs-$(CFG_QCOM_XPU_PROTECT) += xpu_policy.c
+srcs-$(CFG_QCOM_XPU_PROTECT) += xpu_ddr_non_dt.c
 
 ifneq ($(filter y,$(CFG_QCOM_DIAG_LOG) $(CFG_QCOM_QFPROM_FUSEPROV)),)
 srcs-y += boot_mode.c
