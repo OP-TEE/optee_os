@@ -7,6 +7,9 @@
 #include <platform_config.h>
 #include "ramblur_pimem_cfg.h"
 
+/* TA RAM is the pIMEM window over the vault */
+static_assert(RAMBLUR_PIMEM_VAULT_TA_SIZE == CFG_TA_RAM_VA_SIZE);
+
 void ramblur_pimem_get_cfg(struct ramblur_pimem_cfg *cfg)
 {
 	cfg->reg_base = RAMBLUR_PIMEM_REG_BASE;
