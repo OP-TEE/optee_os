@@ -8,25 +8,18 @@
 #include <drivers/qcom/xpu.h>
 #include <drivers/qcom/xpuv4.h>
 #include <initcall.h>
+#include <kernel/panic.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
+#include <qcom_common.h>
 #include <tee_api_types.h>
 #include <trace.h>
 #include <util.h>
 #include <xpu_target.h>
 
-/* The DDR MPU guards all of the DRAM, which comes in two windows */
-static const struct xpu4_guard ddr_guards[] = {
-	{
-		.start = DRAM0_BASE,
-		.size = DRAM0_SIZE,
-		.mpu_start = DDR_MPU_ADDR_LOW(DRAM0_BASE),
-	},
-	{
-		.start = DRAM1_BASE,
-		.size = DRAM1_SIZE,
-		.mpu_start = DDR_MPU_ADDR_HIGH(DRAM1_BASE),
-	},
+enum {
+	XPU_INST_DDR,
+	XPU_INST_IMEM,
 };
 
 static const struct xpu4_guard imem_guards[] = {
@@ -37,17 +30,18 @@ static const struct xpu4_guard imem_guards[] = {
 	},
 };
 
-/* This SoC's XPU4 instances, handed to the driver at protection time */
-static const struct xpu4_instance xpu4_instances[] = {
-	{
+/*
+ * This SoC's XPU4 instances, handed to the driver at protection time.
+ * plat_xpu_init() fills in the guards of the DDR instance.
+ */
+static struct xpu4_instance xpu4_instances[] = {
+	[XPU_INST_DDR] = {
 		.base = DDR_MPU_BASE,
 		.map_size = CORE_MMU_PGDIR_SIZE,
-		.guards = ddr_guards,
-		.guard_count = ARRAY_SIZE(ddr_guards),
 		.rg_start = DDR_XPU_RG_START,
 		.rg_count = DDR_XPU_RG_COUNT,
 	},
-	{
+	[XPU_INST_IMEM] = {
 		.base = IMEM_MPU_BASE,
 		.map_size = IMEM_MPU_MAP_SIZE,
 		.guards = imem_guards,
@@ -59,6 +53,17 @@ static const struct xpu4_instance xpu4_instances[] = {
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, DDR_MPU_BASE, CORE_MMU_PGDIR_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, IMEM_MPU_BASE, IMEM_MPU_MAP_SIZE);
+
+static void plat_xpu_init(void)
+{
+	struct xpu4_instance *ddr = &xpu4_instances[XPU_INST_DDR];
+
+	/* The DRAM is static platform data, so an error here is a bug */
+	if (qcom_xpu_get_ddr_guards(&ddr->guards, &ddr->guard_count))
+		panic("XPU: cannot get the DDR guards");
+
+	xpu4_register_instances(xpu4_instances, ARRAY_SIZE(xpu4_instances));
+}
 
 /* A memory region to protect and the QAD read/write policy to apply */
 struct xpu_region {
@@ -102,7 +107,7 @@ static TEE_Result plat_xpu_protect(void)
 	static_assert(IS_ALIGNED(CFG_TZDRAM_START, SIZE_4K));
 	static_assert(IS_ALIGNED(CFG_TZDRAM_SIZE, SIZE_4K));
 
-	xpu4_register_instances(xpu4_instances, ARRAY_SIZE(xpu4_instances));
+	plat_xpu_init();
 
 	/* Protect what is left even if one region could not be programmed */
 	for (i = 0; i < ARRAY_SIZE(xpu_regions); i++) {
