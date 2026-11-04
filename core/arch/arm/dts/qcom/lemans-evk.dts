@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * Lemans EVK as seen by OP-TEE: only what OP-TEE uses is described.
+ */
+
+/dts-v1/;
+
+/ {
+	compatible = "qcom,lemans-evk", "qcom,qcs9100", "qcom,sa8775p";
+	model = "Qualcomm Technologies, Inc. Lemans EVK";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x3 0x80000000>,
+		      <0x8 0x0 0x8 0x0>;
+	};
+};
