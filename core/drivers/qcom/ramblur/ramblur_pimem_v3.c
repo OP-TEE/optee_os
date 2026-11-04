@@ -3,14 +3,14 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <arm.h>
 #include <assert.h>
 #include <config.h>
 #include <drivers/qcom/ramblur/v3/ramblur_pimem_hwio.h>
-#include <initcall.h>
 #include <io.h>
 #include <kernel/panic.h>
-#include <mm/core_memprot.h>
 #include <string.h>
+#include "ramblur_pimem_v3.h"
 
 #define ANTIROLLBACK	(UINT32_C(1) << \
 	RAMBLUR_WIN0_ALGORITHM_ANTIROLLBACK_ENABLE_SHFT)
@@ -290,13 +290,9 @@ static TEE_Result initialize_window(int window, size_t size, uintptr_t vault)
  * Trusted Applications run from protected IMEM.
  * If this region cannot be configured, abort the boot sequence.
  */
-static TEE_Result qti_ramblur_pimem_init(void)
+TEE_Result ramblur_pimem_v3_init(vaddr_t regs, paddr_t vault, size_t size)
 {
-	ramblur_va = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
-						   RAMBLUR_PIMEM_REG_BASE,
-						   RAMBLUR_PIMEM_REG_SIZE);
-	if (!ramblur_va)
-		panic("Can't map Ramblur pIMEM");
+	ramblur_va = regs;
 
 	get_hardware_version(&ramblur_version.major,
 			     &ramblur_version.minor,
@@ -311,8 +307,5 @@ static TEE_Result qti_ramblur_pimem_init(void)
 	if (ramblur_version.major != 3)
 		panic();
 
-	return initialize_window(CFG_QCOM_RAMBLUR_TA_WINDOW_ID,
-				 RAMBLUR_PIMEM_VAULT_TA_SIZE,
-				 RAMBLUR_PIMEM_VAULT_TA_BASE);
+	return initialize_window(CFG_QCOM_RAMBLUR_TA_WINDOW_ID, size, vault);
 }
-driver_init(qti_ramblur_pimem_init);
