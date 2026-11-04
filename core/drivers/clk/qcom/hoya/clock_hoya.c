@@ -13,17 +13,9 @@
 
 #include "clock_hoya.h"
 
-/* HALT_ACK polls for up to 1s (200000 * 5us), matching the reference. */
-#define HALT_ACK_TIMEOUT_US		(200000 * 5)
-
 #define LPASS_COLLAPSE_TIMEOUT_US	400000
 #define LPASS_AUDIO_HM_ON_TIMEOUT_US	10000
 #define LPASS_QCHANNEL_TRIES		10
-
-static bool halt_acked(uint32_t val)
-{
-	return val & TCSR_HALT_BIT;
-}
 
 static bool rcg_update_done(uint32_t val)
 {
@@ -70,16 +62,6 @@ static bool pdc_low_power(vaddr_t pdc)
 {
 	return io_read32(pdc + RPMH_PDC_MODE_STATUS_DRV0) &
 	       PDC_MODE_STATUS_BIT;
-}
-
-/* A QDSP6 in a bad state may never ack; the caller resets it anyway. */
-static void q6_halt(vaddr_t haltreq, vaddr_t haltack)
-{
-	uint32_t val = 0;
-
-	io_setbits32(haltreq, TCSR_HALT_BIT);
-	IO_READ32_POLL_TIMEOUT(haltack, val, halt_acked(val), 5,
-			       HALT_ACK_TIMEOUT_US);
 }
 
 /* Pulse the subsystem restart with the subsystem PDC held in reset. */
@@ -269,7 +251,8 @@ TEE_Result hoya_nsp_reset(const struct hoya_nsp *nsp)
 
 	/* Halt mem-NoC traffic. */
 	if (nsp_master_busy(tcsr, nsp))
-		q6_halt(tcsr + nsp->tcsr_haltreq, tcsr + nsp->tcsr_haltack);
+		qcom_q6_halt(tcsr + nsp->tcsr_haltreq,
+			     tcsr + nsp->tcsr_haltack);
 
 	q6_restart(pdc_global, nsp->pdc_sync_reset_bit,
 		   aoss_cc + AOSS_CC_COMPUTESS_RESTART, nsp->restart_bit);
@@ -334,7 +317,8 @@ static void gpdsp_restart(const struct hoya_gpdsp *gpdsp, vaddr_t gcc_base,
 
 	/* Halt mem-NoC traffic. */
 	if (gpdsp_master_busy(tcsr, gpdsp))
-		q6_halt(tcsr + gpdsp->tcsr_haltreq, tcsr + gpdsp->tcsr_haltack);
+		qcom_q6_halt(tcsr + gpdsp->tcsr_haltreq,
+			     tcsr + gpdsp->tcsr_haltack);
 
 	q6_restart(pdc_global, gpdsp->pdc_sync_reset_bit,
 		   aoss_cc + AOSS_CC_GPDSP_RESTART, gpdsp->restart_bit);
@@ -647,7 +631,7 @@ TEE_Result hoya_lpass_reset(uint32_t ret_cfg_ares)
 			return res;
 	}
 
-	q6_halt(tcsr + TCSR_LPASS_HALTREQ, tcsr + TCSR_LPASS_HALTACK);
+	qcom_q6_halt(tcsr + TCSR_LPASS_HALTREQ, tcsr + TCSR_LPASS_HALTACK);
 
 	io_setbits32(pdc_global + RPMH_PDC_SYNC_RESET,
 		     PDC_SYNC_RESET_AUDIO_BIT);
