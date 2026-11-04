@@ -28,6 +28,13 @@
 #define DDR_XPU_RG_START		UL(10)
 #define DDR_XPU_RG_COUNT		UL(6)
 
+/* Convert a physical DRAM address into the address the DDR MPU uses */
+static inline paddr_t ddr_mpu_addr(paddr_t pa)
+{
+	return pa < ULL(0x100000000) ? DDR_MPU_ADDR_LOW(pa) :
+				       DDR_MPU_ADDR_HIGH(pa);
+}
+
 /*
  * OCIMEM_MPU register window. The base is well below CORE_MMU_PGDIR_SIZE,
  * so a pgdir-granularity mapping would round it down to address 0 and a
