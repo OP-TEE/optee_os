@@ -354,7 +354,8 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 	uint32_t exceptions = 0;
 	size_t s = 0;
 
-	if (!num_pages || page_offset >= SMALL_PAGE_SIZE)
+	if (!num_pages || num_pages > SIZE_MAX / SMALL_PAGE_SIZE ||
+	    page_offset >= SMALL_PAGE_SIZE)
 		return NULL;
 
 	s = mobj_reg_shm_size(num_pages);
