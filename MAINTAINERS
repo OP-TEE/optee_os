@@ -323,6 +323,7 @@ S:	Maintained
 F:	core/arch/arm/dts/bindings/*/qcom,*
 F:	core/arch/arm/dts/qcom/
 F:	core/arch/arm/plat-qcom/
+F:	core/drivers/gic_dt.c
 F:	core/drivers/qcom/
 F:	core/drivers/qcom_geni_uart.c
 F:	core/include/drivers/qcom/
