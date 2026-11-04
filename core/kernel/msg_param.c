@@ -122,6 +122,8 @@ struct mobj *msg_param_mobj_from_noncontig(paddr_t buf_ptr, size_t size,
 	size_t size_plus_offs = 0;
 	size_t msize = 0;
 
+	if (!size)
+		return NULL;
 	page_offset = buf_ptr & SMALL_PAGE_MASK;
 	if (ADD_OVERFLOW(size, page_offset, &size_plus_offs))
 		return NULL;
