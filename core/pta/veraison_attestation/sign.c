@@ -106,12 +106,16 @@ static void free_pubkey(void)
 	pubkey = NULL;
 }
 
-static TEE_Result generate_key(void)
+/*
+ * Load the key to sign with: the private key as the plain P-256 scalar or
+ * as a serialized CAAM black key, which only the CAAM crypto driver
+ * understands, and its public key
+ */
+static TEE_Result load_key(const uint8_t *private_key, size_t private_key_len,
+			   const uint8_t *public_key_x,
+			   const uint8_t *public_key_y)
 {
 	TEE_Result res = TEE_SUCCESS;
-	const uint8_t private_key[] = PRIVATE_KEY;
-	const uint8_t public_key_x[] = PUBLIC_KEY_X;
-	const uint8_t public_key_y[] = PUBLIC_KEY_Y;
 
 	/* Allocate a private key storage */
 	assert(!key);
@@ -125,7 +129,7 @@ static TEE_Result generate_key(void)
 	key->curve = TEE_ECC_CURVE_NIST_P256;
 
 	/* Copy the private key */
-	res = crypto_bignum_bin2bn(private_key, KEY_SIZE, key->d);
+	res = crypto_bignum_bin2bn(private_key, private_key_len, key->d);
 	if (res != TEE_SUCCESS)
 		goto free_keypair;
 
@@ -163,13 +167,24 @@ free_keypair:
 }
 
 TEE_Result sign_ecdsa_sha256(const uint8_t *msg, size_t msg_len, uint8_t *sig,
-			     size_t *sig_len)
+			     size_t *sig_len, const uint8_t *private_key,
+			     size_t private_key_len,
+			     const uint8_t *public_key_x,
+			     const uint8_t *public_key_y)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint8_t hash_msg[TEE_SHA256_HASH_SIZE] = { };
+	const uint8_t test_private_key[] = PRIVATE_KEY;
+	const uint8_t test_public_key_x[] = PUBLIC_KEY_X;
+	const uint8_t test_public_key_y[] = PUBLIC_KEY_Y;
 
-	/* Allocate the key pair*/
-	res = generate_key();
+	/* Allocate the key pair: the supplied key or the embedded test key */
+	if (private_key)
+		res = load_key(private_key, private_key_len, public_key_x,
+			       public_key_y);
+	else
+		res = load_key(test_private_key, KEY_SIZE, test_public_key_x,
+			       test_public_key_y);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -198,5 +213,47 @@ free:
 	free_keypair();
 	assert(!key);
 
+	return res;
+}
+
+void get_test_key_pubkey(uint8_t *pub_x, uint8_t *pub_y)
+{
+	const uint8_t test_public_key_x[] = PUBLIC_KEY_X;
+	const uint8_t test_public_key_y[] = PUBLIC_KEY_Y;
+
+	memcpy(pub_x, test_public_key_x, KEY_SIZE);
+	memcpy(pub_y, test_public_key_y, KEY_SIZE);
+}
+
+TEE_Result compute_instance_id(const uint8_t *pub_x, const uint8_t *pub_y,
+			       uint8_t *instance_id)
+{
+	TEE_Result res = TEE_SUCCESS;
+	void *ctx = NULL;
+	const uint8_t uncompressed_point = 0x04;
+
+	res = crypto_hash_alloc_ctx(&ctx, TEE_ALG_SHA256);
+	if (res != TEE_SUCCESS)
+		return res;
+	res = crypto_hash_init(ctx);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_update(ctx, &uncompressed_point, 1);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_update(ctx, pub_x, KEY_SIZE);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_update(ctx, pub_y, KEY_SIZE);
+	if (res != TEE_SUCCESS)
+		goto out;
+	res = crypto_hash_final(ctx, instance_id + 1, TEE_SHA256_HASH_SIZE);
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	/* UEID type byte: RAND, a hash */
+	instance_id[0] = 0x01;
+out:
+	crypto_hash_free_ctx(ctx);
 	return res;
 }
