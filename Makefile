@@ -119,7 +119,7 @@ cscope:
 		grep -v -F _init.ld.S | grep -v -F _unpaged.ld.S > cscope.files
 	${q}cscope -b -q -k
 
-.PHONY: checkpatch checkpatch-staging checkpatch-working
+.PHONY: checkpatch checkpatch-staging checkpatch-working coccicheck
 checkpatch: checkpatch-staging checkpatch-working
 
 checkpatch-working:
@@ -127,3 +127,6 @@ checkpatch-working:
 
 checkpatch-staging:
 	${q}./scripts/checkpatch.sh --cached
+
+coccicheck:
+	${q} ./scripts/coccicheck
