@@ -260,6 +260,14 @@ FUNC thread_smccc , :
 	bx	lr
 END_FUNC thread_smccc
 
+/*
+ * void thread_smccc_1_2(struct thread_smc_1_2_regs *arg_res)
+ * ARM32 SMCCC 1.2 uses the same 8 argument registers as SMCCC 1.1.
+ */
+FUNC thread_smccc_1_2 , :
+	b	thread_smccc
+END_FUNC thread_smccc_1_2
+
 FUNC thread_init_vbar , :
 	/* Set vector (VBAR) */
 	write_vbar r0
