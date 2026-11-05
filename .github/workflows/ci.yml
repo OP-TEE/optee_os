@@ -1,19 +1,22 @@
 name: CI
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   schedule:
     # Nightly run of master, 01:17 UTC
     - cron: '17 1 * * *'
 permissions:
   contents: read
 concurrency:
-  group: ci-${{ github.ref }}  # unique per branch
+  # unique per branch; label events get their own group so that adding an
+  # unrelated label doesn't cancel a run that is already in progress
+  group: ci-${{ github.ref }}${{ github.event.action == 'labeled' && '-label' || '' }}
   # cancel previous runs on the same branch, except for master
   cancel-in-progress: ${{ github.ref != 'master' }}
 jobs:
   code_style:
     name: Code style
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'ci:qemu')
     runs-on: ubuntu-latest
     container: jforissier/optee_os_ci
     steps:
@@ -64,6 +67,7 @@ jobs:
           pycodestyle scripts/*.py core/arch/arm/plat-stm32mp1/scripts/stm32image.py
   builds:
     name: Build (${{ matrix.name }})
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci:qemu'
     runs-on: ubuntu-latest
     container: jforissier/optee_os_ci
     strategy:
@@ -410,6 +414,7 @@ jobs:
           ccache -s -v
   QEMUv7_checks_image_build:
     name: Build QEMUv7 image
+    if: ${{ github.event_name == 'schedule' || (contains(github.event.pull_request.labels.*.name, 'ci:qemu') && (github.event.action != 'labeled' || github.event.label.name == 'ci:qemu')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Create Dockerfile
@@ -499,6 +504,7 @@ jobs:
             '
   QEMUv8_checks_image_build:
     name: Build QEMUv8 image
+    if: ${{ github.event_name == 'schedule' || (contains(github.event.pull_request.labels.*.name, 'ci:qemu') && (github.event.action != 'labeled' || github.event.label.name == 'ci:qemu')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Create Dockerfile
@@ -640,6 +646,7 @@ jobs:
             '
   QEMUv8_arm64_image_build:
     name: Build QEMUv8 arm64 image
+    if: ${{ github.event_name == 'schedule' || (contains(github.event.pull_request.labels.*.name, 'ci:qemu') && (github.event.action != 'labeled' || github.event.label.name == 'ci:qemu')) }}
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Create Dockerfile
