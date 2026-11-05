@@ -124,3 +124,4 @@ subdirs-y += firewall
 subdirs-y += counter
 subdirs-y += amd
 subdirs-y += qcom
+srcs-$(CFG_RAMCON) += ramcon.c
