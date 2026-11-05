@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * Lemans EVK as seen by OP-TEE: only what OP-TEE uses is described.
+ */
+
+/dts-v1/;
+
+/ {
+	compatible = "qcom,lemans-evk", "qcom,qcs9100", "qcom,sa8775p";
+	model = "Qualcomm Technologies, Inc. Lemans EVK";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	/*
+	 * DRAM windows, as nothing fills in the sizes of the embedded DTB.
+	 * OP-TEE guards at most four of them.
+	 */
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x3 0x80000000>,
+		      <0x8 0x0 0x8 0x0>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* Vault of the pIMEM window that backs the TA RAM */
+		trusted_apps_mem: trusted-apps@d1900000 {
+			reg = <0x0 0xd1900000 0x0 0x1c00000>;
+			no-map;
+		};
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		pimem@610000 {
+			compatible = "qcom,sa8775p-ramblur-pimem", "qcom,ramblur-pimem";
+			reg = <0x0 0x00610000 0x0 0x4000>;
+			memory-region = <&trusted_apps_mem>;
+			status = "disabled";
+			secure-status = "okay";
+		};
+	};
+};

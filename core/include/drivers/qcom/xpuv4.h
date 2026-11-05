@@ -35,8 +35,13 @@
 #define QAD_MSA			BIT32(5)
 #define QAD_PRIME		BIT32(6)
 
+struct xpu4_guard {
+	paddr_t start;
+	size_t size;
+};
+
 /*
- * An XPU4 instance and the memory range it guards. Resource groups outside
+ * An XPU4 instance and the memory ranges it guards. Resource groups outside
  * [rg_start, rg_start + rg_count) belong to other owners such as earlier
  * boot stages and are never allocated here. The platform provides these.
  */
@@ -44,8 +49,8 @@ struct xpu4_instance {
 	paddr_t base;
 	size_t map_size;
 	paddr_t addr_off;
-	paddr_t guard_start;
-	size_t guard_size;
+	const struct xpu4_guard *guards;
+	size_t guard_count;
 	unsigned int rg_start;
 	unsigned int rg_count;
 };
