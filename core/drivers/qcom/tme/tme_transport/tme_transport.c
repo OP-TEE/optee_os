@@ -165,6 +165,11 @@ static TEE_Result tme_transport_async_await_response(uint32_t handle,
 		TEE_Result res = TEE_SUCCESS;
 		int32_t tme_status = 0;
 
+		/*
+		 * tfa_comm replaces *resp_size with the size of the response,
+		 * 0 while the TME has not answered. Give the capacity again.
+		 */
+		*resp_size = resp_capacity;
 		res = tfa_comm_send_direct_req(&tme_uuid, regs, NULL, 0, resp,
 					       resp_size);
 		if (res == TEE_ERROR_SHORT_BUFFER) {
@@ -173,7 +178,7 @@ static TEE_Result tme_transport_async_await_response(uint32_t handle,
 			 * supported response length
 			 */
 			EMSG("TME poll: rsp_len %zu exceeds capacity %zu",
-			     resp_size, resp_capacity);
+			     *resp_size, resp_capacity);
 			panic("TME: poll transport failure");
 		}
 		if (res != TEE_SUCCESS) {
