@@ -234,7 +234,7 @@ TEE_Result tme_transceive_message(uint32_t tag, void *req_buf,
 
 	/* Send synchronous request to the TME */
 	res = tme_send_recv_message(tme_msg_req, tme_msg_req_len,
-				    tme_msg_rsp, &tme_msg_rsp_len,
+				    encoded_response_buf.ptr, &encoded_response_buf.len,
 				    TMECOM_RESPONSE_TIMEOUT_MS);
 	if (res != TEE_SUCCESS) {
 		/*
@@ -243,12 +243,6 @@ TEE_Result tme_transceive_message(uint32_t tag, void *req_buf,
 		 */
 		panic("TME: message transport failure");
 	}
-
-	/*
-	 * Update the encoded response buffer length taking in to account the
-	 * header included in the response.
-	 */
-	encoded_response_buf.len = tme_msg_rsp_len - sizeof(tme_msg_hdr_t);
 
 	/* CBOR Decode Response */
 	res = tme_decode_message(tag, UsefulBuf_Const(encoded_response_buf),

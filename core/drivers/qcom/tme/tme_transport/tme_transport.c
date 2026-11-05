@@ -162,19 +162,18 @@ static TEE_Result tme_transport_async_await_response(uint32_t handle,
 			[TME_REG_HANDLE] = handle,
 			[TME_REG_RSP_CAPACITY] = resp_capacity,
 		};
-		size_t tme_msg_rsp_len = resp_capacity;
 		TEE_Result res = TEE_SUCCESS;
 		int32_t tme_status = 0;
 
 		res = tfa_comm_send_direct_req(&tme_uuid, regs, NULL, 0, resp,
-					       &tme_msg_rsp_len);
+					       resp_size);
 		if (res == TEE_ERROR_SHORT_BUFFER) {
 			/*
 			 * TME wrote a response length which is larger than the
 			 * supported response length
 			 */
 			EMSG("TME poll: rsp_len %zu exceeds capacity %zu",
-			     tme_msg_rsp_len, resp_capacity);
+			     resp_size, resp_capacity);
 			panic("TME: poll transport failure");
 		}
 		if (res != TEE_SUCCESS) {
@@ -196,8 +195,6 @@ static TEE_Result tme_transport_async_await_response(uint32_t handle,
 				return TEE_ERROR_GENERIC;
 			}
 
-			/* Success, save the response length */
-			*resp_size = tme_msg_rsp_len;
 			return TEE_SUCCESS;
 		}
 
