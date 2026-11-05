@@ -508,5 +508,6 @@ unsigned long thread_hvc(unsigned long func_id, unsigned long a1,
 unsigned long thread_smc(unsigned long func_id, unsigned long a1,
 			 unsigned long a2, unsigned long a3);
 void thread_smccc(struct thread_smc_args *arg_res);
+void thread_smccc_1_2(struct thread_smc_1_2_regs *arg_res);
 #endif /*__ASSEMBLER__*/
 #endif /*__KERNEL_THREAD_ARCH_H*/
