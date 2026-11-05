@@ -68,6 +68,18 @@ static inline TEE_Result copy_to_user(void *uaddr __unused,
 void *bb_alloc(size_t len);
 
 /*
+ * bb_alloc_capped() - Allocate a bounce buffer of at most *len bytes
+ * @len:	Requested length on entry, allocated length on return
+ *
+ * Like bb_alloc(), but if less than *len bytes are left in the bounce
+ * buffer region, allocates what is left and updates *len accordingly.
+ *
+ * Return NULL if *len is non-zero and nothing is left, or a valid pointer
+ * on success.
+ */
+void *bb_alloc_capped(size_t *len);
+
+/*
  * bb_free() - Free a bounce buffer
  * @bb:		Buffer
  * @len:	Length of buffer

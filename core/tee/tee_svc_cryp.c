@@ -4207,20 +4207,37 @@ out:
 	return res;
 }
 
+/*
+ * The bounce buffer may be smaller than the request, so the data is
+ * generated and copied out one chunk at a time instead of failing with
+ * TEE_ERROR_OUT_OF_MEMORY, which TEE_GenerateRandom() would turn into a TA
+ * panic.
+ */
 TEE_Result syscall_cryp_random_number_generate(void *buf, size_t blen)
 {
 	TEE_Result res = TEE_SUCCESS;
+	size_t bb_len = blen;
+	uint8_t *ubuf = buf;
 	void *bbuf = NULL;
+	size_t n = 0;
 
-	bbuf = bb_alloc(blen);
+	bbuf = bb_alloc_capped(&bb_len);
 	if (!bbuf)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = crypto_rng_read(bbuf, blen);
-	if (res != TEE_SUCCESS)
-		return res;
+	while (blen) {
+		n = MIN(blen, bb_len);
+		res = crypto_rng_read(bbuf, n);
+		if (res != TEE_SUCCESS)
+			break;
+		res = copy_to_user(ubuf, bbuf, n);
+		if (res != TEE_SUCCESS)
+			break;
+		ubuf += n;
+		blen -= n;
+	}
 
-	res = copy_to_user(buf, bbuf, blen);
+	bb_free_wipe(bbuf, bb_len);
 	return res;
 }
 
