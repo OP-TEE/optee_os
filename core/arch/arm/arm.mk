@@ -176,6 +176,11 @@ $(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,n)
 endif
 endif
 
+# CFG_GIC_FROM_DT builds gic_init_from_dt(), which sets up the GIC from the
+# GIC node of the DT.
+CFG_GIC_FROM_DT ?= n
+$(eval $(call cfg-depends-all,CFG_GIC_FROM_DT,CFG_GIC CFG_DT))
+
 CFG_CORE_HAFNIUM_INTC ?= n
 ifeq ($(CFG_CORE_HAFNIUM_INTC),y)
 $(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,y)

@@ -81,6 +81,12 @@ static inline void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 	gic_init_v3(gicc_base_pa, gicd_base_pa, 0);
 }
 
+/*
+ * Like gic_init() and gic_init_v3(), but takes the register windows from the
+ * GIC node of the DT. Needs CFG_GIC_FROM_DT.
+ */
+TEE_Result gic_init_from_dt(void);
+
 /* Donates one of the secure SGIs to normal world */
 void gic_init_donate_sgi_to_ns(size_t it);
 

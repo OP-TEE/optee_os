@@ -1,5 +1,8 @@
 CFG_TA_RAM_VA_SIZE ?= 0x1c00000
 
+$(call force,CFG_QCOM_EMBED_DTB,y)
+QCOM_DTS_FILE ?= qcom/lemans-evk.dts
+
 CFG_DRIVERS_CLK ?= y
 CFG_DRIVERS_QCOM_CLK ?= y
 

@@ -2,6 +2,9 @@ $(call force,CFG_TEE_CORE_NB_CORE,5)
 $(call force,CFG_CORE_CLUSTER_SHIFT,3)
 CFG_NUM_THREADS ?= 5
 
+$(call force,CFG_QCOM_EMBED_DTB,y)
+QCOM_DTS_FILE ?= qcom/ipq9650-rdp488.dts
+
 $(call force,CFG_ARM_GICV3,y)
 
 CFG_QCOM_DIAG_LOG ?= $(CFG_TEE_CORE_DEBUG)
