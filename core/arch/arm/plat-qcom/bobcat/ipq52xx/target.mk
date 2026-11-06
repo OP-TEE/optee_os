@@ -9,9 +9,9 @@ CFG_CORE_HEAP_SIZE ?= 0x8000
 CFG_NUM_THREADS ?= 2
 
 # Nothing runs at EL0 without user TAs, so there are no user address spaces.
-# The page table pool serves those only, 1 is the smallest value that builds.
+# Allocating their page tables on demand leaves out the static pool for them.
 CFG_WITH_USER_TA ?= n
-CFG_PGT_CACHE_ENTRIES ?= 1
+CFG_CORE_PREALLOC_EL0_TBLS ?= y
 CFG_CORE_UNMAP_CORE_AT_EL0 ?= n
 CFG_TA_FLOAT_SUPPORT ?= n
 
