@@ -158,6 +158,13 @@ R:	Amirreza Zarrabi <amirreza.zarrabi@oss.qualcomm.com> [@qc-azarrabi]
 S:	Maintained
 F:	core/drivers/crypto/qcom/
 
+Core Drivers QCOM ICB
+R:	Navaneeth Reddy Padhuri <npadhuri@qti.qualcomm.com> [@npadhuri]
+R:	Sithi Fathima <sithsm@qti.qualcomm.com> [@sithsm]
+S:	Maintained
+F:	core/drivers/qcom/icb/
+F:	core/include/drivers/qcom/icb/
+
 Core Drivers QCOM QFPROM
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
 R:	Kishore Batta <kishore.batta@oss.qualcomm.com> [@kishorebatta-ossqcom]
