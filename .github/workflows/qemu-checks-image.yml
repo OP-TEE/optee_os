@@ -20,6 +20,17 @@ jobs:
     name: Build
     runs-on: ${{ inputs.builder }}
     steps:
+      - name: Free disk space if low
+        run: |
+          # Some hosted runners come with a 72 GB disk and less than 20 GB
+          # free, which this job outgrows. Remove tools it doesn't use there.
+          avail=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
+          if [ "$avail" -lt 40 ]; then
+            echo "::notice::Only ${avail} GB free, removing unused preinstalled tools"
+            sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/hostedtoolcache \
+              /usr/share/swift /usr/local/.ghcup
+            df -h /
+          fi
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
