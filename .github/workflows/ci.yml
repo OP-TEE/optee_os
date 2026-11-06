@@ -251,11 +251,7 @@ jobs:
               download_scp_firmware
 
               if [ -d $HOME/scp-firmware ]; then _make PLATFORM=vexpress-qemu_armv8a CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
-              if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp2 CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
-              if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp2-235F_DK CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
-              if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp2-215F_DK CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
               if [ -d $HOME/scp-firmware ]; then _make PLATFORM=vexpress-fvp CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
-              # if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp1-157C_DK2 CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
           - name: arm stm
             make_commands: |
               _make PLATFORM=stm-b2260
@@ -266,6 +262,14 @@ jobs:
               _make PLATFORM=stm32mp1-135F_DK CFG_DRIVERS_CLK_PRINT_TREE=y CFG_DRIVERS_REGULATOR_PRINT_TREE=y
               _make PLATFORM=stm32mp1-135F_DK COMPILER=clang
               _make PLATFORM=stm32mp1 CFG_STM32MP1_OPTEE_IN_SYSRAM=y CFG_STM32MP_REMOTEPROC=y
+          - name: arm stm32mp2
+            make_commands: |
+              function download_scp_firmware() { git clone --depth=1 https://github.com/STMicroelectronics/SCP-firmware $HOME/stm32mp2/scp-firmware && (git -C $HOME/stm32mp2/scp-firmware fetch origin --depth=1 9e3ad31b21a4d2567205fc1e63023aa0b4b444ce && git -C $HOME/stm32mp2/scp-firmware reset --hard FETCH_HEAD) || (rm -rf $HOME/stm32mp2/scp-firmware ; echo Fail to clone ST SCP, skip STM32MP2 builds); }
+              download_scp_firmware
+               if [ -d $HOME/stm32mp2/scp-firmware ]; then _make PLATFORM=stm32mp2 CFG_SCP_FIRMWARE=$HOME/stm32mp2/scp-firmware; fi
+               if [ -d $HOME/stm32mp2/scp-firmware ]; then _make PLATFORM=stm32mp2-257F_DK CFG_SCP_FIRMWARE=$HOME/stm32mp2/scp-firmware; fi
+               if [ -d $HOME/stm32mp2/scp-firmware ]; then _make PLATFORM=stm32mp2-235F_DK CFG_SCP_FIRMWARE=$HOME/stm32mp2/scp-firmware; fi
+               if [ -d $HOME/stm32mp2/scp-firmware ]; then _make PLATFORM=stm32mp2-215F_DK CFG_SCP_FIRMWARE=$HOME/stm32mp2/scp-firmware; fi
           - name: arm tegra
             make_commands: |
               _make PLATFORM=tegra-t234
