@@ -124,6 +124,25 @@
 				status = "disabled";
 			};
 
+			rng2: rng@42020000 {
+				compatible = "st,stm32mp21-rng";
+				reg = <0x42020000 0x400>;
+				clocks = <&clk_rcbsec>, <&rcc CK_BUS_RNG2>;
+				clock-names = "rng_clk", "rng_hclk";
+				access-controllers = <&rifsc STM32MP21_RIFSC_RNG2_ID>;
+				resets = <&rcc RNG2_R>;
+			};
+
+			rng1: rng@42030800 {
+				compatible = "st,stm32mp21-rng";
+				reg = <0x42030800 0x400>;
+				clocks = <&clk_rcbsec>, <&rcc CK_BUS_RNG1>;
+				clock-names = "rng_clk", "rng_hclk";
+				resets = <&rcc RNG1_R>;
+				access-controllers = <&rifsc STM32MP21_RIFSC_RNG1_ID>;
+				status = "disabled";
+			};
+
 			iwdg1: watchdog@44010000 {
 				compatible = "st,stm32mp1-iwdg";
 				reg = <0x44010000 0x400>;
