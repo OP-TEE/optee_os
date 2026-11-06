@@ -17,7 +17,6 @@ endif
 
 ifeq ($(CFG_QCOM_PAS_AUTH),y)
 $(call force,CFG_QCOM_FUSE_PTA,y)
-CFG_PAS_MD_SLOTS = 8
 endif
 
 # OEM-provisioned multi-root-certificate bitmasks (bit N = root cert N).
