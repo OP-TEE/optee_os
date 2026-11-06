@@ -80,8 +80,6 @@ static const struct fw_rsc_devmem cdsp_mem_res[] = {
 		.da = 0x86000000, .pa = 0x86000000, .len = 0x200000, },
 };
 
-DEFINE_RESOURCE_TABLE(CDSP, ARRAY_SIZE(cdsp_mem_res));
-
 static TEE_Result cdsp_fw_start(struct qcom_pas_data *data)
 {
 	vaddr_t base = io_pa_or_va(&data->base, data->size);
@@ -100,25 +98,8 @@ static TEE_Result cdsp_fw_start(struct qcom_pas_data *data)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result cdsp_get_resource_table(struct resource_table *rt,
-					  size_t *rt_size)
-{
-	const struct fw_rsc_hdr header = {
-		.type = RSC_DEVMEM,
-	};
-	static struct resource_table table = {
-		.ver = 1,
-		.num = CDSP_NUM_MEM_RESOURCES,
-		.offset[CDSP_NUM_MEM_RESOURCES - 1] = 0,
-	};
-
-	return get_mem_rsc(rt, rt_size, &table, &header,
-			   cdsp_mem_res,
-			   CDSP_RESOURCE_TABLE_HEADER_SIZE,
-			   CDSP_RESOURCE_TABLE_SIZE);
-}
-
 const struct qcom_pas_ops cdsp_ops = {
 	.fw_start = cdsp_fw_start,
-	.get_resource_table = cdsp_get_resource_table,
+	.devmem = cdsp_mem_res,
+	.devmem_num = ARRAY_SIZE(cdsp_mem_res),
 };
