@@ -128,8 +128,6 @@ static const struct fw_rsc_devmem lmcu_mem_res[] = {
 		.da = 0x86000000, .pa = 0x86000000, .len = 0x200000, },
 };
 
-DEFINE_RESOURCE_TABLE(LMCU, ARRAY_SIZE(lmcu_mem_res));
-
 static void lmcu_write_sid(vaddr_t base, uint32_t reg, uint32_t sid)
 {
 	io_mask32(base + reg, SHIFT_U32(sid, MCU_RVCP_SID_SHFT),
@@ -205,27 +203,10 @@ static TEE_Result lmcu_dtb_fw_shutdown(struct qcom_pas_data *data __unused)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result lmcu_get_resource_table(struct resource_table *rt,
-					  size_t *rt_size)
-{
-	const struct fw_rsc_hdr header = {
-		.type = RSC_DEVMEM,
-	};
-	static struct resource_table table = {
-		.ver = 1,
-		.num = LMCU_NUM_MEM_RESOURCES,
-		.offset[LMCU_NUM_MEM_RESOURCES - 1] = 0,
-	};
-
-	return get_mem_rsc(rt, rt_size, &table, &header,
-			   lmcu_mem_res,
-			   LMCU_RESOURCE_TABLE_HEADER_SIZE,
-			   LMCU_RESOURCE_TABLE_SIZE);
-}
-
 const struct qcom_pas_ops lmcu_ops = {
 	.fw_start = lmcu_fw_start,
-	.get_resource_table = lmcu_get_resource_table,
+	.devmem = lmcu_mem_res,
+	.devmem_num = ARRAY_SIZE(lmcu_mem_res),
 };
 
 const struct qcom_pas_ops lmcu_dtb_ops = {

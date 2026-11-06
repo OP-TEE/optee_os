@@ -222,8 +222,6 @@ static const struct fw_rsc_devmem turing_mem_res[] = {
 		.da = 0x90900000, .pa = 0x90900000, .len = 0x200000, },
 };
 
-DEFINE_RESOURCE_TABLE(GPDSP0, ARRAY_SIZE(turing_mem_res));
-
 #define BOOT_FSM_TIMEOUT	10000
 
 static TEE_Result gpdsp0_fw_start(struct qcom_pas_data *data)
@@ -253,25 +251,8 @@ static TEE_Result gpdsp0_fw_start(struct qcom_pas_data *data)
 	return TEE_ERROR_TIMEOUT;
 }
 
-static TEE_Result gpdsp0_get_resource_table(struct resource_table *rt,
-					    size_t *rt_size)
-{
-	const struct fw_rsc_hdr header = {
-		.type = RSC_DEVMEM,
-	};
-	static struct resource_table table = {
-		.ver = 1,
-		.num = GPDSP0_NUM_MEM_RESOURCES,
-		.offset[GPDSP0_NUM_MEM_RESOURCES - 1] = 0,
-	};
-
-	return get_mem_rsc(rt, rt_size, &table, &header,
-			   turing_mem_res,
-			   GPDSP0_RESOURCE_TABLE_HEADER_SIZE,
-			   GPDSP0_RESOURCE_TABLE_SIZE);
-}
-
 const struct qcom_pas_ops gpdsp0_ops = {
 	.fw_start = gpdsp0_fw_start,
-	.get_resource_table = gpdsp0_get_resource_table,
+	.devmem = turing_mem_res,
+	.devmem_num = ARRAY_SIZE(turing_mem_res),
 };
