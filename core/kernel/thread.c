@@ -580,16 +580,26 @@ static void init_thread_stacks(void)
 }
 #endif /*CFG_WITH_PAGER*/
 
+static struct thread_ctx *swap_thread_ctx(struct thread_ctx *thr, size_t count)
+{
+	struct thread_ctx *t = threads;
+
+	if (!thr)
+		panic();
+	threads = thr;
+	thread_count = count;
+
+	return t;
+}
+DECLARE_KEEP_PAGER(swap_thread_ctx);
+
 void thread_init_threads(size_t count)
 {
 	size_t n = 0;
 
 	if (IS_ENABLED(CFG_DYN_CONFIG)) {
 		assert(count <= CFG_NUM_THREADS);
-		threads = calloc(count, sizeof(*threads));
-		if (!threads)
-			panic();
-		thread_count = count;
+		free(swap_thread_ctx(calloc(count, sizeof(*threads)), count));
 	} else {
 		assert(count == CFG_NUM_THREADS);
 	}
