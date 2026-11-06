@@ -208,6 +208,14 @@ TEE_Result pas_platform_set_remote_state(uint32_t pas_id, uint32_t state)
 	return subsys->ops->fw_set_state(&subsys->data, state);
 }
 
+static TEE_Result pas_fw_shutdown(struct qcom_pas_subsys *subsys)
+{
+	if (subsys->ops->fw_shutdown)
+		return subsys->ops->fw_shutdown(&subsys->data);
+
+	return qcom_clock_pas_reset(subsys->data.clk_group);
+}
+
 /*
  * Once fw_start() has run, a failed start may leave the core running, and
  * Linux releases the firmware memory without stopping it: put the subsystem
@@ -217,7 +225,7 @@ static TEE_Result pas_clk_start(struct qcom_pas_subsys *subsys)
 {
 	struct qcom_pas_data *data = &subsys->data;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	TEE_Result rc = TEE_ERROR_NOT_SUPPORTED;
+	TEE_Result rc = TEE_ERROR_GENERIC;
 
 	res = qcom_clock_enable(data->clk_group);
 	if (res)
@@ -236,8 +244,7 @@ static TEE_Result pas_clk_start(struct qcom_pas_subsys *subsys)
 	return TEE_SUCCESS;
 
 err:
-	if (subsys->ops->fw_shutdown)
-		rc = subsys->ops->fw_shutdown(data);
+	rc = pas_fw_shutdown(subsys);
 	if (rc)
 		EMSG("PAS %#"PRIx32": reset after start error %#"PRIx32
 		     " failed: %#"PRIx32, data->pas_id, res, rc);
@@ -291,7 +298,7 @@ TEE_Result pas_platform_shutdown(uint32_t pas_id)
 	struct qcom_pas_subsys *dependent = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	if (!subsys || !subsys->ops->fw_shutdown)
+	if (!subsys)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	dependent = qcom_pas_loaded_dependent(pas_id);
@@ -301,7 +308,7 @@ TEE_Result pas_platform_shutdown(uint32_t pas_id)
 		return TEE_ERROR_BAD_STATE;
 	}
 
-	res = subsys->ops->fw_shutdown(&subsys->data);
+	res = pas_fw_shutdown(subsys);
 	if (!res) {
 		subsys->data.fw_base = 0;
 		subsys->data.fw_size = 0;

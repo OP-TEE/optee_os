@@ -18,10 +18,12 @@
  *
  * Each remoteproc subsystem a platform supports provides one of these.  Any
  * member may be NULL when the subsystem does not implement that operation;
- * the generic core (pas_core.c) returns the appropriate error in that case.
+ * the generic core (pas_core.c) returns the appropriate error in that case,
+ * or for fw_shutdown resets the subsystem through the clock driver.
  *
  * @fw_start:           Program the firmware entry and run the boot FSM.
- * @fw_shutdown:        Put the processor back into reset.
+ * @fw_shutdown:        Put the processor back into reset.  NULL: the clock
+ *                      driver resets it (qcom_clock_pas_reset()).
  * @fw_set_state:       Power the processor on (@on == true) or off.
  * @get_resource_table: Serialise the firmware resource table (see
  *                      resource_table.h).  NULL for subsystems with no table.
@@ -43,8 +45,8 @@ struct qcom_pas_ops {
  * @QCOM_PAS_RESET_CLK_FULL:   qcom_clock_enable(), fw_start(), then
  *                             qcom_clock_enable_pas_processor().
  *
- * If a CLK_ENABLE or CLK_FULL start fails in or after fw_start, fw_shutdown
- * puts the subsystem back into reset.
+ * If a CLK_ENABLE or CLK_FULL start fails in or after fw_start, the
+ * subsystem is put back into reset as on shutdown.
  */
 enum qcom_pas_reset_seq {
 	QCOM_PAS_RESET_NONE = 0,
