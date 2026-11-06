@@ -23,6 +23,7 @@
  * @flags:	  [out] Flags field of TA header
  * @entry_func:	  [out] TA entry function
  * @stack_ptr:	  [out] TA stack pointer
+ * @shadow_stack_ptr: [out] TA shadow stack pointer, 0 if none (Zicfiss)
  * @dump_entry:	  [out] Dump TA mappings and stack trace
  * @ftrace_entry: [out] Dump TA mappings and ftrace buffer
  * @fbuf:         [out] ftrace buffer pointer
@@ -35,6 +36,7 @@ struct ldelf_arg {
 	uint64_t entry_func;
 	uint64_t load_addr;
 	uint64_t stack_ptr;
+	uint64_t shadow_stack_ptr;
 	uint64_t dump_entry;
 	uint64_t ftrace_entry;
 	uint64_t dl_entry;
@@ -113,6 +115,8 @@ struct dl_entry_arg {
 #define LDELF_MAP_FLAG_WRITEABLE	BIT32(1)
 #define LDELF_MAP_FLAG_EXECUTABLE	BIT32(2)
 #define LDELF_MAP_FLAG_BTI		BIT32(3)
+/* Map as a shadow stack (RISC-V Zicfiss), sys_map_zi() only */
+#define LDELF_MAP_FLAG_SHADOW_STACK	BIT32(4)
 
 #endif /*!__ASSEMBLER__*/
 
