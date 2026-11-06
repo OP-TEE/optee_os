@@ -195,11 +195,6 @@ static TEE_Result lmcu_fw_start(struct qcom_pas_data *data)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result lmcu_fw_shutdown(struct qcom_pas_data *data)
-{
-	return qcom_clock_pas_reset(data->clk_group);
-}
-
 static TEE_Result lmcu_dtb_fw_start(struct qcom_pas_data *data __unused)
 {
 	return TEE_SUCCESS;
@@ -230,7 +225,6 @@ static TEE_Result lmcu_get_resource_table(struct resource_table *rt,
 
 const struct qcom_pas_ops lmcu_ops = {
 	.fw_start = lmcu_fw_start,
-	.fw_shutdown = lmcu_fw_shutdown,
 	.get_resource_table = lmcu_get_resource_table,
 };
 

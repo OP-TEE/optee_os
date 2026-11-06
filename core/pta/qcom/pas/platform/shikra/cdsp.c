@@ -100,11 +100,6 @@ static TEE_Result cdsp_fw_start(struct qcom_pas_data *data)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result cdsp_fw_shutdown(struct qcom_pas_data *data)
-{
-	return qcom_clock_pas_reset(data->clk_group);
-}
-
 static TEE_Result cdsp_get_resource_table(struct resource_table *rt,
 					  size_t *rt_size)
 {
@@ -125,6 +120,5 @@ static TEE_Result cdsp_get_resource_table(struct resource_table *rt,
 
 const struct qcom_pas_ops cdsp_ops = {
 	.fw_start = cdsp_fw_start,
-	.fw_shutdown = cdsp_fw_shutdown,
 	.get_resource_table = cdsp_get_resource_table,
 };
