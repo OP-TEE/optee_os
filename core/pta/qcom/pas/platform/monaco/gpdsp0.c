@@ -251,11 +251,6 @@ static TEE_Result gpdsp0_fw_start(struct qcom_pas_data *data)
 	return TEE_ERROR_TIMEOUT;
 }
 
-static TEE_Result gpdsp0_fw_shutdown(struct qcom_pas_data *data)
-{
-	return qcom_clock_pas_reset(data->clk_group);
-}
-
 static TEE_Result gpdsp0_get_resource_table(struct resource_table *rt,
 					    size_t *rt_size)
 {
@@ -276,6 +271,5 @@ static TEE_Result gpdsp0_get_resource_table(struct resource_table *rt,
 
 const struct qcom_pas_ops gpdsp0_ops = {
 	.fw_start = gpdsp0_fw_start,
-	.fw_shutdown = gpdsp0_fw_shutdown,
 	.get_resource_table = gpdsp0_get_resource_table,
 };
