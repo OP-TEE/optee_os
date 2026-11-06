@@ -370,6 +370,8 @@ jobs:
               _make PLATFORM=virt CFG_CORE_STACK_PROTECTOR_STRONG=n CFG_TA_STACK_PROTECTOR_STRONG=n
               _make PLATFORM=sifive
               _make PLATFORM=cva6
+              _make PLATFORM=spacemit-k1
+              _make PLATFORM=spacemit-k3
     steps:
       - name: Checkout
         uses: actions/checkout@v7
