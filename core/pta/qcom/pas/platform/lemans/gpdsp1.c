@@ -3,6 +3,7 @@
  * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <drivers/qcom_qdsp6ss.h>
 #include <io.h>
 #include <resource_table.h>
 #include <stdint.h>
@@ -10,10 +11,7 @@
 
 #include "gpdsp1.h"
 
-#define GPDSP_QDSP6SS_RST_EVB		0x00c00010
-#define GPDSP_QDSP6SS_BOOT_CORE_START	0x00c00400
-#define GPDSP_QDSP6SS_BOOT_CMD		0x00c00404
-#define GPDSP_QDSP6SS_BOOT_STATUS	0x00c00408
+#define GPDSP_QDSP6SS			0x00c00000
 
 static const struct fw_rsc_devmem turing_mem_res[] = {
 	{ .name = "gcc_gpll0_3", .flags = IOMMU_READ,
@@ -235,28 +233,18 @@ static const struct fw_rsc_devmem turing_mem_res[] = {
 static TEE_Result gpdsp1_fw_start(struct qcom_pas_data *data)
 {
 	vaddr_t base = io_pa_or_va(&data->base, data->size);
-	uint64_t timeout = timeout_init_us(BOOT_FSM_TIMEOUT);
 
 	/* Program firmware entry; clocks/PLL are set up by the clock driver. */
-	io_write32(base + GPDSP_QDSP6SS_RST_EVB, data->fw_base >> 4);
+	io_write32(base + GPDSP_QDSP6SS + QDSP6SS_RST_EVB, data->fw_base >> 4);
 	dsb();
 
 	/*
 	 * De-assert stop-core, then trigger the boot FSM. The Q6 PLL and core
 	 * RCG were already configured by gpdsp_setup() in the clock driver.
 	 */
-	io_setbits32(base + GPDSP_QDSP6SS_BOOT_CORE_START, BIT(0));
+	qcom_qdsp6ss_core_start(base + GPDSP_QDSP6SS);
 	udelay(5);
-	io_write32(base + GPDSP_QDSP6SS_BOOT_CMD, 0x1);
-
-	while (!timeout_elapsed(timeout)) {
-		if (io_read32(base + GPDSP_QDSP6SS_BOOT_STATUS) & BIT(0))
-			return TEE_SUCCESS;
-
-		udelay(10);
-	}
-
-	return TEE_ERROR_TIMEOUT;
+	return qcom_qdsp6ss_boot_fsm(base + GPDSP_QDSP6SS, BOOT_FSM_TIMEOUT);
 }
 
 const struct qcom_pas_ops gpdsp1_ops = {

@@ -42,14 +42,11 @@ static const struct fw_rsc_devmem lpass_mem_res[] = {
 static TEE_Result lpass_fw_start(struct qcom_pas_data *data)
 {
 	const struct dsp_fw_start_regs regs = {
-		.boot_status = LPASS_QDSP6V67SS_PUB_REG + 0x408,
-		.core_start = LPASS_QDSP6V67SS_PUB_REG + 0x400,
 		.sleep_cbcr = LPASS_QDSP6V67SS_PUB_REG + 0x3c,
 		.lpass.efuse_evb_sel = LPASS_MCC_REG + 0xb000,
 		.core_cbcr = LPASS_QDSP6V67SS_PUB_REG + 0x20,
-		.boot_cmd = LPASS_QDSP6V67SS_PUB_REG + 0x404,
 		.xo_cbcr = LPASS_QDSP6V67SS_PUB_REG + 0x38,
-		.rst_evb = LPASS_QDSP6V67SS_PUB_REG + 0x10,
+		.qdsp6ss = LPASS_QDSP6V67SS_PUB_REG,
 	};
 	vaddr_t base = 0;
 
