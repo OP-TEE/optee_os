@@ -29,4 +29,7 @@
 #define TLMM_BASE			UL(0x0f000000)
 #define TLMM_BASE_SIZE			UL(0x01000000)
 
+#define IRIS_BASE			UL(0x0aa00000)
+#define IRIS_SIZE			ULL(0x00200000)
+
 #endif /* TARGET_CONFIG_H */
