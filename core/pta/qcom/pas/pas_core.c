@@ -157,6 +157,8 @@ TEE_Result pas_platform_init_image(uint32_t pas_id,
 	data->fw_base = fw_base;
 	data->fw_size = fw_size;
 	data->relocatable = pas_elf_is_relocatable(metadata->data, &e_info);
+	if (subsys->ops->fw_init_image)
+		res = subsys->ops->fw_init_image(data, metadata->data, &e_info);
 out:
 	return res;
 }

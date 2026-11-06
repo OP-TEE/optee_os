@@ -1,78 +1,35 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#include <io.h>
-#include <stdint.h>
-#include <string.h>
+#include <util.h>
 
 #include "iris.h"
 
-#define WRAPPER_IRIS_VERSION		0x0
-#define WRAPPER_CPA_START_ADDR		0x1020
-#define WRAPPER_CPA_END_ADDR		0x1024
-#define WRAPPER_FW_START_ADDR		0x1028
-#define WRAPPER_FW_END_ADDR		0x102C
-#define WRAPPER_NONPIX_START_ADDR	0x1030
-#define WRAPPER_NONPIX_END_ADDR		0x1034
-#define WRAPPER_TZ_XTSS_SW_RESET	0x1000
-#define WRAPPER_XTSS_SW_RESET_BIT	BIT(0)
+#define WRAPPER_SEC_CSR1			0x000b1084
+#define WRAPPER_SEC_CSR7			0x000b109c
 
-static TEE_Result iris_reset_cpu(struct qcom_pas_data *data)
-{
-	vaddr_t base = 0;
+/* Written before every release */
+static const struct pas_iris_write after_clear[] = {
+	PAS_IRIS_WRITE(WRAPPER_SEC_CSR1, 1),
+};
 
-	base = io_pa_or_va(&data->base, data->size);
-	if (!base)
-		return TEE_ERROR_GENERIC;
+static const struct pas_iris_write after_thresholds[] = {
+	PAS_IRIS_WRITE(SS_TZ_SEC_THRESHOLD_AV1, 1280),
+};
 
-	base += IRIS_WRAPPER_TOP_TZ_REG_BASE;
+static const struct pas_iris_write after_checks[] = {
+	PAS_IRIS_CHECK(SS_TZ_SEC_SID_F_SECURE_OVERRIDE, 1),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_C_SECURE_OVERRIDE, 1),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_D_SECURE_OVERRIDE, 1),
+	PAS_IRIS_WRITE(SS_TZ_SEC_SID_E_SECURE_OVERRIDE, 1),
+	PAS_IRIS_WRITE(WRAPPER_SEC_CSR7, 1),
+};
 
-	io_write32(base + WRAPPER_FW_START_ADDR, 0);
-	io_write32(base + WRAPPER_FW_END_ADDR, data->fw_size);
-	io_write32(base + WRAPPER_CPA_START_ADDR, 0);
-	io_write32(base + WRAPPER_CPA_END_ADDR, data->fw_size);
-	io_write32(base + WRAPPER_NONPIX_START_ADDR, data->fw_size);
-	io_write32(base + WRAPPER_NONPIX_END_ADDR, data->fw_size);
-	io_write32(base + WRAPPER_TZ_XTSS_SW_RESET, 0);
-
-	return TEE_SUCCESS;
-}
-
-static TEE_Result iris_fw_shutdown(struct qcom_pas_data *data)
-{
-	vaddr_t base = 0;
-	uint32_t reg = 0;
-
-	base = io_pa_or_va(&data->base, data->size);
-	if (!base)
-		return TEE_ERROR_GENERIC;
-
-	base += IRIS_WRAPPER_TOP_TZ_REG_BASE;
-
-	reg = io_read32(base + WRAPPER_TZ_XTSS_SW_RESET);
-	reg |= WRAPPER_XTSS_SW_RESET_BIT;
-	io_write32(base + WRAPPER_TZ_XTSS_SW_RESET, reg);
-
-	return TEE_SUCCESS;
-}
-
-static TEE_Result iris_fw_start(struct qcom_pas_data *data)
-{
-	return iris_reset_cpu(data);
-}
-
-static TEE_Result iris_fw_set_state(struct qcom_pas_data *data, bool power_on)
-{
-	if (power_on)
-		return iris_reset_cpu(data);
-
-	return iris_fw_shutdown(data);
-}
-
-const struct qcom_pas_ops iris_ops = {
-	.fw_start = iris_fw_start,
-	.fw_shutdown = iris_fw_shutdown,
-	.fw_set_state = iris_fw_set_state,
+const struct pas_iris_cfg iris_cfg = {
+	.after_clear = { after_clear, ARRAY_SIZE(after_clear) },
+	.after_thresholds = { after_thresholds, ARRAY_SIZE(after_thresholds) },
+	.after_checks = { after_checks, ARRAY_SIZE(after_checks) },
+	.every_release = true,
 };

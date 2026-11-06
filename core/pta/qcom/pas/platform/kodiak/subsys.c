@@ -54,8 +54,9 @@ static struct qcom_pas_subsys subsystems[] = {
 			.base.pa = IRIS_BASE,
 			.size = IRIS_SIZE,
 			.map_type = MEM_AREA_IO_NSEC,
+			.iris = &iris_cfg,
 		},
-		.ops = &iris_ops,
+		.ops = &pas_iris_ops,
 		.reset_seq = QCOM_PAS_RESET_NONE,
 	},
 };

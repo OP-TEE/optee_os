@@ -1,6 +1,8 @@
 srcs-y += pta_qcom_pas.c
 srcs-y += pas_core.c
 srcs-y += pas_elf.c
+srcs-y += pas_iris.c
+srcs-y += pas_video.c
 srcs-$(CFG_QCOM_PAS_AUTH) += pas_auth.c
 incdirs-y += .
 incdirs-y += platform/
