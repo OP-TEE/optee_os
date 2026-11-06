@@ -4,6 +4,7 @@
 CFG_QCOM_SEC_WDOG ?= y
 
 # sec.elf fuse provisioning through the TME-Lite auth and fuse clients
+CFG_QCOM_TMEL_FUSEPROV ?= y
 ifeq ($(CFG_QCOM_TMEL_FUSEPROV),y)
 $(call force,CFG_QCOM_TMEL_AUTH,y,required by CFG_QCOM_TMEL_FUSEPROV)
 $(call force,CFG_QCOM_TMEL_FUSE,y,required by CFG_QCOM_TMEL_FUSEPROV)
