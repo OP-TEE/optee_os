@@ -45,6 +45,9 @@ END_FUNC scall_do_call
  * void syscall_sys_return(uint32_t ret);
  */
 FUNC syscall_sys_return , :
+#ifdef RV64
+	sext.w	a0, a0
+#endif
 	li	a1, 0  /* panic = false */
 	li	a2, 0  /* panic_code = 0 */
 	mv	a3, t0 /* pointer to struct thread_scall_regs */
@@ -58,6 +61,10 @@ FUNC syscall_panic , :
 	li	a1, 1  /* panic = true */
 	mv	a2, a0  /* code */
 	li	a0, TEE_ERROR_TARGET_DEAD
+#ifdef RV64
+	sext.w	a2, a2
+	sext.w	a0, a0
+#endif
 	mv	a3, t0 /* pointer to struct thread_scall_regs */
 	j	scall_sys_return_helper
 END_FUNC syscall_panic

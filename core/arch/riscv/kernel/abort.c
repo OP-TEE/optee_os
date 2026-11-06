@@ -6,6 +6,7 @@
  */
 
 #include <kernel/abort.h>
+#include <kernel/arch_scall.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -233,9 +234,9 @@ static void handle_user_mode_panic(struct abort_info *ai)
 	 * It was a user exception, stop user execution and return
 	 * to TEE Core.
 	 */
-	ai->regs->a0 = TEE_ERROR_TARGET_DEAD;
+	ai->regs->a0 = scall_reg_u32(TEE_ERROR_TARGET_DEAD);
 	ai->regs->a1 = true;
-	ai->regs->a2 = 0xdeadbeef;
+	ai->regs->a2 = scall_reg_u32(0xdeadbeef);
 	ai->regs->epc = (vaddr_t)thread_unwind_user_mode;
 	ai->regs->sp = thread_get_saved_thread_sp();
 	ai->regs->status = xstatus_for_xret(true, PRV_S);
