@@ -21,7 +21,8 @@
  * the generic core (pas_core.c) returns the appropriate error in that case.
  *
  * @fw_start:           Program the firmware entry and run the boot FSM.
- * @fw_shutdown:        Put the processor back into reset.
+ * @fw_shutdown:        Put the processor back into reset.  NULL: the clock
+ *                      driver resets it (qcom_clock_pas_reset()).
  * @fw_set_state:       Power the processor on (@on == true) or off.
  * @get_resource_table: Serialise the firmware resource table (see
  *                      resource_table.h).  NULL for subsystems with no table.
