@@ -16,10 +16,7 @@ struct dsp_fw_start_regs {
 	uint32_t xo_cbcr;
 	uint32_t sleep_cbcr;
 	uint32_t core_cbcr;
-	uint32_t rst_evb;
-	uint32_t core_start;
-	uint32_t boot_cmd;
-	uint32_t boot_status;
+	uint32_t qdsp6ss;
 	/* lpass */
 	struct dsp_fw_start_lpass_regs lpass;
 };

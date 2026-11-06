@@ -3,6 +3,7 @@
  * Copyright (c) 2026, Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <drivers/qcom_qdsp6ss.h>
 #include <io.h>
 #include <platform_config.h>
 #include <resource_table.h>
@@ -11,12 +12,8 @@
 
 #include "cdsp.h"
 
-/*
- * RST_EVB lives at offset 0x10 into the QDSP6SS PUB register block, which
- * itself starts at TURING_BASE + 0x300000 (see clock_group_qcom.h's
- * TURING_QDSP6SS_DBG_CFG/RET_CFG at +0x300018/+0x30001c for the same block).
- */
-#define TURING_QDSP6SS_RST_EVB		0x300010
+/* QDSP6SS PUB register block, relative to TURING_BASE */
+#define TURING_QDSP6SS			0x300000
 
 static const struct fw_rsc_devmem cdsp_mem_res[] = {
 	{ .name = "cdsp_0",  .flags = IOMMU_READ | IOMMU_WRITE,
@@ -92,7 +89,7 @@ static TEE_Result cdsp_fw_start(struct qcom_pas_data *data)
 	 * later, once the Q6 PLL is configured, by
 	 * qcom_clock_enable_pas_processor().
 	 */
-	io_write32(base + TURING_QDSP6SS_RST_EVB, data->fw_base >> 4);
+	io_write32(base + TURING_QDSP6SS + QDSP6SS_RST_EVB, data->fw_base >> 4);
 	dsb();
 
 	return TEE_SUCCESS;
