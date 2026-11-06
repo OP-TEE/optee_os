@@ -7,15 +7,12 @@
 #define _CLOCK_HOYA_H_
 
 #include <drivers/clk_qcom.h>
-#include <mm/core_memprot.h>
 #include <stdint.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
 #include <util.h>
 
-/* Core VA of a registered or mapped MMIO range, 0 if there is none. */
-#define QCOM_IO_VA(phys, size) \
-	((vaddr_t)phys_to_virt_io((phys), (size)))
+#include "clk_pas.h"
 
 /*
  * QDSP6 subsystem clock and reset sequences shared by the hoya chips with

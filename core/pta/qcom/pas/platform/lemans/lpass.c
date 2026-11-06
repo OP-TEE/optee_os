@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "lpass.h"
+#include "qdsp6ss.h"
 
 /*
  * QDSP6 boot registers. The PUB block holds the reset/boot FSM registers; the
@@ -20,10 +21,6 @@
 #define LPASS_MCC_OFFSET		0x008d0000
 
 /* Offsets within the QDSP6 PUB block (LPASS_PUB_OFFSET). */
-#define LPASS_QDSP6SS_RST_EVB		0x10
-#define LPASS_QDSP6SS_BOOT_CORE_START	0x400
-#define LPASS_QDSP6SS_BOOT_CMD		0x404
-#define LPASS_QDSP6SS_BOOT_STATUS	0x408
 
 /* Offset within the MCC block (LPASS_MCC_OFFSET). */
 #define LPASS_EFUSE_Q6SS_EVB_SEL	0xb000
@@ -230,12 +227,9 @@ static const struct fw_rsc_devmem lpass_mem_res[] = {
 		.da = 0x90900000, .pa = 0x90900000, .len = 0x200000, },
 };
 
-DEFINE_RESOURCE_TABLE(LPASS, ARRAY_SIZE(lpass_mem_res));
-
 static TEE_Result lpass_fw_start(struct qcom_pas_data *data)
 {
 	vaddr_t base = io_pa_or_va(&data->base, data->size);
-	uint64_t timeout = timeout_init_us(BOOT_FSM_TIMEOUT);
 	vaddr_t pub = 0;
 
 	if (!base)
@@ -247,49 +241,17 @@ static TEE_Result lpass_fw_start(struct qcom_pas_data *data)
 	 * Program the firmware entry address and select the programmed EVB;
 	 * the Q6 PLL and core RCG are already configured by lpass_setup().
 	 */
-	io_write32(pub + LPASS_QDSP6SS_RST_EVB, data->fw_base >> 4);
+	io_write32(pub + QDSP6SS_RST_EVB, data->fw_base >> 4);
 	io_write32(base + LPASS_MCC_OFFSET + LPASS_EFUSE_Q6SS_EVB_SEL, 0);
 	dsb();
 
 	/* De-assert stop-core, then trigger the boot FSM. */
-	io_setbits32(pub + LPASS_QDSP6SS_BOOT_CORE_START, BIT(0));
-	io_write32(pub + LPASS_QDSP6SS_BOOT_CMD, 0x1);
-
-	while (!timeout_elapsed(timeout)) {
-		if (io_read32(pub + LPASS_QDSP6SS_BOOT_STATUS) & BIT(0))
-			return TEE_SUCCESS;
-
-		udelay(10);
-	}
-
-	return TEE_ERROR_TIMEOUT;
-}
-
-static TEE_Result lpass_fw_shutdown(struct qcom_pas_data *data)
-{
-	return qcom_clock_pas_reset(data->clk_group);
-}
-
-static TEE_Result lpass_get_resource_table(struct resource_table *rt,
-					   size_t *rt_size)
-{
-	const struct fw_rsc_hdr header = {
-		.type = RSC_DEVMEM,
-	};
-	static struct resource_table table = {
-		.ver = 1,
-		.num = LPASS_NUM_MEM_RESOURCES,
-		.offset[LPASS_NUM_MEM_RESOURCES - 1] = 0,
-	};
-
-	return get_mem_rsc(rt, rt_size, &table, &header,
-			   lpass_mem_res,
-			   LPASS_RESOURCE_TABLE_HEADER_SIZE,
-			   LPASS_RESOURCE_TABLE_SIZE);
+	qdsp6ss_core_start(pub);
+	return qdsp6ss_boot_fsm(pub, BOOT_FSM_TIMEOUT);
 }
 
 const struct qcom_pas_ops lpass_ops = {
 	.fw_start = lpass_fw_start,
-	.fw_shutdown = lpass_fw_shutdown,
-	.get_resource_table = lpass_get_resource_table,
+	.devmem = lpass_mem_res,
+	.devmem_num = ARRAY_SIZE(lpass_mem_res),
 };
