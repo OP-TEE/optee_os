@@ -39,8 +39,6 @@ static const struct fw_rsc_devmem lpass_mem_res[] = {
 		.da = 0x0f100000, .pa = 0x0f100000, .len = 0x00300000, },
 };
 
-DEFINE_RESOURCE_TABLE(LPASS, ARRAY_SIZE(lpass_mem_res));
-
 static TEE_Result lpass_fw_start(struct qcom_pas_data *data)
 {
 	const struct dsp_fw_start_regs regs = {
@@ -69,26 +67,9 @@ static TEE_Result lpass_fw_shutdown(struct qcom_pas_data *data __unused)
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
-static TEE_Result lpass_get_resource_table(struct resource_table *rt,
-					   size_t *rt_size)
-{
-	const struct fw_rsc_hdr header = {
-		.type = RSC_DEVMEM,
-	};
-	static struct resource_table table = {
-		.ver = 1,
-		.num = LPASS_NUM_MEM_RESOURCES,
-		.offset[LPASS_NUM_MEM_RESOURCES - 1] = 0,
-	};
-
-	return get_mem_rsc(rt, rt_size, &table, &header,
-			   lpass_mem_res,
-			   LPASS_RESOURCE_TABLE_HEADER_SIZE,
-			   LPASS_RESOURCE_TABLE_SIZE);
-}
-
 const struct qcom_pas_ops lpass_ops = {
 	.fw_start = lpass_fw_start,
 	.fw_shutdown = lpass_fw_shutdown,
-	.get_resource_table = lpass_get_resource_table,
+	.devmem = lpass_mem_res,
+	.devmem_num = ARRAY_SIZE(lpass_mem_res),
 };

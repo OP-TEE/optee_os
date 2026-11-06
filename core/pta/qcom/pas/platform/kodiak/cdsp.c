@@ -50,8 +50,6 @@ static const struct fw_rsc_devmem turing_mem_res[] = {
 		.da = 0x00634000, .pa = 0x00634000, .len = 0x00004000, },
 };
 
-DEFINE_RESOURCE_TABLE(TURING, ARRAY_SIZE(turing_mem_res));
-
 static TEE_Result cdsp_fw_start(struct qcom_pas_data *data)
 {
 	const struct dsp_fw_start_regs regs = {
@@ -72,26 +70,9 @@ static TEE_Result cdsp_fw_shutdown(struct qcom_pas_data *data __unused)
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
-static TEE_Result cdsp_get_resource_table(struct resource_table *rt,
-					  size_t *rt_size)
-{
-	const struct fw_rsc_hdr header = {
-		.type = RSC_DEVMEM,
-	};
-	static struct resource_table table = {
-		.ver = 1,
-		.num = TURING_NUM_MEM_RESOURCES,
-		.offset[TURING_NUM_MEM_RESOURCES - 1] = 0,
-	};
-
-	return get_mem_rsc(rt, rt_size, &table, &header,
-			   turing_mem_res,
-			   TURING_RESOURCE_TABLE_HEADER_SIZE,
-			   TURING_RESOURCE_TABLE_SIZE);
-}
-
 const struct qcom_pas_ops cdsp_ops = {
 	.fw_start = cdsp_fw_start,
 	.fw_shutdown = cdsp_fw_shutdown,
-	.get_resource_table = cdsp_get_resource_table,
+	.devmem = turing_mem_res,
+	.devmem_num = ARRAY_SIZE(turing_mem_res),
 };
