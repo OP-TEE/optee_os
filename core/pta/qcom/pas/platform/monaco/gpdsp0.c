@@ -9,12 +9,10 @@
 #include <string.h>
 
 #include "gpdsp0.h"
+#include "qdsp6ss.h"
 
-#define GPDSP_QDSP6SS_RST_EVB		0x00c00010
+#define GPDSP_QDSP6SS			0x00c00000
 #define GPDSP_QDSP6SS_RET_CFG		0x00c0001c
-#define GPDSP_QDSP6SS_BOOT_CORE_START	0x00c00400
-#define GPDSP_QDSP6SS_BOOT_CMD		0x00c00404
-#define GPDSP_QDSP6SS_BOOT_STATUS	0x00c00408
 
 static const struct fw_rsc_devmem turing_mem_res[] = {
 	{ .name = "gcc_gpll0_3", .flags = IOMMU_READ,
@@ -220,13 +218,12 @@ static const struct fw_rsc_devmem turing_mem_res[] = {
 static TEE_Result gpdsp0_fw_start(struct qcom_pas_data *data)
 {
 	vaddr_t base = io_pa_or_va(&data->base, data->size);
-	uint64_t timeout = timeout_init_us(BOOT_FSM_TIMEOUT);
 
 	if (!base)
 		return TEE_ERROR_GENERIC;
 
 	/* Program firmware entry; clocks/PLL are set up by the clock driver. */
-	io_write32(base + GPDSP_QDSP6SS_RST_EVB, data->fw_base >> 4);
+	io_write32(base + GPDSP_QDSP6SS + QDSP6SS_RST_EVB, data->fw_base >> 4);
 	/* Keep the retention registers through later core resets */
 	io_write32(base + GPDSP_QDSP6SS_RET_CFG, 0);
 	dsb();
@@ -235,18 +232,9 @@ static TEE_Result gpdsp0_fw_start(struct qcom_pas_data *data)
 	 * De-assert stop-core, then trigger the boot FSM. The clock driver
 	 * has already configured the Q6 PLL and core RCG.
 	 */
-	io_setbits32(base + GPDSP_QDSP6SS_BOOT_CORE_START, BIT(0));
+	qdsp6ss_core_start(base + GPDSP_QDSP6SS);
 	udelay(5);
-	io_write32(base + GPDSP_QDSP6SS_BOOT_CMD, 0x1);
-
-	while (!timeout_elapsed(timeout)) {
-		if (io_read32(base + GPDSP_QDSP6SS_BOOT_STATUS) & BIT(0))
-			return TEE_SUCCESS;
-
-		udelay(10);
-	}
-
-	return TEE_ERROR_TIMEOUT;
+	return qdsp6ss_boot_fsm(base + GPDSP_QDSP6SS, BOOT_FSM_TIMEOUT);
 }
 
 const struct qcom_pas_ops gpdsp0_ops = {

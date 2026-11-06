@@ -9,19 +9,18 @@
 #include <string.h>
 
 #include "dsp_fw.h"
+#include "qdsp6ss.h"
 
 #define CBCR_BRANCH_ENABLE_BIT	BIT(0)
 #define CBCR_HW_CTL_ENABLE_BIT	BIT(1)
 
 #define BOOT_CORE_START		BIT(0)
-#define BOOT_CMD_START		BIT(0)
 #define BOOT_FSM_TIMEOUT	10000
 
 TEE_Result dsp_fw_start(struct qcom_pas_data *data,
 			const struct dsp_fw_start_regs *regs)
 {
 	vaddr_t base = io_pa_or_va(&data->base, data->size);
-	uint64_t timeout;
 
 	if (!regs)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -35,23 +34,12 @@ TEE_Result dsp_fw_start(struct qcom_pas_data *data,
 	else
 		io_write32(base + regs->core_cbcr, CBCR_BRANCH_ENABLE_BIT);
 
-	io_write32(base + regs->rst_evb, data->fw_base >> 4);
+	io_write32(base + regs->qdsp6ss + QDSP6SS_RST_EVB, data->fw_base >> 4);
 	dsb();
 
-	io_write32(base + regs->core_start, BOOT_CORE_START);
-	io_write32(base + regs->boot_cmd, BOOT_CMD_START);
+	io_write32(base + regs->qdsp6ss + QDSP6SS_BOOT_CORE_START,
+		   BOOT_CORE_START);
 
-	timeout = timeout_init_us(BOOT_FSM_TIMEOUT);
-
-	while (!timeout_elapsed(timeout)) {
-		if (io_read32(base + regs->boot_status) & BIT(0))
-			return TEE_SUCCESS;
-
-		udelay(10);
-	}
-
-	EMSG("Timed out waiting for DSP to boot");
-
-	return TEE_ERROR_TIMEOUT;
+	return qdsp6ss_boot_fsm(base + regs->qdsp6ss, BOOT_FSM_TIMEOUT);
 }
 
