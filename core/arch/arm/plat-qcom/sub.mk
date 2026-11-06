@@ -9,5 +9,7 @@ ifneq ($(filter y,$(CFG_QCOM_DIAG_LOG) $(CFG_QCOM_QFPROM_FUSEPROV)),)
 srcs-y += boot_mode.c
 endif
 
-subdirs-$(CFG_QCOM_QFPROM_FUSEPROV) += provision
+ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_TMEL_FUSEPROV)),)
+subdirs-y += provision
+endif
 subdirs-y += $(QCOM_ARCH_FAMILY)
