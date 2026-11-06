@@ -124,3 +124,4 @@ subdirs-y += firewall
 subdirs-y += counter
 subdirs-y += amd
 subdirs-y += qcom
+subdirs-y += tpm2
