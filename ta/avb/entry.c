@@ -238,11 +238,15 @@ static TEE_Result write_lock_state(uint32_t pt,
 	if (count == sizeof(lock_state) && lock_state == wlock_state)
 		goto out;
 
-	res = TEE_SeekObjectData(h, 0, TEE_DATA_SEEK_SET);
+	/*
+	 * A change of the lock state must clear all stored rollback indexes.
+	 * Recreate the object holding only the new lock state, in one atomic
+	 * step: slots that were never written are reported as 0.
+	 */
+	TEE_CloseObject(h);
+	res = create_rb_state(wlock_state, &h);
 	if (res)
-		goto out;
-
-	res = TEE_WriteObjectData(h, &wlock_state, sizeof(wlock_state));
+		return res;
 out:
 	TEE_CloseObject(h);
 	return res;
