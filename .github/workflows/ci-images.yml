@@ -6,6 +6,10 @@ on: workflow_dispatch
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}  # unique for this workflow
+  cancel-in-progress: true
+
 jobs:
   gen-ci-build-image:
     name: Generate CI Build Image
@@ -27,10 +31,36 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+  qualify-image:
+    name: Qualify CI Image
+    needs: gen-ci-build-image
+    uses: ./.github/workflows/ci.yml
+    with:
+      ci_image_tag: testing
+
+  tag-image:
+    name: Tag CI Image
+    runs-on: ubuntu-26.04
+    needs: qualify-image
+    permissions:
+      packages: write
+    steps:
+      - name: Registry Login
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550  # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag as latest
+        shell: bash
+        run: |
+          IMAGE_BASE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          docker buildx imagetools create --tag "${IMAGE_BASE}/ci-build-image:latest" "${IMAGE_BASE}/ci-build-image:testing"
+
   cleanup-ghcr-containers:
     name: cleanup untagged containers
     runs-on: ubuntu-26.04
-    needs: gen-ci-build-image
+    needs: tag-image
     permissions:
       packages: write
     steps:
