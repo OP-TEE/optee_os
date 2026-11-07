@@ -44,7 +44,7 @@ struct diag {
 	struct circ_wo_buf wo_cbuf;
 };
 
-static struct diag *global_diag;
+static struct diag *global_diag __nex_bss;
 
 static struct diag *get_diag_region(void)
 {
