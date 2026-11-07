@@ -1,3 +1,27 @@
+CFG_QCOM_LM_PROFILE ?= n
+
+# Low memory profile: 512 KB of TZDRAM and no user TAs. It has to stay above
+# the defaults below, the first assignment wins.
+ifeq ($(CFG_QCOM_LM_PROFILE),y)
+CFG_TZDRAM_SIZE ?= 0x80000
+CFG_TEE_RAM_VA_SIZE ?= 0x80000
+CFG_CORE_HEAP_SIZE ?= 0x8000
+CFG_NUM_THREADS ?= 2
+
+# Nothing runs at EL0 without user TAs, so there are no user address spaces.
+# Allocating their page tables on demand leaves out the static pool for them.
+CFG_WITH_USER_TA ?= n
+CFG_CORE_PREALLOC_EL0_TBLS ?= y
+CFG_CORE_UNMAP_CORE_AT_EL0 ?= n
+CFG_TA_FLOAT_SUPPORT ?= n
+
+CFG_REE_FS ?= n
+CFG_PREALLOC_RPC_CACHE ?= n
+
+# Random data comes from the CSRNG, nothing else needs a crypto library
+CFG_CRYPTO ?= n
+endif
+
 $(call force,CFG_TEE_CORE_NB_CORE,4)
 CFG_NUM_THREADS ?= 4
 
