@@ -16,7 +16,7 @@ concurrency:
 jobs:
   code_style:
     name: Code style
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image
     steps:
