@@ -1,6 +1,9 @@
 name: CI
 on:
   pull_request:
+  push:
+    branches-ignore:
+      - master
   schedule:
     # Nightly run of master, 01:17 UTC
     - cron: '17 1 * * *'
