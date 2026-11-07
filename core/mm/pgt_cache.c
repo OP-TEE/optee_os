@@ -155,6 +155,9 @@ static struct pgt *alloc_pgt(vaddr_t vabase)
 	pgt->vabase = vabase;
 out:
 	cpu_spin_unlock_xrestore(&parent_spinlock, exceptions);
+	/* Clear stale descriptors before returning the table. */
+	if (pgt)
+		memset(pgt->tbl, 0, PGT_SIZE);
 	return pgt;
 }
 
