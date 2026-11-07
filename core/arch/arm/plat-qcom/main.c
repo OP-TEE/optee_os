@@ -39,7 +39,7 @@ register_ddr(DRAM2_BASE, DRAM2_SIZE);
 #endif
 #endif /*!CFG_EMBED_DTB*/
 
-static struct qcom_geni_uart_data console_data;
+static struct qcom_geni_uart_data console_data __nex_bss;
 
 void plat_trace_ext_puts(const char *str)
 {
