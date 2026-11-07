@@ -69,18 +69,20 @@ static int compute_cc_enable(void)
 		     VAPSS_GDSCR_SW_COLLAPSE_MASK);
 
 	REG_POLL_TIMEOUT(cc_base + TURING_VAPSS_GDSCR,
-			 10 * 1000, 10, &res, vapss_gdscr_pwr_on);
+			 QCOM_CLK_POLL_TIMEOUT_US, QCOM_CLK_POLL_DELAY_US,
+			 &res, vapss_gdscr_pwr_on);
 	if (res)
 		return res;
 
 	REG_POLL_TIMEOUT(cc_base + TURING_VAPSS_CFG_GDSCR,
-			 10 * 1000, 10, &res,
+			 QCOM_CLK_POLL_TIMEOUT_US, QCOM_CLK_POLL_DELAY_US, &res,
 			 vapss_cfg_gdscr_pwr_up_complete);
 	if (res)
 		return res;
 
 	REG_POLL_TIMEOUT(cc_base + TURING_VAPSS_GDS_HW_CTRL,
-			 10 * 1000, 10, &res, vapss_gds_hw_state_idle);
+			 QCOM_CLK_POLL_TIMEOUT_US, QCOM_CLK_POLL_DELAY_US,
+			 &res, vapss_gds_hw_state_idle);
 	if (res)
 		return res;
 
@@ -91,12 +93,14 @@ static int compute_cc_enable(void)
 		     VAPSS_GDSCR_SW_COLLAPSE_MASK);
 
 	REG_POLL_TIMEOUT(cc_base + TURING_VAPSS_GDSCR,
-			 10 * 1000, 10, &res, vapss_gdscr_pwr_off);
+			 QCOM_CLK_POLL_TIMEOUT_US, QCOM_CLK_POLL_DELAY_US,
+			 &res, vapss_gdscr_pwr_off);
 	if (res)
 		return res;
 
 	REG_POLL_TIMEOUT(cc_base + TURING_VAPSS_GDS_HW_CTRL,
-			 10 * 1000, 10, &res, vapss_gds_hw_state_powerup_wait);
+			 QCOM_CLK_POLL_TIMEOUT_US, QCOM_CLK_POLL_DELAY_US,
+			 &res, vapss_gds_hw_state_powerup_wait);
 	if (res)
 		return res;
 

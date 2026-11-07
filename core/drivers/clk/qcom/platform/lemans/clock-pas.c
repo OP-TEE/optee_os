@@ -24,7 +24,7 @@ register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_AUDIO_BASE, RPMH_PDC_AUDIO_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, TCSR_MUTEX_BASE, TCSR_MUTEX_SIZE);
 
 /* Lucid-EVO PLL register offsets, relative to the PLL register block base. */
-static const struct qcom_lucidevo_pll_offsets lucid_evo_pll_offsets = {
+static const struct qcom_pll_offsets lucid_evo_pll_offsets = {
 	.mode = 0x0,
 	.opmode = 0x4,
 	.l_val = 0x10,
@@ -36,7 +36,7 @@ static const struct qcom_lucidevo_pll_offsets lucid_evo_pll_offsets = {
 	.config_ctl_u1 = 0x28,
 };
 
-static const struct qcom_lucidevo_pll_config q6_pll_cfg = {
+static const struct qcom_pll_config q6_pll_cfg = {
 	.offsets = &lucid_evo_pll_offsets,
 	.l_val = 0x32,
 	.cal_l_val = 0x44,
@@ -49,7 +49,7 @@ static const struct qcom_lucidevo_pll_config q6_pll_cfg = {
 	/* alpha (default) fractional mode */
 };
 
-static const struct qcom_lucidevo_pll_config lpass_q6_pll_cfg = {
+static const struct qcom_pll_config lpass_q6_pll_cfg = {
 	.offsets = &lucid_evo_pll_offsets,
 	.l_val = 0x2c,
 	.cal_l_val = 0x44,
@@ -62,7 +62,7 @@ static const struct qcom_lucidevo_pll_config lpass_q6_pll_cfg = {
 	/* alpha (default) fractional mode */
 };
 
-static const struct qcom_lucidevo_pll_config gpdsp_q6_pll_cfg = {
+static const struct qcom_pll_config gpdsp_q6_pll_cfg = {
 	.offsets = &lucid_evo_pll_offsets,
 	.l_val = 0x3a,
 	.cal_l_val = 0x44,

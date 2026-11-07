@@ -193,7 +193,7 @@ TEE_Result hoya_nsp_enable(const struct hoya_nsp *nsp)
 
 TEE_Result
 hoya_nsp_enable_processor_lucidevo(const struct hoya_nsp *nsp,
-				   const struct qcom_lucidevo_pll_config *pll)
+				   const struct qcom_pll_config *pll)
 {
 	vaddr_t boot_base = QCOM_IO_VA(nsp->base + TURINGNSP_BOOT_OFFSET,
 				       TURINGNSP_PROC_WINDOW_SIZE);
@@ -282,7 +282,7 @@ TEE_Result hoya_nsp_reset(const struct hoya_nsp *nsp)
 
 TEE_Result
 hoya_gpdsp_setup_lucidevo(const struct hoya_gpdsp *gpdsp,
-			  const struct qcom_lucidevo_pll_config *pll)
+			  const struct qcom_pll_config *pll)
 {
 	vaddr_t base = QCOM_IO_VA(gpdsp->base, TURINGGDSP_SIZE);
 	vaddr_t gcc_base = QCOM_IO_VA(GCC_BASE, GCC_SIZE);
@@ -397,7 +397,7 @@ static const struct lpass_q6_branch lpass_q6_branches[] = {
 };
 
 TEE_Result
-hoya_lpass_setup_lucidevo(const struct qcom_lucidevo_pll_config *pll)
+hoya_lpass_setup_lucidevo(const struct qcom_pll_config *pll)
 {
 	vaddr_t lpass_base = QCOM_IO_VA(LPASS_BASE, LPASS_SIZE);
 	vaddr_t gcc_base = QCOM_IO_VA(GCC_BASE, GCC_SIZE);

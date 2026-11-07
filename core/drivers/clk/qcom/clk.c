@@ -10,7 +10,7 @@
 #include <mm/core_mmu.h>
 #include <trace.h>
 
-register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, GCC_BASE, GCC_SIZE);
 
 #define QCOM_CLOCK_UPDATE_TIMEOUT_US	U(10000)
 
@@ -20,6 +20,7 @@ register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
 
 /* PLL_MODE fields */
 #define PLL_MODE_OUTCTRL		BIT(0)
+#define PLL_MODE_BYPASSNL		BIT(1)
 #define PLL_MODE_RESET_N		BIT(2)
 #define PLL_MODE_LOCK_DET		BIT(31)
 
@@ -28,8 +29,12 @@ register_phys_mem(MEM_AREA_IO_NSEC, GCC_BASE, GCC_SIZE);
 
 /* PLL_L_VAL fields */
 #define PLL_L_VAL_L_MASK		0x0000ffff
-#define PLL_L_VAL_CAL_L_SHIFT		16
-#define PLL_L_VAL_CAL_L_MASK		0xffff0000
+#define PLL_CAL_L_SHIFT			16
+#define PLL_CAL_L_MASK			0xffff0000
+
+#define PLL_OLE_L_VAL_L_MASK            0x000000ff
+#define PLL_OLE_L_VAL_PROCESS_CAL_SHIFT 16
+#define PLL_OLE_L_VAL_PROCESS_CAL_MASK  0x00ff0000
 
 /* PLL_USER_CTL fields */
 #define PLL_USER_CTL_PLLOUT_MAIN_EN	BIT(0)
@@ -51,7 +56,8 @@ TEE_Result qcom_clock_enable_cbc(vaddr_t cbcr)
 	if (io_read32(cbcr) & CBCR_HW_CTL_ENABLE_BIT)
 		return TEE_SUCCESS;
 
-	REG_POLL_TIMEOUT(cbcr, 10 * 1000, 10, &ret, cbcr_branch_on);
+	REG_POLL_TIMEOUT(cbcr, QCOM_CLK_POLL_TIMEOUT_US,
+			 QCOM_CLK_POLL_DELAY_US, &ret, cbcr_branch_on);
 
 	if (ret < 0)
 		return TEE_ERROR_TIMEOUT;
@@ -64,10 +70,104 @@ static inline bool pll_locked(uint32_t val)
 	return val & PLL_MODE_LOCK_DET;
 }
 
-TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
-				    const struct qcom_lucidevo_pll_config *cfg)
+TEE_Result qcom_lucidole_pll_enable(vaddr_t pll_base,
+				    const struct qcom_pll_config *cfg)
 {
-	const struct qcom_lucidevo_pll_offsets *offsets = NULL;
+	const struct qcom_pll_offsets *offsets = NULL;
+	uint32_t user_val = 0;
+	int ret = 0;
+
+	if (!cfg || !cfg->offsets)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	offsets = cfg->offsets;
+
+	io_write32(pll_base + offsets->config_ctl, cfg->config_ctl);
+	io_write32(pll_base + offsets->config_ctl_u, cfg->config_ctl_u);
+	io_write32(pll_base + offsets->config_ctl_u1, cfg->config_ctl_u1);
+	io_write32(pll_base + offsets->test_ctl, cfg->test_ctl);
+	io_write32(pll_base + offsets->test_ctl_u, cfg->test_ctl_u);
+	io_write32(pll_base + offsets->test_ctl_u1, cfg->test_ctl_u1);
+	io_write32(pll_base + offsets->test_ctl_u2, cfg->test_ctl_u2);
+	io_write32(pll_base + offsets->user_ctl, cfg->user_ctl);
+	io_write32(pll_base + offsets->user_ctl_u, cfg->user_ctl_u);
+
+	io_mask32(pll_base + offsets->l_val, cfg->l_val, PLL_OLE_L_VAL_L_MASK);
+	io_write32(pll_base + offsets->alpha_val, cfg->alpha_val);
+
+	user_val = io_read32(pll_base + offsets->user_ctl);
+	if (cfg->frac_mode_mn)
+		user_val |= PLL_USER_CTL_FRAC_FORMAT_SEL;
+	else
+		user_val &= ~PLL_USER_CTL_FRAC_FORMAT_SEL;
+
+	io_write32(pll_base + offsets->user_ctl, user_val);
+
+	io_mask32(pll_base + offsets->l_val,
+		  SHIFT_U32(cfg->cal_l_val, PLL_OLE_L_VAL_PROCESS_CAL_SHIFT),
+		  PLL_OLE_L_VAL_PROCESS_CAL_MASK);
+
+	io_write32(pll_base + offsets->opmode, PLL_OPMODE_RUN);
+	io_setbits32(pll_base + offsets->mode, PLL_MODE_RESET_N);
+
+	REG_POLL_TIMEOUT(pll_base + offsets->mode, QCOM_CLK_POLL_TIMEOUT_US,
+			 QCOM_CLK_POLL_DELAY_US, &ret, pll_locked);
+	if (ret < 0)
+		return TEE_ERROR_TIMEOUT;
+
+	io_setbits32(pll_base + offsets->mode, PLL_MODE_OUTCTRL);
+	io_setbits32(pll_base + offsets->user_ctl,
+		     PLL_USER_CTL_PLLOUT_MAIN_EN);
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result qcom_spark_pll_enable(vaddr_t pll_base,
+				 const struct qcom_pll_config *cfg)
+{
+	const struct qcom_pll_offsets *offsets = NULL;
+	int ret = 0;
+
+	if (!cfg || !cfg->offsets)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	offsets = cfg->offsets;
+
+	/* SetRegSettings: program the static PLL trim/config registers. */
+	io_write32(pll_base + offsets->config_ctl, cfg->config_ctl);
+	io_write32(pll_base + offsets->test_ctl, cfg->test_ctl);
+	io_write32(pll_base + offsets->test_ctl_u, cfg->test_ctl_u);
+	io_write32(pll_base + offsets->user_ctl, cfg->user_ctl);
+	io_write32(pll_base + offsets->user_ctl_u, cfg->user_ctl_u);
+
+	/* ConfigPLL: program L value, fractional value and VCO/pre-div. */
+	io_write32(pll_base + offsets->l_val, cfg->l_val);
+	io_write32(pll_base + offsets->alpha_val, cfg->alpha_val);
+
+	/* SetCalConfig: program the calibration L value. */
+	io_mask32(pll_base + offsets->user_ctl_u,
+		  SHIFT_U32(cfg->cal_l_val, PLL_CAL_L_SHIFT), PLL_CAL_L_MASK);
+
+	io_setbits32(pll_base + offsets->mode, PLL_MODE_BYPASSNL);
+	udelay(5);
+	io_setbits32(pll_base + offsets->mode, PLL_MODE_RESET_N);
+
+	/* Reference spins unbounded on LOCK_DET; bounded here via timeout. */
+	REG_POLL_TIMEOUT(pll_base + offsets->mode, QCOM_CLK_POLL_TIMEOUT_US,
+			 QCOM_CLK_POLL_DELAY_US, &ret, pll_locked);
+	if (ret < 0)
+		return TEE_ERROR_TIMEOUT;
+
+	io_setbits32(pll_base + offsets->mode, PLL_MODE_OUTCTRL);
+	io_setbits32(pll_base + offsets->user_ctl, PLL_USER_CTL_PLLOUT_MAIN_EN);
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
+				    const struct qcom_pll_config *cfg)
+{
+	const struct qcom_pll_offsets *offsets = NULL;
 	uint32_t user_val = 0;
 	int ret = 0;
 
@@ -104,14 +204,14 @@ TEE_Result qcom_lucidevo_pll_enable(vaddr_t pll_base,
 		     PLL_USER_CTL_U_FINE_LOCK_DET);
 
 	io_mask32(pll_base + offsets->l_val,
-		  SHIFT_U32(cfg->cal_l_val, PLL_L_VAL_CAL_L_SHIFT),
-		  PLL_L_VAL_CAL_L_MASK);
+		  SHIFT_U32(cfg->cal_l_val, PLL_CAL_L_SHIFT),
+		  PLL_CAL_L_MASK);
 
 	io_write32(pll_base + offsets->opmode, PLL_OPMODE_RUN);
 	io_setbits32(pll_base + offsets->mode, PLL_MODE_RESET_N);
 
-	REG_POLL_TIMEOUT(pll_base + offsets->mode, 10 * 1000, 10, &ret,
-			 pll_locked);
+	REG_POLL_TIMEOUT(pll_base + offsets->mode, QCOM_CLK_POLL_TIMEOUT_US,
+			 QCOM_CLK_POLL_DELAY_US, &ret, pll_locked);
 	if (ret < 0)
 		return TEE_ERROR_TIMEOUT;
 
@@ -142,10 +242,16 @@ TEE_Result qcom_clock_enable(enum qcom_clk_group group)
 	switch (group) {
 	case QCOM_CLKS_TURING:
 	case QCOM_CLKS_TURING1:
+	case QCOM_CLKS_TURING2:
+	case QCOM_CLKS_TURING3:
 	case QCOM_CLKS_LPASS:
 	case QCOM_CLKS_WPSS:
 	case QCOM_CLKS_GPDSP0:
 	case QCOM_CLKS_GPDSP1:
+	case QCOM_CLKS_LMCU:
+	case QCOM_CLKS_HPASS0:
+	case QCOM_CLKS_HPASS1:
+	case QCOM_CLKS_HPASS2:
 		return qcom_clock_enable_pas(group);
 	default:
 		EMSG("Unsupported clock group %d", group);
