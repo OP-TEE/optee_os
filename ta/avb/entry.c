@@ -5,9 +5,11 @@
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
 
+#include <config.h>
 #include <string.h>
 
-#define DEFAULT_LOCK_STATE	0
+/* Lock state reported until it is first written, e.g. on a new device */
+#define DEFAULT_LOCK_STATE	IS_ENABLED(CFG_AVB_TA_DEFAULT_LOCKED)
 
 static const uint32_t storageid = TEE_STORAGE_PRIVATE_RPMB;
 static const char rb_obj_name[] = "rb_state";
