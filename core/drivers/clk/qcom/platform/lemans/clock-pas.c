@@ -24,7 +24,7 @@ register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_AUDIO_BASE, RPMH_PDC_AUDIO_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, TCSR_MUTEX_BASE, TCSR_MUTEX_SIZE);
 
 /* Lucid-EVO PLL register offsets, relative to the PLL register block base. */
-static const struct qcom_lucidevo_pll_offsets lucid_evo_pll_offsets = {
+static const struct qcom_pll_offsets lucid_evo_pll_offsets = {
 	.mode = 0x0,
 	.opmode = 0x4,
 	.l_val = 0x10,
@@ -36,7 +36,7 @@ static const struct qcom_lucidevo_pll_offsets lucid_evo_pll_offsets = {
 	.config_ctl_u1 = 0x28,
 };
 
-static const struct qcom_lucidevo_pll_config q6_pll_cfg = {
+static const struct qcom_pll_config q6_pll_cfg = {
 	.offsets = &lucid_evo_pll_offsets,
 	.l_val = 0x32,
 	.cal_l_val = 0x44,
@@ -49,7 +49,41 @@ static const struct qcom_lucidevo_pll_config q6_pll_cfg = {
 	/* alpha (default) fractional mode */
 };
 
-static const struct qcom_lucidevo_pll_config lpass_q6_pll_cfg = {
+/*
+ * Bring the QDSP6 out of reset after the boot FSM completes: lock the Q6 PLL,
+ * switch the core RCG onto it, then release the core. Runs after fw_start()
+ * since the Q6 PLL registers must not be touched until the FSM is done.
+ */
+static TEE_Result cdsp_enable_processor(paddr_t turing_base)
+{
+	vaddr_t boot_base = QCOM_IO_VA(turing_base + TURINGNSP_BOOT_OFFSET,
+				       TURINGNSP_PROC_WINDOW_SIZE);
+	vaddr_t pll_base = boot_base - TURINGNSP_BOOT_OFFSET +
+			   TURINGNSP_Q6_PLL_OFFSET;
+	vaddr_t core_cc = boot_base - TURINGNSP_BOOT_OFFSET +
+			  TURINGNSP_CORE_CC_OFFSET;
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!boot_base)
+		return TEE_ERROR_GENERIC;
+
+	res = qcom_lucidevo_pll_enable(pll_base, &q6_pll_cfg);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = qcom_clock_set_rate(core_cc + QDSP6SS_CORE_CFG_RCGR,
+				  core_cc + QDSP6SS_CORE_CMD_RCGR,
+				  Q6RCG_CFG_VALUE);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Release the core only after the PLL has been initialised. */
+	io_setbits32(boot_base + QDSP6SS_BOOT_CORE_START, BIT(0));
+
+	return TEE_SUCCESS;
+}
+
+static const struct qcom_pll_config lpass_q6_pll_cfg = {
 	.offsets = &lucid_evo_pll_offsets,
 	.l_val = 0x2c,
 	.cal_l_val = 0x44,
@@ -62,7 +96,58 @@ static const struct qcom_lucidevo_pll_config lpass_q6_pll_cfg = {
 	/* alpha (default) fractional mode */
 };
 
-static const struct qcom_lucidevo_pll_config gpdsp_q6_pll_cfg = {
+/*
+ * Set up clocks for the LPASS / ADSP QDSP6. Unlike the Turing NSP, the Q6 PLL
+ * and core RCG are configured here, before the boot FSM in lpass_fw_start.
+ */
+static TEE_Result lpass_setup(void)
+{
+	vaddr_t lpass_base = QCOM_IO_VA(LPASS_BASE, LPASS_SIZE);
+	vaddr_t gcc_base = QCOM_IO_VA(GCC_BASE, GCC_SIZE);
+	vaddr_t aon_cc = lpass_base + LPASS_AON_CC_OFFSET;
+	vaddr_t top_cc = lpass_base + LPASS_TOP_CC_OFFSET;
+	vaddr_t core_cc = lpass_base + LPASS_CORE_CC_OFFSET;
+	vaddr_t pll_base = lpass_base + LPASS_PLL_OFFSET;
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!gcc_base || !lpass_base)
+		return TEE_ERROR_GENERIC;
+
+	/* 4. Enable LPASS access from the config NoC. */
+	res = qcom_clock_enable_cbc(gcc_base + GCC_CFG_NOC_LPASS_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* AHB master/slave clocks, required to reach the QDSP6SS registers. */
+	res = qcom_clock_enable_cbc(aon_cc + LPASS_AON_CC_Q6_AHBM_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = qcom_clock_enable_cbc(aon_cc + LPASS_AON_CC_Q6_AHBS_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* LPASS interface clock. */
+	res = qcom_clock_enable_cbc(top_cc + LPASS_TOP_CC_LPI_Q6_AXIM_HS_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Enable the QDSP6 core clock branch. */
+	res = qcom_clock_enable_cbc(core_cc + LPASS_QDSP6SS_CORE_CBCR);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Configure and lock the Q6 PLL, then switch the core RCG onto it. */
+	res = qcom_lucidevo_pll_enable(pll_base, &lpass_q6_pll_cfg);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	return qcom_clock_set_rate(core_cc + LPASS_QDSP6SS_CORE_CFG_RCGR,
+				   core_cc + LPASS_QDSP6SS_CORE_CMD_RCGR,
+				   Q6RCG_CFG_VALUE);
+}
+
+static const struct qcom_pll_config gpdsp_q6_pll_cfg = {
 	.offsets = &lucid_evo_pll_offsets,
 	.l_val = 0x3a,
 	.cal_l_val = 0x44,

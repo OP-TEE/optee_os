@@ -238,7 +238,8 @@ static TEE_Result rcg_commit_config(vaddr_t cmd_rcgr)
 
 	if (IO_READ32_POLL_TIMEOUT(cmd_rcgr, val,
 				   !(val & QCOM_RCG_CMD_CFG_UPDATE_FMSK),
-				   1, 10 * 1000))
+				   QCOM_RCG_UPDATE_POLL_DELAY_US,
+				   QCOM_CLK_POLL_TIMEOUT_US))
 		return TEE_ERROR_TIMEOUT;
 
 	return TEE_SUCCESS;
@@ -614,7 +615,8 @@ static TEE_Result branch_enable(struct clk *clk)
 	if (io_read32(priv->cbcr) & CBCR_HW_CTL_ENABLE_BIT)
 		return TEE_SUCCESS;
 
-	REG_POLL_TIMEOUT(priv->cbcr, 10 * 1000, 10, &ret, cbcr_branch_on);
+	REG_POLL_TIMEOUT(priv->cbcr, QCOM_CLK_POLL_TIMEOUT_US,
+			 QCOM_CLK_POLL_DELAY_US, &ret, cbcr_branch_on);
 
 	return ret < 0 ? TEE_ERROR_TIMEOUT : TEE_SUCCESS;
 }
@@ -638,7 +640,8 @@ static void branch_disable(struct clk *clk)
 	 * stay on if another voter still holds it, so we don't treat this as
 	 * an error.
 	 */
-	REG_POLL_TIMEOUT(priv->cbcr, 10 * 1000, 10, &ret, cbcr_branch_isoff);
+	REG_POLL_TIMEOUT(priv->cbcr, QCOM_CLK_POLL_TIMEOUT_US,
+			 QCOM_CLK_POLL_DELAY_US, &ret, cbcr_branch_isoff);
 }
 
 /* Delegates to the RCG parent; branch-only clks have no rates to enumerate. */
