@@ -251,20 +251,20 @@ TEE_Result hoya_nsp_enable(const struct hoya_nsp *nsp);
  */
 TEE_Result
 hoya_nsp_enable_processor_lucidevo(const struct hoya_nsp *nsp,
-				   const struct qcom_lucidevo_pll_config *pll);
+				   const struct qcom_pll_config *pll);
 /* Put the NSP through a subsystem restart */
 TEE_Result hoya_nsp_reset(const struct hoya_nsp *nsp);
 
 /* Enable the GP-DSP clocks and lock its Q6 PLL, before the boot FSM */
 TEE_Result
 hoya_gpdsp_setup_lucidevo(const struct hoya_gpdsp *gpdsp,
-			  const struct qcom_lucidevo_pll_config *pll);
+			  const struct qcom_pll_config *pll);
 /* Put the GP-DSP through a subsystem restart */
 TEE_Result hoya_gpdsp_reset(const struct hoya_gpdsp *gpdsp);
 
 /* Enable the LPASS clocks and lock its Q6 PLL, before the boot FSM */
 TEE_Result
-hoya_lpass_setup_lucidevo(const struct qcom_lucidevo_pll_config *pll);
+hoya_lpass_setup_lucidevo(const struct qcom_pll_config *pll);
 /*
  * Quiesce LPASS and put it through a subsystem restart; @ret_cfg_ares are
  * the QDSP6SS_RET_CFG bits set before the restart.

@@ -13,12 +13,12 @@
 #include "pas_subsys.h"
 
 /* CDSP needs its DTB blob authenticated and loaded before it boots. */
-static const uint32_t cdsp_deps[] = { PAS_ID_TURING_DTB, 0 };
+static const uint32_t cdsp_deps[] = { DTB_ID_TURING, 0 };
 
 static struct qcom_pas_subsys subsystems[] = {
 	{
 		.data = {
-			.pas_id = PAS_ID_TURING_DTB,
+			.pas_id = DTB_ID_TURING,
 		},
 		.ops = &cdsp_dtb_ops,
 		.reset_seq = QCOM_PAS_RESET_NONE,

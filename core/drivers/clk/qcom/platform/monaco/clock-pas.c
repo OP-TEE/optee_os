@@ -28,7 +28,7 @@ register_phys_mem(MEM_AREA_IO_NSEC, ROUNDDOWN(TCSR_SPARE_RG63_WO_1,
 			 QDSP6SS_RET_CFG_NRET_ARES_ENA_BIT)
 
 /* Lucid-EVO PLL register offsets, relative to the PLL register block base */
-static const struct qcom_lucidevo_pll_offsets lucid_evo_pll_offsets = {
+static const struct qcom_pll_offsets lucid_evo_pll_offsets = {
 	.mode = 0x0,
 	.opmode = 0x4,
 	.l_val = 0x10,
@@ -41,7 +41,7 @@ static const struct qcom_lucidevo_pll_offsets lucid_evo_pll_offsets = {
 };
 
 /* The L value is replaced by the one from the NSP soft SKU */
-static const struct qcom_lucidevo_pll_config q6_pll_cfg = {
+static const struct qcom_pll_config q6_pll_cfg = {
 	.offsets = &lucid_evo_pll_offsets,
 	.l_val = 0x32,
 	.cal_l_val = 0x44,
@@ -54,7 +54,7 @@ static const struct qcom_lucidevo_pll_config q6_pll_cfg = {
 	/* alpha (default) fractional mode */
 };
 
-static const struct qcom_lucidevo_pll_config lpass_q6_pll_cfg = {
+static const struct qcom_pll_config lpass_q6_pll_cfg = {
 	.offsets = &lucid_evo_pll_offsets,
 	.l_val = 0x2c,
 	.cal_l_val = 0x44,
@@ -67,7 +67,7 @@ static const struct qcom_lucidevo_pll_config lpass_q6_pll_cfg = {
 	/* alpha (default) fractional mode */
 };
 
-static const struct qcom_lucidevo_pll_config gpdsp_q6_pll_cfg = {
+static const struct qcom_pll_config gpdsp_q6_pll_cfg = {
 	.offsets = &lucid_evo_pll_offsets,
 	.l_val = 0x3a,
 	.cal_l_val = 0x44,
@@ -130,7 +130,7 @@ static uint32_t cdsp_q6_pll_l_val(vaddr_t sku_reg)
 static TEE_Result cdsp_enable_processor(void)
 {
 	vaddr_t sku_reg = QCOM_IO_VA(TCSR_SPARE_RG63_WO_1, sizeof(uint32_t));
-	struct qcom_lucidevo_pll_config pll = q6_pll_cfg;
+	struct qcom_pll_config pll = q6_pll_cfg;
 
 	if (!sku_reg)
 		return TEE_ERROR_GENERIC;
