@@ -14,6 +14,9 @@ on:
       tag:
         required: true
         type: string
+      ci_image_tag:
+        required: true
+        type: string
 
 jobs:
   QEMU_checks_image_build:
@@ -34,7 +37,7 @@ jobs:
       - name: Create Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
-          FROM ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image
+          FROM ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image:${{ inputs.ci_image_tag }}
           ARG MANIFEST_OWNER
           RUN /root/get_optee.sh ${{ inputs.target }} /root/optee_repo_qemu "$MANIFEST_OWNER"
           EOF
