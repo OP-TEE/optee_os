@@ -8,6 +8,13 @@ on:
     # Nightly run of master, 01:17 UTC
     - cron: '17 1 * * *'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ci_image_tag:
+        description: 'CI image tag'
+        type: string
+        default: latest
+        required: true
 permissions:
   contents: read
 concurrency:
@@ -19,7 +26,7 @@ jobs:
     name: Code style
     if: github.event_name != 'schedule'
     runs-on: ubuntu-26.04
-    container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image
+    container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image:${{ inputs.ci_image_tag || 'latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -69,7 +76,7 @@ jobs:
   builds:
     name: Build (${{ matrix.name }})
     runs-on: ubuntu-26.04
-    container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image
+    container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image:${{ inputs.ci_image_tag || 'latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -420,6 +427,7 @@ jobs:
       builder: ubuntu-24.04
       target: default
       tag: qemuv7_image
+      ci_image_tag: ${{ inputs.ci_image_tag || 'latest' }}
   QEMUv7_checks:
     name: Run (QEMUv7) (${{ matrix.name }})
     needs: QEMUv7_checks_image_build
@@ -453,6 +461,7 @@ jobs:
       builder: ubuntu-24.04
       target: qemu_v8
       tag: qemuv8_image
+      ci_image_tag: ${{ inputs.ci_image_tag || 'latest' }}
   QEMUv8_checks:
     name: Run (QEMUv8) (${{ matrix.name }})
     needs: QEMUv8_checks_image_build
@@ -530,6 +539,7 @@ jobs:
       builder: ubuntu-24.04-arm
       target: qemu_v8
       tag: qemuv8_arm64_image
+      ci_image_tag: ${{ inputs.ci_image_tag || 'latest' }}
   QEMUv8_checks_arm64:
     name: Run (QEMUv8 on arm64) (${{ matrix.name }})
     needs: QEMUv8_arm64_image_build
