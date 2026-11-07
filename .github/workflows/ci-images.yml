@@ -27,10 +27,38 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+  qualify-image:
+    name: Qualify CI Images
+    runs-on: ubuntu-26.04
+    needs: gen-ci-build-image
+    permissions:
+      actions: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Perform Test Build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WORKFLOW=$(gh workflow run ci.yml -r ${{ github.ref_name }} -f ci_image_tag=testing | grep "^https://github.com/")
+          echo "Waiting for $WORKFLOW to complete..."
+          gh run watch --exit-status -i 60 ${WORKFLOW##*/} > /dev/null
+      - name: Registry Login
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550  # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag as latest
+        run: |
+          IMAGE_BASE="ghcr.io/${{ github.repository }}"
+          docker buildx imagetools create --tag "${IMAGE_BASE}/ci-build-image:latest" "${IMAGE_BASE}/ci-build-image:testing"
+
   cleanup-ghcr-containers:
     name: cleanup untagged containers
     runs-on: ubuntu-26.04
-    needs: gen-ci-build-image
+    needs: qualify-image
     permissions:
       packages: write
     steps:
