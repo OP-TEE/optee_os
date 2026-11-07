@@ -890,7 +890,8 @@ static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 	state->gpio_pinctrl.bank = bank->bank_id;
 	SLIST_INSERT_HEAD(&consumed_gpios_head, state, link);
 
-	register_pm_driver_cb(consumed_gpios_pm, state, "stm32-gpio-state");
+	register_pm_core_service_cb(consumed_gpios_pm, state,
+				    "stm32-gpio-state");
 
 	gpio->chip = &bank->gpio_chip;
 
@@ -1558,7 +1559,6 @@ static void stm32_gpio_set_conf_sec(struct stm32_gpio_bank *bank)
 
 static TEE_Result stm32_gpio_sec_config_resume(void)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
 	struct stm32_gpio_bank *bank = NULL;
 
 	STAILQ_FOREACH(bank, &bank_list, link) {
@@ -1569,13 +1569,9 @@ static TEE_Result stm32_gpio_sec_config_resume(void)
 			bank->rif_cfg->access_mask[0] = GENMASK_32(bank->ngpios,
 								   0);
 
-			res = apply_rif_config(bank,
-					       bank->rif_cfg->access_mask[0]);
-			if (res) {
-				EMSG("Failed to set GPIO bank %c RIF config",
-				     'A' + bank->bank_id);
-				return res;
-			}
+			if (apply_rif_config(bank,
+					     bank->rif_cfg->access_mask[0]))
+				panic();
 		} else {
 			stm32_gpio_set_conf_sec(bank);
 		}
@@ -1688,8 +1684,8 @@ static TEE_Result stm32_pinctrl_probe(const void *fdt, int node,
 		 * Register to PM once for all probed banks to restore
 		 * their secure configuration.
 		 */
-		register_pm_driver_cb(stm32_gpio_sec_config_pm, NULL,
-				      "stm32-gpio-secure-config");
+		register_pm_core_service_cb(stm32_gpio_sec_config_pm, NULL,
+					    "stm32-gpio-secure-config");
 		pm_register = true;
 	}
 
@@ -1735,6 +1731,21 @@ static const struct dt_device_match stm32_pinctrl_match_table[] = {
 	},
 	{
 		.compatible = "st,stm32mp257-z-pinctrl",
+		.compat_data = &(struct bank_compat){
+			.gpioz = true,
+			.secure_control = true,
+			.secure_extended = true,
+		},
+	},
+	{
+		.compatible = "st,stm32mp215-pinctrl",
+		.compat_data = &(struct bank_compat){
+			.secure_control = true,
+			.secure_extended = true,
+		},
+	},
+	{
+		.compatible = "st,stm32mp215-z-pinctrl",
 		.compat_data = &(struct bank_compat){
 			.gpioz = true,
 			.secure_control = true,
