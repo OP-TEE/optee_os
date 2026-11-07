@@ -125,6 +125,22 @@ FUNC thread_smccc , :
 	ret
 END_FUNC thread_smccc
 
+/* void thread_smccc_1_2(struct thread_smc_1_2_regs *arg_res) */
+FUNC thread_smccc_1_2 , :
+	/* Keep arg pointer in x19; SMC uses x0-x17 (SMCCC 1.2). */
+	stp	x19, xzr, [sp, #-16]!
+	mov	x19, x0
+	load_xregs x19, 0, 0, 17
+#ifdef CFG_CORE_SEL2_SPMC
+	hvc	#0
+#else
+	smc	#0
+#endif
+	store_xregs x19, 0, 0, 17
+	ldp	x19, xzr, [sp], #16
+	ret
+END_FUNC thread_smccc_1_2
+
 FUNC thread_init_vbar , :
 	msr	vbar_el1, x0
 	ret

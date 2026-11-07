@@ -8,6 +8,9 @@
 
 #include <mm/generic_ram_layout.h>
 
+#define CACHELINE_LEN		64
+#define STACK_ALIGNMENT		CACHELINE_LEN
+
 /* UART settings */
 #define CONSOLE_UART_BASE  0x10C02000
 #define CONSOLE_BAUDRATE       115200
