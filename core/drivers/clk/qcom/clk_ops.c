@@ -624,19 +624,24 @@ static void branch_disable(struct clk *clk)
 	struct branch_priv *priv = clk->priv;
 	int ret = 0;
 
-	if (priv->vote)
+	/*
+	 * A vote-gated branch stays on while another voter (the normal world,
+	 * another subsystem) holds it, so there is nothing to wait for: only
+	 * the vote is ours.
+	 */
+	if (priv->vote) {
 		io_clrbits32(priv->vote, BIT(priv->desc->vote_bit));
-	else
-		io_clrbits32(priv->cbcr, CBCR_BRANCH_ENABLE_BIT);
+		return;
+	}
+
+	io_clrbits32(priv->cbcr, CBCR_BRANCH_ENABLE_BIT);
 
 	if (io_read32(priv->cbcr) & CBCR_HW_CTL_ENABLE_BIT)
 		return;
 
 	/*
 	 * clk_ops.disable() has no return value, so a timeout here can't be
-	 * reported -- and for a vote-gated branch, the CBCR may legitimately
-	 * stay on if another voter still holds it, so we don't treat this as
-	 * an error.
+	 * reported.
 	 */
 	REG_POLL_TIMEOUT(priv->cbcr, 10 * 1000, 10, &ret, cbcr_branch_isoff);
 }
