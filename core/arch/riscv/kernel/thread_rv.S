@@ -668,6 +668,10 @@ FUNC thread_unwind_user_mode , :
 	load_xregs sp, THREAD_USER_MODE_REC_S0, REG_S0, REG_S1
 	load_xregs sp, THREAD_USER_MODE_REC_S2, REG_S2, REG_S11
 	add	sp, sp, THREAD_USER_MODE_REC_SIZE
+#ifdef RV64
+	/* ret may come zero-extended from user space or abort handling */
+	sext.w	a0, a0
+#endif
 	/* Return from the call of thread_enter_user_mode() */
 	ret
 END_FUNC thread_unwind_user_mode
