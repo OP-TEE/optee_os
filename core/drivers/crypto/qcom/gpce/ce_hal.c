@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2026, Qualcomm Technologies, Inc.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * Implementation of Crypto Engine hash context helpers.
  */
@@ -13,14 +13,14 @@
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
 
-struct ce_ctx *CE_HAL_new(void)
+struct qce_ce_ctx *ce_hal_new(void)
 {
-	struct ce_ctx *ctx = calloc(1, sizeof(*ctx));
+	struct qce_ce_ctx *ctx = calloc(1, sizeof(*ctx));
 
 	return ctx;
 }
 
-TEE_Result CE_HAL_free(struct ce_ctx *me)
+TEE_Result ce_hal_free(struct qce_ce_ctx *me)
 {
 	if (!me)
 		return TEE_ERROR_BAD_STATE;
@@ -30,17 +30,7 @@ TEE_Result CE_HAL_free(struct ce_ctx *me)
 	return TEE_SUCCESS;
 }
 
-TEE_Result CE_HAL_reset(struct ce_ctx *me)
-{
-	if (!me)
-		return TEE_ERROR_BAD_STATE;
-	memzero_explicit(me->auth_iv, sizeof(me->auth_iv));
-	memzero_explicit(me->auth_byte_cnt, sizeof(me->auth_byte_cnt));
-
-	return TEE_SUCCESS;
-}
-
-TEE_Result CE_HAL_init(struct ce_ctx *me, bool little_endian)
+TEE_Result ce_hal_init(struct qce_ce_ctx *me, bool little_endian)
 {
 	if (!me)
 		return TEE_ERROR_BAD_STATE;
@@ -52,7 +42,7 @@ TEE_Result CE_HAL_init(struct ce_ctx *me, bool little_endian)
 	return TEE_SUCCESS;
 }
 
-TEE_Result CE_HAL_set_auth_iv(struct ce_ctx *me, uint8_t idx, uint32_t iv)
+TEE_Result ce_hal_set_auth_iv(struct qce_ce_ctx *me, uint8_t idx, uint32_t iv)
 {
 	if (!me)
 		return TEE_ERROR_BAD_STATE;
@@ -63,7 +53,7 @@ TEE_Result CE_HAL_set_auth_iv(struct ce_ctx *me, uint8_t idx, uint32_t iv)
 	return TEE_SUCCESS;
 }
 
-TEE_Result CE_HAL_get_auth_iv(struct ce_ctx *me, uint8_t *buf, size_t sz)
+TEE_Result ce_hal_get_auth_iv(struct qce_ce_ctx *me, uint8_t *buf, size_t sz)
 {
 	if (!me)
 		return TEE_ERROR_BAD_STATE;
@@ -74,7 +64,7 @@ TEE_Result CE_HAL_get_auth_iv(struct ce_ctx *me, uint8_t *buf, size_t sz)
 	return TEE_SUCCESS;
 }
 
-TEE_Result CE_HAL_copy(struct ce_ctx *dest, struct ce_ctx *src)
+TEE_Result ce_hal_copy(struct qce_ce_ctx *dest, struct qce_ce_ctx *src)
 {
 	if (!src)
 		return TEE_ERROR_BAD_STATE;

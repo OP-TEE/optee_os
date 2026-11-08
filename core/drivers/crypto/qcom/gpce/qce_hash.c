@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2026, Qualcomm Technologies, Inc.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * Implementation of the Qualcomm Crypto Engine hash driver.
  */
@@ -23,11 +23,10 @@
 struct qce_hash_ctx {
 	struct crypto_hash_ctx hash_ctx;
 	struct qce_hash_state *state;
-	uint32_t tee_alg;
 };
 
 static const struct crypto_hash_ops qce_hash_ops;
-static struct qce_dev_s qce_dev = {
+static struct qce_dev qce_dev = {
 	.mutex = MUTEX_INITIALIZER,
 };
 
@@ -45,7 +44,7 @@ static void qce_hash_free_ctx(struct crypto_hash_ctx *ctx)
 	qce_ctx = container_of(ctx, struct qce_hash_ctx, hash_ctx);
 	state = qce_ctx->state;
 	if (state && state->ctx)
-		(void)SHA_CMN_CE_cleanup(state);
+		(void)sha_cmn_ce_cleanup(state);
 	if (state) {
 		memzero_explicit(state, sizeof(*state));
 		free(state);
@@ -63,7 +62,7 @@ static TEE_Result qce_hash_init(struct crypto_hash_ctx *ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	qce_ctx = container_of(ctx, struct qce_hash_ctx, hash_ctx);
-	return SHA_CMN_CE_init(qce_ctx->state);
+	return sha_cmn_ce_init(qce_ctx->state);
 }
 
 static TEE_Result qce_hash_update(struct crypto_hash_ctx *ctx,
@@ -76,7 +75,7 @@ static TEE_Result qce_hash_update(struct crypto_hash_ctx *ctx,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	qce_ctx = container_of(ctx, struct qce_hash_ctx, hash_ctx);
-	return SHA_CMN_CE_update(qce_ctx->state, data, len);
+	return sha_cmn_ce_update(qce_ctx->state, data, len);
 }
 
 static TEE_Result qce_hash_final(struct crypto_hash_ctx *ctx,
@@ -87,11 +86,11 @@ static TEE_Result qce_hash_final(struct crypto_hash_ctx *ctx,
 	if (!ctx || ctx->ops != &qce_hash_ops || !digest ||
 	    (uintptr_t)digest > UINTPTR_MAX - len)
 		return TEE_ERROR_BAD_PARAMETERS;
-	if (len < SHA1_DIGEST_SIZE)
+	if (len < TEE_SHA256_HASH_SIZE)
 		return TEE_ERROR_SHORT_BUFFER;
 
 	qce_ctx = container_of(ctx, struct qce_hash_ctx, hash_ctx);
-	return SHA_CMN_CE_final(qce_ctx->state, digest, SHA1_DIGEST_SIZE);
+	return sha_cmn_ce_final(qce_ctx->state, digest);
 }
 
 static void qce_hash_copy_state(struct crypto_hash_ctx *dst,
@@ -112,15 +111,13 @@ static void qce_hash_copy_state(struct crypto_hash_ctx *dst,
 	src_ctx = container_of(src, struct qce_hash_ctx, hash_ctx);
 	dst_state = dst_ctx->state;
 	src_state = src_ctx->state;
-	if (HASH_IS_CTX_NULL(dst_state) ||
-	    HASH_IS_CTX_NULL(src_state) ||
-	    dst_ctx->tee_alg != src_ctx->tee_alg)
+	if (HASH_IS_CTX_NULL(dst_state) || HASH_IS_CTX_NULL(src_state))
 		goto out;
 
 	if (dst_state->ctx &&
 	    (!src_state->ctx ||
 	     dst_state->ctx_sz != src_state->ctx_sz)) {
-		ret = SHA_CMN_CE_cleanup(dst_state);
+		ret = sha_cmn_ce_cleanup(dst_state);
 		if (ret != TEE_SUCCESS)
 			goto out;
 		dst_state->ctx = NULL;
@@ -137,7 +134,7 @@ static void qce_hash_copy_state(struct crypto_hash_ctx *dst,
 				goto out;
 			}
 		}
-		ret = SHA_CMN_CE_copy(dst_state, src_state);
+		ret = sha_cmn_ce_copy(dst_state, src_state);
 		if (ret != TEE_SUCCESS)
 			goto out;
 	}
@@ -165,14 +162,13 @@ static TEE_Result qce_hash_alloc_ctx(struct crypto_hash_ctx **ctx,
 		return TEE_ERROR_BAD_PARAMETERS;
 	*ctx = NULL;
 
-	if (algo != TEE_ALG_SHA1)
+	if (algo != TEE_ALG_SHA256)
 		return TEE_ERROR_NOT_IMPLEMENTED;
 
 	qce_ctx = calloc(1, sizeof(*qce_ctx));
 	if (!qce_ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	qce_ctx->tee_alg = algo;
 	state = calloc(1, sizeof(*state));
 	if (!state) {
 		free(qce_ctx);
