@@ -20,7 +20,8 @@ static inline void scall_get_max_args(struct thread_scall_regs *regs,
 static inline void scall_set_retval(struct thread_scall_regs *regs,
 				    uint32_t ret_val)
 {
-	regs->a0 = ret_val;
+	/* The RV64 psABI keeps 32-bit values sign-extended in registers */
+	regs->a0 = (long)(int32_t)ret_val;
 }
 
 static inline void scall_set_sys_return_regs(struct thread_scall_regs *regs,
