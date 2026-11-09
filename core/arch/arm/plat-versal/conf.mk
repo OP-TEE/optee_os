@@ -53,6 +53,7 @@ CFG_VERSAL_TRACE_PMC ?= n
 CFG_VERSAL_TRACE_PLM ?= n
 
 $(call force, CFG_VERSAL_MBOX,y)
+$(call force, CFG_DRIVERS_MAILBOX,y)
 $(call force, CFG_VERSAL_PMC,y)
 
 # PMC configuration
