@@ -12,12 +12,14 @@
 #include <string_ext.h>
 #include <trace.h>
 
-#include "provision_backend.h"
+#include "provision.h"
 #include "sec_elf_v2.h"
 
 #define SHK_SIZE_BYTES	(SECDAT_MAX_SHK_ROWS * 8)
 
 TEE_Result provision_shk(const struct provision_backend *be,
+			 const struct provision_policy *pol __unused,
+			 enum provision_category category __unused,
 			 const struct fuse_entry *entries, uint32_t count,
 			 bool *fuses_blown)
 {
@@ -125,6 +127,8 @@ out:
 }
 
 TEE_Result provision_oem_spare(const struct provision_backend *be,
+			       const struct provision_policy *pol __unused,
+			       enum provision_category category __unused,
 			       const struct fuse_entry *entries,
 			       uint32_t count, bool *fuses_blown)
 {

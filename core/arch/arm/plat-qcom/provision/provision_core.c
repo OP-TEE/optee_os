@@ -3,44 +3,22 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#include <crypto/crypto.h>
-#include <drivers/qcom/qfprom/qfprom.h>
 #include <inttypes.h>
 #include <kernel/panic.h>
-#include <qfprom_target.h>
 #include <string.h>
 #include <string_ext.h>
 #include <trace.h>
 #include <util.h>
 
-#include "provision_backend.h"
-#include "sec_elf_v2.h"
+#include "provision.h"
 
-static bool region_matches(enum fuseprov_region_type region,
-			   enum fuseprov_region_type entry_region)
-{
-	if (region != FUSEPROV_REGION_GENERAL)
-		return entry_region == region;
-
-	switch (entry_region) {
-	case FUSEPROV_REGION_SECBOOT:
-	case FUSEPROV_REGION_SHK:
-	case FUSEPROV_REGION_OEM_CONFIG:
-	case FUSEPROV_REGION_RW_PERM:
-	case FUSEPROV_REGION_FEC_EN:
-		return false;
-	default:
-		return entry_region < FUSEPROV_REGION_MAX;
-	}
-}
-
-static TEE_Result blow_fuse_region(const struct provision_backend *be,
-				   enum fuseprov_region_type region,
+TEE_Result provision_blow_category(const struct provision_backend *be,
+				   const struct provision_policy *pol,
+				   enum provision_category category,
 				   const struct fuse_entry *entries,
 				   uint32_t count, bool *fuses_blown)
 {
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t mask_fec_msb_bits = 0;
 	uint32_t current_data[2] = {0};
 	uint32_t fuse_data[2] = {0};
 	bool has_fec = false;
@@ -49,23 +27,18 @@ static TEE_Result blow_fuse_region(const struct provision_backend *be,
 	for (i = 0; i < count; i++) {
 		const struct fuse_entry *entry = &entries[i];
 
-		if (!region_matches(region, entry->region) ||
-		    entry->operation != FUSEPROV_OP_BLOW ||
+		if (pol->category(entry->region) != category ||
+		    entry->operation != PROVISION_OP_BLOW ||
 		    (entry->lsb_val == 0 && entry->msb_val == 0))
 			continue;
 
-		res = be->row_has_fec(entry->addr, &has_fec);
+		res = pol->row_has_fec(be, entry, &has_fec);
 		if (res != TEE_SUCCESS) {
 			EMSG("Failed to check FEC for addr 0x%08"PRIx32
 			     ": error=%#"PRIx32, entry->addr, res);
 			res = TEE_ERROR_GENERIC;
 			goto out;
 		}
-
-		if (has_fec)
-			mask_fec_msb_bits = 0x00FFFFFF;
-		else
-			mask_fec_msb_bits = 0xFFFFFFFF;
 
 		res = be->read_row(entry->addr, current_data);
 		if (res != TEE_SUCCESS) {
@@ -76,16 +49,13 @@ static TEE_Result blow_fuse_region(const struct provision_backend *be,
 		}
 
 		/* Check if fuse bits are already blown */
-		if (((current_data[0] & entry->lsb_val) == entry->lsb_val) &&
-		    ((current_data[1] & entry->msb_val) ==
-		     (entry->msb_val & mask_fec_msb_bits))) {
+		if (pol->row_programmed(current_data, entry, has_fec)) {
 			IMSG("Fuse at 0x%08"PRIx32 " already provisioned",
 			     entry->addr);
 			continue;
 		}
 
-		fuse_data[0] = entry->lsb_val;
-		fuse_data[1] = entry->msb_val;
+		pol->row_value(entry, has_fec, fuse_data);
 
 		res = be->write_row(entry->addr, fuse_data);
 		if (res != TEE_SUCCESS) {
@@ -105,106 +75,31 @@ out:
 	return res;
 }
 
-TEE_Result provision_execute(const uint8_t *data, size_t len,
-			     bool *fuses_blown)
+TEE_Result provision_run(const struct provision_backend *be,
+			 const struct provision_policy *pol,
+			 const struct fuse_entry *entries, uint32_t count,
+			 bool *fuses_blown)
 {
-	const struct provision_backend *be = &provision_backend_qfprom;
-	const struct qfuse_list_hdr *qfuse_hdr = NULL;
-	const struct segment_hdr *segments = NULL;
-	const struct fuse_entry *entries = NULL;
-	const struct secdat_hdr *hdr = NULL;
 	TEE_Result cleanup_res = TEE_SUCCESS;
-	bool secboot_write_disabled = false;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	const uint8_t *seg_data = NULL;
 	bool any_blown = false;
-	uint32_t seg_size = 0;
-	uint32_t count = 0;
-
-	if (fuses_blown)
-		*fuses_blown = false;
-
-	if (!data || len < sizeof(*hdr))
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	res = be->is_write_locked(&secboot_write_disabled);
-	if (res != TEE_SUCCESS)
-		return res;
-	if (secboot_write_disabled) {
-		IMSG("Fuse provisioning already locked");
-		return TEE_SUCCESS;
-	}
-
-	hdr = (const struct secdat_hdr *)data;
-	if (hdr->magic1 != SECDAT_MAGIC1 || hdr->magic2 != SECDAT_MAGIC2) {
-		DMSG("No fuse provisioning image present");
-		return TEE_SUCCESS;
-	}
-
-	res = sec_elf_parse(data, len, &hdr, &segments);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	res = sec_elf_validate_hash(data, len, hdr);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	res = sec_elf_find_segment(data, len,
-				   SECDAT_SEGMENT_TYPE_EFUSE,
-				   &seg_data, &seg_size);
-
-	if (res == TEE_ERROR_ITEM_NOT_FOUND)
-		return TEE_SUCCESS;
-	if (res)
-		return res;
-
-	qfuse_hdr = (const struct qfuse_list_hdr *)seg_data;
-	count = qfuse_hdr->fuse_count;
-	entries = (const struct fuse_entry *)
-		  (seg_data + sizeof(struct qfuse_list_hdr));
+	size_t n = 0;
 
 	res = be->begin();
 	if (res != TEE_SUCCESS) {
-		EMSG("Failed to initialize QFPROM hardware: 0x%"PRIx32, res);
+		EMSG("Failed to initialize the fuse backend: 0x%"PRIx32, res);
 		return res;
 	}
 
-	res = blow_fuse_region(be, FUSEPROV_REGION_GENERAL, entries, count,
+	for (n = 0; n < pol->num_passes; n++) {
+		const struct provision_pass *pass = &pol->passes[n];
+
+		res = pass->fn(be, pol, pass->category, entries, count,
 			       &any_blown);
-	if (res != TEE_SUCCESS)
-		goto out;
+		if (res != TEE_SUCCESS)
+			break;
+	}
 
-	res = provision_shk(be, entries, count, &any_blown);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = provision_oem_spare(be, entries, count, &any_blown);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = blow_fuse_region(be, FUSEPROV_REGION_OEM_CONFIG, entries, count,
-			       &any_blown);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = blow_fuse_region(be, FUSEPROV_REGION_SECBOOT, entries, count,
-			       &any_blown);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = blow_fuse_region(be, FUSEPROV_REGION_FEC_EN, entries, count,
-			       &any_blown);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = blow_fuse_region(be, FUSEPROV_REGION_RW_PERM, entries, count,
-			       &any_blown);
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	res = TEE_SUCCESS;
-
-out:
 	if (fuses_blown)
 		*fuses_blown = any_blown;
 	cleanup_res = be->end();

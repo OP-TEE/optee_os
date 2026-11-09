@@ -20,6 +20,7 @@
 #include <string_ext.h>
 #include <trace.h>
 
+#include "provision.h"
 #include "sec_elf_v2.h"
 
 register_phys_mem(MEM_AREA_RAM_NSEC, CFG_SEC_ELF_DDR_ADDR,

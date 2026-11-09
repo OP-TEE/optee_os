@@ -12,6 +12,8 @@
 #include <utee_defines.h>
 #include <util.h>
 
+#include "provision.h"
+
 #define SECDAT_MAGIC1			0x3B7251CA
 #define SECDAT_MAGIC2			0x2A126F29
 #define SECDAT_VERSION_2		0x00000002
@@ -66,14 +68,6 @@ struct segment_hdr {
 	uint16_t attribute;
 } __packed;
 
-struct fuse_entry {
-	uint32_t region;
-	uint32_t addr;
-	uint32_t lsb_val;
-	uint32_t msb_val;
-	uint32_t operation;
-} __packed;
-
 struct qfuse_list_hdr {
 	uint32_t revision;
 	uint32_t size;
@@ -99,13 +93,16 @@ TEE_Result sec_elf_find_segment(const uint8_t *data, size_t size,
 				const uint8_t **seg_data,
 				uint32_t *seg_size);
 
-struct provision_backend;
-
+/* Programming steps of the rev 2 data format */
 TEE_Result provision_oem_spare(const struct provision_backend *be,
+			       const struct provision_policy *pol,
+			       enum provision_category category,
 			       const struct fuse_entry *entries,
 			       uint32_t count, bool *fuses_blown);
 
 TEE_Result provision_shk(const struct provision_backend *be,
+			 const struct provision_policy *pol,
+			 enum provision_category category,
 			 const struct fuse_entry *entries, uint32_t count,
 			 bool *fuses_blown);
 
@@ -115,7 +112,5 @@ TEE_Result provision_shk(const struct provision_backend *be,
  */
 TEE_Result provision_execute(const uint8_t *data, size_t len,
 			     bool *fuses_blown);
-
-void provision_reset_device(void);
 
 #endif /* __SEC_ELF_V2_H__ */
