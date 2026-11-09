@@ -91,4 +91,58 @@ TEE_Result mbox_send_sync(const struct mbox_chan *handle, void *req);
  */
 TEE_Result mbox_recv_sync(const struct mbox_chan *handle, void *req);
 
+#ifdef CFG_DT
+/**
+ * @brief Request a mailbox channel from the "mboxes" device tree property.
+ *
+ * @fdt: Device tree to work on.
+ * @nodeoffset: Node offset of the consumer in @fdt.
+ * @index: Index of the channel in the "mboxes" property.
+ * @chan: Receives the channel handle on success.
+ *
+ * @retval: TEE_SUCCESS on success.
+ * @retval: TEE_ERROR_BAD_PARAMETERS If there was a bad parameter.
+ * @retval: TEE_ERROR_ITEM_NOT_FOUND If @index does not exist.
+ * @retval: TEE_ERROR_DEFER_DRIVER_INIT If the controller is not yet probed.
+ * @retval: TEE_ERROR_BUSY If the channel is already granted.
+ * @retval: Any other error returned by the controller.
+ */
+TEE_Result mbox_dt_request_channel_by_index(const void *fdt, int nodeoffset,
+					    unsigned int index,
+					    struct mbox_chan **chan);
+
+/**
+ * @brief Request a mailbox channel from its name in "mbox-names".
+ *
+ * @fdt: Device tree to work on.
+ * @nodeoffset: Node offset of the consumer in @fdt.
+ * @name: Name of the channel in the "mbox-names" property.
+ * @chan: Receives the channel handle on success.
+ *
+ * @retval: TEE_ERROR_ITEM_NOT_FOUND If @name is not in "mbox-names", else
+ *	    same return values as mbox_dt_request_channel_by_index().
+ */
+TEE_Result mbox_dt_request_channel_by_name(const void *fdt, int nodeoffset,
+					   const char *name,
+					   struct mbox_chan **chan);
+#else
+static inline TEE_Result
+mbox_dt_request_channel_by_index(const void *fdt __unused,
+				 int nodeoffset __unused,
+				 unsigned int index __unused,
+				 struct mbox_chan **chan __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result
+mbox_dt_request_channel_by_name(const void *fdt __unused,
+				int nodeoffset __unused,
+				const char *name __unused,
+				struct mbox_chan **chan __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif /* CFG_DT */
+
 #endif /* __DRIVERS_MAILBOX_H */

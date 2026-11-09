@@ -6,7 +6,9 @@
 #include <compiler.h>
 #include <drivers/mailbox.h>
 #include <drivers/mailbox_controller.h>
+#include <kernel/dt_driver.h>
 #include <kernel/spinlock.h>
+#include <libfdt.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <util.h>
@@ -178,3 +180,73 @@ TEE_Result mbox_recv_sync(const struct mbox_chan *handle, void *req)
 
 	return ops->recv_sync(handle, req);
 }
+
+#ifdef CFG_DT
+/* Translate a consumer "mboxes" specifier into a channel of the controller */
+static TEE_Result mbox_dt_get_channel(struct dt_pargs *pargs, void *data,
+				      void *device_ref)
+{
+	struct mbox_controller *controller = data;
+	struct mbox_chan **chan = device_ref;
+
+	return mbox_request_channel(controller, pargs->args,
+				    pargs->args_count, chan);
+}
+
+TEE_Result mbox_dt_register_controller(const void *fdt, int nodeoffset,
+				       const struct mbox_controller_desc *desc)
+{
+	struct mbox_controller *controller = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!fdt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = mbox_controller_register(&controller, desc);
+	if (res)
+		return res;
+
+	res = dt_driver_register_provider(fdt, nodeoffset,
+					  mbox_dt_get_channel, controller,
+					  DT_DRIVER_MAILBOX);
+	if (res)
+		free(controller);
+
+	return res;
+}
+
+TEE_Result mbox_dt_request_channel_by_index(const void *fdt, int nodeoffset,
+					    unsigned int index,
+					    struct mbox_chan **chan)
+{
+	struct mbox_chan *out_chan = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!fdt || !chan)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = dt_driver_device_from_node_idx_prop("mboxes", fdt, nodeoffset,
+						  index, DT_DRIVER_MAILBOX,
+						  &out_chan);
+	if (!res)
+		*chan = out_chan;
+
+	return res;
+}
+
+TEE_Result mbox_dt_request_channel_by_name(const void *fdt, int nodeoffset,
+					   const char *name,
+					   struct mbox_chan **chan)
+{
+	int index = 0;
+
+	if (!fdt || !name || !chan)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	index = fdt_stringlist_search(fdt, nodeoffset, "mbox-names", name);
+	if (index < 0)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	return mbox_dt_request_channel_by_index(fdt, nodeoffset, index, chan);
+}
+#endif /* CFG_DT */
