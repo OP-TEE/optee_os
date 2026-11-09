@@ -103,7 +103,7 @@ static TEE_Result write_hash(uint32_t *hash, size_t size)
 	if (memcmp(tmp, hash, sizeof(tmp))) {
 		EMSG("Failed to burn hash. OTP is %s",
 		     otp_to_string(tmp, str, sizeof(str)));
-		return res;
+		return TEE_ERROR_GENERIC;
 	}
 
 	return res;
