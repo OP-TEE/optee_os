@@ -1,5 +1,5 @@
 
-srcs-y += ti_sci.c ti_crypto.c
+srcs-y += ti_sci.c ti_sci_mbox.c ti_crypto.c
 ifeq ($(PLATFORM_FLAVOR),am62lx)
 srcs-y += mailbox.c
 else

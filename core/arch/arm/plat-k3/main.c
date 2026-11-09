@@ -64,10 +64,6 @@ static TEE_Result init_ti_sci(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
 
-	ret = ti_sci_transport_init();
-	if (ret != TEE_SUCCESS)
-		return ret;
-
 	ret = ti_sci_init();
 	if (ret)
 		return TEE_ERROR_GENERIC;
