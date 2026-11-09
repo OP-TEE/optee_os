@@ -4,6 +4,7 @@
 #
 
 srcs-y += qfprom_core.c
+srcs-y += qfprom_fec.c
 srcs-y += qfprom_hal.c
 srcs-y += qfprom_target.c
 srcs-$(CFG_QCOM_QFPROM_RPMH_CLIENT) += qfprom_rpmh.c
