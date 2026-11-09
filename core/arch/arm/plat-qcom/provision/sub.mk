@@ -9,3 +9,5 @@ srcs-y += provision_core.c
 srcs-y += provision_v2.c
 srcs-y += provision_regions.c
 srcs-y += provision_boot.c
+srcs-$(CFG_QCOM_PROVISION_SEC_ELF_V3) += sec_elf_v3.c
+srcs-$(CFG_QCOM_PROVISION_SEC_ELF_V3) += provision_v3.c

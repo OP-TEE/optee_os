@@ -39,6 +39,10 @@ enum provision_category {
 	PROV_CAT_OEM_CONFIG,
 	PROV_CAT_FEC_EN,
 	PROV_CAT_RW_PERM,
+	PROV_CAT_READ_PERM,
+	PROV_CAT_WRITE_PERM,
+	PROV_CAT_OEM_SPARE,
+	PROV_CAT_PRODUCT_SEED,
 };
 
 struct provision_policy;
@@ -88,6 +92,14 @@ TEE_Result provision_run(const struct provision_backend *be,
 			 const struct provision_policy *pol,
 			 const struct fuse_entry *entries, uint32_t count,
 			 bool *fuses_blown);
+
+/*
+ * Program the fuses described by the rev 3 image in @data, @fuses_blown as for
+ * provision_run(). An absent image is not an error.
+ */
+TEE_Result provision_execute_v3(const struct provision_backend *be,
+				const uint8_t *data, size_t len,
+				bool *fuses_blown);
 
 void provision_reset_device(void);
 

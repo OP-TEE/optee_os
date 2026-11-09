@@ -63,3 +63,7 @@ ifeq ($(CFG_QCOM_TME_INTF),y)
 $(call force,CFG_QCBOR,y)
 $(call force,CFG_QCOM_TFA_COMM,y)
 endif
+
+# Format of the fuse provisioning data: n for the segmented rev 2 format, y
+# for the flat rev 3 format (see CFG_QCOM_QFPROM_FUSEPROV).
+CFG_QCOM_PROVISION_SEC_ELF_V3 ?= n
