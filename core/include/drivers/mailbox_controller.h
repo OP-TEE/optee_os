@@ -128,5 +128,33 @@ TEE_Result mbox_controller_register(struct mbox_controller **controller,
  * @retval: The @priv pointer of the descriptor given at registration.
  */
 void *mbox_controller_get_priv(const struct mbox_controller *controller);
+#ifdef CFG_DT
+/**
+ * @brief Register a mailbox controller as a device tree provider.
+ *
+ * Create the controller as mbox_controller_register() does and make it
+ * available to consumers through the "mboxes" property, using
+ * mbox_dt_request_channel_by_index() or mbox_dt_request_channel_by_name().
+ * The specifier cells of the "mboxes" property are given to the controller
+ * request_channel operation. A driver handling several device tree nodes
+ * calls this function once per node, with a descriptor per node.
+ *
+ * @fdt: Device tree to work on.
+ * @nodeoffset: Node offset of the controller in @fdt.
+ * @desc: Pointer to mailbox controller descriptor, see
+ *	  mbox_controller_register().
+ *
+ * @retval: Return TEE_SUCCESS on success or error return code.
+ */
+TEE_Result mbox_dt_register_controller(const void *fdt, int nodeoffset,
+				       const struct mbox_controller_desc *desc);
+#else
+static inline TEE_Result
+mbox_dt_register_controller(const void *fdt __unused, int nodeoffset __unused,
+			    const struct mbox_controller_desc *desc __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif /* CFG_DT */
 
 #endif /* __DRIVERS_MAILBOX_CONTROLLER_H */
