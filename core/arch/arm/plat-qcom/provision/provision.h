@@ -101,6 +101,9 @@ TEE_Result provision_execute_v3(const struct provision_backend *be,
 				const uint8_t *data, size_t len,
 				bool *fuses_blown);
 
+/* Commit the recorded image versions to the anti-rollback fuses */
+TEE_Result provision_commit_rollback(void);
+
 void provision_reset_device(void);
 
 #endif /* __PROVISION_H__ */

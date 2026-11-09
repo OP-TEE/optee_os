@@ -84,6 +84,12 @@ static TEE_Result execute_provisioning(void)
 	if (IS_ENABLED(CFG_QCOM_PROVISION_BACKEND_TME))
 		memzero_explicit(source, CFG_SEC_ELF_DDR_SIZE);
 
+	if (IS_ENABLED(CFG_QCOM_TME_ARB)) {
+		res = provision_commit_rollback();
+		if (res != TEE_SUCCESS)
+			goto out;
+	}
+
 	res = PROVISION_EXECUTE(&PROVISION_BACKEND, snapshot,
 				CFG_SEC_ELF_DDR_SIZE, &fuses_blown);
 

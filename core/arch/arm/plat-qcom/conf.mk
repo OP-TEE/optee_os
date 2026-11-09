@@ -88,6 +88,15 @@ $(call force,CFG_QCBOR,y)
 $(call force,CFG_QCOM_TFA_COMM,y)
 endif
 
+# Commit the anti-rollback state through the security processor before the
+# fuses are programmed. This is irreversible, and the security processor
+# expects it once the boot is declared good, so it stays off until that
+# timing is confirmed for the target.
+CFG_QCOM_TME_ARB ?= n
+ifeq ($(CFG_QCOM_TME_ARB)-$(CFG_QCOM_PROVISION_BACKEND_TME),y-n)
+$(error CFG_QCOM_TME_ARB=y needs CFG_QCOM_PROVISION_BACKEND=tme)
+endif
+
 # The flat rev 3 format carries no hash or signature. It must only be enabled
 # when the memory holding it is secure and was authenticated before OP-TEE
 # starts.
