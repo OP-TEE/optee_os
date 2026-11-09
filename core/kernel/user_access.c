@@ -141,6 +141,23 @@ void *bb_alloc(size_t len)
 	return bb;
 }
 
+void *bb_alloc_capped(size_t *len)
+{
+	struct user_mode_ctx *uctx = get_current_uctx();
+	size_t avail = 0;
+
+	if (!uctx)
+		return NULL;
+
+	if (uctx->bbuf_offs < uctx->bbuf_size)
+		avail = uctx->bbuf_size - uctx->bbuf_offs;
+	if (*len && !avail)
+		return NULL;
+
+	*len = MIN(*len, avail);
+	return bb_alloc(*len);
+}
+
 static void bb_free_helper(struct user_mode_ctx *uctx, vaddr_t bb, size_t len)
 {
 	vaddr_t bbuf = (vaddr_t)uctx->bbuf;
