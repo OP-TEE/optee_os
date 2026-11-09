@@ -35,17 +35,16 @@
  */
 #define CFG_SEC_ELF_DDR_ADDR		UL(0x87452000)
 #define CFG_SEC_ELF_DDR_SIZE		UL(0x1000)
-#define PROVISION_WINDOW_MEM_AREA	MEM_AREA_RAM_SEC
+#define PROVISION_WINDOW_MEM_AREA	MEM_AREA_RAM_NSEC /* TEMP debug, restore RAM_SEC */
+
+/* Register reporting the download mode */
+#define TCSR_BOOT_MISC_DETECT		UL(0x1FD9000)
 
 /*
  * Still to be provided for this target, their values are not known:
- * - TCSR_BOOT_MISC_DETECT, the register reporting the download mode
  * - PROVISION_WRITE_PERM_ADDR and PROVISION_WRITE_PERM_MASK, to refuse
  *   programming once the write permission fuses are set (optional)
  */
-#ifndef TCSR_BOOT_MISC_DETECT
-#error "TCSR_BOOT_MISC_DETECT is not defined for this target"
-#endif
 #endif /* CFG_QCOM_QFPROM_FUSEPROV */
 
 #endif /* TARGET_CONFIG_H */
