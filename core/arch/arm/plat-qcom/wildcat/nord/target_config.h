@@ -26,4 +26,26 @@
 #define DRAM2_BASE			ULL(0x8800000000)
 #define DRAM2_SIZE			ULL(0x3800000000)
 
+#ifdef CFG_QCOM_QFPROM_FUSEPROV
+/*
+ * Window holding the fuse provisioning data. The address and size have not
+ * been confirmed for this target, check them against the producer of the
+ * data before enabling the feature. The window must be secure memory that is
+ * authenticated before this image runs.
+ */
+#define CFG_SEC_ELF_DDR_ADDR		UL(0x87452000)
+#define CFG_SEC_ELF_DDR_SIZE		UL(0x1000)
+#define PROVISION_WINDOW_MEM_AREA	MEM_AREA_RAM_SEC
+
+/*
+ * Still to be provided for this target, their values are not known:
+ * - TCSR_BOOT_MISC_DETECT, the register reporting the download mode
+ * - PROVISION_WRITE_PERM_ADDR and PROVISION_WRITE_PERM_MASK, to refuse
+ *   programming once the write permission fuses are set (optional)
+ */
+#ifndef TCSR_BOOT_MISC_DETECT
+#error "TCSR_BOOT_MISC_DETECT is not defined for this target"
+#endif
+#endif /* CFG_QCOM_QFPROM_FUSEPROV */
+
 #endif /* TARGET_CONFIG_H */

@@ -16,3 +16,13 @@ CFG_QCOM_RPMH_CLIENT ?= y
 ifeq ($(CFG_QCOM_RPMH_CLIENT),y)
 $(call force,CFG_QCOM_CMD_DB,y)
 endif
+
+# Fuse provisioning: off by default. When enabled it uses the security
+# processor and the flat data format. It also needs CFG_CORE_EL3_SPMC=y and
+# CFG_QCOM_PROVISION_BUFFER_AUTHENTICATED=y once the data window is confirmed
+# to be secure and authenticated, see target_config.h.
+CFG_QCOM_QFPROM_FUSEPROV ?= n
+ifeq ($(CFG_QCOM_QFPROM_FUSEPROV),y)
+CFG_QCOM_PROVISION_BACKEND ?= tme
+CFG_QCOM_PROVISION_SEC_ELF_V3 ?= y
+endif
