@@ -13,5 +13,9 @@ subdirs-$(CFG_QCOM_RPMH_CLIENT) += rpmh
 subdirs-$(CFG_QCOM_TFA_COMM) += tfa_comm
 subdirs-$(CFG_QCOM_TME_INTF) += tme
 subdirs-$(CFG_QCOM_QFPROM) += qfprom
+# The FEC calculation alone, for targets without the memory mapped driver
+ifneq ($(CFG_QCOM_QFPROM),y)
+srcs-$(CFG_QCOM_QFPROM_FEC_LIB) += qfprom/qfprom_fec.c
+endif
 subdirs-$(CFG_QCOM_XPUV4) += xpu
 subdirs-$(CFG_QCOM_TLMM) += tlmm

@@ -34,5 +34,6 @@ struct provision_backend {
 };
 
 extern const struct provision_backend provision_backend_qfprom;
+extern const struct provision_backend provision_backend_tme;
 
 #endif /* __PROVISION_BACKEND_H__ */

@@ -21,9 +21,28 @@
 #include <trace.h>
 
 #include "provision.h"
+#include "provision_backend.h"
+#ifdef CFG_QCOM_PROVISION_SEC_ELF_V3
+#include "sec_elf_v3.h"
+#else
 #include "sec_elf_v2.h"
+#endif
 
-register_phys_mem(MEM_AREA_RAM_NSEC, CFG_SEC_ELF_DDR_ADDR,
+/* Memory type of the window holding the data, a platform may override it */
+#ifndef PROVISION_WINDOW_MEM_AREA
+#define PROVISION_WINDOW_MEM_AREA	MEM_AREA_RAM_NSEC
+#endif
+
+#ifdef CFG_QCOM_PROVISION_SEC_ELF_V3
+#define PROVISION_BACKEND	provision_backend_tme
+#define PROVISION_EXECUTE	provision_execute_v3
+#else
+#define PROVISION_BACKEND	provision_backend_qfprom
+#define PROVISION_EXECUTE(be, data, len, blown) \
+	provision_execute(data, len, blown)
+#endif
+
+register_phys_mem(PROVISION_WINDOW_MEM_AREA, CFG_SEC_ELF_DDR_ADDR,
 		  CFG_SEC_ELF_DDR_SIZE);
 
 static TEE_Result execute_provisioning(void)
@@ -34,7 +53,9 @@ static TEE_Result execute_provisioning(void)
 	bool dload_mode = false;
 	bool fuses_blown = false;
 
+#ifndef CFG_QCOM_PROVISION_SEC_ELF_V3
 	COMPILE_TIME_ASSERT(sizeof(struct secdat_hdr) <= CFG_SEC_ELF_DDR_SIZE);
+#endif
 
 	if (qcom_is_dload_mode(&dload_mode) != TEE_SUCCESS)
 		panic("Failed to determine boot mode");
@@ -43,7 +64,7 @@ static TEE_Result execute_provisioning(void)
 		return TEE_SUCCESS;
 	}
 
-	source = phys_to_virt(CFG_SEC_ELF_DDR_ADDR, MEM_AREA_RAM_NSEC,
+	source = phys_to_virt(CFG_SEC_ELF_DDR_ADDR, PROVISION_WINDOW_MEM_AREA,
 			      CFG_SEC_ELF_DDR_SIZE);
 	if (!source)
 		panic("Failed to map fuse provisioning input");
@@ -56,7 +77,15 @@ static TEE_Result execute_provisioning(void)
 	}
 	memcpy(snapshot, source, CFG_SEC_ELF_DDR_SIZE);
 
-	res = provision_execute(snapshot, CFG_SEC_ELF_DDR_SIZE, &fuses_blown);
+	/*
+	 * The security processor calls below may never return, so the window
+	 * must not stay readable until the end of the run.
+	 */
+	if (IS_ENABLED(CFG_QCOM_PROVISION_BACKEND_TME))
+		memzero_explicit(source, CFG_SEC_ELF_DDR_SIZE);
+
+	res = PROVISION_EXECUTE(&PROVISION_BACKEND, snapshot,
+				CFG_SEC_ELF_DDR_SIZE, &fuses_blown);
 
 out:
 	free_wipe(snapshot);
@@ -75,4 +104,12 @@ out:
 	return TEE_SUCCESS;
 }
 
+/*
+ * The security processor is reached through the FF-A communication service,
+ * which is up only after the service group has run.
+ */
+#ifdef CFG_QCOM_PROVISION_BACKEND_TME
+nex_driver_init_late(execute_provisioning);
+#else
 service_init(execute_provisioning);
+#endif
