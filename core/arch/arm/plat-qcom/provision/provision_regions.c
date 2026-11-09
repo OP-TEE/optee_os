@@ -12,32 +12,32 @@
 #include <string_ext.h>
 #include <trace.h>
 
+#include "provision_backend.h"
 #include "sec_elf_v2.h"
 
 #define SHK_SIZE_BYTES	(SECDAT_MAX_SHK_ROWS * 8)
 
-TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
+TEE_Result provision_shk(const struct provision_backend *be,
+			 const struct fuse_entry *entries, uint32_t count,
 			 bool *fuses_blown)
 {
-	enum qfprom_error err = QFPROM_NO_ERR;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result err = TEE_SUCCESS;
 	uint8_t shk[SHK_SIZE_BYTES] = {0};
 	bool write_disabled = false;
 	bool read_disabled = false;
 	uint32_t shk_row_idx = 0;
 	uint32_t data[2] = {0};
-	uint8_t has_fec = 0;
+	bool has_fec = false;
 	uint32_t i = 0;
 
-	err = qfprom_read_row(WRITE_PERMISSION_ADDR, QFPROM_ADDR_SPACE_CORR,
-			      data);
-	if (err != QFPROM_NO_ERR)
+	err = be->read_row(WRITE_PERMISSION_ADDR, data);
+	if (err != TEE_SUCCESS)
 		goto out;
 
 	write_disabled = data[0] & SEC_KEY_DERIVATION_KEY_PERM_MASK;
-	err = qfprom_read_row(READ_PERMISSION_ADDR, QFPROM_ADDR_SPACE_CORR,
-			      data);
-	if (err != QFPROM_NO_ERR)
+	err = be->read_row(READ_PERMISSION_ADDR, data);
+	if (err != TEE_SUCCESS)
 		goto out;
 
 	read_disabled = data[0] & SEC_KEY_DERIVATION_KEY_PERM_MASK;
@@ -57,9 +57,8 @@ TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
 		    entries[i].operation != FUSEPROV_OP_BLOW)
 			continue;
 
-		err = qfprom_read_row(entries[i].addr, QFPROM_ADDR_SPACE_CORR,
-				      data);
-		if (err != QFPROM_NO_ERR)
+		err = be->read_row(entries[i].addr, data);
+		if (err != TEE_SUCCESS)
 			goto out;
 
 		if (data[0] != 0 || data[1] != 0) {
@@ -88,9 +87,8 @@ TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
 			goto out;
 		}
 
-		err = qfprom_row_has_fec_bits(entries[i].addr,
-					      QFPROM_ADDR_SPACE_RAW, &has_fec);
-		if (err != QFPROM_NO_ERR) {
+		err = be->row_has_fec(entries[i].addr, &has_fec);
+		if (err != TEE_SUCCESS) {
 			res = TEE_ERROR_GENERIC;
 			goto out;
 		}
@@ -105,8 +103,8 @@ TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
 		if (has_fec)
 			data[1] = qfprom_fec_63_56_bit(data[0], data[1]);
 
-		err = qfprom_write_row(entries[i].addr, data);
-		if (err != QFPROM_NO_ERR) {
+		err = be->write_row(entries[i].addr, data);
+		if (err != TEE_SUCCESS) {
 			res = TEE_ERROR_GENERIC;
 			goto out;
 		}
@@ -126,14 +124,15 @@ out:
 	return res;
 }
 
-TEE_Result provision_oem_spare(const struct fuse_entry *entries,
+TEE_Result provision_oem_spare(const struct provision_backend *be,
+			       const struct fuse_entry *entries,
 			       uint32_t count, bool *fuses_blown)
 {
-	enum qfprom_error err = QFPROM_NO_ERR;
 	TEE_Result res = TEE_SUCCESS;
+	TEE_Result err = TEE_SUCCESS;
 	uint32_t data[2] = {0};
 	uint8_t rnd[8] = {0};
-	uint8_t has_fec = 0;
+	bool has_fec = false;
 	uint32_t i = 0;
 
 	for (i = 0; i < count; i++) {
@@ -144,11 +143,10 @@ TEE_Result provision_oem_spare(const struct fuse_entry *entries,
 		     entry->operation != FUSEPROV_OP_BLOW_RANDOM))
 			continue;
 
-		err = qfprom_read_row(entry->addr, QFPROM_ADDR_SPACE_CORR,
-				      data);
-		if (err != QFPROM_NO_ERR) {
+		err = be->read_row(entry->addr, data);
+		if (err != TEE_SUCCESS) {
 			EMSG("Failed to read OEM spare fuse at 0x%08"PRIx32
-			     ": err=%d", entry->addr, err);
+			     ": err=%#"PRIx32, entry->addr, err);
 			res = TEE_ERROR_GENERIC;
 			goto out;
 		}
@@ -167,14 +165,12 @@ TEE_Result provision_oem_spare(const struct fuse_entry *entries,
 		     entry->operation != FUSEPROV_OP_BLOW_RANDOM))
 			continue;
 
-		has_fec = 0;
+		has_fec = false;
 
-		err = qfprom_row_has_fec_bits(entry->addr,
-					      QFPROM_ADDR_SPACE_RAW,
-					      &has_fec);
-		if (err != QFPROM_NO_ERR) {
+		err = be->row_has_fec(entry->addr, &has_fec);
+		if (err != TEE_SUCCESS) {
 			EMSG("Failed to check FEC for addr 0x%08"PRIx32
-			     ": error=%d", entry->addr, err);
+			     ": error=%#"PRIx32, entry->addr, err);
 			res = TEE_ERROR_GENERIC;
 			goto out;
 		}
@@ -197,10 +193,10 @@ TEE_Result provision_oem_spare(const struct fuse_entry *entries,
 		if (has_fec)
 			data[1] = qfprom_fec_63_56_bit(data[0], data[1]);
 
-		err = qfprom_write_row(entry->addr, data);
-		if (err != QFPROM_NO_ERR) {
+		err = be->write_row(entry->addr, data);
+		if (err != TEE_SUCCESS) {
 			EMSG("Failed to write OEM spare fuse at 0x%08"PRIx32
-			     ": err=%d", entry->addr, err);
+			     ": err=%#"PRIx32, entry->addr, err);
 			res = TEE_ERROR_GENERIC;
 			goto out;
 		}

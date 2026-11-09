@@ -99,10 +99,14 @@ TEE_Result sec_elf_find_segment(const uint8_t *data, size_t size,
 				const uint8_t **seg_data,
 				uint32_t *seg_size);
 
-TEE_Result provision_oem_spare(const struct fuse_entry *entries,
+struct provision_backend;
+
+TEE_Result provision_oem_spare(const struct provision_backend *be,
+			       const struct fuse_entry *entries,
 			       uint32_t count, bool *fuses_blown);
 
-TEE_Result provision_shk(const struct fuse_entry *entries, uint32_t count,
+TEE_Result provision_shk(const struct provision_backend *be,
+			 const struct fuse_entry *entries, uint32_t count,
 			 bool *fuses_blown);
 
 /*
