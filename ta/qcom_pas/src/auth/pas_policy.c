@@ -8,19 +8,40 @@
 #include <tee_api_types.h>
 #include <util.h>
 
-TEE_Result pas_policy_expected_swid(uint32_t pas_id, uint32_t *swid)
+static const struct pas_policy_entry *find_entry(uint32_t pas_id)
 {
 	size_t i = 0;
 
+	for (i = 0; i < ARRAY_SIZE(pas_policy_map); i++)
+		if (pas_policy_map[i].pas_id == pas_id)
+			return &pas_policy_map[i];
+
+	return NULL;
+}
+
+TEE_Result pas_policy_expected_swid(uint32_t pas_id, uint32_t *swid)
+{
+	const struct pas_policy_entry *e = find_entry(pas_id);
+
 	if (!swid)
 		return TEE_ERROR_BAD_PARAMETERS;
+	if (!e)
+		return TEE_ERROR_NOT_SUPPORTED;
 
-	for (i = 0; i < ARRAY_SIZE(pas_swid_map); i++) {
-		if (pas_swid_map[i].pas_id == pas_id) {
-			*swid = pas_swid_map[i].swid;
-			return TEE_SUCCESS;
-		}
-	}
+	*swid = e->swid;
+	return TEE_SUCCESS;
+}
 
-	return TEE_ERROR_NOT_SUPPORTED;
+TEE_Result pas_policy_expected_arb_bank(uint32_t pas_id,
+					enum pas_arb_fuse_bank *bank)
+{
+	const struct pas_policy_entry *e = find_entry(pas_id);
+
+	if (!bank)
+		return TEE_ERROR_BAD_PARAMETERS;
+	if (!e)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	*bank = e->arb_bank;
+	return TEE_SUCCESS;
 }
