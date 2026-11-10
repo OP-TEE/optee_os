@@ -83,7 +83,7 @@ static struct qcom_pas_subsys *qcom_pas_loaded_dependent(uint32_t pas_id)
 	return NULL;
 }
 
-static TEE_Result pas_map_controller_window(uint32_t pas_id,
+static TEE_Result pas_map_controller_window(uint32_t pas_id __maybe_unused,
 					    struct qcom_pas_data *data)
 {
 	if (!data)
