@@ -242,11 +242,43 @@ TEE_Result mobj_ffa_unregister_by_cookie(uint64_t cookie);
 
 /* Functions for SPMC */
 #ifdef CFG_CORE_SEL1_SPMC
+/*
+ * struct mobj_ffa_trans - What a hypervisor retrieve response returns of
+ * the memory transaction that created a mobj_ffa
+ * @flags:	FFA_MEM_RETRIEVE_RESP flags
+ * @impdef:	IMPLEMENTATION DEFINED value of OP-TEE's endpoint memory
+ *		access descriptor, the only one in the transaction
+ * @acc_perm:	Access permissions given to OP-TEE
+ */
+struct mobj_ffa_trans {
+	uint64_t tag;
+	uint8_t impdef[16];
+	uint16_t sender_id;
+	uint8_t mem_reg_attr;
+	uint8_t flags;
+	uint8_t acc_perm;
+};
+
 struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
 					unsigned int num_pages,
-					enum mobj_use_case use_case);
+					enum mobj_use_case use_case,
+					const struct mobj_ffa_trans *trans);
 void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mobj);
 TEE_Result mobj_ffa_sel1_spmc_reclaim(uint64_t cookie);
+
+struct ffa_address_range;
+
+/*
+ * mobj_ffa_sel1_spmc_get_ranges() - Get the constituents of @cookie, with
+ * contiguous pages merged, from range @first on
+ * @count:	In: entries in @ranges, out: entries written
+ * @total:	Number of ranges of @cookie
+ */
+TEE_Result mobj_ffa_sel1_spmc_get_ranges(uint64_t cookie, size_t first,
+					 struct ffa_address_range *ranges,
+					 size_t *count, size_t *total,
+					 unsigned int *page_count,
+					 struct mobj_ffa_trans *trans);
 #else
 struct mobj_ffa *mobj_ffa_spmc_new(uint64_t cookie, unsigned int num_pages,
 				   enum mobj_use_case use_case);
