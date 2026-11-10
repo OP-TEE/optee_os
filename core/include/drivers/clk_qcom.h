@@ -66,6 +66,19 @@ struct qcom_pll_offsets {
 	uint32_t test_ctl_u;
 };
 
+/* Lucid EVO and Lucid OLE PLL register offsets, from the PLL block base */
+#define QCOM_LUCID_EVO_PLL_OFFSETS {	\
+	.mode = 0x0,			\
+	.opmode = 0x4,			\
+	.l_val = 0x10,			\
+	.alpha_val = 0x14,		\
+	.user_ctl = 0x18,		\
+	.user_ctl_u = 0x1c,		\
+	.config_ctl = 0x20,		\
+	.config_ctl_u = 0x24,		\
+	.config_ctl_u1 = 0x28,		\
+}
+
 /*
  * Register configuration shared by Qualcomm PLLs. Helpers use the fields
  * relevant to their PLL type and ignore the remaining fields.

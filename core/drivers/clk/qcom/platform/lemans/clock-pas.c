@@ -23,18 +23,8 @@ register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_GPDSP1_BASE, RPMH_PDC_GPDSP1_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_AUDIO_BASE, RPMH_PDC_AUDIO_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, TCSR_MUTEX_BASE, TCSR_MUTEX_SIZE);
 
-/* Lucid-EVO PLL register offsets, relative to the PLL register block base. */
-static const struct qcom_pll_offsets lucid_evo_pll_offsets = {
-	.mode = 0x0,
-	.opmode = 0x4,
-	.l_val = 0x10,
-	.alpha_val = 0x14,
-	.user_ctl = 0x18,
-	.user_ctl_u = 0x1c,
-	.config_ctl = 0x20,
-	.config_ctl_u = 0x24,
-	.config_ctl_u1 = 0x28,
-};
+static const struct qcom_pll_offsets lucid_evo_pll_offsets =
+	QCOM_LUCID_EVO_PLL_OFFSETS;
 
 static const struct qcom_pll_config q6_pll_cfg = {
 	.offsets = &lucid_evo_pll_offsets,
