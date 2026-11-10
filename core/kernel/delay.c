@@ -36,15 +36,17 @@ int timeout_elapsed_us(uint64_t expire)
 {
 	int64_t diff = delay_cnt_read() - expire;
 
-	if (MUL_OVERFLOW(diff, 1000000, &diff) ||
-	    diff < INT_MIN || diff > INT_MAX) {
-		if (timeout_elapsed(expire))
-			return INT_MAX;
-		else
-			return INT_MIN;
+	/* Convert ticks into microseconds, then check the result fits an int */
+	if (!MUL_OVERFLOW(diff, 1000000, &diff)) {
+		diff /= delay_cnt_freq();
+		if (diff >= INT_MIN && diff <= INT_MAX)
+			return diff;
 	}
 
-	return diff / delay_cnt_freq();
+	if (timeout_elapsed(expire))
+		return INT_MAX;
+	else
+		return INT_MIN;
 }
 
 void udelay(uint32_t us)
