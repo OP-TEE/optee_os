@@ -2800,9 +2800,12 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 		req_key_type = TEE_TYPE_SM4;
 		break;
 	case TEE_MAIN_ALGO_RSA:
-		req_key_type = TEE_TYPE_RSA_KEYPAIR;
 		if (mode == TEE_MODE_ENCRYPT || mode == TEE_MODE_VERIFY)
-			req_key_type2 = TEE_TYPE_RSA_PUBLIC_KEY;
+			req_key_type = TEE_TYPE_RSA_PUBLIC_KEY;
+		else if (mode == TEE_MODE_DECRYPT || mode == TEE_MODE_SIGN)
+			req_key_type = TEE_TYPE_RSA_KEYPAIR;
+		else
+			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_MAIN_ALGO_DSA:
 		req_key_type = TEE_TYPE_DSA_KEYPAIR;
@@ -4627,6 +4630,9 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
+	res = tee_svc_cryp_check_key_type(o, cs->algo, cs->mode);
+	if (res != TEE_SUCCESS)
+		goto out;
 
 	switch (cs->algo) {
 	case TEE_ALG_RSA_NOPAD:
@@ -4876,6 +4882,9 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
+	res = tee_svc_cryp_check_key_type(o, cs->algo, cs->mode);
+	if (res != TEE_SUCCESS)
+		goto out;
 
 	switch (TEE_ALG_GET_MAIN_ALG(cs->algo)) {
 	case TEE_MAIN_ALGO_RSA:
