@@ -2816,17 +2816,23 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 		req_key_type = TEE_TYPE_DH_KEYPAIR;
 		break;
 	case TEE_MAIN_ALGO_ECDSA:
-		req_key_type = TEE_TYPE_ECDSA_KEYPAIR;
 		if (mode == TEE_MODE_VERIFY)
-			req_key_type2 = TEE_TYPE_ECDSA_PUBLIC_KEY;
+			req_key_type = TEE_TYPE_ECDSA_PUBLIC_KEY;
+		else if (mode == TEE_MODE_SIGN)
+			req_key_type = TEE_TYPE_ECDSA_KEYPAIR;
+		else
+			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_MAIN_ALGO_ECDH:
 		req_key_type = TEE_TYPE_ECDH_KEYPAIR;
 		break;
 	case TEE_MAIN_ALGO_ED25519:
-		req_key_type = TEE_TYPE_ED25519_KEYPAIR;
 		if (mode == TEE_MODE_VERIFY)
-			req_key_type2 = TEE_TYPE_ED25519_PUBLIC_KEY;
+			req_key_type = TEE_TYPE_ED25519_PUBLIC_KEY;
+		else if (mode == TEE_MODE_SIGN)
+			req_key_type = TEE_TYPE_ED25519_KEYPAIR;
+		else
+			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_MAIN_ALGO_SM2_PKE:
 		if (mode == TEE_MODE_ENCRYPT)
