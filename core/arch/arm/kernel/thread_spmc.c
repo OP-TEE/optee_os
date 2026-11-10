@@ -296,6 +296,16 @@ static void handle_features(struct thread_smc_1_2_regs *args)
 		 */
 		ret_w2 = BIT(0);
 		break;
+#ifdef ARM64
+	case FFA_MEM_RETRIEVE_REQ_64:
+#endif
+	case FFA_MEM_RETRIEVE_REQ_32:
+		ret_fid = FFA_SUCCESS_32;
+		ret_w2 = FFA_FEAT_RETRIEVE_REQ_HYP;
+		if (my_rxtx.ffa_vers >= FFA_VERSION_1_1)
+			ret_w2 |= FFA_FEAT_RETRIEVE_REQ_NS_BIT;
+		/* w3 = 0: one retrieval before relinquish */
+		break;
 
 	case FFA_ERROR:
 	case FFA_VERSION:
@@ -306,6 +316,7 @@ static void handle_features(struct thread_smc_1_2_regs *args)
 	case FFA_FEATURES:
 	case FFA_SPM_ID_GET:
 	case FFA_MEM_FRAG_TX:
+	case FFA_MEM_FRAG_RX:
 	case FFA_MEM_RECLAIM:
 	case FFA_MSG_SEND_DIRECT_REQ_64:
 	case FFA_MSG_SEND_DIRECT_REQ_32:
@@ -1098,13 +1109,14 @@ static int get_acc_perms(vaddr_t mem_acc_base, unsigned int mem_access_size,
 
 static int mem_op_init(bool mem_share, struct ffa_mem_transaction_x *mem_trans,
 		       void *buf, size_t blen, unsigned int *page_count,
-		       unsigned int *region_count, size_t *addr_range_offs)
+		       unsigned int *region_count, size_t *addr_range_offs,
+		       struct mobj_ffa_trans *trans)
 {
 	const uint8_t exp_mem_acc_perm = FFA_MEM_ACC_RW;
+	struct ffa_mem_access_common *mem_acc = NULL;
 	struct ffa_mem_region *region_descr = NULL;
 	unsigned int region_descr_offs = 0;
 	uint16_t exp_mem_reg_attr = 0;
-	uint8_t mem_acc_perm = 0;
 	size_t n = 0;
 
 	if (mem_share)
@@ -1120,9 +1132,16 @@ static int mem_op_init(bool mem_share, struct ffa_mem_transaction_x *mem_trans,
 	if (get_acc_perms((vaddr_t)buf + mem_trans->mem_access_offs,
 			  mem_trans->mem_access_size,
 			  mem_trans->mem_access_count,
-			  &mem_acc_perm, &region_descr_offs) ||
-	    mem_acc_perm != exp_mem_acc_perm)
+			  &trans->acc_perm, &region_descr_offs) ||
+	    trans->acc_perm != exp_mem_acc_perm)
 		return FFA_INVALID_PARAMETERS;
+
+	mem_acc = (void *)((vaddr_t)buf + mem_trans->mem_access_offs);
+	if (mem_trans->mem_access_size >= sizeof(struct ffa_mem_access_1_2))
+		memcpy(trans->impdef,
+		       (uint8_t *)mem_acc +
+		       offsetof(struct ffa_mem_access_1_2, impdef),
+		       sizeof(trans->impdef));
 
 	/* Check that the Composite memory region descriptor fits */
 	if (ADD_OVERFLOW(region_descr_offs, sizeof(*region_descr), &n) ||
@@ -1236,15 +1255,26 @@ static int add_mem_op(bool mem_share, struct ffa_mem_transaction_x *mem_trans,
 {
 	int rc = 0;
 	struct mem_op_state op = { .mem_share = mem_share, };
+	struct mobj_ffa_trans trans = {
+		.tag = mem_trans->tag,
+		.sender_id = mem_trans->sender_id,
+		.mem_reg_attr = mem_trans->mem_reg_attr,
+	};
 	size_t addr_range_offs = 0;
 	uint64_t cookie = OPTEE_MSG_FMEM_INVALID_GLOBAL_ID;
 	enum mobj_use_case use_case = MOBJ_USE_CASE_NS_SHM;
 	size_t n = 0;
 
 	rc = mem_op_init(mem_share, mem_trans, buf, flen, &op.page_count,
-			 &op.region_count, &addr_range_offs);
+			 &op.region_count, &addr_range_offs, &trans);
 	if (rc)
 		return rc;
+
+	if (mem_share)
+		trans.flags = FFA_MEMORY_TRANSACTION_TYPE_SHARE;
+	else
+		trans.flags = FFA_MEMORY_TRANSACTION_TYPE_LEND |
+			      (mem_trans->flags & FFA_MEMORY_FLAG_ZERO);
 
 	if (!op.page_count || !op.region_count)
 		return FFA_INVALID_PARAMETERS;
@@ -1258,7 +1288,8 @@ static int add_mem_op(bool mem_share, struct ffa_mem_transaction_x *mem_trans,
 		cookie = mem_trans->global_handle;
 	if (!mem_share)
 		use_case = mem_trans->tag;
-	op.mf = mobj_ffa_sel1_spmc_new(cookie, op.page_count, use_case);
+	op.mf = mobj_ffa_sel1_spmc_new(cookie, op.page_count, use_case,
+				       &trans);
 	if (!op.mf)
 		return FFA_NO_MEMORY;
 
@@ -1567,6 +1598,15 @@ out_set_rc:
 	spmc_set_args(args, ret_fid, ret_w1, ret_w2, ret_w3, 0, 0);
 }
 
+static uint16_t get_guest_id_by_cookie(uint64_t cookie)
+{
+	if (cookie & FFA_MEMORY_HANDLE_HYPERVISOR_BIT)
+		return virt_find_guest_by_cookie(cookie);
+
+	return (cookie >> FFA_MEMORY_HANDLE_PRTN_SHIFT) &
+	       FFA_MEMORY_HANDLE_PRTN_MASK;
+}
+
 static void handle_mem_reclaim(struct thread_smc_1_2_regs *args)
 {
 	int rc = FFA_INVALID_PARAMETERS;
@@ -1577,14 +1617,8 @@ static void handle_mem_reclaim(struct thread_smc_1_2_regs *args)
 
 	cookie = reg_pair_to_64(args->a2, args->a1);
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
-		uint16_t guest_id = 0;
+		uint16_t guest_id = get_guest_id_by_cookie(cookie);
 
-		if (cookie & FFA_MEMORY_HANDLE_HYPERVISOR_BIT) {
-			guest_id = virt_find_guest_by_cookie(cookie);
-		} else {
-			guest_id = (cookie >> FFA_MEMORY_HANDLE_PRTN_SHIFT) &
-				   FFA_MEMORY_HANDLE_PRTN_MASK;
-		}
 		if (!guest_id)
 			goto out;
 		if (virt_set_guest(guest_id)) {
@@ -1614,6 +1648,187 @@ static void handle_mem_reclaim(struct thread_smc_1_2_regs *args)
 
 out:
 	set_simple_ret_val(args, rc);
+}
+
+/*
+ * Writes the fragment at @frag_offs of the hypervisor retrieve response
+ * for @cookie to the caller's RX buffer. Fragments end on an address
+ * range boundary. If @exp_sender_id isn't NULL it must match the owner.
+ */
+static int hyp_retrieve(struct ffa_rxtx *rxtx, uint64_t cookie,
+			size_t frag_offs, const uint16_t *exp_sender_id,
+			size_t *tot_len, size_t *frag_len)
+{
+	const size_t range_size = sizeof(struct ffa_address_range);
+	struct ffa_mem_access_common *mem_acc = NULL;
+	struct ffa_address_range *ranges = NULL;
+	struct ffa_mem_region *region = NULL;
+	struct mobj_ffa_trans mtrans = { };
+	uint8_t *buf = rxtx->tx;
+	unsigned int page_count = 0;
+	size_t mem_acc_offs = 0;
+	size_t mem_acc_size = 0;
+	size_t region_offs = 0;
+	size_t hdr_len = 0;
+	size_t first = 0;
+	size_t count = 0;
+	size_t total = 0;
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!rxtx->size)
+		return FFA_INVALID_PARAMETERS;
+	if (!rxtx->tx_is_mine)
+		return FFA_BUSY;
+
+	if (rxtx->ffa_vers >= FFA_VERSION_1_1) {
+		mem_acc_offs = sizeof(struct ffa_mem_transaction_1_1);
+		if (rxtx->ffa_vers >= FFA_VERSION_1_2)
+			mem_acc_size = sizeof(struct ffa_mem_access_1_2);
+		else
+			mem_acc_size = sizeof(struct ffa_mem_access_1_0);
+	} else {
+		mem_acc_offs = offsetof(struct ffa_mem_transaction_1_0,
+					mem_access_array);
+		mem_acc_size = sizeof(struct ffa_mem_access_1_0);
+	}
+	region_offs = mem_acc_offs + mem_acc_size;
+	hdr_len = region_offs + sizeof(*region);
+
+	if (frag_offs) {
+		if (frag_offs < hdr_len || (frag_offs - hdr_len) % range_size)
+			return FFA_INVALID_PARAMETERS;
+		first = (frag_offs - hdr_len) / range_size;
+		ranges = (void *)buf;
+		count = rxtx->size / range_size;
+	} else {
+		ranges = (void *)(buf + hdr_len);
+		count = (rxtx->size - hdr_len) / range_size;
+	}
+
+	/* The shm lists are per guest */
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+	    virt_set_guest(get_guest_id_by_cookie(cookie)))
+		return FFA_INVALID_PARAMETERS;
+	res = mobj_ffa_sel1_spmc_get_ranges(cookie, first, ranges, &count,
+					    &total, &page_count, &mtrans);
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		virt_unset_guest();
+	if (res || !count ||
+	    (exp_sender_id && mtrans.sender_id != *exp_sender_id))
+		return FFA_INVALID_PARAMETERS;
+
+	*tot_len = hdr_len + total * range_size;
+	*frag_len = count * range_size;
+	if (!frag_offs) {
+		*frag_len += hdr_len;
+		memset(buf, 0, hdr_len);
+		if (rxtx->ffa_vers >= FFA_VERSION_1_1) {
+			struct ffa_mem_transaction_1_1 *trans = (void *)buf;
+
+			trans->sender_id = mtrans.sender_id;
+			trans->mem_reg_attr = mtrans.mem_reg_attr |
+					      FFA_MEM_REG_ATTR_NS;
+			trans->flags = mtrans.flags;
+			trans->global_handle = cookie;
+			trans->tag = mtrans.tag;
+			trans->mem_access_size = mem_acc_size;
+			trans->mem_access_count = 1;
+			trans->mem_access_offs = mem_acc_offs;
+		} else {
+			struct ffa_mem_transaction_1_0 *trans = (void *)buf;
+
+			trans->sender_id = mtrans.sender_id;
+			trans->mem_reg_attr = mtrans.mem_reg_attr;
+			trans->flags = mtrans.flags;
+			trans->global_handle = cookie;
+			trans->tag = mtrans.tag;
+			trans->mem_access_count = 1;
+		}
+		mem_acc = (void *)(buf + mem_acc_offs);
+		mem_acc->access_perm.endpoint_id = optee_core_lsp.sp_id;
+		mem_acc->access_perm.perm = mtrans.acc_perm;
+		mem_acc->region_offs = region_offs;
+		if (rxtx->ffa_vers >= FFA_VERSION_1_2)
+			memcpy((uint8_t *)mem_acc +
+			       offsetof(struct ffa_mem_access_1_2, impdef),
+			       mtrans.impdef, sizeof(mtrans.impdef));
+		region = (void *)(buf + region_offs);
+		region->total_page_count = page_count;
+		region->address_range_count = total;
+	}
+	rxtx->tx_is_mine = false;
+
+	return 0;
+}
+
+static void handle_mem_retrieve_req(struct thread_smc_1_2_regs *args,
+				    struct ffa_rxtx *rxtx)
+{
+	struct ffa_mem_transaction_x trans = { };
+	uint32_t tot_len = args->a1;
+	uint32_t frag_len = args->a2;
+	size_t resp_tot_len = 0;
+	size_t resp_frag_len = 0;
+	int rc = FFA_INVALID_PARAMETERS;
+
+	/* No dynamically allocated buffer, no fragmented request */
+	if (args->a3 || args->a4 || args->a5 || args->a6 || args->a7 ||
+	    frag_len != tot_len)
+		goto out;
+
+	cpu_spin_lock(&rxtx->spinlock);
+	if (!rxtx->size)
+		goto unlock;
+	rc = spmc_read_mem_transaction(rxtx->ffa_vers, rxtx->rx, rxtx->size,
+				       tot_len, frag_len, &trans);
+	if (rc)
+		goto unlock;
+	/*
+	 * Only the handle is set, the response gives the owner. Borrower
+	 * retrieves (endpoint descriptors present) aren't supported.
+	 */
+	if (trans.mem_access_count || trans.sender_id ||
+	    trans.mem_reg_attr || trans.flags || trans.tag ||
+	    (rxtx->ffa_vers >= FFA_VERSION_1_1 &&
+	     (trans.mem_access_size || trans.mem_access_offs))) {
+		rc = FFA_INVALID_PARAMETERS;
+		goto unlock;
+	}
+	rc = hyp_retrieve(rxtx, trans.global_handle, 0, NULL, &resp_tot_len,
+			  &resp_frag_len);
+unlock:
+	cpu_spin_unlock(&rxtx->spinlock);
+out:
+	if (rc)
+		set_simple_ret_val(args, rc);
+	else
+		spmc_set_args(args, FFA_MEM_RETRIEVE_RESP, resp_tot_len,
+			      resp_frag_len, 0, 0, 0);
+}
+
+static void handle_mem_frag_rx(struct thread_smc_1_2_regs *args,
+			       struct ffa_rxtx *rxtx)
+{
+	uint64_t cookie = reg_pair_to_64(args->a2, args->a1);
+	uint32_t frag_offs = args->a3;
+	uint32_t sender = args->a4;
+	uint16_t owner = sender >> 16;
+	size_t tot_len = 0;
+	size_t frag_len = 0;
+	int rc = FFA_INVALID_PARAMETERS;
+
+	if ((sender & GENMASK_32(15, 0)) || args->a5 || args->a6 || args->a7)
+		goto out;
+
+	cpu_spin_lock(&rxtx->spinlock);
+	rc = hyp_retrieve(rxtx, cookie, frag_offs, &owner, &tot_len, &frag_len);
+	cpu_spin_unlock(&rxtx->spinlock);
+out:
+	if (rc)
+		set_simple_ret_val(args, rc);
+	else
+		spmc_set_args(args, FFA_MEM_FRAG_TX, args->a1, args->a2,
+			      frag_len, sender, 0);
 }
 
 static void handle_notification_bitmap_create(struct thread_smc_1_2_regs *args)
@@ -2060,6 +2275,15 @@ void thread_spmc_msg_recv(struct thread_smc_1_2_regs *args)
 		break;
 	case FFA_MEM_FRAG_TX:
 		handle_mem_frag_tx(args, &my_rxtx);
+		break;
+#ifdef ARM64
+	case FFA_MEM_RETRIEVE_REQ_64:
+#endif
+	case FFA_MEM_RETRIEVE_REQ_32:
+		handle_mem_retrieve_req(args, &my_rxtx);
+		break;
+	case FFA_MEM_FRAG_RX:
+		handle_mem_frag_rx(args, &my_rxtx);
 		break;
 	case FFA_NOTIFICATION_BITMAP_CREATE:
 		handle_notification_bitmap_create(args);
