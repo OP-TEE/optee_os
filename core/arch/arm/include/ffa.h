@@ -145,6 +145,8 @@
 
 /* Memory attributes: Normal memory, Write-Back cacheable, Inner shareable */
 #define FFA_NORMAL_MEM_REG_ATTR		U(0x2f)
+/* Memory attributes: Non-secure, from version 1.1 */
+#define FFA_MEM_REG_ATTR_NS		BIT(6)
 
 /* Memory access permissions: Read-write */
 #define FFA_MEM_ACC_RW			BIT(1)
@@ -266,6 +268,13 @@ static inline uint16_t ffa_target_info_get_vcpu_id(uint32_t target_info)
 #define FFA_CONSOLE_LOG_32_MAX_MSG_LEN		U(24)
 #define FFA_CONSOLE_LOG_64_V1_1_MAX_MSG_LEN	U(48)
 #define FFA_CONSOLE_LOG_64_MAX_MSG_LEN		U(128)
+
+/* FFA_FEATURES properties of FFA_MEM_RETRIEVE_REQ */
+#define FFA_FEAT_RETRIEVE_REQ_NS_BIT		BIT(1)
+#define FFA_FEAT_RETRIEVE_REQ_HYP		BIT(2)
+
+/* Zero memory flag in FFA_MEM_LEND and FFA_MEM_RETRIEVE_RESP flags */
+#define FFA_MEMORY_FLAG_ZERO			BIT(0)
 
 /* Memory transaction type in FFA_MEM_RETRIEVE_RESP flags */
 #define FFA_MEMORY_TRANSACTION_TYPE_MASK	GENMASK_32(4, 3)
