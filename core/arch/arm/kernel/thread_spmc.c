@@ -1112,6 +1112,10 @@ static int mem_op_init(bool mem_share, struct ffa_mem_transaction_x *mem_trans,
 	if (mem_trans->mem_reg_attr != exp_mem_reg_attr)
 		return FFA_INVALID_PARAMETERS;
 
+	/* Other borrowers would never get access through this path */
+	if (mem_trans->mem_access_count != 1)
+		return FFA_INVALID_PARAMETERS;
+
 	/* Check that the access permissions matches what's expected */
 	if (get_acc_perms((vaddr_t)buf + mem_trans->mem_access_offs,
 			  mem_trans->mem_access_size,
