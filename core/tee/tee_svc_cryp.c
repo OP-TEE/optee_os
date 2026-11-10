@@ -4596,6 +4596,9 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
+	if (TEE_ALG_GET_CLASS(cs->algo) == TEE_OPERATION_ASYMMETRIC_SIGNATURE &&
+	    cs->mode != TEE_MODE_SIGN)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	src_data = memtag_strip_tag_const(src_data);
 	dst_data = memtag_strip_tag(dst_data);
