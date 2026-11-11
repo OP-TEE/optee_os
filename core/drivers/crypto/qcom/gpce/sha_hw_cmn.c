@@ -24,6 +24,13 @@ static const uint32_t sha256_initial_state[] = {
 	TEE_U32_TO_BIG_ENDIAN(UINT32_C(0x5be0cd19)),
 };
 
+static const uint8_t sha256_empty_digest[TEE_SHA256_HASH_SIZE] = {
+	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
+	0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
+	0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
+	0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55,
+};
+
 static TEE_Result sha_cmn_hwio_process_din(struct qce_hash_state *me,
 					   const uint8_t *buf,
 					   size_t buf_sz, bool first,
@@ -119,6 +126,11 @@ TEE_Result sha_cmn_ce_final(struct qce_hash_state *me, uint8_t *md)
 
 	if (qce_hash_get_sha_ctx(me, &c) != TEE_SUCCESS)
 		return TEE_ERROR_BAD_STATE;
+
+	if (c->first && !c->block_len) {
+		memcpy(md, sha256_empty_digest, sizeof(sha256_empty_digest));
+		return TEE_SUCCESS;
+	}
 
 	memzero_explicit(c->block + c->block_len,
 			 QCE_SHA_BLOCK_SIZE - c->block_len);
