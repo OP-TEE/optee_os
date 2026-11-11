@@ -56,7 +56,8 @@ static bool sym_compare(struct ta_elf *elf, unsigned int st_bind,
 		err(TEE_ERROR_BAD_FORMAT, "Symbol name out of range");
 	if (strcmp(name, elf->dynstr + st_name))
 		return false;
-	if (st_bind == STB_GLOBAL || (weak_ok && st_bind == STB_WEAK))
+	if (st_bind == STB_GLOBAL || st_bind == STB_GNU_UNIQUE ||
+	    (weak_ok && st_bind == STB_WEAK))
 		bind_ok = true;
 	if (!bind_ok)
 		return false;
