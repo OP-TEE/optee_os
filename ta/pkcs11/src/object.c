@@ -137,7 +137,7 @@ void destroy_object(struct pkcs11_session *session, struct pkcs11_object *obj,
 		    bool session_only)
 {
 #ifdef DEBUG
-	trace_attributes("[destroy]", obj->attributes);
+	trace_attributes("[destroy]", obj->attributes, 0);
 	if (obj->uuid)
 		MSG_RAW("[destroy] obj uuid %pUl", (void *)obj->uuid);
 #endif
@@ -214,7 +214,7 @@ enum pkcs11_rc create_object(void *sess, struct obj_attrs *head,
 	uint32_t obj_handle = 0;
 
 #ifdef DEBUG
-	trace_attributes("[create]", head);
+	trace_attributes("[create]", head, 0);
 #endif
 
 	/*

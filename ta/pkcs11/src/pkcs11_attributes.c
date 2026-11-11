@@ -1497,7 +1497,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	*out = attrs;
 
 #ifdef DEBUG
-	trace_attributes("object", attrs);
+	trace_attributes("object", attrs, 0);
 #endif
 
 out:
