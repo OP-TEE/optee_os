@@ -34,6 +34,7 @@
 #define CE_STATUS_SW_ERR		BIT(0)
 #define CE_STATUS_DIN_SIZE_AVAIL	GENMASK_32(25, 21)
 #define CE_STATUS_DIN_SIZE_SHIFT	U(21)
+#define CE_STATUS_ERROR_MASK		(CE_STATUS_HSD_ERR | CE_STATUS_SW_ERR)
 
 #define CE_CONFIG_LITTLE_ENDIAN	BIT(9)
 #define CE_CONFIG_HIGH_SPEED_DATA_EN_N	BIT(4)
@@ -61,14 +62,17 @@ static void ce_hwio_set_config(struct qce_hash_state *ctx, bool little)
 	io_write32(CE_HWIO_BASE(ctx->dev) + CE_REG_CONFIG, cfg_msk);
 }
 
-static TEE_Result ce_hwio_get_ce_state(struct qce_hash_state *ctx)
+static bool ce_hwio_operation_done(uint32_t ce_status)
 {
-	uint32_t ce_status = io_read32(CE_HWIO_BASE(ctx->dev) + CE_REG_STATUS);
+	return (ce_status & CE_STATUS_OPERATION_DONE) &&
+	       !(ce_status & CE_STATUS_AUTH_BUSY);
+}
 
-	if (ce_status & (CE_STATUS_HSD_ERR | CE_STATUS_SW_ERR))
+static TEE_Result ce_hwio_get_ce_state(uint32_t ce_status)
+{
+	if (ce_status & CE_STATUS_ERROR_MASK)
 		return TEE_ERROR_GENERIC;
-	if (!(ce_status & CE_STATUS_OPERATION_DONE) ||
-	    (ce_status & CE_STATUS_AUTH_BUSY))
+	if (!ce_hwio_operation_done(ce_status))
 		return TEE_ERROR_BUSY;
 
 	return TEE_SUCCESS;
@@ -146,7 +150,7 @@ TEE_Result ce_hwio_get_ce_ctx(struct qce_hash_state *ctx)
 	struct qce_dev *dev = NULL;
 	struct qce_ce_ctx *me = NULL;
 	size_t i = 0;
-	uint64_t timeout = 0;
+	uint32_t ce_status = 0;
 	TEE_Result res = TEE_SUCCESS;
 
 	if (qce_hash_get_sha_ctx(ctx, &sha_ctx) != TEE_SUCCESS)
@@ -158,16 +162,16 @@ TEE_Result ce_hwio_get_ce_ctx(struct qce_hash_state *ctx)
 
 	/* Auth Engine Context if enabled */
 	if (CE_HAL_IS_FLAG_SET(me, CE_HAL_FLAGS_IS_AUTH_ENG_EN)) {
-		timeout = timeout_init_us(CE_HWIO_OPERATION_TIMEOUT_US);
-		while (true) {
-			res = ce_hwio_get_ce_state(ctx);
-			if (res == TEE_SUCCESS)
-				break;
-			if (res != TEE_ERROR_BUSY)
-				return res;
-			if (timeout_elapsed(timeout))
-				return TEE_ERROR_TIMEOUT;
-		}
+		if (IO_READ32_POLL_TIMEOUT(CE_HWIO_BASE(dev) + CE_REG_STATUS,
+					   ce_status,
+					   (ce_status & CE_STATUS_ERROR_MASK) ||
+					   ce_hwio_operation_done(ce_status),
+					   0, CE_HWIO_OPERATION_TIMEOUT_US))
+			return TEE_ERROR_TIMEOUT;
+
+		res = ce_hwio_get_ce_state(ce_status);
+		if (res != TEE_SUCCESS)
+			return res;
 
 		/* Save IVs */
 		for (i = 0; i < QCE_MAX_AUTH_IV_COUNT; i++)
