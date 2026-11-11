@@ -1197,7 +1197,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	uint32_t indirect_template = PKCS11_CKA_UNDEFINED_ID;
 
 #ifdef DEBUG	/* Sanity: check function argument */
-	trace_attributes_from_api_head("template", template, template_size);
+	trace_attributes_from_api_head("template", template, template_size, 0);
 	switch (function) {
 	case PKCS11_FUNCTION_GENERATE:
 	case PKCS11_FUNCTION_GENERATE_PAIR:
