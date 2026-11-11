@@ -32,6 +32,8 @@ vaddr_t q6ss_base(struct qcom_pas_data *data)
 		return 0;
 
 	switch (data->clk_group) {
+	case QCOM_CLKS_LPASS:
+		return base + LPASS_QDSP6SS;
 	case QCOM_CLKS_TURING:
 		return base + TURING_QDSP6SS;
 	default:

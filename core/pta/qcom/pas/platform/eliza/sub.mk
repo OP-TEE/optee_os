@@ -1,3 +1,3 @@
-srcs-y += subsys.c cdsp.c q6ss.c socinfo.c
+srcs-y += subsys.c cdsp.c lpass.c q6ss.c socinfo.c
 incdirs-y += .
 incdirs-y += ../
