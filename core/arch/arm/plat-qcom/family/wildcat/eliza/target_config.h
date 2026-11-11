@@ -16,6 +16,10 @@
 #define GCC_BASE			UL(0x00100000)
 #define GCC_SIZE			UL(0x001f0000)
 
+/* SMEM, holding the socinfo item the DSP boot parameters come from */
+#define SMEM_BASE			UL(0x81d00000)
+#define SMEM_SIZE			UL(0x00200000)
+
 /* TCSR halt blocks and LPICX Q-channel */
 #define TCSR_MUTEX_BASE			UL(0x01f40000)
 #define TCSR_MUTEX_SIZE			UL(0x000c0000)
