@@ -34,21 +34,37 @@
 #define COSE_ALGORITHM_ES256 -7
 #define COSE_SIG_CONTEXT_STRING_SIGNATURE1 "Signature1"
 
+/* One entry of the PSA software components claim */
+struct psa_sw_component {
+	const char *measurement_type;
+	const uint8_t *measurement_value;
+	size_t measurement_value_len;
+	const char *version; /* optional, NULL to leave out */
+	const uint8_t *signer_id;
+	size_t signer_id_len;
+};
+
 UsefulBufC generate_cbor_evidence(const char *eat_profile,
 				  int psa_client_id,
 				  int psa_security_lifecycle,
 				  const uint8_t *psa_implementation_id,
 				  size_t psa_implementation_id_len,
-				  const char *measurement_type,
-				  const uint8_t *signer_id,
-				  size_t signer_id_len,
+				  const struct psa_sw_component *components,
+				  size_t num_components,
 				  const uint8_t *psa_instance_id,
 				  size_t psa_instance_id_len,
 				  const uint8_t *psa_nonce,
-				  size_t psa_nonce_len,
-				  const uint8_t *measurement_value,
-				  size_t measurement_value_len);
+				  size_t psa_nonce_len);
 
-UsefulBufC generate_cose_evidence(UsefulBufC ubc_cbor_evidence);
+/*
+ * Sign the evidence with the given private key, a plain P-256 scalar or a
+ * serialized CAAM black key, and check the signature with its public key;
+ * with a NULL private key the embedded test key signs.
+ */
+UsefulBufC generate_cose_evidence(UsefulBufC ubc_cbor_evidence,
+				  const uint8_t *private_key,
+				  size_t private_key_len,
+				  const uint8_t *public_key_x,
+				  const uint8_t *public_key_y);
 
 #endif /* PTA_VERAISON_ATTESTATION_CBOR_H */
