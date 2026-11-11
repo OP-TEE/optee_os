@@ -9,6 +9,10 @@ ifeq ($(CFG_QCOM_QFPROM_FUSEPROV),y)
 $(call force,CFG_QCOM_QFPROM,y)
 endif
 
+ifneq ($(CFG_INSECURE),y)
+CFG_QCOM_QFPROM_FUSEPROV ?= y
+endif
+
 CFG_QCOM_TLMM ?= y
 
 CFG_QCOM_HWKM ?= y
