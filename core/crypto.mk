@@ -100,6 +100,16 @@ endif
 
 $(eval $(call cryp-enable-all-depends,CFG_WITH_SOFTWARE_PRNG, AES ECB SHA256))
 
+# The Cryptographic Extensions only accelerate the crypto library: turn
+# them off without it. A value given on the command line cannot be
+# overridden here, force reports it.
+ifneq ($(CFG_CRYPTO),y)
+CFG_CRYPTO_WITH_CE82 := n
+CFG_CRYPTO_WITH_CE := n
+$(call force,CFG_CRYPTO_WITH_CE82,n,CFG_CRYPTO is disabled)
+$(call force,CFG_CRYPTO_WITH_CE,n,CFG_CRYPTO is disabled)
+endif
+
 ifeq ($(CFG_CRYPTO_WITH_CE82),y)
 $(call force,CFG_CRYPTO_WITH_CE,y,required with CFG_CRYPTO_WITH_CE82)
 CFG_CRYPTO_SHA512_ARM_CE ?= $(CFG_CRYPTO_SHA512)
