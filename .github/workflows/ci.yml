@@ -224,16 +224,17 @@ jobs:
               if [ -d $HOME/se050/plug-and-trust ]; then _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_NXP_CAAM_AE_{GCM,CCM}_DRV=y CFG_NXP_CAAM_RNG_DRV=y CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER,AUTHENC}=y CFG_NXP_SE05X_RNG_DRV=n CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{DIEID,RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_RSA_DRV_FALLBACK=y CFG_NXP_SE05X_ECC_DRV_FALLBACK=y CFG_NXP_SE05X_PLUG_AND_TRUST=$HOME/se050/plug-and-trust ; fi
           - name: arm qcom
             make_commands: |
+              _make PLATFORM=qcom-agatti
+              _make PLATFORM=qcom-cacao
+              _make PLATFORM=qcom-ipq52xx
+              _make PLATFORM=qcom-ipq96xx
               _make PLATFORM=qcom-kodiak
               _make PLATFORM=qcom-lemans
               _make PLATFORM=qcom-lemans CFG_QCOM_DIAG_LOG=y CFG_QFPROM_PROGRAMMING=y CFG_QCOM_QFPROM_FUSEPROV=y
+              _make PLATFORM=qcom-lemans CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n
               _make PLATFORM=qcom-monaco
-              _make PLATFORM=qcom-ipq96xx
-              _make PLATFORM=qcom-ipq52xx
               _make PLATFORM=qcom-nord
               _make PLATFORM=qcom-shikra
-              _make PLATFORM=qcom-agatti
-              _make PLATFORM=qcom-cacao
           - name: arm rockchip
             make_commands: |
               _make PLATFORM=rockchip-px30
