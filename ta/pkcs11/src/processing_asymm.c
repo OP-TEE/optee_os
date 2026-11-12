@@ -375,6 +375,7 @@ static enum pkcs11_rc load_tee_key(struct pkcs11_session *session,
 	if (res) {
 		DMSG("TEE_AllocateTransientObject failed, %#"PRIx32, res);
 
+		TEE_Free(tee_attrs);
 		return tee2pkcs_error(res);
 	}
 
@@ -687,8 +688,10 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 
 		hash_size = TEE_ALG_GET_DIGEST_SIZE(proc->tee_hash_algo);
 		hash_buf = TEE_Malloc(hash_size, 0);
-		if (!hash_buf)
-			return PKCS11_CKR_DEVICE_MEMORY;
+		if (!hash_buf) {
+			rc = PKCS11_CKR_DEVICE_MEMORY;
+			goto out;
+		}
 
 		res = TEE_DigestDoFinal(proc->tee_op_handle2, in_buf, in_size,
 					hash_buf, &hash_size);
