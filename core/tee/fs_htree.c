@@ -986,6 +986,7 @@ TEE_Result tee_fs_htree_truncate(struct tee_fs_htree **ht_arg, size_t block_num)
 		assert(!node->child[0] && !node->child[1]);
 		assert(node->parent);
 		assert(node->parent->child[node->id & 1] == node);
+		node->parent->dirty = true;
 		node->parent->child[node->id & 1] = NULL;
 		free(node);
 		ht->imeta.max_node_id--;
