@@ -136,6 +136,9 @@ static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 	}
 
 exit:
+	/* Do not keep changes from an incomplete write. */
+	if (res && remain_bytes != len)
+		tee_fs_htree_close(&fdp->ht);
 	if (block)
 		put_tmp_block(block);
 	return res;
@@ -304,8 +307,10 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 
 		res = tee_fs_rpc_truncate(OPTEE_RPC_CMD_FS, fdp->fd,
 					  offs + (tee_fs_off_t)sz);
-		if (res != TEE_SUCCESS)
+		if (res != TEE_SUCCESS) {
+			tee_fs_htree_close(&fdp->ht);
 			return res;
+		}
 
 		meta->length = new_file_len;
 		tee_fs_htree_meta_set_dirty(fdp->ht);
@@ -396,9 +401,13 @@ static TEE_Result ree_fs_read(struct tee_file_handle *fh, size_t pos,
 			      void *buf_core, void *buf_user, size_t *len)
 {
 	TEE_Result res;
+	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 
 	mutex_lock(&ree_fs_mutex);
-	res = ree_fs_read_primitive(fh, pos, buf_core, buf_user, len);
+	if (!fdp->ht)
+		res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
+	else
+		res = ree_fs_read_primitive(fh, pos, buf_core, buf_user, len);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
@@ -435,7 +444,10 @@ static TEE_Result ree_fs_write_primitive(struct tee_file_handle *fh, size_t pos,
 			return res;
 	}
 
-	return out_of_place_write(fdp, pos, buf_core, buf_user, len);
+	res = out_of_place_write(fdp, pos, buf_core, buf_user, len);
+	if (res && file_size < pos)
+		tee_fs_htree_close(&fdp->ht);
+	return res;
 }
 
 static TEE_Result ree_fs_open_primitive(bool create, uint8_t *hash,
@@ -922,6 +934,7 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 			       size_t len)
 {
 	TEE_Result res;
+	TEE_Result dir_res = TEE_SUCCESS;
 	struct tee_fs_dirfile_dirh *dirh = NULL;
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 
@@ -929,6 +942,10 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 	assert(!buf_core || !buf_user);
 
 	mutex_lock(&ree_fs_mutex);
+	if (!fdp->ht) {
+		res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
+		goto out;
+	}
 
 	res = get_dirh(&dirh);
 	if (res)
@@ -942,11 +959,14 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 	if (res)
 		goto out;
 
-	res = tee_fs_dirfile_update_hash(dirh, &fdp->dfh);
-	if (res)
-		goto out;
-	res = commit_dirh_writes(dirh);
+	dir_res = tee_fs_dirfile_update_hash(dirh, &fdp->dfh);
+	if (!dir_res)
+		dir_res = commit_dirh_writes(dirh);
 out:
+	if (dir_res) {
+		tee_fs_htree_close(&fdp->ht);
+		res = dir_res;
+	}
 	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
 
@@ -1045,10 +1065,15 @@ out:
 static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 {
 	TEE_Result res;
+	TEE_Result dir_res = TEE_SUCCESS;
 	struct tee_fs_dirfile_dirh *dirh = NULL;
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 
 	mutex_lock(&ree_fs_mutex);
+	if (!fdp->ht) {
+		res = TEE_ERROR_STORAGE_NOT_AVAILABLE;
+		goto out;
+	}
 
 	res = get_dirh(&dirh);
 	if (res)
@@ -1062,11 +1087,14 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 	if (res)
 		goto out;
 
-	res = tee_fs_dirfile_update_hash(dirh, &fdp->dfh);
-	if (res)
-		goto out;
-	res = commit_dirh_writes(dirh);
+	dir_res = tee_fs_dirfile_update_hash(dirh, &fdp->dfh);
+	if (!dir_res)
+		dir_res = commit_dirh_writes(dirh);
 out:
+	if (dir_res) {
+		tee_fs_htree_close(&fdp->ht);
+		res = dir_res;
+	}
 	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
 
