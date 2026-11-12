@@ -35,7 +35,7 @@
  */
 #define CFG_SEC_ELF_DDR_ADDR		UL(0x87452000)
 #define CFG_SEC_ELF_DDR_SIZE		UL(0x1000)
-#define PROVISION_WINDOW_MEM_AREA	MEM_AREA_RAM_NSEC /* TEMP debug, restore RAM_SEC */
+#define PROVISION_WINDOW_MEM_AREA	MEM_AREA_RAM_SEC
 
 /* Register reporting the download mode */
 #define TCSR_BOOT_MISC_DETECT		UL(0x1FD9000)

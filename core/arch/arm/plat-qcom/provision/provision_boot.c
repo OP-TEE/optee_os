@@ -85,6 +85,29 @@ static TEE_Result execute_provisioning(void)
 		IMSG("TMPDBG: TME fuse read 0x360c8188 res %#"PRIx32
 		     " status %#"PRIx32" data %#"PRIx32"_%08"PRIx32,
 		     rres, status, row[1], row[0]);
+
+		IMSG("TMPDBG: I am Doomed.");
+
+		{
+			volatile uint32_t *p = phys_to_virt(CFG_SEC_ELF_DDR_ADDR,
+							    PROVISION_WINDOW_MEM_AREA,
+							    sizeof(uint32_t));
+
+			if (p) {
+				IMSG("TMPDBG: DDR va %p", (void *)p);
+				IMSG("TMPDBG: DDR[0] %#"PRIx32, p[0]);
+				IMSG("TMPDBG: DDR[1] %#"PRIx32, p[1]);
+			} else {
+				IMSG("TMPDBG: DDR not mapped");
+			}
+		}
+
+		IMSG("TMPDBG: I shall Hope");
+		rres = tme_fuse_read(TME_QFPROM_ADDR_SPACE_RAW, CFG_SEC_ELF_DDR_ADDR,
+				     row, &status);
+		IMSG("TMPDBG: TME fuse read CFG_SEC_ELF_DDR_ADDR res %#"PRIx32
+		     " status %#"PRIx32" data %#"PRIx32"_%08"PRIx32,
+		     rres, status, row[1], row[0]);
 	}
 #endif
 
@@ -97,7 +120,7 @@ static TEE_Result execute_provisioning(void)
 	IMSG("TMPDBG: window pa %#"PRIxPA" size %#zx mapped at va %p",
 	     (paddr_t)CFG_SEC_ELF_DDR_ADDR, (size_t)CFG_SEC_ELF_DDR_SIZE,
 	     (void *)source);
-	return TEE_SUCCESS;
+	// return TEE_SUCCESS;
 
 	/* Capture the bounded input before inspecting any fields. */
 	snapshot = malloc(CFG_SEC_ELF_DDR_SIZE);

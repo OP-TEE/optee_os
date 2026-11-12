@@ -29,7 +29,19 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE,
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
 #endif
 
+#if defined(CFG_QCOM_QFPROM_FUSEPROV) && defined(CFG_SEC_ELF_DDR_ADDR)
+/*
+ * The fuse provisioning window is secure memory, keep it out of the
+ * non-secure DDR.
+ */
+#define PROVISION_WINDOW_END	(CFG_SEC_ELF_DDR_ADDR + CFG_SEC_ELF_DDR_SIZE)
+
+register_ddr(DRAM0_BASE, CFG_SEC_ELF_DDR_ADDR - DRAM0_BASE);
+register_ddr(PROVISION_WINDOW_END,
+	     DRAM0_BASE + DRAM0_SIZE - PROVISION_WINDOW_END);
+#else
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
+#endif
 #ifdef DRAM1_BASE
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
