@@ -1171,8 +1171,28 @@ static TEE_Result dt_get_gic_chip_cb(struct dt_pargs *arg, void *priv_data,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result gic_probe(const void *fdt, int offs, const void *cd __unused)
+/*
+ * @provider: register an interrupt provider for the node
+ *
+ * A match table entry without compat_data registers one.
+ */
+struct gic_match_data {
+	bool provider;
+};
+
+/*
+ * Entries that are only there for gic_init_from_dt() to find the GIC node.
+ * Nothing consumes the interrupts of these nodes from the DT yet.
+ */
+static const struct gic_match_data gic_lookup_only = { .provider = false };
+
+static TEE_Result gic_probe(const void *fdt, int offs, const void *cd)
 {
+	const struct gic_match_data *data = cd;
+
+	if (data && !data->provider)
+		return TEE_SUCCESS;
+
 	if (interrupt_register_provider(fdt, offs, dt_get_gic_chip_cb,
 					&gic_data.chip))
 		panic();
@@ -1186,6 +1206,8 @@ static const struct dt_device_match gic_match_table[] = {
 	{ .compatible = "arm,cortex-a5-gic" },
 	{ .compatible = "arm,cortex-a9-gic" },
 	{ .compatible = "arm,gic-400" },
+	{ .compatible = "arm,gic-v3", .compat_data = &gic_lookup_only },
+	{ .compatible = "qcom,msm-qgic2", .compat_data = &gic_lookup_only },
 	{ }
 };
 
@@ -1194,6 +1216,52 @@ DEFINE_DT_DRIVER(gic_dt_driver) = {
 	.match_table = gic_match_table,
 	.probe = gic_probe,
 };
+
+/*
+ * The first register window of the GIC node is the distributor, the second
+ * one the CPU interface (GICv2) or the redistributors (GICv3 and GICv4).
+ */
+TEE_Result gic_init_from_dt(void)
+{
+	const struct dt_device_match *dm = NULL;
+	const void *fdt = get_dt();
+	paddr_t base[2] = { };
+	size_t size[2] = { };
+	size_t i = 0;
+	int node = -1;
+
+	if (!fdt) {
+		EMSG("GIC: no DT");
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	for (dm = gic_match_table; dm->compatible && node < 0; dm++)
+		node = fdt_node_offset_by_compatible(fdt, -1, dm->compatible);
+	if (node < 0) {
+		EMSG("GIC: no GIC node in the DT");
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(base); i++) {
+		if (fdt_get_reg_props_by_index(fdt, node, i, &base[i],
+					       &size[i])) {
+			EMSG("GIC: no register window %zu in the DT", i);
+			return TEE_ERROR_BAD_FORMAT;
+		}
+		if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, base[i], size[i])) {
+			EMSG("GIC: cannot map %#"PRIxPA, base[i]);
+			return TEE_ERROR_GENERIC;
+		}
+	}
+
+	DMSG("GIC: bases from DT: %#"PRIxPA" %#"PRIxPA, base[0], base[1]);
+	if (IS_ENABLED2(_CFG_ARM_GIC_V3_OR_V4))
+		gic_init_v3(0, base[0], base[1]);
+	else
+		gic_init(base[1], base[0]);
+
+	return TEE_SUCCESS;
+}
 #endif /*CFG_DT*/
 
 static TEE_Result gic_set_primary_done(void)
