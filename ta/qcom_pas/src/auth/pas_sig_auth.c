@@ -438,7 +438,6 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 				     const uint8_t *anchor,
 				     enum pas_secboot_state secboot_state)
 {
-	bool fail_open = secboot_state == PAS_SECBOOT_OFF;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (hs->uie_encrypted) {
@@ -456,12 +455,11 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 		return TEE_ERROR_SECURITY;
 	}
 
-	res = verify_oem_signature(hs, pas_id, anchor);
-	if (res != TEE_ERROR_SECURITY || !fail_open) {
-		if (res)
+	if (secboot_state != PAS_SECBOOT_OFF) {
+		res = verify_oem_signature(hs, pas_id, anchor);
+		if (res && res != TEE_ERROR_SECURITY) {
 			return res;
-	} else {
-		EMSG("PAS auth: ignore signature (secboot off): %#"PRIx32, res);
+		}
 	}
 
 	res = pas_meta_verify_elf_headers_hash(meta_data, meta_data_size,
