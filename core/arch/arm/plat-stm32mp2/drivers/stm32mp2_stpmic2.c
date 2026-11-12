@@ -23,7 +23,7 @@
  *
  * STM32_PM_LPLV
  *   "lplv" sub nodes in device-tree
- *   should support STOP1, LPLV-STOP1, STOP2, LPLV-STOP2
+ *   should support LPLV-STOP1, LPLV-STOP2
  *
  * STM32_PM_STANDBY
  *   "standby" sub nodes in device-tree

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2026, STMicroelectronics - All Rights Reserved
  */
@@ -10,7 +10,6 @@
 #include <drivers/stm32_i2c.h>
 #include <drivers/stpmic2.h>
 #include <dt-bindings/mfd/st,stpmic2.h>
-#include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/interrupt.h>
@@ -18,7 +17,6 @@
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
-#include <platform_config.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stm32mp_pm.h>
@@ -323,8 +321,16 @@ enum stpmic2_prop_id {
 #define PROP_BYPASS_RESET	U(0)
 #define PROP_BYPASS_SET		U(1)
 
-/*
+/**
  * struct stpmic2 - STPMIC2 device instance
+ *
+ * @compat_data: Reference to the matching struct stpmic2_compat_data
+ * @i2c_handle: I2C bus handle used to access the PMIC registers
+ * @i2c_addr: PMIC I2C slave address
+ * @ref_id: PMIC reference read from PRODUCT_ID_SR (PMIC_REF_ID_STPMIC*)
+ * @system_power_controller: True if the PMIC node has the
+ *                           "system-power-controller" DT property, allowing
+ *                           the PMIC to switch the platform off.
  */
 struct stpmic2 {
 	const void *compat_data;
@@ -336,6 +342,33 @@ struct stpmic2 {
 
 #define VOLTAGE_INDEX_INVALID		((size_t)~(U(0)))
 
+/**
+ * struct regul_struct - STPMIC2 regulator
+ *
+ * @name: Regulator name, matching the regulator DT node name
+ * @volt_table: Supported voltage levels in millivolts, indexed by the
+ *              register voltage selector value, or NULL for switches (GPOs)
+ * @volt_table_size: Number of cells in @volt_table, must be a power of 2
+ * @volt_cr: Main mode control register holding the voltage selector
+ * @volt_shift: Bit position of the voltage selector in @volt_cr and
+ * @alt_volt_cr: Alternate mode control register holding the voltage
+ *               selector applied before going to low power
+ * @en_cr: Main mode control register holding the enable bit (bit 0)
+ *         and, depending on the regulator, bypass, sink/source or PREG mode
+ * @alt_en_cr: Alternate (low power) mode control register holding the
+ *             enable bit
+ * @alt_volt_cr: Alternate (low power) mode control register holding the
+ *               voltage selector
+ * @pwrctrl_cr: PWRCTRL configuration register, 0 if not supported
+ * @msrt_reg: Mask reset configuration register
+ * @msrt_mask: Mask reset bit in @msrt_reg, 0 if not supported
+ * @pd_reg: Pull-down configuration register
+ * @pd_val: Value written in @pd_reg to enable pull-down
+ * @pd_mask: Pull-down configuration bit field in @pd_reg
+ * @ocp_reg: Over-current protection configuration register, 0 if not
+ *           supported
+ * @ocp_mask: Over-current protection bit in @ocp_reg
+ */
 struct regul_struct {
 	const char *name;
 	const uint16_t *volt_table;
@@ -440,69 +473,69 @@ static const uint16_t refddr_volt_table[LDO_SINGLE_VOLT_TABLE_SIZE] = {
 	U(0),
 };
 
-#define DEFINE_BUCK(regu_name, ID, pd, table) { \
-	.name			= regu_name, \
-	.volt_table		= table, \
-	.volt_table_size	= BUCK_VOLT_TABLE_SIZE, \
-	.en_cr			= ID ## _MAIN_CR2, \
-	.volt_cr		= ID ## _MAIN_CR1, \
-	.alt_en_cr		= ID ## _ALT_CR2, \
-	.alt_volt_cr		= ID ## _ALT_CR1, \
-	.pwrctrl_cr		= ID ## _PWRCTRL_CR, \
-	.msrt_reg		= BUCKS_MRST_CR, \
-	.msrt_mask		= ID ## _MRST, \
-	.pd_reg			= pd, \
-	.pd_val			= ID ## _PD_FAST, \
-	.pd_mask		= ID ## _PD_MASK, \
-	.ocp_reg		= FS_OCP_CR1, \
-	.ocp_mask		= FS_OCP_ ## ID, \
-}
+#define DEFINE_BUCK(regu_name, id, pd, table) { \
+		.name			= regu_name, \
+		.volt_table		= table, \
+		.volt_table_size	= BUCK_VOLT_TABLE_SIZE, \
+		.en_cr			= id ## _MAIN_CR2, \
+		.volt_cr		= id ## _MAIN_CR1, \
+		.alt_en_cr		= id ## _ALT_CR2, \
+		.alt_volt_cr		= id ## _ALT_CR1, \
+		.pwrctrl_cr		= id ## _PWRCTRL_CR, \
+		.msrt_reg		= BUCKS_MRST_CR, \
+		.msrt_mask		= id ## _MRST, \
+		.pd_reg			= pd, \
+		.pd_val			= id ## _PD_FAST, \
+		.pd_mask		= id ## _PD_MASK, \
+		.ocp_reg		= FS_OCP_CR1, \
+		.ocp_mask		= FS_OCP_ ## id, \
+	}
 
-#define DEFINE_LDOx(regu_name, ID, table, size) { \
-	.name			= regu_name, \
-	.volt_table		= table, \
-	.volt_table_size	= size, \
-	.volt_shift		= LDO_VOLT_SHIFT, \
-	.en_cr			= ID ## _MAIN_CR, \
-	.volt_cr		= ID ## _MAIN_CR, \
-	.alt_en_cr		= ID ## _ALT_CR, \
-	.alt_volt_cr		= ID ## _ALT_CR, \
-	.pwrctrl_cr		= ID ## _PWRCTRL_CR, \
-	.msrt_reg		= LDOS_MRST_CR, \
-	.msrt_mask		= ID ## _MRST, \
-	.pd_reg			= LDOS_PD_CR1, \
-	.pd_val			= ID ## _PD, \
-	.pd_mask		= ID ## _PD, \
-	.ocp_reg		= FS_OCP_CR2, \
-	.ocp_mask		= FS_OCP_ ## ID, \
-}
+#define DEFINE_LDOx(regu_name, id, table, size) { \
+		.name			= regu_name, \
+		.volt_table		= table, \
+		.volt_table_size	= size, \
+		.volt_shift		= LDO_VOLT_SHIFT, \
+		.en_cr			= id ## _MAIN_CR, \
+		.volt_cr		= id ## _MAIN_CR, \
+		.alt_en_cr		= id ## _ALT_CR, \
+		.alt_volt_cr		= id ## _ALT_CR, \
+		.pwrctrl_cr		= id ## _PWRCTRL_CR, \
+		.msrt_reg		= LDOS_MRST_CR, \
+		.msrt_mask		= id ## _MRST, \
+		.pd_reg			= LDOS_PD_CR1, \
+		.pd_val			= id ## _PD, \
+		.pd_mask		= id ## _PD, \
+		.ocp_reg		= FS_OCP_CR2, \
+		.ocp_mask		= FS_OCP_ ## id, \
+	}
 
-#define DEFINE_REFDDR(regu_name, ID, table) { \
-	.name			= regu_name, \
-	.volt_table		= table, \
-	.volt_table_size	= LDO_SINGLE_VOLT_TABLE_SIZE, \
-	.en_cr			= ID ## _MAIN_CR, \
-	.volt_cr		= ID ## _MAIN_CR, \
-	.alt_en_cr		= ID ## _ALT_CR, \
-	.alt_volt_cr		= ID ## _ALT_CR, \
-	.pwrctrl_cr		= ID ## _PWRCTRL_CR, \
-	.msrt_reg		= BUCKS_MRST_CR, \
-	.msrt_mask		= ID ## _MRST, \
-	.pd_reg			= LDOS_PD_CR2, \
-	.pd_val			= ID ## _PD, \
-	.pd_mask		= ID ## _PD, \
-	.ocp_reg		= FS_OCP_CR1, \
-	.ocp_mask		= FS_OCP_ ## ID, \
-}
+#define DEFINE_REFDDR(regu_name, id, table) { \
+		.name			= regu_name, \
+		.volt_table		= table, \
+		.volt_table_size	= LDO_SINGLE_VOLT_TABLE_SIZE, \
+		.en_cr			= id ## _MAIN_CR, \
+		.volt_cr		= id ## _MAIN_CR, \
+		.alt_en_cr		= id ## _ALT_CR, \
+		.alt_volt_cr		= id ## _ALT_CR, \
+		.pwrctrl_cr		= id ## _PWRCTRL_CR, \
+		.msrt_reg		= BUCKS_MRST_CR, \
+		.msrt_mask		= id ## _MRST, \
+		.pd_reg			= LDOS_PD_CR2, \
+		.pd_val			= id ## _PD, \
+		.pd_mask		= id ## _PD, \
+		.ocp_reg		= FS_OCP_CR1, \
+		.ocp_mask		= FS_OCP_ ## id, \
+	}
 
-#define DEFINE_GPOx(regu_name, ID) { \
-	.name			= regu_name, \
-	.en_cr			= ID ## _MAIN_CR, \
-	.alt_en_cr		= ID ## _ALT_CR, \
-	.pwrctrl_cr		= ID ## _PWRCTRL_CR, \
-	.msrt_reg		= GPO_MRST_CR, \
-	.msrt_mask		= ID ## _MRST, \
-}
+#define DEFINE_GPOx(regu_name, id) { \
+		.name			= regu_name, \
+		.en_cr			= id ## _MAIN_CR, \
+		.alt_en_cr		= id ## _ALT_CR, \
+		.pwrctrl_cr		= id ## _PWRCTRL_CR, \
+		.msrt_reg		= GPO_MRST_CR, \
+		.msrt_mask		= id ## _MRST, \
+	}
 
 /* Table of Regulators in STPMIC2 */
 static const struct regul_struct regul_table[] = {
@@ -549,17 +582,102 @@ static const struct regul_struct regul_table[] = {
 	[STPMIC2_GPO5] = DEFINE_GPOx("gpo5", GPO5),
 };
 
+/* I2C transfer trial configuration */
+#define PMIC_I2C_TRIALS			U(1)
+#define PMIC_I2C_TIMEOUT_BUSY_MS	U(5)
+
+#define STPMIC2_LP_STATE_OFF		BIT(0)
+#define STPMIC2_LP_STATE_ON		BIT(1)
+#define STPMIC2_LP_STATE_UNMODIFIED	BIT(2)
+#define STPMIC2_LP_STATE_SET_VOLT	BIT(3)
+#define STPMIC2_LP_STATE_INVALID	-1
+
+/**
+ * struct stpmic2_regu - STPMIC2 regulator instance
+ *
+ * @pmic: Handle to PMIC device
+ * @id: ID in PMIC device of the regulator controllers
+ * @bypass_uv: 0 if not used, else is the voltage level to switch to bypass mode
+ * @lp_state: Regulator mode during PM low power state, per PM states
+ * @lp_level_uv: Regulator voltage level during PM low power state, per PM state
+ * @last_lp_mode: Last low power mode selected or -1 if none selected yet
+ * @levels_desc: Description of the supported voltage levels
+ * @levels: Voltage level value array related to description @levels_desc
+ * @power_control_en: PWRCTRL input line is enabled
+ * @forced_off: Regulator was forced off at suspend
+ */
+struct stpmic2_regu {
+	struct stpmic2 *pmic;
+	uint32_t id;
+	int bypass_uv;
+	uint8_t *lp_state;
+	int *lp_level_uv;
+	int last_lp_mode;
+	struct regulator_voltages_desc levels_desc;
+	int *levels;
+	bool power_control_en;
+	bool forced_off;
+};
+
+/**
+ * struct stpmic2_compat_data - pmic specificity helper
+ *
+ * @desc_table: description table of each regulator
+ * @desc_len: len of the description table
+ * @ref_id: value of PMIC_REF_ID in PRODUCT_ID_SR
+ */
+struct stpmic2_compat_data {
+	const struct regu_dt_desc *desc_table;
+	size_t desc_len;
+	uint8_t ref_id;
+};
+
+/**
+ * struct stpmic2_regu_dt_property - DT property helper
+ *
+ * @name: DT property string name
+ * @prop: Property decimal identifier
+ */
+struct stpmic2_regu_dt_property {
+	const char *name;
+	enum stpmic2_prop_id prop;
+};
+
+static const struct stpmic2_regu_dt_property prop_table[] = {
+	{
+		.name = "st,mask-reset",
+		.prop = STPMIC2_MASK_RESET,
+	},
+	{
+		.name = "st,pwrctrl-enable",
+		.prop = STPMIC2_PWRCTRL_EN,
+	},
+	{
+		.name = "st,pwrctrl-reset",
+		.prop = STPMIC2_PWRCTRL_RS,
+	},
+	{
+		.name = "st,pwrctrl-sel",
+		.prop = STPMIC2_PWRCTRL_SEL,
+	},
+	{
+		.name = "st,alternate-input-source",
+		.prop = STPMIC2_ALTERNATE_INPUT_SOURCE,
+	},
+};
+
 static TEE_Result stpmic2_regulator_get_id(const char *regu_name, uint8_t *id)
 {
 	uint8_t i = 0;
 
 	FMSG("Stpmic2 get id %s", regu_name);
 
-	for (i = 0; i < ARRAY_SIZE(regul_table); i++)
+	for (i = 0; i < ARRAY_SIZE(regul_table); i++) {
 		if (!strcmp(regul_table[i].name, regu_name)) {
 			*id = i;
 			return TEE_SUCCESS;
 		}
+	}
 
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
@@ -627,9 +745,11 @@ static TEE_Result stpmic2_regulator_set_state(struct stpmic2 *pmic, uint8_t id,
 	const struct regul_struct *regul = regul_table + id;
 
 	if (enable)
-		return stpmic2_register_update(pmic, regul->en_cr, 1, 1);
+		return stpmic2_register_update(pmic, regul->en_cr,
+					       BIT(0), BIT(0));
 	else
-		return stpmic2_register_update(pmic, regul->en_cr, 0, 1);
+		return stpmic2_register_update(pmic, regul->en_cr, 0,
+					       BIT(0));
 }
 
 static TEE_Result stpmic2_regulator_get_state(struct stpmic2 *pmic,
@@ -643,7 +763,7 @@ static TEE_Result stpmic2_regulator_get_state(struct stpmic2 *pmic,
 	if (res)
 		return res;
 
-	*enabled = val & 1;
+	*enabled = val & BIT(0);
 
 	return TEE_SUCCESS;
 }
@@ -657,6 +777,7 @@ static TEE_Result stpmic2_regulator_levels_mv(struct stpmic2 *pmic __unused,
 
 	if (levels_count)
 		*levels_count = regul->volt_table_size;
+
 	if (levels)
 		*levels = regul->volt_table;
 
@@ -674,7 +795,7 @@ static TEE_Result stpmic2_regulator_get_voltage(struct stpmic2 *pmic,
 		return TEE_ERROR_GENERIC;
 
 	/* Voltage table size must be a power of 2 to be used as a bitmask */
-	assert((regul->volt_table_size & (regul->volt_table_size - 1)) == 0);
+	assert(IS_POWER_OF_TWO(regul->volt_table_size));
 
 	mask = regul->volt_table_size - 1;
 	if (mask) {
@@ -715,7 +836,7 @@ static TEE_Result stpmic2_regulator_set_voltage(struct stpmic2 *pmic,
 		return TEE_SUCCESS;
 
 	/* Voltage table size must be a power of 2 to be used as a bitmask */
-	assert((regul->volt_table_size & (regul->volt_table_size - 1)) == 0);
+	assert(IS_POWER_OF_TWO(regul->volt_table_size));
 
 	mask = regul->volt_table_size - 1;
 
@@ -788,9 +909,12 @@ static TEE_Result stpmic2_regulator_set_prop(struct stpmic2 *pmic, uint8_t id,
 
 	switch (prop) {
 	case STPMIC2_PULL_DOWN:
+		if (!regul->pd_mask)
+			return TEE_ERROR_BAD_PARAMETERS;
+		/* enable pull-down */
 		return stpmic2_register_update(pmic, regul->pd_reg,
 					       regul->pd_val,
-					       regul->pd_val);
+					       regul->pd_mask);
 	case STPMIC2_MASK_RESET:
 		if (!regul->msrt_mask)
 			return TEE_ERROR_BAD_PARAMETERS;
@@ -849,6 +973,8 @@ static TEE_Result stpmic2_regulator_set_prop(struct stpmic2 *pmic, uint8_t id,
 	case STPMIC2_PWRCTRL_SEL:
 		if (!regul->pwrctrl_cr)
 			return TEE_ERROR_BAD_PARAMETERS;
+		if (arg > (PWRCTRL_SEL_MASK >> PWRCTRL_SEL_SHIFT))
+			return TEE_ERROR_BAD_PARAMETERS;
 		/* select pwr control line */
 		return stpmic2_register_update(pmic, regul->pwrctrl_cr,
 					       arg << PWRCTRL_SEL_SHIFT,
@@ -883,8 +1009,6 @@ static TEE_Result stpmic2_regulator_set_prop(struct stpmic2 *pmic, uint8_t id,
 		EMSG("Invalid prop %d", prop);
 		panic();
 	}
-
-	return 0;
 }
 
 static void stpmic2_dump_regulators(struct stpmic2 *pmic)
@@ -943,9 +1067,7 @@ static TEE_Result stpmic2_is_buck1_high_voltage(struct stpmic2 *pmic,
 }
 
 /*
- *
  * Low Power
- *
  */
 static TEE_Result stpmic2_lp_set_state(struct stpmic2 *pmic, uint8_t id,
 				       bool enable)
@@ -953,9 +1075,11 @@ static TEE_Result stpmic2_lp_set_state(struct stpmic2 *pmic, uint8_t id,
 	const struct regul_struct *regul = regul_table + id;
 
 	if (enable)
-		return stpmic2_register_update(pmic, regul->alt_en_cr, 1, 1);
+		return stpmic2_register_update(pmic, regul->alt_en_cr, BIT(0),
+					       BIT(0));
 	else
-		return stpmic2_register_update(pmic, regul->alt_en_cr, 0, 1);
+		return stpmic2_register_update(pmic, regul->alt_en_cr, 0,
+					       BIT(0));
 }
 
 static TEE_Result stpmic2_lp_set_voltage(struct stpmic2 *pmic, uint8_t id,
@@ -969,7 +1093,7 @@ static TEE_Result stpmic2_lp_set_voltage(struct stpmic2 *pmic, uint8_t id,
 		return TEE_SUCCESS;
 
 	/* Voltage table size must be a power of 2 to be used as a bitmask */
-	assert((regul->volt_table_size & (regul->volt_table_size - 1)) == 0);
+	assert(IS_POWER_OF_TWO(regul->volt_table_size));
 
 	mask = regul->volt_table_size - 1;
 
@@ -990,93 +1114,8 @@ static TEE_Result stpmic2_switch_off(struct stpmic2 *pmic)
 }
 
 /*
- *
  * Regulators in OP-TEE
- *
  */
-
-/* I2C transfer trial configuration */
-#define PMIC_I2C_TRIALS			U(1)
-#define PMIC_I2C_TIMEOUT_BUSY_MS	U(5)
-
-#define STPMIC2_LP_STATE_OFF		BIT(0)
-#define STPMIC2_LP_STATE_ON		BIT(1)
-#define STPMIC2_LP_STATE_UNMODIFIED	BIT(2)
-#define STPMIC2_LP_STATE_SET_VOLT	BIT(3)
-#define STPMIC2_LP_STATE_INVALID	-1
-
-/*
- * struct stpmic2_regu - STPMIC2 regulator instance
- *
- * @pmic: Handle to PMIC device
- * @id: ID in PMIC device of the regulator controllers
- * @bypass_uv: 0 if not used, else is the voltage level to switch to bypass mode
- * @lp_state: Regulator mode during PM low power state, per PM states
- * @lp_level_uv: Regulator voltage level during PM low power state, per PM state
- * @last_lp_mode: Last low power mode selected
- * @levels_desc: Description of the supported voltage levels
- * @levels: Voltage level value array related to description @levels_desc
- * @power_control_en: PWRCTRL input line is enabled
- * @forced_off: Regulator was forced off at suspend
- */
-struct stpmic2_regu {
-	struct stpmic2 *pmic;
-	uint32_t id;
-	int bypass_uv;
-	uint8_t *lp_state;
-	int *lp_level_uv;
-	int last_lp_mode;
-	struct regulator_voltages_desc levels_desc;
-	int *levels;
-	bool power_control_en;
-	bool forced_off;
-};
-
-/*
- * struct stpmic2_compat_data - pmic specificity helper
- * @desc_table: description table of each regulator
- * @desc_len: len of the description table
- * @ref_id: value of PMIC_REF_ID in PRODUCT_ID_SR
- */
-struct stpmic2_compat_data {
-	const struct regu_dt_desc *desc_table;
-	size_t desc_len;
-	uint8_t ref_id;
-};
-
-/*
- * struct stpmic2_regu_dt_property - DT property helper
- * @name: DT property string name
- * @prop: Property decimal identifier
- */
-struct stpmic2_regu_dt_property {
-	const char *name;
-	enum stpmic2_prop_id prop;
-};
-
-static const struct stpmic2_regu_dt_property prop_table[] = {
-	{
-		.name = "st,mask-reset",
-		.prop = STPMIC2_MASK_RESET,
-	},
-	{
-		.name = "st,pwrctrl-enable",
-		.prop = STPMIC2_PWRCTRL_EN,
-	},
-	{
-		.name = "st,pwrctrl-reset",
-		.prop = STPMIC2_PWRCTRL_RS,
-	},
-	{
-		.name = "st,pwrctrl-sel",
-		.prop = STPMIC2_PWRCTRL_SEL,
-	},
-	{
-		.name = "st,alternate-input-source",
-		.prop = STPMIC2_ALTERNATE_INPUT_SOURCE,
-	},
-};
-
 static void stpmic2_lock_unlock(bool lock_not_unlock)
 {
 	static struct mutex pmic_mu = MUTEX_INITIALIZER;
@@ -1172,7 +1211,7 @@ static TEE_Result stpmic2_set_voltage(struct regulator *regulator, int level_uv)
 	struct stpmic2_regu *regu = regulator->priv;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	FMSG("%s: set volt to %d mV", regulator_name(regulator), level_uv);
+	FMSG("%s: set volt to %d uV", regulator_name(regulator), level_uv);
 
 	stpmic2_lock_access();
 
@@ -1441,16 +1480,10 @@ static TEE_Result stpmic2_supplied_init(struct regulator *regulator,
 			return res;
 	}
 
-	res = plat_stpmic2_supplied_init(regulator);
-	if (res) {
-		free(regu);
-		return res;
-	}
-
-	return TEE_SUCCESS;
+	return plat_stpmic2_supplied_init(regulator);
 }
 
-const struct regulator_ops stpmic2_regu_ops = {
+static const struct regulator_ops stpmic2_regu_ops = {
 	.set_state = stpmic2_set_state,
 	.get_state = stpmic2_get_state,
 	.set_voltage = stpmic2_set_voltage,
@@ -1459,13 +1492,15 @@ const struct regulator_ops stpmic2_regu_ops = {
 	.init = stpmic2_init,
 	.supplied_init = stpmic2_supplied_init,
 };
+DECLARE_KEEP_PAGER(stpmic2_regu_ops);
 
-const struct regulator_ops stpmic2_switch_ops = {
+static const struct regulator_ops stpmic2_switch_ops = {
 	.set_state = stpmic2_set_state,
 	.get_state = stpmic2_get_state,
 	.init = stpmic2_init,
 	.supplied_init = stpmic2_supplied_init,
 };
+DECLARE_KEEP_PAGER(stpmic2_switch_ops);
 
 static void stpmic2_parse_regu_node(struct regu_dt_desc *regu_desc,
 				    const void *fdt, int node)
@@ -1658,7 +1693,7 @@ static TEE_Result stpmic2_pm(enum pm_op op, uint32_t pm_hint,
 {
 	struct stpmic2 *pmic = pm_handle->handle;
 	unsigned int pwrlvl = PM_HINT_PLATFORM_STATE(pm_hint);
-	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (op == PM_OP_SUSPEND) {
 		if (pwrlvl == STM32_PM_SWITCH_OFF &&
@@ -1673,6 +1708,7 @@ static TEE_Result stpmic2_pm(enum pm_op op, uint32_t pm_hint,
 
 	return res;
 }
+DECLARE_KEEP_PAGER(stpmic2_pm);
 
 static void stpmic2_initialize_i2c(const void *fdt, int node,
 				   struct stpmic2 *pmic,
@@ -1736,7 +1772,7 @@ static TEE_Result stpmic2_probe(const void *fdt, int node,
 	struct stm32_i2c_dev *stm32_i2c_dev = NULL;
 	struct i2c_dev *i2c_dev = NULL;
 	struct stpmic2 *pmic = NULL;
-	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	FMSG("Probe stpmic2");
 
@@ -1793,7 +1829,6 @@ const struct regu_dt_desc stpmic25_reguls[] = {
 	DEFINE_REGU("ldo8"),
 	DEFINE_SWITCH("refddr"),
 };
-DECLARE_KEEP_PAGER(stpmic25_reguls);
 
 const struct regu_dt_desc stpmic1l_reguls[] = {
 	DEFINE_REGU("buck1"),
@@ -1826,7 +1861,6 @@ const struct regu_dt_desc stpmic2l_reguls[] = {
 	DEFINE_SWITCH("gpo4"),
 	DEFINE_SWITCH("gpo5"),
 };
-DECLARE_KEEP_PAGER(stpmic2l_reguls);
 
 static const struct stpmic2_compat_data stpmic25_cdata = {
 	.desc_table = stpmic25_reguls,
