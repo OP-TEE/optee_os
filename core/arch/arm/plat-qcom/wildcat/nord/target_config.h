@@ -29,4 +29,8 @@
 #define TLMM_BASE			UL(0x0f000000)
 #define TLMM_BASE_SIZE			UL(0x01000000)
 
+/* SMEM base address */
+#define SMEM_BASE       0x89B00000
+#define SMEM_SIZE       0x00400000
+
 #endif /* TARGET_CONFIG_H */
