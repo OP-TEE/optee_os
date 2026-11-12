@@ -818,7 +818,7 @@ TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg,
 {
 	TEE_Result res;
 	struct tee_fs_htree *ht = *ht_arg;
-	void *ctx;
+	void *ctx = NULL;
 
 	if (!ht)
 		return TEE_ERROR_CORRUPT_OBJECT;
@@ -828,7 +828,7 @@ TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg,
 
 	res = crypto_hash_alloc_ctx(&ctx, TEE_FS_HTREE_HASH_ALG);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto out;
 
 	res = htree_traverse_post_order(ht, htree_sync_node_to_storage, ctx);
 	if (res != TEE_SUCCESS)
