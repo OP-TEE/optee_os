@@ -31,6 +31,7 @@ struct tee_pobj;
  * tee_fs implements a POSIX like secure file system with GP extension
  */
 struct tee_file_operations {
+	/* For open() and create(), po must outlive the returned fh. */
 	TEE_Result (*open)(struct tee_pobj *po, size_t *size,
 			   struct tee_file_handle **fh);
 	TEE_Result (*create)(struct tee_pobj *po, bool overwrite,
