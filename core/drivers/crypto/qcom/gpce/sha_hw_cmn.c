@@ -8,6 +8,7 @@
 #include <kernel/mutex.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdlib_ext.h>
 #include <string_ext.h>
 
 #include "ce_hwio.h"
@@ -39,20 +40,22 @@ static TEE_Result sha_cmn_hwio_process_din(struct qce_hash_state *me,
 	struct ce_sha_ctx *c = NULL;
 	TEE_Result ret = TEE_ERROR_BAD_STATE;
 	size_t seg_sz = 0;
+	TEE_Result res = TEE_SUCCESS;
 
-	if (qce_hash_get_sha_ctx(me, &c) != TEE_SUCCESS)
+	res = qce_hash_get_sha_ctx(me, &c);
+	if (res)
 		return TEE_ERROR_BAD_STATE;
 	mutex_lock(&me->dev->mutex);
 
 	/* Set CE Context */
-	seg_sz = ROUNDUP(buf_sz, QCE_HW_BLOCK_SIZE);
+	seg_sz = ROUNDUP2(buf_sz, QCE_HW_BLOCK_SIZE);
 	ret = ce_hwio_set_ce_ctx(me, buf_sz, seg_sz, first, last);
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		goto out;
 
 	/* Transfer data to CE */
 	ret = ce_hwio_xfer_data(me, buf, seg_sz);
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		goto out;
 
 	/* Get CE Context */
@@ -69,10 +72,10 @@ TEE_Result sha_cmn_ce_update(struct qce_hash_state *me, const uint8_t *msg,
 	struct ce_sha_ctx *c = NULL;
 	TEE_Result ret = TEE_SUCCESS;
 
-	if (qce_hash_get_sha_ctx(me, &c) != TEE_SUCCESS)
+	ret = qce_hash_get_sha_ctx(me, &c);
+	if (ret)
 		return TEE_ERROR_BAD_STATE;
-	if (!msg && msg_sz)
-		return TEE_ERROR_BAD_PARAMETERS;
+
 	if (!msg_sz)
 		return TEE_SUCCESS;
 
@@ -93,7 +96,7 @@ TEE_Result sha_cmn_ce_update(struct qce_hash_state *me, const uint8_t *msg,
 
 		ret = sha_cmn_hwio_process_din(me, c->block, c->block_len,
 					       c->first, false);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			return ret;
 		c->block_len = 0;
 		c->first = false;
@@ -106,7 +109,7 @@ TEE_Result sha_cmn_ce_update(struct qce_hash_state *me, const uint8_t *msg,
 			xfer_sz -= QCE_SHA_BLOCK_SIZE;
 		ret = sha_cmn_hwio_process_din(me, msg, xfer_sz, c->first,
 					       false);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			return ret;
 		c->first = false;
 		msg += xfer_sz;
@@ -124,7 +127,8 @@ TEE_Result sha_cmn_ce_final(struct qce_hash_state *me, uint8_t *md)
 	struct ce_sha_ctx *c = NULL;
 	TEE_Result ret = TEE_SUCCESS;
 
-	if (qce_hash_get_sha_ctx(me, &c) != TEE_SUCCESS)
+	ret = qce_hash_get_sha_ctx(me, &c);
+	if (ret)
 		return TEE_ERROR_BAD_STATE;
 
 	if (c->first && !c->block_len) {
@@ -132,11 +136,11 @@ TEE_Result sha_cmn_ce_final(struct qce_hash_state *me, uint8_t *md)
 		return TEE_SUCCESS;
 	}
 
-	memzero_explicit(c->block + c->block_len,
-			 QCE_SHA_BLOCK_SIZE - c->block_len);
+	memset(c->block + c->block_len, 0,
+	       QCE_SHA_BLOCK_SIZE - c->block_len);
 	ret = sha_cmn_hwio_process_din(me, c->block, c->block_len,
 				       c->first, true);
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		return ret;
 	c->block_len = 0;
 	c->first = false;
@@ -149,16 +153,16 @@ TEE_Result sha_cmn_ce_cleanup(struct qce_hash_state *me)
 	struct ce_sha_ctx *c = NULL;
 	TEE_Result ret = TEE_SUCCESS;
 
-	if (qce_hash_get_sha_ctx(me, &c) != TEE_SUCCESS)
+	ret = qce_hash_get_sha_ctx(me, &c);
+	if (ret)
 		return TEE_ERROR_BAD_STATE;
 
 	if (c->ce_ctx) {
 		ret = ce_hal_free(c->ce_ctx);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			return ret;
 	}
-	memzero_explicit(me->ctx, sizeof(struct ce_sha_ctx));
-	free(me->ctx);
+	free_wipe(me->ctx);
 	me->ctx_sz = 0;
 
 	return TEE_SUCCESS;
@@ -171,7 +175,7 @@ static TEE_Result sha_cmn_init_iv(struct ce_sha_ctx *c)
 
 	for (n = 0; n < ARRAY_SIZE(sha256_initial_state); n++) {
 		ret = ce_hal_set_auth_iv(c->ce_ctx, n, sha256_initial_state[n]);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			return ret;
 	}
 
@@ -183,7 +187,7 @@ TEE_Result sha_cmn_ce_init(struct qce_hash_state *me)
 	struct ce_sha_ctx *c = NULL;
 	TEE_Result ret = TEE_SUCCESS;
 
-	if (HASH_IS_CTX_NULL(me) || !me->dev)
+	if (!me || !me->dev)
 		return TEE_ERROR_BAD_STATE;
 
 	if (!me->ctx || me->ctx_sz != sizeof(struct ce_sha_ctx)) {
@@ -195,23 +199,23 @@ TEE_Result sha_cmn_ce_init(struct qce_hash_state *me)
 			return TEE_ERROR_OUT_OF_MEMORY;
 		me->ctx_sz = sizeof(struct ce_sha_ctx);
 	} else {
-		c = HASH_GET_DIGEST_CTX(me, struct ce_sha_ctx);
+		c = (struct ce_sha_ctx *)me->ctx;
 		if (c->ce_ctx) {
 			ret = ce_hal_free(c->ce_ctx);
-			if (ret != TEE_SUCCESS)
+			if (ret)
 				return ret;
 		}
-		memzero_explicit(c, sizeof(*c));
+		memset(c, 0, sizeof(*c));
 	}
 
-	c = HASH_GET_DIGEST_CTX(me, struct ce_sha_ctx);
+	c = (struct ce_sha_ctx *)me->ctx;
 	c->first = true;
 	c->ce_ctx = ce_hal_new();
 	if (!c->ce_ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	ret = ce_hal_init(c->ce_ctx, true);
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		return ret;
 
 	return sha_cmn_init_iv(c);
@@ -230,7 +234,7 @@ TEE_Result sha_cmn_ce_copy(struct qce_hash_state *dest,
 
 	if (dest_inner_ctx->ce_ctx) {
 		ret = ce_hal_free(dest_inner_ctx->ce_ctx);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			return ret;
 	}
 
@@ -244,7 +248,7 @@ TEE_Result sha_cmn_ce_copy(struct qce_hash_state *dest,
 			return TEE_ERROR_OUT_OF_MEMORY;
 		ret = ce_hal_copy(dest_inner_ctx->ce_ctx,
 				  src_inner_ctx->ce_ctx);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			return ret;
 	}
 	return TEE_SUCCESS;

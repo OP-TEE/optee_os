@@ -4,14 +4,15 @@
  *
  * Implementation of the Qualcomm Crypto Engine hash driver.
  */
+#include <assert.h>
 #include <crypto/crypto_impl.h>
 #include <drvcrypt_hash.h>
 #include <initcall.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stdlib.h>
+#include <stdlib_ext.h>
 #include <string.h>
-#include <string_ext.h>
 #include <trace.h>
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
@@ -30,6 +31,13 @@ static struct qce_dev qce_dev = {
 	.mutex = MUTEX_INITIALIZER,
 };
 
+static struct qce_hash_ctx *to_qce_hash_ctx(struct crypto_hash_ctx *ctx)
+{
+	assert(ctx && ctx->ops == &qce_hash_ops);
+
+	return container_of(ctx, struct qce_hash_ctx, hash_ctx);
+}
+
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, QCOM_GPCE_REG_BASE,
 			QCOM_GPCE_REG_SIZE);
 
@@ -41,17 +49,12 @@ static void qce_hash_free_ctx(struct crypto_hash_ctx *ctx)
 	if (!ctx || ctx->ops != &qce_hash_ops)
 		return;
 
-	qce_ctx = container_of(ctx, struct qce_hash_ctx, hash_ctx);
+	qce_ctx = to_qce_hash_ctx(ctx);
 	state = qce_ctx->state;
 	if (state && state->ctx)
-		(void)sha_cmn_ce_cleanup(state);
-	if (state) {
-		memzero_explicit(state, sizeof(*state));
-		free(state);
-	}
-
-	memzero_explicit(qce_ctx, sizeof(*qce_ctx));
-	free(qce_ctx);
+		sha_cmn_ce_cleanup(state);
+	free_wipe(state);
+	free_wipe(qce_ctx);
 }
 
 static TEE_Result qce_hash_init(struct crypto_hash_ctx *ctx)
@@ -61,7 +64,7 @@ static TEE_Result qce_hash_init(struct crypto_hash_ctx *ctx)
 	if (!ctx || ctx->ops != &qce_hash_ops)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	qce_ctx = container_of(ctx, struct qce_hash_ctx, hash_ctx);
+	qce_ctx = to_qce_hash_ctx(ctx);
 	return sha_cmn_ce_init(qce_ctx->state);
 }
 
@@ -70,11 +73,10 @@ static TEE_Result qce_hash_update(struct crypto_hash_ctx *ctx,
 {
 	struct qce_hash_ctx *qce_ctx = NULL;
 
-	if (!ctx || ctx->ops != &qce_hash_ops ||
-	    (!data && len) || (uintptr_t)data > UINTPTR_MAX - len)
+	if (!ctx || ctx->ops != &qce_hash_ops || (!data && len))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	qce_ctx = container_of(ctx, struct qce_hash_ctx, hash_ctx);
+	qce_ctx = to_qce_hash_ctx(ctx);
 	return sha_cmn_ce_update(qce_ctx->state, data, len);
 }
 
@@ -83,13 +85,12 @@ static TEE_Result qce_hash_final(struct crypto_hash_ctx *ctx,
 {
 	struct qce_hash_ctx *qce_ctx = NULL;
 
-	if (!ctx || ctx->ops != &qce_hash_ops || !digest ||
-	    (uintptr_t)digest > UINTPTR_MAX - len)
+	if (!ctx || ctx->ops != &qce_hash_ops || !digest)
 		return TEE_ERROR_BAD_PARAMETERS;
 	if (len < TEE_SHA256_HASH_SIZE)
 		return TEE_ERROR_SHORT_BUFFER;
 
-	qce_ctx = container_of(ctx, struct qce_hash_ctx, hash_ctx);
+	qce_ctx = to_qce_hash_ctx(ctx);
 	return sha_cmn_ce_final(qce_ctx->state, digest);
 }
 
@@ -103,22 +104,20 @@ static void qce_hash_copy_state(struct crypto_hash_ctx *dst,
 	void *dst_inner_ctx = NULL;
 	TEE_Result ret = TEE_ERROR_BAD_STATE;
 
-	if (!dst || !src || dst->ops != &qce_hash_ops ||
-	    src->ops != &qce_hash_ops)
-		goto out;
+	assert(dst && src);
 
-	dst_ctx = container_of(dst, struct qce_hash_ctx, hash_ctx);
-	src_ctx = container_of(src, struct qce_hash_ctx, hash_ctx);
+	dst_ctx = to_qce_hash_ctx(dst);
+	src_ctx = to_qce_hash_ctx(src);
 	dst_state = dst_ctx->state;
 	src_state = src_ctx->state;
-	if (HASH_IS_CTX_NULL(dst_state) || HASH_IS_CTX_NULL(src_state))
+	if (!dst_state || !src_state)
 		goto out;
 
 	if (dst_state->ctx &&
 	    (!src_state->ctx ||
 	     dst_state->ctx_sz != src_state->ctx_sz)) {
 		ret = sha_cmn_ce_cleanup(dst_state);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			goto out;
 		dst_state->ctx = NULL;
 	}
@@ -135,12 +134,12 @@ static void qce_hash_copy_state(struct crypto_hash_ctx *dst,
 			}
 		}
 		ret = sha_cmn_ce_copy(dst_state, src_state);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			goto out;
 	}
 	ret = TEE_SUCCESS;
 out:
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		EMSG("QCE hash state copy failed: %#"PRIx32, ret);
 }
 

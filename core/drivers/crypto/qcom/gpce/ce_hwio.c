@@ -87,8 +87,10 @@ TEE_Result ce_hwio_set_ce_ctx(struct qce_hash_state *ctx, size_t auth_sz,
 	uint32_t cfg = CE_AUTH_CFG_SHA | CE_AUTH_CFG_SHA256_SIZE;
 	bool little_endian = false;
 	size_t i = 0;
+	TEE_Result res = TEE_SUCCESS;
 
-	if (qce_hash_get_sha_ctx(ctx, &sha_ctx) != TEE_SUCCESS)
+	res = qce_hash_get_sha_ctx(ctx, &sha_ctx);
+	if (res)
 		return TEE_ERROR_BAD_STATE;
 	dev = ctx->dev;
 	me = sha_ctx->ce_ctx;
@@ -96,12 +98,12 @@ TEE_Result ce_hwio_set_ce_ctx(struct qce_hash_state *ctx, size_t auth_sz,
 		return TEE_ERROR_BAD_STATE;
 
 	/* CE HW Config set up */
-	little_endian = CE_HAL_IS_FLAG_SET(me, CE_HAL_FLAGS_IS_LITTLE_ENDIAN);
+	little_endian = !!(me->flags & CE_HAL_FLAGS_IS_LITTLE_ENDIAN);
 
 	ce_hwio_set_config(ctx, little_endian);
 
 	/* Auth engine set up */
-	if (CE_HAL_IS_FLAG_SET(me, CE_HAL_FLAGS_IS_AUTH_ENG_EN)) {
+	if (me->flags & CE_HAL_FLAGS_IS_AUTH_ENG_EN) {
 		if (auth_sz > seg_sz)
 			return TEE_ERROR_BAD_PARAMETERS;
 
@@ -114,15 +116,10 @@ TEE_Result ce_hwio_set_ce_ctx(struct qce_hash_state *ctx, size_t auth_sz,
 			io_write32(CE_HWIO_BASE(dev) + CE_REG_AUTH_IV(i),
 				   me->auth_iv[i]);
 
-		/* Set ByteCounts */
-		io_write32(CE_HWIO_BASE(dev) + CE_REG_AUTH_BYTECNT(0),
-			   me->auth_byte_cnt[0]);
-		io_write32(CE_HWIO_BASE(dev) + CE_REG_AUTH_BYTECNT(1),
-			   me->auth_byte_cnt[1]);
-		io_write32(CE_HWIO_BASE(dev) + CE_REG_AUTH_BYTECNT(2),
-			   me->auth_byte_cnt[2]);
-		io_write32(CE_HWIO_BASE(dev) + CE_REG_AUTH_BYTECNT(3),
-			   me->auth_byte_cnt[3]);
+		/* Set byte counts. */
+		for (i = 0; i < QCE_MAX_AUTH_BYTE_COUNT; i++)
+			io_write32(CE_HWIO_BASE(dev) + CE_REG_AUTH_BYTECNT(i),
+				   me->auth_byte_cnt[i]);
 
 		if (last)
 			cfg |= CE_AUTH_CFG_LAST;
@@ -139,7 +136,7 @@ TEE_Result ce_hwio_set_ce_ctx(struct qce_hash_state *ctx, size_t auth_sz,
 	dsb();
 
 	/* Dummy read to flush out a posted write, if pending. */
-	(void)io_read32(CE_HWIO_BASE(dev) + CE_REG_STATUS);
+	io_read32(CE_HWIO_BASE(dev) + CE_REG_STATUS);
 
 	return TEE_SUCCESS;
 }
@@ -153,7 +150,8 @@ TEE_Result ce_hwio_get_ce_ctx(struct qce_hash_state *ctx)
 	uint32_t ce_status = 0;
 	TEE_Result res = TEE_SUCCESS;
 
-	if (qce_hash_get_sha_ctx(ctx, &sha_ctx) != TEE_SUCCESS)
+	res = qce_hash_get_sha_ctx(ctx, &sha_ctx);
+	if (res)
 		return TEE_ERROR_BAD_STATE;
 	dev = ctx->dev;
 	me = sha_ctx->ce_ctx;
@@ -161,7 +159,7 @@ TEE_Result ce_hwio_get_ce_ctx(struct qce_hash_state *ctx)
 		return TEE_ERROR_BAD_STATE;
 
 	/* Auth Engine Context if enabled */
-	if (CE_HAL_IS_FLAG_SET(me, CE_HAL_FLAGS_IS_AUTH_ENG_EN)) {
+	if (me->flags & CE_HAL_FLAGS_IS_AUTH_ENG_EN) {
 		if (IO_READ32_POLL_TIMEOUT(CE_HWIO_BASE(dev) + CE_REG_STATUS,
 					   ce_status,
 					   (ce_status & CE_STATUS_ERROR_MASK) ||
@@ -170,7 +168,7 @@ TEE_Result ce_hwio_get_ce_ctx(struct qce_hash_state *ctx)
 			return TEE_ERROR_TIMEOUT;
 
 		res = ce_hwio_get_ce_state(ce_status);
-		if (res != TEE_SUCCESS)
+		if (res)
 			return res;
 
 		/* Save IVs */
@@ -179,15 +177,11 @@ TEE_Result ce_hwio_get_ce_ctx(struct qce_hash_state *ctx)
 				io_read32(CE_HWIO_BASE(dev) +
 					  CE_REG_AUTH_IV(i));
 
-		/* Save ByteCounts */
-		me->auth_byte_cnt[0] =
-			io_read32(CE_HWIO_BASE(dev) + CE_REG_AUTH_BYTECNT(0));
-		me->auth_byte_cnt[1] =
-			io_read32(CE_HWIO_BASE(dev) + CE_REG_AUTH_BYTECNT(1));
-		me->auth_byte_cnt[2] =
-			io_read32(CE_HWIO_BASE(dev) + CE_REG_AUTH_BYTECNT(2));
-		me->auth_byte_cnt[3] =
-			io_read32(CE_HWIO_BASE(dev) + CE_REG_AUTH_BYTECNT(3));
+		/* Save byte counts. */
+		for (i = 0; i < QCE_MAX_AUTH_BYTE_COUNT; i++)
+			me->auth_byte_cnt[i] =
+				io_read32(CE_HWIO_BASE(dev) +
+					  CE_REG_AUTH_BYTECNT(i));
 	}
 
 	return TEE_SUCCESS;
@@ -200,8 +194,10 @@ TEE_Result ce_hwio_xfer_data(struct qce_hash_state *ctx, const uint8_t *ibuf,
 	struct qce_dev *dev = NULL;
 	struct qce_ce_ctx *me = NULL;
 	size_t iwcnt = 0;
+	TEE_Result res = TEE_SUCCESS;
 
-	if (qce_hash_get_sha_ctx(ctx, &sha_ctx) != TEE_SUCCESS)
+	res = qce_hash_get_sha_ctx(ctx, &sha_ctx);
+	if (res)
 		return TEE_ERROR_BAD_STATE;
 	dev = ctx->dev;
 	me = sha_ctx->ce_ctx;
@@ -210,7 +206,7 @@ TEE_Result ce_hwio_xfer_data(struct qce_hash_state *ctx, const uint8_t *ibuf,
 	if (!ibuf && isz)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	iwcnt = ROUNDUP(isz, sizeof(uint32_t)) / sizeof(uint32_t);
+	iwcnt = ROUNDUP2_DIV(isz, sizeof(uint32_t));
 	while (iwcnt) {
 		uint64_t timeout = timeout_init_us(CE_HWIO_FIFO_TIMEOUT_US);
 		uint32_t status = 0;

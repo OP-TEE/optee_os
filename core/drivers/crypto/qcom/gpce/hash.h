@@ -62,9 +62,6 @@ struct qce_hash_state {
 	size_t ctx_sz;
 };
 
-#define HASH_GET_DIGEST_CTX(hash, type) ((type *)((hash)->ctx))
-#define HASH_IS_CTX_NULL(ctx) (!(ctx))
-
 static inline TEE_Result
 qce_hash_get_sha_ctx(struct qce_hash_state *state,
 		     struct ce_sha_ctx **sha_ctx)
@@ -73,7 +70,7 @@ qce_hash_get_sha_ctx(struct qce_hash_state *state,
 	    state->ctx_sz != sizeof(struct ce_sha_ctx))
 		return TEE_ERROR_BAD_STATE;
 
-	*sha_ctx = HASH_GET_DIGEST_CTX(state, struct ce_sha_ctx);
+	*sha_ctx = (struct ce_sha_ctx *)state->ctx;
 	return TEE_SUCCESS;
 }
 

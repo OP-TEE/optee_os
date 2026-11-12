@@ -33,9 +33,6 @@ struct qce_ce_ctx {
 	uint32_t auth_byte_cnt[QCE_MAX_AUTH_BYTE_COUNT];
 };
 
-#define CE_HAL_SET_FLAGS(me, v) ((me)->flags |= (v))
-#define CE_HAL_IS_FLAG_SET(me, flag) (!!((me)->flags & (flag)))
-
 /*
  * ce_hal_new() - Allocate a Crypto Engine context
  *

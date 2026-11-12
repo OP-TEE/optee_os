@@ -8,7 +8,7 @@
 #include "ce_hal.h"
 #include <stdlib.h>
 #include <string.h>
-#include <string_ext.h>
+#include <stdlib_ext.h>
 
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
@@ -24,8 +24,7 @@ TEE_Result ce_hal_free(struct qce_ce_ctx *me)
 {
 	if (!me)
 		return TEE_ERROR_BAD_STATE;
-	memzero_explicit(me, sizeof(*me));
-	free(me);
+	free_wipe(me);
 
 	return TEE_SUCCESS;
 }
@@ -36,8 +35,8 @@ TEE_Result ce_hal_init(struct qce_ce_ctx *me, bool little_endian)
 		return TEE_ERROR_BAD_STATE;
 
 	if (little_endian)
-		CE_HAL_SET_FLAGS(me, CE_HAL_FLAGS_IS_LITTLE_ENDIAN);
-	CE_HAL_SET_FLAGS(me, CE_HAL_FLAGS_IS_AUTH_ENG_EN);
+		me->flags |= CE_HAL_FLAGS_IS_LITTLE_ENDIAN;
+	me->flags |= CE_HAL_FLAGS_IS_AUTH_ENG_EN;
 
 	return TEE_SUCCESS;
 }
