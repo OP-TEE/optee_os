@@ -300,26 +300,10 @@ static TEE_Result ree_fs_ftruncate_internal(struct ree_fs_object *fdp,
 		if (res != TEE_SUCCESS)
 			return res;
 	} else {
-		tee_fs_off_t offs = 0;
-		size_t sz;
-
-		res = get_offs_size(TEE_FS_HTREE_TYPE_BLOCK,
-				    ROUNDUP_DIV(new_file_len, BLOCK_SIZE), 1,
-				    &offs, &sz);
-		if (res != TEE_SUCCESS)
-			return res;
-
 		res = tee_fs_htree_truncate(&fdp->ht,
 					    new_file_len / BLOCK_SIZE);
 		if (res != TEE_SUCCESS)
 			return res;
-
-		res = tee_fs_rpc_truncate(OPTEE_RPC_CMD_FS, fdp->fd,
-					  offs + (tee_fs_off_t)sz);
-		if (res != TEE_SUCCESS) {
-			tee_fs_htree_close(&fdp->ht);
-			return res;
-		}
 
 		meta->length = new_file_len;
 		tee_fs_htree_meta_set_dirty(fdp->ht);
@@ -806,8 +790,7 @@ static TEE_Result recover_file(struct tee_fs_dirfile_dirh **dirh,
 	TEE_Result res = TEE_SUCCESS;
 
 	if (!dir_res) {
-		/* NULL old_hash forbids rollback after a shrink. */
-		if (!fdp->ht && old_hash &&
+		if (!fdp->ht &&
 		    error != TEE_ERROR_CORRUPT_OBJECT &&
 		    error != TEE_ERROR_SECURITY &&
 		    tee_fs_htree_open(false, fdp->dfh.hash, 0, fdp->uuid,
@@ -834,7 +817,7 @@ static TEE_Result recover_file(struct tee_fs_dirfile_dirh **dirh,
 		goto err;
 	if (!memcmp(dfh.hash, fdp->dfh.hash, sizeof(dfh.hash)))
 		dir_res = TEE_SUCCESS;
-	else if (!old_hash || memcmp(dfh.hash, old_hash, sizeof(dfh.hash)))
+	else if (memcmp(dfh.hash, old_hash, sizeof(dfh.hash)))
 		goto err;
 
 	res = tee_fs_htree_open(false, dfh.hash, 0, fdp->uuid,
@@ -1197,6 +1180,8 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 	struct tee_fs_dirfile_dirh *dirh = NULL;
 	struct ree_fs_object *fdp = (struct ree_fs_object *)fh;
 	size_t old_len = 0;
+	tee_fs_off_t offs = 0;
+	size_t sz = 0;
 
 	mutex_lock(&ree_fs_mutex);
 	if (!fdp->ht) {
@@ -1212,6 +1197,13 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 
 	memcpy(old_hash, fdp->dfh.hash, sizeof(old_hash));
 	old_len = tee_fs_htree_get_meta(fdp->ht)->length;
+	if (len <= old_len) {
+		res = get_offs_size(TEE_FS_HTREE_TYPE_BLOCK,
+				    ROUNDUP_DIV(len, BLOCK_SIZE), 1,
+				    &offs, &sz);
+		if (res)
+			goto out;
+	}
 	res = ree_fs_ftruncate_internal(fdp, len);
 	if (res)
 		goto recover;
@@ -1222,15 +1214,24 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 
 	/* An overwritten file is no longer part of the directory. */
 	if (fdp->dfh.idx == -1)
-		goto out;
+		goto truncate_file;
 	dir_res = tee_fs_dirfile_update_hash(dirh, &fdp->dfh);
 	if (!dir_res)
 		dir_res = commit_dirh_writes(dirh);
 	if (!dir_res)
-		goto out;
+		goto truncate_file;
 recover:
-	res = recover_file(&dirh, fdp,
-			   len >= old_len ? old_hash : NULL, res, dir_res);
+	res = recover_file(&dirh, fdp, old_hash, res, dir_res);
+	if (res)
+		goto out;
+truncate_file:
+	/* The new length is committed; only unused space remains to reclaim. */
+	if (len <= old_len) {
+		res = tee_fs_rpc_truncate(OPTEE_RPC_CMD_FS, fdp->fd,
+					  offs + (tee_fs_off_t)sz);
+		if (res)
+			tee_fs_htree_close(&fdp->ht);
+	}
 out:
 	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
