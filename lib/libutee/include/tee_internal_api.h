@@ -824,5 +824,6 @@ __GP11_TA_InvokeCommandEntryPoint(void *sessionContext, uint32_t commandID,
  */
 
 #include <tee_api_compat.h>
+#include <tee_internal_api_fortify.h>
 
 #endif /*TEE_INTERNAL_API_H*/
