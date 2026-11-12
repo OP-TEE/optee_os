@@ -797,6 +797,61 @@ static void put_dirh(struct tee_fs_dirfile_dirh *dirh, bool close)
 	}
 }
 
+static TEE_Result recover_file(struct tee_fs_dirfile_dirh **dirh,
+			       struct ree_fs_object *fdp,
+			       const uint8_t *old_hash, TEE_Result error,
+			       TEE_Result dir_res)
+{
+	struct tee_fs_dirfile_fileh dfh = { };
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!dir_res) {
+		/* NULL old_hash forbids rollback after a shrink. */
+		if (!fdp->ht && old_hash &&
+		    error != TEE_ERROR_CORRUPT_OBJECT &&
+		    error != TEE_ERROR_SECURITY &&
+		    tee_fs_htree_open(false, fdp->dfh.hash, 0, fdp->uuid,
+				      &ree_fs_storage_ops, fdp, &fdp->ht))
+			return TEE_ERROR_STORAGE_NOT_AVAILABLE;
+		return error;
+	}
+
+	assert(fdp->po);
+	tee_fs_htree_close(&fdp->ht);
+	/* A failed commit may have selected either file version. */
+	put_dirh(*dirh, true);
+	*dirh = NULL;
+	if (dir_res == TEE_ERROR_CORRUPT_OBJECT ||
+	    dir_res == TEE_ERROR_SECURITY)
+		return dir_res;
+
+	res = get_dirh(dirh);
+	if (res)
+		goto err;
+	res = tee_fs_dirfile_find(*dirh, &fdp->po->uuid, fdp->po->obj_id,
+				  fdp->po->obj_id_len, &dfh);
+	if (res || dfh.file_number != fdp->dfh.file_number)
+		goto err;
+	if (!memcmp(dfh.hash, fdp->dfh.hash, sizeof(dfh.hash)))
+		dir_res = TEE_SUCCESS;
+	else if (!old_hash || memcmp(dfh.hash, old_hash, sizeof(dfh.hash)))
+		goto err;
+
+	res = tee_fs_htree_open(false, dfh.hash, 0, fdp->uuid,
+				&ree_fs_storage_ops, fdp, &fdp->ht);
+	if (res)
+		goto err;
+	/* A new counter-protected version may still need to be anchored. */
+	if (!dir_res && !IS_ENABLED(CFG_REE_FS_INTEGRITY_RPMB) &&
+	    commit_dirh_writes(*dirh))
+		goto err;
+	fdp->dfh = dfh;
+	return dir_res;
+err:
+	tee_fs_htree_close(&fdp->ht);
+	return TEE_ERROR_STORAGE_NOT_AVAILABLE;
+}
+
 static TEE_Result ree_fs_open(struct tee_pobj *po, size_t *size,
 			      struct tee_file_handle **fh)
 {
@@ -1000,6 +1055,7 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 {
 	TEE_Result res;
 	TEE_Result dir_res = TEE_SUCCESS;
+	uint8_t old_hash[TEE_FS_HTREE_HASH_SIZE] = { };
 	struct tee_fs_dirfile_dirh *dirh = NULL;
 	struct ree_fs_object *fdp = (struct ree_fs_object *)fh;
 
@@ -1018,13 +1074,14 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 			goto out;
 	}
 
+	memcpy(old_hash, fdp->dfh.hash, sizeof(old_hash));
 	res = ree_fs_write_primitive(fh, pos, buf_core, buf_user, len);
 	if (res)
-		goto out;
+		goto recover;
 
 	res = tee_fs_htree_sync_to_storage(&fdp->ht, fdp->dfh.hash, NULL);
 	if (res)
-		goto out;
+		goto recover;
 
 	/* An overwritten file is no longer part of the directory. */
 	if (fdp->dfh.idx == -1)
@@ -1032,11 +1089,11 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 	dir_res = tee_fs_dirfile_update_hash(dirh, &fdp->dfh);
 	if (!dir_res)
 		dir_res = commit_dirh_writes(dirh);
+	if (!dir_res)
+		goto out;
+recover:
+	res = recover_file(&dirh, fdp, old_hash, res, dir_res);
 out:
-	if (dir_res) {
-		tee_fs_htree_close(&fdp->ht);
-		res = dir_res;
-	}
 	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
 
@@ -1136,8 +1193,10 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 {
 	TEE_Result res;
 	TEE_Result dir_res = TEE_SUCCESS;
+	uint8_t old_hash[TEE_FS_HTREE_HASH_SIZE] = { };
 	struct tee_fs_dirfile_dirh *dirh = NULL;
 	struct ree_fs_object *fdp = (struct ree_fs_object *)fh;
+	size_t old_len = 0;
 
 	mutex_lock(&ree_fs_mutex);
 	if (!fdp->ht) {
@@ -1151,13 +1210,15 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 			goto out;
 	}
 
+	memcpy(old_hash, fdp->dfh.hash, sizeof(old_hash));
+	old_len = tee_fs_htree_get_meta(fdp->ht)->length;
 	res = ree_fs_ftruncate_internal(fdp, len);
 	if (res)
-		goto out;
+		goto recover;
 
 	res = tee_fs_htree_sync_to_storage(&fdp->ht, fdp->dfh.hash, NULL);
 	if (res)
-		goto out;
+		goto recover;
 
 	/* An overwritten file is no longer part of the directory. */
 	if (fdp->dfh.idx == -1)
@@ -1165,11 +1226,12 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 	dir_res = tee_fs_dirfile_update_hash(dirh, &fdp->dfh);
 	if (!dir_res)
 		dir_res = commit_dirh_writes(dirh);
+	if (!dir_res)
+		goto out;
+recover:
+	res = recover_file(&dirh, fdp,
+			   len >= old_len ? old_hash : NULL, res, dir_res);
 out:
-	if (dir_res) {
-		tee_fs_htree_close(&fdp->ht);
-		res = dir_res;
-	}
 	put_dirh(dirh, res);
 	mutex_unlock(&ree_fs_mutex);
 

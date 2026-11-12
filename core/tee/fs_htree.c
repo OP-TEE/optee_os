@@ -823,8 +823,14 @@ TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg,
 	if (!ht)
 		return TEE_ERROR_CORRUPT_OBJECT;
 
-	if (!ht->dirty)
+	if (!ht->dirty) {
+		if (hash)
+			memcpy(hash, ht->root.node.hash,
+			       sizeof(ht->root.node.hash));
+		if (counter)
+			*counter = ht->head.counter;
 		return TEE_SUCCESS;
+	}
 
 	res = crypto_hash_alloc_ctx(&ctx, TEE_FS_HTREE_HASH_ALG);
 	if (res != TEE_SUCCESS)
