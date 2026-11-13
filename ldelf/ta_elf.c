@@ -140,7 +140,8 @@ static TEE_Result e64_parse_ehdr(struct ta_elf *elf, Elf64_Ehdr *ehdr)
 	if (ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
 	    ehdr->e_ident[EI_CLASS] != ELFCLASS64 ||
 	    ehdr->e_ident[EI_DATA] != ELFDATA2LSB ||
-	    ehdr->e_ident[EI_OSABI] != ELFOSABI_NONE ||
+	    (ehdr->e_ident[EI_OSABI] != ELFOSABI_NONE &&
+	     ehdr->e_ident[EI_OSABI] != ELFOSABI_LINUX) ||
 	    ehdr->e_type != ET_DYN || ehdr->e_machine != EM_AARCH64 ||
 	    ehdr->e_flags || ehdr->e_phentsize != sizeof(Elf64_Phdr) ||
 	    ehdr->e_shentsize != sizeof(Elf64_Shdr))
