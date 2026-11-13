@@ -11,6 +11,7 @@
 #include <tee_api_types.h>
 
 #include "pas_data.h"
+#include "platform_pas.h"
 #include "resource_table.h"
 
 /*
@@ -21,6 +22,14 @@
  * the generic core (pas_core.c) returns the appropriate error in that case,
  * or for fw_shutdown resets the subsystem through the clock driver.
  *
+ * @fw_init_image:      Inspect the image metadata of the image about to be
+ *                      loaded. @metadata is in secure memory, parsed into
+ *                      @e_info, authenticated only with CFG_QCOM_PAS_AUTH,
+ *                      and valid only for the duration of the call: copy out
+ *                      what is needed and validate it. State derived from it
+ *                      belongs to this image only and must be replaced on the
+ *                      next call. An error fails PTA_QCOM_PAS_INIT_IMAGE
+ *                      and the derived state must then be left empty.
  * @fw_start:           Program the firmware entry and run the boot FSM.
  * @fw_shutdown:        Put the processor back into reset.  NULL: the clock
  *                      driver resets it (qcom_clock_pas_reset()).
@@ -31,6 +40,9 @@
  * @devmem_num:         Number of @devmem entries.
  */
 struct qcom_pas_ops {
+	TEE_Result (*fw_init_image)(struct qcom_pas_data *data,
+				    const struct pas_metadata *metadata,
+				    const struct elf_info *e_info);
 	TEE_Result (*fw_start)(struct qcom_pas_data *data);
 	TEE_Result (*fw_shutdown)(struct qcom_pas_data *data);
 	TEE_Result (*fw_set_state)(struct qcom_pas_data *data, bool on);
