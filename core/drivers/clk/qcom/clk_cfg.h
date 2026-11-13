@@ -23,6 +23,36 @@ struct clk_mux_config {
 
 #define CLK_DFS_NA		0xFF
 
+/* RCG register layout; offsets relative to clk_rcg_desc.cmd_rcgr_addr. */
+#define QCOM_RCG_CFG_REG_OFFSET			0x4
+#define QCOM_RCG_M_REG_OFFSET			0x8
+#define QCOM_RCG_N_REG_OFFSET			0xC
+#define QCOM_RCG_D_REG_OFFSET			0x10
+#define QCOM_RCG_CMD_DFSR_REG_OFFSET		0x14
+#define QCOM_RCG_PERF_DFSR_REG_OFFSET		0x1C
+#define QCOM_RCG_PERF_M_DFSR_REG_OFFSET		0x5C
+#define QCOM_RCG_PERF_N_DFSR_REG_OFFSET		0x9C
+#define QCOM_RCG_PERF_D_DFSR_REG_OFFSET		0xDC
+
+/* CMD_RCGR fields. */
+#define QCOM_RCG_CMD_CFG_UPDATE_FMSK		0x00000001
+
+/* CFG_RCGR fields. */
+#define QCOM_RCG_CFG_HW_CLK_CONTROL_FMSK	0x00100000
+#define QCOM_RCG_CFG_MODE_FMSK			0x00003000
+#define QCOM_RCG_CFG_MODE_SHFT			12
+#define QCOM_RCG_CFG_SRC_SEL_FMSK		0x00000700
+#define QCOM_RCG_CFG_SRC_SEL_SHFT		8
+#define QCOM_RCG_CFG_SRC_DIV_FMSK		0x0000001F
+#define QCOM_RCG_CFG_SRC_DIV_SHFT		0
+#define QCOM_RCG_CFG_DUAL_EDGE_MODE_VAL		0x2
+
+/* CMD_DFSR fields. */
+#define QCOM_RCG_CMD_DFSR_HW_CLK_CONTROL_FMSK	0x00000020
+#define QCOM_RCG_CMD_DFSR_DFS_EN_FMSK		0x00000001
+#define QCOM_RCG_CMD_DFSR_SW_PERF_STATE_FMSK	0x00007800
+#define QCOM_RCG_CMD_DFSR_SW_PERF_STATE_SHFT	11
+
 /* One MMIO block a domain's registers live in, e.g. one GCC instance. */
 struct clk_regmap {
 	struct io_pa_va io;
