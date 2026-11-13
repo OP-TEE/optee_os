@@ -6,6 +6,7 @@
 #ifndef __QFPROM_H__
 #define __QFPROM_H__
 
+#include <compiler.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <tee_api_types.h>
@@ -38,10 +39,25 @@ struct qcom_secboot_device_ids {
 	uint32_t serial_num;
 };
 
+struct qcom_secboot_mrc_info {
+	uint32_t num_roots;
+	uint32_t activation_list;
+	uint32_t revocation_list;
+};
+
 /* Read QFPROM row data */
 TEE_Result qfprom_read_row(uint32_t addr,
 			   enum qfprom_addr_space type,
 			   uint32_t *data);
+
+/*
+ * Read QFPROM row data, taking and releasing the hardware mutex around the
+ * read. Use this outside a qfprom_hw_init()/qfprom_hw_deinit() batch, where
+ * the mutex is not already held.
+ */
+TEE_Result qfprom_read_row_locked(uint32_t addr,
+				  enum qfprom_addr_space type,
+				  uint32_t *data);
 
 /* Is secure boot (authentication) enabled on this device? */
 TEE_Result qcom_secboot_is_enabled(bool *enabled);
@@ -51,6 +67,35 @@ TEE_Result qcom_secboot_is_use_serial_num_enabled(bool *enabled);
 
 /* Read the OEM root-of-trust anchor hash (PK_HASH0). */
 TEE_Result qcom_secboot_get_root_of_trust(uint8_t *hash, size_t len);
+
+#ifdef CFG_QCOM_QFPROM_ARB_MRC
+/* Read the PIL anti-rollback fuse version (set bits in the ARB row). */
+TEE_Result qcom_secboot_get_pil_rollback_version(uint32_t *version);
+
+/*
+ * Advance the PIL anti-rollback fuse to @version, saturating at the counter
+ * capacity. Callers compare @version with the current version first.
+ */
+TEE_Result qcom_secboot_blow_pil_rollback_version(uint32_t version);
+#else
+/* No anti-rollback fuses on this platform: there is no floor to enforce. */
+static inline TEE_Result
+qcom_secboot_get_pil_rollback_version(uint32_t *version)
+{
+	if (!version)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*version = 0;
+
+	return TEE_SUCCESS;
+}
+
+static inline TEE_Result
+qcom_secboot_blow_pil_rollback_version(uint32_t version __unused)
+{
+	return TEE_SUCCESS;
+}
+#endif
 
 /* Read the OEM/model/JTAG/serial device-identity fuses. */
 TEE_Result qcom_secboot_get_device_ids(struct qcom_secboot_device_ids *ids);
@@ -67,6 +112,40 @@ TEE_Result qcom_secboot_get_segment_hash_len(uint32_t root_cert_sel,
 
 /* Is code-signing EKU enforcement required for this device? */
 TEE_Result qcom_secboot_get_eku_enforcement_en(bool *enabled);
+
+#ifdef CFG_QCOM_QFPROM_ARB_MRC
+/*
+ * Report the number of provisioned roots (1 when the anchor isn't
+ * fuse-resident with multiple roots) and, when more than one, the
+ * per-index activation/revocation bitmaps.
+ */
+TEE_Result qcom_secboot_get_mrc_info(struct qcom_secboot_mrc_info *info);
+#else
+/* No MRC fuses on this platform: the single default root is used. */
+static inline TEE_Result
+qcom_secboot_get_mrc_info(struct qcom_secboot_mrc_info *info)
+{
+	if (!info)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	info->num_roots = 1;
+	info->activation_list = 0;
+	info->revocation_list = 0;
+
+	return TEE_SUCCESS;
+}
+#endif
+
+/* Apply configured MRC masks and the per-boot lock before sec.elf writes. */
+#ifdef CFG_QCOM_QFPROM_ARB_MRC
+TEE_Result qcom_secboot_provision_mrc_fuses(void);
+#else
+/* No MRC fuse rows on this platform; nothing to provision. */
+static inline TEE_Result qcom_secboot_provision_mrc_fuses(void)
+{
+	return TEE_SUCCESS;
+}
+#endif
 
 /* Write QFPROM row data */
 TEE_Result qfprom_write_row(uint32_t addr, uint32_t *data);
