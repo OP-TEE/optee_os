@@ -46,18 +46,18 @@
  * before the core starts, and refuses to start an image whose segment does
  * not hold the placeholder. An image without hashed segments has no seed.
  *
- * The seed belongs to one image of one subsystem: iris_find_seed() sets it
- * from that image's metadata and iris_fill_seed() consumes it, so a later
- * start never uses the location of an earlier image.
+ * The seed belongs to one image of one subsystem: pas_iris_init_image()
+ * sets it from that image's metadata and pas_iris_fill_seed() consumes it,
+ * so a later start never uses the location of an earlier image.
  */
 static void iris_clear_seed(struct pas_iris_data *iris)
 {
 	iris->seed = (struct pas_iris_seed){ };
 }
 
-static TEE_Result iris_find_seed(struct qcom_pas_data *data,
-				 const struct pas_metadata *metadata,
-				 const struct elf_info *e_info)
+TEE_Result pas_iris_init_image(struct qcom_pas_data *data,
+			       const struct pas_metadata *metadata,
+			       const struct elf_info *e_info)
 {
 	struct pas_iris_data *iris = data->subsystem_data;
 	TEE_Result res = TEE_ERROR_ITEM_NOT_FOUND;
@@ -175,7 +175,7 @@ static TEE_Result iris_fill_seed(struct qcom_pas_data *data,
 }
 
 /* The firmware must fit below the CP non-pixel window */
-static TEE_Result iris_check_fw_size(struct qcom_pas_data *data)
+TEE_Result pas_iris_check_fw_size(struct qcom_pas_data *data)
 {
 	if (!data->fw_size || data->fw_size > IRIS_CP_NONPIX_START) {
 		EMSG("Iris: firmware size %#zx outside the CP layout",
@@ -186,11 +186,31 @@ static TEE_Result iris_check_fw_size(struct qcom_pas_data *data)
 	return TEE_SUCCESS;
 }
 
-static void iris_program_mem_regions(vaddr_t base,
-				     const struct qcom_pas_data *data)
+TEE_Result pas_iris_fill_seed(struct qcom_pas_data *data)
+{
+	struct pas_iris_data *iris = data->subsystem_data;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!iris)
+		return TEE_ERROR_BAD_STATE;
+
+	res = pas_iris_check_fw_size(data);
+	if (res) {
+		iris_clear_seed(iris);
+		return res;
+	}
+
+	res = iris_fill_seed(data, iris);
+	if (res)
+		EMSG("Iris: cannot fill the firmware seed: %#"PRIx32, res);
+
+	return res;
+}
+
+void pas_iris_set_cp_layout(vaddr_t base, size_t fw_size)
 {
 	io_write32(base + WRAPPER_TZ_SEC_FW_START_ADDR, 0);
-	io_write32(base + WRAPPER_TZ_SEC_FW_END_ADDR, data->fw_size);
+	io_write32(base + WRAPPER_TZ_SEC_FW_END_ADDR, fw_size);
 	io_write32(base + WRAPPER_TZ_SEC_CPA_START_ADDR, 0);
 	io_write32(base + WRAPPER_TZ_SEC_CPA_END_ADDR, IRIS_CP_END);
 	io_write32(base + WRAPPER_TZ_SEC_NONPIX_START_ADDR,
@@ -198,26 +218,12 @@ static void iris_program_mem_regions(vaddr_t base,
 	io_write32(base + WRAPPER_TZ_SEC_NONPIX_END_ADDR, IRIS_CP_NONPIX_END);
 }
 
-static TEE_Result iris_reset_cpu(struct qcom_pas_data *data)
+void pas_iris_release_core(vaddr_t base)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
-	vaddr_t base = 0;
-
-	res = iris_check_fw_size(data);
-	if (res)
-		return res;
-
-	base = io_pa_or_va(&data->base, data->size);
-	if (!base)
-		return TEE_ERROR_GENERIC;
-
-	iris_program_mem_regions(base, data);
 	io_write32(base + WRAPPER_TZ_XTSS_SW_RESET, 0);
-
-	return TEE_SUCCESS;
 }
 
-static TEE_Result iris_fw_shutdown(struct qcom_pas_data *data)
+TEE_Result pas_iris_fw_shutdown(struct qcom_pas_data *data)
 {
 	vaddr_t base = 0;
 	uint32_t reg = 0;
@@ -232,41 +238,3 @@ static TEE_Result iris_fw_shutdown(struct qcom_pas_data *data)
 
 	return TEE_SUCCESS;
 }
-
-static TEE_Result iris_fw_start(struct qcom_pas_data *data)
-{
-	struct pas_iris_data *iris = data->subsystem_data;
-	TEE_Result res = TEE_ERROR_GENERIC;
-
-	if (!iris)
-		return TEE_ERROR_BAD_STATE;
-
-	res = iris_check_fw_size(data);
-	if (res) {
-		iris_clear_seed(iris);
-		return res;
-	}
-
-	res = iris_fill_seed(data, iris);
-	if (res) {
-		EMSG("Iris: cannot fill the firmware seed: %#"PRIx32, res);
-		return res;
-	}
-
-	return iris_reset_cpu(data);
-}
-
-static TEE_Result iris_fw_set_state(struct qcom_pas_data *data, bool power_on)
-{
-	if (power_on)
-		return iris_reset_cpu(data);
-
-	return iris_fw_shutdown(data);
-}
-
-const struct qcom_pas_ops pas_iris_ops = {
-	.fw_init_image = iris_find_seed,
-	.fw_start = iris_fw_start,
-	.fw_shutdown = iris_fw_shutdown,
-	.fw_set_state = iris_fw_set_state,
-};

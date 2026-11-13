@@ -13,6 +13,7 @@
 #include "cdsp1.h"
 #include "gpdsp0.h"
 #include "gpdsp1.h"
+#include "iris.h"
 #include "lpass.h"
 #include "pas_iris.h"
 #include "pas_subsys.h"
@@ -83,7 +84,7 @@ static struct qcom_pas_subsys subsystems[] = {
 			.map_type = MEM_AREA_IO_NSEC,
 			.subsystem_data = &iris_data,
 		},
-		.ops = &pas_iris_ops,
+		.ops = &lemans_iris_ops,
 		.reset_seq = QCOM_PAS_RESET_NONE,
 	},
 	{
