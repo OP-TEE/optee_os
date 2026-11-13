@@ -1,6 +1,11 @@
 name: CI
 on:
   pull_request:
+    # Draft pull requests only run the code style job, the other jobs are
+    # skipped. The last two types start a new run when the draft state
+    # changes: a full run on ready_for_review, and on converted_to_draft a
+    # reduced one that cancels the full run of the same pull request.
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
   push:
     branches-ignore:
       - master
@@ -68,6 +73,7 @@ jobs:
           pycodestyle scripts/*.py core/arch/arm/plat-stm32mp1/scripts/stm32image.py
   builds:
     name: Build (${{ matrix.name }})
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-26.04
     container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image
     strategy:
@@ -415,6 +421,7 @@ jobs:
           ccache -s -v
   QEMUv7_checks_image_build:
     name: QEMUv7 image
+    if: ${{ !github.event.pull_request.draft }}
     uses: ./.github/workflows/qemu-checks-image.yml
     with:
       builder: ubuntu-24.04
@@ -448,6 +455,7 @@ jobs:
           make_commands: "${{ matrix.make_commands }}"
   QEMUv8_checks_image_build:
     name: QEMUv8 image
+    if: ${{ !github.event.pull_request.draft }}
     uses: ./.github/workflows/qemu-checks-image.yml
     with:
       builder: ubuntu-24.04
@@ -525,6 +533,7 @@ jobs:
           make_commands: "${{ matrix.make_commands }}"
   QEMUv8_arm64_image_build:
     name: QEMUv8 arm64 image
+    if: ${{ !github.event.pull_request.draft }}
     uses: ./.github/workflows/qemu-checks-image.yml
     with:
       builder: ubuntu-24.04-arm
