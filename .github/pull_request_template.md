@@ -14,7 +14,12 @@
        may also choose to use). If nothing is mentioned here, it will be
        assumed that no AI was used.
 
-    4. When everything has been reviewed, you will need to squash, rebase and
+    4. Only the code style check runs on a draft pull request. If your pull
+       request can't be merged yet, for instance because it depends on another
+       pull request, create it as a draft. Mark it "Ready for review" when it
+       can be merged, that starts the full CI.
+
+    5. When everything has been reviewed, you will need to squash, rebase and
        add tags like `Reviewed-by`, `Acked-by`, `Tested-by` etc. More details
        about this can also be found on the link provided above.
 
