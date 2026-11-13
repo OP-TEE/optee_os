@@ -29,4 +29,9 @@
 #define TLMM_BASE			UL(0x0f000000)
 #define TLMM_BASE_SIZE			UL(0x01000000)
 
+#define ICP0_BASE			UL(0x09a03000)
+#define ICP0_SIZE			UL(0x00001000)
+#define ICP1_BASE			UL(0x09a13000)
+#define ICP1_SIZE			UL(0x00001000)
+
 #endif /* TARGET_CONFIG_H */
