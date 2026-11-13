@@ -101,6 +101,7 @@ vaddr_t *unw_get_kernel_stack(void)
 	return addr;
 err:
 	EMSG("Out of memory");
+	free(addr);
 	return NULL;
 }
 
