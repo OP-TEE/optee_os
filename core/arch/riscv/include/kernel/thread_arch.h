@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
@@ -131,6 +131,7 @@ struct thread_scall_regs {
 	unsigned long epc;
 	unsigned long status;
 	unsigned long ie;
+	unsigned long ssp;	/* Zicfiss: user shadow stack pointer */
 } __aligned(16);
 
 struct thread_ctx_regs {
@@ -168,6 +169,7 @@ struct thread_ctx_regs {
 	unsigned long epc;
 	unsigned long status;
 	unsigned long ie;
+	unsigned long ssp;	/* Zicfiss: user shadow stack pointer */
 };
 
 struct user_mode_ctx;

@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2019, Linaro Limited
  * Copyright (c) 2020-2023, Arm Limited
+ * Copyright 2026 NXP 
  */
 
 #include <asan.h>
@@ -991,7 +992,10 @@ static void parse_property_segment(struct ta_elf *elf)
 	Elf_Note *note = NULL;
 	char *name = NULL;
 
-	if (!IS_ENABLED(CFG_TA_BTI) || !elf->prop_start)
+	if (!elf->prop_start)
+		return;
+	if (!IS_ENABLED(CFG_TA_BTI) && !IS_ENABLED(CFG_TA_ZICFILP) &&
+	    !IS_ENABLED(CFG_TA_ZICFISS))
 		return;
 
 	check_phdr_in_range(elf, PT_GNU_PROPERTY, elf->prop_start,
@@ -1028,7 +1032,14 @@ static void parse_property_segment(struct ta_elf *elf)
 
 		cdo = confine_array_index(data_offset, note->n_descsz);
 
-		if (prop->pr_type == GNU_PROPERTY_AARCH64_FEATURE_1_AND) {
+		/*
+		 * GNU_PROPERTY_AARCH64_FEATURE_1_AND and
+		 * GNU_PROPERTY_RISCV_FEATURE_1_AND share the value
+		 * GNU_PROPERTY_LOPROC, the architecture of the build tells
+		 * them apart.
+		 */
+		if (prop->pr_type == GNU_PROPERTY_AARCH64_FEATURE_1_AND &&
+		    IS_ENABLED(CFG_TA_BTI)) {
 			uint32_t *pr_data = (void *)(desc + cdo);
 
 			if (note->n_descsz < (data_offset + sizeof(*pr_data)) ||
@@ -1038,6 +1049,28 @@ static void parse_property_segment(struct ta_elf *elf)
 			if (*pr_data & GNU_PROPERTY_AARCH64_FEATURE_1_BTI) {
 				DMSG("BTI Feature present in note property");
 				elf->bti_enabled = true;
+			}
+		}
+
+		if (prop->pr_type == GNU_PROPERTY_RISCV_FEATURE_1_AND &&
+		    (IS_ENABLED(CFG_TA_ZICFILP) ||
+		     IS_ENABLED(CFG_TA_ZICFISS))) {
+			uint32_t *pr_data = (void *)(desc + cdo);
+
+			if (note->n_descsz < (data_offset + sizeof(*pr_data)) ||
+			    prop->pr_datasz != sizeof(*pr_data))
+				return;
+
+			if (IS_ENABLED(CFG_TA_ZICFILP) &&
+			    (*pr_data &
+			     GNU_PROPERTY_RISCV_FEATURE_1_CFI_LP_UNLABELED)) {
+				DMSG("Zicfilp landing pads in note property");
+				elf->bti_enabled = true;
+			}
+			if (IS_ENABLED(CFG_TA_ZICFISS) &&
+			    (*pr_data & GNU_PROPERTY_RISCV_FEATURE_1_CFI_SS)) {
+				DMSG("Zicfiss shadow stack in note property");
+				elf->shadow_stack = true;
 			}
 		}
 
@@ -1315,8 +1348,33 @@ static void load_main(struct ta_elf *elf)
 
 }
 
+/*
+ * A call frame is at least 16 bytes on the stack and pushes one XLEN
+ * word on the shadow stack, so half the stack size bounds the shadow
+ * stack. A page of padding on each side turns an overflow into a fault
+ * on unmapped memory rather than a write into a neighbouring mapping.
+ */
+static void map_shadow_stack(struct ta_elf *elf, size_t stack_size,
+			     uint64_t *ssp)
+{
+	size_t ss_size = ROUNDUP(stack_size / 2, SMALL_PAGE_SIZE);
+	vaddr_t va = 0;
+	TEE_Result res = TEE_SUCCESS;
+
+	*ssp = 0;
+	if (!IS_ENABLED(CFG_TA_ZICFISS) || !elf->shadow_stack)
+		return;
+
+	res = sys_map_zi(ss_size, LDELF_MAP_FLAG_SHADOW_STACK, &va,
+			 SMALL_PAGE_SIZE, SMALL_PAGE_SIZE);
+	if (res)
+		err(res, "sys_map_zi shadow stack");
+
+	*ssp = va + ss_size;
+}
+
 void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
-		      uint32_t *ta_flags)
+		      uint64_t *ssp, uint32_t *ta_flags)
 {
 	struct ta_elf *elf = queue_elf(uuid);
 	vaddr_t va = 0;
@@ -1358,6 +1416,7 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 	*sp = va + stack_size;
 	ta_stack = va;
 	ta_stack_size = stack_size;
+	map_shadow_stack(elf, stack_size, ssp);
 
 	if (IS_ENABLED(CFG_TA_SANITIZE_KADDRESS)) {
 		res = asan_user_map_shadow((void *)ta_stack,
@@ -1395,6 +1454,34 @@ void ta_elf_finalize_load_main(uint64_t *entry, uint64_t *load_addr)
 }
 
 
+/*
+ * RISC-V CFI is enabled per context, not per page, so the ELFs of a
+ * context must agree:
+ *
+ * - Landing pads are enforced for the whole context when the TA has
+ *   them. A dependency without landing pads would fault on its first
+ *   indirect call, so it is refused.
+ * - A dependency that pushes on the shadow stack needs the TA to have
+ *   one. A dependency without shadow stack support in a TA with one is
+ *   fine, it simply pushes nothing.
+ */
+static void check_riscv_cfi_dependency(struct ta_elf *elf)
+{
+	struct ta_elf *ta = TAILQ_FIRST(&main_elf_queue);
+
+	if (IS_ENABLED(CFG_TA_ZICFILP) && ta->bti_enabled &&
+	    !elf->bti_enabled)
+		err(TEE_ERROR_BAD_FORMAT,
+		    "ELF %pUl has no landing pads, the TA requires them",
+		    (void *)&elf->uuid);
+
+	if (IS_ENABLED(CFG_TA_ZICFISS) && elf->shadow_stack &&
+	    !ta->shadow_stack)
+		err(TEE_ERROR_BAD_FORMAT,
+		    "ELF %pUl uses a shadow stack, the TA has none",
+		    (void *)&elf->uuid);
+}
+
 void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit)
 {
 	if (elf->is_main)
@@ -1416,6 +1503,7 @@ void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit)
 	parse_property_segment(elf);
 	if (elf->bti_enabled)
 		ta_elf_add_bti(elf);
+	check_riscv_cfi_dependency(elf);
 }
 
 void ta_elf_finalize_mappings(struct ta_elf *elf)

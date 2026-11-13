@@ -50,8 +50,17 @@ TEE_Result ldelf_syscall_map_zi(vaddr_t *va, size_t num_bytes, size_t pad_begin,
 	uint32_t prot = TEE_MATTR_URW | TEE_MATTR_PRW;
 	uint32_t vm_flags = 0;
 	vaddr_t va_copy = 0;
+	uint32_t accept_flags = LDELF_MAP_FLAG_SHAREABLE;
 
-	if (flags & ~LDELF_MAP_FLAG_SHAREABLE)
+	if (IS_ENABLED(CFG_TA_ZICFISS))
+		accept_flags |= LDELF_MAP_FLAG_SHADOW_STACK;
+
+	if (flags & ~accept_flags)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* A shadow stack belongs to one context and has no other access */
+	if ((flags & LDELF_MAP_FLAG_SHADOW_STACK) &&
+	    (flags & LDELF_MAP_FLAG_SHAREABLE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = GET_USER_SCALAR(va_copy, va);
@@ -60,6 +69,8 @@ TEE_Result ldelf_syscall_map_zi(vaddr_t *va, size_t num_bytes, size_t pad_begin,
 
 	if (flags & LDELF_MAP_FLAG_SHAREABLE)
 		vm_flags |= VM_FLAG_SHAREABLE;
+	if (flags & LDELF_MAP_FLAG_SHADOW_STACK)
+		prot = TEE_MATTR_SHADOW_STACK;
 
 	f = fobj_ta_mem_alloc(ROUNDUP_DIV(num_bytes, SMALL_PAGE_SIZE));
 	if (!f)
