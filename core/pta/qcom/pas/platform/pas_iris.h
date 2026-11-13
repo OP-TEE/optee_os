@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <types_ext.h>
 
 #include "pas_subsys.h"
 
@@ -36,10 +37,33 @@ struct pas_iris_data {
 };
 
 /*
- * Firmware operations of an iris video codec subsystem, whose registers
- * are mapped from the struct qcom_pas_data base (IRIS_BASE) and whose
- * subsystem_data points to its struct pas_iris_data.
+ * Helpers for the iris firmware operations of each SoC. The registers are
+ * mapped from the struct qcom_pas_data base (IRIS_BASE) and subsystem_data
+ * points to the struct pas_iris_data of the subsystem; @base is IRIS_BASE
+ * mapped.
  */
-extern const struct qcom_pas_ops pas_iris_ops;
+
+/* fw_init_image operation: find the seed of the image being loaded */
+TEE_Result pas_iris_init_image(struct qcom_pas_data *data,
+			       const struct pas_metadata *metadata,
+			       const struct elf_info *e_info);
+
+/* Fail unless the loaded firmware fits below the CP non-pixel window */
+TEE_Result pas_iris_check_fw_size(struct qcom_pas_data *data);
+
+/* At start, fill the seed of the loaded image; checks the firmware size */
+TEE_Result pas_iris_fill_seed(struct qcom_pas_data *data);
+
+/*
+ * Program the CP layout for a firmware of @fw_size bytes, which must have
+ * passed pas_iris_check_fw_size()
+ */
+void pas_iris_set_cp_layout(vaddr_t base, size_t fw_size);
+
+/* Take the core out of reset */
+void pas_iris_release_core(vaddr_t base);
+
+/* fw_shutdown operation: hold the core in reset */
+TEE_Result pas_iris_fw_shutdown(struct qcom_pas_data *data);
 
 #endif /* PAS_IRIS_H */
