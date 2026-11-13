@@ -327,10 +327,10 @@ F:	core/include/drivers/qcom/
 F:	core/pta/qcom/
 F:	ta/qcom_pas/
 
-Qualcomm Bobcat Arch
+Qualcomm Bobcat Family
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
 S:	Maintained
-F:	core/arch/arm/plat-qcom/bobcat/
+F:	core/arch/arm/plat-qcom/family/bobcat/
 
 Qualcomm Fuse Provisioning
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
