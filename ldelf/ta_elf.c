@@ -541,8 +541,12 @@ static void init_elf(struct ta_elf *elf)
 		err(res, "sys_open_ta_bin(%pUl)", (void *)&elf->uuid);
 
 	/*
-	 * Map it read-only executable when we're loading a library where
-	 * the ELF header is included in a load segment.
+	 * In a library this page belongs to the first load segment, but
+	 * the protection of that segment is unknown until the program
+	 * headers are read. Map it read-only executable: map_segments()
+	 * removes the permission if the segment lacks it. It can't be
+	 * added later instead: the pager can't make a page executable
+	 * while other TAs map it.
 	 */
 	if (!elf->is_main)
 		flags |= LDELF_MAP_FLAG_EXECUTABLE;
@@ -1082,6 +1086,16 @@ static void map_segments(struct ta_elf *elf)
 		elf->load_addr = va;
 		elf->max_addr = va + sz;
 		elf->phdr = (void *)(va + elf->e_phoff);
+
+		/*
+		 * Give the first page the protection of its segment,
+		 * see init_elf().
+		 */
+		if (!(TAILQ_FIRST(&elf->segs)->flags & PF_X)) {
+			res = sys_set_prot(va, SMALL_PAGE_SIZE, 0);
+			if (res)
+				err(res, "sys_set_prot");
+		}
 	}
 }
 
