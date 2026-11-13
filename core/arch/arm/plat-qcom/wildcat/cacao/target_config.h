@@ -16,5 +16,6 @@
 #define DRAM0_SIZE			UL(0x10000000)
 
 #define GENI_UART_REG_BASE		UL(0xa94000)
+#define QCOM_RNG_REG_BASE		UL(0x010c1000)
 
 #endif /* TARGET_CONFIG_H */
