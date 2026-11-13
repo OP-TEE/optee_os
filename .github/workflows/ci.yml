@@ -382,6 +382,9 @@ jobs:
               _make PLATFORM=virt CFG_CORE_STACK_PROTECTOR_STRONG=n CFG_TA_STACK_PROTECTOR_STRONG=n
               _make PLATFORM=sifive
               _make PLATFORM=cva6
+              export CROSS_COMPILE32="ccache riscv32-linux-gnu-"
+              _make PLATFORM=virt-rv32 COMPILER=clang
+              _make PLATFORM=virt-rv32 COMPILER=clang CFG_RISCV_ISA_C=y CFG_RISCV_FPU=y
     steps:
       - name: Checkout
         uses: actions/checkout@v7
