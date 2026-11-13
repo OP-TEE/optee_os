@@ -8,8 +8,46 @@
 #include <kernel/linker.h>
 #include <kernel/thread.h>
 #include <kernel/unwind.h>
+#include <kernel/unwind_private.h>
 #include <riscv.h>
 #include <unw/unwind.h>
+
+vaddr_t *unw_get_kernel_stack(void)
+{
+	size_t n = 0;
+	size_t size = 0;
+	vaddr_t *tmp = NULL;
+	vaddr_t *addr = NULL;
+	vaddr_t stack = thread_stack_start();
+	size_t stack_size = thread_stack_size();
+	struct unwind_state_riscv state = {
+		.pc = read_pc(),
+		.fp = read_fp()
+	};
+
+	while (unwind_stack_riscv(&state, stack, stack_size)) {
+		tmp = unw_grow(addr, &size, (n + 1) * sizeof(vaddr_t));
+		if (!tmp)
+			goto err;
+		addr = tmp;
+		addr[n] = state.pc;
+		n++;
+	}
+
+	if (addr) {
+		tmp = unw_grow(addr, &size, (n + 1) * sizeof(vaddr_t));
+		if (!tmp)
+			goto err;
+		addr = tmp;
+		addr[n] = 0;
+	}
+
+	return addr;
+err:
+	EMSG("Out of memory");
+	free(addr);
+	return NULL;
+}
 
 #if defined(CFG_UNWIND) && (TRACE_LEVEL > 0)
 void print_kernel_stack(void)
