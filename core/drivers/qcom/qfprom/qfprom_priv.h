@@ -7,6 +7,7 @@
 #define __QFPROM_PRIV_H__
 
 #include <drivers/qcom/qfprom/qfprom.h>
+#include <io.h>
 #include <mm/core_mmu.h>
 #include <qfprom_target.h>
 
@@ -79,5 +80,33 @@ TEE_Result qfprom_acquire_hw_mutex(void);
 TEE_Result qfprom_release_hw_mutex(void);
 
 const struct qfprom_platform_config *qfprom_get_platform_config(void);
+
+static inline TEE_Result read_sense_reg(uint32_t offset, uint32_t *out)
+{
+	struct qfprom_context *drv = qfprom_get_context();
+
+	if (!drv->raw_base)
+		return TEE_ERROR_BAD_STATE;
+
+	*out = io_read32(drv->raw_base + offset);
+
+	return TEE_SUCCESS;
+}
+
+/*
+ * PIL anti-rollback fuse access, implemented per platform in
+ * <platform>/qfprom_pil_arb.c, which owns the fuse layout.
+ */
+
+TEE_Result qfprom_target_pil_arb_enabled(bool *enabled);
+
+/* Read the rollback version, the number of counter bits set. */
+TEE_Result qfprom_target_get_pil_arb(uint32_t *version);
+
+/*
+ * Raise the rollback version to @version, saturating at the counter
+ * capacity. Call between qfprom_hw_init() and qfprom_hw_deinit().
+ */
+TEE_Result qfprom_target_blow_pil_arb(uint32_t version);
 
 #endif /* __QFPROM_PRIV_H__ */
