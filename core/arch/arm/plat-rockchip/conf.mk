@@ -203,6 +203,20 @@ CFG_RK_SECURE_BOOT ?= y
 # potentially brick your device.
 CFG_RK_SECURE_BOOT_SIMULATION ?= y
 
+# The hardware unique key (HUK) lives in the secure OTP. If none is
+# programmed yet, OP-TEE generates one from the TRNG and programs it the
+# first time the HUK is needed (CFG_RK3588_HUK_PROGRAM_OTP=y). Programming
+# OTP cannot be undone. With CFG_RK3588_HUK_PROGRAM_OTP=n the HUK is never
+# programmed into the OTP and is unavailable until it is provisioned, unless
+# CFG_RK3588_HUK_INSECURE_TEST_KEY=y (requires CFG_INSECURE=y), which falls
+# back to an all-zero key: for development only, secure storage is then not
+# confidential.
+CFG_RK3588_HUK_PROGRAM_OTP ?= y
+CFG_RK3588_HUK_INSECURE_TEST_KEY ?= n
+ifeq ($(CFG_RK3588_HUK_PROGRAM_OTP)-$(CFG_RK3588_HUK_INSECURE_TEST_KEY),y-y)
+$(error CFG_RK3588_HUK_INSECURE_TEST_KEY needs CFG_RK3588_HUK_PROGRAM_OTP=n)
+endif
+
 CFG_TZDRAM_START ?= 0x30000000
 CFG_TZDRAM_SIZE ?= 0x02000000
 CFG_SHMEM_START ?= 0x32000000
