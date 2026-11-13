@@ -2877,6 +2877,32 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result check_cipher_key_usage(const struct tee_obj *o,
+					  uint32_t algo,
+					  TEE_OperationMode mode)
+{
+	uint32_t obj_usage = 0;
+
+	if (TEE_ALG_GET_CLASS(algo) != TEE_OPERATION_CIPHER)
+		return TEE_SUCCESS;
+
+	if (o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) {
+		tee_pobj_lock_usage(o->pobj);
+		obj_usage = o->pobj->obj_info_usage;
+		tee_pobj_unlock_usage(o->pobj);
+	} else {
+		obj_usage = o->info.objectUsage;
+	}
+
+	if ((mode == TEE_MODE_ENCRYPT &&
+	     !(obj_usage & TEE_USAGE_ENCRYPT)) ||
+	    (mode == TEE_MODE_DECRYPT &&
+	     !(obj_usage & TEE_USAGE_DECRYPT)))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+
 static uint32_t translate_compat_algo(uint32_t algo)
 {
 	switch (algo) {
@@ -2923,6 +2949,9 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		res = tee_svc_cryp_check_key_type(o1, algo, mode);
 		if (res != TEE_SUCCESS)
 			return res;
+		res = check_cipher_key_usage(o1, algo, mode);
+		if (res != TEE_SUCCESS)
+			return res;
 	}
 	if (key2 != 0) {
 		res = tee_obj_get(utc, uref_to_vaddr(key2), &o2);
@@ -2931,6 +2960,9 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		if (o2->busy)
 			return TEE_ERROR_BAD_PARAMETERS;
 		res = tee_svc_cryp_check_key_type(o2, algo, mode);
+		if (res != TEE_SUCCESS)
+			return res;
+		res = check_cipher_key_usage(o2, algo, mode);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
