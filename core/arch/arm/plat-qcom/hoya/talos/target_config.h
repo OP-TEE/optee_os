@@ -1,0 +1,48 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+#ifndef TARGET_CONFIG_H
+#define TARGET_CONFIG_H
+
+/* DDR outside the OP-TEE carve-out at 0x87a00000 */
+#define DRAM0_BASE			UL(0x80000000)
+#define DRAM0_SIZE			UL(0x07a00000)
+#define DRAM1_BASE			UL(0x89600000)
+#define DRAM1_SIZE			UL(0x30100000)
+#define DRAM2_BASE			UL(0xc0000000)
+#define DRAM2_SIZE			ULL(0x1c0000000)
+
+#define GENI_UART_REG_BASE		UL(0x880000)
+#define QCOM_RNG_REG_BASE		UL(0x791000)
+
+#define GCC_BASE			UL(0x00100000)
+#define GCC_SIZE			UL(0x001f0000)
+
+/* RPMH_PDC_SYNC_RESET */
+#define RPMH_PDC_GLOBAL_BASE		UL(0x0b2e0000)
+#define RPMH_PDC_GLOBAL_SIZE		UL(0x00001000)
+
+/* MPM_SSCAON_CONFIG1 */
+#define MPM_SSCAON_BASE			UL(0x0c240000)
+#define MPM_SSCAON_SIZE			UL(0x00001000)
+
+/* AOSS_CC_SENSORS_RESTART and AOSS_CC_COMPUTESS_RESTART */
+#define AOSS_CC_BASE			UL(0x0c2d0000)
+#define AOSS_CC_SIZE			UL(0x00011000)
+
+/* TCSR_CXIP_LM_FNT_* */
+#define TCSR_REGS_BASE			UL(0x01fc0000)
+#define TCSR_REGS_SIZE			UL(0x00030000)
+
+#define TURING_BASE			UL(0x08000000)
+#define TURING_SIZE			UL(0x00400000)
+#define LPASS_BASE			UL(0x62000000)
+#define LPASS_SIZE			UL(0x00c00000)
+
+/* LPASS_AUDIO_CORE_SYSNOC_MPORT_CORE_CBCR */
+#define LPASS_AUDIO_CC_BASE		UL(0x62c00000)
+#define LPASS_AUDIO_CC_SIZE		UL(0x00050000)
+
+#endif /* TARGET_CONFIG_H */

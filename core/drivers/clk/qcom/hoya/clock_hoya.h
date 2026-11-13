@@ -7,15 +7,12 @@
 #define _CLOCK_HOYA_H_
 
 #include <drivers/clk_qcom.h>
-#include <mm/core_memprot.h>
 #include <stdint.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
 #include <util.h>
 
-/* Core VA of a registered or mapped MMIO range, 0 if there is none. */
-#define QCOM_IO_VA(phys, size) \
-	((vaddr_t)phys_to_virt_io((phys), (size)))
+#include "clk_pas.h"
 
 /*
  * QDSP6 subsystem clock and reset sequences shared by the hoya chips with
@@ -50,7 +47,6 @@
 
 /* Turing/NSP boot block, relative to TURINGNSP_BOOT_OFFSET */
 #define TURINGNSP_QDSP6SS_RET_CFG		0x1c
-#define QDSP6SS_BOOT_CORE_START			0x400
 
 /* Turing/NSP core clock controller, relative to TURINGNSP_CORE_CC_OFFSET */
 #define QDSP6SS_CORE_CMD_RCGR			0x20
