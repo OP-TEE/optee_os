@@ -198,6 +198,37 @@ static TEE_Result e64_parse_ehdr(struct ta_elf *elf, Elf64_Ehdr *ehdr)
 }
 #endif /* RV64 */
 
+#if defined(RV32)
+static TEE_Result e32_parse_ehdr(struct ta_elf *elf, Elf32_Ehdr *ehdr)
+{
+	if (ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
+	    ehdr->e_ident[EI_CLASS] != ELFCLASS32 ||
+	    ehdr->e_ident[EI_DATA] != ELFDATA2LSB ||
+	    ehdr->e_ident[EI_OSABI] != ELFOSABI_NONE ||
+	    ehdr->e_type != ET_DYN || ehdr->e_machine != EM_RISCV ||
+	    ehdr->e_phentsize != sizeof(Elf32_Phdr) ||
+	    ehdr->e_shentsize != sizeof(Elf32_Shdr))
+		return TEE_ERROR_BAD_FORMAT;
+
+	elf->is_32bit = true;
+	elf->e_entry = ehdr->e_entry;
+	elf->e_phoff = ehdr->e_phoff;
+	elf->e_shoff = ehdr->e_shoff;
+	elf->e_phnum = ehdr->e_phnum;
+	elf->e_shnum = ehdr->e_shnum;
+	elf->e_phentsize = ehdr->e_phentsize;
+	elf->e_shentsize = ehdr->e_shentsize;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result e64_parse_ehdr(struct ta_elf *elf __unused,
+				 void *ehdr __unused)
+{
+	return TEE_ERROR_BAD_FORMAT;
+}
+#endif /* RV32 */
+
 /*
  * Checks that [addr, addr + sz) (relative to 0, i.e., not yet offset by
  * elf->load_addr) is fully covered by a single PT_LOAD segment. There can
@@ -1334,10 +1365,14 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 	stack_size = elf->head->stack_size;
 
 	/*
-	 * AArch32 is the only supported 32-bit format and requires 8-byte
-	 * stack alignment. AArch64 and RV64 require 16 bytes.
+	 * AArch32 requires 8-byte stack alignment. AArch64, RV32 and RV64
+	 * require 16 bytes.
 	 */
+#if defined(RV32) || defined(RV64)
+	stack_alignment = 16;
+#else
 	stack_alignment = elf->is_32bit ? 8 : 16;
+#endif
 	if (!stack_size || !IS_ALIGNED(stack_size, stack_alignment) ||
 	    ROUNDUP_OVERFLOW(stack_size, SMALL_PAGE_SIZE, &rounded_stack_size))
 		err(TEE_ERROR_BAD_FORMAT, "Invalid stack size");
