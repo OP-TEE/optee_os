@@ -38,6 +38,15 @@
 /* Each 32-bit word of a seed holds this until the seed is filled */
 #define SEED_PLACEHOLDER	0xdeadd00d
 
+/* Secure session thresholds the stock firmware programs on Kodiak and Lemans */
+#define IRIS_SEC_DS_THRESHOLD			3
+#define IRIS_SEC_HEVC_THRESHOLD			1344
+#define IRIS_SEC_H264_THRESHOLD			270
+#define IRIS_SEC_MP2_THRESHOLD			46
+#define IRIS_SEC_HEVC_NON_VCL_THRESHOLD		3800
+#define IRIS_SEC_H264_NON_VCL_THRESHOLD		12600
+#define IRIS_SEC_MP2_NON_VCL_THRESHOLD		1600
+
 /*
  * A Qualcomm video firmware image describes its seed with its last hashed
  * program header (newer images follow it with the hash segment): an image
@@ -235,6 +244,61 @@ TEE_Result pas_iris_fw_shutdown(struct qcom_pas_data *data)
 	reg = io_read32(base + WRAPPER_TZ_XTSS_SW_RESET);
 	reg |= WRAPPER_XTSS_SW_RESET_BIT;
 	io_write32(base + WRAPPER_TZ_XTSS_SW_RESET, reg);
+
+	return TEE_SUCCESS;
+}
+
+void pas_iris_clear_overrides(vaddr_t base)
+{
+	io_write32(base + SS_TZ_CP_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_0_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_1_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_2_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_3_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_4_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_5_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_6_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_7_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_8_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_9_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_A_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_B_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_C_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_D_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_E_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_F_SECURE_OVERRIDE, 0);
+	io_write32(base + SS_TZ_SEC_SID_10_SECURE_OVERRIDE, 0);
+}
+
+void pas_iris_set_thresholds(vaddr_t base)
+{
+	io_write32(base + SS_TZ_SEC_DS_THRESHOLD, IRIS_SEC_DS_THRESHOLD);
+	io_write32(base + SS_TZ_SEC_THRESHOLD_HEVC, IRIS_SEC_HEVC_THRESHOLD);
+	io_write32(base + SS_TZ_SEC_THRESHOLD_H264, IRIS_SEC_H264_THRESHOLD);
+	io_write32(base + SS_TZ_SEC_THRESHOLD_MP2, IRIS_SEC_MP2_THRESHOLD);
+}
+
+void pas_iris_set_non_vcl_thresholds(vaddr_t base)
+{
+	io_write32(base + SS_TZ_SEC_THRESHOLD_NON_VCL_HEVC,
+		   IRIS_SEC_HEVC_NON_VCL_THRESHOLD);
+	io_write32(base + SS_TZ_SEC_THRESHOLD_NON_VCL_H264,
+		   IRIS_SEC_H264_NON_VCL_THRESHOLD);
+	io_write32(base + SS_TZ_SEC_THRESHOLD_NON_VCL_MP2,
+		   IRIS_SEC_MP2_NON_VCL_THRESHOLD);
+}
+
+TEE_Result pas_iris_write_check(vaddr_t base, uint32_t reg, uint32_t val)
+{
+	uint32_t rd = 0;
+
+	io_write32(base + reg, val);
+	rd = io_read32(base + reg);
+	if (rd != val) {
+		EMSG("Iris: register %#"PRIx32" reads %#"PRIx32
+		     ", expected %#"PRIx32, reg, rd, val);
+		return TEE_ERROR_GENERIC;
+	}
 
 	return TEE_SUCCESS;
 }

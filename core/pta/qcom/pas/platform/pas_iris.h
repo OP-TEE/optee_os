@@ -13,6 +13,33 @@
 
 #include "pas_subsys.h"
 
+/* SS_TZ block secure session registers, as offsets from IRIS_BASE */
+#define SS_TZ_SEC_THRESHOLD_HEVC		0x000c2004
+#define SS_TZ_SEC_THRESHOLD_H264		0x000c2008
+#define SS_TZ_SEC_THRESHOLD_MP2			0x000c200c
+#define SS_TZ_SEC_THRESHOLD_NON_VCL_HEVC	0x000c2018
+#define SS_TZ_SEC_THRESHOLD_NON_VCL_H264	0x000c201c
+#define SS_TZ_SEC_THRESHOLD_NON_VCL_MP2		0x000c2020
+#define SS_TZ_SEC_DS_THRESHOLD			0x000c2024
+#define SS_TZ_SEC_SID_0_SECURE_OVERRIDE		0x000c2040
+#define SS_TZ_SEC_SID_1_SECURE_OVERRIDE		0x000c2044
+#define SS_TZ_SEC_SID_2_SECURE_OVERRIDE		0x000c2048
+#define SS_TZ_SEC_SID_3_SECURE_OVERRIDE		0x000c204c
+#define SS_TZ_SEC_SID_4_SECURE_OVERRIDE		0x000c2050
+#define SS_TZ_SEC_SID_5_SECURE_OVERRIDE		0x000c2054
+#define SS_TZ_SEC_SID_6_SECURE_OVERRIDE		0x000c2058
+#define SS_TZ_SEC_SID_7_SECURE_OVERRIDE		0x000c205c
+#define SS_TZ_SEC_SID_8_SECURE_OVERRIDE		0x000c2060
+#define SS_TZ_SEC_SID_9_SECURE_OVERRIDE		0x000c2064
+#define SS_TZ_SEC_SID_A_SECURE_OVERRIDE		0x000c2068
+#define SS_TZ_SEC_SID_B_SECURE_OVERRIDE		0x000c206c
+#define SS_TZ_SEC_SID_C_SECURE_OVERRIDE		0x000c2070
+#define SS_TZ_SEC_SID_D_SECURE_OVERRIDE		0x000c2074
+#define SS_TZ_SEC_SID_E_SECURE_OVERRIDE		0x000c2078
+#define SS_TZ_SEC_SID_F_SECURE_OVERRIDE		0x000c207c
+#define SS_TZ_SEC_SID_10_SECURE_OVERRIDE	0x000c2080
+#define SS_TZ_CP_OVERRIDE			0x000c2090
+
 /*
  * struct pas_iris_seed : seed segment of the video firmware image being
  * loaded, see pas_iris.c.
@@ -65,5 +92,19 @@ void pas_iris_release_core(vaddr_t base);
 
 /* fw_shutdown operation: hold the core in reset */
 TEE_Result pas_iris_fw_shutdown(struct qcom_pas_data *data);
+
+/* SS_TZ block writes, for the secure session sequence of a SoC */
+
+/* Clear the CP override and the overrides of stream IDs 0x0 to 0x10 */
+void pas_iris_clear_overrides(vaddr_t base);
+
+/* Set the DS, HEVC, H264 and MP2 secure thresholds */
+void pas_iris_set_thresholds(vaddr_t base);
+
+/* Set the non-VCL secure thresholds */
+void pas_iris_set_non_vcl_thresholds(vaddr_t base);
+
+/* Write @val to @reg and fail unless it reads back */
+TEE_Result pas_iris_write_check(vaddr_t base, uint32_t reg, uint32_t val);
 
 #endif /* PAS_IRIS_H */
