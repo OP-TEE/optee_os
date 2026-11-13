@@ -17,6 +17,8 @@
 
 enum hwkm_key_destination {
 	HWKM_KEY_DEST_KM_MASTER = 0,
+	HWKM_KEY_DEST_GPCE_SLAVE = 1,	/* CRYPTO0 CE slave. */
+	HWKM_KEY_DEST_ICE_SLAVE = 2,    /* ICE slave */
 };
 
 enum hwkm_key_security_lvl {
@@ -258,7 +260,9 @@ static inline TEE_Result hwkm_to_optee(int rc)
 struct hwkm_handle;
 
 struct hwkm_drv_ctx {
-	vaddr_t base;
+	vaddr_t base;		/* HWKM master MMIO base. */
+	vaddr_t crypto0_base;	/* CRYPTO0 top MMIO base. */
+	vaddr_t ice_base;	/* ICE MMIO base */
 	struct mutex hwkm_lock; /* Serializes all HWKM operations. */
 	bool hwkm_huk_ready;
 	uint8_t hwkm_huk[HWKM_MAX_KEY_SIZE];

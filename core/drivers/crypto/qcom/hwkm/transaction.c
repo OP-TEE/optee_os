@@ -4,8 +4,12 @@
  */
 
 #include <assert.h>
-#include <hwkm.h>
+#include <drivers/hwkm.h>
+#include <hwkm_ice.h>
 #include <hwkm_regs.h>
+#include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
+#include <platform_config.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <string.h>
@@ -396,89 +400,142 @@ static int hwkm_fifo_wait(vaddr_t base, uint32_t reg, uint32_t mask)
 }
 
 /*
- * master_run_transaction() - Submit one command packet to the master HWKM.
- * @cmd: Command packet words to write into the command FIFO.
+ * run_fifo_transaction() - Submit one command packet via a BANK0 client FIFO.
+ * @bank0_base: Virtual address of the BANK0 client resource group
+ *              (i.e. instance_base + HWKM_{MASTER,CRYPTO0}_BANK0_REGS_OFFSET).
+ * @cmd: Command packet words.
  * @cmd_words: Number of 32-bit words in @cmd.
- * @rsp: Response buffer filled from the response FIFO.
+ * @rsp: Response buffer.
  * @rsp_words: Number of 32-bit words expected in @rsp.
  *
  * Return: HWKM_SUCCESS on success, or a HWKM_ERR_* code on failure.
  */
-static int master_run_transaction(const uint32_t *cmd, size_t cmd_words,
-				  uint32_t *rsp, size_t rsp_words)
+static int run_fifo_transaction(vaddr_t bank0_base,
+				const uint32_t *cmd, size_t cmd_words,
+				uint32_t *rsp, size_t rsp_words)
 {
-	struct hwkm_drv_ctx *ctx = NULL;
 	int rc = HWKM_ERR_GENERIC;
-	vaddr_t base = 0;
 	size_t i = 0;
 
-	if (!cmd || !cmd_words || !rsp || !rsp_words)
-		return HWKM_ERR_INVALID_ARG;
-
-	ctx = hwkm_get_context();
-	if (!ctx)
-		return HWKM_ERR_INVALID_ARG;
-
-	base = ctx->base;
-
 	/* Flush any stale command FIFO contents. */
-	io_write32_off_field(base, HWKM_BANK0_KM_CTL,
+	io_write32_off_field(bank0_base, HWKM_BANK0_KM_CTL,
 			     HWKM_BANK0_KM_CTL_CMD_FIFO_CLEAR, 1);
-	io_write32_off_field(base, HWKM_BANK0_KM_CTL,
+	io_write32_off_field(bank0_base, HWKM_BANK0_KM_CTL,
 			     HWKM_BANK0_KM_CTL_CMD_FIFO_CLEAR, 0);
 
 	/* Clear stale error state from the previous transaction. */
-	io_write32_off(base, HWKM_BANK0_KM_ESR,
-		       io_read32_off(base, HWKM_BANK0_KM_ESR));
+	io_write32_off(bank0_base, HWKM_BANK0_KM_ESR,
+		       io_read32_off(bank0_base, HWKM_BANK0_KM_ESR));
 
 	/* Enable command processing. */
-	io_write32_off_field(base, HWKM_BANK0_KM_CTL,
+	io_write32_off_field(bank0_base, HWKM_BANK0_KM_CTL,
 			     HWKM_BANK0_KM_CTL_CMD_ENABLE, 1);
 
 	/* Confirm the FIFO clear bit has deasserted. */
-	if (io_read32_off_field(base, HWKM_BANK0_KM_CTL,
+	if (io_read32_off_field(bank0_base, HWKM_BANK0_KM_CTL,
 				HWKM_BANK0_KM_CTL_CMD_FIFO_CLEAR))
 		return HWKM_ERR_FIFO_NOT_EMPTY;
 
 	/* Push the command packet one word at a time. */
 	for (i = 0; i < cmd_words; i++) {
-		rc = hwkm_fifo_wait(base, HWKM_BANK0_KM_STATUS,
+		rc = hwkm_fifo_wait(bank0_base, HWKM_BANK0_KM_STATUS,
 				    HWKM_BANK0_KM_STATUS_CMD_AVAIL_SPACE);
 		if (rc)
 			return rc;
 
-		io_write32_off(base, HWKM_BANK0_KM_CMD_FIFO, cmd[i]);
+		io_write32_off(bank0_base, HWKM_BANK0_KM_CMD_FIFO, cmd[i]);
 	}
 
 	/* Pull the response packet one word at a time. */
 	for (i = 0; i < rsp_words; i++) {
-		rc = hwkm_fifo_wait(base, HWKM_BANK0_KM_STATUS,
+		rc = hwkm_fifo_wait(bank0_base, HWKM_BANK0_KM_STATUS,
 				    HWKM_BANK0_KM_STATUS_RSP_AVAIL_DATA);
 		if (rc)
 			return rc;
 
-		rsp[i] = io_read32_off(base, HWKM_BANK0_KM_RSP_FIFO);
+		rsp[i] = io_read32_off(bank0_base, HWKM_BANK0_KM_RSP_FIFO);
 	}
 
 	/* The hardware must report completion after the response is read. */
-	if (!io_read32_off_field(base, HWKM_BANK0_KM_IRQ_STATUS,
+	if (!io_read32_off_field(bank0_base, HWKM_BANK0_KM_IRQ_STATUS,
 				 HWKM_BANK0_KM_IRQ_STATUS_CMD_DONE))
 		return HWKM_ERR_RSP_OVERFLOW;
 
 	/* Acknowledge completion. */
-	io_write32_off(base, HWKM_BANK0_KM_IRQ_STATUS,
+	io_write32_off(bank0_base, HWKM_BANK0_KM_IRQ_STATUS,
 		       HWKM_BANK0_KM_IRQ_STATUS_CMD_DONE);
 
 	return HWKM_SUCCESS;
+}
+
+static int master_run_transaction(const uint32_t *cmd, size_t cmd_words,
+				  uint32_t *rsp, size_t rsp_words)
+{
+	struct hwkm_drv_ctx *ctx = NULL;
+
+	ctx = hwkm_get_context();
+	if (!ctx)
+		return HWKM_ERR_INVALID_ARG;
+
+	return run_fifo_transaction(ctx->base + HWKM_MASTER_BANK0_REGS_OFFSET,
+				    cmd, cmd_words, rsp, rsp_words);
+}
+
+static int gpce_run_transaction(const uint32_t *cmd, size_t cmd_words,
+				uint32_t *rsp, size_t rsp_words)
+{
+	struct hwkm_drv_ctx *ctx = NULL;
+
+	ctx = hwkm_get_context();
+	if (!ctx || !ctx->crypto0_base)
+		return HWKM_ERR_INVALID_ARG;
+
+	return run_fifo_transaction(ctx->crypto0_base +
+				    HWKM_CRYPTO0_BANK0_REGS_OFFSET,
+				    cmd, cmd_words, rsp, rsp_words);
+}
+
+static int ice_run_transaction(const uint32_t *cmd, size_t cmd_words,
+			       uint32_t *rsp, size_t rsp_words)
+{
+	struct hwkm_drv_ctx *ctx;
+	int rc = HWKM_ERR_GENERIC;
+
+	ctx = hwkm_get_context();
+	if (!ctx)
+		return HWKM_ERR_INVALID_ARG;
+
+	if (!ctx->ice_base)
+		ctx->ice_base = (vaddr_t)phys_to_virt(HWKM_ICE_BASE,
+						      MEM_AREA_IO_SEC,
+						      HWKM_ICE_SIZE);
+
+	/* ICE clocks and power are handled by Linux, so we need to re-configure
+	 * the hardware before submitting any new transactions.
+	 */
+	rc = hwkm_ice_configure(ctx->ice_base);
+	if (rc)
+		return rc;
+
+	return run_fifo_transaction(ctx->ice_base +
+				    HWKM_ICE_BANK0_REGS_OFFSET,
+				    cmd, cmd_words, rsp, rsp_words);
 }
 
 static int run_transaction(const struct hwkm_transaction *t,
 			   const uint32_t *cmd, size_t cmd_words,
 			   uint32_t *rsp, size_t rsp_words)
 {
+	if (!cmd || !cmd_words || !rsp || !rsp_words)
+		return HWKM_ERR_INVALID_ARG;
+
 	switch (t->hdl->dest) {
 	case HWKM_KEY_DEST_KM_MASTER:
 		return master_run_transaction(cmd, cmd_words, rsp, rsp_words);
+	case HWKM_KEY_DEST_GPCE_SLAVE:
+		return gpce_run_transaction(cmd, cmd_words, rsp, rsp_words);
+	case HWKM_KEY_DEST_ICE_SLAVE:
+		return ice_run_transaction(cmd, cmd_words, rsp, rsp_words);
 	default:
 		return HWKM_ERR_INVALID_DEST;
 	}
@@ -765,6 +822,8 @@ int hwkm_handle_init(struct hwkm_handle *hdl, enum hwkm_key_destination dest)
 {
 	switch (dest) {
 	case HWKM_KEY_DEST_KM_MASTER:
+	case HWKM_KEY_DEST_GPCE_SLAVE:
+	case HWKM_KEY_DEST_ICE_SLAVE:
 		break;
 	default:
 		return HWKM_ERR_INVALID_DEST;

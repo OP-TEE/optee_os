@@ -51,3 +51,5 @@ ifeq ($(CFG_QCOM_CLK_CFG),y)
 $(call force,CFG_QCOM_CMD_DB,y)
 $(call force,CFG_QCOM_RPMH_CLIENT,y)
 endif
+
+CFG_QCOM_STORAGE_UFS ?= y
