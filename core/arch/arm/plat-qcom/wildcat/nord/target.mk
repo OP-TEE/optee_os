@@ -18,3 +18,6 @@ $(call force,CFG_QCOM_CMD_DB,y)
 endif
 
 CFG_QCOM_TLMM ?= y
+
+# Enabling SMEM Support
+CFG_QCOM_SMEM ?= y
