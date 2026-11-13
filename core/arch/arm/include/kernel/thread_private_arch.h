@@ -256,6 +256,9 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 void thread_scall_handler(struct thread_scall_regs *regs);
 
 void thread_spmc_register_secondary_ep(vaddr_t ep);
+unsigned long thread_cpu_off(unsigned long a0, unsigned long a1);
+unsigned long thread_cpu_suspend(unsigned long a0, unsigned long a1);
+unsigned long thread_cpu_resume(unsigned long a0, unsigned long a1);
 #endif /*__ASSEMBLER__*/
 
 /*

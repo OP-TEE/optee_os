@@ -14,6 +14,7 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/boot.h>
+#include <kernel/callout.h>
 #include <kernel/interrupt.h>
 #include <kernel/linker.h>
 #include <kernel/lockdep.h>
@@ -1224,6 +1225,36 @@ unsigned long __weak thread_system_reset_handler(unsigned long a0 __unused,
 	return 0;
 }
 DECLARE_KEEP_PAGER(thread_system_reset_handler);
+
+unsigned long thread_cpu_off(unsigned long a0, unsigned long a1)
+{
+	unsigned long rc = thread_cpu_off_handler(a0, a1);
+
+	if (IS_ENABLED(CFG_CALLOUT) && !rc)
+		callout_service_suspend();
+
+	return rc;
+}
+
+unsigned long thread_cpu_suspend(unsigned long a0, unsigned long a1)
+{
+	unsigned long rc = thread_cpu_suspend_handler(a0, a1);
+
+	if (IS_ENABLED(CFG_CALLOUT) && !rc)
+		callout_service_suspend();
+
+	return rc;
+}
+
+unsigned long thread_cpu_resume(unsigned long a0, unsigned long a1)
+{
+	unsigned long rc = thread_cpu_resume_handler(a0, a1);
+
+	if (IS_ENABLED(CFG_CALLOUT) && !rc)
+		callout_service_resume();
+
+	return rc;
+}
 #endif /*CFG_WITH_ARM_TRUSTED_FW*/
 
 #ifdef CFG_CORE_WORKAROUND_ARM_NMFI
