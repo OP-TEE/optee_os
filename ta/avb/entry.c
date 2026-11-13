@@ -5,9 +5,11 @@
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
 
+#include <config.h>
 #include <string.h>
 
-#define DEFAULT_LOCK_STATE	0
+/* Lock state reported until it is first written, e.g. on a new device */
+#define DEFAULT_LOCK_STATE	IS_ENABLED(CFG_AVB_TA_DEFAULT_LOCKED)
 
 static const uint32_t storageid = TEE_STORAGE_PRIVATE_RPMB;
 static const char rb_obj_name[] = "rb_state";
@@ -238,11 +240,15 @@ static TEE_Result write_lock_state(uint32_t pt,
 	if (count == sizeof(lock_state) && lock_state == wlock_state)
 		goto out;
 
-	res = TEE_SeekObjectData(h, 0, TEE_DATA_SEEK_SET);
+	/*
+	 * A change of the lock state must clear all stored rollback indexes.
+	 * Recreate the object holding only the new lock state, in one atomic
+	 * step: slots that were never written are reported as 0.
+	 */
+	TEE_CloseObject(h);
+	res = create_rb_state(wlock_state, &h);
 	if (res)
-		goto out;
-
-	res = TEE_WriteObjectData(h, &wlock_state, sizeof(wlock_state));
+		return res;
 out:
 	TEE_CloseObject(h);
 	return res;
