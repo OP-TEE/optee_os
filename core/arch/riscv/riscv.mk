@@ -102,12 +102,32 @@ $(call force,CFG_ARM_GICV3,n)
 $(call force,CFG_WITH_STMM_SP,n)
 $(call force,CFG_TA_BTI,n)
 
+# The crypto_drv API is architecture neutral. On RISC-V, the supported AES
+# and SHA-2 accelerators require Zvkng. Do not enable these options by default:
+# each one replaces LibTomCrypt with the corresponding crypto_drv path.
+CFG_RISCV_ZVKNG ?= $(call cfg-one-enabled,CFG_CORE_CRYPTO_AES_ACCEL \
+	CFG_CORE_CRYPTO_SHA256_ACCEL CFG_CORE_CRYPTO_SHA512_ACCEL)
+CFG_RISCV_VECTOR ?= $(CFG_RISCV_ZVKNG)
+
+ifneq ($(call cfg-one-enabled,CFG_CORE_CRYPTO_AES_ACCEL \
+	CFG_CORE_CRYPTO_SHA256_ACCEL CFG_CORE_CRYPTO_SHA512_ACCEL),n)
+$(call force,CFG_RISCV_ZVKNG,y,required by RISC-V crypto acceleration)
+endif
+
+ifeq ($(CFG_RISCV_ZVKNG),y)
+$(call force,CFG_RISCV_VECTOR,y,required by CFG_RISCV_ZVKNG)
+endif
+ifeq ($(CFG_RISCV_VECTOR),y)
+# CFG_WITH_VFP controls FP/vector context management on RISC-V.
+$(call force,CFG_WITH_VFP,y,required by CFG_RISCV_VECTOR)
+endif
+
 # Enable generic timer
 $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
+	$(addprefix $(arch-dir)/, kernel crypto mm tee) $(platform-dir)
 
 # Default values for "-mcmodel" compiler flag
 riscv-platform-mcmodel ?= medany
@@ -126,6 +146,12 @@ endif
 ifeq ($(CFG_RISCV_ISA_C),y)
 ISA_C = c
 endif
+ifeq ($(CFG_RISCV_VECTOR),y)
+ISA_V = v
+endif
+ifeq ($(CFG_RISCV_ZVKNG),y)
+ISA_ZVKNG = _zvkng
+endif
 ifeq ($(CFG_RISCV_ISA_ZBB),y)
 ISA_ZBB = _zbb
 endif
@@ -140,7 +166,11 @@ ISA_ZICBOM = _zicbom
 CFG_RISCV_CBOM_BLOCK_SIZE ?= 64
 endif
 
+# Do not expose V to the C compiler. Otherwise it may auto-vectorize
+# ordinary core code, which can run while sstatus.VS is Off. RVV instructions
+# are restricted to explicitly managed assembly routines instead.
 riscv-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_ZBB)_zicsr_zifencei$(ISA_ZICBOM)
+riscv-crypto-isa = $(ISA_BASE)$(ISA_D)$(ISA_C)$(ISA_V)$(ISA_ZBB)$(ISA_ZVKNG)_zicsr_zifencei$(ISA_ZICBOM)
 riscv-abi = $(ABI_BASE)$(ABI_D)
 
 CFG_WITH_VFP ?= $(CFG_RISCV_FPU)
