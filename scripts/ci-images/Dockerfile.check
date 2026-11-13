@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# This Dockerfile creates an image suitable to run OP-TEE OS CI tests
+# in the QEMU environment [1]. It pulls the OP-TEE ci-image:base image
+# and fetches additional sources and toolchains according to default
+# manifest [2].
+#
+# [1] https://optee.readthedocs.io/en/latest/building/devices/qemu.html
+# [2] https://github.com/OP-TEE/manifest
+
+ARG CI_IMAGE_OWNER=op-tee
+FROM ghcr.io/$CI_IMAGE_OWNER/optee_os/ci-build-image
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN sed -i 's/Components: main/Components: main contrib/g' /etc/apt/sources.list.d/debian.sources \
+ && apt-get update \
+ && apt-get install --no-install-recommends -y \
+  android-tools-fastboot \
+  qemu-system-arm \
+  repo \
+ && git config --global user.name "CI user" \
+ && git config --global user.email "ci@invalid"
+
+ARG MANIFEST_OWNER=OP-TEE
+RUN mkdir -p /optee_repo_qemu \
+ && cd /optee_repo_qemu \
+ && repo init -u "https://github.com/$MANIFEST_OWNER/manifest.git" -m default.xml \
+ && repo sync \
+ && cd build \
+ && make -j$(nproc) toolchains \
+ && rm -f /optee_repo_qemu/toolchains/*.tar.xz

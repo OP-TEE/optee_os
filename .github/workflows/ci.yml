@@ -8,6 +8,12 @@ on:
     # Nightly run of master, 01:17 UTC
     - cron: '17 1 * * *'
   workflow_dispatch:
+    inputs:
+      ci_image_tag:
+        description: 'CI image tag'
+        type: string
+        default: latest
+        required: true
 permissions:
   contents: read
 concurrency:
@@ -19,7 +25,7 @@ jobs:
     name: Code style
     if: github.event_name != 'schedule'
     runs-on: ubuntu-26.04
-    container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image
+    container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image:${{ inputs.ci_image_tag || 'latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -69,7 +75,7 @@ jobs:
   builds:
     name: Build (${{ matrix.name }})
     runs-on: ubuntu-26.04
-    container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image
+    container: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-build-image:${{ inputs.ci_image_tag || 'latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -380,18 +386,12 @@ jobs:
         uses: actions/checkout@v7
       - name: Update Git config
         run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
-      - name: Generate cache key
-        run: |
-          HASH=$(echo -n "${{ matrix.name }}" | sha256sum | cut -c1-16)
-          echo "CACHE_KEY=builds-cache-${HASH}-${GITHUB_SHA}" >> ${GITHUB_ENV}
-          echo "CACHE_RESTORE_KEY=builds-cache-${HASH}" >> ${GITHUB_ENV}
       - name: Restore build cache
         uses: actions/cache@v6
         with:
           path: /github/home/.cache/ccache
-          key: ${{ env.CACHE_KEY }}
-          restore-keys: |
-            ${{ env.CACHE_RESTORE_KEY }}
+          key: builds-cache-${{ matrix.name }}-${{ github.sha }}
+          restore-keys: builds-cache-${{ matrix.name }}-
       - name: Build
         shell: bash
         env:
@@ -407,23 +407,19 @@ jobs:
           export CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
           export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
 
-
           function _make() { make -j$(nproc) -s O=out $*; }
 
           ccache -s -v
           eval "$MAKE_COMMANDS"
           ccache -s -v
-  QEMUv7_checks_image_build:
-    name: QEMUv7 image
-    uses: ./.github/workflows/qemu-checks-image.yml
-    with:
-      builder: ubuntu-24.04
-      target: default
-      tag: qemuv7_image
   QEMUv7_checks:
     name: Run (QEMUv7) (${{ matrix.name }})
-    needs: QEMUv7_checks_image_build
     runs-on: ubuntu-26.04
+    container:
+      image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
+      volumes:
+        - /usr:/host/usr
+        - /opt:/host/opt
     strategy:
       fail-fast: false
       matrix:
@@ -431,6 +427,7 @@ jobs:
           - name: 1
             make_commands: |
               make -j$(nproc) check CFG_LOCKDEP=y CFG_LOCKDEP_RECORD_STACK=n CFG_IN_TREE_EARLY_TAS=pkcs11/fd02c9da-306c-48c7-a49c-bbd827ae86ee CFG_PKCS11_TA=y CFG_CORE_UNSAFE_MODEXP=y XTEST_ARGS="-x pkcs11_1007"
+            cache: 'shared-fill'
           - name: 2
             make_commands: |
               make -j$(nproc) check CFG_CORE_SANITIZE_KADDRESS=y CFG_TA_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n CFG_ATTESTATION_PTA=n XTEST_ARGS="n_1001 n_1003 n_1004 n_1042"
@@ -445,18 +442,17 @@ jobs:
         with:
           name: ${{ matrix.name }}
           type: qemuv7
+          manifest_owner: ${{ vars.MANIFEST_OWNER || 'op-tee' }}
           make_commands: "${{ matrix.make_commands }}"
-  QEMUv8_checks_image_build:
-    name: QEMUv8 image
-    uses: ./.github/workflows/qemu-checks-image.yml
-    with:
-      builder: ubuntu-24.04
-      target: qemu_v8
-      tag: qemuv8_image
+          cache: ${{ matrix.cache || 'shared-read' }}
   QEMUv8_checks:
     name: Run (QEMUv8) (${{ matrix.name }})
-    needs: QEMUv8_checks_image_build
     runs-on: ubuntu-26.04
+    container:
+      image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
+      volumes:
+        - /usr:/host/usr
+        - /opt:/host/opt
     strategy:
       fail-fast: false
       matrix:
@@ -464,6 +460,7 @@ jobs:
           - name: BTI+MTE+PAC
             make_commands: |
               make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y SEL0_SPS=y MEMTAG=y PAUTH=y check
+            cache: 'private'
           - name: CE82
             make_commands: |
               make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
@@ -514,6 +511,7 @@ jobs:
           - name: Xen + SPMC_AT_EL=1
             make_commands: |
               make -j$(nproc) check XEN_BOOT=y SPMC_AT_EL=1
+            cache: 'shared-fill'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -522,18 +520,17 @@ jobs:
         with:
           name: ${{ matrix.name }}
           type: qemuv8
+          manifest_owner: ${{ vars.MANIFEST_OWNER || 'op-tee' }}
           make_commands: "${{ matrix.make_commands }}"
-  QEMUv8_arm64_image_build:
-    name: QEMUv8 arm64 image
-    uses: ./.github/workflows/qemu-checks-image.yml
-    with:
-      builder: ubuntu-24.04-arm
-      target: qemu_v8
-      tag: qemuv8_arm64_image
+          cache: ${{ matrix.cache || 'shared-read' }}
   QEMUv8_checks_arm64:
     name: Run (QEMUv8 on arm64) (${{ matrix.name }})
-    needs: QEMUv8_arm64_image_build
     runs-on: ubuntu-26.04-arm
+    container:
+      image: ghcr.io/${{ vars.CI_IMAGE_OWNER || 'op-tee' }}/optee_os/ci-check-image:${{ inputs.ci_image_tag || 'latest' }}
+      volumes:
+        - /usr:/host/usr
+        - /opt:/host/opt
     strategy:
       fail-fast: false
       matrix:
@@ -542,6 +539,7 @@ jobs:
             make_commands: |
               # CFG_CORE_UNSAFE_MODEXP=y to speed up regression_4011
               make -j$(nproc) check CFG_CORE_UNSAFE_MODEXP=y
+            cache: 'shared-fill'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -550,4 +548,6 @@ jobs:
         with:
           name: ${{ matrix.name }}
           type: qemuv8_arm64
+          manifest_owner: ${{ vars.MANIFEST_OWNER || 'op-tee' }}
           make_commands: "${{ matrix.make_commands }}"
+          cache: ${{ matrix.cache || 'shared-read' }}
