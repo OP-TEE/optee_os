@@ -27,7 +27,6 @@
 #include <rng_support.h>
 #include <sbi.h>
 #include <sbi_mpxy.h>
-#include <sbi_mpxy_rpmi.h>
 #include <stdalign.h>
 #include <stdio.h>
 #include <string.h>
@@ -319,11 +318,10 @@ void __weak boot_init_primary_runtime(void)
 	boot_primary_init_core_ids();
 	boot_primary_init_intc();
 	hart_features_init();
+	if (sbi_mpxy_init() && IS_ENABLED(CFG_RPMI_TEE_ABI))
+		panic("Primary hart MPXY initialization failed");
 	init_tee_runtime();
 	boot_mem_release_tmp_alloc();
-
-	if (!sbi_mpxy_init())
-		sbi_mpxy_rpmi_probe_channels();
 }
 
 void __weak boot_init_primary_final(void)
@@ -352,7 +350,8 @@ static void init_secondary_helper(void)
 
 	thread_init_per_cpu();
 	boot_secondary_init_intc();
-	sbi_mpxy_init();
+	if (sbi_mpxy_init() && IS_ENABLED(CFG_RPMI_TEE_ABI))
+		panic("Secondary hart MPXY initialization failed");
 
 	IMSG("Secondary CPU%zu (hart%"PRIu32") initialized",
 	     pos, thread_get_hartid());

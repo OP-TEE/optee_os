@@ -32,6 +32,9 @@
 #define OPTEE_MSG_ATTR_TYPE_FMEM_INPUT		OPTEE_MSG_ATTR_TYPE_RMEM_INPUT
 #define OPTEE_MSG_ATTR_TYPE_FMEM_OUTPUT		OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT
 #define OPTEE_MSG_ATTR_TYPE_FMEM_INOUT		OPTEE_MSG_ATTR_TYPE_RMEM_INOUT
+#define OPTEE_MSG_ATTR_TYPE_PMEM_INPUT		OPTEE_MSG_ATTR_TYPE_RMEM_INPUT
+#define OPTEE_MSG_ATTR_TYPE_PMEM_OUTPUT		OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT
+#define OPTEE_MSG_ATTR_TYPE_PMEM_INOUT		OPTEE_MSG_ATTR_TYPE_RMEM_INOUT
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INPUT		U(0x9)
 #define OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT		U(0xa)
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INOUT		U(0xb)
@@ -152,6 +155,18 @@ struct optee_msg_param_fmem {
 };
 
 /**
+ * struct optee_msg_param_pmem - RPMI parcel memory reference
+ * @offs: Byte offset from the start of the shared parcel
+ * @size: Reference size, or required size for a short-buffer response
+ * @global_id: Parcel ID in bits 31:0 and nonce in bits 63:32
+ */
+struct optee_msg_param_pmem {
+	uint64_t offs;
+	uint64_t size;
+	uint64_t global_id;
+};
+
+/**
  * struct optee_msg_param_value - opaque value parameter
  *
  * Value parameters are passed unchecked between normal and secure world.
@@ -168,6 +183,7 @@ struct optee_msg_param_value {
  * @tmem:	parameter by temporary memory reference
  * @rmem:	parameter by registered memory reference
  * @fmem:	parameter by FF-A registered memory reference
+ * @pmem:	parameter by RPMI parcel memory reference
  * @value:	parameter by opaque value
  * @octets:	parameter by octet string
  *
@@ -175,7 +191,8 @@ struct optee_msg_param_value {
  * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value or octets,
  * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates @tmem and
  * OPTEE_MSG_ATTR_TYPE_RMEM_* or the alias PTEE_MSG_ATTR_TYPE_FMEM_* indicates
- * @rmem or @fmem depending on the conduit.
+ * @rmem or @fmem depending on the conduit. RPMI uses PMEM aliases
+ * with @pmem.
  * OPTEE_MSG_ATTR_TYPE_NONE indicates that none of the members are used.
  */
 struct optee_msg_param {
@@ -184,6 +201,7 @@ struct optee_msg_param {
 		struct optee_msg_param_tmem tmem;
 		struct optee_msg_param_rmem rmem;
 		struct optee_msg_param_fmem fmem;
+		struct optee_msg_param_pmem pmem;
 		struct optee_msg_param_value value;
 		uint8_t octets[24];
 	} u;

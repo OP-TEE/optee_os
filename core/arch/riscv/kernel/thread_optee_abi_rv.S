@@ -9,6 +9,9 @@
 #include <keep.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#ifdef CFG_RPMI_TEE_ABI
+#include <optee_rpmi.h>
+#endif
 #include <riscv.h>
 #include <riscv_macros.S>
 #include <sbi.h>
@@ -16,6 +19,7 @@
 #include <tee/teeabi_opteed.h>
 #include <tee/teeabi_opteed_macros.h>
 
+#ifndef CFG_RPMI_TEE_ABI
 /*
  * Implement based on the transport method used to communicate between
  * untrusted domain and trusted domain. It could be an SBI/ECALL-based to
@@ -39,6 +43,7 @@ FUNC thread_return_to_udomain , :
 	/* ABI to REE should not return */
 	panic_at_abi_return
 END_FUNC thread_return_to_udomain
+#endif
 
 FUNC thread_std_abi_entry , :
 	jal	__thread_std_abi_entry
@@ -59,6 +64,15 @@ FUNC thread_std_abi_entry , :
 	 */
 	jal	thread_state_free
 
+#ifdef CFG_RPMI_TEE_ABI
+	mv	a0, s0
+	li	a1, OPTEE_RPMI_YIELDING_CALL_RETURN_DONE
+	li	a2, 0
+	jal	optee_rpmi_set_yielding_response
+
+	/* Return to untrusted domain */
+	j	optee_rpmi_complete_and_loop
+#else
 	/* Restore __thread_std_abi_entry() return value */
 	mv	a1, s0
 	li	a2, 0
@@ -69,6 +83,7 @@ FUNC thread_std_abi_entry , :
 
 	/* Return to untrusted domain */
 	jal	thread_return_to_udomain
+#endif
 END_FUNC thread_std_abi_entry
 
 /*
@@ -86,7 +101,9 @@ FUNC thread_rpc_xstatus , :
 	csrw	CSR_XIE, x0
 
 	/* Save return address xSTATUS and pointer to rv */
+#ifndef CFG_RPMI_TEE_ABI
 	STR	a0, REGOFF(0)(sp)
+#endif
 	STR	a1, REGOFF(1)(sp)
 	STR	s0, REGOFF(2)(sp)
 	STR	ra, REGOFF(3)(sp)
@@ -106,23 +123,39 @@ FUNC thread_rpc_xstatus , :
 	/* Get to tmp stack */
 	jal	thread_get_tmp_sp
 
+#ifndef CFG_RPMI_TEE_ABI
 	/* Get pointer to rv */
 	LDR	s1, REGOFF(0)(sp)
+#endif
 
 	/* xSTATUS to restore */
 	LDR	a1, REGOFF(1)(sp)
 	/* Switch to tmp stack */
 	mv	sp, a0
 
+#ifndef CFG_RPMI_TEE_ABI
 	/* Early load rv[] into s2-s4 */
 	lw	s2, 0(s1)
 	lw	s3, 4(s1)
 	lw	s4, 8(s1)
+#endif
 
+#ifdef CFG_RPMI_TEE_ABI
+	li	a0, 0
+#else
 	li	a0, THREAD_FLAGS_COPY_ARGS_ON_RETURN
+#endif
 	la	a2, .thread_rpc_return
 	jal	thread_state_suspend
 
+#ifdef CFG_RPMI_TEE_ABI
+	/* Return the suspended thread ID as the resume token. */
+	mv	a2, a0
+	li	a0, 0	/* TEE_SUCCESS */
+	li	a1, OPTEE_RPMI_YIELDING_CALL_RETURN_RPC_CMD
+	jal	optee_rpmi_set_yielding_response
+	j	optee_rpmi_complete_and_loop
+#else
 	mv	a4, a0	/* thread index */
 	mv	a1, s2	/* rv[0] */
 	mv	a2, s3	/* rv[1] */
@@ -132,6 +165,7 @@ FUNC thread_rpc_xstatus , :
 
 	/* Return to untrusted domain */
 	jal	thread_return_to_udomain
+#endif
 .thread_rpc_return:
 	/*
 	 * Jumps here from thread_resume() above when RPC has returned.
@@ -139,6 +173,7 @@ FUNC thread_rpc_xstatus , :
 	 * stored in THREAD_CTX above.
 	 */
 
+#ifndef CFG_RPMI_TEE_ABI
 	/* Get pointer to rv[] */
 	LDR	a4, REGOFF(0)(sp)
 
@@ -147,6 +182,7 @@ FUNC thread_rpc_xstatus , :
 	sw	a1, 4(a4)
 	sw	a2, 8(a4)
 	sw	a3, 12(a4)
+#endif
 
 	/* Pop saved XSTATUS from stack, keeping the live FS field */
 	LDR	s0, REGOFF(4)(sp)
@@ -160,6 +196,7 @@ FUNC thread_rpc_xstatus , :
 END_FUNC thread_rpc_xstatus
 DECLARE_KEEP_PAGER thread_rpc_xstatus
 
+#ifndef CFG_RPMI_TEE_ABI
 LOCAL_FUNC vector_std_abi_entry, : , .identity_map
 	jal	thread_handle_std_abi
 	/*
@@ -230,3 +267,4 @@ FUNC thread_vector_table , : , .identity_map, , nobti
 	.option pop
 END_FUNC thread_vector_table
 DECLARE_KEEP_PAGER thread_vector_table
+#endif

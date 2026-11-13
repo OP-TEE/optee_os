@@ -234,6 +234,11 @@ static inline bool mobj_check_offset_and_len(struct mobj *mobj, size_t offset,
 struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 			     enum buf_is_attr battr);
 
+#ifdef CFG_RPMI_TEE_ABI
+/* Get a mapped reference to a parcel shared by the current caller. */
+TEE_Result mobj_rpmi_get_by_cookie(uint64_t global_id, struct mobj **mobj);
+#endif
+
 #if defined(CFG_CORE_FFA)
 struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 				    unsigned int internal_offs);

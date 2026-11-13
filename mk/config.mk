@@ -641,6 +641,16 @@ CFG_WITH_STATS ?= n
 # an exploration based on compatible drivers found. It is default disabled.
 CFG_DRIVERS_DT_RECURSIVE_PROBE ?= n
 
+ifneq ($(filter y,$(CFG_RPMI_TEE_ABI) $(CFG_RISCV_SBI_MPXY_RPMI)),)
+$(call force,CFG_DRIVERS_MAILBOX,y)
+endif
+
+# Mailbox provider and consumer support.
+CFG_DRIVERS_MAILBOX ?= n
+ifeq ($(CFG_DRIVERS_MAILBOX),y)
+$(call force,CFG_DT,y)
+endif
+
 # This option enables OP-TEE to respond to SMP boot request: the Rich OS
 # issues this to request OP-TEE to release secondaries cores out of reset,
 # with specific core number and non-secure entry address.
@@ -990,7 +1000,7 @@ endif
 # CFG_PREALLOC_RPC_CACHE, when enabled, makes core to preallocate
 # shared memory for each secure thread. When disabled, RPC shared
 # memory is released once the secure thread has completed is execution.
-ifeq ($(CFG_WITH_PAGER),y)
+ifneq ($(filter y,$(CFG_WITH_PAGER) $(CFG_RPMI_TEE_ABI)),)
 CFG_PREALLOC_RPC_CACHE ?= n
 endif
 CFG_PREALLOC_RPC_CACHE ?= y
@@ -1136,8 +1146,8 @@ CFG_PAN ?= n
 $(eval $(call cfg-depends-one,CFG_PAN,CFG_ARM64_core CFG_RV64_core CFG_RV32_core))
 
 ifeq ($(filter y, $(CFG_CORE_SEL1_SPMC) $(CFG_CORE_SEL2_SPMC) \
-		  $(CFG_CORE_EL3_SPMC)),y)
-# FF-A case, handled via the FF-A ABI
+		  $(CFG_CORE_EL3_SPMC) $(CFG_RPMI_TEE_ABI)),y)
+# FF-A and RPMI provide their own notification backends.
 CFG_CORE_ASYNC_NOTIF ?= y
 $(call force,_CFG_CORE_ASYNC_NOTIF_DEFAULT_IMPL,n)
 else
