@@ -1338,7 +1338,7 @@ static int handle_mem_op_tmem(bool share_mem, paddr_t pbuf, size_t tot_len,
 
 	cpu_spin_lock(&rxtx->spinlock);
 	rc = spmc_read_mem_transaction(rxtx->ffa_vers, buf, len - offs,
-				       frag_len, tot_len, &mem_trans);
+				       tot_len, frag_len, &mem_trans);
 	if (rc)
 		goto unlock;
 
@@ -1382,7 +1382,7 @@ static int handle_mem_op_rxbuf(bool share_mem, size_t tot_len, size_t frag_len,
 		goto out;
 
 	rc = spmc_read_mem_transaction(rxtx->ffa_vers, rxtx->rx, rxtx->size,
-				       frag_len, tot_len, &mem_trans);
+				       tot_len, frag_len, &mem_trans);
 	if (rc)
 		goto out;
 	if (is_sp_op(&mem_trans, rxtx->rx)) {
