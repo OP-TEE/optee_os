@@ -542,7 +542,8 @@ static void init_elf(struct ta_elf *elf)
 
 	/*
 	 * Map it read-only executable when we're loading a library where
-	 * the ELF header is included in a load segment.
+	 * the ELF header is included in a load segment. If that segment
+	 * isn't executable, populate_segments() removes the permission.
 	 */
 	if (!elf->is_main)
 		flags |= LDELF_MAP_FLAG_EXECUTABLE;
@@ -871,6 +872,18 @@ static void populate_segments(struct ta_elf *elf)
 				 * with (or is covered by) the first page
 				 * of a shared library.
 				 */
+				if (!(seg->flags & PF_X)) {
+					/*
+					 * init_elf() mapped that page
+					 * executable, but this segment
+					 * isn't.
+					 */
+					res = sys_set_prot(elf->ehdr_addr,
+							   SMALL_PAGE_SIZE, 0);
+					if (res)
+						err(res, "sys_set_prot");
+				}
+
 				if (vaddr + filesz < SMALL_PAGE_SIZE) {
 					size_t num_bytes = 0;
 
