@@ -1528,6 +1528,12 @@ static enum pkcs11_rc check_attrs_misc_integrity(struct obj_attrs *head)
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 	}
 
+	if (get_bool(head, PKCS11_CKA_ALWAYS_AUTHENTICATE) &&
+	    !get_bool(head, PKCS11_CKA_PRIVATE)) {
+		DMSG("Always-authenticate requires a private object");
+		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+	}
+
 	if ((get_bool(head, PKCS11_CKA_WRAP) ||
 	     get_bool(head, PKCS11_CKA_UNWRAP)) &&
 	    (get_bool(head, PKCS11_CKA_DECRYPT) ||
