@@ -36,16 +36,25 @@
 #define QAD_PRIME		BIT32(6)
 
 /*
- * An XPU4 instance and the memory range it guards. Resource groups outside
+ * A memory range that an instance guards. mpu_start is the address the XPU
+ * uses for its start, which can differ from the physical one.
+ */
+struct xpu4_guard {
+	paddr_t start;
+	size_t size;
+	paddr_t mpu_start;
+};
+
+/*
+ * An XPU4 instance and the memory ranges it guards. Resource groups outside
  * [rg_start, rg_start + rg_count) belong to other owners such as earlier
  * boot stages and are never allocated here. The platform provides these.
  */
 struct xpu4_instance {
 	paddr_t base;
 	size_t map_size;
-	paddr_t addr_off;
-	paddr_t guard_start;
-	size_t guard_size;
+	const struct xpu4_guard *guards;
+	size_t guard_count;
 	unsigned int rg_start;
 	unsigned int rg_count;
 };

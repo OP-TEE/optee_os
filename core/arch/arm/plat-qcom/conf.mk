@@ -56,3 +56,13 @@ ifeq ($(CFG_QCOM_PAS_AUTH),y)
 # Override any arch/target defaults when PAS auth is enabled.
 CFG_PAS_TA_HEAP_SIZE := (1024 * 1024)
 endif
+
+# A target that embeds its DT names the DTS of its base board
+ifneq ($(strip $(CFG_EMBED_DTB_SOURCE_FILE)),)
+# The embedded DTB is OP-TEE's own, leave the non-secure DTB alone
+$(call force,CFG_EXTERNAL_DT,n)
+# x2 is not a DTB (get_aslr_seed() would read it with CFG_DT=y)
+$(call force,CFG_DT_ADDR,0)
+# Qualcomm clocks are acquired by name, not described in DT
+CFG_DRIVERS_CLK_DT ?= n
+endif
