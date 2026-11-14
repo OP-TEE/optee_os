@@ -186,6 +186,7 @@ jobs:
               _make PLATFORM=mediatek-mt8173
               _make PLATFORM=mediatek-mt8175
               _make PLATFORM=mediatek-mt8183
+              _make PLATFORM=mediatek-mt8391
               _make PLATFORM=mediatek-mt8516
           - name: arm misc 1
             make_commands: |
