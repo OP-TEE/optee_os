@@ -1241,6 +1241,23 @@ CFG_DRIVERS_RTC ?= n
 # Enable PTA for RTC access from non-secure world
 CFG_RTC_PTA ?= n
 
+# Enable TPM2
+CFG_DRIVERS_TPM2 ?= n
+# Enable the SPI-TIS transport backend for the in-core TPM2 driver
+CFG_DRIVERS_TPM2_SPI ?= n
+ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
+CFG_CORE_TCG_PROVIDER ?= $(CFG_DRIVERS_TPM2)
+endif
+
+# Expose the in-core discrete TPM to the normal world through a mediator
+# pseudo TA the Linux TEE-backed TPM driver binds to by UUID; the secure
+# world stays the owner and mediates the access.
+CFG_DTPM_MEDIATOR_PTA ?= n
+# It transceives through the in-core TPM2 driver and registers on the device
+# bus, so it needs both.
+$(eval $(call cfg-enable-all-depends,CFG_DTPM_MEDIATOR_PTA,CFG_DRIVERS_TPM2 \
+	 CFG_DEVICE_ENUM_PTA))
+
 # Enable the FF-A SPMC tests in xtests
 CFG_SPMC_TESTS ?= n
 
