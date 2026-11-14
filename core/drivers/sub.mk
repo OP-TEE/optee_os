@@ -123,4 +123,5 @@ subdirs-y += rtc
 subdirs-y += firewall
 subdirs-y += counter
 subdirs-y += amd
+subdirs-y += spi
 subdirs-y += qcom
