@@ -254,9 +254,9 @@ CFG_TZDRAM_SIZE ?= 0x02000000
 CFG_SHMEM_START ?= 0x32000000
 CFG_SHMEM_SIZE ?= 0x00400000
 
-# Register the low DRAM window (below the 3.75 GiB MMIO hole) so the core
-# advertises dynamic shared memory. RK3568 tops out at 8 GiB but the
-# NanoPi R5C carries far less; the low window covers its DRAM.
+# Fallback non-secure memory description, used only when no device tree
+# with memory nodes is passed to OP-TEE: the DRAM window below the MMIO
+# hole at 3.75 GiB, so the core advertises dynamic shared memory.
 CFG_DRAM_BASE ?= 0x00000000
 CFG_DRAM_SIZE ?= 0xf0000000
 
