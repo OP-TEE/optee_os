@@ -278,19 +278,18 @@
 
 /*
  * Halfword address/count in the secure OTP region (0x000-0x1bf). The
- * area starting at 0x100 (byte 0x200) is well clear of the cells used
- * by the boot chain (secure-boot enable flag at byte 0x80, RSA pubkey
- * hash at bytes 0x90-0xaf, anti-rollback counter at bytes 0xe0-0xe7).
- * otp_addr_writable() allows programming only these cells.
+ * HUK occupies bytes 0x008-0x017, where Rockchip's BL32 keeps its
+ * 16-byte HUK, clear of the cells used by the boot chain (secure-boot
+ * enable flag at byte 0x80, RSA pubkey hash at bytes 0x90-0xaf,
+ * anti-rollback counter at bytes 0xe0-0xe7). otp_addr_writable() allows
+ * programming only these cells.
  *
- * A provisioning marker halfword is burned last, after the key has been
- * written and verified, so an interrupted burn is detectable
- * (the marker stays blank) and never mistaken for a valid short key.
+ * That layout has no provisioning marker: all-zero cells mean that no
+ * HUK is provisioned and any other content is the HUK, so that a key
+ * programmed by Rockchip's firmware is used as it is.
  */
-#define ROCKCHIP_OTP_HUK_ADDR		0x100
+#define ROCKCHIP_OTP_HUK_ADDR 0x4
 #define ROCKCHIP_OTP_HUK_SIZE		0x8
-#define ROCKCHIP_OTP_HUK_MARKER_ADDR	0x108
-#define ROCKCHIP_OTP_HUK_MARKER		0x4b48
 
 #else
 #error "Unknown platform flavor"

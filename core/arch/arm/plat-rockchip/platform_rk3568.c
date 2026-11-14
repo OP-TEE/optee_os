@@ -482,19 +482,16 @@ static TEE_Result otp_read_secure(uint16_t *value, uint32_t addr,
 }
 
 /*
- * Only the HUK and its marker are writable, and only with
- * CFG_ROCKCHIP_HUK_PROVISION=y: never the secure-boot or rollback cells.
+ * Only the HUK is writable, and only with CFG_ROCKCHIP_HUK_PROVISION=y:
+ * never the secure-boot or rollback cells.
  */
 static bool otp_addr_writable(uint32_t addr)
 {
-	static_assert(ROCKCHIP_OTP_HUK_MARKER_ADDR ==
-		      ROCKCHIP_OTP_HUK_ADDR + ROCKCHIP_OTP_HUK_SIZE);
-
 	if (!IS_ENABLED(CFG_ROCKCHIP_HUK_PROVISION))
 		return false;
 
 	return addr >= ROCKCHIP_OTP_HUK_ADDR &&
-	       addr <= ROCKCHIP_OTP_HUK_MARKER_ADDR;
+	       addr < ROCKCHIP_OTP_HUK_ADDR + ROCKCHIP_OTP_HUK_SIZE;
 }
 
 static TEE_Result otp_wait_prog(vaddr_t base, bool busy, uint32_t timeout_us)
@@ -701,6 +698,12 @@ static TEE_Result generate_huk(struct tee_hw_unique_key *hwkey)
 	if (res)
 		goto out;
 
+	/* An all-zero key reads back as an unprovisioned OTP */
+	if (buf_is_zero(digest, HW_UNIQUE_KEY_LENGTH)) {
+		res = TEE_ERROR_NO_DATA;
+		goto out;
+	}
+
 	memcpy(hwkey->data, digest, HW_UNIQUE_KEY_LENGTH);
 
 out:
@@ -714,7 +717,6 @@ static TEE_Result read_huk(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint16_t buffer[ROCKCHIP_OTP_HUK_SIZE] = { };
-	uint16_t marker = 0;
 
 	static_assert(sizeof(buffer) == sizeof(hwkey->data));
 
@@ -722,25 +724,14 @@ static TEE_Result read_huk(struct tee_hw_unique_key *hwkey)
 			      ROCKCHIP_OTP_HUK_SIZE);
 	if (res)
 		goto out;
-	res = otp_read_secure(&marker, ROCKCHIP_OTP_HUK_MARKER_ADDR, 1);
-	if (res)
-		goto out;
 
-	if (marker == ROCKCHIP_OTP_HUK_MARKER) {
-		memcpy(hwkey->data, buffer, HW_UNIQUE_KEY_LENGTH);
-		res = TEE_SUCCESS;
-	} else if (!marker && buf_is_zero(buffer, sizeof(buffer))) {
-		/* Blank key and marker: no HUK provisioned yet */
+	/* Blank key: no HUK provisioned yet */
+	if (buf_is_zero(buffer, sizeof(buffer))) {
 		res = TEE_ERROR_NO_DATA;
-	} else {
-		/*
-		 * Non-blank key without a valid marker means an interrupted
-		 * or tampered burn. Fail closed rather than use a partial key.
-		 */
-		EMSG("HUK OTP present but marker invalid (0x%04"PRIx16")",
-		     marker);
-		res = TEE_ERROR_SECURITY;
+		goto out;
 	}
+
+	memcpy(hwkey->data, buffer, HW_UNIQUE_KEY_LENGTH);
 
 out:
 	memzero_explicit(buffer, sizeof(buffer));
@@ -753,7 +744,6 @@ static TEE_Result persist_huk(struct tee_hw_unique_key *hwkey)
 	TEE_Result res = TEE_SUCCESS;
 	uint16_t buffer[ROCKCHIP_OTP_HUK_SIZE] = { };
 	uint16_t verify[ROCKCHIP_OTP_HUK_SIZE] = { };
-	uint16_t marker = ROCKCHIP_OTP_HUK_MARKER;
 
 	static_assert(sizeof(buffer) == sizeof(hwkey->data));
 
@@ -764,19 +754,14 @@ static TEE_Result persist_huk(struct tee_hw_unique_key *hwkey)
 	if (res)
 		goto out;
 
-	/* Read back to catch a partial or failed burn before the marker */
+	/* Read back to catch a partial or failed burn */
 	res = otp_read_secure(verify, ROCKCHIP_OTP_HUK_ADDR,
 			      ROCKCHIP_OTP_HUK_SIZE);
 	if (res)
 		goto out;
 
-	if (consttime_memcmp(buffer, verify, sizeof(buffer))) {
+	if (consttime_memcmp(buffer, verify, sizeof(buffer)))
 		res = TEE_ERROR_GENERIC;
-		goto out;
-	}
-
-	/* Commit the marker only once the key is fully written and verified */
-	res = otp_write_secure(&marker, ROCKCHIP_OTP_HUK_MARKER_ADDR, 1);
 
 out:
 	memzero_explicit(buffer, sizeof(buffer));
