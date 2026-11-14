@@ -26,6 +26,8 @@ struct qcom_pas_data {
 	enum qcom_clk_group clk_group;
 	/* Memtype for the controller window: NSEC, or SEC if XPU-gated. */
 	enum teecore_memtypes map_type;
+	/* Private data of the subsystem, interpreted by its ops, or NULL. */
+	void *subsystem_data;
 };
 
 #endif /* _PAS_DATA_H_ */

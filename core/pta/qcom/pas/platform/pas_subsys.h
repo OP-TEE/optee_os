@@ -11,6 +11,7 @@
 #include <tee_api_types.h>
 
 #include "pas_data.h"
+#include "platform_pas.h"
 #include "resource_table.h"
 
 /*
@@ -18,20 +19,35 @@
  *
  * Each remoteproc subsystem a platform supports provides one of these.  Any
  * member may be NULL when the subsystem does not implement that operation;
- * the generic core (pas_core.c) returns the appropriate error in that case.
+ * the generic core (pas_core.c) returns the appropriate error in that case,
+ * or for fw_shutdown resets the subsystem through the clock driver.
  *
+ * @fw_init_image:      Inspect the image metadata of the image about to be
+ *                      loaded. @metadata is in secure memory, parsed into
+ *                      @e_info, authenticated only with CFG_QCOM_PAS_AUTH,
+ *                      and valid only for the duration of the call: copy out
+ *                      what is needed and validate it. State derived from it
+ *                      belongs to this image only and must be replaced on the
+ *                      next call. An error fails PTA_QCOM_PAS_INIT_IMAGE
+ *                      and the derived state must then be left empty.
  * @fw_start:           Program the firmware entry and run the boot FSM.
- * @fw_shutdown:        Put the processor back into reset.
+ * @fw_shutdown:        Put the processor back into reset.  NULL: the clock
+ *                      driver resets it (qcom_clock_pas_reset()).
  * @fw_set_state:       Power the processor on (@on == true) or off.
- * @get_resource_table: Serialise the firmware resource table (see
- *                      resource_table.h).  NULL for subsystems with no table.
+ * @devmem:             Regions of the firmware resource table, one
+ *                      RSC_DEVMEM entry each (see resource_table.h).  NULL
+ *                      for subsystems with no table.
+ * @devmem_num:         Number of @devmem entries.
  */
 struct qcom_pas_ops {
+	TEE_Result (*fw_init_image)(struct qcom_pas_data *data,
+				    const struct pas_metadata *metadata,
+				    const struct elf_info *e_info);
 	TEE_Result (*fw_start)(struct qcom_pas_data *data);
 	TEE_Result (*fw_shutdown)(struct qcom_pas_data *data);
 	TEE_Result (*fw_set_state)(struct qcom_pas_data *data, bool on);
-	TEE_Result (*get_resource_table)(struct resource_table *rt,
-					 size_t *size);
+	const struct fw_rsc_devmem *devmem;
+	size_t devmem_num;
 };
 
 /*
@@ -43,8 +59,8 @@ struct qcom_pas_ops {
  * @QCOM_PAS_RESET_CLK_FULL:   qcom_clock_enable(), fw_start(), then
  *                             qcom_clock_enable_pas_processor().
  *
- * If a CLK_ENABLE or CLK_FULL start fails in or after fw_start, fw_shutdown
- * puts the subsystem back into reset.
+ * If a CLK_ENABLE or CLK_FULL start fails in or after fw_start, the
+ * subsystem is put back into reset as on shutdown.
  */
 enum qcom_pas_reset_seq {
 	QCOM_PAS_RESET_NONE = 0,

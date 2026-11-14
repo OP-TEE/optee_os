@@ -4,6 +4,7 @@
  */
 
 #include <drivers/clk_qcom.h>
+#include <drivers/qcom_qdsp6ss.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <mm/core_memprot.h>
@@ -217,7 +218,7 @@ hoya_nsp_enable_processor_lucidevo(const struct hoya_nsp *nsp,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	io_setbits32(boot_base + QDSP6SS_BOOT_CORE_START, BIT(0));
+	qcom_qdsp6ss_core_start(boot_base);
 
 	return TEE_SUCCESS;
 }
