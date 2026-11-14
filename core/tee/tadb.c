@@ -30,6 +30,7 @@
 
 struct tee_tadb_dir {
 	const struct tee_file_operations *ops;
+	struct tee_pobj po;
 	struct tee_file_handle *fh;
 	int nbits;
 	bitstr_t *files;
@@ -208,19 +209,17 @@ static TEE_Result tadb_open(struct tee_tadb_dir **db_ret)
 {
 	TEE_Result res;
 	struct tee_tadb_dir *db = calloc(1, sizeof(*db));
-	struct tee_pobj po = {
-		.obj_id = (void *)tadb_obj_id,
-		.obj_id_len = sizeof(tadb_obj_id)
-	};
 
 	if (!db)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
+	db->po.obj_id = (void *)tadb_obj_id;
+	db->po.obj_id_len = sizeof(tadb_obj_id);
 	db->ops = tee_svc_storage_file_ops(TEE_STORAGE_PRIVATE);
 
-	res = db->ops->open(&po, NULL, &db->fh);
+	res = db->ops->open(&db->po, NULL, &db->fh);
 	if (res == TEE_ERROR_ITEM_NOT_FOUND)
-		res = db->ops->create(&po, false, NULL, 0, NULL, 0,
+		res = db->ops->create(&db->po, false, NULL, 0, NULL, 0,
 				      NULL, NULL, 0, &db->fh);
 
 	if (res)

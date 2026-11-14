@@ -3,6 +3,7 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
+#include <assert.h>
 #include <kernel/mutex.h>
 #include <stdlib.h>
 #include <string.h>
@@ -166,6 +167,7 @@ TEE_Result tee_pobj_release(struct tee_pobj *obj)
 	mutex_lock(&pobjs_mutex);
 	obj->refcnt--;
 	if (obj->refcnt == 0) {
+		assert(!obj->fs_private);
 		TAILQ_REMOVE(&tee_pobjs, obj, link);
 		free(obj->obj_id);
 		free(obj);

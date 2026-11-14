@@ -818,17 +818,23 @@ TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg,
 {
 	TEE_Result res;
 	struct tee_fs_htree *ht = *ht_arg;
-	void *ctx;
+	void *ctx = NULL;
 
 	if (!ht)
 		return TEE_ERROR_CORRUPT_OBJECT;
 
-	if (!ht->dirty)
+	if (!ht->dirty) {
+		if (hash)
+			memcpy(hash, ht->root.node.hash,
+			       sizeof(ht->root.node.hash));
+		if (counter)
+			*counter = ht->head.counter;
 		return TEE_SUCCESS;
+	}
 
 	res = crypto_hash_alloc_ctx(&ctx, TEE_FS_HTREE_HASH_ALG);
 	if (res != TEE_SUCCESS)
-		return res;
+		goto out;
 
 	res = htree_traverse_post_order(ht, htree_sync_node_to_storage, ctx);
 	if (res != TEE_SUCCESS)
@@ -980,6 +986,7 @@ TEE_Result tee_fs_htree_truncate(struct tee_fs_htree **ht_arg, size_t block_num)
 		assert(!node->child[0] && !node->child[1]);
 		assert(node->parent);
 		assert(node->parent->child[node->id & 1] == node);
+		node->parent->dirty = true;
 		node->parent->child[node->id & 1] = NULL;
 		free(node);
 		ht->imeta.max_node_id--;
