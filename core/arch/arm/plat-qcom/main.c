@@ -28,7 +28,15 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE,
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
 #endif
 
+#ifdef CFG_QCOM_TMEL_COM
+/* The TME-Lite IPC carveout is secure memory, so it is not non-secure DDR */
+register_ddr(DRAM0_BASE, TMEL_COM_IPC_BUF_ADDR - DRAM0_BASE);
+register_ddr(TMEL_COM_IPC_BUF_ADDR + CFG_TMEL_COM_IPCBUF_CARVEOUT_SIZE,
+	     DRAM0_SIZE - (TMEL_COM_IPC_BUF_ADDR - DRAM0_BASE) -
+	     CFG_TMEL_COM_IPCBUF_CARVEOUT_SIZE);
+#else
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
+#endif
 #ifdef DRAM1_BASE
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
