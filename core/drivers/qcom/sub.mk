@@ -8,8 +8,20 @@ srcs-$(CFG_QCOM_RAMBLUR_PIMEM_V3) += ramblur/ramblur_pimem_v3.c
 srcs-$(CFG_QCOM_CSRNG) += rng/qcom-csrng.c
 srcs-$(CFG_QCOM_SEC_WDOG) += wdt/qcom-wdt.c
 
+# FEC helper shared by the register-based and TME-Lite fuse programming
+ifneq ($(filter y,$(CFG_QCOM_QFPROM) $(CFG_QCOM_TMEL_FUSEPROV)),)
+srcs-y += qfprom/qfprom_fec.c
+endif
+
 subdirs-$(CFG_QCOM_CMD_DB) += cmd_db
+subdirs-$(CFG_QCOM_MBOX) += mbox
 subdirs-$(CFG_QCOM_RPMH_CLIENT) += rpmh
 subdirs-$(CFG_QCOM_QFPROM) += qfprom
 subdirs-$(CFG_QCOM_XPUV4) += xpu
 subdirs-$(CFG_QCOM_TLMM) += tlmm
+
+# TME-Lite communication client
+subdirs-$(CFG_QCOM_TMEL_COM) += tmel_com
+
+# Hardware Unique Key provider (derives the HUK via TME-Lite KM)
+subdirs-$(CFG_QCOM_TMEL_HUK) += tmel_huk
