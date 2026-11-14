@@ -9,7 +9,8 @@ import math
 
 
 sig_tee_alg = {'TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256': 0x70414930,
-               'TEE_ALG_RSASSA_PKCS1_V1_5_SHA256': 0x70004830}
+               'TEE_ALG_RSASSA_PKCS1_V1_5_SHA256': 0x70004830,
+               'TEE_ALG_ECDSA_SHA256': 0x70003042}
 
 enc_tee_alg = {'TEE_ALG_AES_GCM': 0x40000810}
 
@@ -18,6 +19,11 @@ enc_key_type = {'SHDR_ENC_KEY_DEV_SPECIFIC': 0x0,
 
 TEE_ATTR_RSA_MODULUS = 0xD0000130
 TEE_ATTR_RSA_PUBLIC_EXPONENT = 0xD0000230
+TEE_ATTR_ECC_PUBLIC_VALUE_X = 0xD0000141
+TEE_ATTR_ECC_PUBLIC_VALUE_Y = 0xD0000241
+TEE_ATTR_ECC_CURVE = 0xF0000441
+
+TEE_ECC_CURVE_NIST_P256 = 0x00000003
 
 SHDR_BOOTSTRAP_TA = 1
 SHDR_ENCRYPTED_TA = 2
@@ -59,6 +65,33 @@ def uuid_parse(s):
 
 def int_parse(str):
     return int(str, 0)
+
+
+def key_is_ecc(key):
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    return isinstance(key, (ec.EllipticCurvePrivateKey,
+                            ec.EllipticCurvePublicKey))
+
+
+def check_ecc_key(key):
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    if not isinstance(key.curve, ec.SECP256R1):
+        logger.error('Unsupported curve {}, '.format(key.curve.name) +
+                     'only NIST P-256 (secp256r1) is supported')
+        sys.exit(1)
+
+
+def default_sig_algo(key):
+    if key_is_ecc(key):
+        return 'TEE_ALG_ECDSA_SHA256'
+
+    return 'TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256'
+
+
+def algo_is_ecc(sig_algo):
+    return sig_algo.startswith('TEE_ALG_ECDSA')
 
 
 def get_args():
@@ -129,9 +162,11 @@ def get_args():
     def arg_add_algo(parser):
         parser.add_argument(
             '--algo', required=False, choices=list(sig_tee_alg.keys()),
-            default='TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256', help='''
-                The hash and signature algorithm.
-                Defaults to TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256.''')
+            help='''
+                The hash and signature algorithm, must match the type of
+                the signing key. Defaults to
+                TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256 for an RSA key and to
+                TEE_ALG_ECDSA_SHA256 for an ECC (NIST P-256) key.''')
 
     def arg_add_subkey(parser):
         parser.add_argument(
@@ -233,6 +268,10 @@ def get_args():
               openssl pkeyutl -sign -inkey <KEYFILE>.pem \\
                   -pkeyopt digest:sha256 -pkeyopt rsa_padding_mode:pkcs1 | \\
               base64 > <UUID>.sig
+
+            for algorithm TEE_ALG_ECDSA_SHA256 the signature must be the
+            concatenation of the R and S values, each padded to 32 bytes,
+            not the DER encoded signature produced by OpenSSL
             '''))
     parser_digest.set_defaults(func=command_digest)
     arg_add_uuid(parser_digest)
@@ -357,7 +396,13 @@ class BinaryImage:
                 self.key = load_asymmetric_key(arg_key)
             else:
                 self.key = arg_key
-            self.sig_size = math.ceil(self.key.key_size / 8)
+            if key_is_ecc(self.key):
+                check_ecc_key(self.key)
+                # An ECDSA signature is the concatenation of the R and S
+                # values, each the size of the private key
+                self.sig_size = 2 * math.ceil(self.key.key_size / 8)
+            else:
+                self.sig_size = math.ceil(self.key.key_size / 8)
 
         self.chosen_hash = hashes.SHA256()
         self.hash_size = self.chosen_hash.digest_size
@@ -365,11 +410,23 @@ class BinaryImage:
     def __pack_img(self, img_type, sign_algo):
         import struct
 
+        sign_algo = self.__check_sig_algo(sign_algo)
         self.sig_algo = sign_algo
         self.img_type = img_type
         self.shdr = struct.pack('<IIIIHH', SHDR_MAGIC, img_type, len(self.img),
                                 sig_tee_alg[sign_algo], self.hash_size,
                                 self.sig_size)
+
+    def __check_sig_algo(self, sign_algo):
+        if sign_algo is None:
+            return default_sig_algo(self.key)
+
+        if algo_is_ecc(sign_algo) != key_is_ecc(self.key):
+            logger.error('Algorithm {} does not match the key'
+                         .format(sign_algo))
+            sys.exit(1)
+
+        return sign_algo
 
     def __calc_digest(self):
         from cryptography.hazmat.backends import default_backend
@@ -422,16 +479,24 @@ class BinaryImage:
 
     def set_subkey(self, sign_algo, name, uuid, subkey_version, max_depth,
                    name_size):
-        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.primitives.asymmetric import ec, rsa
         import struct
 
         self.subkey_name = name
 
         subkey_key = load_asymmetric_key_img(self.inf)
-        if isinstance(subkey_key, rsa.RSAPrivateKey):
+        if isinstance(subkey_key, (rsa.RSAPrivateKey,
+                                   ec.EllipticCurvePrivateKey)):
             subkey_pkey = subkey_key.public_key()
         else:
             subkey_pkey = subkey_key
+
+        sign_algo = self.__check_sig_algo(sign_algo)
+        if key_is_ecc(subkey_pkey) == key_is_ecc(self.key):
+            # The embedded key is of the same type as the key signing it
+            subkey_algo = sign_algo
+        else:
+            subkey_algo = default_sig_algo(subkey_pkey)
 
         if max_depth is None:
             if hasattr(self, 'previous_max_depth'):
@@ -455,23 +520,38 @@ class BinaryImage:
         def int_to_bytes(x: int) -> bytes:
             return x.to_bytes((x.bit_length() + 8) // 8, 'big')
 
-        n_bytes = int_to_bytes(subkey_pkey.public_numbers().n)
-        e_bytes = int_to_bytes(subkey_pkey.public_numbers().e)
-        attrs_end_offs = 16 + 5 * 4 + 2 * 3 * 4
-        shdr_subkey = struct.pack('<IIIIIIIIIII',
-                                  name_size, subkey_version,
-                                  max_depth, sig_tee_alg[sign_algo], 2,
-                                  TEE_ATTR_RSA_MODULUS,
-                                  attrs_end_offs, len(n_bytes),
-                                  TEE_ATTR_RSA_PUBLIC_EXPONENT,
-                                  attrs_end_offs + len(n_bytes),
-                                  len(e_bytes))
-        self.img = uuid.bytes + shdr_subkey + n_bytes + e_bytes
+        if key_is_ecc(subkey_pkey):
+            check_ecc_key(subkey_pkey)
+            size = math.ceil(subkey_pkey.curve.key_size / 8)
+            attrs = [(TEE_ATTR_ECC_CURVE,
+                      struct.pack('<I', TEE_ECC_CURVE_NIST_P256)),
+                     (TEE_ATTR_ECC_PUBLIC_VALUE_X,
+                      subkey_pkey.public_numbers().x.to_bytes(size, 'big')),
+                     (TEE_ATTR_ECC_PUBLIC_VALUE_Y,
+                      subkey_pkey.public_numbers().y.to_bytes(size, 'big'))]
+        else:
+            attrs = [(TEE_ATTR_RSA_MODULUS,
+                      int_to_bytes(subkey_pkey.public_numbers().n)),
+                     (TEE_ATTR_RSA_PUBLIC_EXPONENT,
+                      int_to_bytes(subkey_pkey.public_numbers().e))]
+
+        shdr_subkey = struct.pack('<IIIII', name_size, subkey_version,
+                                  max_depth, sig_tee_alg[subkey_algo],
+                                  len(attrs))
+        attr_offs = UUID_SIZE + SK_HDR_SIZE + len(attrs) * 3 * 4
+        attr_vals = b''
+        for attr_id, attr_val in attrs:
+            shdr_subkey += struct.pack('<III', attr_id,
+                                       attr_offs + len(attr_vals),
+                                       len(attr_val))
+            attr_vals += attr_val
+
+        self.img = uuid.bytes + shdr_subkey + attr_vals
         self.__pack_img(SHDR_SUBKEY, sign_algo)
         self.img_digest = self.__calc_digest()
 
     def parse(self):
-        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.primitives.asymmetric import ec, rsa
         import struct
 
         offs = 0
@@ -558,11 +638,32 @@ class BinaryImage:
                         return self.inf[o:o + attr_len]
                 return None
 
-            n_bytes = find_attr(TEE_ATTR_RSA_MODULUS)
-            e_bytes = find_attr(TEE_ATTR_RSA_PUBLIC_EXPONENT)
-            e = int.from_bytes(e_bytes, 'big')
-            n = int.from_bytes(n_bytes, 'big')
-            self.subkey_key = rsa.RSAPublicNumbers(e, n).public_key()
+            if self.algo not in sig_tee_alg.values():
+                raise Exception('Unrecognized algorithm: 0x{:08x}'
+                                .format(self.algo))
+
+            if algo_is_ecc(value_to_key(sig_tee_alg, self.algo)):
+                curve_bytes = find_attr(TEE_ATTR_ECC_CURVE)
+                x_bytes = find_attr(TEE_ATTR_ECC_PUBLIC_VALUE_X)
+                y_bytes = find_attr(TEE_ATTR_ECC_PUBLIC_VALUE_Y)
+                if curve_bytes is None or x_bytes is None or y_bytes is None:
+                    raise Exception('Missing ECC subkey attribute')
+                [curve] = struct.unpack('<I', curve_bytes)
+                if curve != TEE_ECC_CURVE_NIST_P256:
+                    raise Exception('Unsupported curve: 0x{:08x}'
+                                    .format(curve))
+                x = int.from_bytes(x_bytes, 'big')
+                y = int.from_bytes(y_bytes, 'big')
+                self.subkey_key = ec.EllipticCurvePublicNumbers(
+                    x, y, ec.SECP256R1()).public_key()
+            else:
+                n_bytes = find_attr(TEE_ATTR_RSA_MODULUS)
+                e_bytes = find_attr(TEE_ATTR_RSA_PUBLIC_EXPONENT)
+                if n_bytes is None or e_bytes is None:
+                    raise Exception('Missing RSA subkey attribute')
+                e = int.from_bytes(e_bytes, 'big')
+                n = int.from_bytes(n_bytes, 'big')
+                self.subkey_key = rsa.RSAPublicNumbers(e, n).public_key()
 
             self.img = self.inf[subkey_offs:offs - self.name_size]
             if len(self.img) != img_size:
@@ -738,22 +839,40 @@ class BinaryImage:
 
         return pad
 
+    def __ecdsa_sig_to_raw(self, sig):
+        from cryptography.hazmat.primitives.asymmetric import utils
+
+        r, s = utils.decode_dss_signature(sig)
+        size = self.sig_size // 2
+        return r.to_bytes(size, 'big') + s.to_bytes(size, 'big')
+
+    def __ecdsa_sig_from_raw(self, sig):
+        from cryptography.hazmat.primitives.asymmetric import utils
+
+        size = len(sig) // 2
+        return utils.encode_dss_signature(int.from_bytes(sig[:size], 'big'),
+                                          int.from_bytes(sig[size:], 'big'))
+
     def sign(self):
         from cryptography.hazmat.primitives.asymmetric import utils
-        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
-        if not isinstance(self.key, rsa.RSAPrivateKey):
+        if isinstance(self.key, ec.EllipticCurvePrivateKey):
+            sig = self.key.sign(self.img_digest,
+                                ec.ECDSA(utils.Prehashed(self.chosen_hash)))
+            self.sig = self.__ecdsa_sig_to_raw(sig)
+        elif isinstance(self.key, rsa.RSAPrivateKey):
+            self.sig = self.key.sign(self.img_digest, self.__get_padding(),
+                                     utils.Prehashed(self.chosen_hash))
+        else:
             logger.error('Provided key cannot be used for signing, ' +
                          'please use offline-signing mode.')
             sys.exit(1)
-        else:
-            self.sig = self.key.sign(self.img_digest, self.__get_padding(),
-                                     utils.Prehashed(self.chosen_hash))
 
-            if len(self.sig) != self.sig_size:
-                raise Exception(("Actual signature length is not equal to ",
-                                 "the computed one: {} != {}").
-                                format(len(self.sig), self.sig_size))
+        if len(self.sig) != self.sig_size:
+            raise Exception(("Actual signature length is not equal to ",
+                             "the computed one: {} != {}").
+                            format(len(self.sig), self.sig_size))
 
     def add_signature(self, sigf):
         import base64
@@ -768,17 +887,33 @@ class BinaryImage:
 
     def verify_signature(self):
         from cryptography.hazmat.primitives.asymmetric import utils
-        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.primitives.asymmetric import ec, rsa
         from cryptography import exceptions
 
-        if isinstance(self.key, rsa.RSAPrivateKey):
+        if isinstance(self.key, (rsa.RSAPrivateKey,
+                                 ec.EllipticCurvePrivateKey)):
             pkey = self.key.public_key()
         else:
             pkey = self.key
 
+        if algo_is_ecc(self.sig_algo) != key_is_ecc(pkey):
+            logger.error('Algorithm {} does not match the key'
+                         .format(self.sig_algo))
+            sys.exit(1)
+
+        if len(self.sig) != self.sig_size:
+            logger.error('Unexpected signature length {}, expected {}'
+                         .format(len(self.sig), self.sig_size))
+            sys.exit(1)
+
         try:
-            pkey.verify(self.sig, self.img_digest, self.__get_padding(),
-                        utils.Prehashed(self.chosen_hash))
+            if key_is_ecc(pkey):
+                pkey.verify(self.__ecdsa_sig_from_raw(self.sig),
+                            self.img_digest,
+                            ec.ECDSA(utils.Prehashed(self.chosen_hash)))
+            else:
+                pkey.verify(self.sig, self.img_digest, self.__get_padding(),
+                            utils.Prehashed(self.chosen_hash))
         except exceptions.InvalidSignature:
             logger.error('Verification failed, ignoring given signature.')
             sys.exit(1)
