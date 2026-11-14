@@ -230,7 +230,10 @@ include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_TEE_CORE_NB_CORE,4)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_AUTO_MAX_PA_BITS,y)
-$(call force,CFG_CRYPTO_WITH_CE,y)
+
+# The Armv8 crypto extensions are disabled at power-up and have to be
+# enabled by BL31, which TF-A does since v2.15.
+CFG_CRYPTO_WITH_CE ?= y
 
 # The platform provides a hardware unique key (secure OTP) and TRNG-seeded
 # PRNG, so the insecure development stubs are not needed.
