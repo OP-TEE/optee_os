@@ -156,14 +156,14 @@ TEE_Result crypto_rng_init(const void *data, size_t dlen)
 
 	res = key_from_data(state.reseed_ctx, data, dlen, key);
 	if (res)
-		return res;
+		goto err;
 
 	res = crypto_cipher_alloc_ctx(&ctx, CIPHER_ALGO);
 	if (res)
-		return res;
+		goto err;
 	res = cipher_init(ctx, key);
 	if (res)
-		return res;
+		goto err;
 	inc_counter(state.counter);
 	state.ctx = ctx;
 	return TEE_SUCCESS;
