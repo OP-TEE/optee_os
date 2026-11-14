@@ -26,3 +26,7 @@ endif
 ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_FUSE_PTA)),)
 $(call force,CFG_QCOM_QFPROM,y)
 endif
+
+# Enable the Qualcomm GPCE SHA-256 direct-HWIO driver.
+CFG_QCOM_GPCE ?= y
+CFG_QCOM_GPCE_HASH ?= y
