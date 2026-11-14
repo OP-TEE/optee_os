@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * IPQ9650 RDP488 as seen by OP-TEE: only what OP-TEE uses is described.
+ */
+
+/dts-v1/;
+
+/ {
+	compatible = "qcom,ipq9650-rdp488", "qcom,ipq9650";
+	model = "Qualcomm Technologies, Inc. IPQ9650 RDP488";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x80000000>,
+		      <0x8 0x0 0x3 0x80000000>;
+	};
+};

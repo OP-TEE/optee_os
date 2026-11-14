@@ -17,9 +17,17 @@
 
 /* MACHX_LLCC_MPU: resource groups 30..39 are free for runtime allocation */
 #define DDR_MPU_BASE			UL(0x4060000)
-#define DDR_MPU_ADDR_OFFSET		UL(0x0)
+/* It is programmed with the physical addresses of the DRAM */
+#define DDR_MPU_ADDR_LOW(pa)		(pa)
+#define DDR_MPU_ADDR_HIGH(pa)		(pa)
 #define DDR_XPU_RG_START		UL(30)
 #define DDR_XPU_RG_COUNT		UL(10)
+
+/* Convert a physical DRAM address into the address the DDR MPU uses */
+static inline paddr_t ddr_mpu_addr(paddr_t pa)
+{
+	return pa;
+}
 
 /*
  * OCIMEM_MPU register window. The base is well below CORE_MMU_PGDIR_SIZE,
