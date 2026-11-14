@@ -1989,81 +1989,11 @@ static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
 	return true;
 }
 
-void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
-{
-	struct core_mmu_table_info tbl_info = { };
-	unsigned int idx = 0;
-	vaddr_t vaddr = mm->va;
-	paddr_t paddr = mm->pa;
-	ssize_t size_left = mm->size;
-	uint32_t attr = mm->attr;
-	unsigned int level = 0;
-	bool table_found = false;
-	uint32_t old_attr = 0;
-
-	assert(!((vaddr | paddr) & SMALL_PAGE_MASK));
-	if (!paddr)
-		attr = 0;
-
-	while (size_left > 0) {
-		level = CORE_MMU_BASE_TABLE_LEVEL;
-
-		while (true) {
-			paddr_t block_size = 0;
-
-			assert(core_mmu_level_in_range(level));
-
-			table_found = core_mmu_find_table(prtn, vaddr, level,
-							  &tbl_info);
-			if (!table_found)
-				panic("can't find table for mapping");
-
-			block_size = BIT64(tbl_info.shift);
-
-			idx = core_mmu_va2idx(&tbl_info, vaddr);
-			if (!can_map_at_level(paddr, vaddr, size_left,
-					      block_size, mm)) {
-				bool secure = mm->attr & TEE_MATTR_SECURE;
-
-				/*
-				 * This part of the region can't be mapped at
-				 * this level. Need to go deeper.
-				 */
-				if (!core_mmu_entry_to_finer_grained(&tbl_info,
-								     idx,
-								     secure))
-					panic("Can't divide MMU entry");
-				level = tbl_info.next_level;
-				continue;
-			}
-
-			/* We can map part of the region at current level */
-			core_mmu_get_entry(&tbl_info, idx, NULL, &old_attr);
-			if (old_attr)
-				panic("Page is already mapped");
-
-			core_mmu_set_entry(&tbl_info, idx, paddr, attr);
-			/*
-			 * Dynamic vaspace regions don't have a physical
-			 * address initially but we need to allocate and
-			 * initialize the translation tables now for later
-			 * updates to work properly.
-			 */
-			if (paddr)
-				paddr += block_size;
-			vaddr += block_size;
-			size_left -= block_size;
-
-			break;
-		}
-	}
-}
-
 /*
- * The leaf translation table covering a virtual address only changes every
- * CORE_MMU_PGDIR_SIZE. A loop mapping one small page at a time can therefore
- * reuse the table found for the previous page instead of walking the
- * translation tables from the base table again for every page.
+ * A translation table covers a contiguous range of virtual addresses. A loop
+ * mapping consecutive entries can therefore reuse the table found for the
+ * previous entry instead of walking the translation tables from the base
+ * table again for every entry.
  *
  * Returns true if @ti still describes the table covering @va. Note that @va
  * below @ti->va_base wraps the unsigned subtraction into a large value and
@@ -2073,6 +2003,78 @@ static bool tbl_info_covers_va(struct core_mmu_table_info *ti, vaddr_t va)
 {
 	return ti->table &&
 	       va - ti->va_base < BIT64(ti->shift) * ti->num_entries;
+}
+
+/*
+ * Find the table in which @vaddr can be mapped with a single entry, splitting
+ * coarser grained entries on the way down as needed.
+ */
+static void find_map_table(struct mmu_partition *prtn,
+			   struct tee_mmap_region *mm, vaddr_t vaddr,
+			   paddr_t paddr, size_t size_left,
+			   struct core_mmu_table_info *tbl_info)
+{
+	bool secure = mm->attr & TEE_MATTR_SECURE;
+	unsigned int level = CORE_MMU_BASE_TABLE_LEVEL;
+	unsigned int idx = 0;
+
+	while (true) {
+		assert(core_mmu_level_in_range(level));
+
+		if (!core_mmu_find_table(prtn, vaddr, level, tbl_info))
+			panic("can't find table for mapping");
+
+		if (can_map_at_level(paddr, vaddr, size_left,
+				     BIT64(tbl_info->shift), mm))
+			return;
+
+		idx = core_mmu_va2idx(tbl_info, vaddr);
+		if (!core_mmu_entry_to_finer_grained(tbl_info, idx, secure))
+			panic("Can't divide MMU entry");
+		level = tbl_info->next_level;
+	}
+}
+
+void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
+{
+	struct core_mmu_table_info tbl_info = { };
+	unsigned int idx = 0;
+	vaddr_t vaddr = mm->va;
+	paddr_t paddr = mm->pa;
+	ssize_t size_left = mm->size;
+	uint32_t attr = mm->attr;
+	paddr_t block_size = 0;
+	uint32_t old_attr = 0;
+
+	assert(!((vaddr | paddr) & SMALL_PAGE_MASK));
+	if (!paddr)
+		attr = 0;
+
+	while (size_left > 0) {
+		if (!tbl_info_covers_va(&tbl_info, vaddr) ||
+		    !can_map_at_level(paddr, vaddr, size_left,
+				      BIT64(tbl_info.shift), mm))
+			find_map_table(prtn, mm, vaddr, paddr, size_left,
+				       &tbl_info);
+		block_size = BIT64(tbl_info.shift);
+		idx = core_mmu_va2idx(&tbl_info, vaddr);
+
+		core_mmu_get_entry(&tbl_info, idx, NULL, &old_attr);
+		if (old_attr)
+			panic("Page is already mapped");
+
+		core_mmu_set_entry(&tbl_info, idx, paddr, attr);
+		/*
+		 * Dynamic vaspace regions don't have a physical
+		 * address initially but we need to allocate and
+		 * initialize the translation tables now for later
+		 * updates to work properly.
+		 */
+		if (paddr)
+			paddr += block_size;
+		vaddr += block_size;
+		size_left -= block_size;
+	}
 }
 
 TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
