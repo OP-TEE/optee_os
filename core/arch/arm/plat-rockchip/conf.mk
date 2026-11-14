@@ -243,12 +243,12 @@ CFG_INSECURE ?= n
 # protection the fTPM relies on.
 CFG_RPMB_FS ?= y
 
-# BL32 load address expected by the Rockchip boot chain (rkbin
-# RK3568TRUST.ini BL32 ADDR); the OP-TEE v1 header advertises this so
-# U-Boot's FIT loads the TEE here and TF-A opteed dispatches to it.
-CFG_TZDRAM_START ?= 0x08400000
+# Same layout as RK3588 and PX30, clear of the load addresses in mainline
+# U-Boot's default environment (kernel_comp_addr_r, fdt_addr_r,
+# ramdisk_addr_r).
+CFG_TZDRAM_START ?= 0x30000000
 CFG_TZDRAM_SIZE ?= 0x02000000
-CFG_SHMEM_START ?= 0x0a400000
+CFG_SHMEM_START ?= 0x32000000
 CFG_SHMEM_SIZE ?= 0x00400000
 
 # Register the low DRAM window (below the 3.75 GiB MMIO hole) so the core
