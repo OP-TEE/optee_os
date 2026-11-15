@@ -209,6 +209,15 @@ R:	Sahil Malhotra <sahil.malhotra@nxp.com> [@sahilnxp]
 S:	Maintained
 F:	core/drivers/crypto/
 
+Discrete TPM2 (dTPM) driver and mediator
+R:	Jorge Ramirez <jorge.ramirez@oss.qualcomm.com> [@ldts]
+S:	Maintained
+F:	core/drivers/tpm2/
+F:	core/include/drivers/tpm2*
+F:	core/include/tpm2.h
+F:	core/pta/dtpm_mediator.c
+F:	lib/libutee/include/pta_dtpm_mediator.h
+
 Function Graph Tracer (ftrace) support
 R:	Sumit Garg <sumit.garg@kernel.org> [@b49020]
 S:	Maintained
