@@ -44,8 +44,13 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, DBGMCU_BASE, DBGMCU_SIZE);
 
+#ifdef CFG_STM32_CM33TDCID
+/* Map beginning SRAM1 as read-only non-secure for BSEC shadow */
+register_phys_mem(MEM_AREA_RAM_NSEC, SRAM1_BASE, SIZE_4K);
+#else
 /* Map beginning SRAM1 as read write for BSEC shadow */
 register_phys_mem(MEM_AREA_RAM_SEC, SRAM1_BASE, SIZE_4K);
+#endif
 
 #define _ID2STR(id)		(#id)
 #define ID2STR(id)		_ID2STR(id)

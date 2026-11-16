@@ -1305,10 +1305,10 @@ stm32_bsec_pm(enum pm_op op, unsigned int pm_hint,
 
 		/* recopy value from the previous mirror into the new one */
 		for (otp = 0; otp <= bsec_dev.max_id; otp++) {
-			if (bsec_dev.mirror_pm.otp[otp].value) {
-				stm32_bsec_write_otp(
-					bsec_dev.mirror_pm.otp[otp].value, otp);
-			}
+			uint32_t otp_value = bsec_dev.mirror_pm.otp[otp].value;
+
+			if (otp_value)
+				stm32_bsec_write_otp(otp_value, otp);
 		}
 	} else {
 		memcpy(&bsec_dev.mirror_pm, bsec_dev.mirror,
