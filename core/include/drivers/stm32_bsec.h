@@ -141,10 +141,10 @@ static inline TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id __unused)
 
 /*
  * Enable/disable debug service
- * @value: Value to write
+ * @perm_mask: Debug permission bit mask to apply (see STM32_BSEC_DEBUG_*)
  * Return a TEE_Result compliant return value
  */
-TEE_Result stm32_bsec_write_debug_conf(uint32_t value);
+TEE_Result stm32_bsec_write_debug_conf(uint32_t perm_mask);
 
 /*
  * Write shadow-read lock
