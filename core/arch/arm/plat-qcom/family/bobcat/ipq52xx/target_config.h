@@ -8,12 +8,25 @@
 
 #define GENI_UART_REG_BASE		UL(0x1A84000)
 
-/* The LM profile has no DT, so it gives the DRAM here */
+/*
+ * The LM profile has no DT, so it gives the DRAM here. DRAM1 is the second
+ * bank. With TME-Lite IPC, DRAM0 and DRAM2 are the parts of the first bank
+ * below and above its carveout, which is secure memory.
+ */
 #ifdef CFG_QCOM_LM_PROFILE
 #define DRAM0_BASE			UL(0x80000000)
+#ifdef CFG_QCOM_TMEL_COM
+#define DRAM0_SIZE			(TMEL_COM_IPC_BUF_ADDR - DRAM0_BASE)
+#else
 #define DRAM0_SIZE			UL(0x80000000)
+#endif
 #define DRAM1_BASE			ULL(0x800000000)
 #define DRAM1_SIZE			UL(0x80000000)
+#ifdef CFG_QCOM_TMEL_COM
+#define DRAM2_BASE			(TMEL_COM_IPC_BUF_ADDR + \
+					 CFG_TMEL_COM_IPCBUF_CARVEOUT_SIZE)
+#define DRAM2_SIZE			(UL(0x100000000) - DRAM2_BASE)
+#endif
 #endif
 
 #define GICD_BASE			UL(0xB000000)
