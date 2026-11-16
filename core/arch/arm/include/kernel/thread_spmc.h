@@ -58,6 +58,9 @@ int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
 
 bool spmc_is_reserved_id(uint16_t id);
 
+/* Return the FF-A ID of OP-TEE, valid once spmc_init() has run */
+uint16_t spmc_own_ffa_id(void);
+
 struct sp_session;
 
 struct spmc_lsp_desc {
