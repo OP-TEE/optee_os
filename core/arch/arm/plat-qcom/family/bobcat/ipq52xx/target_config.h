@@ -8,12 +8,18 @@
 
 #define GENI_UART_REG_BASE		UL(0x1A84000)
 
-/* The LM profile has no DT, so it gives the DRAM here */
+/*
+ * The LM profile has no DT, so it gives the DRAM here. DRAM0 and DRAM1 are the
+ * two sides of the TME-Lite IPC carveout, which is secure memory.
+ */
 #ifdef CFG_QCOM_LM_PROFILE
 #define DRAM0_BASE			UL(0x80000000)
-#define DRAM0_SIZE			UL(0x80000000)
-#define DRAM1_BASE			ULL(0x800000000)
-#define DRAM1_SIZE			UL(0x80000000)
+#define DRAM0_SIZE			(TMEL_COM_IPC_BUF_ADDR - DRAM0_BASE)
+#define DRAM1_BASE			(TMEL_COM_IPC_BUF_ADDR + \
+					 CFG_TMEL_COM_IPCBUF_CARVEOUT_SIZE)
+#define DRAM1_SIZE			(UL(0x100000000) - DRAM1_BASE)
+#define DRAM2_BASE			ULL(0x800000000)
+#define DRAM2_SIZE			UL(0x80000000)
 #endif
 
 #define GICD_BASE			UL(0xB000000)

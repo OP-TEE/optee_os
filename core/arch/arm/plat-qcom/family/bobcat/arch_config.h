@@ -18,4 +18,6 @@
 #define TME_QMP_LITE_CHANNEL_NAME	"tme-qmp-lite"
 #endif
 
+#define TMEL_COM_IPC_BUF_ADDR		(CFG_TZDRAM_START + CFG_TZDRAM_SIZE)
+
 #endif /* ARCH_CONFIG_H */
