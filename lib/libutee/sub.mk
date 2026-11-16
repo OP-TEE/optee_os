@@ -1,4 +1,5 @@
 global-incdirs-y += include
+cppflags-lib-y += -D__OPTEE_LIBUTEE_INTERNAL
 
 srcs-y += abort.c
 srcs-y += assert.c
