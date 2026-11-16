@@ -15,6 +15,7 @@
 #define ACCESS_RW	(TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_WRITE)
 #define ACCESS_W_ANY	(TEE_MEMORY_ACCESS_WRITE | TEE_MEMORY_ACCESS_ANY_OWNER)
 #define ACCESS_R	TEE_MEMORY_ACCESS_READ
+#define ACCESS_R_ANY	(ACCESS_R | TEE_MEMORY_ACCESS_ANY_OWNER)
 #define ACCESS_W	TEE_MEMORY_ACCESS_WRITE
 
 /* System API - Misc */
@@ -85,6 +86,17 @@ void __utee_check_gp11_outstring_annotation(char *buf, uint32_t *len)
 		  check_access(ACCESS_RW, len, sizeof(*len)));
 	check_res("[outstring] buf",
 		  check_access(ACCESS_W_ANY, buf, *len));
+}
+
+void __utee_check_in_annotation(const void *buf, size_t len)
+{
+	check_res("[in]", check_access(ACCESS_R, (void *)buf, len));
+}
+
+void __utee_check_inbuf_annotation(const void *buf, size_t len)
+{
+	check_res("[inbuf]",
+		  check_access(ACCESS_R_ANY, (void *)buf, len));
 }
 
 void __utee_check_out_annotation(void *buf, const size_t len)

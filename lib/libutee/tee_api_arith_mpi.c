@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <mbedtls/bignum.h>
 #include <mempool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <tee_api.h>
@@ -12,6 +13,8 @@
 #include <utee_defines.h>
 #include <utee_syscalls.h>
 #include <util.h>
+
+#include "tee_api_private.h"
 
 #define MPI_MEMPOOL_SIZE	(14 * 1024)
 
@@ -122,12 +125,20 @@ void TEE_BigIntInit(TEE_BigInt *bigInt, size_t len)
 	static_assert(MBEDTLS_MPI_MAX_LIMBS + BIGINT_HDR_SIZE_IN_U32 >=
 		      CFG_TA_BIGNUM_MAX_BITS / 32);
 
-	memset(bigInt, 0, len * sizeof(uint32_t));
-	hdr->sign = 1;
+	if (len < BIGINT_HDR_SIZE_IN_U32)
+		API_PANIC("Too small bigint");
 
 	/* "gpd.tee.arith.maxBigIntSize" is assigned CFG_TA_BIGNUM_MAX_BITS */
 	if (len > CFG_TA_BIGNUM_MAX_BITS / 4)
 		API_PANIC("Too large bigint");
+
+	/* The capacity stored in the header must fit in uint16_t. */
+	if (len - BIGINT_HDR_SIZE_IN_U32 > UINT16_MAX)
+		API_PANIC("Too large bigint");
+
+	__utee_check_out_annotation(bigInt, len * sizeof(*bigInt));
+	memset(bigInt, 0, len * sizeof(*bigInt));
+	hdr->sign = 1;
 	hdr->alloc_size = len - BIGINT_HDR_SIZE_IN_U32;
 }
 
@@ -143,6 +154,7 @@ TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 	TEE_Result res;
 	mbedtls_mpi mpi_dest;
 
+	__utee_check_inbuf_annotation(buffer, bufferLen);
 	get_mpi(&mpi_dest, NULL);
 
 	if (mbedtls_mpi_read_binary(&mpi_dest,  buffer, bufferLen))
@@ -176,6 +188,7 @@ TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, size_t *bufferLen,
 	mbedtls_mpi mpi;
 	size_t sz;
 
+	__utee_check_outbuf_annotation(buffer, bufferLen);
 	get_mpi(&mpi, bigInt);
 
 	sz = mbedtls_mpi_size(&mpi);
@@ -196,7 +209,10 @@ TEE_Result __GP11_TEE_BigIntConvertToOctetString(uint8_t *buffer,
 						 const TEE_BigInt *bigInt)
 {
 	TEE_Result res = TEE_SUCCESS;
-	size_t l = *bufferLen;
+	size_t l = 0;
+
+	__utee_check_gp11_outbuf_annotation(buffer, bufferLen);
+	l = *bufferLen;
 
 	res = TEE_BigIntConvertToOctetString(buffer, &l, bigInt);
 	*bufferLen = l;
@@ -221,6 +237,7 @@ TEE_Result TEE_BigIntConvertToS32(int32_t *dest, const TEE_BigInt *src)
 	mbedtls_mpi mpi;
 	uint32_t v;
 
+	__utee_check_out_annotation(dest, sizeof(*dest));
 	get_mpi(&mpi, src);
 
 	if (mbedtls_mpi_write_binary(&mpi, (void *)&v, sizeof(v))) {
