@@ -43,8 +43,10 @@ $(call force,CFG_QCOM_GICV2_EL3_INTR_DELEGATION,y)
 CFG_QCOM_DIAG_LOG ?= $(CFG_TEE_CORE_DEBUG)
 
 CFG_TZDRAM_START ?= 0x87D80000
-CFG_TZDRAM_SIZE ?= 0x280000
-CFG_TEE_RAM_VA_SIZE ?= 0x280000
+# The embedded DT puts the TME-Lite IPC carveout in the last part of the
+# memory OP-TEE is given, so TZDRAM ends before it
+CFG_TZDRAM_SIZE ?= (0x280000 - $(CFG_TMEL_COM_IPCBUF_CARVEOUT_SIZE))
+CFG_TEE_RAM_VA_SIZE ?= $(CFG_TZDRAM_SIZE)
 
 $(call force,CFG_QCOM_CSRNG,y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,n)
