@@ -26,3 +26,6 @@ endif
 ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_FUSE_PTA)),)
 $(call force,CFG_QCOM_QFPROM,y)
 endif
+
+# Enable SMEM support
+CFG_QCOM_SMEM ?= y
