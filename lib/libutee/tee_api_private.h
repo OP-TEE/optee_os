@@ -32,6 +32,9 @@ static inline void __utee_gprof_fini(void) {}
  * annotation as described in the spec. Any descrepency results in a panic
  * of the TA.
  */
+void __utee_check_in_annotation(const void *buf, size_t len);
+void __utee_check_inbuf_size_annotation(const void *buf, size_t len);
+void __utee_check_outbuf_size_annotation(void *buf, size_t len);
 void __utee_check_out_annotation(void *buf, const size_t len);
 void __utee_check_inout_annotation(void *buf, const size_t len);
 void __utee_check_attr_in_annotation(const TEE_Attribute *attr, size_t count);

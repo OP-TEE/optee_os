@@ -448,6 +448,7 @@ void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
 			  const void *buffer, size_t length)
 {
 	__utee_check_out_annotation(attr, sizeof(*attr));
+	__utee_check_inbuf_size_annotation(buffer, length);
 
 	if ((attributeID & TEE_ATTR_FLAG_VALUE) != 0)
 		TEE_Panic(0);
@@ -461,6 +462,7 @@ void __GP11_TEE_InitRefAttribute(__GP11_TEE_Attribute *attr,
 				 const void *buffer, uint32_t length)
 {
 	__utee_check_out_annotation(attr, sizeof(*attr));
+	__utee_check_inbuf_size_annotation(buffer, length);
 
 	if ((attributeID & TEE_ATTR_FLAG_VALUE) != 0)
 		TEE_Panic(0);
@@ -954,6 +956,7 @@ TEE_Result TEE_WriteObjectData(TEE_ObjectHandle object, const void *buffer,
 		goto out;
 	}
 
+	__utee_check_inbuf_size_annotation(buffer, size);
 	res = _utee_storage_obj_write((unsigned long)object, buffer, size);
 
 out:

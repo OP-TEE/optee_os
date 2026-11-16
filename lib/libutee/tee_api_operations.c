@@ -1659,6 +1659,9 @@ TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
 	uint8_t computed_mac[TEE_MAX_HASH_SIZE] = { 0 };
 	size_t computed_mac_size = TEE_MAX_HASH_SIZE;
 
+	__utee_check_inbuf_size_annotation(message, messageLen);
+	__utee_check_inbuf_size_annotation(mac, macLen);
+
 	if (operation->info.operationClass != TEE_OPERATION_MAC) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
@@ -2212,6 +2215,8 @@ TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
+	__utee_check_inbuf_size_annotation(srcData, srcLen);
+	__utee_check_inbuf_size_annotation(tag, tagLen);
 	if (destLen)
 		__utee_check_outbuf_annotation(destData, destLen);
 
