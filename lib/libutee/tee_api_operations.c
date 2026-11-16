@@ -2628,7 +2628,7 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 	if (operation == TEE_HANDLE_NULL || derivedKey == 0)
 		TEE_Panic(0);
 
-	__utee_check_attr_in_annotation(params, paramCount);
+	__utee_check_attr_inout_annotation(params, paramCount);
 
 	if (TEE_ALG_GET_CLASS(operation->info.algorithm) !=
 	    TEE_OPERATION_KEY_DERIVATION)

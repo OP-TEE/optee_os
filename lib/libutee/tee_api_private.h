@@ -38,6 +38,8 @@ void __utee_check_outbuf_size_annotation(void *buf, size_t len);
 void __utee_check_out_annotation(void *buf, const size_t len);
 void __utee_check_inout_annotation(void *buf, const size_t len);
 void __utee_check_attr_in_annotation(const TEE_Attribute *attr, size_t count);
+void __utee_check_attr_inout_annotation(const TEE_Attribute *attr,
+					size_t count);
 void __utee_check_gp11_attr_in_annotation(const __GP11_TEE_Attribute *attr,
 					  size_t count);
 void __utee_check_outbuf_annotation(void *buf, size_t *len);

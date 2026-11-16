@@ -109,18 +109,63 @@ void __utee_check_out_annotation(void *buf, const size_t len)
 		  check_access(ACCESS_W, buf, len));
 }
 
+static void check_attr_array(const char *msg, const void *attr,
+			     size_t count, size_t attr_size, uint32_t flags)
+{
+	size_t len = 0;
+
+	if (MUL_OVERFLOW(attr_size, count, &len))
+		TEE_Panic(0);
+	check_res(msg, check_access(flags, (void *)attr, len));
+}
+
+/* A reference buffer is [inoutbuf] even when the array itself is [in]. */
+static void check_attr_refs(const TEE_Attribute *attr, size_t count)
+{
+	size_t n = 0;
+
+	for (n = 0; n < count; n++) {
+		if (!(attr[n].attributeID & TEE_ATTR_FLAG_VALUE))
+			check_res("[inoutbuf] attr.ref",
+				  check_access(ACCESS_RW |
+					       TEE_MEMORY_ACCESS_ANY_OWNER,
+					       attr[n].content.ref.buffer,
+					       attr[n].content.ref.length));
+	}
+}
+
+static void check_gp11_attr_refs(const __GP11_TEE_Attribute *attr,
+				 size_t count)
+{
+	size_t n = 0;
+
+	for (n = 0; n < count; n++) {
+		if (!(attr[n].attributeID & TEE_ATTR_FLAG_VALUE))
+			check_res("[inoutbuf] attr.ref",
+				  check_access(ACCESS_RW |
+					       TEE_MEMORY_ACCESS_ANY_OWNER,
+					       attr[n].content.ref.buffer,
+					       attr[n].content.ref.length));
+	}
+}
+
 void __utee_check_attr_in_annotation(const TEE_Attribute *attr, size_t count)
 {
-	check_res("[in] attr",
-		  check_access(ACCESS_R, (void *)attr, sizeof(*attr) * count));
+	check_attr_array("[in] attr", attr, count, sizeof(*attr), ACCESS_R);
+	check_attr_refs(attr, count);
+}
+
+void __utee_check_attr_inout_annotation(const TEE_Attribute *attr, size_t count)
+{
+	check_attr_array("[inout] attr", attr, count, sizeof(*attr), ACCESS_RW);
+	check_attr_refs(attr, count);
 }
 
 void __utee_check_gp11_attr_in_annotation(const __GP11_TEE_Attribute *attr,
 					  size_t count)
-
 {
-	check_res("[in] attr",
-		  check_access(ACCESS_R, (void *)attr, sizeof(*attr) * count));
+	check_attr_array("[in] attr", attr, count, sizeof(*attr), ACCESS_R);
+	check_gp11_attr_refs(attr, count);
 }
 
 void __utee_check_inout_annotation(void *buf, const size_t len)

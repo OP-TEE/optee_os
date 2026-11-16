@@ -1774,6 +1774,9 @@ static TEE_Result copy_in_attrs(struct user_ta_ctx *utc,
 			uint32_t flags = TEE_MEMORY_ACCESS_READ |
 					 TEE_MEMORY_ACCESS_ANY_OWNER;
 
+			if (IS_ENABLED(CFG_TA_STRICT_ANNOTATION_CHECKS))
+				flags |= TEE_MEMORY_ACCESS_WRITE;
+
 			buf = memtag_strip_tag_vaddr((void *)buf);
 
 			res = vm_check_access_rights(&utc->uctx, flags, buf,
