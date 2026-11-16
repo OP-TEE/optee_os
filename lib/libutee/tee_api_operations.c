@@ -950,7 +950,7 @@ TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
-	__utee_check_inout_annotation(hashLen, sizeof(*hashLen));
+	__utee_check_outbuf_annotation(hash, hashLen);
 
 	if (operation->operationState == TEE_OPERATION_STATE_EXTRACTING &&
 	    operation->buffer) {
@@ -1013,7 +1013,7 @@ TEE_Result TEE_DigestExtract(TEE_OperationHandle operation, void *hash,
 	if (operation == TEE_HANDLE_NULL ||
 	    operation->info.operationClass != TEE_OPERATION_DIGEST)
 		TEE_Panic(0);
-	__utee_check_inout_annotation(hashLen, sizeof(*hashLen));
+	__utee_check_outbuf_annotation(hash, hashLen);
 
 	if (!operation->buffer) {
 		/* This is an Extendable-Output Function */
@@ -1208,7 +1208,7 @@ TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, const void *srcData,
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
-	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	__utee_check_outbuf_annotation(destData, destLen);
 
 	if (operation->info.operationClass != TEE_OPERATION_CIPHER) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1602,7 +1602,7 @@ TEE_Result TEE_MACComputeFinal(TEE_OperationHandle operation,
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
-	__utee_check_inout_annotation(macLen, sizeof(*macLen));
+	__utee_check_outbuf_annotation(mac, macLen);
 
 	if (operation->info.operationClass != TEE_OPERATION_MAC) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -2017,7 +2017,7 @@ TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
-	__utee_check_inout_annotation(tagLen, sizeof(*tagLen));
+	__utee_check_outbuf_annotation(tag, tagLen);
 	if (destLen)
 		__utee_check_outbuf_annotation(destData, destLen);
 
@@ -2329,7 +2329,7 @@ TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 		TEE_Panic(0);
 
 	__utee_check_attr_in_annotation(params, paramCount);
-	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	__utee_check_outbuf_annotation(destData, destLen);
 
 	if (!operation->key1)
 		TEE_Panic(0);
@@ -2368,7 +2368,7 @@ TEE_Result __GP11_TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 		TEE_Panic(0);
 
 	__utee_check_gp11_attr_in_annotation(params, paramCount);
-	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	__utee_check_gp11_outbuf_annotation(destData, destLen);
 
 	if (!operation->key1)
 		TEE_Panic(0);
@@ -2405,7 +2405,7 @@ TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 		TEE_Panic(0);
 
 	__utee_check_attr_in_annotation(params, paramCount);
-	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	__utee_check_outbuf_annotation(destData, destLen);
 
 	if (!operation->key1)
 		TEE_Panic(0);
@@ -2444,7 +2444,7 @@ TEE_Result __GP11_TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 		TEE_Panic(0);
 
 	__utee_check_gp11_attr_in_annotation(params, paramCount);
-	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	__utee_check_gp11_outbuf_annotation(destData, destLen);
 
 	if (!operation->key1)
 		TEE_Panic(0);
@@ -2481,7 +2481,7 @@ TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 		TEE_Panic(0);
 
 	__utee_check_attr_in_annotation(params, paramCount);
-	__utee_check_inout_annotation(signatureLen, sizeof(*signatureLen));
+	__utee_check_outbuf_annotation(signature, signatureLen);
 
 	if (!operation->key1)
 		TEE_Panic(0);
@@ -2518,7 +2518,7 @@ TEE_Result __GP11_TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 		TEE_Panic(0);
 
 	__utee_check_gp11_attr_in_annotation(params, paramCount);
-	__utee_check_inout_annotation(signatureLen, sizeof(*signatureLen));
+	__utee_check_gp11_outbuf_annotation(signature, signatureLen);
 
 	if (!operation->key1)
 		TEE_Panic(0);
@@ -2701,6 +2701,8 @@ void __GP11_TEE_DeriveKey(TEE_OperationHandle operation,
 void TEE_GenerateRandom(void *randomBuffer, size_t randomBufferLen)
 {
 	TEE_Result res;
+
+	__utee_check_out_annotation(randomBuffer, randomBufferLen);
 
 	res = _utee_cryp_random_number_generate(randomBuffer, randomBufferLen);
 	if (res != TEE_SUCCESS)

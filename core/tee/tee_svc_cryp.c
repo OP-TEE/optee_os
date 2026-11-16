@@ -4615,7 +4615,6 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 		return res;
 
 	res = vm_check_access_rights(&utc->uctx,
-				     TEE_MEMORY_ACCESS_READ |
 				     TEE_MEMORY_ACCESS_WRITE |
 				     TEE_MEMORY_ACCESS_ANY_OWNER,
 				     (uaddr_t)dst_data, dlen);
