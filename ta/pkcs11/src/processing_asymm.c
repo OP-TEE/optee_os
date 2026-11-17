@@ -10,6 +10,7 @@
 #include <tee_api_defines.h>
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
+#include <util.h>
 
 #include "attributes.h"
 #include "pkcs11_helpers.h"
@@ -1113,24 +1114,47 @@ static enum pkcs11_rc wrap_rsa_aes_key(struct active_processing *proc,
 	int mbedtls_rc = 0;
 	struct rsa_aes_key_wrap_processing_ctx *ctx = proc->extra_ctx;
 	mbedtls_nist_kw_context kw_ctx = { };
+	TEE_OperationInfo info = { };
 	uint8_t aes_key_value[32] = { };
 	uint32_t aes_key_size = ctx->aes_key_bits / 8;
-	size_t aes_wrapped_size = *out_sz;
+	size_t aes_wrapped_size = 0;
+	uint32_t allocated_size = 0;
+	uint32_t full_size = 0;
 	uint32_t expected_size = 0;
 	size_t target_key_size = 0;
 	const size_t kw_semiblock_len = 8;
+	uint8_t *wrapped_data = NULL;
 
 	if (ctx->aes_key_bits != 128 &&
 	    ctx->aes_key_bits != 192 &&
 	    ctx->aes_key_bits != 256)
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
+	TEE_GetOperationInfo(proc->tee_op_handle, &info);
+	aes_wrapped_size = ROUNDUP_DIV((uint64_t)info.keySize, 8);
+	if (ADD_OVERFLOW(aes_wrapped_size +
+			 ROUNDUP((uint64_t)data_sz, kw_semiblock_len),
+			 kw_semiblock_len, &full_size))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	if (!*out_sz) {
+		*out_sz = full_size;
+		return PKCS11_CKR_BUFFER_TOO_SMALL;
+	}
+
+	allocated_size = MIN(*out_sz, full_size);
+	wrapped_data = TEE_Malloc(allocated_size,
+				  TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!wrapped_data)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
 	mbedtls_nist_kw_init(&kw_ctx);
 	TEE_GenerateRandom(aes_key_value, aes_key_size);
+	aes_wrapped_size = allocated_size;
 	res = TEE_AsymmetricEncrypt(proc->tee_op_handle,
 				    NULL, 0,
 				    aes_key_value, aes_key_size,
-				    out_buf, &aes_wrapped_size);
+				    wrapped_data, &aes_wrapped_size);
 	expected_size = aes_wrapped_size + data_sz + kw_semiblock_len;
 	if (res) {
 		if (res == TEE_ERROR_SHORT_BUFFER)
@@ -1160,9 +1184,9 @@ static enum pkcs11_rc wrap_rsa_aes_key(struct active_processing *proc,
 
 	mbedtls_rc = mbedtls_nist_kw_wrap(&kw_ctx, MBEDTLS_KW_MODE_KWP,
 					  data, data_sz,
-					  (uint8_t *)out_buf + aes_wrapped_size,
+					  wrapped_data + aes_wrapped_size,
 					  &target_key_size,
-					  *out_sz - aes_wrapped_size);
+					  allocated_size - aes_wrapped_size);
 	if (mbedtls_rc) {
 		rc = PKCS11_CKR_ARGUMENTS_BAD;
 		goto out;
@@ -1170,9 +1194,12 @@ static enum pkcs11_rc wrap_rsa_aes_key(struct active_processing *proc,
 
 	assert(*out_sz >= target_key_size + aes_wrapped_size);
 	*out_sz = target_key_size + aes_wrapped_size;
+	TEE_MemMove(out_buf, wrapped_data, *out_sz);
 
 out:
 	mbedtls_nist_kw_free(&kw_ctx);
+	TEE_MemFill(wrapped_data, 0, allocated_size);
+	TEE_Free(wrapped_data);
 	TEE_MemFill(aes_key_value, 0, aes_key_size);
 	return rc;
 }
