@@ -15,6 +15,16 @@
 /* Only secure APPS may write the DIAG log */
 #define DIAG_XPU_WRITE_QAD		QAD_APPS_SEC
 
+/* The compatibles of the XPU nodes of this SoC in the DT */
+#define XPU_DDR_COMPAT			"qcom,ipq5210-xpu4-ddr"
+#define XPU_IMEM_COMPAT			"qcom,ipq5210-xpu4-imem"
+
+/*
+ * The default profile gets the registers and the resource groups of the units
+ * from the DT. The LM profile has no DT, so it takes them from the macros
+ * below.
+ */
+
 /* MEMNOC_SCH_MPU: resource groups 10..15 are free for runtime allocation */
 #define DDR_MPU_BASE			UL(0xAC0000)
 /*

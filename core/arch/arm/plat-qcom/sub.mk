@@ -4,10 +4,10 @@ global-incdirs-y += family/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)
 srcs-y += main.c
 srcs-$(CFG_QCOM_DIAG_LOG) += diag_log.c
 ifeq ($(CFG_QCOM_XPU_PROTECT),y)
-srcs-y += xpu_policy.c
 ifeq ($(CFG_EMBED_DTB),y)
-srcs-y += xpu_ddr_dt.c
+srcs-y += xpu_policy_dt.c
 else
+srcs-y += xpu_policy.c
 srcs-y += xpu_ddr_non_dt.c
 endif
 endif
