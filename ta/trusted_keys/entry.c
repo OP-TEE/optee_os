@@ -103,11 +103,11 @@ static TEE_Result huk_ae_encrypt(TEE_OperationHandle crypto_op, uint8_t *in,
 
 	hdr->reserved = 0;
 	TEE_GenerateRandom(iv, IV_SIZE);
-	memcpy(hdr->iv, iv, IV_SIZE);
 
-	res = TEE_AEInit(crypto_op, hdr->iv, IV_SIZE, TAG_SIZE * 8, 0, 0);
+	res = TEE_AEInit(crypto_op, iv, IV_SIZE, TAG_SIZE * 8, 0, 0);
 	if (res)
 		return res;
+	memcpy(hdr->iv, iv, IV_SIZE);
 
 	res = TEE_AEEncryptFinal(crypto_op, in, in_sz, hdr->enc_key,
 				 &enc_key_len, hdr->tag, &tag_len);
