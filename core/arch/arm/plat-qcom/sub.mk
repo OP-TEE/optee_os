@@ -7,8 +7,7 @@ ifeq ($(CFG_QCOM_XPU_PROTECT),y)
 ifeq ($(CFG_EMBED_DTB),y)
 srcs-y += xpu_policy_dt.c
 else
-srcs-y += xpu_policy.c
-srcs-y += xpu_ddr_non_dt.c
+srcs-y += xpu_policy_non_dt.c
 endif
 endif
 
