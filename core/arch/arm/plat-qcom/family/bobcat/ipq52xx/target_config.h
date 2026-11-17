@@ -21,7 +21,11 @@
 #define GICD_PIDR2			UL(0xFD8)
 
 #define IMEM_BASE			UL(0x8600000)
+
+/* The LM profile has no DT, so it gives the size of the IMEM here */
+#ifdef CFG_QCOM_LM_PROFILE
 #define IMEM_SIZE			UL(0x18000)
+#endif
 
 #define QCOM_RNG_REG_BASE		UL(0x4C5000)
 
