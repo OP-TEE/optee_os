@@ -13,9 +13,55 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	memory@80000000 {
+	dram: memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>,
 		      <0x8 0x0 0x3 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* The memory OP-TEE runs from */
+		tzdram: optee@8a680000 {
+			reg = <0x0 0x8a680000 0x0 0x280000>;
+			no-map;
+		};
+
+		/* The buffer of the DIAG log, which is in the IMEM */
+		diag: diag@8608000 {
+			reg = <0x0 0x8608000 0x0 0x6000>;
+			no-map;
+		};
+	};
+
+	imem: sram@8600000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x8600000 0x0 0x20000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x8600000 0x20000>;
+	};
+
+	/* MACHX_LLCC_MPU */
+	xpu@4060000 {
+		compatible = "qcom,ipq9650-xpu4-ddr", "qcom,xpu4";
+		reg = <0x0 0x4060000 0x0 0x2000>;
+		qcom,resource-groups = <30 10>;
+		qcom,guarded-memory = <&dram>;
+		memory-region = <&tzdram>;
+		memory-region-names = "tzdram";
+	};
+
+	/* OCIMEM_MPU */
+	xpu@54000 {
+		compatible = "qcom,ipq9650-xpu4-imem", "qcom,xpu4";
+		reg = <0x0 0x54000 0x0 0x2000>;
+		qcom,resource-groups = <6 4>;
+		qcom,guarded-memory = <&imem>;
+		memory-region = <&diag>;
+		memory-region-names = "diag";
 	};
 };
