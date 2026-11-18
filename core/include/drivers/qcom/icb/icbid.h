@@ -5,6 +5,9 @@
 
 #ifndef QTI_ICBID_H
 #define QTI_ICBID_H
+#ifdef CFG_QCOM_ICB_RPM
+#include <drivers/qcom/icb/icbid_rpm.h>
+#else
 enum icbid_master {
 	ICBID_MASTER_LLCC = 0,
 	ICBID_MASTER_SNOC_SF_MEM_NOC,
@@ -27,4 +30,5 @@ enum icbid_slave {
 	ICBID_SLAVE_NONE = ICBID_SLAVE_COUNT,
 	ICBID_SLAVE_SIZE = 0x7FFFFFFF /**< Force to 32 bits */
 };
+#endif
 #endif /* QTI_ICBID_H */
