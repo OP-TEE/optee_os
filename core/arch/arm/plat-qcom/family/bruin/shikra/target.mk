@@ -23,6 +23,12 @@ ifeq ($(CFG_QCOM_PAS_AUTH),y)
 $(call force,CFG_QCOM_FUSE_PTA,y)
 endif
 
+# OEM-provisioned multi-root-certificate bitmasks (bit N = root cert N).
+# Zero masks still require the per-boot activation lock to be reasserted.
+CFG_QCOM_MRC_ACTIVATION_LIST ?= 0
+CFG_QCOM_MRC_REVOCATION_LIST ?= 0
+
 ifneq ($(filter y,$(CFG_QCOM_QFPROM_FUSEPROV) $(CFG_QCOM_FUSE_PTA)),)
 $(call force,CFG_QCOM_QFPROM,y)
+$(call force,CFG_QCOM_QFPROM_ARB_MRC,y)
 endif
