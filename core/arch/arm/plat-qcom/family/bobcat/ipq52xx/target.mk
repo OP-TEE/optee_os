@@ -20,6 +20,14 @@ CFG_PREALLOC_RPC_CACHE ?= n
 
 # Random data comes from the CSRNG, nothing else needs a crypto library
 CFG_CRYPTO ?= n
+
+# TME-Lite IPC; its carveout follows TZDRAM and is left out of the DRAM in
+# target_config.h
+CFG_QCOM_TMEL_COM ?= y
+ifeq ($(CFG_QCOM_TMEL_COM),y)
+$(call force,CFG_QCOM_MBOX,y,required by CFG_QCOM_TMEL_COM)
+$(call force,CFG_DRIVERS_MAILBOX,y,required by CFG_QCOM_MBOX)
+endif
 else
 # Only the default profile describes the platform in a DT
 $(call force,CFG_EMBED_DTB,y)
