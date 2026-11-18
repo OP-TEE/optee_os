@@ -1028,6 +1028,9 @@ CFG_VIRTIO ?= n
 CFG_VIRTIO_DRIVER ?= n
 $(eval $(call cfg-depends-all,CFG_VIRTIO_DRIVER,CFG_VIRTIO))
 
+CFG_VIRTIO_DEVICE ?= n
+$(eval $(call cfg-depends-all,CFG_VIRTIO_DEVICE,CFG_VIRTIO))
+
 # When enabled, CFG_DRIVERS_NVMEM provides a framework to register nvmem
 # providers and allow consumer drivers to get NVMEM cells using the Device Tree.
 CFG_DRIVERS_NVMEM ?= n
