@@ -10,6 +10,7 @@
 
 #include "nspss.h"
 #include "hpass.h"
+#include "soccp.h"
 #include "pas_subsys.h"
 
 static struct qcom_pas_subsys subsystems[] = {
@@ -151,6 +152,17 @@ static struct qcom_pas_subsys subsystems[] = {
 			.map_type = MEM_AREA_IO_NSEC,
 		},
 		.ops = &hpass2_ops,
+		.reset_seq = QCOM_PAS_RESET_CLK_FULL,
+	},
+	{
+		.data = {
+			.pas_id = PAS_ID_SOCCP,
+			.base.pa = SOCCP_CSR_BASE,
+			.size = SOCCP_CSR_SIZE,
+			.clk_group = QCOM_CLKS_SOCCP,
+			.map_type = MEM_AREA_IO_NSEC,
+		},
+		.ops = &soccp_ops,
 		.reset_seq = QCOM_PAS_RESET_CLK_FULL,
 	},
 };
