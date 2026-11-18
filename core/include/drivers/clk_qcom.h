@@ -42,6 +42,7 @@ enum qcom_clk_group {
 	QCOM_CLKS_HPASS1,
 	QCOM_CLKS_HPASS2,
 	QCOM_CLKS_LMCU,
+	QCOM_CLKS_SOCCP,
 	QCOM_CLKS_MAX,
 };
 

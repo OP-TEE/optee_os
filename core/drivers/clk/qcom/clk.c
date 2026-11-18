@@ -252,6 +252,7 @@ TEE_Result qcom_clock_enable(enum qcom_clk_group group)
 	case QCOM_CLKS_HPASS0:
 	case QCOM_CLKS_HPASS1:
 	case QCOM_CLKS_HPASS2:
+	case QCOM_CLKS_SOCCP:
 		return qcom_clock_enable_pas(group);
 	default:
 		EMSG("Unsupported clock group %d", group);

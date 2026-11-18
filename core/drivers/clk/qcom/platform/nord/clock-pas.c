@@ -29,6 +29,8 @@ register_phys_mem(MEM_AREA_IO_NSEC, HPASS_2_BASE, HPASS_2_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, HPASS_CC_BASE, HPASS_CC_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, HPASS_TCM_BASE, HPASS_TCM_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, HPASS_TCSR_BASE, HPASS_TCSR_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, SOCCP_CSR_BASE, SOCCP_CSR_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, QDSS_SOCCP_DMI_BASE, QDSS_SOCCP_DMI_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, AOSS_CC_BASE, AOSS_CC_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, RPMH_PDC_GLOBAL_BASE, RPMH_PDC_GLOBAL_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, FUSE_CONTROLLER_SW_RANGE4_BASE,
@@ -671,6 +673,61 @@ static TEE_Result hpass_setup_2(void)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result soccp_enable_processor(void)
+{
+	struct io_pa_va io = { .pa = SOCCP_CSR_BASE };
+	vaddr_t v = io_pa_or_va(&io, SOCCP_CSR_SIZE);
+
+	io_write32(v + SOCCP_SOCCP_RVSSMP_BOOT_SUPPRESS, 0);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result soccp_reset_processor(void)
+{
+	struct io_pa_va csr_io = { .pa = SOCCP_CSR_BASE };
+	vaddr_t csr = io_pa_or_va(&csr_io, SOCCP_CSR_SIZE);
+	struct io_pa_va aoss_io = { .pa = AOSS_CC_BASE };
+	vaddr_t aoss_cc = io_pa_or_va(&aoss_io, AOSS_CC_SIZE);
+
+	io_write32(csr + SOCCP_SOCCP_RVSSMP_BOOT_SUPPRESS, 1);
+
+	io_setbits32(aoss_cc + AOSS_CC_SOCCP_RESTART,
+		     SOCCP_RESTART_SS_RESTART_BIT);
+	io_setbits32(aoss_cc + AOSS_CC_SOCCP_CONFIG_RESTART,
+		     SOCCP_RESTART_SS_RESTART_BIT);
+
+	udelay(300);
+
+	io_clrbits32(aoss_cc + AOSS_CC_SOCCP_CONFIG_RESTART,
+		     SOCCP_RESTART_SS_RESTART_BIT);
+	io_clrbits32(aoss_cc + AOSS_CC_SOCCP_RESTART,
+		     SOCCP_RESTART_SS_RESTART_BIT);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result soccp_setup(void)
+{
+	struct io_pa_va gcc_io = { .pa = GCC_BASE };
+	vaddr_t gcc = io_pa_or_va(&gcc_io, GCC_SIZE);
+	TEE_Result res = TEE_SUCCESS;
+
+	io_setbits32(gcc + GCC_SOCCP_ANOC_AXI_CBCR, SOCCP_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(gcc + GCC_SOCCP_CNOC_M_AHB_CBCR,
+		     SOCCP_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(gcc + GCC_SOCCP_CNOC_S_AHB_CBCR,
+		     SOCCP_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(gcc + GCC_SOCCP_F_CBCR, SOCCP_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(gcc + GCC_SOCCP_SS_H_CBCR, SOCCP_CBCR_CLK_ENABLE_BIT);
+	io_setbits32(gcc + GCC_SOCCP_TMR_CBCR, SOCCP_CBCR_CLK_ENABLE_BIT);
+
+	res = qcom_clock_set_rate(gcc + GCC_SOCCP_CFG_RCGR,
+				  gcc + GCC_SOCCP_CMD_RCGR,
+				  SOCCP_RCG_SRC_SEL_VAL);
+	return res;
+}
+
 TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group)
 {
 	switch (group) {
@@ -688,6 +745,8 @@ TEE_Result qcom_clock_enable_pas(enum qcom_clk_group group)
 		return hpass_setup_1();
 	case QCOM_CLKS_HPASS2:
 		return hpass_setup_2();
+	case QCOM_CLKS_SOCCP:
+		return soccp_setup();
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -710,6 +769,8 @@ TEE_Result qcom_clock_enable_pas_processor(enum qcom_clk_group group)
 		return hpass_enable_processor_1();
 	case QCOM_CLKS_HPASS2:
 		return hpass_enable_processor_2();
+	case QCOM_CLKS_SOCCP:
+		return soccp_enable_processor();
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -730,6 +791,8 @@ TEE_Result qcom_clock_pas_reset(enum qcom_clk_group group)
 	case QCOM_CLKS_HPASS1:
 	case QCOM_CLKS_HPASS2:
 		return hpass_reset_processor();
+	case QCOM_CLKS_SOCCP:
+		return soccp_reset_processor();
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
