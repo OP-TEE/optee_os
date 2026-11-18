@@ -19,6 +19,11 @@ CFG_IN_TREE_EARLY_TAS += qcom_pas/cff7d191-7ca0-4784-af13-48223b9a4fbe
 CFG_QCOM_PAS_AUTH ?= y
 endif
 
+CFG_RPMB_FS ?= y
+ifeq ($(CFG_RPMB_FS),y)
+$(call force,CFG_RPMB_ANNOUNCE_PROBE_CAP,y)
+endif
+
 ifeq ($(CFG_QCOM_PAS_AUTH),y)
 $(call force,CFG_QCOM_FUSE_PTA,y)
 endif
