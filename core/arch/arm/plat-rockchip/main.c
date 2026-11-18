@@ -6,6 +6,7 @@
 
 #include <console.h>
 #include <drivers/gic.h>
+#include <drivers/ramcon.h>
 #include <drivers/serial8250_uart.h>
 #include <io.h>
 #include <kernel/boot.h>
@@ -14,6 +15,10 @@
 #include <platform_config.h>
 #include <stdint.h>
 
+#if defined(CFG_RAMCON)
+static struct ramcon_data ramcon_data;
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CFG_RAMCON_BASE, CFG_RAMCON_SIZE);
+#endif
 #if defined(CFG_EARLY_CONSOLE)
 static struct serial8250_uart_data early_console_data;
 #if defined(PLATFORM_FLAVOR_rk3506) || defined(PLATFORM_FLAVOR_rv1106)
@@ -54,6 +59,11 @@ void boot_secondary_init_intc(void)
 
 void plat_console_init(void)
 {
+#if defined(CFG_RAMCON)
+	ramcon_init(&ramcon_data, CFG_RAMCON_BASE, CFG_RAMCON_SIZE);
+	register_serial_console(&ramcon_data.chip);
+	return;
+#endif
 #if defined(CFG_EARLY_CONSOLE)
 	/*
 	 * Console devices can vary a lot between devices and
