@@ -13,9 +13,14 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	/*
+	 * The DRAM, without the BL31 of TF-A: 0.5 MB at 0x8a600000, right
+	 * below the memory OP-TEE runs from.
+	 */
 	dram: memory@80000000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000 0x0 0x80000000>,
+		reg = <0x0 0x80000000 0x0 0xa600000>,
+		      <0x0 0x8a680000 0x0 0x75980000>,
 		      <0x8 0x0 0x3 0x80000000>;
 	};
 
