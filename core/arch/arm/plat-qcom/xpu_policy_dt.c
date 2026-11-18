@@ -220,9 +220,9 @@ static const struct xpu_region *find_region(const char *name)
 }
 
 /*
- * Protect the regions that the node lists. One that cannot be programmed is
- * logged and the others are still protected. One that is not where the image
- * has it, or whose role is unknown, fails the probe.
+ * Protect the regions that the node lists. One that is not where the image
+ * has it, whose role is unknown or that cannot be programmed fails the probe,
+ * which panics: the memory of OP-TEE would be left open.
  */
 static TEE_Result protect_regions(const void *fdt, int node)
 {
@@ -267,12 +267,14 @@ static TEE_Result protect_regions(const void *fdt, int node)
 		}
 
 		res = xpu_protect_region(base, size, r->read_qad, r->write_qad);
-		if (res)
+		if (res) {
 			EMSG("XPU: %s protection failed: %#" PRIx32, r->name,
 			     res);
-		else
-			DMSG("XPU: %s %#" PRIxPA "+%#zx protected", r->name,
-			     base, size);
+			return res;
+		}
+
+		DMSG("XPU: %s %#" PRIxPA "+%#zx protected", r->name, base,
+		     size);
 	}
 
 	return TEE_SUCCESS;

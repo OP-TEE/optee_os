@@ -8,6 +8,7 @@
 #include <drivers/qcom/xpu.h>
 #include <drivers/qcom/xpuv4.h>
 #include <initcall.h>
+#include <kernel/panic.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <tee_api_types.h>
@@ -96,7 +97,6 @@ static const struct xpu_region xpu_regions[] = {
 
 static TEE_Result plat_xpu_protect(void)
 {
-	TEE_Result res = TEE_SUCCESS;
 	size_t i = 0;
 
 	static_assert(IS_ALIGNED(CFG_TZDRAM_START, SIZE_4K));
@@ -104,24 +104,23 @@ static TEE_Result plat_xpu_protect(void)
 
 	xpu4_register_instances(xpu4_instances, ARRAY_SIZE(xpu4_instances));
 
-	/* Protect what is left even if one region could not be programmed */
 	for (i = 0; i < ARRAY_SIZE(xpu_regions); i++) {
 		const struct xpu_region *r = &xpu_regions[i];
-		TEE_Result rc = TEE_SUCCESS;
+		TEE_Result res = TEE_SUCCESS;
 
 		if (!r->enabled)
 			continue;
 
-		rc = xpu_protect_region(r->base, r->size, r->read_qad,
-					r->write_qad);
-		if (rc) {
+		res = xpu_protect_region(r->base, r->size, r->read_qad,
+					 r->write_qad);
+		if (res) {
 			EMSG("XPU: %s protection failed: %#" PRIx32,
-			     r->name, rc);
-			if (!res)
-				res = rc;
+			     r->name, res);
+			/* A failed initcall is only logged, so stop here */
+			panic("XPU: a region is not protected");
 		}
 	}
 
-	return res;
+	return TEE_SUCCESS;
 }
 service_init(plat_xpu_protect);
