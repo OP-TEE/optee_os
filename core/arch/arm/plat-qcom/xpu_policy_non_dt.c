@@ -16,7 +16,7 @@
 #include <util.h>
 #include <xpu_target.h>
 
-/* The two DRAM windows, from the macros of the target */
+/* The DRAM windows, from the macros of the target */
 static const struct xpu4_guard ddr_guards[] = {
 	{
 		.start = DRAM0_BASE,
@@ -26,7 +26,12 @@ static const struct xpu4_guard ddr_guards[] = {
 	{
 		.start = DRAM1_BASE,
 		.size = DRAM1_SIZE,
-		.mpu_start = DDR_MPU_ADDR_HIGH(DRAM1_BASE),
+		.mpu_start = DDR_MPU_ADDR_LOW(DRAM1_BASE),
+	},
+	{
+		.start = DRAM2_BASE,
+		.size = DRAM2_SIZE,
+		.mpu_start = DDR_MPU_ADDR_HIGH(DRAM2_BASE),
 	},
 };
 
