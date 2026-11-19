@@ -9,3 +9,5 @@ srcs-$(CFG_QCOM_GPCE_HASH) += ce_hal.c
 srcs-$(CFG_QCOM_GPCE_HASH) += bam.c
 srcs-$(CFG_QCOM_GPCE_HASH) += ce_bam.c
 srcs-$(CFG_QCOM_GPCE_HASH) += util_blkbuf.c
+
+global-incdirs-$(CFG_QCOM_GPCE_HASH) += $(PLATFORM_FLAVOR)
