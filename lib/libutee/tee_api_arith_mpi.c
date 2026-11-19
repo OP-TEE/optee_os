@@ -297,7 +297,8 @@ int32_t TEE_BigIntCmp(const TEE_BigInt *op1, const TEE_BigInt *op2)
 	int32_t rc;
 
 	check_bigint_in(op1);
-	check_bigint_in(op2);
+	if (op2 != op1)
+		check_bigint_in(op2);
 	get_mpi(&mpi1, op1);
 	get_mpi(&mpi2, op2);
 
@@ -539,7 +540,8 @@ void TEE_BigIntAdd(TEE_BigInt *dest, const TEE_BigInt *op1,
 {
 	check_bigint_out(dest);
 	check_bigint_in(op1);
-	check_bigint_in(op2);
+	if (op2 != op1)
+		check_bigint_in(op2);
 	bigint_binary(dest, op1, op2, mbedtls_mpi_add_mpi);
 }
 
@@ -548,7 +550,8 @@ void TEE_BigIntSub(TEE_BigInt *dest, const TEE_BigInt *op1,
 {
 	check_bigint_out(dest);
 	check_bigint_in(op1);
-	check_bigint_in(op2);
+	if (op2 != op1)
+		check_bigint_in(op2);
 	bigint_binary(dest, op1, op2, mbedtls_mpi_sub_mpi);
 }
 
@@ -580,7 +583,7 @@ void TEE_BigIntMul(TEE_BigInt *dest, const TEE_BigInt *op1,
 		   const TEE_BigInt *op2)
 {
 	size_t bs1 = TEE_BigIntGetBitCount(op1);
-	size_t bs2 = TEE_BigIntGetBitCount(op2);
+	size_t bs2 = op2 == op1 ? bs1 : TEE_BigIntGetBitCount(op2);
 	size_t s = TEE_BigIntSizeInU32(bs1) + TEE_BigIntSizeInU32(bs2);
 	TEE_BigInt zero[TEE_BigIntSizeInU32(1)] = { 0 };
 	TEE_BigInt *tmp = NULL;
@@ -619,7 +622,8 @@ void TEE_BigIntDiv(TEE_BigInt *dest_q, TEE_BigInt *dest_r,
 	if (dest_r)
 		check_bigint_out(dest_r);
 	check_bigint_in(op1);
-	check_bigint_in(op2);
+	if (op2 != op1)
+		check_bigint_in(op2);
 	get_mpi(&mpi_dest_q, dest_q);
 	get_mpi(&mpi_dest_r, dest_r);
 
@@ -668,7 +672,8 @@ void TEE_BigIntAddMod(TEE_BigInt *dest, const TEE_BigInt *op1,
 {
 	check_bigint_out(dest);
 	check_bigint_in(op1);
-	check_bigint_in(op2);
+	if (op2 != op1)
+		check_bigint_in(op2);
 	check_bigint_in(n);
 	bigint_binary_mod(dest, op1, op2, n, mbedtls_mpi_add_mpi);
 }
@@ -678,7 +683,8 @@ void TEE_BigIntSubMod(TEE_BigInt *dest, const TEE_BigInt *op1,
 {
 	check_bigint_out(dest);
 	check_bigint_in(op1);
-	check_bigint_in(op2);
+	if (op2 != op1)
+		check_bigint_in(op2);
 	check_bigint_in(n);
 	bigint_binary_mod(dest, op1, op2, n, mbedtls_mpi_sub_mpi);
 }
@@ -688,7 +694,8 @@ void TEE_BigIntMulMod(TEE_BigInt *dest, const TEE_BigInt *op1,
 {
 	check_bigint_out(dest);
 	check_bigint_in(op1);
-	check_bigint_in(op2);
+	if (op2 != op1)
+		check_bigint_in(op2);
 	check_bigint_in(n);
 	bigint_binary_mod(dest, op1, op2, n, mbedtls_mpi_mul_mpi);
 }
@@ -741,7 +748,8 @@ bool TEE_BigIntRelativePrime(const TEE_BigInt *op1, const TEE_BigInt *op2)
 	mbedtls_mpi gcd;
 
 	check_bigint_in(op1);
-	check_bigint_in(op2);
+	if (op2 != op1)
+		check_bigint_in(op2);
 	get_mpi(&mpi_op1, op1);
 
 	if (op2 == op1)
@@ -787,7 +795,8 @@ TEE_Result TEE_BigIntExpMod(TEE_BigInt *dest, const TEE_BigInt *op1,
 
 	check_bigint_out(dest);
 	check_bigint_in(op1);
-	check_bigint_in(op2);
+	if (op2 != op1)
+		check_bigint_in(op2);
 	check_bigint_in(n);
 	get_mpi(&mpi_dest, dest);
 	get_mpi(&mpi_n, n);
@@ -930,7 +939,8 @@ void TEE_BigIntComputeExtendedGcd(TEE_BigInt *gcd, TEE_BigInt *u,
 	if (v)
 		check_bigint_out(v);
 	check_bigint_in(op1);
-	check_bigint_in(op2);
+	if (op2 != op1)
+		check_bigint_in(op2);
 	get_mpi(&mpi_gcd_res, gcd);
 	get_mpi(&mpi_op1, op1);
 
@@ -1106,7 +1116,8 @@ void TEE_BigIntComputeFMM(TEE_BigIntFMM *dest, const TEE_BigIntFMM *op1,
 
 	check_bigint_out(dest);
 	check_bigint_in(op1);
-	check_bigint_in(op2);
+	if (op2 != op1)
+		check_bigint_in(op2);
 	check_bigint_in(n);
 	get_mpi(&mpi_dst, dest);
 	get_mpi(&mpi_op1, op1);
