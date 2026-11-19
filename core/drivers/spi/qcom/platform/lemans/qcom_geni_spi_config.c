@@ -246,9 +246,51 @@ static const struct tlmm_pin_group qup2_se2_spi_pin_groups[] = {
 	},
 };
 
+#define QUP_ICB_AB_VOTE_MIN		(10000)
+#define QUP_ICB_IB_VOTE_MIN		(10000)
+
+#define QUP_ICB_AB_VOTE_MAX		(200000)
+#define QUP_ICB_IB_VOTE_MAX		(200000)
+
+/* Only the QUP2 core route is present in the Lemans ICB target data. */
+const struct qup_spi_icb_cfg qup_spi_icb_config[] = {
+	{
+		.qup_id = 2,
+		.routes = {
+			[ICB_CONFIG] = {
+				.master = ICBID_MASTER_NONE,
+				.slave = ICBID_SLAVE_NONE,
+				.bw = {
+					.ab = QUP_ICB_AB_VOTE_MIN,
+					.ib = QUP_ICB_IB_VOTE_MIN,
+				},
+			},
+			[ICB_CORE] = {
+				.master = ICBID_MASTER_QUP_CORE_2,
+				.slave = ICBID_SLAVE_QUP_CORE_2,
+				.bw = {
+					.ab = QUP_ICB_AB_VOTE_MAX,
+					.ib = QUP_ICB_IB_VOTE_MAX,
+				},
+			},
+			[ICB_DDR] = {
+				.master = ICBID_MASTER_NONE,
+				.slave = ICBID_SLAVE_NONE,
+				.bw = {
+					.ab = QUP_ICB_AB_VOTE_MIN,
+					.ib = QUP_ICB_IB_VOTE_MIN,
+				},
+			},
+		},
+	},
+};
+
+const size_t qup_spi_icb_config_count = ARRAY_SIZE(qup_spi_icb_config);
+
 const struct qup_spi_platform_cfg qup_spi_config[] = {
 	{
 		.id                 = QUP2_SE2_SPI_ID,
+		.qup_id             = 2,
 		.base               = QUP2_SE2_SPI_BASE,
 		.common_base        = QUP2_COMMON_BASE,
 		.itr_num            = QUP2_SE2_SPI_IRQ,

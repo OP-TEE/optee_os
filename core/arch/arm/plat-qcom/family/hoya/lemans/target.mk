@@ -11,6 +11,7 @@ CFG_QCOM_TLMM ?= y
 CFG_QCOM_DIAG_LOG ?= $(CFG_TEE_CORE_DEBUG)
 CFG_QCOM_GENI_SPI ?= y
 ifeq ($(CFG_QCOM_GENI_SPI),y)
+$(call force,CFG_QCOM_ICB,y)
 $(call force,CFG_QCOM_CMD_DB,y)
 $(call force,CFG_QCOM_RPMH_CLIENT,y)
 endif
