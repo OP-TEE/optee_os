@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <drivers/clk.h>
 #include <drivers/clk_qcom.h>
+#include <drivers/qcom/icb/icbuarb.h>
 #include <drivers/qcom/tlmm/tlmm.h>
 #include <drivers/qcom_geni_spi.h>
 #include <inttypes.h>
@@ -656,7 +657,8 @@ static void qup_spi_fifo_drain_rx(struct qup_spi_data *qs)
 /*
  * Logs which specific command/FIFO error(s) are set in m_irq.
  */
-static void qup_spi_log_errors(struct qup_spi_data *qs, uint32_t m_irq)
+static void qup_spi_log_errors(struct qup_spi_data *qs __maybe_unused,
+			       uint32_t m_irq)
 {
 	if (m_irq & M_CMD_OVERRUN_EN)
 		EMSG("QUP SPI %u: command overrun", qs->id);
@@ -1056,6 +1058,57 @@ static TEE_Result qup_spi_clk_setup(struct qup_spi_data *qs)
 	return TEE_SUCCESS;
 }
 
+static bool qup_spi_icb_release_clients(struct qup_spi_data *qs)
+{
+	bool released = true;
+	size_t i = 0;
+
+	/* Destroying a client clears its vote and frees its pool slot. */
+	for (i = 0; i < ICB_COUNT; i++) {
+		if (!qs->icb_clients[i])
+			continue;
+		if (icbuarb_destroy_client(qs->icb_clients[i])) {
+			qs->icb_clients[i] = NULL;
+		} else {
+			EMSG("QUP SPI %u: ICB route %zu release failed",
+			     qs->id, i);
+			released = false;
+		}
+	}
+
+	return released;
+}
+
+/* ICB votes use the platform routes for this SE's QUP wrapper. */
+static TEE_Result qup_spi_icb_acquire(struct qup_spi_data *qs)
+{
+	const struct qup_spi_icb_cfg *cfg = qs->icb_cfg;
+	size_t i = 0;
+
+	if (!cfg)
+		goto err;
+
+	for (i = 0; i < ICB_COUNT; i++) {
+		const struct qup_spi_icb_route *r = &cfg->routes[i];
+		struct icb_bw_req req = r->bw;
+
+		if (r->master == ICBID_MASTER_NONE)
+			continue;
+		if (!qs->icb_clients[i])
+			qs->icb_clients[i] =
+				icbuarb_create_client(r->master, r->slave);
+		if (!qs->icb_clients[i] ||
+		    !icbuarb_issue_request(qs->icb_clients[i], &req))
+			goto err;
+	}
+
+	return TEE_SUCCESS;
+err:
+	EMSG("QUP SPI %u: ICB bandwidth vote failed", qs->id);
+	qup_spi_icb_release_clients(qs);
+	return TEE_ERROR_GENERIC;
+}
+
 /*
  * Ungate the wrapper/common clocks first, then the SE source clock,
  * ahead of a transfer. Unwinds anything already enabled on failure so
@@ -1065,6 +1118,10 @@ static TEE_Result qup_spi_clk_enable(struct qup_spi_data *qs)
 {
 	TEE_Result res = TEE_SUCCESS;
 	unsigned int i = 0;
+
+	res = qup_spi_icb_acquire(qs);
+	if (res)
+		return res;
 
 	for (i = 0; i < qs->num_common_clks; i++) {
 		res = clk_enable(qs->common_clks[i]);
@@ -1092,6 +1149,7 @@ static TEE_Result qup_spi_clk_enable(struct qup_spi_data *qs)
 err:
 	while (i-- > 0)
 		clk_disable(qs->common_clks[i]);
+	qup_spi_icb_release_clients(qs);
 
 	return res;
 }
@@ -1106,6 +1164,7 @@ static void qup_spi_clk_disable(struct qup_spi_data *qs)
 
 	while (i-- > 0)
 		clk_disable(qs->common_clks[i]);
+	qup_spi_icb_release_clients(qs);
 }
 
 static TEE_Result qup_spi_pinctrl_setup(struct qup_spi_data *qs)
@@ -1333,6 +1392,17 @@ static TEE_Result qup_spi_load_fw(struct qup_spi_data *qs)
 	return TEE_SUCCESS;
 }
 
+static const struct qup_spi_icb_cfg *qup_spi_get_icb_config(unsigned int qup_id)
+{
+	size_t i = 0;
+
+	for (i = 0; i < qup_spi_icb_config_count; i++)
+		if (qup_spi_icb_config[i].qup_id == qup_id)
+			return &qup_spi_icb_config[i];
+
+	return NULL;
+}
+
 bool qup_spi_get_platform_data(unsigned int qup_spi_id,
 			       struct qup_spi_data *qs)
 {
@@ -1341,6 +1411,13 @@ bool qup_spi_get_platform_data(unsigned int qup_spi_id,
 	for (i = 0; i < qup_spi_config_count; i++) {
 		if (qup_spi_config[i].id != qup_spi_id)
 			continue;
+
+		qs->icb_cfg = qup_spi_get_icb_config(qup_spi_config[i].qup_id);
+		if (!qs->icb_cfg) {
+			EMSG("QUP SPI %u: no ICB routes for QUP %u",
+			     qup_spi_id, qup_spi_config[i].qup_id);
+			return false;
+		}
 
 		qs->base = (vaddr_t)phys_to_virt(qup_spi_config[i].base,
 						  MEM_AREA_IO_SEC,
@@ -1381,18 +1458,16 @@ static TEE_Result qup_spi_init_locked(struct qup_spi_data *qs,
 	TEE_Result res = TEE_SUCCESS;
 
 	assert(qs);
+
+	/* Release retained clients before resetting their handles. */
+	if (!qup_spi_icb_release_clients(qs))
+		return TEE_ERROR_GENERIC;
+
 	qs->id = qup_spi_id;
 
-	/*
-	 * Internal/derived state (as opposed to the caller-owned config
-	 * documented in struct qup_spi_data) is not something a caller is
-	 * expected to set, so it may still hold whatever garbage was on
-	 * the stack/heap if *qs was not zero-initialized. Reset it here
-	 * rather than trusting that, so fw_loaded/configured/started never
-	 * start out true and pin_state is never a garbage pointer later
-	 * passed to tlmm_free_pin_state().
-	 */
+	/* Reset derived state while preserving caller-owned SPI settings. */
 	qs->se_clk = NULL;
+	qs->icb_cfg = NULL;
 	qs->num_common_clks = 0;
 	qs->pin_state = NULL;
 	qs->fw_loaded = false;
@@ -1432,6 +1507,11 @@ TEE_Result qup_spi_init(struct qup_spi_data *qs, unsigned int qup_spi_id)
 
 	qup_spi_active_config = NULL;
 	res = qup_spi_init_locked(qs, qup_spi_id);
+	if (res) {
+		qs->chip.ops = NULL;
+		if (qup_spi_icb_release_clients(qs))
+			memset(qs, 0, sizeof(*qs));
+	}
 	mutex_unlock(&qup_spi_bus_lock);
 
 	return res;
