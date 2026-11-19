@@ -228,6 +228,27 @@ static TEE_Result get_oem_metadata(const struct pas_hash_segment_info *hs,
 	return res;
 }
 
+/*
+ * Version 1.0 metadata may leave out both hardware bindings, which would let
+ * the image load on any chip. Only TZ apps may be signed that way, and PAS
+ * does not load any.
+ */
+static TEE_Result check_hw_independence(const struct pas_oem_metadata *meta)
+{
+	const uint32_t hw_bindings =
+		BIT32(PAS_META_FLAG_IN_USE_SOC_HW_VERSION) |
+		BIT32(PAS_META_FLAG_IN_USE_JTAG_ID);
+
+	if (meta->major != SECBOOT_METADATA_MAJOR_V1 ||
+	    meta->minor != SECBOOT_METADATA_MINOR ||
+	    (meta->flags & hw_bindings))
+		return TEE_SUCCESS;
+
+	EMSG("PAS auth: hardware independent metadata, flags=%#"PRIx32,
+	     meta->flags);
+	return TEE_ERROR_SECURITY;
+}
+
 static TEE_Result check_oem_metadata(const struct pas_oem_metadata *meta,
 				     uint32_t pas_id)
 {
@@ -460,6 +481,10 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 	}
 
 	res = get_oem_metadata(hs, &meta);
+	if (res)
+		return res;
+
+	res = check_hw_independence(&meta);
 	if (res)
 		return res;
 
