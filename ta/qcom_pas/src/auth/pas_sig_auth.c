@@ -19,6 +19,7 @@
 #define SECBOOT_METADATA_MAJOR_V0	0U
 #define SECBOOT_METADATA_MAJOR_V1	1U
 #define SECBOOT_METADATA_MINOR		0U
+#define SECBOOT_META_OEM_INDEPENDENT_ID	0x0001U
 #define SECBOOT_DEFAULT_ROOT_CERT_SEL	0U
 
 static TEE_Result check_metadata_version(const struct pas_oem_metadata *meta)
@@ -80,6 +81,23 @@ static TEE_Result check_metadata_options(const struct pas_oem_metadata *meta)
 	return TEE_ERROR_SECURITY;
 }
 
+static TEE_Result check_independent_ids(const struct pas_oem_metadata *meta)
+{
+	if (meta->oem_id != SECBOOT_META_OEM_INDEPENDENT_ID) {
+		EMSG("PAS auth: OEM_ID got %#"PRIx32" want %#x",
+		     meta->oem_id, SECBOOT_META_OEM_INDEPENDENT_ID);
+		return TEE_ERROR_SECURITY;
+	}
+
+	if (meta->model_id) {
+		EMSG("PAS auth: MODEL_ID got %#"PRIx32" want 0",
+		     meta->model_id);
+		return TEE_ERROR_SECURITY;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result check_oem_model_binding(const struct pas_oem_metadata *meta,
 					  const struct pas_device_ids *ids)
 {
@@ -87,12 +105,17 @@ static TEE_Result check_oem_model_binding(const struct pas_oem_metadata *meta,
 				BIT32(PAS_META_FLAG_OEM_ID_INDEPENDENT);
 	bool model_independent = false;
 
-	/* v0 metadata has no MODEL_ID_INDEPENDENT bit; falls back to OEM's. */
-	if (meta->major == 0)
-		model_independent = oem_independent;
-	else
+	/*
+	 * v0 metadata has no MODEL_ID_INDEPENDENT bit: OEM_ID_INDEPENDENT
+	 * covers both IDs, which then hold fixed values, not the device's.
+	 */
+	if (meta->major == SECBOOT_METADATA_MAJOR_V0) {
+		if (oem_independent)
+			return check_independent_ids(meta);
+	} else {
 		model_independent = meta->flags &
 				    BIT32(PAS_META_FLAG_MODEL_ID_INDEPENDENT);
+	}
 
 	if (!oem_independent && meta->oem_id != ids->oem_id) {
 		EMSG("PAS auth: OEM_ID got %#"PRIx32" want %#"PRIx32,
@@ -109,10 +132,23 @@ static TEE_Result check_oem_model_binding(const struct pas_oem_metadata *meta,
 	return TEE_SUCCESS;
 }
 
+/*
+ * v0 metadata is bound to the SoC version when it says so and to the JTAG ID
+ * otherwise; v1 metadata has a flag for each binding.
+ */
+static bool uses_jtag_id(const struct pas_oem_metadata *meta)
+{
+	if (meta->major == SECBOOT_METADATA_MAJOR_V0)
+		return !(meta->flags &
+			 BIT32(PAS_META_FLAG_IN_USE_SOC_HW_VERSION));
+
+	return meta->flags & BIT32(PAS_META_FLAG_IN_USE_JTAG_ID);
+}
+
 static TEE_Result check_jtag_binding(const struct pas_oem_metadata *meta,
 				     const struct pas_device_ids *ids)
 {
-	if (!(meta->flags & BIT32(PAS_META_FLAG_IN_USE_JTAG_ID)))
+	if (!uses_jtag_id(meta))
 		return TEE_SUCCESS;
 
 	if (meta->hw_id == ids->jtag_id)
