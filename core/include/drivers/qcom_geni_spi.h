@@ -6,6 +6,7 @@
 #ifndef DRIVERS_QCOM_GENI_SPI_H
 #define DRIVERS_QCOM_GENI_SPI_H
 
+#include <drivers/qcom/icb/icbuarb.h>
 #include <kernel/mutex.h>
 #include <mm/core_memprot.h>
 #include <spi.h>
@@ -24,6 +25,25 @@ struct pinctrl_state;
 /* Register window size mapped for the QUPv3 wrapper-common region. */
 #define QUP_SPI_COMMON_REG_SIZE		0x1000
 
+enum {
+	ICB_CONFIG,
+	ICB_CORE,
+	ICB_DDR,
+	ICB_COUNT,
+};
+
+struct qup_spi_icb_route {
+	enum icbid_master master;
+	enum icbid_slave slave;
+	struct icb_bw_req bw;
+};
+
+/* Platform ICB routes indexed by QUP wrapper number, independently of SE ID. */
+struct qup_spi_icb_cfg {
+	unsigned int qup_id;
+	struct qup_spi_icb_route routes[ICB_COUNT];
+};
+
 struct qup_spi_data {
 	struct spi_chip chip;
 	vaddr_t base;
@@ -35,6 +55,8 @@ struct qup_spi_data {
 	const char *se_clock_name;
 	/* SE source clock handle, acquired by qup_spi_init() */
 	struct clk *se_clk;
+	const struct qup_spi_icb_cfg *icb_cfg;
+	struct icb_client *icb_clients[ICB_COUNT];
 	/* NULL-terminated array of wrapper/common clock names */
 	const char * const *common_clocks_name;
 	/* Resolved wrapper/common clock handles, acquired by qup_spi_init() */
@@ -106,9 +128,15 @@ bool qup_spi_get_platform_data(unsigned int qup_spi_id,
 
 /*
  * Initializes *qs for the SE identified by qup_spi_id, loading its GENI
- * firmware if needed. Caller-owned fields (cs, mode, speed_hz,
- * bits_per_word, loopback) should be set either before or after this
- * call, but before the first configure()/start()/txrx call.
+ * firmware if needed. Zero-initialize *qs before its first use.
+ * Caller-owned fields (cs, mode, speed_hz, bits_per_word, loopback) should
+ * be set either before or after this call, but before the first
+ * configure()/start()/txrx call.
+ *
+ * Initialization errors clear *qs after ICB cleanup succeeds. Restore
+ * caller-owned settings before retrying. If cleanup fails, client handles
+ * remain in *qs and initialization retries their release before proceeding.
+ * Keep *qs until cleanup succeeds. If the bus is busy, *qs is unchanged.
  */
 TEE_Result qup_spi_init(struct qup_spi_data *qs, unsigned int qup_spi_id);
 
@@ -127,6 +155,7 @@ void qup_spi_set_loopback(struct qup_spi_data *qs, bool enable);
  */
 struct qup_spi_platform_cfg {
 	unsigned int id;
+	unsigned int qup_id;
 	paddr_t base;
 	/* QUPv3 wrapper-common region physical base for this SE's wrapper */
 	paddr_t common_base;
@@ -152,4 +181,6 @@ struct qup_spi_platform_cfg {
 extern const struct qup_spi_platform_cfg qup_spi_config[];
 
 extern const size_t qup_spi_config_count;
+extern const struct qup_spi_icb_cfg qup_spi_icb_config[];
+extern const size_t qup_spi_icb_config_count;
 #endif /* DRIVERS_QCOM_GENI_SPI_H */
