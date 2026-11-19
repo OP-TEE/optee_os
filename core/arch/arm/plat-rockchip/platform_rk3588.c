@@ -22,10 +22,6 @@
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
 
-#if defined(CFG_RK3588_HUK_INSECURE_TEST_KEY) && !defined(CFG_INSECURE)
-#error CFG_RK3588_HUK_INSECURE_TEST_KEY requires CFG_INSECURE=y
-#endif
-
 #define FIREWALL_DDR_RGN(i)		((i) * 0x4)
 #define FIREWALL_DDR_CON		0xf0
 #define FIREWALL_DSU_RGN(i)		((i) * 0x4)
@@ -292,7 +288,7 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 		goto out;
 	}
 
-	if (IS_ENABLED(CFG_RK3588_HUK_PROGRAM_OTP)) {
+	if (IS_ENABLED(CFG_ROCKCHIP_HUK_PROVISION)) {
 		/* Generate a new HUK and persist it in the OTP */
 		res = generate_huk(huk);
 		if (res != TEE_SUCCESS)
@@ -300,7 +296,7 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 		res = persist_huk(huk);
 		if (res == TEE_SUCCESS)
 			IMSG("HUK: new key generated and programmed in OTP");
-	} else if (IS_ENABLED(CFG_RK3588_HUK_INSECURE_TEST_KEY)) {
+	} else if (IS_ENABLED(CFG_INSECURE)) {
 		EMSG("HUK: OTP holds no key and programming it is disabled");
 		EMSG("HUK: using an all-zero test key, storage is NOT secure");
 		memset(huk->data, 0, sizeof(huk->data));
