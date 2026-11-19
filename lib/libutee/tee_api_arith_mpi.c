@@ -460,11 +460,11 @@ static void bigint_binary_mod(TEE_BigInt *dest, const TEE_BigInt *op1,
 	mbedtls_mpi *pop2 = &mpi_op2;
 	mbedtls_mpi mpi_t;
 
-	if (TEE_BigIntCmpS32(n, 2) < 0)
+	get_mpi(&mpi_n, n);
+	if (mbedtls_mpi_cmp_int(&mpi_n, 2) < 0)
 		API_PANIC("Modulus is too short");
 
 	get_mpi(&mpi_dest, dest);
-	get_mpi(&mpi_n, n);
 
 	if (op1 == dest)
 		pop1 = &mpi_dest;
@@ -638,16 +638,18 @@ void TEE_BigIntInvMod(TEE_BigInt *dest, const TEE_BigInt *op,
 	mbedtls_mpi mpi_n;
 	mbedtls_mpi *pop = &mpi_op;
 
-	if (TEE_BigIntCmpS32(n, 2) < 0 || TEE_BigIntCmpS32(op, 0) == 0)
-		API_PANIC("too small modulus or trying to invert zero");
-
-	get_mpi(&mpi_dest, dest);
 	get_mpi(&mpi_n, n);
+	if (mbedtls_mpi_cmp_int(&mpi_n, 2) < 0)
+		API_PANIC("too small modulus or trying to invert zero");
 
 	if (op == dest)
 		pop = &mpi_dest;
-	else
-		get_mpi(&mpi_op, op);
+	get_mpi(pop, op);
+	if (mbedtls_mpi_cmp_int(pop, 0) == 0)
+		API_PANIC("too small modulus or trying to invert zero");
+
+	if (op != dest)
+		get_mpi(&mpi_dest, dest);
 
 	MPI_CHECK(mbedtls_mpi_inv_mod(&mpi_dest, pop, &mpi_n));
 
