@@ -29,3 +29,9 @@ endif
 
 $(call force,CFG_QCOM_CSRNG,y)
 CFG_WITH_SOFTWARE_PRNG ?= n
+
+# Enable the Qualcomm GPCE SHA-256 driver.
+CFG_QCOM_GPCE ?= y
+ifeq ($(CFG_QCOM_GPCE),y)
+CFG_QCOM_GPCE_HASH ?= y
+endif
