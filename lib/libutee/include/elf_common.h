@@ -559,6 +559,7 @@ typedef struct {
 #define	STB_GLOBAL	1	/* Global symbol */
 #define	STB_WEAK	2	/* like global - lower precedence */
 #define	STB_LOOS	10	/* Reserved range for operating system */
+#define	STB_GNU_UNIQUE	10	/* GNU: global, unique in the process */
 #define	STB_HIOS	12	/*   specific semantics. */
 #define	STB_LOPROC	13	/* reserved range for processor */
 #define	STB_HIPROC	15	/*   specific semantics. */
