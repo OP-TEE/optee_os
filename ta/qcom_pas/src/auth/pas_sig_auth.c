@@ -214,20 +214,48 @@ static TEE_Result check_hw_binding(const struct pas_oem_metadata *meta)
 	return check_soc_vers_binding(meta);
 }
 
+static TEE_Result get_oem_metadata(const struct pas_hash_segment_info *hs,
+				   struct pas_oem_metadata *meta)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = pas_meta_get(hs, meta);
+	if (res == TEE_ERROR_NO_DATA)
+		res = TEE_ERROR_SECURITY;
+	if (res)
+		EMSG("PAS auth: bad or missing OEM metadata");
+
+	return res;
+}
+
+static TEE_Result check_oem_metadata(const struct pas_oem_metadata *meta,
+				     uint32_t pas_id)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = check_metadata_version(meta);
+	if (res)
+		return res;
+
+	res = check_sw_binding(meta, pas_id);
+	if (res)
+		return res;
+
+	return check_hw_binding(meta);
+}
+
 static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
-				       uint32_t pas_id,
+				       uint32_t root_cert_sel,
 				       const uint8_t *anchor)
 {
 	uint32_t rot_hash_algo = TEE_ALG_SHA384;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct pas_oem_metadata meta = { };
 	struct pas_fuse_mrc_info mrc = { };
 	uint8_t *signed_copy = NULL;
 	const uint8_t *roots = NULL;
 	uint32_t sig_hash_algo = 0;
 	const uint8_t *leaf = NULL;
 	bool eku_enforced = false;
-	uint32_t root_cert_sel = SECBOOT_DEFAULT_ROOT_CERT_SEL;
 	uint32_t sig_algo = 0;
 	size_t signed_len = 0;
 	size_t roots_len = 0;
@@ -237,9 +265,6 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 		EMSG("PAS auth: metadata is not OEM-signed");
 		return TEE_ERROR_SECURITY;
 	}
-
-	if (pas_meta_get(hs, &meta) == TEE_SUCCESS)
-		root_cert_sel = meta.root_cert_sel;
 
 	res = pas_fuse_get_mrc_info(&mrc);
 	if (res) {
@@ -284,26 +309,6 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 		EMSG("PAS auth: root-of-trust mismatch");
 		return res;
 	}
-
-	res = pas_meta_get(hs, &meta);
-	if (res == TEE_ERROR_NO_DATA)
-		res = TEE_ERROR_SECURITY;
-	if (res) {
-		EMSG("PAS auth: bad or missing OEM metadata");
-		return res;
-	}
-
-	res = check_metadata_version(&meta);
-	if (res)
-		return res;
-
-	res = check_sw_binding(&meta, pas_id);
-	if (res)
-		return res;
-
-	res = check_hw_binding(&meta);
-	if (res)
-		return res;
 
 	res = pas_sig_algo_from_leaf(leaf, leaf_len, &sig_algo,
 				     &sig_hash_algo);
@@ -441,6 +446,7 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 				     uint32_t segment_hash_len,
 				     const uint8_t *anchor)
 {
+	struct pas_oem_metadata meta = { };
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (hs->uie_encrypted) {
@@ -453,7 +459,15 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	res = verify_oem_signature(hs, pas_id, anchor);
+	res = get_oem_metadata(hs, &meta);
+	if (res)
+		return res;
+
+	res = check_oem_metadata(&meta, pas_id);
+	if (res)
+		return res;
+
+	res = verify_oem_signature(hs, meta.root_cert_sel, anchor);
 	if (res)
 		return res;
 
