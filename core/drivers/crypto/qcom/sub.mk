@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026, Qualcomm Technologies, Inc.
 
-incdirs-y += include
-srcs-y += hwkm.c hwkm_huk.c hwkm_transaction.c
+incdirs-$(CFG_QCOM_HWKM) += include
+srcs-$(CFG_QCOM_HWKM) += hwkm.c hwkm_huk.c hwkm_transaction.c
+
+subdirs-$(CFG_QCOM_GPCE) += gpce
 
 # Bitmap of fuse regions whose SHA256 digest is folded into the HUK KDF input.
 # Each bit corresponds to a fuse region index; set a bit to bind the HUK to
