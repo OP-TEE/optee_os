@@ -105,6 +105,7 @@ srcs-$(CFG_OPENEDGES_OMC) += openedges_omc.c
 srcs-$(CFG_SUNXI_SID) += sunxi_sid.c
 
 subdirs-y += crypto
+srcs-$(CFG_DRIVERS_MAILBOX) += mailbox.c
 subdirs-$(CFG_BNXT_FW) += bnxt
 subdirs-$(CFG_DRIVERS_CLK) += clk
 subdirs-$(CFG_DRIVERS_FIREWALL) += firewall

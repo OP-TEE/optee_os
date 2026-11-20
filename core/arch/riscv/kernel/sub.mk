@@ -6,7 +6,19 @@ srcs-$(CFG_RISCV_TIME_SOURCE_RDTIME) += tee_time_rdtime.c
 srcs-$(CFG_RISCV_SBI) += sbi.c
 srcs-$(CFG_RISCV_SBI_CONSOLE) += sbi_console.c
 srcs-$(CFG_RISCV_SBI_MPXY) += sbi_mpxy.c
-srcs-$(CFG_RISCV_SBI_MPXY_RPMI) += sbi_mpxy_rpmi.c
+ifeq ($(CFG_RISCV_SBI_MPXY_RPMI),y)
+srcs-y += sbi_mpxy_rpmi.c
+srcs-y += sbi_mpxy_mailbox.c
+srcs-y += rpmi.c
+srcs-y += rpmi_reqfwd.c
+srcs-y += rpmi_tee.c
+endif
+ifeq ($(CFG_RPMI_TEE_ABI),y)
+srcs-y += optee_rpmi_core.c
+srcs-y += optee_rpmi_msg.c
+srcs-y += optee_rpmi_shm.c
+srcs-$(CFG_CORE_ASYNC_NOTIF) += optee_rpmi_notif.c
+endif
 srcs-y += boot.c
 srcs-y += hart.c
 srcs-y += entry.S
@@ -17,7 +29,11 @@ srcs-y += arch_scall_rv.S
 srcs-y += arch_scall.c
 srcs-$(CFG_UNWIND) += unwind_rv.c
 srcs-$(CFG_SEMIHOSTING) += semihosting_rv.S
+ifeq ($(CFG_RPMI_TEE_ABI),y)
+srcs-y += optee_rpmi_thread.c
+else
 srcs-y += thread_optee_abi.c
+endif
 srcs-y += thread_optee_abi_rv.S
 srcs-$(CFG_WITH_VFP) += vfp.c
 srcs-$(CFG_WITH_VFP) += vfp_rv.S
