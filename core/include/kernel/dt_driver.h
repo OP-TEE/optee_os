@@ -27,6 +27,7 @@
  * DT_DRIVER_REGULATOR Voltage regulator controller using generic DT bindings
  * DT_DRIVER_NVMEM NVMEM controller using generic NVMEM DT bindings
  * DT_DRIVER_FIREWALL Firewall controller using generic DT bindings
+ * DT_DRIVER_MAILBOX  Mailbox driver using generic DT bindings
  */
 enum dt_driver_type {
 	DT_DRIVER_NOTYPE,
@@ -40,6 +41,7 @@ enum dt_driver_type {
 	DT_DRIVER_REGULATOR,
 	DT_DRIVER_NVMEM,
 	DT_DRIVER_FIREWALL,
+	DT_DRIVER_MAILBOX,
 };
 
 /*

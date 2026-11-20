@@ -17,6 +17,8 @@
 		reset-names = "rst0", "rst1";
 		test-gpios = <&dt_test_provider 1 GPIO_ACTIVE_LOW>,
 			     <&dt_test_provider 2 GPIO_PULL_UP>;
+		mboxes = <&dt_test_provider 4>, <&dt_test_provider 9>;
+		mbox-names = "mbox0", "mbox1";
 	};
 
 	/*
@@ -43,6 +45,7 @@
 						#clock-cells = <1>;
 						#reset-cells = <1>;
 						#gpio-cells = <2>;
+						#mbox-cells = <1>;
 					};
 				};
 			};

@@ -5,6 +5,7 @@
 #ifndef __DRIVERS_VERSAL_MBOX_H
 #define __DRIVERS_VERSAL_MBOX_H
 
+#include <drivers/mailbox.h>
 #include <kernel/mutex.h>
 #include <platform_config.h>
 #include <tee_api_types.h>
@@ -47,18 +48,21 @@ struct versal_ipi_cmd {
 #define VERSAL_IPI_ID_4		6
 #define VERSAL_IPI_ID_5		7
 
+/* IPI channel handle, filled by versal_mbox_open() */
 struct versal_ipi {
-	/* local and remote IPI ID */
-	uint32_t lcl;
-	uint32_t rmt;
+	struct mbox_chan *chan;
+};
 
-	/* Exclusive access to the IPI shared buffer */
-	struct mutex lock;
-
-	vaddr_t regs;
-
-	void *rsp;
-	void *req;
+/*
+ * struct versal_mbox_req - Message passed to the mailbox framework
+ * @cmd: Command to send
+ * @rsp: Buffer receiving the response data, can be NULL
+ * @err: Receives the remote status on error, can be NULL
+ */
+struct versal_mbox_req {
+	struct versal_ipi_cmd *cmd;
+	struct versal_ipi_cmd *rsp;
+	uint32_t *err;
 };
 
 TEE_Result versal_mbox_open(uint32_t local, uint32_t remote,
@@ -72,4 +76,7 @@ TEE_Result versal_mbox_notify(struct versal_ipi *ipi,
 TEE_Result versal_mbox_alloc(size_t len, const void *init,
 			     struct versal_mbox_mem *mem);
 void versal_mbox_free(struct versal_mbox_mem *mem);
+
+/* Versal IPI mailbox controller, implemented in versal_ipi.c */
+TEE_Result versal_ipi_get_controller(struct mbox_controller **ctrl);
 #endif /* __DRIVERS_VERSAL_MBOX_H */
