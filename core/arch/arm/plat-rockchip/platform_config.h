@@ -244,6 +244,53 @@
 #define CRU_BASE		0xff3a0000
 #define CRU_SIZE		SIZE_K(128)
 
+#elif defined(PLATFORM_FLAVOR_rk3568)
+
+#define GIC_BASE		0xfd400000
+#define GIC_SIZE		SIZE_K(64)
+#define GICC_BASE		0
+#define GICD_BASE		GIC_BASE
+#define GICR_BASE		(GIC_BASE + 0x60000)
+
+#define UART0_BASE		0xfdd50000
+#define UART0_SIZE		SIZE_K(64)
+
+#define UART2_BASE		0xfe660000
+#define UART2_SIZE		SIZE_K(64)
+
+#define FIREWALL_DDR_BASE	0xfe200000
+#define FIREWALL_DDR_SIZE	SIZE_K(4)
+
+#define SCRU_BASE		0xfdd10000
+#define SCRU_SIZE		SIZE_K(4)
+
+#define TRNG_S_BASE		0xfe370000
+#define TRNG_S_SIZE		SIZE_K(64)
+
+#define CRU_BASE		0xfdd20000
+#define CRU_SIZE		SIZE_K(4)
+
+#define SGRF_BASE		0xfdd18000
+#define SGRF_SIZE		SIZE_K(4)
+
+#define OTP_S_BASE		0xfe3a0000
+#define OTP_S_SIZE		SIZE_K(16)
+
+/*
+ * Halfword address/count in the secure OTP region (0x000-0x1bf). The
+ * HUK occupies bytes 0x008-0x017, where Rockchip's BL32 keeps its
+ * 16-byte HUK, clear of the cells used by the boot chain (secure-boot
+ * enable flag at byte 0x80, RSA pubkey hash at bytes 0x90-0xaf,
+ * anti-rollback counter at bytes 0xe0-0xe7). otp_addr_writable() allows
+ * programming only these cells.
+ *
+ * That layout has no provisioning marker: all-zero cells mean that no
+ * HUK is provisioned and any other content is the HUK, so that a key
+ * programmed by Rockchip's firmware is used as it is.
+ */
+#define ROCKCHIP_OTP_HUK_ADDR 0x4
+#define ROCKCHIP_OTP_HUK_SIZE		0x8
+
 #else
 #error "Unknown platform flavor"
 #endif
