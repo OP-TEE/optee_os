@@ -665,6 +665,7 @@ TEE_Result TEE_GetTAPersistentTime(TEE_Time *time)
 	res = _utee_get_time(UTEE_TIME_CAT_TA_PERSISTENT, time);
 
 	if (res != TEE_SUCCESS && res != TEE_ERROR_OVERFLOW) {
+		__utee_check_out_annotation(time, sizeof(*time));
 		time->seconds = 0;
 		time->millis = 0;
 	}
