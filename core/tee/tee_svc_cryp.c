@@ -4752,13 +4752,27 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 			mgf_algo = TEE_INTERNAL_HASH_TO_ALGO(cs->algo);
 
 		if (cs->mode == TEE_MODE_ENCRYPT) {
+			struct rsa_public_key *key = o->attr;
+			size_t modulus_size = crypto_bignum_num_bytes(key->n);
+			uint8_t *output = bb_alloc(modulus_size);
+
+			if (!output) {
+				res = TEE_ERROR_OUT_OF_MEMORY;
+				break;
+			}
+
+			dlen = MIN(dlen, modulus_size);
 			enter_user_access();
 			res = crypto_acipher_rsaes_encrypt(cs->algo, o->attr,
 							   label, label_len,
 							   mgf_algo,
 							   src_data, src_len,
-							   dst_data, &dlen);
+							   output, &dlen);
 			exit_user_access();
+			if (res == TEE_SUCCESS)
+				res = copy_to_user(dst_data, output, dlen);
+
+			bb_free(output, modulus_size);
 		} else if (cs->mode == TEE_MODE_DECRYPT) {
 			enter_user_access();
 			res = crypto_acipher_rsaes_decrypt(

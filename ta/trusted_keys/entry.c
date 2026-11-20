@@ -103,11 +103,11 @@ static TEE_Result huk_ae_encrypt(TEE_OperationHandle crypto_op, uint8_t *in,
 
 	hdr->reserved = 0;
 	TEE_GenerateRandom(iv, IV_SIZE);
-	memcpy(hdr->iv, iv, IV_SIZE);
 
-	res = TEE_AEInit(crypto_op, hdr->iv, IV_SIZE, TAG_SIZE * 8, 0, 0);
+	res = TEE_AEInit(crypto_op, iv, IV_SIZE, TAG_SIZE * 8, 0, 0);
 	if (res)
 		return res;
+	memcpy(hdr->iv, iv, IV_SIZE);
 
 	res = TEE_AEEncryptFinal(crypto_op, in, in_sz, hdr->enc_key,
 				 &enc_key_len, hdr->tag, &tag_len);
@@ -124,23 +124,30 @@ static TEE_Result huk_ae_decrypt(TEE_OperationHandle crypto_op, uint8_t *in,
 				 size_t in_sz, uint8_t *out, size_t *out_sz)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t plaintext[MAX_BUF_SIZE];
 	struct tk_blob_hdr *hdr = (struct tk_blob_hdr *)in;
 	uint8_t tag[TAG_SIZE] = { 0 };
 	size_t enc_key_len = 0;
 
-	if (SUB_OVERFLOW(in_sz, sizeof(*hdr), &enc_key_len))
+	if (in_sz > sizeof(plaintext) ||
+	    SUB_OVERFLOW(in_sz, sizeof(*hdr), &enc_key_len))
 		return TEE_ERROR_SECURITY;
 
 	res = TEE_AEInit(crypto_op, hdr->iv, IV_SIZE, TAG_SIZE * 8, 0, 0);
 	if (res)
-		return res;
+		goto out;
 
 	memcpy(tag, hdr->tag, TAG_SIZE);
-	res = TEE_AEDecryptFinal(crypto_op, hdr->enc_key, enc_key_len, out,
-				 out_sz, tag, TAG_SIZE);
+	res = TEE_AEDecryptFinal(crypto_op, hdr->enc_key, enc_key_len,
+				 plaintext, &enc_key_len, tag, TAG_SIZE);
 	if (res)
 		res = TEE_ERROR_SECURITY;
-
+out:
+	if (!res) {
+		memcpy(out, plaintext, enc_key_len);
+		*out_sz = enc_key_len;
+	}
+	memzero_explicit(plaintext, sizeof(plaintext));
 	return res;
 }
 
