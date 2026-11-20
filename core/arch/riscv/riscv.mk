@@ -193,6 +193,9 @@ else
 core-platform-cppflags += $(rv32-platform-cppflags)
 core-platform-cflags += $(rv32-platform-cflags)
 core-platform-cflags += $(rv32-platform-cflags-no-hard-float)
+# READ_ONCE() of 64-bit fields can't be lock-free on RV32 and calls
+# __atomic_load_8(), which Clang warns about at each call site.
+core-platform-cflags += $(call cc-option,-Wno-atomic-alignment)
 ifeq ($(CFG_UNWIND),y)
 core-platform-cflags += -funwind-tables
 endif
