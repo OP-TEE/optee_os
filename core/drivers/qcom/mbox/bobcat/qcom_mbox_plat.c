@@ -2,15 +2,17 @@
 /*
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
- * Channel table of the bobcat SoCs: one QMP-Lite channel to TME-Lite.
+ * The QMP-Lite link of the bobcat SoCs to TME-Lite.
  * TME_QMP_LITE_{INBOUND,OUTBOUND}_MBOX_ADDR are named from the TME's point of
  * view: INBOUND is what the TME reads (our TX mailbox), OUTBOUND is what it
  * writes (our RX mailbox). Each starts with the 4-byte QMP-Lite descriptor
  * register, followed by the payload.
  */
 
+#include <assert.h>
+#include <drivers/mailbox_controller.h>
+#include <drivers/qcom/mbox/qcom_mbox.h>
 #include <initcall.h>
-#include <kernel/mutex.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -19,7 +21,6 @@
 #include <types_ext.h>
 #include <util.h>
 
-#include "qcom_mbox_private.h"
 #include "qcom_mbox_qmp_lite.h"
 
 /* The descriptor register followed by the payload */
@@ -28,6 +29,9 @@
 
 /* The doorbell is a single 32-bit register */
 #define TME_QMP_LITE_IRQ_OUT_REG_SIZE	sizeof(uint32_t)
+
+static_assert(TME_QMP_LITE_MBOX_SIZE > 0 &&
+	      TME_QMP_LITE_MBOX_SIZE <= QMP_LITE_MAX_MSG_SIZE);
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, TME_QMP_LITE_OUTBOUND_MBOX_ADDR,
 			TME_QMP_LITE_MBOX_REGION_SIZE);
@@ -39,23 +43,13 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, TME_QMP_LITE_IRQ_OUT_REG_ADDR,
 static struct qcom_mbox_qmp_lite_config tme_qmp_lite_cfg;
 static struct qcom_mbox_qmp_lite_priv tme_qmp_lite_priv;
 
-/*
- * Channels. transport_cfg is filled in by plat_qcom_mbox_init() once the
- * regions are mapped.
- */
-static struct qcom_mbox_chan mbox_channels[] = {
-	{
-		.name = TME_QMP_LITE_CHANNEL_NAME,
-		.ops = &qcom_mbox_qmp_lite_ops,
-		.transport_priv = &tme_qmp_lite_priv,
-		.lock = MUTEX_INITIALIZER,
-	},
+/* The framework keeps a pointer to the descriptor */
+static const struct mbox_controller_desc tme_qmp_lite_desc = {
+	.ops = &qcom_mbox_qmp_lite_ops,
+	.priv = &tme_qmp_lite_priv,
 };
 
-static const struct qcom_mbox_plat_data mbox_plat_data = {
-	.channels = mbox_channels,
-	.num_channels = ARRAY_SIZE(mbox_channels),
-};
+static struct mbox_controller *tme_qmp_lite_controller;
 
 static TEE_Result plat_qcom_mbox_init(void)
 {
@@ -97,20 +91,18 @@ static TEE_Result plat_qcom_mbox_init(void)
 	tme_qmp_lite_cfg.remote_signal.reg = irq_reg;
 	tme_qmp_lite_cfg.remote_signal.value = TME_QMP_LITE_IRQ_OUT_BIT_MASK;
 
-	mbox_channels[0].transport_cfg = &tme_qmp_lite_cfg;
+	tme_qmp_lite_priv.cfg = &tme_qmp_lite_cfg;
 
 	DMSG("mbox_plat: TX va=0x%" PRIxVA " RX va=0x%" PRIxVA
 	     " IRQ-out va=0x%" PRIxVA, tx_base, rx_base, irq_reg);
 
-	return TEE_SUCCESS;
+	return mbox_controller_register(&tme_qmp_lite_controller,
+					&tme_qmp_lite_desc);
 }
 
-const struct qcom_mbox_plat_data *plat_qcom_mbox_get_data(void)
+struct mbox_controller *qcom_mbox_get_controller(void)
 {
-	if (!mbox_channels[0].transport_cfg)
-		return NULL;
-
-	return &mbox_plat_data;
+	return tme_qmp_lite_controller;
 }
 
 early_init(plat_qcom_mbox_init);

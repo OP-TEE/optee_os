@@ -10,16 +10,16 @@
  * QMP-Lite mailbox transport. The descriptor bit layout is in
  * qcom_mbox_qmp_lite.c.
  *
- * DISCONNECTED is also reported when the remote closes the channel while the
- * link stays up; the channel connects again once the remote reopens it.
+ * The remote closing the channel while the link stays up takes the channel
+ * back to the connecting state; it is connected again once the remote reopens
+ * it.
  */
 
+#include <drivers/mailbox_controller.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <types_ext.h>
-
-#include "qcom_mbox_private.h"
 
 /* The descriptor register at the start of each mailbox */
 #define QMP_LITE_DESC_SIZE		sizeof(uint32_t)
@@ -41,11 +41,12 @@ struct qcom_mbox_signal_config {
 };
 
 /*
- * struct qcom_mbox_qmp_lite_config - Static configuration of a QMP-Lite channel
+ * struct qcom_mbox_qmp_lite_config - Static configuration of a QMP-Lite link
  * @local_desc_base:  descriptor register we write
  * @remote_desc_base: descriptor register we only read
- * @local_mbox_size:  size in bytes of the mailbox we transmit to; becomes the
- *                    channel MTU. Must be > 0 and <= QMP_LITE_MAX_MSG_SIZE.
+ * @local_mbox_size:  size in bytes of the mailbox we transmit to; the largest
+ *                    message we can send. Must be > 0 and
+ *                    <= QMP_LITE_MAX_MSG_SIZE.
  * @remote_mbox_size: size in bytes of the mailbox we receive from (the
  *                    remote's transmit mailbox). Must be > 0 and
  *                    <= QMP_LITE_MAX_MSG_SIZE.
@@ -68,19 +69,23 @@ enum qcom_mbox_qmp_lite_state {
 };
 
 /*
- * struct qcom_mbox_qmp_lite_priv - Run-time state of a QMP-Lite channel
- * @cfg:         configuration, set by init()
+ * struct qcom_mbox_qmp_lite_priv - Run-time state of a QMP-Lite link
+ * @chan:        the one channel of the link, given to the consumer
+ * @cfg:         configuration, set by the SoC code before the controller is
+ *               registered
  * @state:       connection state
  * @local_desc:  software shadow of the local descriptor register
  * @remote_desc: snapshot of the remote descriptor register
- * @tx_pending:  a sent message is not yet acknowledged; cleared when TX_DONE
- *               is raised or on disconnect
+ * @tx_pending:  a sent message is not yet acknowledged; cleared when the
+ *               remote acknowledges it or on disconnect
  * @resync:      the remote closed the channel; the toggle bits are realigned
  *               again when it reopens
  *
- * The SoC code allocates one per channel and passes it as transport_priv.
+ * The SoC code allocates one per link and gives it to the controller
+ * descriptor as priv.
  */
 struct qcom_mbox_qmp_lite_priv {
+	struct mbox_chan chan;
 	const struct qcom_mbox_qmp_lite_config *cfg;
 	enum qcom_mbox_qmp_lite_state state;
 	uint32_t local_desc;
@@ -89,6 +94,6 @@ struct qcom_mbox_qmp_lite_priv {
 	bool resync;
 };
 
-extern const struct qcom_mbox_ops qcom_mbox_qmp_lite_ops;
+extern const struct mbox_controller_ops qcom_mbox_qmp_lite_ops;
 
 #endif /* QCOM_MBOX_QMP_LITE_H */

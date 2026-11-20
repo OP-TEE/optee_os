@@ -74,8 +74,7 @@ paddr_t tmel_com_client_data_pa(void);
  *   TEE_ERROR_BAD_STATE      the session is not up.
  *   TEE_ERROR_GENERIC        TME-Lite is not connected, or it replied with a
  *                            non-zero response code.
- *   TEE_ERROR_TIMEOUT        TME-Lite did not take the request or reply in
- *                            time.
+ *   TEE_ERROR_TIMEOUT        TME-Lite did not reply in time.
  *   TEE_ERROR_COMMUNICATION  mailbox failure or malformed reply.
  */
 TEE_Result tmel_com_client_send_message(uint32_t tme_msg_uid, uint32_t timeout,

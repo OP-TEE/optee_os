@@ -15,7 +15,6 @@
 #if defined(CFG_QCOM_MBOX)
 /* In bytes; at most QMP_LITE_MAX_MSG_SIZE (255) */
 #define TME_QMP_LITE_MBOX_SIZE		32U
-#define TME_QMP_LITE_CHANNEL_NAME	"tme-qmp-lite"
 #endif
 
 #define TMEL_COM_IPC_BUF_ADDR		(CFG_TZDRAM_START + CFG_TZDRAM_SIZE)

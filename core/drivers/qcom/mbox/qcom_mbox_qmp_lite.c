@@ -23,15 +23,16 @@
 
 #include <arm.h>
 #include <compiler.h>
+#include <drivers/mailbox_controller.h>
 #include <drivers/qcom/mbox/qcom_mbox.h>
 #include <io.h>
+#include <kernel/delay.h>
 #include <stdint.h>
 #include <string.h>
 #include <tee_api_types.h>
 #include <trace.h>
 #include <util.h>
 
-#include "qcom_mbox_private.h"
 #include "qcom_mbox_qmp_lite.h"
 
 #define QMP_LITE_LOCAL_LINK_STATE	BIT32(0)
@@ -46,10 +47,12 @@
 #define QMP_LITE_MSG_SIZE_SHIFT		16U
 #define QMP_LITE_MSG_SIZE_MASK		UINT32_C(0x00FF0000)
 
+#define QMP_LITE_CONNECT_TIMEOUT_US	1000000U
+
 static struct qcom_mbox_qmp_lite_priv *
-qmp_lite_priv(struct qcom_mbox_chan *chan)
+qmp_lite_priv(const struct mbox_chan *chan)
 {
-	return chan->transport_priv;
+	return mbox_controller_get_priv(chan->controller);
 }
 
 static __maybe_unused const char *
@@ -193,15 +196,13 @@ static bool tx_acked(const struct qcom_mbox_qmp_lite_priv *priv)
 	       ((priv->remote_desc & QMP_LITE_REMOTE_TX_ACK) != 0U);
 }
 
-static void qmp_lite_link_down(struct qcom_mbox_chan *chan,
-			       struct qcom_mbox_qmp_lite_priv *priv)
+static void qmp_lite_link_down(struct qcom_mbox_qmp_lite_priv *priv)
 {
 	priv->local_desc = 0U;
 	qmp_lite_publish(priv);
 	priv->state = QMP_LITE_STATE_LINK_DOWN;
 	priv->tx_pending = false;
 	priv->resync = false;
-	chan->mtu = 0U;
 	qmp_lite_signal_remote(priv->cfg);
 }
 
@@ -210,9 +211,7 @@ static void qmp_lite_link_down(struct qcom_mbox_chan *chan,
  * remote that de-asserts LINK_STATE has reset. Returns true if the link was
  * dropped (never in LINK_DOWN).
  */
-static bool qmp_lite_remote_reset(struct qcom_mbox_chan *chan,
-				  struct qcom_mbox_qmp_lite_priv *priv,
-				  uint32_t *events)
+static bool qmp_lite_remote_reset(struct qcom_mbox_qmp_lite_priv *priv)
 {
 	if (priv->state == QMP_LITE_STATE_LINK_DOWN ||
 	    (priv->remote_desc & QMP_LITE_LOCAL_LINK_STATE) != 0U)
@@ -220,10 +219,7 @@ static bool qmp_lite_remote_reset(struct qcom_mbox_chan *chan,
 
 	DMSG("qmp_lite: %s -> LINK_DOWN (remote reset)",
 	     qmp_lite_state_name(priv->state));
-	if (priv->state == QMP_LITE_STATE_E2E_CONNECTED)
-		*events |= QCOM_MBOX_EVT_REMOTE_RESET |
-			   QCOM_MBOX_EVT_DISCONNECTED;
-	qmp_lite_link_down(chan, priv);
+	qmp_lite_link_down(priv);
 	return true;
 }
 
@@ -278,25 +274,21 @@ static void handle_link_negotiation(struct qcom_mbox_qmp_lite_priv *priv,
 	}
 }
 
-static void handle_local_connecting(struct qcom_mbox_chan *chan,
-				    struct qcom_mbox_qmp_lite_priv *priv,
-				    const struct qcom_mbox_qmp_lite_config *cfg,
-				    uint32_t *events)
+static void handle_local_connecting(struct qcom_mbox_qmp_lite_priv *priv,
+				    const struct qcom_mbox_qmp_lite_config *cfg)
 {
 	bool updated = ack_if_changed(priv, QMP_LITE_LOCAL_CH_STATE,
 				      QMP_LITE_REMOTE_CH_STATE_ACK);
 
 	if ((priv->local_desc & QMP_LITE_REMOTE_CH_STATE_ACK) != 0U &&
 	    (priv->remote_desc & QMP_LITE_LOCAL_CH_STATE) != 0U) {
-		DMSG("qmp_lite: LOCAL_CONNECTING -> E2E_CONNECTED (mtu=%u)",
+		DMSG("qmp_lite: LOCAL_CONNECTING -> E2E_CONNECTED (size=%u)",
 		     cfg->local_mbox_size);
 		if (priv->resync) {
 			qmp_lite_resync_toggles(priv);
 			priv->resync = false;
 		}
 		priv->state = QMP_LITE_STATE_E2E_CONNECTED;
-		chan->mtu = cfg->local_mbox_size;
-		*events |= QCOM_MBOX_EVT_CONNECTED;
 		updated = true;
 	}
 	if (updated) {
@@ -305,10 +297,8 @@ static void handle_local_connecting(struct qcom_mbox_chan *chan,
 	}
 }
 
-static void handle_connected(struct qcom_mbox_chan *chan,
-			     struct qcom_mbox_qmp_lite_priv *priv,
-			     const struct qcom_mbox_qmp_lite_config *cfg,
-			     uint32_t *events)
+static void handle_connected(struct qcom_mbox_qmp_lite_priv *priv,
+			     const struct qcom_mbox_qmp_lite_config *cfg)
 {
 	bool updated = false;
 
@@ -317,53 +307,64 @@ static void handle_connected(struct qcom_mbox_chan *chan,
 		priv->state = QMP_LITE_STATE_LOCAL_CONNECTING;
 		priv->tx_pending = false;
 		priv->resync = true;
-		chan->mtu = 0U;
 		qmp_lite_resync_toggles(priv);
 		ack_bit(priv, QMP_LITE_LOCAL_CH_STATE,
 			QMP_LITE_REMOTE_CH_STATE_ACK);
-		*events |= QCOM_MBOX_EVT_DISCONNECTED;
 		qmp_lite_publish(priv);
 		qmp_lite_signal_remote(cfg);
 		return;
 	}
 
-	if (priv->tx_pending && tx_acked(priv)) {
+	if (priv->tx_pending && tx_acked(priv))
 		priv->tx_pending = false;
-		DMSG("qmp_lite: TX_DONE on '%s'", chan->name);
-		*events |= QCOM_MBOX_EVT_TX_DONE;
-	}
 
 	updated = ack_if_changed(priv, QMP_LITE_LOCAL_RX_DONE,
 				 QMP_LITE_REMOTE_RX_DONE_ACK);
-
-	if (bit_changed(priv, QMP_LITE_LOCAL_TX, QMP_LITE_REMOTE_TX_ACK)) {
-		DMSG("qmp_lite: RX_READY on '%s'", chan->name);
-		*events |= QCOM_MBOX_EVT_RX_READY;
-	}
-
 	if (updated) {
 		qmp_lite_publish(priv);
 		qmp_lite_signal_remote(cfg);
 	}
 }
 
-static TEE_Result qcom_mbox_qmp_lite_init(struct qcom_mbox_chan *chan)
+/* Run one step of the connection state machine */
+static void qmp_lite_process(struct qcom_mbox_qmp_lite_priv *priv)
 {
-	struct qcom_mbox_qmp_lite_priv *priv = NULL;
-	const struct qcom_mbox_qmp_lite_config *cfg = NULL;
+	const struct qcom_mbox_qmp_lite_config *cfg = priv->cfg;
 
-	priv = qmp_lite_priv(chan);
-	cfg = chan->transport_cfg;
-	if (!cfg || !priv ||
-	    cfg->local_desc_base == 0U || cfg->remote_desc_base == 0U)
-		return TEE_ERROR_BAD_PARAMETERS;
-	if (cfg->local_mbox_size == 0U ||
-	    cfg->remote_mbox_size == 0U ||
+	qmp_lite_update_remote(priv);
+
+	if (qmp_lite_remote_reset(priv))
+		return;
+
+	switch (priv->state) {
+	case QMP_LITE_STATE_LINK_DOWN:
+		handle_link_down(priv, cfg);
+		break;
+	case QMP_LITE_STATE_LINK_NEGOTIATION:
+		handle_link_negotiation(priv, cfg);
+		break;
+	case QMP_LITE_STATE_LOCAL_CONNECTING:
+		handle_local_connecting(priv, cfg);
+		break;
+	case QMP_LITE_STATE_E2E_CONNECTED:
+		handle_connected(priv, cfg);
+		break;
+	default:
+		break;
+	}
+}
+
+static TEE_Result qmp_lite_connect(struct qcom_mbox_qmp_lite_priv *priv)
+{
+	const struct qcom_mbox_qmp_lite_config *cfg = priv->cfg;
+	uint64_t timeout = 0;
+
+	if (!cfg || cfg->local_desc_base == 0U || cfg->remote_desc_base == 0U ||
+	    cfg->local_mbox_size == 0U || cfg->remote_mbox_size == 0U ||
 	    cfg->local_mbox_size > QMP_LITE_MAX_MSG_SIZE ||
 	    cfg->remote_mbox_size > QMP_LITE_MAX_MSG_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	priv->cfg = cfg;
 	priv->state = QMP_LITE_STATE_LINK_DOWN;
 	priv->local_desc = 0U;
 	priv->remote_desc = 0U;
@@ -376,145 +377,127 @@ static TEE_Result qcom_mbox_qmp_lite_init(struct qcom_mbox_chan *chan)
 	priv->state = QMP_LITE_STATE_LINK_NEGOTIATION;
 	qmp_lite_signal_remote(cfg);
 
-	return TEE_SUCCESS;
+	timeout = timeout_init_us(QMP_LITE_CONNECT_TIMEOUT_US);
+	do {
+		qmp_lite_process(priv);
+		if (priv->state == QMP_LITE_STATE_E2E_CONNECTED)
+			return TEE_SUCCESS;
+	} while (!timeout_elapsed(timeout));
+
+	EMSG("qmp_lite: no connection, state %s",
+	     qmp_lite_state_name(priv->state));
+	qmp_lite_link_down(priv);
+
+	return TEE_ERROR_TIMEOUT;
 }
 
-static void qcom_mbox_qmp_lite_deinit(struct qcom_mbox_chan *chan)
+static TEE_Result
+qmp_lite_request_channel(struct mbox_controller *controller,
+			 const uint32_t *args __unused, size_t args_count,
+			 struct mbox_chan **chan)
 {
-	struct qcom_mbox_qmp_lite_priv *priv = qmp_lite_priv(chan);
+	struct qcom_mbox_qmp_lite_priv *priv =
+		mbox_controller_get_priv(controller);
+	TEE_Result res = TEE_ERROR_GENERIC;
 
-	if (!priv || !priv->cfg)
-		return;
+	if (args_count)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	qmp_lite_link_down(chan, priv);
-	priv->cfg = NULL;
-}
-
-static TEE_Result qcom_mbox_qmp_lite_process(struct qcom_mbox_chan *chan,
-					     uint32_t *events)
-{
-	struct qcom_mbox_qmp_lite_priv *priv = qmp_lite_priv(chan);
-	const struct qcom_mbox_qmp_lite_config *cfg = NULL;
-
-	if (!priv->cfg)
-		return TEE_ERROR_GENERIC;
-
-	cfg = priv->cfg;
-	qmp_lite_update_remote(priv);
-
-	if (qmp_lite_remote_reset(chan, priv, events))
-		return TEE_SUCCESS;
-
-	switch (priv->state) {
-	case QMP_LITE_STATE_LINK_DOWN:
-		handle_link_down(priv, cfg);
-		break;
-	case QMP_LITE_STATE_LINK_NEGOTIATION:
-		handle_link_negotiation(priv, cfg);
-		break;
-	case QMP_LITE_STATE_LOCAL_CONNECTING:
-		handle_local_connecting(chan, priv, cfg, events);
-		break;
-	case QMP_LITE_STATE_E2E_CONNECTED:
-		handle_connected(chan, priv, cfg, events);
-		break;
-	default:
-		return TEE_ERROR_COMMUNICATION;
+	/*
+	 * A channel already granted is reported busy by the framework after
+	 * this returns, so its link must be left alone. A request is not
+	 * serialised against another one: the single consumer requests the
+	 * channel once, at boot.
+	 */
+	if (!priv->chan.requested) {
+		res = qmp_lite_connect(priv);
+		if (res)
+			return res;
 	}
 
+	*chan = &priv->chan;
+
 	return TEE_SUCCESS;
 }
 
-static TEE_Result qcom_mbox_qmp_lite_send(struct qcom_mbox_chan *chan,
-					  const void *buf, size_t len)
+static void qmp_lite_free_channel(struct mbox_chan *chan)
+{
+	qmp_lite_link_down(qmp_lite_priv(chan));
+}
+
+static TEE_Result qmp_lite_send_sync(const struct mbox_chan *chan, void *req)
 {
 	struct qcom_mbox_qmp_lite_priv *priv = qmp_lite_priv(chan);
-	const struct qcom_mbox_qmp_lite_config *cfg = NULL;
+	struct qcom_mbox_msg *msg = req;
 
-	if (!priv->cfg)
-		return TEE_ERROR_GENERIC;
+	if (!msg->buf || !msg->len)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	qmp_lite_process(priv);
+
 	if (priv->state != QMP_LITE_STATE_E2E_CONNECTED)
 		return TEE_ERROR_BAD_STATE;
 	if (priv->tx_pending)
 		return TEE_ERROR_BUSY;
-	if (len > priv->cfg->local_mbox_size)
+	if (msg->len > priv->cfg->local_mbox_size)
 		return TEE_ERROR_EXCESS_DATA;
 
-	cfg = priv->cfg;
-
-	qmp_lite_mbox_write(priv, buf, len);
+	qmp_lite_mbox_write(priv, msg->buf, msg->len);
 
 	priv->local_desc &= ~QMP_LITE_MSG_SIZE_MASK;
-	priv->local_desc |= (len << QMP_LITE_MSG_SIZE_SHIFT) &
+	priv->local_desc |= (msg->len << QMP_LITE_MSG_SIZE_SHIFT) &
 			    QMP_LITE_MSG_SIZE_MASK;
 	priv->local_desc ^= QMP_LITE_LOCAL_TX;
 	qmp_lite_publish(priv);
 
 	priv->tx_pending = true;
-	qmp_lite_signal_remote(cfg);
+	qmp_lite_signal_remote(priv->cfg);
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result qcom_mbox_qmp_lite_recv(struct qcom_mbox_chan *chan,
-					  void *buf, size_t *len)
+static TEE_Result qmp_lite_recv_sync(const struct mbox_chan *chan, void *req)
 {
 	struct qcom_mbox_qmp_lite_priv *priv = qmp_lite_priv(chan);
-	const struct qcom_mbox_qmp_lite_config *cfg = NULL;
+	struct qcom_mbox_msg *msg = req;
 	uint32_t msg_size = 0;
 
-	if (!priv->cfg)
-		return TEE_ERROR_GENERIC;
+	if (!msg->buf)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	qmp_lite_process(priv);
+
 	if (priv->state != QMP_LITE_STATE_E2E_CONNECTED)
-		return TEE_ERROR_NO_DATA;
-
-	cfg = priv->cfg;
-	qmp_lite_update_remote(priv);
-
+		return TEE_ERROR_BAD_STATE;
 	if (!bit_changed(priv, QMP_LITE_LOCAL_TX, QMP_LITE_REMOTE_TX_ACK))
 		return TEE_ERROR_NO_DATA;
 
 	msg_size = (priv->remote_desc & QMP_LITE_MSG_SIZE_MASK) >>
 		   QMP_LITE_MSG_SIZE_SHIFT;
 
-	if (msg_size == 0U || msg_size > cfg->remote_mbox_size) {
+	if (msg_size == 0U || msg_size > priv->cfg->remote_mbox_size) {
 		EMSG("qcom_mbox_qmp_lite: bad msg_size %u", msg_size);
 		return TEE_ERROR_COMMUNICATION;
 	}
-	if (msg_size > *len) {
-		*len = msg_size;
+	if (msg_size > msg->len) {
+		msg->len = msg_size;
 		return TEE_ERROR_SHORT_BUFFER;
 	}
 
-	qmp_lite_mbox_read(priv, buf, msg_size);
-	*len = msg_size;
+	qmp_lite_mbox_read(priv, msg->buf, msg_size);
+	msg->len = msg_size;
 
 	ack_bit(priv, QMP_LITE_LOCAL_TX, QMP_LITE_REMOTE_TX_ACK);
 	priv->local_desc ^= QMP_LITE_LOCAL_RX_DONE;
 	qmp_lite_publish(priv);
-	qmp_lite_signal_remote(cfg);
+	qmp_lite_signal_remote(priv->cfg);
 
 	return TEE_SUCCESS;
 }
 
-static bool qcom_mbox_qmp_lite_rx_pending(struct qcom_mbox_chan *chan)
-{
-	const struct qcom_mbox_qmp_lite_priv *priv = qmp_lite_priv(chan);
-	uint32_t remote_desc = 0;
-
-	if (!priv->cfg ||
-	    priv->state != QMP_LITE_STATE_E2E_CONNECTED)
-		return false;
-	remote_desc = io_read32(priv->cfg->remote_desc_base);
-	return ((remote_desc & QMP_LITE_LOCAL_TX) != 0U) !=
-	       ((priv->local_desc & QMP_LITE_REMOTE_TX_ACK) != 0U);
-}
-
-const struct qcom_mbox_ops qcom_mbox_qmp_lite_ops = {
-	.init = qcom_mbox_qmp_lite_init,
-	.deinit = qcom_mbox_qmp_lite_deinit,
-	.process = qcom_mbox_qmp_lite_process,
-	.send = qcom_mbox_qmp_lite_send,
-	.recv = qcom_mbox_qmp_lite_recv,
-	.rx_pending = qcom_mbox_qmp_lite_rx_pending,
+const struct mbox_controller_ops qcom_mbox_qmp_lite_ops = {
+	.request_channel = qmp_lite_request_channel,
+	.free_channel = qmp_lite_free_channel,
+	.send_sync = qmp_lite_send_sync,
+	.recv_sync = qmp_lite_recv_sync,
 };

@@ -26,6 +26,7 @@ CFG_CRYPTO ?= n
 CFG_QCOM_TMEL_COM ?= y
 ifeq ($(CFG_QCOM_TMEL_COM),y)
 $(call force,CFG_QCOM_MBOX,y,required by CFG_QCOM_TMEL_COM)
+$(call force,CFG_DRIVERS_MAILBOX,y,required by CFG_QCOM_MBOX)
 endif
 else
 # Only the default profile describes the platform in a DT
