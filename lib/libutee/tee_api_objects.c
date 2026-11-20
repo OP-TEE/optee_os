@@ -58,6 +58,8 @@ void TEE_GetObjectInfo(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo)
 	struct utee_object_info info = { };
 	TEE_Result res = TEE_SUCCESS;
 
+	__utee_check_out_annotation(objectInfo, sizeof(*objectInfo));
+
 	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
 
 	if (res != TEE_SUCCESS)
@@ -86,6 +88,8 @@ void __GP11_TEE_GetObjectInfo(TEE_ObjectHandle object,
 {
 	struct utee_object_info info = { };
 	TEE_Result res = TEE_SUCCESS;
+
+	__utee_check_out_annotation(objectInfo, sizeof(*objectInfo));
 
 	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
 
@@ -116,6 +120,8 @@ TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object,
 	struct utee_object_info info = { };
 	TEE_Result res = TEE_SUCCESS;
 
+	__utee_check_out_annotation(objectInfo, sizeof(*objectInfo));
+
 	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
 
 	if (res != TEE_SUCCESS &&
@@ -139,6 +145,8 @@ TEE_Result __GP11_TEE_GetObjectInfo1(TEE_ObjectHandle object,
 {
 	struct utee_object_info info = { };
 	TEE_Result res = TEE_SUCCESS;
+
+	__utee_check_out_annotation(objectInfo, sizeof(*objectInfo));
 
 	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
 
