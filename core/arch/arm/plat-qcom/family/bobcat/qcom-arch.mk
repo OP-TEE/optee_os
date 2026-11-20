@@ -11,3 +11,6 @@ endif
 
 CFG_PAS_MD_SLOTS ?= 1
 CFG_PAS_TA_HEAP_SIZE ?= (4 * 1024)
+
+# Secure memory for the IPC buffers shared with TME-Lite, right after TZDRAM
+CFG_TMEL_COM_IPCBUF_CARVEOUT_SIZE ?= 0x3000
