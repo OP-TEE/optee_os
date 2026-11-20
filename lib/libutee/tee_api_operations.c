@@ -493,7 +493,7 @@ TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle op,
 	max_key_count = (*size - sizeof(*op_info)) /
 			sizeof(TEE_OperationInfoKey);
 
-	TEE_MemFill(op_info, 0, *size);
+	memset(op_info, 0, *size);
 
 	/* Two keys flag (TEE_ALG_AES_XTS only) */
 	two_keys = op->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS;
@@ -1684,6 +1684,7 @@ TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
 		goto out;
 	}
 
+	__utee_check_inbuf_size_annotation(mac, macLen);
 	if (consttime_memcmp(mac, computed_mac, computed_mac_size) != 0) {
 		res = TEE_ERROR_MAC_INVALID;
 		goto out;

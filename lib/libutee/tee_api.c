@@ -609,16 +609,23 @@ const void *TEE_GetInstanceData(void)
 
 void TEE_MemMove(void *dest, const void *src, size_t size)
 {
+	__utee_check_outbuf_size_annotation(dest, size);
+	__utee_check_inbuf_size_annotation(src, size);
 	memmove(dest, src, size);
 }
 
 void __GP11_TEE_MemMove(void *dest, const void *src, uint32_t size)
 {
-	TEE_MemMove(dest, src, size);
+	/* GP 1.1 requires read and write access to dest. */
+	__utee_check_inoutbuf_size_annotation(dest, size);
+	__utee_check_inbuf_size_annotation(src, size);
+	memmove(dest, src, size);
 }
 
 int32_t TEE_MemCompare(const void *buffer1, const void *buffer2, size_t size)
 {
+	__utee_check_inbuf_size_annotation(buffer1, size);
+	__utee_check_inbuf_size_annotation(buffer2, size);
 	return consttime_memcmp(buffer1, buffer2, size);
 }
 
@@ -630,6 +637,7 @@ int32_t __GP11_TEE_MemCompare(const void *buffer1, const void *buffer2,
 
 void TEE_MemFill(void *buff, uint32_t x, size_t size)
 {
+	__utee_check_outbuf_size_annotation(buff, size);
 	memset(buff, x, size);
 }
 
