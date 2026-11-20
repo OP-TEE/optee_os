@@ -1023,6 +1023,14 @@ CFG_DRIVERS_GPIO ?= n
 # When enabled, CFG_DRIVERS_I2C provides I2C controller and devices support.
 CFG_DRIVERS_I2C ?= n
 
+# Transport-independent modern Virtio driver and device support.
+CFG_VIRTIO ?= n
+CFG_VIRTIO_DRIVER ?= n
+$(eval $(call cfg-depends-all,CFG_VIRTIO_DRIVER,CFG_VIRTIO))
+
+CFG_VIRTIO_DEVICE ?= n
+$(eval $(call cfg-depends-all,CFG_VIRTIO_DEVICE,CFG_VIRTIO))
+
 # When enabled, CFG_DRIVERS_NVMEM provides a framework to register nvmem
 # providers and allow consumer drivers to get NVMEM cells using the Device Tree.
 CFG_DRIVERS_NVMEM ?= n
