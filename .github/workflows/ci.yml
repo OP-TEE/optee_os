@@ -239,6 +239,7 @@ jobs:
             make_commands: |
               _make PLATFORM=qcom-agatti
               _make PLATFORM=qcom-cacao
+              _make PLATFORM=qcom-eliza
               _make PLATFORM=qcom-ipq52xx
               _make PLATFORM=qcom-ipq52xx CFG_QCOM_LM_PROFILE=y
               _make PLATFORM=qcom-ipq96xx

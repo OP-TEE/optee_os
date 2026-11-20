@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+
+/ {
+	compatible = "qcom,eliza-cqs-evk-emmc", "qcom,eliza-cqs-evk",
+		     "qcom,eliza-cqs-som-emmc", "qcom,eliza-cqs-som",
+		     "qcom,eliza";
+	model = "Qualcomm Technologies, Inc. Eliza CQS EVK (eMMC)";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x80000000>,
+		      <0x8 0x80000000 0x7 0x80000000>;
+	};
+};
