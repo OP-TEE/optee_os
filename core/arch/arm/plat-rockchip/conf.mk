@@ -203,6 +203,15 @@ CFG_RK_SECURE_BOOT ?= y
 # potentially brick your device.
 CFG_RK_SECURE_BOOT_SIMULATION ?= y
 
+# Program a TRNG-generated HUK into the secure OTP on the first boot of a
+# blank device. Irreversible, so off by default: a blank device then has no
+# HUK, or the all-zero test key with CFG_INSECURE=y.
+CFG_ROCKCHIP_HUK_PROVISION ?= n
+# CFG_INSECURE is unset here when left at its default (y)
+ifeq ($(CFG_ROCKCHIP_HUK_PROVISION)-$(filter n,$(CFG_INSECURE)),y-)
+$(warning CFG_ROCKCHIP_HUK_PROVISION=y with CFG_INSECURE=y burns a permanent HUK from an insecure build)
+endif
+
 CFG_TZDRAM_START ?= 0x30000000
 CFG_TZDRAM_SIZE ?= 0x02000000
 CFG_SHMEM_START ?= 0x32000000

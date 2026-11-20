@@ -217,6 +217,8 @@ static TEE_Result persist_huk(struct tee_hw_unique_key *hwkey)
 	/* Write the new HUK into OTP at ROCKCHIP_OTP_HUK_INDEX */
 	res = rockchip_otp_write_secure(buffer, ROCKCHIP_OTP_HUK_INDEX,
 					ROCKCHIP_OTP_HUK_SIZE);
+	if (res == TEE_SUCCESS)
+		IMSG("HUK: new key generated and programmed in OTP");
 
 	/* Clear buffer memory */
 	memzero_explicit(buffer, sizeof(buffer));
@@ -279,14 +281,23 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 
 	/* Try to read and cache the HUK persisted in the OTP */
 	res = read_huk(huk);
-	if (res != TEE_ERROR_NO_DATA)
-		goto out;
-
-	/* Try to generate and use a new HUK and persist it in the OTP */
-	res = generate_huk(huk);
-	if (res != TEE_SUCCESS)
-		goto out;
-	res = persist_huk(huk);
+	if (res == TEE_SUCCESS) {
+		DMSG("HUK: using the key programmed in OTP");
+	} else if (res != TEE_ERROR_NO_DATA) {
+		EMSG("HUK: reading the OTP failed: %#"PRIx32, res);
+	} else if (IS_ENABLED(CFG_ROCKCHIP_HUK_PROVISION)) {
+		/* Generate a new HUK and persist it in the OTP */
+		res = generate_huk(huk);
+		if (res == TEE_SUCCESS)
+			res = persist_huk(huk);
+	} else if (IS_ENABLED(CFG_INSECURE)) {
+		EMSG("HUK: OTP holds no key and programming it is disabled");
+		EMSG("HUK: using an all-zero test key, storage is NOT secure");
+		memset(huk->data, 0, sizeof(huk->data));
+		res = TEE_SUCCESS;
+	} else {
+		EMSG("HUK: OTP holds no key and programming it is disabled");
+	}
 
 out:
 	if (res == TEE_SUCCESS) {
