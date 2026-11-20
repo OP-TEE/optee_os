@@ -265,6 +265,7 @@ struct rpmb_dev_info {
  * @wr_cnt           Current write counter.
  * @max_blk_idx      The highest block index supported by current device.
  * @rel_wr_blkcnt    Max number of data blocks for each reliable write.
+ * @max_rd_blkcnt    UFS read limit in data blocks, zero for eMMC.
  * @dev_type         Kind of RPMB device in use (OPTEE_RPC_RPMB_*).
  * @dev_id           Device ID of the eMMC device.
  * @wr_cnt_synced    Flag indicating if write counter is synced to RPMB.
@@ -281,6 +282,7 @@ struct tee_rpmb_ctx {
 	uint32_t wr_cnt;
 	uint16_t max_blk_idx;
 	uint16_t rel_wr_blkcnt;
+	uint16_t max_rd_blkcnt;
 	uint8_t dev_type;
 	uint16_t dev_id;
 	bool wr_cnt_synced;
@@ -1169,6 +1171,11 @@ static TEE_Result rpmb_set_dev_info(const struct rpmb_dev_info *dev_info)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	memcpy(rpmb_ctx->cid, dev_info->cid, RPMB_CID_SIZE);
+	/* UFS bRPMB_ReadWriteSize limits reads as well as reliable writes. */
+	if (rpmb_ctx->dev_type == OPTEE_RPC_RPMB_UFS)
+		rpmb_ctx->max_rd_blkcnt = MAX(dev_info->rel_wr_sec_c, 1);
+	else
+		rpmb_ctx->max_rd_blkcnt = 0;
 
 	if (IS_ENABLED(CFG_RPMB_DRIVER_MULTIPLE_WRITE_FIXED)) {
 		/*
@@ -1407,16 +1414,15 @@ TEE_Result tee_rpmb_reinit(void)
 }
 
 /*
- * Read RPMB data in bytes.
+ * Read RPMB data in bytes with a single authenticated read request.
  *
- * @addr       Byte address of data.
- * @data       Pointer to the data.
- * @len        Size of data in bytes.
- * @fek        Encrypted File Encryption Key or NULL.
+ * Only called by tee_rpmb_read(), which initializes the device and
+ * guarantees that @len is non-zero, that the range is within the device
+ * and that it spans no more blocks than one request may carry.
  */
-static TEE_Result tee_rpmb_read(uint32_t addr, uint8_t *data,
-				uint32_t len, const uint8_t *fek,
-				const TEE_UUID *uuid)
+static TEE_Result tee_rpmb_read_chunk(uint32_t addr, uint8_t *data,
+				      uint32_t len, const uint8_t *fek,
+				      const TEE_UUID *uuid)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct tee_rpmb_mem mem = { 0 };
@@ -1428,20 +1434,9 @@ static TEE_Result tee_rpmb_read(uint32_t addr, uint8_t *data,
 	uint16_t blkcnt;
 	uint8_t byte_offset;
 
-	if (!data || !len)
-		return TEE_ERROR_BAD_PARAMETERS;
-
 	blk_idx = addr / RPMB_DATA_SIZE;
 	byte_offset = addr % RPMB_DATA_SIZE;
-
-	if (len + byte_offset + RPMB_DATA_SIZE < RPMB_DATA_SIZE) {
-		/* Overflow */
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
 	blkcnt = ROUNDUP_DIV(len + byte_offset, RPMB_DATA_SIZE);
-	res = tee_rpmb_init();
-	if (res != TEE_SUCCESS)
-		return res;
 
 	res = tee_rpmb_alloc(RPMB_DATA_FRAME_SIZE,
 			     RPMB_DATA_FRAME_SIZE * blkcnt, &mem);
@@ -1457,6 +1452,9 @@ static TEE_Result tee_rpmb_read(uint32_t addr, uint8_t *data,
 	rawdata.msg_type = msg_type;
 	rawdata.nonce = nonce;
 	rawdata.blk_idx = &blk_idx;
+	/* UFS takes the read count from the frame, not an eMMC command. */
+	if (rpmb_ctx->dev_type == OPTEE_RPC_RPMB_UFS)
+		rawdata.block_count = &blkcnt;
 	res = tee_rpmb_req_pack(mem.req_hdr, mem.req_data, &rawdata, 1, NULL,
 				NULL);
 	if (res != TEE_SUCCESS)
@@ -1487,6 +1485,62 @@ static TEE_Result tee_rpmb_read(uint32_t addr, uint8_t *data,
 
 	return tee_rpmb_resp_unpack_verify(mem.resp_data, &rawdata, blkcnt,
 					   fek, uuid);
+}
+
+/*
+ * Read RPMB data in bytes.
+ *
+ * @addr       Byte address of data.
+ * @data       Pointer to the data.
+ * @len        Size of data in bytes.
+ * @fek        Encrypted File Encryption Key or NULL.
+ * @uuid       UUID of the TA owning the data, used with @fek.
+ *
+ * The read is split into requests of at most max_rd_blkcnt blocks on UFS,
+ * and of at most UINT16_MAX blocks (the frame block count width) on eMMC.
+ */
+static TEE_Result tee_rpmb_read(uint32_t addr, uint8_t *data, uint32_t len,
+				const uint8_t *fek, const TEE_UUID *uuid)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t max_blkcnt = 0;
+
+	if (!data || !len || len - 1 > UINT32_MAX - addr)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = tee_rpmb_init();
+	if (res)
+		return res;
+
+	/*
+	 * Requests carry a 16-bit start index and are only range checked
+	 * at their first block, so check the end of the whole read here.
+	 * Otherwise a chunk starting past the device end would wrap to
+	 * block 0.
+	 */
+	if ((addr + len - 1) / RPMB_DATA_SIZE > rpmb_ctx->max_blk_idx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	max_blkcnt = rpmb_ctx->max_rd_blkcnt;
+	if (!max_blkcnt)
+		max_blkcnt = UINT16_MAX;
+
+	while (len) {
+		uint32_t n = MIN(len, max_blkcnt * RPMB_DATA_SIZE -
+				      addr % RPMB_DATA_SIZE);
+
+		/*
+		 * Each chunk has its own nonce, response MAC and block count.
+		 */
+		res = tee_rpmb_read_chunk(addr, data, n, fek, uuid);
+		if (res)
+			return res;
+		addr += n;
+		data += n;
+		len -= n;
+	}
+
+	return TEE_SUCCESS;
 }
 
 static TEE_Result write_req(uint16_t blk_idx,
