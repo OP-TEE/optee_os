@@ -104,4 +104,8 @@ thread_spmc_get_protmem_config(enum mobj_use_case use_case __unused,
 }
 #endif /*CFG_CORE_DYN_PROTMEM*/
 
+/* OPTEE_FFA_FW_SMMU_INFO, @out is w4..w7 of the response */
+TEE_Result optee_ffa_fw_smmu_info(uint32_t version, uint32_t smmu,
+				  uint32_t entry, uint32_t out[4]);
+
 #endif /* __KERNEL_THREAD_SPMC_H */

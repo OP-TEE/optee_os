@@ -820,6 +820,26 @@ static uint32_t handle_unregister_shm(uint32_t a4, uint32_t a5)
 	}
 }
 
+TEE_Result __weak optee_ffa_fw_smmu_info(uint32_t version __unused,
+					 uint32_t smmu __unused,
+					 uint32_t entry __unused,
+					 uint32_t out[4] __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static void handle_fw_smmu_info(struct thread_smc_1_2_regs *args)
+{
+	uint32_t out[4] = { };
+	TEE_Result res = optee_ffa_fw_smmu_info(args->a4, args->a5, args->a6,
+						out);
+
+	spmc_set_args(args, get_direct_resp_fid(args->a0),
+		      swap_src_dst(args->a1), 0, res, out[0], out[1]);
+	args->a6 = out[2];
+	args->a7 = out[3];
+}
+
 static void handle_blocking_call(struct thread_smc_1_2_regs *args)
 {
 	uint32_t direct_resp_fid = get_direct_resp_fid(args->a0);
@@ -859,6 +879,9 @@ static void handle_blocking_call(struct thread_smc_1_2_regs *args)
 			      spmc_enable_async_notif(args->a4,
 						      FFA_SRC(args->a1)),
 			      0, 0);
+		break;
+	case OPTEE_FFA_FW_SMMU_INFO:
+		handle_fw_smmu_info(args);
 		break;
 #ifdef CFG_CORE_DYN_PROTMEM
 	case OPTEE_FFA_RELEASE_PROTMEM:
@@ -982,6 +1005,8 @@ optee_spmc_lsp_handle_direct_request(struct thread_smc_1_2_regs *args,
 
 	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK)
 		handle_framework_direct_request(args);
+	else if (args->a3 == OPTEE_FFA_FW_SMMU_INFO)
+		handle_fw_smmu_info(args);
 	else
 		set_simple_ret_val(args, FFA_INVALID_PARAMETERS);
 }
