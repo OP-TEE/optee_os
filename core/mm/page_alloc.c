@@ -7,6 +7,7 @@
 #include <kernel/panic.h>
 #include <malloc.h>
 #include <mm/core_mmu.h>
+#include <mm/mobj.h>
 #include <mm/page_alloc.h>
 #include <mm/phys_mem.h>
 #include <mm/tee_mm.h>
@@ -42,13 +43,14 @@ void page_alloc_init(void)
 		       MEM_AREA_TEE_DYN_VASPACE);
 }
 
-vaddr_t virt_page_alloc(size_t count, uint32_t flags)
+static vaddr_t page_alloc(size_t count, uint32_t flags, struct mobj **ret_mobj)
 {
 	enum teecore_memtypes memtype = 0;
 	TEE_Result res = TEE_SUCCESS;
 	tee_mm_pool_t *pool = NULL;
 	tee_mm_entry_t *mmv = NULL;
 	tee_mm_entry_t *mmp = NULL;
+	struct mobj *mobj = NULL;
 	size_t vcount = count;
 	size_t pcount = count;
 	vaddr_t va = 0;
@@ -81,17 +83,46 @@ vaddr_t virt_page_alloc(size_t count, uint32_t flags)
 	pa = tee_mm_get_smem(mmp);
 	assert(pa);
 
+	if (ret_mobj) {
+		mobj = mobj_phys_alloc_flags(va, pa, pcount * SMALL_PAGE_SIZE,
+					     memtype, CORE_MEM_TEE_RAM, flags);
+		if (!mobj)
+			goto err_mm_free;
+	}
+
 	res = core_mmu_map_contiguous_pages(va, pa, pcount, memtype);
 	if (res)
-		goto err;
+		goto err_mobj_put;
 
 	if (flags & MAF_ZERO_INIT)
 		memset((void *)va, 0, pcount * SMALL_PAGE_SIZE);
 
+	if (ret_mobj)
+		*ret_mobj = mobj;
+
 	return va;
-err:
+
+err_mobj_put:
+	mobj_put(mobj);
+err_mm_free:
 	tee_mm_free(mmp);
 err_free_mmv:
 	tee_mm_free(mmv);
 	return 0;
+}
+
+vaddr_t virt_page_alloc(size_t count, uint32_t flags)
+{
+	return page_alloc(count, flags, NULL);
+}
+
+struct mobj *mobj_page_alloc(size_t count, uint32_t flags)
+{
+	struct mobj *m = NULL;
+	vaddr_t va = 0;
+
+	va = page_alloc(count, flags, &m);
+	if (!va)
+		return NULL;
+	return m;
 }

@@ -14,6 +14,18 @@
 #include <string.h>
 #include <util.h>
 
+#ifdef CFG_WITH_PAGER
+#include <mm/tee_pager.h>
+#endif
+
+static inline void pager_add_pages(vaddr_t vaddr __maybe_unused,
+				   size_t npages __maybe_unused)
+{
+#ifdef CFG_WITH_PAGER
+	tee_pager_add_pages(vaddr, npages, true);
+#endif
+}
+
 /*
  * struct boot_mem_reloc - Pointers relocated in memory during boot
  * @ptrs: Array of relocation
@@ -44,6 +56,7 @@ struct boot_mem_padding {
  * @orig_mem_end: Boot memory start end address
  * @mem_start: Boot memory free space start address
  * @mem_end: Boot memory free space end address
+ * @final_mem_start: Final @mem_start before end of boot_mem_release_unused()
  * @reloc: Boot memory pointers requiring relocation
  * @padding: Linked list of unused memory between allocated blocks
  */
@@ -52,6 +65,7 @@ struct boot_mem_desc {
 	vaddr_t orig_mem_end;
 	vaddr_t mem_start;
 	vaddr_t mem_end;
+	vaddr_t final_mem_start;
 	struct boot_mem_reloc *reloc;
 	struct boot_mem_padding *padding;
 };
@@ -66,7 +80,7 @@ static void *mem_alloc_tmp(struct boot_mem_desc *desc, size_t len, size_t align)
 		align = MAX(align, ASAN_BLOCK_SIZE);
 
 	assert(desc && desc->mem_start && desc->mem_end);
-	assert(IS_POWER_OF_TWO(align) && !(len % align));
+	assert(IS_POWER_OF_TWO(align));
 	if (SUB_OVERFLOW(desc->mem_end, len, &va))
 		panic();
 	va = ROUNDDOWN2(va, align);
@@ -107,9 +121,8 @@ static void *mem_alloc(struct boot_mem_desc *desc, size_t len, size_t align)
 	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
 		align = MAX(align, ASAN_BLOCK_SIZE);
 
-	runtime_assert(!IS_ENABLED(CFG_WITH_PAGER));
 	assert(desc && desc->mem_start && desc->mem_end);
-	assert(IS_POWER_OF_TWO(align) && !(len % align));
+	assert(IS_POWER_OF_TWO(align));
 	va = ROUNDUP2(desc->mem_start, align);
 	if (ADD_OVERFLOW(va, len, &ve))
 		panic();
@@ -299,8 +312,17 @@ vaddr_t boot_mem_release_unused(void)
 	     (size_t)(boot_mem_desc->orig_mem_end - boot_mem_desc->mem_end),
 	     boot_mem_desc->mem_end);
 
-	if (IS_ENABLED(CFG_WITH_PAGER))
+	va = ROUNDUP(boot_mem_desc->mem_start, SMALL_PAGE_SIZE);
+	tmp_va = ROUNDDOWN(boot_mem_desc->mem_end, SMALL_PAGE_SIZE);
+
+	if (IS_ENABLED(CFG_WITH_PAGER)) {
+		if (tmp_va > va) {
+			n = tmp_va - va;
+			DMSG("Releasing %zu bytes from va %#"PRIxVA, n, va);
+			pager_add_pages(va, n / SMALL_PAGE_SIZE);
+		}
 		goto out;
+	}
 
 	pa = vaddr_to_phys(ROUNDUP(boot_mem_desc->orig_mem_start,
 				   SMALL_PAGE_SIZE));
@@ -308,9 +330,6 @@ vaddr_t boot_mem_release_unused(void)
 	if (!mm)
 		panic();
 
-	va = ROUNDUP(boot_mem_desc->mem_start, SMALL_PAGE_SIZE);
-
-	tmp_va = ROUNDDOWN(boot_mem_desc->mem_end, SMALL_PAGE_SIZE);
 	tmp_n = boot_mem_desc->orig_mem_end - tmp_va;
 	tmp_pa = vaddr_to_phys(tmp_va);
 
@@ -332,6 +351,7 @@ vaddr_t boot_mem_release_unused(void)
 	core_mmu_unmap_pages(va, n / SMALL_PAGE_SIZE);
 
 out:
+	boot_mem_desc->final_mem_start = boot_mem_desc->mem_start;
 	/* Stop further allocations. */
 	boot_mem_desc->mem_start = boot_mem_desc->mem_end;
 	return va;
@@ -340,6 +360,7 @@ out:
 void boot_mem_release_tmp_alloc(void)
 {
 	tee_mm_entry_t *mm = NULL;
+	vaddr_t tmp_va = 0;
 	vaddr_t va = 0;
 	paddr_t pa = 0;
 	size_t n = 0;
@@ -347,15 +368,21 @@ void boot_mem_release_tmp_alloc(void)
 	assert(boot_mem_desc &&
 	       boot_mem_desc->mem_start == boot_mem_desc->mem_end);
 
+	va = MAX(ROUNDDOWN(boot_mem_desc->mem_end, SMALL_PAGE_SIZE),
+		 ROUNDUP(boot_mem_desc->final_mem_start, SMALL_PAGE_SIZE));
 	if (IS_ENABLED(CFG_WITH_PAGER)) {
-		n = boot_mem_desc->orig_mem_end - boot_mem_desc->mem_end;
-		va = boot_mem_desc->mem_end;
+		tmp_va = ROUNDDOWN(boot_mem_desc->orig_mem_end,
+				   SMALL_PAGE_SIZE);
+		if (tmp_va > va) {
+			n = tmp_va - va;
+			DMSG("Releasing %zu bytes from va %#"PRIxVA, n, va);
+			pager_add_pages(va, n / SMALL_PAGE_SIZE);
+		}
+
 		boot_mem_desc = NULL;
-		DMSG("Releasing %zu bytes from va %#"PRIxVA, n, va);
 		return;
 	}
 
-	va = ROUNDDOWN(boot_mem_desc->mem_end, SMALL_PAGE_SIZE);
 	pa = vaddr_to_phys(va);
 
 	mm = nex_phys_mem_mm_find(pa);
