@@ -52,4 +52,18 @@ TEE_Result caam_mp_sign(uint8_t *data, size_t *data_size, uint8_t *sig,
 TEE_Result caam_dek_generate(const uint8_t *payload, size_t payload_size,
 			     uint8_t *dek, size_t dek_size);
 #endif /* CFG_NXP_CAAM_DEK_DRV */
+
+/*
+ * Wrap a plain key into a serialized CAAM black key: a CAAM black key in
+ * a CAAM blob, the form the CAAM crypto driver accepts as the private key
+ * of an asymmetric key. The CAAM does the wrapping; the caller is expected
+ * to discard the plain key afterwards.
+ *
+ * @key        Plain key
+ * @key_size   Size of @key in bytes
+ * @out        Output buffer, may be NULL to query the size
+ * @out_size   [in/out] Size of @out, set to the serialized key size
+ */
+TEE_Result caam_key_wrap_black(const uint8_t *key, size_t key_size,
+			       uint8_t *out, size_t *out_size);
 #endif /* __DRIVERS_CAAM_EXTENSION_H__ */

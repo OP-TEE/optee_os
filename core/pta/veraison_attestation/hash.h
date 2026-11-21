@@ -11,5 +11,6 @@
 #include <tee_api.h>
 
 TEE_Result get_hash_ta_memory(uint8_t out[TEE_SHA256_HASH_SIZE]);
+TEE_Result get_hash_tee_memory(uint8_t out[TEE_SHA256_HASH_SIZE]);
 
 #endif /* PTA_VERAISON_ATTESTATION_HASH_H */
