@@ -88,7 +88,7 @@ END_FUNC vector_cpu_on_entry
 
 LOCAL_FUNC vector_cpu_off_entry , : , .identity_map
 	readjust_pc
-	bl	thread_cpu_off_handler
+	bl	thread_cpu_off
 	mov	x1, x0
 	ldr	x0, =TEESMC_OPTEED_RETURN_OFF_DONE
 	smc	#0
@@ -98,7 +98,7 @@ END_FUNC vector_cpu_off_entry
 
 LOCAL_FUNC vector_cpu_suspend_entry , : , .identity_map
 	readjust_pc
-	bl	thread_cpu_suspend_handler
+	bl	thread_cpu_suspend
 	mov	x1, x0
 	ldr	x0, =TEESMC_OPTEED_RETURN_SUSPEND_DONE
 	smc	#0
@@ -108,7 +108,7 @@ END_FUNC vector_cpu_suspend_entry
 
 LOCAL_FUNC vector_cpu_resume_entry , : , .identity_map
 	readjust_pc
-	bl	thread_cpu_resume_handler
+	bl	thread_cpu_resume
 	mov	x1, x0
 	ldr	x0, =TEESMC_OPTEED_RETURN_RESUME_DONE
 	smc	#0

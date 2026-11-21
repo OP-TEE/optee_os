@@ -130,5 +130,7 @@ void callout_service_init(const struct callout_timer_desc *desc);
  * Called from interrupt service function for the timer.
  */
 void callout_service_cb(void);
+void callout_service_suspend(void);
+void callout_service_resume(void);
 
 #endif /*__KERNEL_CALLOUT_H*/
