@@ -288,6 +288,10 @@ static void handle_features(struct thread_smc_1_2_regs *args)
 	case FFA_MEM_SHARE_64:
 #endif
 	case FFA_MEM_SHARE_32:
+#ifdef ARM64
+	case FFA_MEM_LEND_64:
+#endif
+	case FFA_MEM_LEND_32:
 		ret_fid = FFA_SUCCESS_32;
 		/*
 		 * Partition manager supports transmission of a memory
