@@ -2592,6 +2592,11 @@ static struct spmc_lsp_desc optee_core_lsp __nex_data = {
 	.uuid_words = { 0xe0786148, 0xe311f8e7, 0x02005ebc, 0x1bc5d5a5, },
 };
 
+uint16_t spmc_own_ffa_id(void)
+{
+	return optee_core_lsp.sp_id;
+}
+
 #if defined(CFG_CORE_SEL1_SPMC)
 static struct spmc_lsp_desc optee_spmc_lsp __nex_data = {
 	.name = "OP-TEE SPMC",
