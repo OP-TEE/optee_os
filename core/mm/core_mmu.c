@@ -516,6 +516,10 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 			carve_out_phys_mem(&m, &num_elems, mem_map->map[n].pa,
 					   mem_map->map[n].size);
 			break;
+		case MEM_AREA_TRANSFER_LIST:
+			carve_out_phys_mem(&m, &num_elems, mem_map->map[n].pa,
+					   mem_map->map[n].size);
+			break;
 		case MEM_AREA_EXT_DT:
 		case MEM_AREA_MANIFEST_DT:
 		case MEM_AREA_RAM_NSEC:
