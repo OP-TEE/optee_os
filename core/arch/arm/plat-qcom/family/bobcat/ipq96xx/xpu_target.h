@@ -15,30 +15,15 @@
 /* Only secure APPS may write the DIAG log */
 #define DIAG_XPU_WRITE_QAD		QAD_APPS_SEC
 
-/* MACHX_LLCC_MPU: resource groups 30..39 are free for runtime allocation */
-#define DDR_MPU_BASE			UL(0x4060000)
-/* It is programmed with the physical addresses of the DRAM */
-#define DDR_MPU_ADDR_LOW(pa)		(pa)
-#define DDR_MPU_ADDR_HIGH(pa)		(pa)
-#define DDR_XPU_RG_START		UL(30)
-#define DDR_XPU_RG_COUNT		UL(10)
+/* The compatibles of the XPU nodes of this SoC in the DT */
+#define XPU_DDR_COMPAT			"qcom,ipq9650-xpu4-ddr"
+#define XPU_IMEM_COMPAT			"qcom,ipq9650-xpu4-imem"
 
-/* Convert a physical DRAM address into the address the DDR MPU uses */
+/* The DDR MPU is programmed with the physical addresses of the DRAM */
 static inline paddr_t ddr_mpu_addr(paddr_t pa)
 {
 	return pa;
 }
-
-/*
- * OCIMEM_MPU register window. The base is well below CORE_MMU_PGDIR_SIZE,
- * so a pgdir-granularity mapping would round it down to address 0 and a
- * small explicit range is mapped instead. Resource groups 6..9 are free
- * for runtime allocation.
- */
-#define IMEM_MPU_BASE			UL(0x54000)
-#define IMEM_MPU_MAP_SIZE		(2 * SMALL_PAGE_SIZE)
-#define IMEM_XPU_RG_START		UL(6)
-#define IMEM_XPU_RG_COUNT		UL(4)
 
 /*
  * AP (secure + non-secure), TME ROM, debug, AP boot loader, modem, and
