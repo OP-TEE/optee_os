@@ -157,6 +157,8 @@ TEE_Result pas_platform_init_image(uint32_t pas_id,
 	data->fw_base = fw_base;
 	data->fw_size = fw_size;
 	data->relocatable = pas_elf_is_relocatable(metadata->data, &e_info);
+	if (subsys->ops->fw_init_image)
+		res = subsys->ops->fw_init_image(data, metadata, &e_info);
 out:
 	return res;
 }
@@ -186,16 +188,52 @@ TEE_Result pas_platform_mem_setup(uint32_t pas_id, uint32_t fw_size,
 	return TEE_SUCCESS;
 }
 
+/*
+ * A @size smaller than the table returns TEE_SUCCESS with the size it needs,
+ * so that the caller can retry with a large enough buffer.
+ */
 TEE_Result pas_platform_get_resource_table(uint32_t pas_id,
 					   struct resource_table *rt,
 					   size_t *size)
 {
 	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
+	const struct fw_rsc_hdr hdr = { .type = RSC_DEVMEM };
+	const struct qcom_pas_ops *ops = NULL;
+	size_t table_size = 0;
+	size_t offset = 0;
+	uint8_t *p = NULL;
 
-	if (!subsys || !subsys->ops->get_resource_table)
+	if (!subsys || !subsys->ops->devmem)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	return subsys->ops->get_resource_table(rt, size);
+	ops = subsys->ops;
+	offset = sizeof(*rt) + ops->devmem_num * sizeof(rt->offset[0]);
+	table_size = offset + ops->devmem_num *
+		     (sizeof(hdr) + sizeof(*ops->devmem));
+
+	if (size && *size < table_size) {
+		*size = table_size;
+		return TEE_SUCCESS;
+	}
+
+	if (!rt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	p = (uint8_t *)rt;
+	for (size_t i = 0; i < ops->devmem_num; i++) {
+		rt->offset[i] = offset;
+		memcpy(p + offset, &hdr, sizeof(hdr));
+		offset += sizeof(hdr);
+		memcpy(p + offset, ops->devmem + i, sizeof(*ops->devmem));
+		offset += sizeof(*ops->devmem);
+	}
+
+	rt->ver = 1;
+	rt->num = ops->devmem_num;
+	rt->reserved[0] = 0;
+	rt->reserved[1] = 0;
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result pas_platform_set_remote_state(uint32_t pas_id, uint32_t state)
@@ -208,6 +246,14 @@ TEE_Result pas_platform_set_remote_state(uint32_t pas_id, uint32_t state)
 	return subsys->ops->fw_set_state(&subsys->data, state);
 }
 
+static TEE_Result pas_fw_shutdown(struct qcom_pas_subsys *subsys)
+{
+	if (subsys->ops->fw_shutdown)
+		return subsys->ops->fw_shutdown(&subsys->data);
+
+	return qcom_clock_pas_reset(subsys->data.clk_group);
+}
+
 /*
  * Once fw_start() has run, a failed start may leave the core running, and
  * Linux releases the firmware memory without stopping it: put the subsystem
@@ -217,7 +263,7 @@ static TEE_Result pas_clk_start(struct qcom_pas_subsys *subsys)
 {
 	struct qcom_pas_data *data = &subsys->data;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	TEE_Result rc = TEE_ERROR_NOT_SUPPORTED;
+	TEE_Result rc = TEE_ERROR_GENERIC;
 
 	res = qcom_clock_enable(data->clk_group);
 	if (res)
@@ -236,8 +282,7 @@ static TEE_Result pas_clk_start(struct qcom_pas_subsys *subsys)
 	return TEE_SUCCESS;
 
 err:
-	if (subsys->ops->fw_shutdown)
-		rc = subsys->ops->fw_shutdown(data);
+	rc = pas_fw_shutdown(subsys);
 	if (rc)
 		EMSG("PAS %#"PRIx32": reset after start error %#"PRIx32
 		     " failed: %#"PRIx32, data->pas_id, res, rc);
@@ -291,7 +336,7 @@ TEE_Result pas_platform_shutdown(uint32_t pas_id)
 	struct qcom_pas_subsys *dependent = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	if (!subsys || !subsys->ops->fw_shutdown)
+	if (!subsys)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	dependent = qcom_pas_loaded_dependent(pas_id);
@@ -301,7 +346,7 @@ TEE_Result pas_platform_shutdown(uint32_t pas_id)
 		return TEE_ERROR_BAD_STATE;
 	}
 
-	res = subsys->ops->fw_shutdown(&subsys->data);
+	res = pas_fw_shutdown(subsys);
 	if (!res) {
 		subsys->data.fw_base = 0;
 		subsys->data.fw_size = 0;
