@@ -19,11 +19,21 @@
 #define SECBOOT_LPAICP_MISSION_MODE_SW_TYPE	0xD1
 #define SECBOOT_LPAICP_DTB_SW_TYPE	0xD2
 
-struct pas_swid_entry {
+enum pas_arb_fuse_bank {
+	PAS_ARB_HLOS_FUSE_BANK = 0,
+	PAS_ARB_UEFI_FUSE_BANK,
+	PAS_ARB_SEPARATE_FUSE_BANK,
+};
+
+struct pas_policy_entry {
 	uint32_t pas_id;
 	uint32_t swid;
+	enum pas_arb_fuse_bank arb_bank;
 };
 
 TEE_Result pas_policy_expected_swid(uint32_t pas_id, uint32_t *swid);
+
+TEE_Result pas_policy_expected_arb_bank(uint32_t pas_id,
+					enum pas_arb_fuse_bank *bank);
 
 #endif /* __AUTH_PAS_POLICY_H */
