@@ -26,10 +26,6 @@
 #include <trace.h>
 #include <util.h>
 
-#ifndef RV64
-#error implement
-#endif
-
 #ifndef DEBUG_XLAT_TABLE
 #define DEBUG_XLAT_TABLE 0
 #endif
@@ -85,6 +81,21 @@ static struct mmu_pgt *user_vpn2_table_va[CFG_TEE_CORE_NB_CORE];
 #endif
 
 static int user_va_idx __nex_data = -1;
+
+#if (RISCV_SATP_MODE == SATP_MODE_SV32)
+/*
+ * Sv32 has no level between the root table and the leaf tables: a user
+ * directory (a table of root format whose first entries cover the user VA
+ * range) can't hang below one root entry as it does with Sv39 and up.
+ * Its entries are copied into the root table's user slots instead, as
+ * Arm's short-descriptor port does with its user L1 entries. The leaf
+ * tables stay shared, so changes to leaf entries need no copy.
+ */
+#define RISCV_MMU_USER_PGDIRS	U(1)
+
+/* The user directory installed on each core, 0 if none */
+static paddr_t user_dir_pa[CFG_TEE_CORE_NB_CORE] __nex_bss;
+#endif
 
 struct mmu_partition {
 	struct mmu_pgt *root_pgt;
@@ -187,7 +198,7 @@ static unsigned long core_mmu_pgt_to_satp(unsigned long asid,
 					  struct mmu_pgt *pgt)
 {
 	unsigned long satp = 0;
-	unsigned long pgt_ppn = (paddr_t)pgt >> RISCV_PGSHIFT;
+	unsigned long pgt_ppn = (paddr_t)(vaddr_t)pgt >> RISCV_PGSHIFT;
 
 	assert(!cpu_mmu_enabled());
 
@@ -388,7 +399,7 @@ static struct mmu_pgt *core_mmu_xlat_table_entry_pa2va(struct mmu_pte *pte,
 		return NULL;
 
 	if (!cpu_mmu_enabled())
-		return (struct mmu_pgt *)pte_to_pa(pte);
+		return (struct mmu_pgt *)(vaddr_t)pte_to_pa(pte);
 
 	va = phys_to_virt(pte_to_pa(pte), MEM_AREA_TEE_RAM_RW_DATA,
 			  sizeof(*pgt));
@@ -472,7 +483,7 @@ static bool core_mmu_entry_copy(struct core_mmu_table_info *tbl_info,
 	memcpy(new_pgt, orig_pgt, sizeof(struct mmu_pgt));
 
 	/* Point to the new table */
-	ptp = core_mmu_ptp_create(pa_to_ppn((paddr_t)new_pgt));
+	ptp = core_mmu_ptp_create(pa_to_ppn((paddr_t)(vaddr_t)new_pgt));
 	core_mmu_entry_set(pte, ptp);
 
 	return true;
@@ -549,6 +560,34 @@ static void core_init_mmu_prtn_ta(struct mmu_partition *prtn)
 		core_init_mmu_prtn_ta_core(prtn, core);
 }
 
+#if (RISCV_SATP_MODE == SATP_MODE_SV32)
+/*
+ * With Sv32 the page directory level is the root level, so a dynamic
+ * vaspace region is mapped as invalid root entries only, without the
+ * tables that core_mmu_map_region() otherwise leaves for later updates.
+ * Allocate them now, before the root table is copied for the other cores:
+ * a table added to the root table later would only reach this core's
+ * copy.
+ */
+static void core_init_mmu_prtn_vaspace(struct mmu_partition *prtn,
+				       struct tee_mmap_region *mm)
+{
+	struct core_mmu_table_info tbl_info = { };
+	unsigned int idx = 0;
+
+	if (mm->pa)
+		return;
+
+	core_mmu_set_info_table(&tbl_info, CORE_MMU_BASE_TABLE_LEVEL, 0,
+				core_mmu_get_root_pgt_va(prtn,
+							 get_core_pos()));
+	for (idx = core_mmu_va2idx(&tbl_info, mm->va);
+	     idx <= core_mmu_va2idx(&tbl_info, mm->va + mm->size - 1); idx++)
+		if (!core_mmu_entry_to_finer_grained(&tbl_info, idx, true))
+			panic("Can't allocate vaspace table");
+}
+#endif
+
 static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 				   struct memory_map *mem_map)
 {
@@ -571,6 +610,11 @@ static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 
 	for (n = 0; n < mem_map->count; n++)
 		core_mmu_map_region(prtn, mem_map->map + n);
+
+#if (RISCV_SATP_MODE == SATP_MODE_SV32)
+	for (n = 0; n < mem_map->count; n++)
+		core_init_mmu_prtn_vaspace(prtn, mem_map->map + n);
+#endif
 
 	/*
 	 * Primary mapping table is ready at index `get_core_pos()`
@@ -844,6 +888,15 @@ bool arch_va2pa_helper(void *va, paddr_t *pa)
 vaddr_t arch_aslr_base_addr(vaddr_t start_addr, uint64_t seed,
 			    unsigned int iteration_count)
 {
+#ifdef RV32
+	/* Sv32 uses the whole 32-bit VA space: there is nothing to extend */
+	vaddr_t base_addr = start_addr + seed;
+
+	if (iteration_count)
+		base_addr ^= BIT32(32 - iteration_count);
+
+	return base_addr & GENMASK_32(31, SMALL_PAGE_SHIFT);
+#else
 	const unsigned int va_width = core_mmu_get_va_width();
 	const vaddr_t va_mask = GENMASK_64(63, SMALL_PAGE_SHIFT);
 	const vaddr_t va_width_msb = BIT64(va_width - 1);
@@ -864,6 +917,7 @@ vaddr_t arch_aslr_base_addr(vaddr_t start_addr, uint64_t seed,
 		base_addr &= ~va_extended_mask;
 
 	return base_addr & va_mask;
+#endif
 }
 
 bool cpu_mmu_enabled(void)
@@ -936,7 +990,7 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 		if (cpu_mmu_enabled())
 			pgt_pa = virt_to_phys(pgt);
 		else
-			pgt_pa = (paddr_t)pgt;
+			pgt_pa = (paddr_t)(vaddr_t)pgt;
 
 		ptp = core_mmu_ptp_create(pa_to_ppn(pgt_pa));
 		core_mmu_entry_set(pte, ptp);
@@ -1039,6 +1093,22 @@ static void set_user_va_idx(struct mmu_partition *prtn)
 	}
 #endif
 
+#if (RISCV_SATP_MODE == SATP_MODE_SV32)
+	for (idx = 1 ; idx + RISCV_MMU_USER_PGDIRS <= RISCV_PTES_PER_PT;
+	     idx++) {
+		unsigned int n = 0;
+
+		for (n = 0; n < RISCV_MMU_USER_PGDIRS; n++) {
+			pte = core_mmu_table_get_entry(pgt, idx + n);
+			if (core_mmu_entry_is_valid(pte))
+				break;
+		}
+		if (n == RISCV_MMU_USER_PGDIRS) {
+			user_va_idx = idx;
+			return;
+		}
+	}
+#else
 	for (idx = 1 ; idx < RISCV_PTES_PER_PT; idx++) {
 		pte = core_mmu_table_get_entry(pgt, idx);
 		if (core_mmu_entry_is_invalid(pte)) {
@@ -1046,6 +1116,7 @@ static void set_user_va_idx(struct mmu_partition *prtn)
 			return;
 		}
 	}
+#endif
 	if (user_va_idx < 0)
 		panic();
 }
@@ -1071,12 +1142,37 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	struct mmu_partition *prtn = core_mmu_get_prtn();
 	struct mmu_pte *pte = NULL;
-	unsigned long ptp = 0;
+	unsigned long ptp __maybe_unused = 0;
 
 	satp = read_satp();
 	/* Clear ASID */
 	satp &= ~SHIFT_U64(RISCV_SATP_ASID_MASK, RISCV_SATP_ASID_SHIFT);
 	pte = core_mmu_get_user_mapping_entry(prtn);
+#if (RISCV_SATP_MODE == SATP_MODE_SV32)
+	if (map && map->user_map) {
+		struct mmu_pgt *dir = NULL;
+		size_t n = 0;
+
+		dir = phys_to_virt(map->user_map, MEM_AREA_TEE_RAM_RW_DATA,
+				   RISCV_MMU_PGT_SIZE);
+		if (!dir)
+			dir = phys_to_virt(map->user_map,
+					   MEM_AREA_SEC_RAM_OVERALL,
+					   RISCV_MMU_PGT_SIZE);
+		assert(dir);
+		for (n = 0; n < RISCV_MMU_USER_PGDIRS; n++)
+			core_mmu_entry_set(pte + n, dir->entries[n].entry);
+		user_dir_pa[get_core_pos()] = map->user_map;
+		satp |= SHIFT_U64(map->asid, RISCV_SATP_ASID_SHIFT);
+		write_satp(satp);
+	} else {
+		size_t n = 0;
+
+		for (n = 0; n < RISCV_MMU_USER_PGDIRS; n++)
+			core_mmu_entry_set(pte + n, 0);
+		user_dir_pa[get_core_pos()] = 0;
+	}
+#else
 	if (map && map->user_map) {
 		ptp = core_mmu_ptp_create(pa_to_ppn((paddr_t)map->user_map));
 		core_mmu_entry_set(pte, ptp);
@@ -1085,6 +1181,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 	} else {
 		core_mmu_entry_set(pte, 0);
 	}
+#endif
 
 	/* The user mapping is per hart, no need to reach the other harts */
 	tlbi_all_local();
@@ -1109,7 +1206,7 @@ void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
 	if (base)
 		*base = SHIFT_U64(user_va_idx, CORE_MMU_VPN1_SHIFT);
 	if (size)
-		*size =  BIT64(CORE_MMU_VPN1_SHIFT);
+		*size = SHIFT_U64(RISCV_MMU_USER_PGDIRS, CORE_MMU_VPN1_SHIFT);
 #endif
 }
 
@@ -1138,10 +1235,14 @@ void core_mmu_create_user_map(struct user_mode_ctx *uctx,
 
 void core_mmu_get_user_map(struct core_mmu_user_map *map)
 {
+#if (RISCV_SATP_MODE == SATP_MODE_SV32)
+	map->user_map = user_dir_pa[get_core_pos()];
+#else
 	struct mmu_partition *prtn = core_mmu_get_prtn();
 	struct mmu_pte *pte = core_mmu_get_user_mapping_entry(prtn);
 
 	map->user_map = pte_to_pa(pte);
+#endif
 
 	if (map->user_map)
 		map->asid = (read_satp() >> RISCV_SATP_ASID_SHIFT) &
@@ -1152,14 +1253,17 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 
 bool core_mmu_user_mapping_is_active(void)
 {
-	struct mmu_partition *prtn = core_mmu_get_prtn();
+	struct mmu_pte *pte __maybe_unused = NULL;
 	bool ret = false;
-	struct mmu_pte *pte = NULL;
 	uint32_t exceptions = 0;
 
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
-	pte = core_mmu_get_user_mapping_entry(prtn);
+#if (RISCV_SATP_MODE == SATP_MODE_SV32)
+	ret = user_dir_pa[get_core_pos()] != 0;
+#else
+	pte = core_mmu_get_user_mapping_entry(core_mmu_get_prtn());
 	ret = core_mmu_entry_is_valid(pte);
+#endif
 	thread_unmask_exceptions(exceptions);
 
 	return ret;
