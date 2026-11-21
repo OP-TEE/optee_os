@@ -1,0 +1,1 @@
+CFG_QCOM_GENI_SPI ?= y
