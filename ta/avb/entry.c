@@ -13,6 +13,9 @@ static const uint32_t storageid = TEE_STORAGE_PRIVATE_RPMB;
 static const char rb_obj_name[] = "rb_state";
 static const char *named_value_prefix = "named_value_";
 
+/* Set by TA_AVB_CMD_LOCK_BOOT_STATE, cleared only by a TEE restart */
+static bool boot_state_locked;
+
 static TEE_Result get_slot_offset(size_t slot, size_t *offset)
 {
 	if (slot >= TA_AVB_MAX_ROLLBACK_LOCATIONS)
@@ -378,6 +381,21 @@ out_free:
 	return res;
 }
 
+static TEE_Result lock_boot_state(uint32_t pt)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	boot_state_locked = true;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result TA_CreateEntryPoint(void)
 {
 	return TEE_SUCCESS;
@@ -402,6 +420,14 @@ TEE_Result TA_InvokeCommandEntryPoint(void *sess __unused, uint32_t cmd,
 				      uint32_t pt,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
+	if (boot_state_locked &&
+	    (cmd == TA_AVB_CMD_WRITE_ROLLBACK_INDEX ||
+	     cmd == TA_AVB_CMD_WRITE_LOCK_STATE ||
+	     cmd == TA_AVB_CMD_WRITE_PERSIST_VALUE)) {
+		EMSG("Command ID 0x%x is not allowed after boot", cmd);
+		return TEE_ERROR_ACCESS_DENIED;
+	}
+
 	switch (cmd) {
 	case TA_AVB_CMD_READ_ROLLBACK_INDEX:
 		return read_rb_idx(pt, params);
@@ -417,6 +443,8 @@ TEE_Result TA_InvokeCommandEntryPoint(void *sess __unused, uint32_t cmd,
 		return read_persist_value(pt, params, false /* !truncate */);
 	case TA_AVB_CMD_WRITE_PERSIST_VALUE:
 		return write_persist_value(pt, params);
+	case TA_AVB_CMD_LOCK_BOOT_STATE:
+		return lock_boot_state(pt);
 	default:
 		EMSG("Command ID 0x%x is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;
