@@ -212,6 +212,25 @@
 #define PMU1SGRF_FW_BASE	0x26003000
 #define PMU1SGRF_FW_SIZE	SIZE_K(4)
 
+/*
+ * RKRNG_S -- secure-side true RNG (RKRNG IP, distinct from RK3588's TRNG_V1).
+ * Registers: CTRL=0x10, STATE=0x14, DATA0=0x50 (8x32-bit = 256 bits/req).
+ */
+#define RKRNG_S_BASE			0x2a440000
+#define RKRNG_S_SIZE			SIZE_K(64)
+
+#define OTP_S_BASE			0x2a480000
+#define OTP_S_SIZE			SIZE_K(64)
+
+/*
+ * Reads at index 0x200 and above fail, and 0x1c0-0x1ff read back the
+ * same data as 0x000-0x03f, so only 0x000-0x1bf is used.
+ */
+#define OTP_S_MAX_INDEX			0x1c0
+
+#define ROCKCHIP_OTP_HUK_INDEX		0x80
+#define ROCKCHIP_OTP_HUK_SIZE		0x4
+
 #elif defined(PLATFORM_FLAVOR_rv1106)
 
 /* GIC-400 (GICv2) */
