@@ -1,4 +1,5 @@
 srcs-y += spinlock.S
+srcs-$(CFG_RV32_core) += atomic_rv32.S
 srcs-y += cache_helpers_rv.S
 srcs-y += csr_detect.S
 srcs-y += idle.c
