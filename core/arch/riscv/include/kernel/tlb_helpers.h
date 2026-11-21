@@ -13,6 +13,9 @@ void tlbi_all_local(void);
 void tlbi_va_allasid_local(vaddr_t va);
 void tlbi_asid_local(unsigned long asid);
 void tlbi_va_asid_local(vaddr_t va, uint32_t asid);
+void tlbi_va_range_local(vaddr_t va, size_t len, size_t granule);
+void tlbi_va_range_asid_local(vaddr_t va, size_t len, size_t granule,
+			      uint32_t asid);
 
 /* Invalidate TLB entries of every hart running OP-TEE */
 void tlbi_all(void);

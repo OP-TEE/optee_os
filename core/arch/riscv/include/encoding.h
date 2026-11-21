@@ -302,6 +302,10 @@
 #define PTE_PPN   0x003FFFFFFFFFFC00 /* PPN */
 #define PTE_RSVD  0x1FC0000000000000 /* Reserved for future standard use */
 #define PTE_PBMT  0x6000000000000000 /* Svpbmt: Page-based memory types */
+/* Values of the PTE_PBMT field */
+#define PTE_PBMT_PMA 0 /* Attributes from the PMAs of the physical address */
+#define PTE_PBMT_NC  1 /* Non-cacheable, idempotent, weakly-ordered memory */
+#define PTE_PBMT_IO  2 /* Non-cacheable, non-idempotent, strongly-ordered */
 #define PTE_N     0x8000000000000000 /* Svnapot: NAPOT translation contiguity */
 #define PTE_ATTR  0xFFC0000000000000 /* All attributes and reserved bits */
 
