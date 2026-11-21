@@ -82,6 +82,7 @@ struct mobj_ffa {
 	unsigned int inactive_refs;
 #ifdef CFG_CORE_SEL1_SPMC
 	bool registered_by_cookie;
+	struct mobj_ffa_trans trans;
 #endif
 };
 
@@ -211,7 +212,8 @@ static struct mobj_ffa *ffa_prm_new(unsigned int num_pages,
 #ifdef CFG_CORE_SEL1_SPMC
 struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
 					unsigned int num_pages,
-					enum mobj_use_case use_case)
+					enum mobj_use_case use_case,
+					const struct mobj_ffa_trans *trans)
 {
 	struct mobj_ffa *m = NULL;
 	bitstr_t *shm_bits = NULL;
@@ -241,6 +243,7 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
 			virt_remove_cookie(cookie);
 		return NULL;
 	}
+	m->trans = *trans;
 
 	if (cookie != OPTEE_MSG_FMEM_INVALID_GLOBAL_ID) {
 		m->cookie = cookie;
@@ -568,6 +571,65 @@ out:
 		virt_remove_cookie(cookie);
 	}
 	return res;
+}
+
+TEE_Result mobj_ffa_sel1_spmc_get_ranges(uint64_t cookie, size_t first,
+					 struct ffa_address_range *ranges,
+					 size_t *count, size_t *total,
+					 unsigned int *page_count,
+					 struct mobj_ffa_trans *trans)
+{
+	struct mobj_ffa_shm *m = NULL;
+	struct mobj_ffa *mf = NULL;
+	uint32_t exceptions = 0;
+	size_t max = *count;
+	size_t r = 0;
+	size_t s = 0;
+	size_t n = 0;
+
+	exceptions = cpu_spin_lock_xsave(&shm_lock);
+	mf = find_in_list(&shm_head, cmp_cookie, cookie);
+	if (!mf)
+		mf = find_in_list(&shm_inactive_head, cmp_cookie, cookie);
+	if (!mf) {
+		cpu_spin_unlock_xrestore(&shm_lock, exceptions);
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	*page_count = get_page_count(mf);
+	*trans = mf->trans;
+
+	if (!is_mobj_ffa_shm(&mf->mobj)) {
+		if (!first && max)
+			ranges[0] = (struct ffa_address_range){
+				.address = to_mobj_ffa_prm(&mf->mobj)->pa,
+				.page_count = *page_count,
+			};
+		r = 1;
+	} else {
+		m = to_mobj_ffa_shm(&mf->mobj);
+		while (n < *page_count) {
+			s = n;
+			for (n++; n < *page_count; n++)
+				if (m->pages[n] !=
+				    m->pages[n - 1] + SMALL_PAGE_SIZE)
+					break;
+			if (r >= first && r - first < max)
+				ranges[r - first] = (struct ffa_address_range){
+					.address = m->pages[s],
+					.page_count = n - s,
+				};
+			r++;
+		}
+	}
+	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
+
+	*total = r;
+	if (r > first)
+		*count = MIN(r - first, max);
+	else
+		*count = 0;
+	return TEE_SUCCESS;
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
 
