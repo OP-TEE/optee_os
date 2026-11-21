@@ -5,6 +5,7 @@
 
 #include <drivers/clk.h>
 #include <drivers/clk_qcom.h>
+#include <drivers/qcom_qdsp6ss.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <mm/core_memprot.h>
@@ -100,19 +101,12 @@ static TEE_Result turing_enable_processor(void)
 {
 	struct io_pa_va turing_io = { .pa = TURING_BASE };
 	vaddr_t turing = io_pa_or_va(&turing_io, TURING_SIZE);
-	uint64_t timeout = 0;
 	TEE_Result res = TEE_SUCCESS;
 
 	io_write32(turing + TURING_QDSP6SS_RET_CFG, 0);
-	io_write32(turing + TURING_QDSP6SS_BOOT_CMD, 1);
-
-	timeout = timeout_init_us(200000 * 5);
-	while (!(io_read32(turing + TURING_QDSP6SS_BOOT_STATUS) &
-		 BOOT_STATUS_STATUS_BIT)) {
-		if (timeout_elapsed(timeout))
-			return TEE_ERROR_TIMEOUT;
-		udelay(5);
-	}
+	res = qcom_qdsp6ss_boot_fsm(turing + TURING_QDSP6SS, 200000 * 5);
+	if (res != TEE_SUCCESS)
+		return res;
 	udelay(5);
 
 	res = qcom_spark_pll_enable(turing + TURING_QDSP6SS_PLL_BASE_OFFSET,
@@ -127,8 +121,7 @@ static TEE_Result turing_enable_processor(void)
 		return res;
 
 	udelay(5);
-	io_setbits32(turing + TURING_QDSP6SS_BOOT_CORE_START,
-		     BOOT_CORE_START_START_BIT);
+	qcom_qdsp6ss_core_start(turing + TURING_QDSP6SS);
 
 	return TEE_SUCCESS;
 }
