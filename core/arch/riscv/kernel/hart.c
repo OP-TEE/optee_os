@@ -89,6 +89,7 @@ static const struct {
 static bitstr_t bit_decl(isa_common, RISCV_ISA_EXT_COUNT) __nex_bss;
 /* Set once every hart of the TEE has described its ISA */
 static bool __nex_bss isa_known;
+static bool __nex_bss isa_from_misa_only;
 
 /*
  * Cache block sizes of the Zicbom and Zicboz operations: the smallest one
@@ -428,6 +429,7 @@ static void isa_from_misa(void)
 			isa_set_letter(isa_common, 'a' + n);
 
 	isa_known = true;
+	isa_from_misa_only = true;
 }
 #endif
 
@@ -486,6 +488,22 @@ static void check_build_isa(void)
 		  "CFG_RISCV_ISA_C" },
 		{ RISCV_ISA_EXT_ZBB, IS_ENABLED(CFG_RISCV_ISA_ZBB),
 		  "CFG_RISCV_ISA_ZBB" },
+		{ RISCV_ISA_EXT_V, IS_ENABLED(CFG_RISCV_VECTOR),
+		  "CFG_RISCV_VECTOR" },
+		{ RISCV_ISA_EXT_ZVKB, IS_ENABLED(CFG_RISCV_ZVKNG),
+		  "CFG_RISCV_ZVKNG" },
+		{ RISCV_ISA_EXT_ZVBB, IS_ENABLED(CFG_CORE_CRYPTO_AES_ACCEL),
+		  "CFG_CORE_CRYPTO_AES_ACCEL" },
+		{ RISCV_ISA_EXT_ZVKG, IS_ENABLED(CFG_CORE_CRYPTO_AES_ACCEL),
+		  "CFG_CORE_CRYPTO_AES_ACCEL" },
+		{ RISCV_ISA_EXT_ZVKNED, IS_ENABLED(CFG_CORE_CRYPTO_AES_ACCEL),
+		  "CFG_CORE_CRYPTO_AES_ACCEL" },
+		{ RISCV_ISA_EXT_ZVKNHB,
+		  IS_ENABLED(CFG_CORE_CRYPTO_SHA256_ACCEL),
+		  "CFG_CORE_CRYPTO_SHA256_ACCEL" },
+		{ RISCV_ISA_EXT_ZVKNHB,
+		  IS_ENABLED(CFG_CORE_CRYPTO_SHA512_ACCEL),
+		  "CFG_CORE_CRYPTO_SHA512_ACCEL" },
 	};
 	size_t n = 0;
 
@@ -493,6 +511,10 @@ static void check_build_isa(void)
 		return;
 
 	for (n = 0; n < ARRAY_SIZE(reqs); n++) {
+		/* misa describes single-letter extensions only. */
+		if (isa_from_misa_only &&
+		    reqs[n].ext >= RISCV_ISA_EXT_ZICBOM)
+			continue;
 		if (reqs[n].required && !bit_test(isa_common, reqs[n].ext)) {
 			EMSG("Extension %s required by %s missing on a hart",
 			     isa_ext_name(reqs[n].ext), reqs[n].cfg);
