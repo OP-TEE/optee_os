@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  * Copyright (c) 2015-2022, Linaro Limited
  * Copyright (c) 2026, RISCStar Solutions Limited
  */
@@ -55,9 +55,22 @@ static __maybe_unused const char *abort_type_to_str(uint32_t abort_type)
 	return "undef";
 }
 
-static __maybe_unused const char *
-fault_to_str(uint32_t abort_type, uint32_t fault_descr)
+static __maybe_unused const char *fault_to_str(struct abort_info *ai)
 {
+	uint32_t abort_type = ai->abort_type;
+	uint32_t fault_descr = ai->fault_descr;
+
+	if (fault_descr == CAUSE_SOFTWARE_CHECK) {
+		switch (ai->regs->tval) {
+		case SW_CHECK_LANDING_PAD_FAULT:
+			return " (landing pad fault)";
+		case SW_CHECK_SHADOW_STACK_FAULT:
+			return " (shadow stack fault)";
+		default:
+			return " (software check)";
+		}
+	}
+
 	/* fault_descr is only valid for data or prefetch abort */
 	if (abort_type != ABORT_TYPE_DATA && abort_type != ABORT_TYPE_PREFETCH)
 		return "";
@@ -92,7 +105,7 @@ __print_abort_info(struct abort_info *ai __maybe_unused,
 	EMSG_RAW("");
 	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "%s",
 		 ctx, abort_type_to_str(ai->abort_type), ai->va,
-		 fault_to_str(ai->abort_type, ai->fault_descr));
+		 fault_to_str(ai));
 	EMSG_RAW("cpu\t#%zu", core_pos);
 	EMSG_RAW("cause\t%016" PRIxPTR " epc\t%016" PRIxPTR,
 		 ai->regs->cause, ai->regs->epc);
@@ -222,7 +235,15 @@ static void set_abort_info(uint32_t abort_type __unused,
 		ai->abort_type = ABORT_TYPE_UNDEF;
 	}
 
-	ai->va = regs->tval;
+	/*
+	 * A software-check exception (Zicfilp landing pad or Zicfiss
+	 * shadow stack violation) carries a code in xtval, not an
+	 * address. The faulting location is the instruction itself.
+	 */
+	if (ai->fault_descr == CAUSE_SOFTWARE_CHECK)
+		ai->va = regs->epc;
+	else
+		ai->va = regs->tval;
 	ai->pc = regs->epc;
 	ai->regs = regs;
 }
@@ -274,8 +295,12 @@ static bool is_vfp_fault(struct abort_info *ai)
 	 * from a context that had the FP unit disabled, take it as the first
 	 * FP use and hand over the unit; a genuinely illegal instruction
 	 * traps again once the unit is enabled and is a panic then.
+	 *
+	 * Only an illegal instruction exception qualifies: the other causes
+	 * reported as ABORT_TYPE_UNDEF (breakpoint, software check) are
+	 * not fixed by enabling the FP unit and must panic the TA at once.
 	 */
-	if (ai->abort_type != ABORT_TYPE_UNDEF || vfp_is_enabled())
+	if (ai->fault_descr != CAUSE_ILLEGAL_INSTRUCTION || vfp_is_enabled())
 		return false;
 
 	return true;
