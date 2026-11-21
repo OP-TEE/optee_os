@@ -10,7 +10,11 @@
 #define GICD_BASE			UL(0x17a00000)
 #define GICR_BASE			UL(0x17a60000)
 
+/* The targets with an embedded DT take this from it */
+#ifndef CFG_EMBED_DTB
 #define RAMBLUR_PIMEM_REG_BASE		UL(0x610000)
+#endif
+
 #define QCOM_RNG_REG_BASE		UL(0x010D1000)
 
 #define AOP_MSG_RAM_BASE		UL(0x0C300000)

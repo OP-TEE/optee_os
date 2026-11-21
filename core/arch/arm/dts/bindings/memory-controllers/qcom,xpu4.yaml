@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/qcom,xpu4.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm XPU4 memory protection unit
+
+maintainers:
+  - Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com>
+
+description:
+  Memory protection unit that guards a range of memory, the DRAM or the
+  internal memory of the SoC. Its resource groups each restrict which masters
+  can read and write a region inside the range it guards. A node describes one
+  unit.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,ipq5210-xpu4-ddr
+          - qcom,ipq5210-xpu4-imem
+          - qcom,ipq9650-xpu4-ddr
+          - qcom,ipq9650-xpu4-imem
+      - const: qcom,xpu4
+
+  reg:
+    maxItems: 1
+
+  qcom,resource-groups:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      - description: First resource group that OP-TEE may allocate
+      - description: Number of resource groups from there
+        minimum: 1
+    description:
+      The resource groups that OP-TEE may allocate from. The others belong
+      to other owners, such as earlier boot stages.
+
+  qcom,guarded-memory:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    minItems: 1
+    items:
+      maxItems: 1
+    description:
+      Memory nodes that the unit guards. Every window in their reg is guarded,
+      and a region can only be protected inside one of them.
+
+  memory-region:
+    minItems: 1
+    maxItems: 2
+    description:
+      Reserved-memory regions that the unit protects.
+
+  memory-region-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      enum:
+        - tzdram
+        - diag
+    description:
+      The role of each region, which tells what access it gets. tzdram is the
+      memory that OP-TEE runs from and diag is the buffer of its DIAG log.
+
+required:
+  - compatible
+  - reg
+  - qcom,resource-groups
+  - qcom,guarded-memory
+  - memory-region
+  - memory-region-names
+
+additionalProperties: false
+
+examples:
+  - |
+    dram: memory@80000000 {
+        device_type = "memory";
+        reg = <0x80000000 0x80000000>;
+    };
+
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        tzdram: optee@8a680000 {
+            reg = <0x8a680000 0x280000>;
+            no-map;
+        };
+    };
+
+    xpu@4060000 {
+        compatible = "qcom,ipq9650-xpu4-ddr", "qcom,xpu4";
+        reg = <0x4060000 0x2000>;
+        qcom,resource-groups = <30 10>;
+        qcom,guarded-memory = <&dram>;
+        memory-region = <&tzdram>;
+        memory-region-names = "tzdram";
+    };
