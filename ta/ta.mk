@@ -61,6 +61,7 @@ ta-mk-file-export-vars-$(sm) += CFG_TA_ASLR
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
 cppflags$(sm)	:= $(platform-cppflags) $($(sm)-platform-cppflags)
 cflags$(sm)	:= $(platform-cflags) $($(sm)-platform-cflags)
+cxxflags$(sm)	:= $(platform-cxxflags) $($(sm)-platform-cxxflags)
 aflags$(sm)	:= $(platform-aflags) $($(sm)-platform-aflags)
 
 # Changes to cppflags$(sm) will only affect how TA dev kit libraries are
