@@ -68,7 +68,7 @@ TEE_Result pas_meta_get_root_cert_sel(const uint8_t *meta_data,
 	if (!oem_meta)
 		return TEE_ERROR_NO_DATA;
 
-	if (oem_metadata_size < sizeof(struct pas_oem_metadata))
+	if (oem_metadata_size != sizeof(struct pas_oem_metadata))
 		return TEE_ERROR_BAD_FORMAT;
 
 	memcpy(root_cert_sel, oem_meta +
@@ -170,7 +170,7 @@ TEE_Result pas_meta_get(const struct pas_hash_segment_info *hs,
 	if (!hs->oem_meta || !hs->oem_meta_size)
 		return TEE_ERROR_NO_DATA;
 
-	if (hs->oem_meta_size < sizeof(struct pas_oem_metadata))
+	if (hs->oem_meta_size != sizeof(struct pas_oem_metadata))
 		return TEE_ERROR_BAD_FORMAT;
 
 	m = hs->oem_meta;
