@@ -151,6 +151,10 @@ rv64-platform-cflags += -march=$(riscv-isa) -mabi=$(riscv-abi)
 rv64-platform-cflags += -Wno-missing-include-dirs
 rv32-platform-cflags += -mcmodel=$(riscv-platform-mcmodel)
 rv32-platform-cflags += -march=$(riscv-isa) -mabi=$(riscv-abi)
+rv64-platform-cxxflags += -mcmodel=$(riscv-platform-mcmodel)
+rv64-platform-cxxflags += -march=$(riscv-isa) -mabi=$(riscv-abi)
+rv32-platform-cxxflags += -mcmodel=$(riscv-platform-mcmodel)
+rv32-platform-cxxflags += -march=$(riscv-isa) -mabi=$(riscv-abi)
 
 rv64-platform-cppflags += -DRV64=1 -D__LP64__=1
 rv32-platform-cppflags += -DRV32=1 -D__ILP32__=1
@@ -274,6 +278,7 @@ ta_rv64-platform-aflags += $(platform-aflags-debug-info)
 ta_rv64-platform-aflags += $(rv64-platform-aflags)
 
 ta_rv64-platform-cxxflags += -fpic
+ta_rv64-platform-cxxflags += $(rv64-platform-cxxflags)
 ta_rv64-platform-cxxflags += $(platform-cflags-optimization)
 ta_rv64-platform-cxxflags += $(platform-cflags-debug-info)
 
