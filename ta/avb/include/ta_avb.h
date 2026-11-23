@@ -73,4 +73,11 @@
  */
 #define TA_AVB_CMD_READ_PERSIST_VALUE2	6
 
+/*
+ * Refuses the write commands until the TEE restarts. The bootloader sends
+ * it before starting the OS, which then can't change the rollback indexes,
+ * the lock state or the persistent values.
+ */
+#define TA_AVB_CMD_LOCK_BOOT_STATE	7
+
 #endif /*__TA_AVB_H*/

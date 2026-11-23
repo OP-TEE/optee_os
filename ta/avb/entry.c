@@ -15,6 +15,9 @@ static const uint32_t storageid = TEE_STORAGE_PRIVATE_RPMB;
 static const char rb_obj_name[] = "rb_state";
 static const char *named_value_prefix = "named_value_";
 
+/* Set by TA_AVB_CMD_LOCK_BOOT_STATE, cleared only by a TEE restart */
+static bool boot_state_locked;
+
 static TEE_Result get_slot_offset(size_t slot, size_t *offset)
 {
 	if (slot >= TA_AVB_MAX_ROLLBACK_LOCATIONS)
@@ -47,8 +50,10 @@ static TEE_Result open_rb_state(uint32_t default_lock_state,
 	/*
 	 * Create the object only if it doesn't exist: recreating it on any
 	 * other error would reset the lock state and the rollback indexes.
+	 * Nothing is created once the boot state is locked, so that the
+	 * read commands can't change the state either.
 	 */
-	if (res != TEE_ERROR_ITEM_NOT_FOUND)
+	if (res != TEE_ERROR_ITEM_NOT_FOUND || boot_state_locked)
 		return res;
 
 	return create_rb_state(default_lock_state, h);
@@ -95,6 +100,16 @@ static TEE_Result read_rb_idx(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
 		return res;
 
 	res = open_rb_state(DEFAULT_LOCK_STATE, &h);
+	if (res == TEE_ERROR_ITEM_NOT_FOUND && boot_state_locked) {
+		/*
+		 * Nothing was stored before the boot state got locked and
+		 * nothing is created now: report the index as 0, as for a
+		 * slot that was never written.
+		 */
+		params[1].value.a = 0;
+		params[1].value.b = 0;
+		return TEE_SUCCESS;
+	}
 	if (res)
 		return res;
 
@@ -108,7 +123,7 @@ static TEE_Result read_rb_idx(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
 	if (count != sizeof(idx)) {
 		idx = 0; /* Not yet written slots are reported as 0 */
 
-		if (count) {
+		if (count && !boot_state_locked) {
 			/*
 			 * Somehow the file didn't even hold a complete
 			 * slot index entry.  Write it as 0.
@@ -195,6 +210,14 @@ static TEE_Result read_lock_state(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = open_rb_state(DEFAULT_LOCK_STATE, &h);
+	if (res == TEE_ERROR_ITEM_NOT_FOUND && boot_state_locked) {
+		/*
+		 * Nothing was stored before the boot state got locked and
+		 * nothing is created now: report the default lock state.
+		 */
+		params[0].value.a = DEFAULT_LOCK_STATE;
+		return TEE_SUCCESS;
+	}
 	if (res)
 		return res;
 
@@ -388,6 +411,21 @@ out_free:
 	return res;
 }
 
+static TEE_Result lock_boot_state(uint32_t pt)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	boot_state_locked = true;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result TA_CreateEntryPoint(void)
 {
 	return TEE_SUCCESS;
@@ -412,6 +450,18 @@ TEE_Result TA_InvokeCommandEntryPoint(void *sess __unused, uint32_t cmd,
 				      uint32_t pt,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
+	/* Once locked, allow only what is known not to change the state */
+	if (boot_state_locked &&
+	    cmd != TA_AVB_CMD_READ_ROLLBACK_INDEX &&
+	    cmd != TA_AVB_CMD_READ_LOCK_STATE &&
+	    cmd != TA_AVB_CMD_READ_PERSIST_VALUE &&
+	    cmd != TA_AVB_CMD_READ_PERSIST_VALUE2 &&
+	    cmd != TA_AVB_CMD_LOCK_BOOT_STATE) {
+		EMSG("Command ID %#"PRIx32" is not allowed: boot state locked",
+		     cmd);
+		return TEE_ERROR_ACCESS_DENIED;
+	}
+
 	switch (cmd) {
 	case TA_AVB_CMD_READ_ROLLBACK_INDEX:
 		return read_rb_idx(pt, params);
@@ -427,6 +477,8 @@ TEE_Result TA_InvokeCommandEntryPoint(void *sess __unused, uint32_t cmd,
 		return read_persist_value(pt, params, false /* !truncate */);
 	case TA_AVB_CMD_WRITE_PERSIST_VALUE:
 		return write_persist_value(pt, params);
+	case TA_AVB_CMD_LOCK_BOOT_STATE:
+		return lock_boot_state(pt);
 	default:
 		EMSG("Command ID 0x%x is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;
