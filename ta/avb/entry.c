@@ -44,8 +44,12 @@ static TEE_Result open_rb_state(uint32_t default_lock_state,
 
 	res = TEE_OpenPersistentObject(storageid, rb_obj_name,
 				       sizeof(rb_obj_name), flags, h);
-	if (!res)
-		return TEE_SUCCESS;
+	/*
+	 * Create the object only if it doesn't exist: recreating it on any
+	 * other error would reset the lock state and the rollback indexes.
+	 */
+	if (res != TEE_ERROR_ITEM_NOT_FOUND)
+		return res;
 
 	return create_rb_state(default_lock_state, h);
 }
