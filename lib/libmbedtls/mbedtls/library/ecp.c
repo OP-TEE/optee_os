@@ -69,6 +69,7 @@
 
 #include "bn_mul.h"
 #include "bignum_internal.h"
+#include "bignum_core.h"
 #include "ecp_invasive.h"
 
 #include <string.h>
@@ -383,10 +384,6 @@ static const mbedtls_ecp_curve_info ecp_supported_curves[] =
 #if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
     { MBEDTLS_ECP_DP_CURVE448,     30,     448,    "x448"              },
 #endif
-#if defined(MBEDTLS_ECP_DP_SM2_ENABLED)
-    /* https://tools.ietf.org/id/draft-yang-tls-tls13-sm-suites-05.html */
-    { MBEDTLS_ECP_DP_SM2,          41,     256,    "sm2"               },
-#endif
     { MBEDTLS_ECP_DP_NONE,          0,     0,      NULL                },
 };
 
@@ -586,10 +583,10 @@ void mbedtls_ecp_group_free(mbedtls_ecp_group *grp)
         mbedtls_mpi_free(&grp->B);
         mbedtls_ecp_point_free(&grp->G);
 
-#if !defined(MBEDTLS_ECP_WITH_MPI_UINT)
-        mbedtls_mpi_free(&grp->N);
-        mbedtls_mpi_free(&grp->P);
-#endif
+        if (grp->h != 2) {
+            mbedtls_mpi_free(&grp->N);
+            mbedtls_mpi_free(&grp->P);
+        }
     }
 
     if (!ecp_group_is_static_comb_table(grp) && grp->T != NULL) {
@@ -1017,15 +1014,11 @@ static int ecp_modp(mbedtls_mpi *N, const mbedtls_ecp_group *grp)
 
     MBEDTLS_MPI_CHK(grp->modp(N));
 
-    /* N->s < 0 is a much faster test, which fails only if N is 0 */
-    while (N->s < 0 && mbedtls_mpi_cmp_int(N, 0) != 0) {
-        MBEDTLS_MPI_CHK(mbedtls_mpi_add_mpi(N, N, &grp->P));
-    }
-
-    while (mbedtls_mpi_cmp_mpi(N, &grp->P) >= 0) {
-        /* we known P, N and the result are positive */
-        MBEDTLS_MPI_CHK(mbedtls_mpi_sub_abs(N, N, &grp->P));
-    }
+    /* The previous call left N in the range [0, 2P) with no more limbs than P
+     * (see documentation of mbedtls_ecp_mod_pXXX_raw() in ecp_invasive.h),
+     * so we can bring it into the range [0, P) in constant time. */
+    mbedtls_mpi_uint c = mbedtls_mpi_core_sub(N->p, N->p, grp->P.p, grp->P.n);
+    (void) mbedtls_mpi_core_add_if(N->p, grp->P.p, grp->P.n, (unsigned) c);
 
 cleanup:
     return ret;
@@ -2890,7 +2883,7 @@ int mbedtls_ecp_muladd(mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
 
 #if defined(MBEDTLS_ECP_MONTGOMERY_ENABLED)
 #if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED)
-#define ECP_MPI_INIT(_p, _n) { .p = (mbedtls_mpi_uint *) (_p), .s = 1, .n = (_n), .use_mempool = 0 }
+#define ECP_MPI_INIT(_p, _n) { .p = (mbedtls_mpi_uint *) (_p), .s = 1, .n = (_n) }
 #define ECP_MPI_INIT_ARRAY(x)   \
     ECP_MPI_INIT(x, sizeof(x) / sizeof(mbedtls_mpi_uint))
 /*

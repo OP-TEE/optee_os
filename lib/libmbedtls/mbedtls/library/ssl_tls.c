@@ -31,8 +31,6 @@
 
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
 #include "mbedtls/psa_util.h"
-#include "md_psa.h"
-#include "psa_util_internal.h"
 #include "psa/crypto.h"
 #endif
 
@@ -857,11 +855,11 @@ int mbedtls_ssl_reset_checksum(mbedtls_ssl_context *ssl)
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
     status = psa_hash_abort(&ssl->handshake->fin_sha256_psa);
     if (status != PSA_SUCCESS) {
-        return mbedtls_md_error_from_psa(status);
+        return PSA_TO_MBEDTLS_ERR(status);
     }
     status = psa_hash_setup(&ssl->handshake->fin_sha256_psa, PSA_ALG_SHA_256);
     if (status != PSA_SUCCESS) {
-        return mbedtls_md_error_from_psa(status);
+        return PSA_TO_MBEDTLS_ERR(status);
     }
 #else
     mbedtls_md_free(&ssl->handshake->fin_sha256);
@@ -882,11 +880,11 @@ int mbedtls_ssl_reset_checksum(mbedtls_ssl_context *ssl)
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
     status = psa_hash_abort(&ssl->handshake->fin_sha384_psa);
     if (status != PSA_SUCCESS) {
-        return mbedtls_md_error_from_psa(status);
+        return PSA_TO_MBEDTLS_ERR(status);
     }
     status = psa_hash_setup(&ssl->handshake->fin_sha384_psa, PSA_ALG_SHA_384);
     if (status != PSA_SUCCESS) {
-        return mbedtls_md_error_from_psa(status);
+        return PSA_TO_MBEDTLS_ERR(status);
     }
 #else
     mbedtls_md_free(&ssl->handshake->fin_sha384);
@@ -924,7 +922,7 @@ static int ssl_update_checksum_start(mbedtls_ssl_context *ssl,
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
     status = psa_hash_update(&ssl->handshake->fin_sha256_psa, buf, len);
     if (status != PSA_SUCCESS) {
-        return mbedtls_md_error_from_psa(status);
+        return PSA_TO_MBEDTLS_ERR(status);
     }
 #else
     ret = mbedtls_md_update(&ssl->handshake->fin_sha256, buf, len);
@@ -937,7 +935,7 @@ static int ssl_update_checksum_start(mbedtls_ssl_context *ssl,
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
     status = psa_hash_update(&ssl->handshake->fin_sha384_psa, buf, len);
     if (status != PSA_SUCCESS) {
-        return mbedtls_md_error_from_psa(status);
+        return PSA_TO_MBEDTLS_ERR(status);
     }
 #else
     ret = mbedtls_md_update(&ssl->handshake->fin_sha384, buf, len);
@@ -954,8 +952,8 @@ static int ssl_update_checksum_sha256(mbedtls_ssl_context *ssl,
                                       const unsigned char *buf, size_t len)
 {
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
-    return mbedtls_md_error_from_psa(psa_hash_update(
-                                         &ssl->handshake->fin_sha256_psa, buf, len));
+    return PSA_TO_MBEDTLS_ERR(psa_hash_update(
+                                  &ssl->handshake->fin_sha256_psa, buf, len));
 #else
     return mbedtls_md_update(&ssl->handshake->fin_sha256, buf, len);
 #endif
@@ -967,8 +965,8 @@ static int ssl_update_checksum_sha384(mbedtls_ssl_context *ssl,
                                       const unsigned char *buf, size_t len)
 {
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
-    return mbedtls_md_error_from_psa(psa_hash_update(
-                                         &ssl->handshake->fin_sha384_psa, buf, len));
+    return PSA_TO_MBEDTLS_ERR(psa_hash_update(
+                                  &ssl->handshake->fin_sha384_psa, buf, len));
 #else
     return mbedtls_md_update(&ssl->handshake->fin_sha384, buf, len);
 #endif
@@ -1520,6 +1518,8 @@ void mbedtls_ssl_session_reset_msg_layer(mbedtls_ssl_context *ssl,
     }
 
     ssl->send_alert = 0;
+    ssl->alert_reason = 0;
+    ssl->alert_type = 0;
 
     /* Reset outgoing message writing */
     ssl->out_msgtype = 0;
@@ -1592,6 +1592,10 @@ int mbedtls_ssl_session_reset_int(mbedtls_ssl_context *ssl, int partial)
 #if defined(MBEDTLS_SSL_ALPN)
     ssl->alpn_chosen = NULL;
 #endif
+
+#if defined(MBEDTLS_SSL_DTLS_SRTP)
+    memset(&ssl->dtls_srtp_info, 0, sizeof(ssl->dtls_srtp_info));
+#endif /* MBEDTLS_SSL_DTLS_SRTP */
 
 #if defined(MBEDTLS_SSL_DTLS_HELLO_VERIFY) && defined(MBEDTLS_SSL_SRV_C)
     int free_cli_id = 1;
@@ -2803,8 +2807,14 @@ static int mbedtls_ssl_has_set_hostname_been_called(
 }
 #endif
 
-/* Micro-optimization: don't export this function if it isn't needed outside
- * of this source file. */
+/*
+ * Exported for ssl_client.c when SNI is enabled.  When SNI is off the only
+ * in-file caller is get_hostname_for_verification() which is guarded by
+ * MBEDTLS_SSL_HANDSHAKE_WITH_CERT_ENABLED, so compile the function out
+ * entirely when neither macro is defined.
+ */
+#if defined(MBEDTLS_SSL_SERVER_NAME_INDICATION) || \
+    defined(MBEDTLS_SSL_HANDSHAKE_WITH_CERT_ENABLED)
 #if !defined(MBEDTLS_SSL_SERVER_NAME_INDICATION)
 static
 #endif
@@ -2815,6 +2825,7 @@ const char *mbedtls_ssl_get_hostname_pointer(const mbedtls_ssl_context *ssl)
     }
     return ssl->hostname;
 }
+#endif /* MBEDTLS_SSL_SERVER_NAME_INDICATION || MBEDTLS_SSL_HANDSHAKE_WITH_CERT_ENABLED */
 
 static void mbedtls_ssl_free_hostname(mbedtls_ssl_context *ssl)
 {
@@ -4028,6 +4039,12 @@ static int ssl_tls13_session_load(mbedtls_ssl_session *session,
         }
 
         if (alpn_len > 0) {
+            /* The data is about to be used as a null-terminated string, so
+             * check that it actually is one. */
+            if (p[alpn_len - 1] != '\0') {
+                return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
+            }
+
             int ret = mbedtls_ssl_session_set_ticket_alpn(session, (char *) p);
             if (ret != 0) {
                 return ret;
@@ -4053,11 +4070,16 @@ static int ssl_tls13_session_load(mbedtls_ssl_session *session,
             return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
         }
         if (hostname_len > 0) {
-            session->hostname = mbedtls_calloc(1, hostname_len);
-            if (session->hostname == NULL) {
-                return MBEDTLS_ERR_SSL_ALLOC_FAILED;
+            /* The data is about to be used as a null-terminated string, so
+             * check that it actually is one. */
+            if (p[hostname_len - 1] != '\0') {
+                return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
             }
-            memcpy(session->hostname, p, hostname_len);
+
+            int ret = mbedtls_ssl_session_set_hostname(session, (const char *) p);
+            if (ret != 0) {
+                return ret;
+            }
             p += hostname_len;
         }
 #endif /* MBEDTLS_SSL_SERVER_NAME_INDICATION */
@@ -4094,6 +4116,10 @@ static int ssl_tls13_session_load(mbedtls_ssl_session *session,
         }
     }
 #endif /* MBEDTLS_SSL_CLI_C */
+
+    if (p != end) {
+        return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
+    }
 
     return 0;
 
@@ -5433,12 +5459,20 @@ static int ssl_context_load(mbedtls_ssl_context *ssl,
         return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
     }
 
+    if (ssl->transform->in_cid_len > sizeof(ssl->transform->in_cid)) {
+        return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
+    }
+
     memcpy(ssl->transform->in_cid, p, ssl->transform->in_cid_len);
     p += ssl->transform->in_cid_len;
 
     ssl->transform->out_cid_len = *p++;
 
     if ((size_t) (end - p) < ssl->transform->out_cid_len) {
+        return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
+    }
+
+    if (ssl->transform->out_cid_len > sizeof(ssl->transform->out_cid)) {
         return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
     }
 
@@ -7081,11 +7115,16 @@ static int ssl_compute_master(mbedtls_ssl_handshake_params *handshake,
 #if defined(MBEDTLS_SSL_EXTENDED_MASTER_SECRET)
     if (handshake->extended_ms == MBEDTLS_SSL_EXTENDED_MS_ENABLED) {
         lbl  = "extended master secret";
-        seed = session_hash;
         ret = handshake->calc_verify(ssl, session_hash, &seed_len);
         if (ret != 0) {
             MBEDTLS_SSL_DEBUG_RET(1, "calc_verify", ret);
+            return ret;
         }
+        if (seed_len > sizeof(session_hash)) {
+            MBEDTLS_SSL_DEBUG_MSG(1, ("bad session hash length"));
+            return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+        }
+        seed = session_hash;
 
         MBEDTLS_SSL_DEBUG_BUF(3, "session hash for extended master secret",
                               session_hash, seed_len);
@@ -7341,7 +7380,7 @@ static int ssl_calc_verify_tls_psa(const mbedtls_ssl_context *ssl,
 
 exit:
     psa_hash_abort(&cloned_op);
-    return mbedtls_md_error_from_psa(status);
+    return PSA_TO_MBEDTLS_ERR(status);
 }
 #else
 static int ssl_calc_verify_tls_legacy(const mbedtls_ssl_context *ssl,
@@ -8240,7 +8279,7 @@ static int ssl_calc_finished_tls_generic(mbedtls_ssl_context *ssl, void *ctx,
 exit:
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
     psa_hash_abort(&cloned_op);
-    return mbedtls_md_error_from_psa(status);
+    return PSA_TO_MBEDTLS_ERR(status);
 #else
     mbedtls_md_free(&cloned_ctx);
     return ret;
