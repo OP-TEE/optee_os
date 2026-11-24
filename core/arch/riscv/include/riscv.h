@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  * Copyright (c) 2026, RISCStar Solutions Limited
  */
 
@@ -91,6 +91,10 @@
 #define CSR_XSTATUS_FS_DIRTY	3
 
 #define CSR_XCAUSE_INTR_FLAG	BIT64(__riscv_xlen - 1)
+
+/* senvcfg: user mode CFI, Zicfilp landing pads and Zicfiss shadow stacks */
+#define CSR_SENVCFG_LPE		BIT(2)
+#define CSR_SENVCFG_SSE		BIT(3)
 
 #ifndef __ASSEMBLER__
 

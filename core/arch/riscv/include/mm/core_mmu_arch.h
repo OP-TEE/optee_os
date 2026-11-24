@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023,2026 NXP
  */
 #ifndef __MM_CORE_MMU_ARCH_H
 #define __MM_CORE_MMU_ARCH_H
@@ -164,9 +164,18 @@ struct core_mmu_config {
 	unsigned long map_offset;
 };
 
+/*
+ * struct core_mmu_user_map - Hart state of an active user mapping
+ * @user_map:	Physical address of the user page directory, 0 when none
+ * @asid:	ASID the user mapping is tagged with
+ * @senvcfg:	senvcfg bits owned by the user mapping: CSR_SENVCFG_LPE when
+ *		landing pads are enforced for this context (Zicfilp) and
+ *		CSR_SENVCFG_SSE when its shadow stack is active (Zicfiss)
+ */
 struct core_mmu_user_map {
 	unsigned long user_map;
 	uint32_t asid;
+	unsigned long senvcfg;
 };
 
 /* Cache maintenance operation type */

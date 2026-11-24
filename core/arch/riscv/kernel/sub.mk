@@ -21,6 +21,7 @@ srcs-y += thread_optee_abi.c
 srcs-y += thread_optee_abi_rv.S
 srcs-$(CFG_WITH_VFP) += vfp.c
 srcs-$(CFG_WITH_VFP) += vfp_rv.S
+srcs-$(call cfg-one-enabled,CFG_TA_ZICFILP CFG_TA_ZICFISS) += cfi.c
 asm-defines-y += asm-defines.c
 
 ifeq ($(CFG_SYSCALL_FTRACE),y)
