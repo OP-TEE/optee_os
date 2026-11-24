@@ -46,6 +46,12 @@ TEE_Result tme_fuse_read(enum tme_qfprom_addr_space addr_type,
 		goto bail;
 	}
 
+	/* TME handler status. The QFPROM status is left to the caller. */
+	if (fuse_read_rsp.status != 0U) {
+		res = TEE_ERROR_GENERIC;
+		goto bail;
+	}
+
 	/*
 	 * The caller is required to supply room for the whole row
 	 * (TME_QFPROM_FUSE_DATA_WORDS words).

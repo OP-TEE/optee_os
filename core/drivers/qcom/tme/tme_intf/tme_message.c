@@ -196,6 +196,9 @@ TEE_Result tme_transceive_message(uint32_t tag, void *req_buf,
 		goto exit;
 	}
 
+	/* Zero the request header; The TMECOM driver in TF-A fills it */
+	memset(&tme_msg_req->hdr, 0, sizeof(tme_msg_req->hdr));
+
 	encoded_request_buf.ptr = tme_msg_req->enc_req_buf;
 	encoded_request_buf.len = encoded_request_len;
 
@@ -219,6 +222,9 @@ TEE_Result tme_transceive_message(uint32_t tag, void *req_buf,
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit;
 	}
+
+	/* Zero the response header; The TMECOM driver in TF-A fills it */
+	memset(&tme_msg_rsp->hdr, 0, sizeof(tme_msg_rsp->hdr));
 
 	encoded_response_buf.ptr = tme_msg_rsp->enc_rsp_buf;
 	encoded_response_buf.len = encoded_response_len;

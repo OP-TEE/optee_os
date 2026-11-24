@@ -31,13 +31,14 @@
  *                      TME_QFPROM_NO_ERR on a clean read. Written only when
  *                      the call returns TEE_SUCCESS.
  *
- * Return TEE_SUCCESS if the exchange completed and the response was the
- * expected size, TEE_ERROR_BAD_PARAMETERS if @fuse_data or @qfprom_api_status
- * is NULL, or another TEE_Result error code otherwise.
+ * Return TEE_SUCCESS if the exchange completed, the response was the expected
+ * size, AND the TME reported a zero status, TEE_ERROR_BAD_PARAMETERS if
+ * @fuse_data or @qfprom_api_status is NULL, or another TEE_Result error code
+ * otherwise.
  *
- * NOTE: TEE_SUCCESS only means that the request/response exchange succeeded.
- * The caller MUST also check @qfprom_api_status - the TME reports a rejected
- * or failed fuse read there, not in the return value.
+ * NOTE: TEE_SUCCESS only means that the TME handled the request. The caller
+ * MUST also check @qfprom_api_status - the qfprom driver of the TME reports a
+ * rejected or failed fuse read there, not in the return value.
  */
 TEE_Result tme_fuse_read(enum tme_qfprom_addr_space addr_type,
 			 uint32_t fuse_addr,
@@ -71,9 +72,6 @@ TEE_Result tme_fuse_read(enum tme_qfprom_addr_space addr_type,
  * Return TEE_ERROR_BAD_PARAMETERS for invalid arguments,
  * TEE_ERROR_EXCESS_DATA for too many rows, or another TEE_Result error code
  * for a failed exchange or a rejected write.
- *
- * NOTE: unlike tme_fuse_read(), a nonzero status is folded into the return
- * value here, so TEE_SUCCESS does mean the write itself was accepted.
  */
 TEE_Result tme_fuse_write_multiple(struct tme_fuse *fuse_array,
 				   size_t fuse_array_len,

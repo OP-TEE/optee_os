@@ -51,6 +51,12 @@ endif
 -include core/arch/arm/plat-qcom/family/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
 -include core/arch/arm/plat-qcom/family/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
 
+# CFG_QCOM_TFA_COMM talks to an EL3 SPMC LSP and reads the SP manifest.
+# CFG_CORE_EL3_SPMC sets CFG_CORE_FFA and CFG_DT, which it needs.
+ifeq ($(CFG_QCOM_TFA_COMM),y)
+$(call force,CFG_CORE_EL3_SPMC,y)
+endif
+
 ifeq ($(CFG_QCOM_PAS_AUTH),y)
 # Authentication flow needs larger temporary allocations.
 # Override any family/target defaults when PAS auth is enabled.

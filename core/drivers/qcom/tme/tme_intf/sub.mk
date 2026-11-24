@@ -12,3 +12,7 @@ srcs-y += tme_get_arb_version.c
 srcs-y += tme_message.c
 srcs-y += tme_update_rollback_version.c
 srcs-y += tme_write_config_register.c
+
+# Prevent the warnings that come from <qcbor.h>
+cflags-y += -Wno-declaration-after-statement
+cflags-y += -Wno-redundant-decls

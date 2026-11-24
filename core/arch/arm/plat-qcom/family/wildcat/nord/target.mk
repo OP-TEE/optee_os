@@ -25,7 +25,7 @@ CFG_WITH_SOFTWARE_PRNG ?= n
 # When enabled, CFG_QCOM_TME_INTF enables the TME interface: the
 # functions that can communicate with TME. The messages are sent to TME
 # through TF-A, so it needs CFG_QCOM_TFA_COMM.
-CFG_QCOM_TME_INTF = y
+CFG_QCOM_TME_INTF ?= y
 ifeq ($(CFG_QCOM_TME_INTF),y)
 $(call force,CFG_QCBOR,y)
 $(call force,CFG_QCOM_TFA_COMM,y)
