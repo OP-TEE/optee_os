@@ -61,7 +61,8 @@ struct thread_user_mode_rec {
 
 #ifdef CFG_WITH_VFP
 struct thread_vfp_state {
-	bool ns_saved;
+	/* Mask of the REE units (VFP_UNIT_*) saved, each taken when needed. */
+	uint32_t ns_saved;
 	struct vfp_state ns;
 	struct thread_user_vfp_state *uvfp;
 };
