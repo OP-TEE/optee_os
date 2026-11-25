@@ -4,6 +4,7 @@
  */
 
 #include <kernel/thread.h>
+#include <kernel/vfp.h>
 #include <kernel/thread_private.h>
 #include <gen-asm-defines.h>
 #include <kernel/boot.h>
@@ -109,4 +110,18 @@ DEFINES
 	/* struct thread_abi_args */
 	DEFINE(THREAD_ABI_ARGS_A0, offsetof(struct thread_abi_args, a0));
 	DEFINE(THREAD_ABI_ARGS_SIZE, sizeof(struct thread_abi_args));
+
+#ifdef CFG_RISCV_ISA_V
+	/* struct riscv_vector_state */
+	DEFINE(RISCV_VECTOR_STATE_VCSR,
+	       offsetof(struct riscv_vector_state, vcsr));
+	DEFINE(RISCV_VECTOR_STATE_VSTART,
+	       offsetof(struct riscv_vector_state, vstart));
+	DEFINE(RISCV_VECTOR_STATE_VL,
+	       offsetof(struct riscv_vector_state, vl));
+	DEFINE(RISCV_VECTOR_STATE_VTYPE,
+	       offsetof(struct riscv_vector_state, vtype));
+	DEFINE(RISCV_VECTOR_STATE_VREGS,
+	       offsetof(struct riscv_vector_state, vregs));
+#endif
 }

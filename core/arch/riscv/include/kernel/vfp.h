@@ -22,6 +22,20 @@ struct vfp_reg {
 };
 #endif
 
+#if defined(CFG_RISCV_ISA_V)
+/*
+ * A vector context: the vector CSRs followed by v0-v31, whose size
+ * (32 * vlenb) is only known at runtime.
+ */
+struct riscv_vector_state {
+	unsigned long vcsr;
+	unsigned long vstart;
+	unsigned long vl;
+	unsigned long vtype;
+	uint8_t vregs[];
+};
+#endif
+
 struct vfp_state {
 	struct vfp_reg reg[VFP_NUM_REGS];
 	uint32_t fcsr;
