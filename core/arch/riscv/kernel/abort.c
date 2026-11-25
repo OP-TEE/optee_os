@@ -243,11 +243,11 @@ static void handle_user_mode_panic(struct abort_info *ai)
 }
 
 #ifdef CFG_WITH_VFP
-static void handle_user_mode_vfp(void)
+static bool handle_user_mode_vfp(void)
 {
 	struct ts_session *s = ts_get_current_session();
 
-	thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
+	return thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
 }
 #endif /*CFG_WITH_VFP*/
 
@@ -270,15 +270,10 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 static bool is_vfp_fault(struct abort_info *ai)
 {
 	/*
-	 * An illegal instruction has cause CAUSE_ILLEGAL_INSTRUCTION. If it
-	 * came from a context that had the FP unit disabled, take it as the
-	 * first FP use and hand over the unit; a genuinely illegal instruction
-	 * traps again once the unit is enabled and is a panic then.
+	 * An illegal instruction while a unit is still off is its first use;
+	 * with every unit on it is genuinely illegal.
 	 */
-	if (ai->fault_descr != CAUSE_ILLEGAL_INSTRUCTION || vfp_is_enabled())
-		return false;
-
-	return true;
+	return ai->fault_descr == CAUSE_ILLEGAL_INSTRUCTION && vfp_fault_unit();
 }
 #else /*CFG_WITH_VFP && CFG_WITH_USER_TA*/
 static bool is_vfp_fault(struct abort_info *ai __unused)
@@ -364,6 +359,13 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	switch (get_fault_type(&ai)) {
 	case FAULT_TYPE_IGNORE:
 		break;
+#ifdef CFG_WITH_VFP
+	case FAULT_TYPE_USER_MODE_VFP:
+		if (handle_user_mode_vfp())
+			break;
+		EMSG("Out of memory for a TA vector context");
+		fallthrough;
+#endif
 	case FAULT_TYPE_USER_MODE_PANIC:
 		DMSG("[abort] abort in User mode (TA will panic)");
 		save_abort_info_in_tsd(&ai);
@@ -372,11 +374,6 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 #endif
 		handle_user_mode_panic(&ai);
 		break;
-#ifdef CFG_WITH_VFP
-	case FAULT_TYPE_USER_MODE_VFP:
-		handle_user_mode_vfp();
-		break;
-#endif
 	case FAULT_TYPE_PAGE_FAULT:
 	default:
 		if (thread_get_id_may_fail() < 0) {
