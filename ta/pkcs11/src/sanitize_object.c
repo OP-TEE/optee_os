@@ -432,12 +432,20 @@ void trace_attributes_from_api_head(const char *prefix, void *ref, size_t size,
 	struct pkcs11_object_head head = { };
 	char *pre = NULL;
 	size_t offset = 0;
+	size_t total = 0;
+
+	if (size < sizeof(head)) {
+		EMSG("template smaller than its header (%zu/%zu)",
+		     size, sizeof(head));
+		return;
+	}
 
 	TEE_MemMove(&head, ref, sizeof(head));
 
-	if (size < sizeof(head) + head.attrs_size) {
-		EMSG("template overflows client buffer (%zu/%zu)",
-		     size, sizeof(head) + head.attrs_size);
+	if (ADD_OVERFLOW(sizeof(head), head.attrs_size, &total) ||
+	    size < total) {
+		EMSG("template overflows client buffer (%zu/%"PRIu32")",
+		     size, head.attrs_size);
 		return;
 	}
 
