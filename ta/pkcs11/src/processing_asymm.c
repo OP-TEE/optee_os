@@ -1118,9 +1118,7 @@ static enum pkcs11_rc wrap_rsa_aes_key(struct active_processing *proc,
 	uint8_t aes_key_value[32] = { };
 	uint32_t aes_key_size = ctx->aes_key_bits / 8;
 	size_t aes_wrapped_size = 0;
-	uint32_t allocated_size = 0;
 	uint32_t full_size = 0;
-	uint32_t expected_size = 0;
 	size_t target_key_size = 0;
 	const size_t kw_semiblock_len = 8;
 	uint8_t *wrapped_data = NULL;
@@ -1137,36 +1135,24 @@ static enum pkcs11_rc wrap_rsa_aes_key(struct active_processing *proc,
 			 kw_semiblock_len, &full_size))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	if (!*out_sz) {
+	if (*out_sz < full_size) {
 		*out_sz = full_size;
 		return PKCS11_CKR_BUFFER_TOO_SMALL;
 	}
 
-	allocated_size = MIN(*out_sz, full_size);
-	wrapped_data = TEE_Malloc(allocated_size,
-				  TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	wrapped_data = TEE_Malloc(full_size, TEE_USER_MEM_HINT_NO_FILL_ZERO);
 	if (!wrapped_data)
 		return PKCS11_CKR_DEVICE_MEMORY;
 
 	mbedtls_nist_kw_init(&kw_ctx);
 	TEE_GenerateRandom(aes_key_value, aes_key_size);
-	aes_wrapped_size = allocated_size;
+	aes_wrapped_size = full_size;
 	res = TEE_AsymmetricEncrypt(proc->tee_op_handle,
 				    NULL, 0,
 				    aes_key_value, aes_key_size,
 				    wrapped_data, &aes_wrapped_size);
-	expected_size = aes_wrapped_size + data_sz + kw_semiblock_len;
 	if (res) {
-		if (res == TEE_ERROR_SHORT_BUFFER)
-			*out_sz = expected_size;
-
 		rc = tee2pkcs_error(res);
-		goto out;
-	}
-
-	if (*out_sz < expected_size) {
-		rc = PKCS11_CKR_BUFFER_TOO_SMALL;
-		*out_sz = expected_size;
 		goto out;
 	}
 
@@ -1186,7 +1172,7 @@ static enum pkcs11_rc wrap_rsa_aes_key(struct active_processing *proc,
 					  data, data_sz,
 					  wrapped_data + aes_wrapped_size,
 					  &target_key_size,
-					  allocated_size - aes_wrapped_size);
+					  full_size - aes_wrapped_size);
 	if (mbedtls_rc) {
 		rc = PKCS11_CKR_ARGUMENTS_BAD;
 		goto out;
@@ -1198,7 +1184,7 @@ static enum pkcs11_rc wrap_rsa_aes_key(struct active_processing *proc,
 
 out:
 	mbedtls_nist_kw_free(&kw_ctx);
-	TEE_MemFill(wrapped_data, 0, allocated_size);
+	TEE_MemFill(wrapped_data, 0, full_size);
 	TEE_Free(wrapped_data);
 	TEE_MemFill(aes_key_value, 0, aes_key_size);
 	return rc;
