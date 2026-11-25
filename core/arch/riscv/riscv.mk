@@ -158,6 +158,11 @@ riscv-abi = $(ABI_BASE)$(ABI_D)
 CFG_WITH_VFP ?= $(CFG_RISCV_FPU)
 $(eval $(call cfg-depends-all,CFG_WITH_VFP,CFG_RISCV_FPU))
 
+# Vector (V) context switching, built on CFG_WITH_VFP. The core is not built
+# for V: only vfp_rv.S uses it, through '.option arch'.
+CFG_RISCV_ISA_V ?= n
+$(eval $(call cfg-depends-all,CFG_RISCV_ISA_V,CFG_WITH_VFP))
+
 rv64-platform-cflags += -mcmodel=$(riscv-platform-mcmodel)
 rv64-platform-cflags += -march=$(riscv-isa) -mabi=$(riscv-abi)
 rv64-platform-cflags += -Wno-missing-include-dirs
