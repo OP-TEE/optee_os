@@ -412,7 +412,9 @@ TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
 			goto clean_values;
 	}
 
-	memset(*values + len, 0, sizeof(uint32_t) - (len % sizeof(uint32_t)));
+	if (len % sizeof(uint32_t))
+		memset(*values + len, 0,
+		       sizeof(uint32_t) - (len % sizeof(uint32_t)));
 
 	return TEE_SUCCESS;
 
@@ -947,11 +949,11 @@ bool stm32_bsec_can_access_otp(uint32_t otp)
 	if (IS_ENABLED(CFG_STM32_CM33TDCID))
 		return false;
 
-	/* manage HIDEUP */
-	if ((bsec_dev.mirror->otp[otp].status & HIDEUP_ERROR) == HIDEUP_ERROR)
+	if (otp > bsec_dev.max_id)
 		return false;
 
-	if (otp > bsec_dev.max_id)
+	/* manage HIDEUP */
+	if ((bsec_dev.mirror->otp[otp].status & HIDEUP_ERROR) == HIDEUP_ERROR)
 		return false;
 
 	return true;
@@ -1307,7 +1309,7 @@ stm32_bsec_pm(enum pm_op op, unsigned int pm_hint,
 		for (otp = 0; otp <= bsec_dev.max_id; otp++) {
 			uint32_t otp_value = bsec_dev.mirror_pm.otp[otp].value;
 
-			if (otp_value)
+			if (otp_value != bsec_dev.mirror->otp[otp].value)
 				stm32_bsec_write_otp(otp_value, otp);
 		}
 	} else {
