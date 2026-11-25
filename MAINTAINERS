@@ -61,6 +61,11 @@ R:	Carlo Caione <ccaione@baylibre.com> [@carlocaione]
 S:	Maintained
 F:	core/arch/arm/plat-amlogic/
 
+Android Verified Boot (AVB) TA
+R:	Igor Opaniuk <igor.opaniuk@oss.qualcomm.com> [@igoropaniuk]
+S:	Maintained
+F:	ta/avb/
+
 AOSP build
 R:	Tadd Kao <tadd.kao@mediatek.com> [@taddk]
 S:	Maintained
