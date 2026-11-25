@@ -1196,21 +1196,18 @@ unsigned long __weak thread_cpu_off_handler(unsigned long a0 __unused,
 {
 	return 0;
 }
-DECLARE_KEEP_PAGER(thread_cpu_off_handler);
 
 unsigned long __weak thread_cpu_suspend_handler(unsigned long a0 __unused,
 						unsigned long a1 __unused)
 {
 	return 0;
 }
-DECLARE_KEEP_PAGER(thread_cpu_suspend_handler);
 
 unsigned long __weak thread_cpu_resume_handler(unsigned long a0 __unused,
 					       unsigned long a1 __unused)
 {
 	return 0;
 }
-DECLARE_KEEP_PAGER(thread_cpu_resume_handler);
 
 unsigned long __weak thread_system_off_handler(unsigned long a0 __unused,
 					       unsigned long a1 __unused)
@@ -1235,6 +1232,7 @@ unsigned long thread_cpu_off(unsigned long a0, unsigned long a1)
 
 	return rc;
 }
+DECLARE_KEEP_PAGER(thread_cpu_off);
 
 unsigned long thread_cpu_suspend(unsigned long a0, unsigned long a1)
 {
@@ -1245,6 +1243,7 @@ unsigned long thread_cpu_suspend(unsigned long a0, unsigned long a1)
 
 	return rc;
 }
+DECLARE_KEEP_PAGER(thread_cpu_suspend);
 
 unsigned long thread_cpu_resume(unsigned long a0, unsigned long a1)
 {
@@ -1255,6 +1254,7 @@ unsigned long thread_cpu_resume(unsigned long a0, unsigned long a1)
 
 	return rc;
 }
+DECLARE_KEEP_PAGER(thread_cpu_resume);
 #endif /*CFG_WITH_ARM_TRUSTED_FW*/
 
 #ifdef CFG_CORE_WORKAROUND_ARM_NMFI
