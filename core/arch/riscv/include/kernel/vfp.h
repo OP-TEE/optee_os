@@ -47,6 +47,10 @@ struct riscv_vector_state {
 struct vfp_state {
 	struct vfp_reg reg[VFP_NUM_REGS];
 	uint32_t fcsr;
+#if defined(CFG_RISCV_ISA_V)
+	/* Vector context, from vfp_alloc_vector_context() */
+	struct riscv_vector_state *vregs;
+#endif
 	/* The units' xstatus fields at vfp_lazy_save_state_init() */
 	unsigned long xstatus;
 };
@@ -127,6 +131,40 @@ uint32_t vfp_state_units(struct vfp_state *state);
  * @units:	Units to clear; each must already be enabled by the caller
  */
 void vfp_clear_unit_regs(uint32_t units);
+
+#if defined(CFG_RISCV_ISA_V)
+/*
+ * vfp_init_per_cpu() - Per-hart init: once the vector context size is set by
+ *			the first allocation, panic if this hart's vlenb differs
+ */
+void vfp_init_per_cpu(void);
+
+/*
+ * vfp_alloc_vector_context() - Give @state a zeroed vector context if it has
+ *				none; the first call sets the size from vlenb
+ *
+ * Returns false on allocation failure.
+ */
+bool vfp_alloc_vector_context(struct vfp_state *state);
+
+/*
+ * vfp_free_vector_context() - Free @state's vector context, if any
+ */
+void vfp_free_vector_context(struct vfp_state *state);
+#else
+static inline void vfp_init_per_cpu(void)
+{
+}
+
+static inline bool vfp_alloc_vector_context(struct vfp_state *state __unused)
+{
+	return true;
+}
+
+static inline void vfp_free_vector_context(struct vfp_state *state __unused)
+{
+}
+#endif
 
 /*
  * vfp_lazy_save_state_final() - Saves whichever units their owner left in use
