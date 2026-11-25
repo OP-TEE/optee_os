@@ -20,6 +20,8 @@
 #define RPMH_BASE_ADDR                  UL(0x18900000)
 #define RPMH_RSC_SIZE                   UL(0x10000)
 
+#define TCSR_PCIE_LINK_CONFIG_MODE	UL(0x01FD1050)
+
 #define DRAM0_BASE			UL(0x80000000)
 #define DRAM0_SIZE			UL(0x80000000)
 #define DRAM1_BASE			ULL(0x880000000)

@@ -165,6 +165,11 @@ S:	Maintained
 F:	core/drivers/qcom/icb/
 F:	core/include/drivers/qcom/icb/
 
+Core Drivers QCOM PCIE TCSR
+R:	Krishna Chaitanya Chundru <krishna.chundru@oss.qualcomm.com> [@krishna-chundru]
+S:	Maintained
+F:	core/drivers/qcom/pcie_tcsr/
+
 Core Drivers QCOM QFPROM
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
 R:	Kishore Batta <kishore.batta@oss.qualcomm.com> [@kishorebatta-ossqcom]
