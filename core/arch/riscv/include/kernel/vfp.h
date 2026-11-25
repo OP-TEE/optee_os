@@ -18,7 +18,13 @@
  * can be used directly with the xstatus CSR.
  */
 #define VFP_UNIT_FP	CSR_XSTATUS_FS_MASK
+#if defined(CFG_RISCV_ISA_V)
+#define VFP_UNIT_VEC	CSR_XSTATUS_VS_MASK
+#define VFP_UNIT_ALL	CSR_XSTATUS_VFP_MASK
+#else
+#define VFP_UNIT_VEC	0
 #define VFP_UNIT_ALL	VFP_UNIT_FP
+#endif
 
 #if defined(__riscv_flen) && __riscv_flen == 32
 struct vfp_reg {
@@ -80,7 +86,11 @@ void vfp_disable(void);
 
 /*
  * vfp_fault_unit() - The single unit to hand over on a disabled-unit trap:
- *		      the first one still Off; 0 if all on
+ *		      the first one still Off, FP before vector; 0 if all on
+ *
+ * Returns VFP_UNIT_FP while the FP unit is off, then VFP_UNIT_VEC while the
+ * vector unit is off, so a repeated trap walks FP then vector and a TA that
+ * only uses FP never enables the vector unit.
  */
 uint32_t vfp_fault_unit(void);
 #else
@@ -104,7 +114,7 @@ static inline void vfp_disable(void)
 
 /*
  * vfp_lazy_save_state_init() - Captures the units' fields and disables them
- * @state:	FP state to initialise
+ * @state:	FP/vector state to initialise
  *
  * The registers themselves are left in place, to be saved by vfp_lazy_save()
  * if they turn out to be needed.
@@ -113,7 +123,7 @@ void vfp_lazy_save_state_init(struct vfp_state *state);
 
 /*
  * vfp_lazy_save() - Save the registers of the requested units that were in use
- * @state:	FP state to save to
+ * @state:	FP/vector state to save to
  * @units:	Units to consider (VFP_UNIT_*)
  * @force:	Save even if a unit's field was Off at the save-init call
  *
@@ -122,7 +132,8 @@ void vfp_lazy_save_state_init(struct vfp_state *state);
 uint32_t vfp_lazy_save(struct vfp_state *state, uint32_t units, bool force);
 
 /*
- * vfp_state_units() - Units a saved state had in use: field not Off
+ * vfp_state_units() - Units a saved state had in use: field not Off, and a
+ *		       vector context present for VFP_UNIT_VEC
  */
 uint32_t vfp_state_units(struct vfp_state *state);
 
@@ -168,7 +179,7 @@ static inline void vfp_free_vector_context(struct vfp_state *state __unused)
 
 /*
  * vfp_lazy_save_state_final() - Saves whichever units their owner left in use
- * @state:	FP state to save to
+ * @state:	FP/vector state to save to
  * @force_save:	Forces the save even if a unit was disabled at
  *		vfp_lazy_save_state_init()
  */
@@ -176,7 +187,7 @@ void vfp_lazy_save_state_final(struct vfp_state *state, bool force_save);
 
 /*
  * vfp_lazy_restore_state() - Restore the given units' registers and fields
- * @state:	FP state to restore
+ * @state:	FP/vector state to restore
  * @units:	Units whose registers were saved and are to be restored
  */
 void vfp_lazy_restore_state(struct vfp_state *state, uint32_t units);
