@@ -104,7 +104,9 @@ void callout_set_next_timeout(struct callout *co, uint32_t ms);
  * current CPU. If for instance @set_next_timeout() is called on a new CPU
  * compared to last time the timer on the old CPU will remain unchanged.
  * Timer interrupts may trigger based on obsolete configuration, the
- * callout service is expected to handle this gracefully.
+ * callout service is expected to handle this gracefully. If the CPU where
+ * the next timeout is scheduled is turned off or suspended, timeouts will
+ * not fire until that CPU resumes or another CPU schedules a timeout.
  */
 struct callout_timer_desc {
 	void (*disable_timeout)(const struct callout_timer_desc *desc);
