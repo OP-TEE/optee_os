@@ -13,6 +13,7 @@
 #include "tee_api_private.h"
 
 #define ACCESS_RW	(TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_WRITE)
+#define ACCESS_R_ANY	(TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_ANY_OWNER)
 #define ACCESS_W_ANY	(TEE_MEMORY_ACCESS_WRITE | TEE_MEMORY_ACCESS_ANY_OWNER)
 #define ACCESS_R	TEE_MEMORY_ACCESS_READ
 #define ACCESS_W	TEE_MEMORY_ACCESS_WRITE
@@ -47,6 +48,24 @@ static TEE_Result check_access(uint32_t flags, void *buf, size_t len)
 		return TEE_CheckMemoryAccessRights(flags, buf, len);
 
 	return TEE_SUCCESS;
+}
+
+void __utee_check_inbuf_size_annotation(const void *buf, size_t len)
+{
+	check_res("[inbuf]",
+		  check_access(ACCESS_R_ANY, (void *)buf, len));
+}
+
+void __utee_check_outbuf_size_annotation(void *buf, size_t len)
+{
+	check_res("[outbuf]", check_access(ACCESS_W_ANY, buf, len));
+}
+
+void __utee_check_inoutbuf_size_annotation(void *buf, size_t len)
+{
+	check_res("[inoutbuf]",
+		  check_access(ACCESS_RW | TEE_MEMORY_ACCESS_ANY_OWNER,
+			       buf, len));
 }
 
 void __utee_check_outbuf_annotation(void *buf, size_t *len)
