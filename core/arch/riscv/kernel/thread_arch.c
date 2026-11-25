@@ -36,8 +36,6 @@
 #include <trace.h>
 #include <util.h>
 
-#include "vfp_private.h"
-
 /*
  * This function is called as a guard after each ABI call which is not
  * supposed to return.
@@ -96,7 +94,7 @@ static void thread_lazy_save_ns_vfp(void)
 #ifdef CFG_WITH_VFP
 	struct thread_ctx *thr = threads + thread_get_id();
 
-	thr->vfp_state.ns_saved = false;
+	thr->vfp_state.ns_saved = 0;
 	vfp_lazy_save_state_init(&thr->vfp_state.ns);
 #endif /*CFG_WITH_VFP*/
 }
@@ -108,8 +106,8 @@ static void thread_lazy_restore_ns_vfp(void)
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
 
 	/*
-	 * The REE FP context is only restored once the secure side has
-	 * released the unit, so it must be disabled here.
+	 * The REE context is only restored once the secure side has released
+	 * the units, so they must be disabled here.
 	 */
 	assert(!vfp_is_enabled());
 
@@ -525,9 +523,8 @@ void thread_init_per_cpu(void)
 #endif
 #ifdef CFG_WITH_VFP
 	/*
-	 * OpenSBI may leave xstatus.FS in any state on entry. Start with the
-	 * FP unit disabled: it is turned on only through vfp_enable(), i.e.
-	 * thread_kernel_enable_vfp() or a user FP trap.
+	 * The M-mode firmware may leave the units' xstatus fields in any state
+	 * on entry: start with the units off, each turned on only by its owner.
 	 */
 	vfp_disable();
 #endif
@@ -571,15 +568,20 @@ uint32_t thread_kernel_enable_vfp(void)
 
 	assert(!vfp_is_enabled());
 
-	if (!thr->vfp_state.ns_saved) {
-		vfp_lazy_save_state_final(&thr->vfp_state.ns,
-					  true /*force_save*/);
-		thr->vfp_state.ns_saved = true;
-	} else if (tuv && tuv->lazy_saved && !tuv->saved) {
-		/*
-		 * This can happen either during syscall or abort
-		 * processing (while processing a syscall).
-		 */
+	/*
+	 * vfp_enable() turns on every unit: force-save each REE unit not yet
+	 * saved, as one lazily disabled still holds live registers.
+	 */
+	thr->vfp_state.ns_saved |=
+		vfp_lazy_save(&thr->vfp_state.ns,
+			      VFP_UNIT_ALL & ~thr->vfp_state.ns_saved,
+			      true /*force*/);
+
+	/*
+	 * Flush a pending TA's lazily disabled context before the units are
+	 * clobbered. This can happen during syscall or abort processing.
+	 */
+	if (tuv && tuv->lazy_saved && !tuv->saved) {
 		vfp_lazy_save_state_final(&tuv->vfp, false /*!force_save*/);
 		tuv->saved = true;
 	}
@@ -606,42 +608,50 @@ void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
+	uint32_t unit = vfp_fault_unit();
+	uint32_t restore = 0;
+	uint32_t restored = 0;
+	uint32_t save = 0;
 
 	assert(uvfp);
 	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
-	assert(!vfp_is_enabled());
 
-	if (!thr->vfp_state.ns_saved) {
-		vfp_lazy_save_state_final(&thr->vfp_state.ns,
-					  true /*force_save*/);
-		thr->vfp_state.ns_saved = true;
-	} else if (tuv && uvfp != tuv) {
-		/*
-		 * Different user state saved last time, do a full save
-		 * of that state.
-		 */
-		if (tuv->lazy_saved && !tuv->saved) {
-			vfp_lazy_save_state_final(&tuv->vfp,
-						  false /*!force_save*/);
-			tuv->saved = true;
-		}
+	/* The units the restore below brings back from memory */
+	if (uvfp->lazy_saved && uvfp->saved)
+		restore = vfp_state_units(&uvfp->vfp);
+
+	/* Save the REE copy of each unit about to be clobbered, once */
+	save = (unit | restore) & ~thr->vfp_state.ns_saved;
+	thr->vfp_state.ns_saved |=
+		vfp_lazy_save(&thr->vfp_state.ns, save, true);
+
+	/* Flush a different TA's pending context before taking the unit. */
+	if (uvfp != tuv && tuv && tuv->lazy_saved && !tuv->saved) {
+		vfp_lazy_save_state_final(&tuv->vfp, false /*!force_save*/);
+		tuv->saved = true;
 	}
 
+	/*
+	 * Bring back this TA's units if it was lazily saved, even when it is
+	 * already current, so thread_user_save_vfp() finds no lazy state.
+	 */
 	if (uvfp->lazy_saved) {
-		vfp_lazy_restore_state(&uvfp->vfp, uvfp->saved);
-	} else {
-		/*
-		 * A new user context: do not hand it whatever the previous
-		 * owner left in the registers.
-		 */
-		vfp_enable();
-		vfp_clear_extension_regs();
+		vfp_lazy_restore_state(&uvfp->vfp, restore);
+		/* The restore sets the units' fields, so these are now on. */
+		restored = vfp_state_units(&uvfp->vfp);
 	}
 	uvfp->lazy_saved = false;
 	uvfp->saved = false;
-
 	thr->vfp_state.uvfp = uvfp;
-	vfp_enable();
+
+	/*
+	 * Hand over the faulting unit unless the restore brought it back,
+	 * zeroed so nothing leaks from a previous owner.
+	 */
+	if (!(restored & unit)) {
+		vfp_enable_fault_unit();
+		vfp_clear_unit_regs(unit);
+	}
 }
 
 void thread_user_save_vfp(void)

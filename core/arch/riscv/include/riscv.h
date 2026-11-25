@@ -98,6 +98,9 @@
 #define CSR_XSTATUS_VS_CLEAN	2
 #define CSR_XSTATUS_VS_DIRTY	3
 
+/* The unit-state fields of xstatus switched by the vfp_*() functions */
+#define CSR_XSTATUS_VFP_MASK	CSR_XSTATUS_FS_MASK
+
 #define CSR_XCAUSE_INTR_FLAG	BIT64(__riscv_xlen - 1)
 
 #ifndef __ASSEMBLER__
