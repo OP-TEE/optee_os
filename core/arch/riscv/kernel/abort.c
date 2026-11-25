@@ -270,12 +270,12 @@ bool abort_is_user_exception(struct abort_info *ai __unused)
 static bool is_vfp_fault(struct abort_info *ai)
 {
 	/*
-	 * An illegal instruction is reported as ABORT_TYPE_UNDEF. If it came
-	 * from a context that had the FP unit disabled, take it as the first
-	 * FP use and hand over the unit; a genuinely illegal instruction
+	 * An illegal instruction has cause CAUSE_ILLEGAL_INSTRUCTION. If it
+	 * came from a context that had the FP unit disabled, take it as the
+	 * first FP use and hand over the unit; a genuinely illegal instruction
 	 * traps again once the unit is enabled and is a panic then.
 	 */
-	if (ai->abort_type != ABORT_TYPE_UNDEF || vfp_is_enabled())
+	if (ai->fault_descr != CAUSE_ILLEGAL_INSTRUCTION || vfp_is_enabled())
 		return false;
 
 	return true;
