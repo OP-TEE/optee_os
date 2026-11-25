@@ -58,6 +58,10 @@ uint32_t vfp_fault_unit(void)
 
 	if (!(on & VFP_UNIT_FP))
 		return VFP_UNIT_FP;
+#if defined(CFG_RISCV_ISA_V)
+	if (!(on & VFP_UNIT_VEC))
+		return VFP_UNIT_VEC;
+#endif
 	return 0;
 }
 
@@ -65,6 +69,11 @@ uint32_t vfp_state_units(struct vfp_state *state)
 {
 	uint32_t units = state->xstatus & VFP_UNIT_ALL;
 
+#if defined(CFG_RISCV_ISA_V)
+	/* A saved vector field only counts with a context to restore. */
+	if (!state->vregs)
+		units &= ~VFP_UNIT_VEC;
+#endif
 	return units;
 }
 
@@ -72,6 +81,10 @@ void vfp_clear_unit_regs(uint32_t units)
 {
 	if (units & VFP_UNIT_FP)
 		vfp_clear_extension_regs();
+#if defined(CFG_RISCV_ISA_V)
+	if (units & VFP_UNIT_VEC)
+		vfp_clear_vector_regs();
+#endif
 }
 
 uint32_t vfp_lazy_save(struct vfp_state *state, uint32_t units, bool force)
@@ -87,6 +100,16 @@ uint32_t vfp_lazy_save(struct vfp_state *state, uint32_t units, bool force)
 		disable_units(VFP_UNIT_FP);
 		saved |= VFP_UNIT_FP;
 	}
+#if defined(CFG_RISCV_ISA_V)
+	if ((units & VFP_UNIT_VEC) && state->vregs &&
+	    (force || (state->xstatus & CSR_XSTATUS_VS_MASK))) {
+		assert(!(enabled_units() & VFP_UNIT_VEC));
+		enable_units(VFP_UNIT_VEC);
+		vfp_save_vector_regs(state->vregs);
+		disable_units(VFP_UNIT_VEC);
+		saved |= VFP_UNIT_VEC;
+	}
+#endif
 	return saved;
 }
 
@@ -158,6 +181,12 @@ void vfp_lazy_restore_state(struct vfp_state *state, uint32_t units)
 		write_csr(CSR_FCSR, state->fcsr);
 		vfp_restore_extension_regs(state->reg);
 	}
+#if defined(CFG_RISCV_ISA_V)
+	if (units & VFP_UNIT_VEC) {
+		enable_units(VFP_UNIT_VEC);
+		vfp_restore_vector_regs(state->vregs);
+	}
+#endif
 	clear_csr(CSR_XSTATUS, CSR_XSTATUS_VFP_MASK);
 	set_csr(CSR_XSTATUS, state->xstatus);
 }

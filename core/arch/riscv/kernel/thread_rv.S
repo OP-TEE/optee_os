@@ -169,7 +169,7 @@ native_interrupt_from_kernel:
 	csrw	CSR_XEPC, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
-	write_xstatus_keep_fs t0, t1
+	write_xstatus_keep_vfp t0, t1, t2
 	/* Restore XIE */
 	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
@@ -267,7 +267,7 @@ set_sp:
 	csrw	CSR_XEPC, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
-	write_xstatus_keep_fs t0, t1
+	write_xstatus_keep_vfp t0, t1, t2
 	/* Restore XIE */
 	load_xregs sp, THREAD_ABT_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
@@ -406,7 +406,7 @@ native_interrupt_from_user:
 	csrw	CSR_XEPC, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
-	write_xstatus_keep_fs t0, t1
+	write_xstatus_keep_vfp t0, t1, t2
 	/* Restore XIE */
 	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
@@ -496,7 +496,7 @@ ecall_from_user:
 	csrw	CSR_XEPC, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_SCALL_REG_STATUS, REG_T0
-	write_xstatus_keep_fs t0, t1
+	write_xstatus_keep_vfp t0, t1, t2
 	/* Restore XIE */
 	load_xregs sp, THREAD_SCALL_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
@@ -610,7 +610,7 @@ abort_from_user:
 	csrw	CSR_XEPC, t0
 	/* Restore XSTATUS */
 	load_xregs sp, THREAD_ABT_REG_STATUS, REG_T0
-	write_xstatus_keep_fs t0, t1
+	write_xstatus_keep_vfp t0, t1, t2
 	/* Restore XIE */
 	load_xregs sp, THREAD_ABT_REG_IE, REG_T0
 	csrw	CSR_XIE, t0
@@ -718,7 +718,7 @@ FUNC __thread_enter_user_mode , :
 	csrw	CSR_XEPC, s0
 	/* Set user status */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_S0
-	write_xstatus_keep_fs s0, t1
+	write_xstatus_keep_vfp s0, t1, t2
 	/* Set user ie */
 	load_xregs sp, THREAD_CTX_REG_IE, REG_S0
 	csrw	CSR_XIE, s0
@@ -747,7 +747,7 @@ FUNC thread_resume , :
 	csrw	CSR_XEPC, t0
 	/* Restore status */
 	load_xregs sp, THREAD_CTX_REG_STATUS, REG_T0
-	write_xstatus_keep_fs t0, t1
+	write_xstatus_keep_vfp t0, t1, t2
 	/* Restore ie */
 	load_xregs sp, THREAD_CTX_REG_IE, REG_T0
 	csrw	CSR_XIE, t0

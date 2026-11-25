@@ -98,8 +98,16 @@
 #define CSR_XSTATUS_VS_CLEAN	2
 #define CSR_XSTATUS_VS_DIRTY	3
 
-/* The unit-state fields of xstatus switched by the vfp_*() functions */
+/*
+ * The FP and vector unit-state fields together: FS, and VS when the vector
+ * extension is built. One mask covers both so the FP and vector units are
+ * handled in a single pass.
+ */
+#if defined(CFG_RISCV_ISA_V)
+#define CSR_XSTATUS_VFP_MASK	(CSR_XSTATUS_FS_MASK | CSR_XSTATUS_VS_MASK)
+#else
 #define CSR_XSTATUS_VFP_MASK	CSR_XSTATUS_FS_MASK
+#endif
 
 #define CSR_XCAUSE_INTR_FLAG	BIT64(__riscv_xlen - 1)
 

@@ -625,7 +625,7 @@ void thread_kernel_disable_vfp(uint32_t state)
 	thread_set_exceptions(exceptions);
 }
 
-void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
+bool thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
 	struct thread_user_vfp_state *tuv = thr->vfp_state.uvfp;
@@ -636,6 +636,10 @@ void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 
 	assert(uvfp);
 	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+	/* A TA's vector context is allocated the first time it faults on V */
+	if ((unit & VFP_UNIT_VEC) && !vfp_alloc_vector_context(&uvfp->vfp))
+		return false;
 
 	/* The units the restore below brings back from memory */
 	if (uvfp->lazy_saved && uvfp->saved)
@@ -673,6 +677,8 @@ void thread_user_enable_vfp(struct thread_user_vfp_state *uvfp)
 		vfp_enable_fault_unit();
 		vfp_clear_unit_regs(unit);
 	}
+
+	return true;
 }
 
 void thread_user_save_vfp(void)

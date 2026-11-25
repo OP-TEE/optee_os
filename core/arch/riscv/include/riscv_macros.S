@@ -121,18 +121,18 @@
 	.endm
 
 	/*
-	 * Write \reg to xstatus while preserving the live FS field. The FP
-	 * unit is enabled and disabled only through vfp_enable()/vfp_disable(),
-	 * so FS is not part of the saved context: returning from a trap or
-	 * resuming a thread must leave it untouched. \tmp is clobbered.
+	 * Write \reg to xstatus while preserving the live FS and VS fields. The
+	 * units are enabled and disabled only through vfp_enable() and
+	 * vfp_disable(), so FS/VS are not part of the saved context: returning
+	 * from a trap or resuming a thread must leave them untouched. \tmp and
+	 * \tmp2 are clobbered.
 	 */
-	.macro write_xstatus_keep_fs reg, tmp
+	.macro write_xstatus_keep_vfp reg, tmp, tmp2
 #ifdef CFG_WITH_VFP
 		csrr	\tmp, CSR_XSTATUS
 		xor	\tmp, \tmp, \reg
-		srli	\tmp, \tmp, CSR_XSTATUS_FS_SHIFT
-		andi	\tmp, \tmp, CSR_XSTATUS_FS_MASK >> CSR_XSTATUS_FS_SHIFT
-		slli	\tmp, \tmp, CSR_XSTATUS_FS_SHIFT
+		li	\tmp2, CSR_XSTATUS_VFP_MASK
+		and	\tmp, \tmp, \tmp2
 		xor	\reg, \reg, \tmp
 #endif
 		csrw	CSR_XSTATUS, \reg
