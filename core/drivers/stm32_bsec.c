@@ -359,7 +359,9 @@ TEE_Result stm32_bsec_read_otp_range_by_name(const char *name,
 			goto clean_values;
 	}
 
-	memset(*values + len, 0, sizeof(uint32_t) - (len % sizeof(uint32_t)));
+	if (len % sizeof(uint32_t))
+		memset(*values + len, 0,
+		       sizeof(uint32_t) - (len % sizeof(uint32_t)));
 
 	return TEE_SUCCESS;
 
