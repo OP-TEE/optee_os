@@ -5,8 +5,12 @@
  */
 
 #include <assert.h>
+#include <kernel/panic.h>
 #include <kernel/vfp.h>
+#include <malloc.h>
 #include <riscv.h>
+#include <string.h>
+#include <trace.h>
 #include "vfp_private.h"
 
 /* The units currently enabled in xstatus (field not Off) */
@@ -85,6 +89,45 @@ uint32_t vfp_lazy_save(struct vfp_state *state, uint32_t units, bool force)
 	}
 	return saved;
 }
+
+#if defined(CFG_RISCV_ISA_V)
+/*
+ * The vector context size, set from vlenb by the first allocation, at boot
+ * once check_build_isa() has confirmed V. Every hart must share it.
+ */
+static size_t vec_ctx_size;
+
+void vfp_init_per_cpu(void)
+{
+	if (vec_ctx_size && riscv_vector_state_size() != vec_ctx_size)
+		panic("vector register width differs between harts");
+}
+
+bool vfp_alloc_vector_context(struct vfp_state *state)
+{
+	if (state->vregs)
+		return true;
+
+	if (!vec_ctx_size) {
+		vec_ctx_size = riscv_vector_state_size();
+		DMSG("Vector context switching enabled, %zu bytes a context",
+		     vec_ctx_size);
+	}
+
+	state->vregs = memalign(__alignof__(long), vec_ctx_size);
+	if (!state->vregs)
+		return false;
+
+	memset(state->vregs, 0, vec_ctx_size);
+	return true;
+}
+
+void vfp_free_vector_context(struct vfp_state *state)
+{
+	free(state->vregs);
+	state->vregs = NULL;
+}
+#endif
 
 void vfp_lazy_save_state_init(struct vfp_state *state)
 {
