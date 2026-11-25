@@ -508,6 +508,7 @@ M:	Jerome Forissier <jerome.forissier@arm.com> [@jforissier]
 M:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
 R:	Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com> [@zelvam95]
+R:	Gatien Chevallier <gatien.chevallier@oss.qualcomm.com> [@GseoC]
 L:	op-tee@lists.trustedfirmware.org
 S:	Maintained
 F:	*
