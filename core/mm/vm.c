@@ -249,7 +249,15 @@ static TEE_Result umap_add_region(struct vm_info *vmi, struct vm_region *reg,
 
 	core_mmu_get_user_va_range(&va_range_base, &va_range_size);
 	dummy_first_reg.va = va_range_base;
-	dummy_last_reg.va = va_range_base + va_range_size;
+	/*
+	 * The end of the user VA range may not be representable in vaddr_t.
+	 * On 32-bit LPAE the top 1 GB slot ends at 4 GB, so leave its last
+	 * PGDIR-sized chunk unused: rounding region ends up to
+	 * CORE_MMU_PGDIR_SIZE must not wrap either.
+	 */
+	if (ADD_OVERFLOW(va_range_base, va_range_size, &dummy_last_reg.va))
+		dummy_last_reg.va = ROUNDDOWN(VADDR_MAX,
+					      CORE_MMU_PGDIR_SIZE);
 
 	/* Check alignment, it has to be at least SMALL_PAGE based */
 	if ((reg->va | reg->size | pad_begin | pad_end) & SMALL_PAGE_MASK)
