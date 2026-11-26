@@ -16,6 +16,7 @@ typedef uintptr_t uaddr_t;
 
 typedef uintptr_t vaddr_t;
 #define PRIxVA	PRIxPTR
+#define VADDR_MAX	UINTPTR_MAX
 
 #if defined(__ILP32__) && defined(CFG_CORE_LARGE_PHYS_ADDR)
 typedef uint64_t paddr_t;
