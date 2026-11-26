@@ -3,7 +3,6 @@
 include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_TEE_CORE_NB_CORE,8)
 
-$(call force,CFG_QCOM_RAMBLUR_PIMEM_V3,y)
 CFG_QCOM_RAMBLUR_TA_WINDOW_ID ?= 2
 
 $(call force,CFG_QCOM_CSRNG,y)
