@@ -6,6 +6,10 @@
 #ifndef QTI_ICBUARBI_H
 #define QTI_ICBUARBI_H
 
+#ifdef CFG_QCOM_ICB_RPM
+#include "icbuarbi_rpm.h"
+#else
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -112,4 +116,5 @@ struct icb_client {
 struct icb_info *icbuarb_target_get_info(void);
 bool icbuarb_target_init(struct icb_info *info);
 
+#endif /* CFG_QCOM_ICB_RPM */
 #endif /* QTI_ICBUARBI_H */
