@@ -30,4 +30,7 @@
 #define TLMM_BASE			UL(0x0f000000)
 #define TLMM_BASE_SIZE			UL(0x01000000)
 
+#define SMEM_BASE			UL(0x89b00000)
+#define SMEM_SIZE			UL(0x00400000)
+
 #endif /* TARGET_CONFIG_H */
