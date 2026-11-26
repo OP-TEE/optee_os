@@ -18,6 +18,8 @@ subdirs-$(CFG_HISILICON_CRYPTO_DRIVER) += hisilicon
 
 subdirs-$(CFG_IMX_ELE) += ele
 
-subdirs-$(CFG_QCOM_HWKM) += qcom
+ifneq ($(filter y,$(CFG_QCOM_HWKM) $(CFG_QCOM_GPCE)),)
+subdirs-y += qcom
+endif
 
 subdirs-$(CFG_MARVELL_CRYPTO_DRIVER) += marvell
