@@ -850,6 +850,9 @@ static void e32_relocate_rela(struct ta_elf *elf, unsigned int rel_sidx)
 			    "Relocation offset out of range");
 
 		where = (Elf32_Addr *)(elf->load_addr + rela->r_offset);
+		if (!IS_ALIGNED_WITH_TYPE(where, Elf32_Addr))
+			err(TEE_ERROR_BAD_FORMAT,
+			    "Relocation offset not aligned");
 
 		switch (ELF32_R_TYPE(rela->r_info)) {
 		case R_RISCV_NONE:
