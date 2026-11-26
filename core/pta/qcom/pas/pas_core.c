@@ -7,6 +7,7 @@
 #include <malloc.h>
 #include <mm/core_mmu.h>
 #include <platform_pas.h>
+#include <pta_qcom_pas.h>
 #include <string.h>
 #include <trace.h>
 #include <util.h>
@@ -236,8 +237,16 @@ TEE_Result pas_platform_get_resource_table(uint32_t pas_id,
 
 TEE_Result pas_platform_set_remote_state(uint32_t pas_id, uint32_t state)
 {
-	struct qcom_pas_subsys *subsys = qcom_pas_lookup(pas_id);
+	struct qcom_pas_subsys *subsys = NULL;
 
+	/*
+	 * The Linux video drivers pass a fixed 0 in this call, not the PAS
+	 * ID of the video core. No subsystem has PAS ID 0.
+	 */
+	if (!pas_id)
+		pas_id = PAS_ID_IRIS;
+
+	subsys = qcom_pas_lookup(pas_id);
 	if (!subsys || !subsys->ops->fw_set_state)
 		return TEE_ERROR_NOT_IMPLEMENTED;
 
