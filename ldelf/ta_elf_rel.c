@@ -418,6 +418,9 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 			err(TEE_ERROR_BAD_FORMAT,
 			    "Relocation offset out of range");
 		where = (Elf32_Addr *)(elf->load_addr + rel->r_offset);
+		if (!IS_ALIGNED_WITH_TYPE(where, Elf32_Addr))
+			err(TEE_ERROR_BAD_FORMAT,
+			    "Relocation offset not aligned");
 
 		switch (ELF32_R_TYPE(rel->r_info)) {
 		case R_ARM_NONE:
@@ -661,6 +664,9 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 			    "Relocation offset out of range");
 
 		where = (Elf64_Addr *)(elf->load_addr + rela->r_offset);
+		if (!IS_ALIGNED_WITH_TYPE(where, Elf64_Addr))
+			err(TEE_ERROR_BAD_FORMAT,
+			    "Relocation offset not aligned");
 
 		switch (ELF64_R_TYPE(rela->r_info)) {
 #ifdef ARM64
