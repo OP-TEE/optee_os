@@ -47,10 +47,14 @@ __weak int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 __weak TEE_Result tee_otp_get_ta_enc_key(uint32_t key_type __maybe_unused,
 					 uint8_t *buffer, size_t len)
 {
+	const uint8_t *pub_key = NULL;
+	size_t pub_key_size = 0;
+
 	assert(key_type == SHDR_ENC_KEY_DEV_SPECIFIC);
 
-	if (huk_subkey_derive(HUK_SUBKEY_TA_ENC, ta_pub_key_modulus,
-			      ta_pub_key_modulus_size, buffer, len))
+	pub_key = ta_pub_key_bin(&pub_key_size);
+	if (huk_subkey_derive(HUK_SUBKEY_TA_ENC, pub_key, pub_key_size,
+			      buffer, len))
 		return TEE_ERROR_SECURITY;
 
 	return TEE_SUCCESS;
