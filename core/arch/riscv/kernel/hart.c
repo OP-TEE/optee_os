@@ -89,6 +89,7 @@ static const struct {
 static bitstr_t bit_decl(isa_common, RISCV_ISA_EXT_COUNT) __nex_bss;
 /* Set once every hart of the TEE has described its ISA */
 static bool __nex_bss isa_known;
+static bool __nex_bss isa_from_misa_only;
 
 /*
  * Cache block sizes of the Zicbom and Zicboz operations: the smallest one
@@ -123,6 +124,11 @@ static const char *isa_ext_name(enum riscv_isa_ext ext)
 			return isa_ext_names[n].name;
 
 	return "?";
+}
+
+static bool is_single_letter(enum riscv_isa_ext ext)
+{
+	return strlen(isa_ext_name(ext)) == 1;
 }
 
 static void isa_set(bitstr_t *map, const char *name, size_t len)
@@ -428,6 +434,7 @@ static void isa_from_misa(void)
 			isa_set_letter(isa_common, 'a' + n);
 
 	isa_known = true;
+	isa_from_misa_only = true;
 }
 #endif
 
@@ -499,6 +506,9 @@ static void check_build_isa(void)
 		return;
 
 	for (n = 0; n < ARRAY_SIZE(reqs); n++) {
+		/* misa describes single-letter extensions only. */
+		if (isa_from_misa_only && !is_single_letter(reqs[n].ext))
+			continue;
 		if (reqs[n].required && !bit_test(isa_common, reqs[n].ext)) {
 			EMSG("Extension %s required by %s missing on a hart",
 			     isa_ext_name(reqs[n].ext), reqs[n].cfg);
