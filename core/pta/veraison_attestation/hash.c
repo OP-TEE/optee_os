@@ -3,7 +3,9 @@
  * Copyright (C) 2024, Institute of Information Security (IISEC)
  */
 
+#include <config.h>
 #include <crypto/crypto.h>
+#include <kernel/linker.h>
 #include <kernel/user_mode_ctx.h>
 
 #include "hash.h"
@@ -117,5 +119,64 @@ TEE_Result get_hash_ta_memory(uint8_t out[TEE_SHA256_HASH_SIZE])
 	s = ts_pop_current_session();
 	res = hash_regions(&uctx->vm_info, out);
 	ts_push_current_session(s);
+	return res;
+}
+
+/*
+ * Hash the immutable part of the TEE core: .text and .rodata, in the same
+ * order as the attestation PTA (core/pta/attestation.c). The relocated
+ * read-only data is left out so that the value does not depend on the
+ * load address.
+ */
+TEE_Result get_hash_tee_memory(uint8_t out[TEE_SHA256_HASH_SIZE])
+{
+	TEE_Result res = TEE_SUCCESS;
+	void *ctx = NULL;
+
+	res = crypto_hash_alloc_ctx(&ctx, TEE_ALG_SHA256);
+	if (res)
+		return res;
+
+	res = crypto_hash_init(ctx);
+	if (res)
+		goto out;
+	res = crypto_hash_update(ctx, __text_start,
+				 __text_data_start - __text_start);
+	if (res)
+		goto out;
+	res = crypto_hash_update(ctx, __text_data_end,
+				 __text_end - __text_data_end);
+	if (res)
+		goto out;
+	if (IS_ENABLED(CFG_WITH_PAGER)) {
+		res = crypto_hash_update(ctx, __text_init_start,
+					 __text_init_end - __text_init_start);
+		if (res)
+			goto out;
+		res = crypto_hash_update(ctx, __text_pageable_start,
+					 __text_pageable_end -
+						__text_pageable_start);
+		if (res)
+			goto out;
+	}
+	res = crypto_hash_update(ctx, __rodata_start,
+				 __rodata_end - __rodata_start);
+	if (res)
+		goto out;
+	if (IS_ENABLED(CFG_WITH_PAGER)) {
+		res = crypto_hash_update(ctx, __rodata_init_start,
+					 __rodata_init_end -
+						__rodata_init_start);
+		if (res)
+			goto out;
+		res = crypto_hash_update(ctx, __rodata_pageable_start,
+					 __rodata_pageable_end -
+						__rodata_pageable_start);
+		if (res)
+			goto out;
+	}
+	res = crypto_hash_final(ctx, out, TEE_SHA256_HASH_SIZE);
+out:
+	crypto_hash_free_ctx(ctx);
 	return res;
 }

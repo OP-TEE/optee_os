@@ -8,11 +8,14 @@
 #include <caam_status.h>
 #include <caam_trace.h>
 #include <caam_utils_mem.h>
+#include <caam_utils_status.h>
 #include <crypto/crypto.h>
+#include <drivers/caam_extension.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <stdint.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee/cache.h>
 #include <tee_api_defines.h>
 #include <trace.h>
@@ -744,6 +747,56 @@ out:
 	caam_free_desc(&desc);
 
 	return status;
+}
+
+TEE_Result caam_key_wrap_black(const uint8_t *key, size_t key_size,
+			       uint8_t *out, size_t *out_size)
+{
+	enum caam_status status = CAAM_FAILURE;
+	struct caamkey ckey = {
+		.key_type = CAAM_KEY_PLAIN_TEXT,
+		.sec_size = key_size,
+		.is_blob = false,
+	};
+	size_t size = 0;
+
+	if (!key || !key_size || !out_size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	status = caam_key_alloc(&ckey);
+	if (status)
+		return caam_status_to_tee_result(status);
+
+	memcpy(ckey.buf.data, key, key_size);
+
+	status = caam_key_black_encapsulation(&ckey,
+					      caam_key_default_key_gen_type());
+	if (status)
+		goto out;
+
+	status = caam_key_serialized_size(&ckey, &size);
+	if (status)
+		goto out;
+
+	if (!out || *out_size < size) {
+		*out_size = size;
+		status = CAAM_SHORT_BUFFER;
+		goto out;
+	}
+
+	status = caam_key_serialize_to_bin(out, *out_size, &ckey);
+	if (!status)
+		*out_size = size;
+out:
+	/*
+	 * Whatever the key buffer holds by now, the plain key if the
+	 * encapsulation did not get to it, must not outlive the call
+	 */
+	if (ckey.buf.data)
+		memzero_explicit(ckey.buf.data, ckey.buf.length);
+	caam_key_free(&ckey);
+
+	return caam_status_to_tee_result(status);
 }
 
 enum caam_status caam_key_init(void)

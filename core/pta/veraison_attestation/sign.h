@@ -29,9 +29,38 @@
  *                  sufficiently large to hold the signature in its specified
  *                  format. The resulting size will indicate the actual size of
  *                  the signature in bytes.
- * @return TEE_SUCCESS if successful
+ * @param private_key  The private key to sign with: the plain P-256 scalar
+ *                  or a serialized CAAM black key, or NULL to sign with the
+ *                  embedded test key
+ * @param private_key_len  The length of the private key in bytes
+ * @param public_key_x  X coordinate of the public key of the private key,
+ *                  32 bytes, ignored with the test key
+ * @param public_key_y  Y coordinate of the public key, likewise
+ * @return TEE_SUCCESS if successful, the error of the signature check with
+ *                  the public key otherwise
  */
 TEE_Result sign_ecdsa_sha256(const uint8_t *msg, size_t msg_len, uint8_t *sig,
-			     size_t *sig_len);
+			     size_t *sig_len, const uint8_t *private_key,
+			     size_t private_key_len,
+			     const uint8_t *public_key_x,
+			     const uint8_t *public_key_y);
+
+/**
+ * Get the public key of the embedded test key
+ * @param pub_x     [out] X coordinate, 32 bytes
+ * @param pub_y     [out] Y coordinate, 32 bytes
+ */
+void get_test_key_pubkey(uint8_t *pub_x, uint8_t *pub_y);
+
+/**
+ * Compute the PSA instance-id of a key: 0x01 || SHA-256(0x04 || X || Y),
+ * the EAT UEID of type RAND that the PSA token profile derives from the IAK
+ * @param pub_x     X coordinate of the public key, 32 bytes
+ * @param pub_y     Y coordinate of the public key, 32 bytes
+ * @param instance_id [out] The instance-id, 33 bytes
+ * @return TEE_SUCCESS if successful
+ */
+TEE_Result compute_instance_id(const uint8_t *pub_x, const uint8_t *pub_y,
+			       uint8_t *instance_id);
 
 #endif /*PTA_VERAISON_ATTESTATION_SIGN_H*/
