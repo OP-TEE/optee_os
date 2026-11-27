@@ -36,7 +36,12 @@
 #define OTP_S_RD_DONE_BIT	BIT32(1)
 
 #define OTP_POLL_PERIOD_US	0
-#define OTP_POLL_TIMEOUT_US	1000
+/*
+ * Measured on RK3576: a one-word read completes after about 6.5 ms, a
+ * program operation after 13 ms plus about 1 ms per programmed bit.
+ */
+#define OTP_READ_TIMEOUT_US	20000
+#define OTP_WRITE_TIMEOUT_US	100000
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, OTP_S_BASE, OTP_S_SIZE);
 
@@ -79,7 +84,7 @@ TEE_Result rockchip_otp_read_secure(uint32_t *value, uint32_t index,
 				     (int_status & OTP_S_RD_DONE_BIT) ||
 				     (int_status & OTP_S_ERROR_BIT),
 				     OTP_POLL_PERIOD_US,
-				     OTP_POLL_TIMEOUT_US);
+				     OTP_READ_TIMEOUT_US);
 
 	/* Clear the interrupt again */
 	io_write32(base + OTP_S_INT_ST, io_read32(base + OTP_S_INT_ST));
@@ -166,7 +171,7 @@ TEE_Result rockchip_otp_write_secure(const uint32_t *value, uint32_t index,
 					     (int_status & OTP_S_VERIFY_BIT) ||
 					     (int_status & OTP_S_ERROR_BIT),
 					     OTP_POLL_PERIOD_US,
-					     OTP_POLL_TIMEOUT_US);
+					     OTP_WRITE_TIMEOUT_US);
 
 		/* Clear INT status bits */
 		io_write32(base + OTP_S_INT_ST, int_status);
