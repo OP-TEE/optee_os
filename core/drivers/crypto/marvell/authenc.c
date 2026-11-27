@@ -40,6 +40,9 @@ static TEE_Result mrvl_ae_initialize(struct drvcrypt_authenc_init *dinit)
 
 	mrvl_ehsm_cryp_lock();
 
+	ctx->gcm_hold_len = 0;
+	memzero_explicit(ctx->gcm_hold, sizeof(ctx->gcm_hold));
+
 	/* if already initialized free the previous content and context */
 	if (ctx->initialized) {
 		mrvl_ehsm_mem_free(ctx->iv_data);
@@ -51,6 +54,7 @@ static TEE_Result mrvl_ae_initialize(struct drvcrypt_authenc_init *dinit)
 
 		if (ctx->context_id != 0) {
 			ret = mrvl_ehsm_aes_context_release(ctx->context_id);
+			ctx->context_id = 0;
 			if (ret != TEE_SUCCESS)
 				goto out;
 		}
@@ -119,6 +123,9 @@ mrvl_ae_update_aad(struct drvcrypt_authenc_update_aad *dupdate)
 	struct mrvl_ae_ctx *c = to_mrvl_ae_ctx(dupdate->ctx);
 	struct mrvl_cryp_context *ctx = &c->cryp_ctx;
 
+	if (!ctx->aad_data)
+		return TEE_ERROR_BAD_STATE;
+
 	if ((dupdate->aad.length + ctx->aad_cur_idx) <= ctx->aad_len) {
 		memcpy(ctx->aad_data + ctx->aad_cur_idx, dupdate->aad.data,
 		       dupdate->aad.length);
@@ -130,21 +137,111 @@ mrvl_ae_update_aad(struct drvcrypt_authenc_update_aad *dupdate)
 	return ret;
 }
 
+static TEE_Result mrvl_ae_hw_pass(struct mrvl_cryp_context *ctx,
+				  const uint8_t *head, size_t head_len,
+				  const uint8_t *src, size_t src_len,
+				  uint8_t *dst, const uint8_t *tag_in,
+				  uint8_t *tag_out, size_t tag_len,
+				  bool last, bool commit)
+{
+	TEE_Result ret = TEE_SUCCESS;
+	uint8_t *in_buf = NULL;
+	uint8_t *out_buf = NULL;
+	size_t len = head_len + src_len;
+	size_t iv = 0;
+	size_t pre = 0;
+	size_t off = 0;
+	size_t extra = (tag_in || tag_out) ? tag_len : 0;
+	size_t buf_len = 0;
+	uint32_t old_id = 0;
+
+	if (ctx->is_new) {
+		if (ctx->iv_len != 12)
+			iv = ctx->iv_len;
+		pre = iv + ctx->aad_len;
+		off = iv + ctx->aad_cur_idx;
+	}
+
+	buf_len = pre + len + extra;
+	in_buf = mrvl_ehsm_mem_alloc(buf_len);
+	out_buf = mrvl_ehsm_mem_alloc(buf_len);
+	if (!in_buf || !out_buf) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	if (iv)
+		memcpy(in_buf, ctx->iv_data, iv);
+	if (ctx->is_new && ctx->aad_cur_idx)
+		memcpy(in_buf + iv, ctx->aad_data, ctx->aad_cur_idx);
+	if (head_len)
+		memcpy(in_buf + off, head, head_len);
+	if (src_len)
+		memcpy(in_buf + off + head_len, src, src_len);
+	if (tag_in)
+		memcpy(in_buf + off + len, tag_in, tag_len);
+
+	if (last)
+		ret = mrvl_ehsm_aes_gcm_final(in_buf, len, out_buf, len,
+					      ctx->is_new);
+	else
+		ret = mrvl_ehsm_aes_gcm_update_payload(in_buf, len, out_buf,
+						       len, ctx->is_new);
+	if (ret != TEE_SUCCESS)
+		goto out;
+
+	if (src_len)
+		memcpy(dst, out_buf + off + head_len, src_len);
+	if (tag_out)
+		memcpy(tag_out, out_buf + off + len, tag_len);
+
+	if (commit) {
+		old_id = ctx->context_id;
+		ctx->context_id = 0;
+		ctx->is_new = false;
+		ret = mrvl_ehsm_aes_context_release(old_id);
+		if (ret != TEE_SUCCESS)
+			goto out;
+		ret = mrvl_ehsm_aes_context_store(&ctx->context_id);
+	}
+out:
+	if (in_buf)
+		memzero_explicit(in_buf, buf_len);
+	if (out_buf)
+		memzero_explicit(out_buf, buf_len);
+	mrvl_ehsm_mem_free(in_buf);
+	mrvl_ehsm_mem_free(out_buf);
+
+	return ret;
+}
+
 static TEE_Result
 mrvl_ae_update_payload(struct drvcrypt_authenc_update_payload *dupdate)
 {
 	TEE_Result ret = TEE_SUCCESS;
 	struct mrvl_ae_ctx *c = to_mrvl_ae_ctx(dupdate->ctx);
 	struct mrvl_cryp_context *ctx = &c->cryp_ctx;
-	uint8_t *payload_buf = NULL;
-	uint8_t *encdata_buf = NULL;
-	size_t payload_buf_len = 0;
-	size_t encdata_buf_len = 0;
-	uint32_t context_id = 0;
-	size_t iv = 0;
+	const uint8_t *src = dupdate->src.data;
+	size_t n = dupdate->src.length;
+	size_t hold = ctx->gcm_hold_len;
+	size_t total = hold + n;
+	size_t nblk = 0;
+	size_t rem = 0;
+	size_t skip = 0;
+	uint8_t pad[TEE_AES_BLOCK_SIZE] = { };
+	uint8_t trial[TEE_AES_BLOCK_SIZE] = { };
 
 	if (IS_ENABLED(CFG_MARVELL_EHSM_CN10K))
 		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	if (!ctx->iv_data || !ctx->aad_data || !ctx->context_id)
+		return TEE_ERROR_BAD_STATE;
+
+	if (!n)
+		return TEE_SUCCESS;
+
+	nblk = ROUNDDOWN(total - 1, TEE_AES_BLOCK_SIZE);
+	rem = total - nblk;
 
 	mrvl_ehsm_cryp_lock();
 
@@ -152,88 +249,76 @@ mrvl_ae_update_payload(struct drvcrypt_authenc_update_payload *dupdate)
 	if (ret != TEE_SUCCESS)
 		goto out;
 
-	if (ctx->is_new) {
-		/* IV is not 12-byte, load IV part of AES operation payload */
-		if (ctx->iv_len != 12)
-			iv = ctx->iv_len;
-		else
-			iv = 0;
-
-		payload_buf_len = iv + ctx->aad_len + dupdate->src.length;
-
-		payload_buf = mrvl_ehsm_mem_alloc(payload_buf_len);
-		if (!payload_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		encdata_buf_len = iv + ctx->aad_len + dupdate->dst.length;
-
-		encdata_buf = mrvl_ehsm_mem_alloc(encdata_buf_len);
-		if (!encdata_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		memcpy(payload_buf, ctx->iv_data, iv);
-
-		memcpy(payload_buf + iv, ctx->aad_data, ctx->aad_cur_idx);
-		memcpy(payload_buf + iv + ctx->aad_cur_idx, dupdate->src.data,
-		       dupdate->src.length);
-
-		ret = mrvl_ehsm_aes_gcm_update_payload(payload_buf,
-						       dupdate->src.length,
-						       encdata_buf,
-						       dupdate->dst.length,
-						       ctx->is_new);
-
+	if (nblk) {
+		memcpy(pad, src + (nblk - hold), rem);
+		ret = mrvl_ae_hw_pass(ctx, ctx->gcm_hold, hold, src,
+				      nblk - hold, dupdate->dst.data,
+				      NULL, NULL, 0, false, true);
 		if (ret != TEE_SUCCESS)
 			goto out;
-
-		memcpy(dupdate->dst.data, encdata_buf + iv + ctx->aad_cur_idx,
-		       dupdate->dst.length);
-
-		ctx->is_new = false;
-
-		context_id = ctx->context_id;
-		ret = mrvl_ehsm_aes_context_store(&ctx->context_id);
+		ret = mrvl_ehsm_aes_context_load(ctx->context_id);
 		if (ret != TEE_SUCCESS)
 			goto out;
-
-		ret = mrvl_ehsm_aes_context_release(context_id);
-		if (ret != TEE_SUCCESS)
-			goto out;
-
 	} else {
-		payload_buf = mrvl_ehsm_mem_alloc(dupdate->src.length);
-		if (!payload_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		encdata_buf = mrvl_ehsm_mem_alloc(dupdate->dst.length);
-		if (!encdata_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		memcpy(payload_buf, dupdate->src.data, dupdate->src.length);
-
-		ret = mrvl_ehsm_aes_gcm_update_payload(payload_buf,
-						       dupdate->src.length,
-						       encdata_buf,
-						       dupdate->dst.length,
-						       ctx->is_new);
-
-		if (ret != TEE_SUCCESS)
-			goto out;
-
-		memcpy(dupdate->dst.data, encdata_buf, dupdate->dst.length);
+		memcpy(pad, ctx->gcm_hold, hold);
+		memcpy(pad + hold, src, n);
+		skip = hold;
 	}
 
+	memcpy(ctx->gcm_hold, pad, rem);
+	ctx->gcm_hold_len = rem;
+
+	ret = mrvl_ae_hw_pass(ctx, NULL, 0, pad, TEE_AES_BLOCK_SIZE, trial,
+			      NULL, NULL, 0, false, false);
+	if (ret != TEE_SUCCESS)
+		goto out;
+
+	memcpy(dupdate->dst.data + (nblk ? nblk - hold : 0), trial + skip,
+	       rem - skip);
 out:
-	mrvl_ehsm_mem_free(encdata_buf);
-	mrvl_ehsm_mem_free(payload_buf);
+	memzero_explicit(pad, sizeof(pad));
+	memzero_explicit(trial, sizeof(trial));
+
+	mrvl_ehsm_cryp_unlock();
+
+	return ret;
+}
+
+static TEE_Result mrvl_ae_final_common(struct drvcrypt_authenc_final *dfinal,
+				       bool enc)
+{
+	TEE_Result ret = TEE_SUCCESS;
+	struct mrvl_ae_ctx *c = to_mrvl_ae_ctx(dfinal->ctx);
+	struct mrvl_cryp_context *ctx = &c->cryp_ctx;
+	size_t hold = ctx->gcm_hold_len;
+
+	if (!ctx->iv_data || !ctx->aad_data ||
+	    (!IS_ENABLED(CFG_MARVELL_EHSM_CN10K) && !ctx->context_id))
+		return TEE_ERROR_BAD_STATE;
+
+	if (enc) {
+		if (dfinal->tag.length < ctx->tag_len)
+			return TEE_ERROR_SHORT_BUFFER;
+		dfinal->tag.length = ctx->tag_len;
+	} else if (dfinal->tag.length != ctx->tag_len) {
+		return TEE_ERROR_MAC_INVALID;
+	}
+
+	mrvl_ehsm_cryp_lock();
+
+	ret = mrvl_ehsm_aes_context_load(ctx->context_id);
+	if (ret != TEE_SUCCESS)
+		goto out;
+
+	ret = mrvl_ae_hw_pass(ctx, ctx->gcm_hold, hold,
+			      dfinal->src.data, dfinal->src.length,
+			      dfinal->dst.data,
+			      enc ? NULL : dfinal->tag.data,
+			      enc ? dfinal->tag.data : NULL,
+			      ctx->tag_len, true, false);
+out:
+	memzero_explicit(ctx->gcm_hold, sizeof(ctx->gcm_hold));
+	ctx->gcm_hold_len = 0;
 
 	mrvl_ehsm_cryp_unlock();
 
@@ -242,193 +327,12 @@ out:
 
 static TEE_Result mrvl_ae_enc_final(struct drvcrypt_authenc_final *dfinal)
 {
-	TEE_Result ret = TEE_SUCCESS;
-	struct mrvl_ae_ctx *c = to_mrvl_ae_ctx(dfinal->ctx);
-	struct mrvl_cryp_context *ctx = &c->cryp_ctx;
-	uint8_t *payload_buf = NULL;
-	uint8_t	*encdata_buf = NULL;
-	size_t payload_buf_len = 0;
-	size_t encdata_buf_len = 0;
-	size_t iv = 0;
-
-	mrvl_ehsm_cryp_lock();
-
-	ret = mrvl_ehsm_aes_context_load(ctx->context_id);
-	if (ret != TEE_SUCCESS)
-		goto out;
-
-	if (ctx->is_new) {
-		/* IV is not 12-byte, load IV part of AES operation payload */
-		if (ctx->iv_len != 12)
-			iv = ctx->iv_len;
-		else
-			iv = 0;
-
-		payload_buf_len = iv + ctx->aad_len + dfinal->src.length;
-
-		payload_buf = mrvl_ehsm_mem_alloc(payload_buf_len);
-		if (!payload_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		encdata_buf_len = iv + ctx->aad_len + dfinal->dst.length +
-				  dfinal->tag.length;
-
-		encdata_buf = mrvl_ehsm_mem_alloc(encdata_buf_len);
-		if (!encdata_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		memcpy(payload_buf, ctx->iv_data, iv);
-
-		memcpy(payload_buf + iv, ctx->aad_data, ctx->aad_cur_idx);
-		memcpy(payload_buf + iv + ctx->aad_cur_idx, dfinal->src.data,
-		       dfinal->src.length);
-
-		ret = mrvl_ehsm_aes_gcm_final(payload_buf, dfinal->src.length,
-					      encdata_buf, dfinal->dst.length,
-					      ctx->is_new);
-
-		if (ret != TEE_SUCCESS)
-			goto out;
-
-		memcpy(dfinal->dst.data, encdata_buf + iv + ctx->aad_cur_idx,
-		       dfinal->dst.length);
-		memcpy(dfinal->tag.data, encdata_buf + iv + ctx->aad_cur_idx +
-		       dfinal->dst.length, dfinal->tag.length);
-
-	} else {
-		payload_buf_len = dfinal->src.length;
-
-		payload_buf = mrvl_ehsm_mem_alloc(payload_buf_len);
-		if (!payload_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		encdata_buf_len = dfinal->dst.length + dfinal->tag.length;
-
-		encdata_buf = mrvl_ehsm_mem_alloc(encdata_buf_len);
-		if (!encdata_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		memcpy(payload_buf, dfinal->src.data, dfinal->src.length);
-
-		ret = mrvl_ehsm_aes_gcm_final(payload_buf, dfinal->src.length,
-					      encdata_buf, dfinal->dst.length,
-					      ctx->is_new);
-
-		if (ret != TEE_SUCCESS)
-			goto out;
-
-		memcpy(dfinal->dst.data, encdata_buf, dfinal->dst.length);
-		memcpy(dfinal->tag.data, encdata_buf + dfinal->dst.length,
-		       dfinal->tag.length);
-	}
-out:
-	mrvl_ehsm_mem_free(encdata_buf);
-	mrvl_ehsm_mem_free(payload_buf);
-
-	mrvl_ehsm_cryp_unlock();
-
-	return ret;
+	return mrvl_ae_final_common(dfinal, true);
 }
 
 static TEE_Result mrvl_ae_dec_final(struct drvcrypt_authenc_final *dfinal)
 {
-	TEE_Result ret = TEE_SUCCESS;
-	struct mrvl_ae_ctx *c = to_mrvl_ae_ctx(dfinal->ctx);
-	struct mrvl_cryp_context *ctx = &c->cryp_ctx;
-	uint8_t *encdata_buf = NULL;
-	uint8_t *decdata_buf = NULL;
-	size_t buf_len = 0;
-	size_t iv = 0;
-
-	mrvl_ehsm_cryp_lock();
-
-	ret = mrvl_ehsm_aes_context_load(ctx->context_id);
-	if (ret != TEE_SUCCESS)
-		goto out;
-
-	if (ctx->is_new) {
-		if (ctx->iv_len != 12)
-			iv = ctx->iv_len;
-		else
-			iv = 0;
-
-		buf_len = iv + ctx->aad_len + dfinal->src.length +
-			  dfinal->tag.length;
-
-		encdata_buf = mrvl_ehsm_mem_alloc(buf_len);
-		if (!encdata_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		decdata_buf = mrvl_ehsm_mem_alloc(buf_len);
-		if (!decdata_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		memcpy(encdata_buf, ctx->iv_data, iv);
-
-		memcpy(encdata_buf + iv, ctx->aad_data, ctx->aad_cur_idx);
-		memcpy(encdata_buf + iv + ctx->aad_cur_idx, dfinal->src.data,
-		       dfinal->src.length);
-		memcpy(encdata_buf + iv + ctx->aad_cur_idx + dfinal->src.length,
-		       dfinal->tag.data, dfinal->tag.length);
-
-		ret = mrvl_ehsm_aes_gcm_final(encdata_buf, dfinal->src.length,
-					      decdata_buf, dfinal->dst.length,
-					      ctx->is_new);
-
-		if (ret != TEE_SUCCESS)
-			goto out;
-
-		memcpy(dfinal->dst.data, decdata_buf + iv + ctx->aad_cur_idx,
-		       dfinal->dst.length);
-
-	} else {
-		buf_len = dfinal->src.length + dfinal->tag.length;
-
-		encdata_buf = mrvl_ehsm_mem_alloc(buf_len);
-		if (!encdata_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		decdata_buf = mrvl_ehsm_mem_alloc(buf_len);
-		if (!decdata_buf) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		memcpy(encdata_buf, dfinal->src.data, dfinal->src.length);
-		memcpy(encdata_buf + dfinal->src.length, dfinal->tag.data,
-		       dfinal->tag.length);
-
-		ret = mrvl_ehsm_aes_gcm_final(encdata_buf, dfinal->src.length,
-					      decdata_buf, dfinal->dst.length,
-					      ctx->is_new);
-
-		if (ret != TEE_SUCCESS)
-			goto out;
-
-		memcpy(dfinal->dst.data, decdata_buf, dfinal->dst.length);
-	}
-
-out:
-	mrvl_ehsm_mem_free(decdata_buf);
-	mrvl_ehsm_mem_free(encdata_buf);
-
-	mrvl_ehsm_cryp_unlock();
-
-	return ret;
+	return mrvl_ae_final_common(dfinal, false);
 }
 
 static void mrvl_ae_final(void *ctx __unused)
@@ -441,7 +345,8 @@ static void mrvl_ae_free(void *ctx)
 	struct mrvl_cryp_context *cryp_ctx = &c->cryp_ctx;
 
 	mrvl_ehsm_cryp_lock();
-	mrvl_ehsm_aes_context_release(cryp_ctx->context_id);
+	if (cryp_ctx->context_id)
+		mrvl_ehsm_aes_context_release(cryp_ctx->context_id);
 	mrvl_ehsm_cryp_unlock();
 
 	mrvl_ehsm_aes_cryp_put();
@@ -450,6 +355,8 @@ static void mrvl_ae_free(void *ctx)
 	mrvl_ehsm_mem_free(cryp_ctx->aad_data);
 	mrvl_ehsm_mem_free(cryp_ctx->key);
 
+	memzero_explicit(cryp_ctx->gcm_hold, sizeof(cryp_ctx->gcm_hold));
+
 	free(c);
 }
 
@@ -457,8 +364,46 @@ static void mrvl_ae_copy_state(void *dst_ctx, void *src_ctx)
 {
 	struct mrvl_ae_ctx *src = to_mrvl_ae_ctx(src_ctx);
 	struct mrvl_ae_ctx *dst = to_mrvl_ae_ctx(dst_ctx);
+	struct mrvl_cryp_context *s = &src->cryp_ctx;
+	struct mrvl_cryp_context *d = &dst->cryp_ctx;
 
-	memcpy(dst, src, sizeof(*dst));
+	mrvl_ehsm_cryp_lock();
+
+	if (d->context_id)
+		mrvl_ehsm_aes_context_release(d->context_id);
+	mrvl_ehsm_mem_free(d->key);
+	mrvl_ehsm_mem_free(d->iv_data);
+	mrvl_ehsm_mem_free(d->aad_data);
+
+	*d = *s;
+	d->key = NULL;
+	d->iv_data = NULL;
+	d->aad_data = NULL;
+	d->context_id = 0;
+
+	if (s->key) {
+		d->key = mrvl_ehsm_mem_alloc(s->key_len);
+		if (d->key)
+			memcpy(d->key, s->key, s->key_len);
+	}
+
+	if (s->iv_data) {
+		d->iv_data = mrvl_ehsm_mem_alloc(s->iv_len);
+		if (d->iv_data)
+			memcpy(d->iv_data, s->iv_data, s->iv_len);
+	}
+
+	if (s->aad_data) {
+		d->aad_data = mrvl_ehsm_mem_alloc(s->aad_len);
+		if (d->aad_data && s->aad_cur_idx)
+			memcpy(d->aad_data, s->aad_data, s->aad_cur_idx);
+	}
+
+	if (s->context_id &&
+	    mrvl_ehsm_aes_context_load(s->context_id) == TEE_SUCCESS)
+		mrvl_ehsm_aes_context_store(&d->context_id);
+
+	mrvl_ehsm_cryp_unlock();
 }
 
 /*
