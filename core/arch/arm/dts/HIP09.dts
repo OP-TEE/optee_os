@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) Huawei Technologies Co., Ltd. 2023. All rights reserved.
+ */
+
+/dts-v1/;
+
+/ {
+	compatible = "huawei,HIP09";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	secure-memory {
+		compatible ="secure-memory";
+		reg = <0x00000821 0x00000000 0x00000000 0x80000000>;
+	};
+
+	share-memory {
+		compatible ="share-memory";
+		reg = <0x00000821 0x80000000 0x00000000 0x10000000>;
+	};
+
+	device-regions {
+		compatible = "arm,ffa-manifest-device-regions";
+
+		uart {
+			compatible = "uart";
+			base-address = <0x000000c6 0x14080000>;
+			pages-count = <0x1>; /* page size is 4KB */
+		};
+
+		hisi-sec1 {
+			compatible = "hisi-sec";
+			base-address = <0x00000001 0x60000000>;
+			pages-count = <0x400>; /* page size is 4KB */
+		};
+
+		hisi-sec2 {
+			compatible = "hisi-sec";
+			base-address = <0x00000081 0x60000000>;
+			pages-count = <0x400>; /* page size is 4KB */
+		};
+
+		hisi-hpre1 {
+			compatible = "hisi-hpre";
+			base-address = <0x00000001 0x50000000>;
+			pages-count = <0x400>; /* page size is 4KB */
+		};
+		hisi-hpre2 {
+			compatible = "hisi-hpre";
+			base-address = <0x00000081 0x50000000>;
+			pages-count = <0x400>; /* page size is 4KB */
+		};
+
+		hisi-trng {
+			compatible = "hisi-trng";
+			base-address = <0x00000001 0x000E0000>;
+			pages-count = <0x1>; /* page size is 4KB */
+		};
+	};
+};
