@@ -158,8 +158,17 @@ riscv-abi = $(ABI_BASE)$(ABI_D)
 CFG_WITH_VFP ?= $(CFG_RISCV_FPU)
 $(eval $(call cfg-depends-all,CFG_WITH_VFP,CFG_RISCV_FPU))
 
+ifeq ($(call cfg-one-enabled,CFG_CORE_CRYPTO_AES_ACCEL \
+	CFG_CORE_CRYPTO_SHA256_ACCEL CFG_CORE_CRYPTO_SHA512_ACCEL),y)
+ifneq ($(CFG_RV64_core),y)
+$(error RISC-V vector crypto acceleration requires an RV64 core)
+endif
+$(call force,CFG_WITH_VFP,y,required by RISC-V vector crypto acceleration)
+$(call force,CFG_RISCV_ISA_V,y,required by RISC-V vector crypto acceleration)
+endif
+
 # Vector (V) context switching, built on CFG_WITH_VFP. The core is not built
-# for V: only vfp_rv.S uses it, through '.option arch'.
+# for V: assembly routines enable their extensions through '.option arch'.
 CFG_RISCV_ISA_V ?= n
 $(eval $(call cfg-depends-all,CFG_RISCV_ISA_V,CFG_WITH_VFP))
 
