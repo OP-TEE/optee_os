@@ -25,7 +25,20 @@ uint32_t riscv_aes_subword(uint32_t word);
 
 void aes_encrypt_zvkned(const void *key, unsigned int key_len, void *out,
 			const void *in);
+void aes_decrypt_zvkned(const void *key, unsigned int key_len, void *out,
+			const void *in);
 
+void aes_ecb_encrypt_zvkned(const struct riscv_aes_key *key,
+			    const void *in, void *out, size_t len);
+void aes_ecb_decrypt_zvkned(const struct riscv_aes_key *key,
+			    const void *in, void *out, size_t len);
+void aes_cbc_encrypt_zvkned(const struct riscv_aes_key *key,
+			    const void *in, void *out, size_t len, void *iv);
+void aes_cbc_decrypt_zvkned(const struct riscv_aes_key *key,
+			    const void *in, void *out, size_t len, void *iv);
+void aes_ctr32_crypt_zvkned_zvkb(const struct riscv_aes_key *key,
+				 const void *in, void *out,
+				 size_t len, void *iv);
 void aes_xts_encrypt_zvkned_zvbb_zvkg(const struct riscv_aes_key *key,
 				      const void *in, void *out, size_t len,
 				      void *tweak);

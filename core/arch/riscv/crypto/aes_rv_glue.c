@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include "aes_rv.h"
 #include <crypto/crypto_accel.h>
+#include <io.h>
 #include <kernel/thread.h>
 #include <string.h>
 #include <string_ext.h>
@@ -145,6 +146,56 @@ static void aes_block(aes_block_fn crypt, const void *key,
 		aes_block_unaligned(crypt, key, key_len, out, in);
 }
 
+static void aes_ecb_bulk(void *out, const void *in, const void *key,
+			 unsigned int rounds, size_t len, bool decrypt)
+{
+	struct riscv_aes_key aes_key = { };
+
+	init_riscv_aes_key(&aes_key, key, rounds);
+	if (decrypt)
+		aes_ecb_decrypt_zvkned(&aes_key, in, out, len);
+	else
+		aes_ecb_encrypt_zvkned(&aes_key, in, out, len);
+	memzero_explicit(&aes_key, sizeof(aes_key));
+}
+
+static void aes_ecb_crypt(void *out, const void *in, const void *key,
+			  unsigned int rounds, unsigned int block_count,
+			  bool decrypt)
+{
+	aes_block_fn crypt = decrypt ? aes_decrypt_zvkned : aes_encrypt_zvkned;
+	unsigned int key_len = key_len_from_round_count(rounds);
+	uint32_t state = 0;
+	size_t len = (size_t)block_count * TEE_AES_BLOCK_SIZE;
+	size_t off = 0;
+
+	assert(out && in && key && key_len && block_count);
+	state = thread_kernel_enable_vfp();
+	if (block_count > 1 && IS_ALIGNED_WITH_TYPE(in, uint32_t) &&
+	    IS_ALIGNED_WITH_TYPE(out, uint32_t)) {
+		aes_ecb_bulk(out, in, key, rounds, len, decrypt);
+	} else {
+		for (off = 0; off < len; off += TEE_AES_BLOCK_SIZE)
+			aes_block(crypt, key, key_len, (uint8_t *)out + off,
+				  (const uint8_t *)in + off);
+	}
+	thread_kernel_disable_vfp(state);
+}
+
+void crypto_accel_aes_ecb_enc(void *out, const void *in, const void *key,
+			      unsigned int round_count,
+			      unsigned int block_count)
+{
+	aes_ecb_crypt(out, in, key, round_count, block_count, false);
+}
+
+void crypto_accel_aes_ecb_dec(void *out, const void *in, const void *key,
+			      unsigned int round_count,
+			      unsigned int block_count)
+{
+	aes_ecb_crypt(out, in, key, round_count, block_count, true);
+}
+
 typedef void (*aes_mode_fn)(const struct riscv_aes_key *key, const void *in,
 			    void *out, size_t len, void *iv);
 
@@ -169,6 +220,93 @@ static void aes_mode_crypt(aes_mode_fn crypt, const struct riscv_aes_key *key,
 	}
 	memcpy(iv, chain, sizeof(chain));
 	memzero_explicit(chain, sizeof(chain));
+}
+
+static void aes_cbc_crypt(void *out, const void *in, const void *key,
+			  unsigned int round_count, unsigned int block_count,
+			  void *iv,
+			  bool decrypt)
+{
+	struct riscv_aes_key aes_key = { };
+	uint32_t vfp_state = 0;
+	size_t len = block_count * TEE_AES_BLOCK_SIZE;
+
+	assert(out && in && key && iv);
+	assert(block_count);
+	init_riscv_aes_key(&aes_key, key, round_count);
+	assert(aes_key.key_len);
+
+	vfp_state = thread_kernel_enable_vfp();
+	aes_mode_crypt(decrypt ? aes_cbc_decrypt_zvkned :
+				 aes_cbc_encrypt_zvkned,
+		       &aes_key, in, out, len, iv);
+	thread_kernel_disable_vfp(vfp_state);
+	memzero_explicit(&aes_key, sizeof(aes_key));
+}
+
+void crypto_accel_aes_cbc_enc(void *out, const void *in, const void *key,
+			      unsigned int round_count,
+			      unsigned int block_count, void *iv)
+{
+	aes_cbc_crypt(out, in, key, round_count, block_count, iv, false);
+}
+
+void crypto_accel_aes_cbc_dec(void *out, const void *in, const void *key,
+			      unsigned int round_count,
+			      unsigned int block_count, void *iv)
+{
+	aes_cbc_crypt(out, in, key, round_count, block_count, iv, true);
+}
+
+void crypto_accel_aes_ctr_be_enc(void *out, const void *in, const void *key,
+				 unsigned int round_count,
+				 unsigned int block_count, void *iv)
+{
+	struct riscv_aes_key aes_key = { };
+	uint8_t counter[TEE_AES_BLOCK_SIZE] __aligned(4);
+	uint32_t low = 0;
+	uint64_t until_wrap = 0;
+	size_t first_len = 0;
+	uint32_t vfp_state = 0;
+	size_t len = (size_t)block_count * TEE_AES_BLOCK_SIZE;
+	int i = 0;
+
+	assert(out && in && key && iv);
+	assert(block_count);
+	init_riscv_aes_key(&aes_key, key, round_count);
+	assert(aes_key.key_len);
+
+	memcpy(counter, iv, sizeof(counter));
+	low = get_unaligned_be32(counter + 12);
+	until_wrap = (UINT64_C(1) << 32) - low;
+	vfp_state = thread_kernel_enable_vfp();
+	if ((uint64_t)block_count < until_wrap) {
+		aes_ctr32_crypt_zvkned_zvkb(&aes_key, in, out, len, counter);
+	} else {
+		first_len = (size_t)until_wrap * TEE_AES_BLOCK_SIZE;
+		aes_ctr32_crypt_zvkned_zvkb(&aes_key, in, out,
+					    first_len, counter);
+		/* Carry the low 32-bit wrap into the upper 96 bits. */
+		for (i = 11; i >= 0; i--) {
+			counter[i]++;
+			if (counter[i])
+				break;
+		}
+		if (len > first_len) {
+			const uint8_t *next_in = in;
+			uint8_t *next_out = out;
+
+			next_in += first_len;
+			next_out += first_len;
+			aes_ctr32_crypt_zvkned_zvkb(&aes_key, next_in,
+						    next_out,
+						    len - first_len, counter);
+		}
+	}
+	thread_kernel_disable_vfp(vfp_state);
+	memcpy(iv, counter, sizeof(counter));
+	memzero_explicit(counter, sizeof(counter));
+	memzero_explicit(&aes_key, sizeof(aes_key));
 }
 
 static void aes_xts_crypt(void *out, const void *in, const void *key1,
