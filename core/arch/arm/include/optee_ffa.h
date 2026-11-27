@@ -149,6 +149,33 @@
 #define OPTEE_FFA_RELEASE_PROTMEM	OPTEE_FFA_BLOCKING_CALL(8)
 
 /*
+ * List the SMMU (Arm SMMUv2) stream mappings, context banks and VMIDs
+ * OP-TEE programs for remote processor firmware, so the hypervisor can
+ * keep the normal world off them. Read only. Accepted on the SPMC ID
+ * (from FFA_SPM_ID_GET, no RX/TX buffers needed) and on OP-TEE's
+ * endpoint ID.
+ *
+ * Call register usage:
+ * w3:    Service ID, OPTEE_FFA_FW_SMMU_INFO
+ * w4:    Layout version, OPTEE_FFA_FW_SMMU_INFO_V1
+ * w5:    SMMU instance index
+ * w6:    Entry: 0 instance, 1 VMIDs, 2 + k stream k
+ * w7:    Not used (MBZ)
+ *
+ * Return register usage:
+ * w3:    TEE_SUCCESS, TEE_ERROR_ITEM_NOT_FOUND past the last instance or
+ *        entry, TEE_ERROR_NOT_SUPPORTED for another layout version or no
+ *        firmware streams
+ * Entry 0: w4/w5 SMMU base low/high, w6 first SMR | SMR count << 16,
+ *          w7 first context bank | context bank count << 16
+ * Entry 1: w4 first VMID | VMID count << 16, w5 number of streams
+ * Entry 2 + k: w4 SMR value (mask << 16 | stream ID), w5 context bank,
+ *          w6 owner ID (platform defined, the PAS ID on Qualcomm)
+ */
+#define OPTEE_FFA_FW_SMMU_INFO		OPTEE_FFA_BLOCKING_CALL(9)
+#define OPTEE_FFA_FW_SMMU_INFO_V1	1
+
+/*
  * Call with struct optee_msg_arg as argument in the supplied shared memory
  * with a zero internal offset and normal cached memory attributes.
  * Register usage:
