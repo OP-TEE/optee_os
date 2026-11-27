@@ -15,7 +15,21 @@
 
 	memory@80000000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000 0x0 0x80000000>,
+		reg = <0x0 0x80000000 0x0 0x07ffd000>,
+		      <0x0 0x88000000 0x0 0x78000000>,
 		      <0x8 0x0 0x0 0x80000000>;
+	};
+
+	/*
+	 * TME-Lite IPC carveout, right after TZDRAM and at
+	 * CFG_TZDRAM_START + CFG_TZDRAM_SIZE. It is secure memory only, so it is
+	 * not in the non-secure DRAM above, but it is listed so that it gets an
+	 * XPU guard window of its own.
+	 */
+	memory@87ffd000 {
+		device_type = "memory";
+		reg = <0x0 0x87ffd000 0x0 0x3000>;
+		status = "disabled";
+		secure-status = "okay";
 	};
 };

@@ -28,6 +28,12 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICR_BASE,
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
 #endif
 
+#ifdef CFG_QCOM_TMEL_COM
+/* Non-cacheable, so TME-Lite sees the IPC data without cache maintenance */
+register_phys_mem(MEM_AREA_IO_SEC, TMEL_COM_IPC_BUF_ADDR,
+		  CFG_TMEL_COM_IPCBUF_CARVEOUT_SIZE);
+#endif
+
 /* An embedded DT, if there is one, gives the DRAM */
 #ifndef CFG_EMBED_DTB
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
