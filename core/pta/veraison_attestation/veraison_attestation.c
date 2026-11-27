@@ -257,7 +257,7 @@ static TEE_Result cmd_convert_to_blackkey(uint32_t param_types,
 					  TEE_Param params[TEE_NUM_PARAMS])
 {
 	TEE_Result res = TEE_SUCCESS;
-	size_t out_size = params[1].memref.size;
+	size_t out_size = 0;
 
 	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 					   TEE_PARAM_TYPE_MEMREF_OUTPUT,
@@ -269,6 +269,7 @@ static TEE_Result cmd_convert_to_blackkey(uint32_t param_types,
 	    params[0].memref.size != PUBKEY_COORD_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	out_size = params[1].memref.size;
 	res = caam_key_wrap_black(params[0].memref.buffer, PUBKEY_COORD_SIZE,
 				  params[1].memref.buffer, &out_size);
 	if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER)
