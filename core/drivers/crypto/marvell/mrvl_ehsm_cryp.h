@@ -7,6 +7,7 @@
 #define __MRVL_EHSM_CRYP_H__
 #include <mempool.h>
 #include <tee_api_types.h>
+#include <utee_defines.h>
 
 #include <ehsm.h>
 #include <ehsm-hal.h>
@@ -52,6 +53,12 @@ struct mrvl_cryp_context {
 	size_t tag_len;
 
 	bool is_new;
+
+	uint8_t ks_tail[TEE_AES_BLOCK_SIZE];
+	size_t ks_tail_len;
+
+	uint8_t gcm_hold[TEE_AES_BLOCK_SIZE];
+	size_t gcm_hold_len;
 };
 
 void mrvl_ehsm_cryp_lock(void);

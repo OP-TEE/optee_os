@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <stdlib_ext.h>
 #include <string.h>
 #include <trace.h>
 
@@ -178,7 +179,7 @@ void *mrvl_ehsm_mem_alloc(size_t size)
 
 void mrvl_ehsm_mem_free(void *ptr)
 {
-	free(ptr);
+	free_wipe(ptr);
 }
 
 TEE_Result mrvl_ehsm_cryp_initialize(void)
@@ -278,7 +279,10 @@ TEE_Result mrvl_ehsm_aes_gcm_final(const void *src, uint32_t src_len,
 	if (r.sec_ret != SEC_NO_ERROR) {
 		EMSG("eHSM aes process failed, sec_ret: %u hw_status: %u",
 		     r.sec_ret, r.hw_status);
-		res = TEE_ERROR_GENERIC;
+		if (r.hw_status == STATUS_AES_GCM_TAG_ERROR)
+			res = TEE_ERROR_MAC_INVALID;
+		else
+			res = TEE_ERROR_GENERIC;
 	} else {
 		FMSG("eHSM aes process passed, sec_ret: %u hw_status: %u",
 		     r.sec_ret, r.hw_status);

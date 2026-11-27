@@ -41,6 +41,9 @@ static TEE_Result mrvl_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 
 	mrvl_ehsm_cryp_lock();
 
+	ctx->ks_tail_len = 0;
+	memzero_explicit(ctx->ks_tail, sizeof(ctx->ks_tail));
+
 	/* if already initialized free the previous content and context */
 	if (ctx->initialized) {
 		mrvl_ehsm_mem_free(ctx->iv_data);
@@ -52,6 +55,7 @@ static TEE_Result mrvl_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 
 		if (ctx->context_id != 0) {
 			ret = mrvl_ehsm_aes_context_release(ctx->context_id);
+			ctx->context_id = 0;
 			if (ret != TEE_SUCCESS)
 				goto out;
 		}
@@ -113,7 +117,17 @@ out:
 	return ret;
 }
 
-static TEE_Result mrvl_cipher_update(struct drvcrypt_cipher_update *dupdate)
+static void xor_bytes(uint8_t *dst, const uint8_t *a, const uint8_t *b,
+		      size_t n)
+{
+	size_t i = 0;
+
+	for (i = 0; i < n; i++)
+		dst[i] = a[i] ^ b[i];
+}
+
+static TEE_Result
+mrvl_cipher_update_block(struct drvcrypt_cipher_update *dupdate)
 {
 	TEE_Result ret = TEE_SUCCESS;
 	struct mrvl_cipher_ctx *c = to_mrvl_cipher_ctx(dupdate->ctx);
@@ -122,6 +136,7 @@ static TEE_Result mrvl_cipher_update(struct drvcrypt_cipher_update *dupdate)
 	size_t dstdata_len = dupdate->dst.length;
 	uint8_t *payload_buf = NULL;
 	uint8_t *dstdata_buf = NULL;
+	uint32_t context_id = 0;
 
 	mrvl_ehsm_cryp_lock();
 
@@ -157,6 +172,16 @@ static TEE_Result mrvl_cipher_update(struct drvcrypt_cipher_update *dupdate)
 
 	memcpy(dupdate->dst.data, dstdata_buf, dstdata_len);
 
+	context_id = ctx->context_id;
+	ctx->context_id = 0;
+	ret = mrvl_ehsm_aes_context_release(context_id);
+	if (ret != TEE_SUCCESS)
+		goto out;
+
+	ret = mrvl_ehsm_aes_context_store(&ctx->context_id);
+	if (ret != TEE_SUCCESS)
+		goto out;
+
 	ctx->is_new = false;
 
 out:
@@ -166,6 +191,126 @@ out:
 	mrvl_ehsm_cryp_unlock();
 
 	return ret;
+}
+
+static TEE_Result
+mrvl_cipher_update_ctr(struct drvcrypt_cipher_update *dupdate)
+{
+	TEE_Result ret = TEE_SUCCESS;
+	struct mrvl_cipher_ctx *c = to_mrvl_cipher_ctx(dupdate->ctx);
+	struct mrvl_cryp_context *ctx = &c->cryp_ctx;
+	const uint8_t *src = dupdate->src.data;
+	uint8_t *dst = dupdate->dst.data;
+	size_t len = MIN(dupdate->src.length, dupdate->dst.length);
+	size_t blk = TEE_AES_BLOCK_SIZE;
+	size_t off = 0;
+	size_t full = 0;
+	size_t tail = 0;
+	uint32_t context_id = 0;
+	uint8_t *in_buf = NULL;
+	uint8_t *out_buf = NULL;
+
+	mrvl_ehsm_cryp_lock();
+
+	ret = mrvl_ehsm_aes_context_load(ctx->context_id);
+	if (ret != TEE_SUCCESS)
+		goto out;
+
+	if (ctx->ks_tail_len) {
+		size_t k = MIN(ctx->ks_tail_len, len);
+
+		xor_bytes(dst, src, ctx->ks_tail, k);
+		memmove(ctx->ks_tail, ctx->ks_tail + k, ctx->ks_tail_len - k);
+		ctx->ks_tail_len -= k;
+		off = k;
+	}
+
+	full = (len - off) & ~(blk - 1);
+	tail = (len - off) - full;
+
+	if (full) {
+		in_buf = mrvl_ehsm_mem_alloc(full);
+		out_buf = mrvl_ehsm_mem_alloc(full);
+		if (!in_buf || !out_buf) {
+			ret = TEE_ERROR_OUT_OF_MEMORY;
+			goto out;
+		}
+		memcpy(in_buf, src + off, full);
+
+		if (dupdate->last && !tail)
+			ret = mrvl_ehsm_aes_final(in_buf, full, out_buf, full,
+						  ctx->is_new);
+		else
+			ret = mrvl_ehsm_aes_update_payload(in_buf, full,
+							   out_buf, full,
+							   ctx->is_new);
+		if (ret != TEE_SUCCESS)
+			goto out;
+
+		memcpy(dst + off, out_buf, full);
+		ctx->is_new = false;
+		off += full;
+
+		mrvl_ehsm_mem_free(in_buf);
+		mrvl_ehsm_mem_free(out_buf);
+		in_buf = NULL;
+		out_buf = NULL;
+	}
+
+	if (tail) {
+		in_buf = mrvl_ehsm_mem_alloc(blk);
+		out_buf = mrvl_ehsm_mem_alloc(blk);
+		if (!in_buf || !out_buf) {
+			ret = TEE_ERROR_OUT_OF_MEMORY;
+			goto out;
+		}
+
+		if (dupdate->last) {
+			memcpy(in_buf, src + off, tail);
+			ret = mrvl_ehsm_aes_final(in_buf, tail, out_buf,
+						  tail, ctx->is_new);
+			if (ret != TEE_SUCCESS)
+				goto out;
+			memcpy(dst + off, out_buf, tail);
+		} else {
+			memset(in_buf, 0, blk);
+			memcpy(in_buf, src + off, tail);
+			ret = mrvl_ehsm_aes_update_payload(in_buf, blk, out_buf,
+							   blk, ctx->is_new);
+			if (ret != TEE_SUCCESS)
+				goto out;
+			memcpy(dst + off, out_buf, tail);
+			memcpy(ctx->ks_tail, out_buf + tail, blk - tail);
+			ctx->ks_tail_len = blk - tail;
+		}
+		ctx->is_new = false;
+	}
+
+	context_id = ctx->context_id;
+	ctx->context_id = 0;
+	ret = mrvl_ehsm_aes_context_release(context_id);
+	if (ret != TEE_SUCCESS)
+		goto out;
+
+	ret = mrvl_ehsm_aes_context_store(&ctx->context_id);
+
+out:
+	mrvl_ehsm_mem_free(in_buf);
+	mrvl_ehsm_mem_free(out_buf);
+
+	mrvl_ehsm_cryp_unlock();
+
+	return ret;
+}
+
+static TEE_Result mrvl_cipher_update(struct drvcrypt_cipher_update *dupdate)
+{
+	struct mrvl_cipher_ctx *c = to_mrvl_cipher_ctx(dupdate->ctx);
+
+	if (c->algo == MRVL_CRYP_MODE_AES_CTR)
+		return mrvl_cipher_update_ctr(dupdate);
+
+	return mrvl_cipher_update_block(dupdate);
 }
 
 static void mrvl_cipher_final(void *ctx __unused)
@@ -178,7 +323,8 @@ static void mrvl_cipher_free(void *ctx)
 	struct mrvl_cryp_context *cryp_ctx = &c->cryp_ctx;
 
 	mrvl_ehsm_cryp_lock();
-	mrvl_ehsm_aes_context_release(cryp_ctx->context_id);
+	if (cryp_ctx->context_id)
+		mrvl_ehsm_aes_context_release(cryp_ctx->context_id);
 	mrvl_ehsm_cryp_unlock();
 
 	mrvl_ehsm_aes_cryp_put();
@@ -187,6 +333,8 @@ static void mrvl_cipher_free(void *ctx)
 	mrvl_ehsm_mem_free(cryp_ctx->key);
 	mrvl_ehsm_mem_free(cryp_ctx->key2);
 
+	memzero_explicit(cryp_ctx->ks_tail, sizeof(cryp_ctx->ks_tail));
+
 	free(c);
 }
 
@@ -194,8 +342,47 @@ static void mrvl_cipher_copy_state(void *dst_ctx, void *src_ctx)
 {
 	struct mrvl_cipher_ctx *src = to_mrvl_cipher_ctx(src_ctx);
 	struct mrvl_cipher_ctx *dst = to_mrvl_cipher_ctx(dst_ctx);
+	struct mrvl_cryp_context *s = &src->cryp_ctx;
+	struct mrvl_cryp_context *d = &dst->cryp_ctx;
 
-	memcpy(dst, src, sizeof(*dst));
+	mrvl_ehsm_cryp_lock();
+
+	if (d->context_id)
+		mrvl_ehsm_aes_context_release(d->context_id);
+	mrvl_ehsm_mem_free(d->key);
+	mrvl_ehsm_mem_free(d->key2);
+	mrvl_ehsm_mem_free(d->iv_data);
+
+	dst->algo = src->algo;
+	*d = *s;
+	d->key = NULL;
+	d->key2 = NULL;
+	d->iv_data = NULL;
+	d->context_id = 0;
+
+	if (s->key) {
+		d->key = mrvl_ehsm_mem_alloc(s->key_len);
+		if (d->key)
+			memcpy(d->key, s->key, s->key_len);
+	}
+
+	if (s->key2) {
+		d->key2 = mrvl_ehsm_mem_alloc(s->key2_len);
+		if (d->key2)
+			memcpy(d->key2, s->key2, s->key2_len);
+	}
+
+	if (s->iv_data) {
+		d->iv_data = mrvl_ehsm_mem_alloc(s->iv_len);
+		if (d->iv_data)
+			memcpy(d->iv_data, s->iv_data, s->iv_len);
+	}
+
+	if (s->context_id &&
+	    mrvl_ehsm_aes_context_load(s->context_id) == TEE_SUCCESS)
+		mrvl_ehsm_aes_context_store(&d->context_id);
+
+	mrvl_ehsm_cryp_unlock();
 }
 
 static TEE_Result alloc_ctx(void **ctx, enum mrvl_cryp_algo_mode algo)
