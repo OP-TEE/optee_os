@@ -807,6 +807,8 @@ static TEE_Result set_name(struct tee_fs_dirfile_dirh *dirh,
 
 	res = tee_fs_dirfile_find(dirh, &po->uuid, po->obj_id, po->obj_id_len,
 				  &old_dfh);
+	if (res && res != TEE_ERROR_ITEM_NOT_FOUND)
+		return res;
 	if (!overwrite && !res)
 		return TEE_ERROR_ACCESS_CONFLICT;
 
@@ -971,6 +973,8 @@ static TEE_Result ree_fs_rename(struct tee_pobj *old, struct tee_pobj *new,
 
 	res = tee_fs_dirfile_find(dirh, &new->uuid, new->obj_id,
 				  new->obj_id_len, &remove_dfh);
+	if (res && res != TEE_ERROR_ITEM_NOT_FOUND)
+		goto out;
 	if (!res && !overwrite) {
 		res = TEE_ERROR_ACCESS_CONFLICT;
 		goto out;
