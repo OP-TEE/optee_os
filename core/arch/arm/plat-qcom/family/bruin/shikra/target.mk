@@ -17,6 +17,8 @@ ifeq ($(CFG_QCOM_PAS_PTA),y)
 CFG_RESERVED_VASPACE_SIZE ?= (60 * 1024 * 1024)
 CFG_IN_TREE_EARLY_TAS += qcom_pas/cff7d191-7ca0-4784-af13-48223b9a4fbe
 CFG_QCOM_PAS_AUTH ?= y
+# One metadata slot per PAS ID: LMCU DTB, LMCU, TURING and IRIS
+CFG_PAS_MD_SLOTS ?= 4
 endif
 
 ifeq ($(CFG_QCOM_PAS_AUTH),y)
