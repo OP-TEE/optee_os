@@ -107,7 +107,7 @@ $(call force,CFG_CORE_HAS_GENERIC_TIMER,y)
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
+	$(addprefix $(arch-dir)/, kernel crypto mm tee) $(platform-dir)
 
 # Default values for "-mcmodel" compiler flag
 riscv-platform-mcmodel ?= medany
