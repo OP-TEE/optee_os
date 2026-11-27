@@ -8,6 +8,7 @@
  */
 
 #include <assert.h>
+#include <drivers/mailbox.h>
 #include <kernel/mutex.h>
 #include <malloc.h>
 #include <platform_config.h>
@@ -78,6 +79,8 @@ static int ti_sci_setup_xfer(uint16_t msg_type, uint32_t msg_flags,
 	return 0;
 }
 
+static struct mbox_chan *ti_sci_chan;
+
 /**
  * ti_sci_do_xfer() - Do one transfer
  *
@@ -102,7 +105,7 @@ static int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 	txhdr->seq = message_sequence;
 
 	/* Send the message */
-	ret = ti_sci_transport_send(txmsg);
+	ret = mbox_send_sync(ti_sci_chan, txmsg);
 	if (ret) {
 		EMSG("Message sending failed (%d)", ret);
 		goto unlock;
@@ -114,7 +117,7 @@ static int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 	/* Get the response */
 	for (; retry > 0; retry--) {
 		/* Receive the response */
-		ret = ti_sci_transport_recv(rxmsg);
+		ret = mbox_recv_sync(ti_sci_chan, rxmsg);
 		if (ret) {
 			EMSG("Message receive failed (%d)", ret);
 			goto unlock;
@@ -526,6 +529,10 @@ int ti_sci_init(void)
 {
 	struct ti_sci_msg_resp_version rev_info = { };
 	int ret = 0;
+
+	ret = ti_sci_mbox_init(&ti_sci_chan);
+	if (ret)
+		return ret;
 
 	ret = ti_sci_get_revision(&rev_info);
 	if (ret) {
