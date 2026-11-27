@@ -6,6 +6,7 @@
 #ifndef __MALLOC_H
 #define __MALLOC_H
 
+#include <compiler.h>
 #include <malloc_flags.h>
 #include <pta_stats.h>
 #include <stddef.h>
@@ -19,10 +20,10 @@
 
 #define MALLOC_DEFAULT_ALIGNMENT	(sizeof(long) * 2)
 
-void *malloc(size_t size);
+void *malloc(size_t size) __alloc_size(1);
 void *malloc_flags(uint32_t flags, void *ptr, size_t alignment, size_t size);
-void *calloc(size_t nmemb, size_t size);
-void *realloc(void *ptr, size_t size);
+void *calloc(size_t nmemb, size_t size) __alloc_size(1, 2);
+void *realloc(void *ptr, size_t size) __alloc_size(2);
 void *memalign(size_t alignment, size_t size);
 void free(void *ptr);
 void free_flags(uint32_t flags, void *ptr);
@@ -33,7 +34,8 @@ void *aligned_alloc(size_t alignment, size_t size);
 
 #ifdef ENABLE_MDBG
 void *__mdbg_alloc(uint32_t flags, void *ptr, size_t alignment, size_t nmemb,
-		   size_t size, const char *fname, int lineno);
+		   size_t size, const char *fname, int lineno)
+		   __alloc_size(4, 5);
 
 void mdbg_check(int bufdump);
 

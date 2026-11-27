@@ -20,6 +20,14 @@
 #define __has_attribute(x) 0
 #endif
 
+#ifndef __alloc_size
+#if __has_attribute(alloc_size)
+#define __alloc_size(...) __attribute__((alloc_size(__VA_ARGS__)))
+#else
+#define __alloc_size(...)
+#endif
+#endif
+
 #define __deprecated	__attribute__((deprecated))
 #ifndef __packed
 #define __packed	__attribute__((packed))
