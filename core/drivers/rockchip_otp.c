@@ -26,7 +26,12 @@
 #define EN_ENABLE	1
 #define EN_DISABLE	0
 
+/* Platforms with a smaller OTP_S array define OTP_S_MAX_INDEX */
+#ifdef OTP_S_MAX_INDEX
+#define MAX_INDEX	OTP_S_MAX_INDEX
+#else
 #define MAX_INDEX	0x300
+#endif
 #define BURST_SIZE	8
 #define OTP_WORD	1
 
