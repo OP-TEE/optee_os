@@ -66,6 +66,8 @@ $(call force,CFG_SCMI_SCPFW_PRODUCT,stm32mp2)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_STM32_SHARED_IO,y)
 $(call force,CFG_STM32_STGEN,y)
+$(call force,CFG_STM32MP2_PWR,y)
+$(call force,CFG_STM32MP2_PWR_REGUL,y)
 $(call force,CFG_STM32MP_CLK_CORE,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_WITH_LPAE,y)
@@ -119,6 +121,9 @@ CFG_STM32_UART ?= y
 CFG_STPMIC2 ?= y
 
 CFG_DRIVERS_I2C ?= $(CFG_STM32_I2C)
+
+CFG_REGULATOR_FIXED ?= y
+CFG_REGULATOR_GPIO ?= y
 
 # Default RTC accuracy, higher accuracy means higher power consumption
 CFG_STM32_RTC_HIGH_ACCURACY ?= n
