@@ -19,6 +19,7 @@
 #define SECBOOT_METADATA_MAJOR_V0	0U
 #define SECBOOT_METADATA_MAJOR_V1	1U
 #define SECBOOT_METADATA_MINOR		0U
+#define SECBOOT_META_OEM_INDEPENDENT_ID	0x0001U
 #define SECBOOT_DEFAULT_ROOT_CERT_SEL	0U
 
 static TEE_Result check_metadata_version(const struct pas_oem_metadata *meta)
@@ -80,6 +81,23 @@ static TEE_Result check_metadata_options(const struct pas_oem_metadata *meta)
 	return TEE_ERROR_SECURITY;
 }
 
+static TEE_Result check_independent_ids(const struct pas_oem_metadata *meta)
+{
+	if (meta->oem_id != SECBOOT_META_OEM_INDEPENDENT_ID) {
+		EMSG("PAS auth: OEM_ID got %#"PRIx32" want %#x",
+		     meta->oem_id, SECBOOT_META_OEM_INDEPENDENT_ID);
+		return TEE_ERROR_SECURITY;
+	}
+
+	if (meta->model_id) {
+		EMSG("PAS auth: MODEL_ID got %#"PRIx32" want 0",
+		     meta->model_id);
+		return TEE_ERROR_SECURITY;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result check_oem_model_binding(const struct pas_oem_metadata *meta,
 					  const struct pas_device_ids *ids)
 {
@@ -87,12 +105,17 @@ static TEE_Result check_oem_model_binding(const struct pas_oem_metadata *meta,
 				BIT32(PAS_META_FLAG_OEM_ID_INDEPENDENT);
 	bool model_independent = false;
 
-	/* v0 metadata has no MODEL_ID_INDEPENDENT bit; falls back to OEM's. */
-	if (meta->major == 0)
-		model_independent = oem_independent;
-	else
+	/*
+	 * v0 metadata has no MODEL_ID_INDEPENDENT bit: OEM_ID_INDEPENDENT
+	 * covers both IDs, which then hold fixed values, not the device's.
+	 */
+	if (meta->major == SECBOOT_METADATA_MAJOR_V0) {
+		if (oem_independent)
+			return check_independent_ids(meta);
+	} else {
 		model_independent = meta->flags &
 				    BIT32(PAS_META_FLAG_MODEL_ID_INDEPENDENT);
+	}
 
 	if (!oem_independent && meta->oem_id != ids->oem_id) {
 		EMSG("PAS auth: OEM_ID got %#"PRIx32" want %#"PRIx32,
@@ -109,10 +132,23 @@ static TEE_Result check_oem_model_binding(const struct pas_oem_metadata *meta,
 	return TEE_SUCCESS;
 }
 
+/*
+ * v0 metadata is bound to the SoC version when it says so and to the JTAG ID
+ * otherwise; v1 metadata has a flag for each binding.
+ */
+static bool uses_jtag_id(const struct pas_oem_metadata *meta)
+{
+	if (meta->major == SECBOOT_METADATA_MAJOR_V0)
+		return !(meta->flags &
+			 BIT32(PAS_META_FLAG_IN_USE_SOC_HW_VERSION));
+
+	return meta->flags & BIT32(PAS_META_FLAG_IN_USE_JTAG_ID);
+}
+
 static TEE_Result check_jtag_binding(const struct pas_oem_metadata *meta,
 				     const struct pas_device_ids *ids)
 {
-	if (!(meta->flags & BIT32(PAS_META_FLAG_IN_USE_JTAG_ID)))
+	if (!uses_jtag_id(meta))
 		return TEE_SUCCESS;
 
 	if (meta->hw_id == ids->jtag_id)
@@ -214,32 +250,73 @@ static TEE_Result check_hw_binding(const struct pas_oem_metadata *meta)
 	return check_soc_vers_binding(meta);
 }
 
+static TEE_Result get_oem_metadata(const struct pas_hash_segment_info *hs,
+				   struct pas_oem_metadata *meta)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = pas_meta_get(hs, meta);
+	if (res == TEE_ERROR_NO_DATA)
+		res = TEE_ERROR_SECURITY;
+	if (res)
+		EMSG("PAS auth: bad or missing OEM metadata");
+
+	return res;
+}
+
+/*
+ * Version 1.0 metadata may leave out both hardware bindings, which would let
+ * the image load on any chip. Only TZ apps may be signed that way, and PAS
+ * does not load any.
+ */
+static TEE_Result check_hw_independence(const struct pas_oem_metadata *meta)
+{
+	const uint32_t hw_bindings =
+		BIT32(PAS_META_FLAG_IN_USE_SOC_HW_VERSION) |
+		BIT32(PAS_META_FLAG_IN_USE_JTAG_ID);
+
+	if (meta->major != SECBOOT_METADATA_MAJOR_V1 ||
+	    meta->minor != SECBOOT_METADATA_MINOR ||
+	    (meta->flags & hw_bindings))
+		return TEE_SUCCESS;
+
+	EMSG("PAS auth: hardware independent metadata, flags=%#"PRIx32,
+	     meta->flags);
+	return TEE_ERROR_SECURITY;
+}
+
+static TEE_Result check_oem_metadata(const struct pas_oem_metadata *meta,
+				     uint32_t pas_id)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = check_metadata_version(meta);
+	if (res)
+		return res;
+
+	res = check_sw_binding(meta, pas_id);
+	if (res)
+		return res;
+
+	return check_hw_binding(meta);
+}
+
 static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
-				       uint32_t pas_id,
+				       uint32_t root_cert_sel,
 				       const uint8_t *anchor)
 {
 	uint32_t rot_hash_algo = TEE_ALG_SHA384;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct pas_oem_metadata meta = { };
 	struct pas_fuse_mrc_info mrc = { };
 	uint8_t *signed_copy = NULL;
 	const uint8_t *roots = NULL;
 	uint32_t sig_hash_algo = 0;
 	const uint8_t *leaf = NULL;
 	bool eku_enforced = false;
-	uint32_t root_cert_sel = SECBOOT_DEFAULT_ROOT_CERT_SEL;
 	uint32_t sig_algo = 0;
 	size_t signed_len = 0;
 	size_t roots_len = 0;
 	size_t leaf_len = 0;
-
-	if (!hs->oem_certs || !hs->oem_sig || !hs->signed_region) {
-		EMSG("PAS auth: metadata is not OEM-signed");
-		return TEE_ERROR_SECURITY;
-	}
-
-	if (pas_meta_get(hs, &meta) == TEE_SUCCESS)
-		root_cert_sel = meta.root_cert_sel;
 
 	res = pas_fuse_get_mrc_info(&mrc);
 	if (res) {
@@ -284,26 +361,6 @@ static TEE_Result verify_oem_signature(const struct pas_hash_segment_info *hs,
 		EMSG("PAS auth: root-of-trust mismatch");
 		return res;
 	}
-
-	res = pas_meta_get(hs, &meta);
-	if (res == TEE_ERROR_NO_DATA)
-		res = TEE_ERROR_SECURITY;
-	if (res) {
-		EMSG("PAS auth: bad or missing OEM metadata");
-		return res;
-	}
-
-	res = check_metadata_version(&meta);
-	if (res)
-		return res;
-
-	res = check_sw_binding(&meta, pas_id);
-	if (res)
-		return res;
-
-	res = check_hw_binding(&meta);
-	if (res)
-		return res;
 
 	res = pas_sig_algo_from_leaf(leaf, leaf_len, &sig_algo,
 				     &sig_hash_algo);
@@ -356,11 +413,15 @@ static TEE_Result get_arb_rollback_state(const struct pas_hash_segment_info *hs,
 }
 
 static TEE_Result check_anti_rollback(const struct pas_hash_segment_info *hs,
-				      uint32_t pas_id)
+				      uint32_t pas_id,
+				      enum pas_secboot_state secboot_state)
 {
 	struct pas_oem_metadata meta = { };
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t dev_ver = 0;
+
+	if (secboot_state == PAS_SECBOOT_OFF)
+		return TEE_SUCCESS;
 
 	res = get_arb_rollback_state(hs, pas_id, &meta, &dev_ver);
 	if (res)
@@ -439,8 +500,10 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 				     size_t meta_data_size,
 				     uint32_t pas_id,
 				     uint32_t segment_hash_len,
-				     const uint8_t *anchor)
+				     const uint8_t *anchor,
+				     enum pas_secboot_state secboot_state)
 {
+	struct pas_oem_metadata meta = { };
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (hs->uie_encrypted) {
@@ -448,14 +511,34 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	if (hs->qc_certs || hs->qc_sig) {
+	if (hs->qc_certs || hs->qc_sig || hs->qc_meta) {
 		EMSG("PAS auth: QC-countersigned images are not supported");
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	res = verify_oem_signature(hs, pas_id, anchor);
+	if (!hs->oem_certs || !hs->oem_sig || !hs->signed_region) {
+		EMSG("PAS auth: metadata is not OEM-signed");
+		return TEE_ERROR_SECURITY;
+	}
+
+	res = get_oem_metadata(hs, &meta);
 	if (res)
 		return res;
+
+	res = check_hw_independence(&meta);
+	if (res)
+		return res;
+
+	/* A non-secure device does not refuse an image over these checks. */
+	if (secboot_state != PAS_SECBOOT_OFF) {
+		res = check_oem_metadata(&meta, pas_id);
+		if (res)
+			return res;
+
+		res = verify_oem_signature(hs, meta.root_cert_sel, anchor);
+		if (res)
+			return res;
+	}
 
 	res = pas_meta_verify_elf_headers_hash(meta_data, meta_data_size,
 					       hs->hash_table,
@@ -463,5 +546,5 @@ TEE_Result pas_sig_auth_verify_image(const struct pas_hash_segment_info *hs,
 	if (res)
 		return res;
 
-	return check_anti_rollback(hs, pas_id);
+	return check_anti_rollback(hs, pas_id, secboot_state);
 }
