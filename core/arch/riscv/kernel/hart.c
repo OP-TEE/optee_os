@@ -69,6 +69,9 @@ static const struct {
 	{ "zvbc", RISCV_ISA_EXT_ZVBC },
 	{ "zvkb", RISCV_ISA_EXT_ZVKB },
 	{ "zvkg", RISCV_ISA_EXT_ZVKG },
+	{ "zvkn", RISCV_ISA_EXT_ZVKN },
+	{ "zvknc", RISCV_ISA_EXT_ZVKNC },
+	{ "zvkng", RISCV_ISA_EXT_ZVKNG },
 	{ "zvkned", RISCV_ISA_EXT_ZVKNED },
 	{ "zvknha", RISCV_ISA_EXT_ZVKNHA },
 	{ "zvknhb", RISCV_ISA_EXT_ZVKNHB },
@@ -412,6 +415,26 @@ static void parse_cpu_nodes(const void *fdt)
 			missing = true;
 		}
 
+		/* Expand subsets before intersecting the hart ISAs. */
+		if (bit_test(map, RISCV_ISA_EXT_ZVKNC)) {
+			bit_set(map, RISCV_ISA_EXT_ZVKN);
+			bit_set(map, RISCV_ISA_EXT_ZVBC);
+		}
+		if (bit_test(map, RISCV_ISA_EXT_ZVKNG)) {
+			bit_set(map, RISCV_ISA_EXT_ZVKN);
+			bit_set(map, RISCV_ISA_EXT_ZVKG);
+		}
+		if (bit_test(map, RISCV_ISA_EXT_ZVKN)) {
+			bit_set(map, RISCV_ISA_EXT_ZVKNED);
+			bit_set(map, RISCV_ISA_EXT_ZVKNHB);
+			bit_set(map, RISCV_ISA_EXT_ZVKB);
+			bit_set(map, RISCV_ISA_EXT_ZVKT);
+		}
+		if (bit_test(map, RISCV_ISA_EXT_ZVKNHB))
+			bit_set(map, RISCV_ISA_EXT_ZVKNHA);
+		if (bit_test(map, RISCV_ISA_EXT_ZVBB))
+			bit_set(map, RISCV_ISA_EXT_ZVKB);
+
 		for (n = 0; n < sizeof(common); n++)
 			common[n] &= map[n];
 		found = true;
@@ -499,6 +522,27 @@ static void check_build_isa(void)
 		  "CFG_RISCV_ISA_SVINVAL" },
 		{ RISCV_ISA_EXT_SVPBMT, IS_ENABLED(CFG_RISCV_ISA_SVPBMT),
 		  "CFG_RISCV_ISA_SVPBMT" },
+		{ RISCV_ISA_EXT_ZVKT,
+		  IS_ENABLED(CFG_CORE_CRYPTO_AES_ACCEL) ||
+		  IS_ENABLED(CFG_CORE_CRYPTO_SHA256_ACCEL) ||
+		  IS_ENABLED(CFG_CORE_CRYPTO_SHA512_ACCEL),
+		  "vector crypto acceleration" },
+		{ RISCV_ISA_EXT_ZVBB, IS_ENABLED(CFG_CORE_CRYPTO_AES_ACCEL),
+		  "CFG_CORE_CRYPTO_AES_ACCEL" },
+		{ RISCV_ISA_EXT_ZVKG, IS_ENABLED(CFG_CORE_CRYPTO_AES_ACCEL),
+		  "CFG_CORE_CRYPTO_AES_ACCEL" },
+		{ RISCV_ISA_EXT_ZVKNED, IS_ENABLED(CFG_CORE_CRYPTO_AES_ACCEL),
+		  "CFG_CORE_CRYPTO_AES_ACCEL" },
+		{ RISCV_ISA_EXT_ZVKB, IS_ENABLED(CFG_CORE_CRYPTO_SHA256_ACCEL),
+		  "CFG_CORE_CRYPTO_SHA256_ACCEL" },
+		{ RISCV_ISA_EXT_ZVKNHA,
+		  IS_ENABLED(CFG_CORE_CRYPTO_SHA256_ACCEL),
+		  "CFG_CORE_CRYPTO_SHA256_ACCEL" },
+		{ RISCV_ISA_EXT_ZVKB, IS_ENABLED(CFG_CORE_CRYPTO_SHA512_ACCEL),
+		  "CFG_CORE_CRYPTO_SHA512_ACCEL" },
+		{ RISCV_ISA_EXT_ZVKNHB,
+		  IS_ENABLED(CFG_CORE_CRYPTO_SHA512_ACCEL),
+		  "CFG_CORE_CRYPTO_SHA512_ACCEL" },
 	};
 	size_t n = 0;
 

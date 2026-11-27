@@ -158,6 +158,7 @@ riscv-abi = $(ABI_BASE)$(ABI_D)
 CFG_WITH_VFP ?= $(CFG_RISCV_FPU)
 $(eval $(call cfg-depends-all,CFG_WITH_VFP,CFG_RISCV_FPU))
 
+# The AES implementation includes XTS and requires 128 <= VLEN < 2048 bits.
 ifeq ($(call cfg-one-enabled,CFG_CORE_CRYPTO_AES_ACCEL \
 	CFG_CORE_CRYPTO_SHA256_ACCEL CFG_CORE_CRYPTO_SHA512_ACCEL),y)
 ifneq ($(CFG_RV64_core),y)
