@@ -6,7 +6,10 @@ srcs-$(CFG_RISCV_TIME_SOURCE_RDTIME) += tee_time_rdtime.c
 srcs-$(CFG_RISCV_SBI) += sbi.c
 srcs-$(CFG_RISCV_SBI_CONSOLE) += sbi_console.c
 srcs-$(CFG_RISCV_SBI_MPXY) += sbi_mpxy.c
-srcs-$(CFG_RISCV_SBI_MPXY_RPMI) += sbi_mpxy_rpmi.c
+ifeq ($(CFG_RISCV_SBI_MPXY_RPMI),y)
+srcs-y += sbi_mpxy_rpmi.c
+srcs-$(CFG_DRIVERS_MAILBOX) += sbi_mpxy_mailbox.c
+endif
 srcs-y += boot.c
 srcs-y += hart.c
 srcs-y += entry.S
