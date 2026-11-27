@@ -184,7 +184,7 @@ static inline __noprof unsigned long read_tp(void)
 	return tp;
 }
 
-static inline __noprof unsigned long read_fp(void)
+static __always_inline __noprof unsigned long read_fp(void)
 {
 	unsigned long fp = 0;
 
@@ -193,7 +193,7 @@ static inline __noprof unsigned long read_fp(void)
 	return fp;
 }
 
-static inline __noprof unsigned long read_pc(void)
+static __always_inline __noprof unsigned long read_pc(void)
 {
 	unsigned long pc = 0;
 

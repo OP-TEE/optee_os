@@ -34,10 +34,9 @@
 #include <kernel/linker.h>
 #include <kernel/thread.h>
 #include <kernel/unwind.h>
+#include <kernel/unwind_private.h>
 #include <trace.h>
 #include <unw/unwind.h>
-
-#include "unwind_private.h"
 
 /* The register names */
 #define	FP	11
