@@ -97,6 +97,8 @@ endif
 CFG_TEE_CORE_NB_CORE ?= 2
 CFG_STM32MP_OPP_COUNT ?= 3
 
+CFG_STM32_BSEC3 ?= y
+CFG_STM32_BSEC_WRITE ?= y
 CFG_STM32_EXTI ?= y
 CFG_STM32_FMC ?= y
 CFG_STM32_GPIO ?= y
@@ -162,6 +164,12 @@ endif
 ifeq ($(CFG_STM32MP25_RSTCTRL),y)
 $(call force,CFG_DRIVERS_RSTCTRL,y)
 $(call force,CFG_STM32_RSTCTRL,y)
+endif
+
+# Enable BSEC PTA for fuses access management
+CFG_STM32_BSEC_PTA ?= y
+ifeq ($(CFG_STM32_BSEC_PTA),y)
+$(call force,CFG_STM32_BSEC3,y,Required by CFG_STM32_BSEC_PTA)
 endif
 
 # Optional behavior upon receiving illegal access events
