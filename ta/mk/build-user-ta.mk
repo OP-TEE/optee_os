@@ -45,6 +45,7 @@ ifeq ($(CFG_TA_OPTEE_CORE_API_COMPAT_1_1),y)
 cppflags$(sm)	+= -D__OPTEE_CORE_API_COMPAT_1_1=1
 endif
 cflags$(sm)	:= $(cflags$(ta-target)) $(CFLAGS_$(ta-target))
+cxxflags$(sm)	:= $(cxxflags$(ta-target)) $(CXXFLAGS_$(ta-target))
 aflags$(sm)	:= $(aflags$(ta-target))
 
 # For now, do not link in-tree TAs against shared libraries

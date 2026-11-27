@@ -13,12 +13,18 @@ nostdinc$(sm)	:= -nostdinc -isystem $(shell $(CC$(sm)) \
 			-print-file-name=include 2> /dev/null)
 
 # Get location of libgcc from gcc
-libgcc$(sm)  	:= $(shell $(CC$(sm)) $(CFLAGS$(arch-bits-$(sm))) \
+define _gcc_set_libs
+libgcc$1  	= $$(shell $$(CC$1) $$(CFLAGS$$(arch-bits-$1)) \
+			$$(filter -m%,$$(cflags$1)) \
 			-print-libgcc-file-name 2> /dev/null)
-libstdc++$(sm)	:= $(shell $(CXX$(sm)) $(CXXFLAGS$(arch-bits-$(sm))) $(comp-cxxflags$(sm)) \
+libstdc++$1	= $$(shell $$(CXX$1) $$(CXXFLAGS$$(arch-bits-$1)) \
+			$$(filter -m%,$$(cxxflags$1)) $$(comp-cxxflags$1) \
 			-print-file-name=libstdc++.a 2> /dev/null)
-libgcc_eh$(sm)	:= $(shell $(CXX$(sm)) $(CXXFLAGS$(arch-bits-$(sm))) $(comp-cxxflags$(sm)) \
+libgcc_eh$1	= $$(shell $$(CXX$1) $$(CXXFLAGS$$(arch-bits-$1)) \
+			$$(filter -m%,$$(cxxflags$1)) $$(comp-cxxflags$1) \
 			-print-file-name=libgcc_eh.a 2> /dev/null)
+endef
+$(eval $(call _gcc_set_libs,$(sm)))
 
 # Define these to something to discover accidental use
 CC		:= false
