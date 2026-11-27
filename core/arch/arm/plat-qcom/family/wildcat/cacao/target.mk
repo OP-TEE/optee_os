@@ -14,3 +14,8 @@ CFG_TA_RAM_VA_SIZE ?= 0x300000
 
 $(call force,CFG_QCOM_CSRNG,y)
 CFG_WITH_SOFTWARE_PRNG ?= n
+
+# 64K-page-size toolchains pad ELF segments to 64K; cap to 4K so the
+# binary fits within the DARE-TZ TZDRAM allocation (CFG_TEE_RAM_VA_SIZE).
+LDFLAGS += -z max-page-size=4096
+
