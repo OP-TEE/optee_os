@@ -225,6 +225,51 @@ CFG_SHMEM_START  ?= 0x72000000
 CFG_SHMEM_SIZE   ?= 0x00400000
 endif
 
+ifeq ($(PLATFORM_FLAVOR),rk3568)
+include core/arch/arm/cpu/cortex-armv8-0.mk
+$(call force,CFG_TEE_CORE_NB_CORE,4)
+$(call force,CFG_ARM_GICV3,y)
+$(call force,CFG_AUTO_MAX_PA_BITS,y)
+
+# The Armv8 crypto extensions are disabled at power-up and have to be
+# enabled by BL31, which TF-A does since v2.15.
+CFG_CRYPTO_WITH_CE ?= y
+
+# Burn a TRNG-generated HUK into the secure OTP on the first boot of a blank
+# device. Irreversible, so off by default: a blank device then has no HUK, or
+# the all-zero test key with CFG_INSECURE=y.
+CFG_ROCKCHIP_HUK_PROVISION ?= n
+ifeq ($(CFG_ROCKCHIP_HUK_PROVISION)-$(CFG_INSECURE),y-y)
+$(warning CFG_ROCKCHIP_HUK_PROVISION=y with CFG_INSECURE=y burns a permanent HUK from an insecure build)
+endif
+
+# Back secure storage with eMMC RPMB. This is required with CFG_INSECURE=n:
+# the default REE-FS integrity relies on a monotonic counter that the
+# platform does not otherwise provide, so without RPMB integrity secure
+# storage would fail to initialise. RPMB also provides the rollback
+# protection the fTPM relies on.
+CFG_RPMB_FS ?= y
+
+# Same layout as RK3588 and PX30, clear of the load addresses in mainline
+# U-Boot's default environment (kernel_comp_addr_r, fdt_addr_r,
+# ramdisk_addr_r).
+CFG_TZDRAM_START ?= 0x30000000
+CFG_TZDRAM_SIZE ?= 0x02000000
+CFG_SHMEM_START ?= 0x32000000
+CFG_SHMEM_SIZE ?= 0x00400000
+
+# Fallback non-secure memory description, used only when no device tree
+# with memory nodes is passed to OP-TEE: the DRAM window below the MMIO
+# hole at 3.75 GiB, so the core advertises dynamic shared memory.
+CFG_DRAM_BASE ?= 0x00000000
+CFG_DRAM_SIZE ?= 0xf0000000
+
+CFG_EARLY_CONSOLE_BASE ?= UART2_BASE
+CFG_EARLY_CONSOLE_SIZE ?= UART2_SIZE
+CFG_EARLY_CONSOLE_BAUDRATE ?= 1500000
+CFG_EARLY_CONSOLE_CLK_IN_HZ ?= 24000000
+endif
+
 ifeq ($(platform-flavor-armv8),1)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
