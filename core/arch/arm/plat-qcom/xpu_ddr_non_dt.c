@@ -9,13 +9,30 @@
 #include <util.h>
 #include <xpu_target.h>
 
-/* The two DRAM windows, from the target's macros */
+/*
+ * The DRAM windows, from the target's macros, in address order. With TME-Lite
+ * IPC, its carveout sits between DRAM0 and DRAM2; DRAM1 is the second bank.
+ */
 static const struct xpu4_guard ddr_guards[] = {
 	{
 		.start = DRAM0_BASE,
 		.size = DRAM0_SIZE,
 		.mpu_start = DDR_MPU_ADDR_LOW(DRAM0_BASE),
 	},
+#ifdef CFG_QCOM_TMEL_COM
+	{
+		.start = TMEL_COM_IPC_BUF_ADDR,
+		.size = CFG_TMEL_COM_IPCBUF_CARVEOUT_SIZE,
+		.mpu_start = DDR_MPU_ADDR_LOW(TMEL_COM_IPC_BUF_ADDR),
+	},
+#endif
+#ifdef DRAM2_BASE
+	{
+		.start = DRAM2_BASE,
+		.size = DRAM2_SIZE,
+		.mpu_start = DDR_MPU_ADDR_LOW(DRAM2_BASE),
+	},
+#endif
 	{
 		.start = DRAM1_BASE,
 		.size = DRAM1_SIZE,
