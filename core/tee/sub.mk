@@ -29,6 +29,9 @@ ifeq ($(CFG_WITH_USER_TA),y)
 srcs-y += tee_obj.c
 srcs-y += tee_svc.c
 srcs-y += tee_svc_cryp.c
+ifeq ($(CFG_CORE_FUZZ_COVERAGE),y)
+cflags-tee_svc_cryp.c-y += -fsanitize-coverage=trace-pc
+endif
 srcs-y += tee_svc_storage.c
 cppflags-tee_svc.c-y += -DTEE_IMPL_VERSION=$(TEE_IMPL_VERSION)
 srcs-y += tee_time_generic.c

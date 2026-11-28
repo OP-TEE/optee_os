@@ -665,6 +665,10 @@ CFG_CORE_NEX_HEAP_SIZE ?= 16384
 # the TA is linked statically.
 CFG_TA_GPROF_SUPPORT ?= n
 
+# Test-only PC coverage of crypto syscalls for core_fuzz_ta.
+CFG_CORE_FUZZ_COVERAGE ?= n
+$(eval $(call cfg-depends-all,CFG_CORE_FUZZ_COVERAGE,CFG_WITH_USER_TA))
+
 # TA function tracing.
 # When this option is enabled, OP-TEE can execute Trusted Applications
 # instrumented with GCC's -pg flag and will output function tracing
