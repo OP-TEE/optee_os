@@ -28,5 +28,5 @@ On i.MX with the CAAM ECC driver (`CFG_NXP_CAAM_ECC_DRV=y`, which `CFG_CRYPTO_DR
 
 [1] https://datatracker.ietf.org/doc/rfc9334
 [2] https://github.com/veraison/services
-[3] https://datatracker.ietf.org/doc/draft-tschofenig-rats-psa-token
+[3] https://datatracker.ietf.org/doc/rfc9783
 [4] https://www.psacertified.org/app/uploads/2021/12/JSADEN014_PSA_Certified_SM_V1.1_BET0.pdf
