@@ -21,3 +21,5 @@ CFG_QCOM_TLMM ?= y
 
 $(call force,CFG_QCOM_CSRNG,y)
 CFG_WITH_SOFTWARE_PRNG ?= n
+
+CFG_CORE_EL3_SPMC ?= y
