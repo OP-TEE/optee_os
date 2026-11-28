@@ -45,6 +45,24 @@ static_assert(HW_UNIQUE_KEY_LENGTH <= HWKM_MAX_KEY_SIZE);
 	 HWKM_BBAC_BIT(HWKM_SLOT_PERSISTENT_SHARED_SLOT_PAIR2_ODD) | \
 	 HWKM_BBAC_BIT(HWKM_SLOT_TZ_MIXING_KEY_SLOT))
 
+#define HWKM_BANK1_BBAC_0 \
+	(HWKM_BBAC_BIT(HWKM_SLOT_MODEM_PKDK_L2)                 | \
+	 HWKM_BBAC_BIT(HWKM_SLOT_MODEM_SKDK_L2)                 | \
+	 HWKM_BBAC_BIT(HWKM_SLOT_TPKEY_SLOT)                    | \
+	 HWKM_BBAC_BIT(HWKM_SLOT_TPKEY_ODD_SLOT)                | \
+	 HWKM_BBAC_BIT(24)                                      | \
+	 HWKM_BBAC_BIT(25)                                      | \
+	 HWKM_BBAC_BIT(26)                                      | \
+	 HWKM_BBAC_BIT(27)                                      | \
+	 HWKM_BBAC_BIT(28)                                      | \
+	 HWKM_BBAC_BIT(29)                                      | \
+	 HWKM_BBAC_BIT(30)                                      | \
+	 HWKM_BBAC_BIT(31))
+
+#define HWKM_BANK1_BBAC_1 \
+	(HWKM_BBAC_BIT(45)                                      | \
+	 HWKM_BBAC_BIT(46))
+
 static struct hwkm_drv_ctx hwkm_ctx = {
 	.hwkm_lock = MUTEX_INITIALIZER,
 };
@@ -225,6 +243,12 @@ static TEE_Result hwkm_init(void)
 	io_write32_off(base, HWKM_BANK0_AC + HWKM_BANKn_AC_BBAC_2, 0);
 	io_write32_off(base, HWKM_BANK0_AC + HWKM_BANKn_AC_BBAC_3, 0);
 	io_write32_off(base, HWKM_BANK0_AC + HWKM_BANKn_AC_BBAC_4, 0);
+
+	// Allow Modem subsystem to access the HWKM bank1 slots
+	io_write32_off(base, HWKM_BANK1_AC + HWKM_BANKn_AC_BBAC_0,
+		       HWKM_BANK1_BBAC_0);
+	io_write32_off(base, HWKM_BANK1_AC + HWKM_BANKn_AC_BBAC_1,
+		       HWKM_BANK1_BBAC_1);
 
 	/*
 	 * Clear the spurious RSP_FIFO_FULL sticky bit.
