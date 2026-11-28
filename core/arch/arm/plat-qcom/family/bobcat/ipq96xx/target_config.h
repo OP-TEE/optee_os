@@ -8,9 +8,6 @@
 
 #define GENI_UART_REG_BASE		UL(0x1A98000)
 
-#define GICD_BASE			UL(0xF200000)
-#define GICR_BASE			UL(0xF240000)
-
 #define IMEM_BASE			UL(0x8600000)
 #define IMEM_SIZE			UL(0x20000)
 
