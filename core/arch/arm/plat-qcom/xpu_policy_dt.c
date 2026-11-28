@@ -5,9 +5,12 @@
 
 #include <compiler.h>
 #include <config.h>
+#include <drivers/firewall.h>
 #include <drivers/qcom/xpuv4.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
+#include <kernel/spinlock.h>
+#include <kernel/tee_misc.h>
 #include <libfdt.h>
 #include <platform_config.h>
 #include <stdlib.h>
@@ -269,6 +272,74 @@ static TEE_Result protect_regions(const void *fdt, int node)
 	return TEE_SUCCESS;
 }
 
+/* A unit, as a controller of the firewall framework */
+struct xpu_unit {
+	struct firewall_controller ctrl;
+	struct io_pa_va base;
+	const struct xpu4_guard *guards;
+	size_t guard_count;
+};
+
+/* Resource groups are allocated by reading which ones are free */
+static unsigned int xpu_lock = SPINLOCK_UNLOCK;
+
+/*
+ * Protect a range for a user of the firewall framework. Its query gives the
+ * masters that may read and those that may write the range, as QAD vectors.
+ * The range has to be in the memory that the unit guards.
+ */
+static TEE_Result xpu_set_memory_conf(struct firewall_query *fw, paddr_t paddr,
+				      size_t size)
+{
+	const struct xpu_unit *unit = fw->ctrl->priv;
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	uint32_t exceptions = 0;
+	size_t i = 0;
+
+	if (fw->arg_count != 2)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	for (i = 0; i < unit->guard_count; i++) {
+		if (!core_is_buffer_inside(paddr, size, unit->guards[i].start,
+					   unit->guards[i].size))
+			continue;
+
+		exceptions = cpu_spin_lock_xsave(&xpu_lock);
+		res = xpu_protect_region(paddr, size, fw->args[0],
+					 fw->args[1]);
+		cpu_spin_unlock_xrestore(&xpu_lock, exceptions);
+		break;
+	}
+
+	return res;
+}
+
+static const struct firewall_controller_ops xpu_firewall_ops = {
+	.set_memory_conf = xpu_set_memory_conf,
+};
+
+/* Let other drivers protect memory with the unit, through their node */
+static TEE_Result register_firewall(const void *fdt, int node, paddr_t base,
+				    const struct xpu4_guard *guards,
+				    size_t guard_count)
+{
+	struct xpu_unit *unit = NULL;
+
+	unit = calloc(1, sizeof(*unit));
+	if (!unit)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	unit->base.pa = base;
+	unit->guards = guards;
+	unit->guard_count = guard_count;
+	unit->ctrl.ops = &xpu_firewall_ops;
+	unit->ctrl.name = fdt_get_name(fdt, node, NULL);
+	unit->ctrl.base = &unit->base;
+	unit->ctrl.priv = unit;
+
+	return firewall_dt_controller_register(fdt, node, &unit->ctrl);
+}
+
 static TEE_Result xpu_probe(const void *fdt, int node,
 			    const void *compat_data __unused)
 {
@@ -322,7 +393,11 @@ static TEE_Result xpu_probe(const void *fdt, int node,
 	};
 	xpu4_register_instances(xpu_instances, xpu_instance_count);
 
-	return protect_regions(fdt, node);
+	res = protect_regions(fdt, node);
+	if (res)
+		return res;
+
+	return register_firewall(fdt, node, base, guards, guard_count);
 }
 
 static const struct dt_device_match xpu_match_table[] = {

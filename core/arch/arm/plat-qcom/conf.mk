@@ -51,6 +51,11 @@ endif
 -include core/arch/arm/plat-qcom/family/$(QCOM_ARCH_FAMILY)/qcom-arch.mk
 -include core/arch/arm/plat-qcom/family/$(QCOM_ARCH_FAMILY)/$(PLATFORM_FLAVOR)/target.mk
 
+# The XPUs that a target describes in its DT are firewall controllers
+ifeq ($(CFG_QCOM_XPU_PROTECT)-$(CFG_EMBED_DTB),y-y)
+$(call force,CFG_DRIVERS_FIREWALL,y)
+endif
+
 ifeq ($(CFG_QCOM_PAS_AUTH),y)
 # Authentication flow needs larger temporary allocations.
 # Override any family/target defaults when PAS auth is enabled.
