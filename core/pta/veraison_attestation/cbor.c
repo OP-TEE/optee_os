@@ -24,6 +24,10 @@ struct cbor_evidence_args {
 
 struct cose_evidence_args {
 	UsefulBufC ubc_cbor_evidence;
+	const uint8_t *private_key;
+	size_t private_key_len;
+	const uint8_t *public_key_x;
+	const uint8_t *public_key_y;
 };
 
 struct tbs_structure_args {
@@ -190,8 +194,9 @@ static UsefulBufC build_tbs_structure(UsefulBufC protected_header,
 }
 
 static void encode_cose_evidence(QCBOREncodeContext *context,
-				 UsefulBufC ubc_cbor_evidence)
+				 const struct cose_evidence_args *args)
 {
+	UsefulBufC ubc_cbor_evidence = args->ubc_cbor_evidence;
 	UsefulBufC protected_header = { NULL, 0 };
 	UsefulBufC tbs_payload = { NULL, 0 };
 	uint8_t signature[64] = { };
@@ -230,7 +235,9 @@ static void encode_cose_evidence(QCBOREncodeContext *context,
 
 	/* Calculate a signature and add the signature to payload */
 	if (sign_ecdsa_sha256(tbs_payload.ptr, tbs_payload.len, signature,
-			      &signature_len) != TEE_SUCCESS) {
+			      &signature_len, args->private_key,
+			      args->private_key_len, args->public_key_x,
+			      args->public_key_y) != TEE_SUCCESS) {
 		DMSG("Failed to sign payload");
 		mempool_free(mempool_default, (void *)protected_header.ptr);
 		mempool_free(mempool_default, (void *)tbs_payload.ptr);
@@ -267,7 +274,7 @@ static void encode_cose_evidence_wrapper(QCBOREncodeContext *context,
 	struct cose_evidence_args *cose_args =
 		(struct cose_evidence_args *)args;
 
-	encode_cose_evidence(context, cose_args->ubc_cbor_evidence);
+	encode_cose_evidence(context, cose_args);
 }
 
 static UsefulBufC
@@ -293,10 +300,18 @@ build_cbor_evidence(UsefulBufC ubc_eat_profile, int psa_client_id,
 	return build_encoded_buffer(encode_cbor_evidence_wrapper, &args);
 }
 
-static UsefulBufC build_cose_evidence(UsefulBufC ubc_cbor_evidence)
+static UsefulBufC build_cose_evidence(UsefulBufC ubc_cbor_evidence,
+				      const uint8_t *private_key,
+				      size_t private_key_len,
+				      const uint8_t *public_key_x,
+				      const uint8_t *public_key_y)
 {
 	struct cose_evidence_args args = {
 		.ubc_cbor_evidence = ubc_cbor_evidence,
+		.private_key = private_key,
+		.private_key_len = private_key_len,
+		.public_key_x = public_key_x,
+		.public_key_y = public_key_y,
 	};
 
 	return build_encoded_buffer(encode_cose_evidence_wrapper, &args);
@@ -340,7 +355,12 @@ UsefulBufC generate_cbor_evidence(const char *eat_profile,
 				   ubc_measurement_value);
 }
 
-UsefulBufC generate_cose_evidence(UsefulBufC ubc_cbor_evidence)
+UsefulBufC generate_cose_evidence(UsefulBufC ubc_cbor_evidence,
+				  const uint8_t *private_key,
+				  size_t private_key_len,
+				  const uint8_t *public_key_x,
+				  const uint8_t *public_key_y)
 {
-	return build_cose_evidence(ubc_cbor_evidence);
+	return build_cose_evidence(ubc_cbor_evidence, private_key,
+				   private_key_len, public_key_x, public_key_y);
 }
