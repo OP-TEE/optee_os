@@ -4,6 +4,7 @@
  * Kunpeng hardware accelerator pbkdf2 implementation.
  */
 
+#include <stdlib_ext.h>
 #include <tee/tee_cryp_pbkdf2.h>
 #include <tee/tee_cryp_utl.h>
 
@@ -278,12 +279,6 @@ static TEE_Result sec_pbkdf2_set_buf(const uint8_t *password,
 	return TEE_SUCCESS;
 }
 
-static void sec_pbkdf2_clean_buf(struct sec_pbkdf2_msg *msg)
-{
-	memzero_explicit(msg->base_key, msg->key_len);
-	memzero_explicit(msg->salt, msg->salt_len);
-}
-
 static TEE_Result sec_pbkdf2_msg_init(uint32_t hash_id, size_t password_len,
 				      size_t salt_len, size_t derived_key_len,
 				      uint32_t iteration_count,
@@ -336,14 +331,12 @@ TEE_Result tee_cryp_pbkdf2(uint32_t hash_id, const uint8_t *password,
 
 	ret = sec_pbkdf2_do_task(msg);
 	if (ret)
-		goto clean_buf;
+		goto free_msg;
 
 	memcpy(derived_key, msg->out, msg->out_len);
 
-clean_buf:
-	sec_pbkdf2_clean_buf(msg);
 free_msg:
-	free(msg);
+	free_wipe(msg);
 
 	return ret;
 }

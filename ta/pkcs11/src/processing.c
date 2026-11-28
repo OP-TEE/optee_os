@@ -1299,6 +1299,8 @@ enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
 out:
 	release_active_processing(session);
 out_free:
+	if (key_data)
+		TEE_MemFill(key_data, 0, key_sz);
 	TEE_Free(key_data);
 	TEE_Free(proc_params);
 	return rc;

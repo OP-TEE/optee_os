@@ -10,6 +10,7 @@
 #include <drvcrypt_cipher.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee_api_types.h>
 #include <util.h>
 
@@ -65,6 +66,7 @@ static TEE_Result cryp_init(union ip_ctx *ip_ctx, bool is_decrypt,
 			    const uint8_t *iv, size_t iv_len)
 {
 	uint8_t temp_key[DES3_KEY_SIZE] = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!IS_ENABLED(CFG_STM32_CRYP))
 		return TEE_ERROR_NOT_IMPLEMENTED;
@@ -79,8 +81,11 @@ static TEE_Result cryp_init(union ip_ctx *ip_ctx, bool is_decrypt,
 		key = temp_key;
 	}
 
-	return stm32_cryp_init(&ip_ctx->cryp.ctx, is_decrypt, ip_ctx->cryp.algo,
-			       key, key_len, iv, iv_len);
+	res = stm32_cryp_init(&ip_ctx->cryp.ctx, is_decrypt, ip_ctx->cryp.algo,
+			      key, key_len, iv, iv_len);
+	memzero_explicit(temp_key, sizeof(temp_key));
+
+	return res;
 }
 
 static TEE_Result cryp_update(union ip_ctx *ip_ctx, bool last_block,

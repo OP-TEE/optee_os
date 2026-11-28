@@ -8,6 +8,7 @@
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
 #include <malloc.h>
+#include <stdlib_ext.h>
 
 TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *key,
 					   size_t size_bits)
@@ -86,7 +87,7 @@ TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
 			ret = crypto_bignum_bin2bn(secret_buf,
 						   sdata.secret.length, secret);
 
-		free(secret_buf);
+		free_wipe(secret_buf);
 	} else {
 		ret = TEE_ERROR_NOT_IMPLEMENTED;
 	}
