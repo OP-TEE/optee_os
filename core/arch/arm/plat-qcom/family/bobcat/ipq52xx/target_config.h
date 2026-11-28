@@ -8,12 +8,17 @@
 
 #define GENI_UART_REG_BASE		UL(0x1A84000)
 
-/* The LM profile has no DT, so it gives the DRAM here */
+/*
+ * The LM profile has no DT, so it gives the DRAM here, without the BL31 of
+ * TF-A: 0.5 MB at 0x87d00000, right below the memory OP-TEE runs from.
+ */
 #ifdef CFG_QCOM_LM_PROFILE
 #define DRAM0_BASE			UL(0x80000000)
-#define DRAM0_SIZE			UL(0x80000000)
-#define DRAM1_BASE			ULL(0x800000000)
-#define DRAM1_SIZE			UL(0x80000000)
+#define DRAM0_SIZE			UL(0x7d00000)
+#define DRAM1_BASE			UL(0x87d80000)
+#define DRAM1_SIZE			UL(0x78280000)
+#define DRAM2_BASE			ULL(0x800000000)
+#define DRAM2_SIZE			UL(0x80000000)
 #endif
 
 #define GICD_BASE			UL(0xB000000)
@@ -21,7 +26,11 @@
 #define GICD_PIDR2			UL(0xFD8)
 
 #define IMEM_BASE			UL(0x8600000)
+
+/* The LM profile has no DT, so it gives the size of the IMEM here */
+#ifdef CFG_QCOM_LM_PROFILE
 #define IMEM_SIZE			UL(0x18000)
+#endif
 
 #define QCOM_RNG_REG_BASE		UL(0x4C5000)
 

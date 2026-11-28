@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/qcom,xpu4.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm XPU4 memory protection unit
+
+maintainers:
+  - Selvam Sathappan Periakaruppan <selvam.periakaruppan@oss.qualcomm.com>
+
+description:
+  XPU is the name of the Qualcomm access control units, which are memory
+  (MPU), area (APU) and register (RPU) protection units. This binding is for
+  the memory protection units of version 4. Such a unit guards a range of
+  memory, the DRAM or an internal memory of the SoC, with a fixed number of
+  resource groups. A resource group restricts which masters can read and write
+  one region of that memory, so a unit protects as many regions as it has
+  resource groups. A node describes one unit.
+
+properties:
+  compatible:
+    const: qcom,xpu4
+
+  reg:
+    maxItems: 1
+
+  qcom,resource-groups:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      - description: First resource group that OP-TEE may allocate
+      - description: Number of resource groups from there
+        minimum: 1
+    description:
+      The resource groups that OP-TEE may allocate from, given as the first one
+      and their number. The others belong to other owners, such as earlier
+      boot stages.
+
+  qcom,mpu-ranges:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    items:
+      minItems: 3
+      maxItems: 6
+    description:
+      The memory that the unit guards, one entry per range, made of the
+      address that the unit uses for the range, its physical address and its
+      size. They take the address and size cells of the parent node, so an
+      entry has 3 cells when those are one cell and 6 when they are two. A
+      unit programmed with physical addresses uses the physical address of
+      each range; the DDR unit of IPQ5210, for example, has the two DRAM banks
+      back to back from address 0. A region can only be protected inside one
+      range.
+
+  memory-region:
+    minItems: 1
+    maxItems: 2
+    description:
+      Reserved-memory regions that the unit protects at boot.
+
+  memory-region-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      enum:
+        - tzdram
+        - diag
+    description:
+      The role of each region, which tells what access it gets. tzdram is the
+      memory that OP-TEE runs from and diag is the buffer of its DIAG log.
+
+  "#access-controller-cells":
+    const: 2
+    description:
+      The unit is a controller of the OP-TEE firewall framework. The two cells
+      of a consumer give the masters that may read and those that may write the
+      range to protect, as QAD (Qualcomm access domain) vectors.
+
+required:
+  - compatible
+  - reg
+  - qcom,resource-groups
+  - qcom,mpu-ranges
+  - memory-region
+  - memory-region-names
+  - "#access-controller-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        tzdram: optee@87d80000 {
+            reg = <0x87d80000 0x280000>;
+            no-map;
+        };
+    };
+
+    xpu@ac0000 {
+        compatible = "qcom,xpu4";
+        reg = <0xac0000 0x2000>;
+        qcom,resource-groups = <10 6>;
+        qcom,mpu-ranges = <0x0 0x80000000 0x80000000>;
+        memory-region = <&tzdram>;
+        memory-region-names = "tzdram";
+        #access-controller-cells = <2>;
+    };
