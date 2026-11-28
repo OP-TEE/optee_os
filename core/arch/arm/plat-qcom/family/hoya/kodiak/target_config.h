@@ -25,6 +25,7 @@
 #define RAMBLUR_PIMEM_VAULT_TA_SIZE	ULL(0x01c00000)
 
 #define GENI_UART_REG_BASE		UL(0x994000)
+#define QCOM_RNG_REG_BASE		UL(0x010D1000)
 
 /* IMEM and Diagnostic buffer */
 #define IMEM_BASE			UL(0x14680000)

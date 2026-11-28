@@ -1,3 +1,5 @@
+$(call force,CFG_QCOM_RAMBLUR_PIMEM_V3,y)
+
 CFG_TA_RAM_VA_SIZE ?= 0x1c00000
 
 $(call force,CFG_EMBED_DTB,y)

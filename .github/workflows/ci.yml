@@ -251,6 +251,7 @@ jobs:
               _make PLATFORM=qcom-monaco
               _make PLATFORM=qcom-nord
               _make PLATFORM=qcom-shikra
+              _make PLATFORM=qcom-talos
           - name: arm rockchip
             make_commands: |
               _make PLATFORM=rockchip-px30

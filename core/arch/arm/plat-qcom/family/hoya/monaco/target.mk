@@ -1,3 +1,5 @@
+$(call force,CFG_QCOM_RAMBLUR_PIMEM_V3,y)
+
 # Equal to RAMBLUR_PIMEM_VAULT_TA_SIZE: TA RAM is the RAMBLUR TA window
 CFG_TA_RAM_VA_SIZE ?= 0x1a00000
 

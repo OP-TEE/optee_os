@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+
+/ {
+	compatible = "qcom,qcs615-ride", "qcom,qcs615", "qcom,sm6150";
+	model = "Qualcomm Technologies, Inc. QCS615 Ride (IQ-615 Beta EVK)";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x39700000>,
+		      <0x0 0xc0000000 0x1 0xc0000000>;
+	};
+};
