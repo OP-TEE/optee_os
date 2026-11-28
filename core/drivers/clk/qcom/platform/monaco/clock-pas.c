@@ -27,18 +27,8 @@ register_phys_mem(MEM_AREA_IO_NSEC, ROUNDDOWN(TCSR_SPARE_RG63_WO_1,
 #define RET_CFG_ARES	(QDSP6SS_RET_CFG_RET_ARES_ENA_BIT | \
 			 QDSP6SS_RET_CFG_NRET_ARES_ENA_BIT)
 
-/* Lucid-EVO PLL register offsets, relative to the PLL register block base */
-static const struct qcom_pll_offsets lucid_evo_pll_offsets = {
-	.mode = 0x0,
-	.opmode = 0x4,
-	.l_val = 0x10,
-	.alpha_val = 0x14,
-	.user_ctl = 0x18,
-	.user_ctl_u = 0x1c,
-	.config_ctl = 0x20,
-	.config_ctl_u = 0x24,
-	.config_ctl_u1 = 0x28,
-};
+static const struct qcom_pll_offsets lucid_evo_pll_offsets =
+	QCOM_LUCID_EVO_PLL_OFFSETS;
 
 /* The L value is replaced by the one from the NSP soft SKU */
 static const struct qcom_pll_config q6_pll_cfg = {
